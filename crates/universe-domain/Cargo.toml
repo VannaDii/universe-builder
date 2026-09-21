@@ -1,0 +1,18 @@
+[package]
+name = "universe-domain"
+description = "Universe Builder canonical domain model: typed records, values, invariants. No transport, no database."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+rand = { workspace = true }
+thiserror = { workspace = true }
+schemars = { workspace = true }
+
+[dev-dependencies]

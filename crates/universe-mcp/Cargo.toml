@@ -1,0 +1,27 @@
+[package]
+name = "universe-mcp"
+description = "Universe Builder MCP adapter (rmcp, stdio). Adaptation only; no domain logic."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[[bin]]
+name = "universe-mcp"
+path = "src/main.rs"
+
+[dependencies]
+universe-client = { workspace = true }
+universe-protocol = { workspace = true }
+universe-domain = { workspace = true }
+rmcp = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[dev-dependencies]

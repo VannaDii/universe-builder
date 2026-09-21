@@ -1,0 +1,12 @@
+/target
+/Cargo.lock.bak
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+.DS_Store
+/node_modules
+/dist
+/.dioxus
+fixtures/generated
+/docs/evidence
+*.log

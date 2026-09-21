@@ -1,0 +1,21 @@
+[package]
+name = "universe-store"
+description = "Universe Builder SQLite persistence: migrations, immutable versions, commits, projections, blobs."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+universe-domain = { workspace = true }
+universe-schema = { workspace = true }
+rusqlite = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+rand = { workspace = true }
+thiserror = { workspace = true }
+unicode-normalization = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = "=3.20.0"

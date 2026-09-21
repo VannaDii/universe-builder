@@ -1,0 +1,20 @@
+[package]
+name = "universe-ui"
+description = "Universe Builder Dioxus presentation components and domain controls."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+dioxus = { workspace = true }
+dioxus-hooks = { workspace = true }
+dioxus-signals = { workspace = true }
+universe-client = { workspace = true }
+universe-protocol = { workspace = true }
+universe-domain = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]

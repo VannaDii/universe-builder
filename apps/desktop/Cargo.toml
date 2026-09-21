@@ -1,0 +1,25 @@
+[package]
+name = "universe-builder-desktop"
+description = "Universe Builder author desktop application (Dioxus Desktop)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[[bin]]
+name = "universe-builder"
+path = "src/main.rs"
+
+[dependencies]
+dioxus = { workspace = true }
+dioxus-hooks = { workspace = true }
+dioxus-signals = { workspace = true }
+universe-ui = { workspace = true }
+universe-client = { workspace = true }
+universe-protocol = { workspace = true }
+universe-domain = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
