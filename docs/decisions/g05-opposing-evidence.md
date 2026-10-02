@@ -1,12 +1,12 @@
 # G05 decision: opposing evidence
 
-October 2, 2026. **Proposed; pending Vanna's decision.** This is the concrete D01/G05 proposal, not an approved ADR, implementation, or G05 closure claim. Scope: automatic detection of support/refutation overlap and its authored admission policy. No manuscript interpretation, knowledge acquisition, global cardinality, action effects, or new approval authority.
+October 2, 2026. **Recommendation approved by Vanna.** This is the concrete D01/G05 decision package; approval does not establish implementation or G05 closure. Scope: automatic detection of support/refutation overlap and its authored admission policy. No manuscript interpretation, knowledge acquisition, global cardinality, action effects, or new approval authority.
 
-## Decision requested
+## Approved recommendation
 
-Approve or revise this recommendation: always report definite opposing evidence in the submitted candidate, including equivalent propositions with different record IDs. Retain both polarities. Reporting alone is nonblocking; an explicitly authored, versioned consistency rule may block in its declared context/world/time. Preserve exact author approval, protected-definition controls, delegation limits and version-bound exceptions. Unresolved comparison is visible coverage, not a clean result or a contradiction proved by guesswork.
+Vanna approved this recommendation: always report definite opposing evidence in the submitted candidate, including equivalent propositions with different record IDs. Retain both polarities. Reporting alone is nonblocking; an explicitly authored, versioned consistency rule may block in its declared context/world/time. Preserve exact author approval, protected-definition controls, delegation limits and version-bound exceptions. Unresolved comparison is visible coverage, not a clean result or a contradiction proved by guesswork.
 
-The tradeoff is additional findings and occasional partial coverage, plus a small rule-language and result-contract extension. Existing objective inconsistency does not become universally illegal. An author wishing to prohibit it must author the blocking policy. This recommendation needs Vanna's decision before affected implementation.
+The tradeoff is additional findings and occasional partial coverage, plus a small rule-language and result-contract extension. Existing objective inconsistency does not become universally illegal. An author wishing to prohibit it must author the blocking policy. Vanna approved the recommendation on October 2, 2026, after reviewing the decision package committed as `168526e4a7e15572db612b550b4ccc431cbf17e8`.
 
 ## Verified baseline and both mechanisms
 
@@ -77,7 +77,7 @@ Corrections revise/end/supersede active evidence through reviewed existing opera
 
 ## Implementation locations and compatibility
 
-These are implementation targets after a decision, not edits made by this goal.
+These are implementation targets under the approved recommendation, not edits made by the decision-preparation goal.
 
 | Owner | Required delta |
 |---|---|
@@ -103,4 +103,8 @@ The companion fixture table is a frozen design oracle, independently compared wi
 6. Bound work to at most 1,000,000 candidate comparisons and 1,000 diagnostic cells per run initially, aligned with current scalar budgets. Budget exhaustion is explicit incomplete coverage, never clean success or authorization of a blocking rule. Verify a just-below and just-above limit control and indexed/reference agreement. Cancellation and restricted scans remain bounded.
 7. Existing scalar, four-valued Boolean, exception, authority and contract regressions pass without weakened expectations; regenerated schemas reject unknown/duplicate fields and unsupported versions. Proposed results and new authored expressions remain readable only on declared compatible hosts.
 
-Approval of this proposal is the remaining human decision. G05 implementation, host/native qualification and gap closure are future work and are not authorized or completed here.
+## Approval record
+
+On October 2, 2026, Vanna quoted the recommendation and its tradeoff, then stated: “I approve this recommendation.” The approved scope is automatic definite opposing-evidence reporting (including equivalent propositions with different IDs), retention of both polarities, nonblocking reporting with explicitly authored/versioned scoped blocking policy, preserved author authority and version-bound exceptions, and visible unresolved coverage. Existing objective inconsistency does not become universally illegal.
+
+The independent review, fixture corpus and preparation verification retain their historical preapproval wording and frozen judgments. This approval record supersedes their pending-decision status for the recommendation; it does not alter their evidence or claim further verification. Implementation, host/native qualification and gap closure remain future work. This follow-up records approval only.
