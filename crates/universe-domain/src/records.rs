@@ -4,6 +4,7 @@
 //! `world_id` foreign key on records (spec §5.7). World association,
 //! location, origin, and applicability are separate typed relationships.
 
+pub use crate::appearance::*;
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
@@ -40,9 +41,11 @@ use crate::value::{RecordRef, Value, VersionRef};
     Deserialize,
     schemars::JsonSchema,
 )]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum RecordKind {
     Entity,
+    Appearance,
+    ImageAsset,
     World,
     Realm,
     Work,
@@ -65,6 +68,8 @@ pub enum RecordKind {
     Rule,
     Exception,
     Event,
+    ItemPower,
+    ActionDefinition,
     EpistemicAttitude,
     Observation,
     Communication,
@@ -82,6 +87,8 @@ impl RecordKind {
     pub fn as_str(&self) -> &'static str {
         match self {
             RecordKind::Entity => "entity",
+            RecordKind::Appearance => "appearance",
+            RecordKind::ImageAsset => "image_asset",
             RecordKind::World => "world",
             RecordKind::Realm => "realm",
             RecordKind::Work => "work",
@@ -104,6 +111,8 @@ impl RecordKind {
             RecordKind::Rule => "rule",
             RecordKind::Exception => "exception",
             RecordKind::Event => "event",
+            RecordKind::ItemPower => "item_power",
+            RecordKind::ActionDefinition => "action_definition",
             RecordKind::EpistemicAttitude => "epistemic_attitude",
             RecordKind::Observation => "observation",
             RecordKind::Communication => "communication",
@@ -125,6 +134,8 @@ impl RecordKind {
     pub fn parse(s: &str) -> DomainResult<Self> {
         Ok(match s {
             "entity" => Self::Entity,
+            "appearance" => Self::Appearance,
+            "image_asset" => Self::ImageAsset,
             "world" => Self::World,
             "realm" => Self::Realm,
             "work" => Self::Work,
@@ -147,6 +158,8 @@ impl RecordKind {
             "rule" => Self::Rule,
             "exception" => Self::Exception,
             "event" => Self::Event,
+            "item_power" => Self::ItemPower,
+            "action_definition" => Self::ActionDefinition,
             "epistemic_attitude" => Self::EpistemicAttitude,
             "observation" => Self::Observation,
             "communication" => Self::Communication,
@@ -170,6 +183,8 @@ impl RecordKind {
     pub const fn all() -> &'static [RecordKind] {
         &[
             RecordKind::Entity,
+            RecordKind::Appearance,
+            RecordKind::ImageAsset,
             RecordKind::World,
             RecordKind::Realm,
             RecordKind::Work,
@@ -192,6 +207,8 @@ impl RecordKind {
             RecordKind::Rule,
             RecordKind::Exception,
             RecordKind::Event,
+            RecordKind::ItemPower,
+            RecordKind::ActionDefinition,
             RecordKind::EpistemicAttitude,
             RecordKind::Observation,
             RecordKind::Communication,
@@ -296,7 +313,7 @@ impl RecordVersion {
 /// authored setting type. Realms and planets do not automatically become
 /// identical records.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct World {
     /// Administrative selector label: the author-facing name (exact display
     /// spelling preserved; §36.2).
@@ -316,7 +333,7 @@ pub struct World {
 
 /// A realm: an authored physical/metaphysical domain (spec §36.1).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Realm {
     pub labels: BTreeMap<String, String>,
     pub metadata: BTreeMap<String, Value>,
@@ -329,7 +346,7 @@ pub struct Realm {
 /// An entity type. Multiple types are permitted; inheritance cycles for
 /// executable subtype traversal are rejected at compile time.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct EntityType {
     /// Reserved ("starter:...") or author namespace.
     pub namespace: String,
@@ -344,7 +361,7 @@ pub struct EntityType {
 
 /// The typed shape of a property value (spec §27.2).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields, tag = "kind", rename_all = "snake_case")]
 pub enum ValueShape {
     Text,
     Boolean,
@@ -437,7 +454,7 @@ impl Canonical for ValueShape {
 /// Inverse, symmetric, transitive, or exclusive behavior is opt-in; no
 /// implicit behavior from the display label.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct PropertyDef {
     pub namespace: String,
     pub key: String,
@@ -458,7 +475,7 @@ pub struct PropertyDef {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum Multiplicity {
     Single,
     Multiple,
@@ -476,7 +493,7 @@ impl Canonical for Multiplicity {
 /// A named role in a relation (spec §27.2): supports more than two roles
 /// and more than one participant per role where declared.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct RoleDef {
     pub name: String,
     #[serde(default)]
@@ -487,7 +504,7 @@ pub struct RoleDef {
 
 /// A relation definition: n-ary participant assignments (spec §5.1).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct RelationDef {
     pub namespace: String,
     pub key: String,
@@ -498,7 +515,7 @@ pub struct RelationDef {
 /// A unit definition (spec §27.2): conversion must be defined and
 /// compatible; unknown exchange rates remain unresolved.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct UnitDef {
     pub namespace: String,
     pub key: String,
@@ -517,7 +534,7 @@ pub struct UnitDef {
 /// A label-only calendar is storable but cannot support invented
 /// arithmetic (S30): `conversions` empty → unsupported capability.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct CalendarDef {
     pub namespace: String,
     pub key: String,
@@ -533,7 +550,7 @@ pub struct CalendarDef {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct CalendarConversion {
     pub target: CalendarId,
     /// Authored conversion expression; empty/unsupported → `unsupported`
@@ -545,7 +562,7 @@ pub struct CalendarConversion {
 /// A structured value definition (spec §27.2): no executable field
 /// expressions, arbitrary SQL, or unbounded recursive schemas.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct ValueDef {
     pub namespace: String,
     pub key: String,
@@ -554,7 +571,7 @@ pub struct ValueDef {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct ValueDefField {
     pub name: String,
     pub shape: ValueShape,
@@ -566,7 +583,7 @@ pub struct ValueDefField {
 
 /// A domain pack: data, not code (spec §16, §27.2).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct DomainPack {
     pub key: String,
     pub version: String,
@@ -586,7 +603,7 @@ pub struct DomainPack {
 
 /// Quantification over a proposition (spec §27.3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum Quantification {
     /// "The gate is in the ruins" — a particular claim.
     Particular,
@@ -611,7 +628,7 @@ impl Canonical for Quantification {
 /// A proposition describes something that *may be* asserted; its existence
 /// does not assert its truth.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Proposition {
     /// A property or relation definition record.
     pub predicate: RecordRef,
@@ -630,7 +647,7 @@ pub struct Proposition {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct PropositionRole {
     pub role: String,
     pub participant: RecordRef,
@@ -649,7 +666,7 @@ impl std::hash::Hash for Proposition {
 /// Approval of the assertion does not erase its context, evidence
 /// limitations, or opposing assertions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Assertion {
     pub proposition: RecordRef,
     pub polarity: Polarity,
@@ -678,7 +695,7 @@ impl std::hash::Hash for Assertion {
 /// The linkage from an event effect slot to the assertion it established
 /// (spec §27.5).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct EventEffectRef {
     pub event: RecordRef,
     pub slot: String,
@@ -687,7 +704,7 @@ pub struct EventEffectRef {
 /// A represented context (spec §27.3): a dream, myth, quotation, or
 /// embedded story is not automatically objective reality.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields, tag = "kind", rename_all = "snake_case")]
 pub enum RepresentedContextKind {
     /// The objective reality of this universe.
     Objective,
@@ -702,13 +719,15 @@ pub enum RepresentedContextKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct RepresentedContext {
     pub universe: UniverseId,
     pub kind: RepresentedContextKind,
     /// Parent context for nested contexts.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<RecordRef>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chronology: Option<crate::chronology::Chronology>,
     pub labels: BTreeMap<String, String>,
 }
 
@@ -719,7 +738,7 @@ pub struct RepresentedContext {
 /// cover an entire building. Completeness for an observer's known set is
 /// not completeness for objective reality.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct CompletenessDecl {
     pub subject: RecordRef,
     /// The collection predicate whose membership is declared.
@@ -733,7 +752,7 @@ pub struct CompletenessDecl {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum CompletenessKind {
     ObjectiveReality,
     ObserverKnown { observer: EntityIdAlias },
@@ -762,7 +781,7 @@ impl Canonical for CompletenessKind {
 ///
 /// Severity, commit-blocking policy, and semantic type are distinct.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum RuleKind {
     /// Invalid record shape: always blocks commit; no author waiver.
     StructuralInvariant,
@@ -800,7 +819,7 @@ impl RuleKind {
 
 /// How a rule's finding affects a commit (spec §9.3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum CommitPolicy {
     /// Always blocks (structural integrity; no author waiver).
     AlwaysBlock,
@@ -846,7 +865,7 @@ impl Canonical for CommitPolicy {
 
 /// A typed, declarative rule (spec §9.3, §27.2).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Rule {
     pub namespace: String,
     pub key: String,
@@ -882,7 +901,7 @@ impl std::hash::Hash for Rule {
 
 /// Supported creative boundary modes (spec §8.4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum BoundaryMode {
     /// The area is fixed: new material is not allowed.
     Fixed,
@@ -902,7 +921,7 @@ pub enum BoundaryMode {
 
 /// An authorial creative boundary over a named area (spec §8.4).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct CreativeBoundary {
     pub key: String,
     /// The area: a record or a predicate/subject pattern.
@@ -916,7 +935,7 @@ pub struct CreativeBoundary {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields, tag = "kind", rename_all = "snake_case")]
 pub enum BoundaryArea {
     Record(RecordRef),
     Predicate {
@@ -931,9 +950,11 @@ pub enum BoundaryArea {
 
 /// A scoped exception to a rule (spec §9.3, §31.3).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Exception {
     pub rule: RecordRef,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rule_version: Option<RecordVersionId>,
     /// The exact affected scope of the exception.
     pub scope: Scope,
     pub validity: Validity,
@@ -946,13 +967,49 @@ pub struct Exception {
 // Events
 // ---------------------------------------------------------------------------
 
+/// Explicit dependency: holding this item grants a value while both the
+/// possession evidence and this definition apply. It never changes identity.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct ItemPower {
+    pub item: RecordRef,
+    pub holder_predicate: RecordRef,
+    pub power_predicate: RecordRef,
+    pub value: Value,
+    pub scope: Scope,
+    pub validity: Validity,
+}
+
+/// An action's mandatory attribute, resolved on the entity filling this role.
+/// This cannot be replaced by an event's optional prerequisite or another owner.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AttributeRequirement {
+    pub role: String,
+    pub predicate: RecordRef,
+    pub value: Value,
+}
+
+/// Author-controlled action vocabulary, including ordinary actions with no
+/// special requirements. Display labels never create executable requirements.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct ActionDefinition {
+    pub namespace: String,
+    pub key: String,
+    pub labels: BTreeMap<String, String>,
+    pub requirements: Vec<AttributeRequirement>,
+    pub scope: Scope,
+    pub validity: Validity,
+}
+
 /// Event occurrence modes (spec §27.5).
 ///
 /// Only an admitted `occurred` event establishes objective state effects
 /// by default. A report establishes a report, not the reported
 /// occurrence.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum OccurrenceMode {
     Occurred,
     Planned,
@@ -983,7 +1040,7 @@ impl Canonical for OccurrenceMode {
 
 /// An event participant with a named role (spec §7.3).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct EventParticipant {
     pub record: RecordRef,
     pub role: String,
@@ -995,7 +1052,7 @@ pub struct EventParticipant {
 /// The effect's assertion operations — not a second mutable state object —
 /// are the canonical state representation.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct EntityEffect {
     /// Explicit effect slot id; the generated assertion records it.
     pub slot: String,
@@ -1022,9 +1079,17 @@ impl std::hash::Hash for EntityEffect {
 /// A plan or hypothetical is not an actual occurrence, even when its
 /// existence as a plan is canon (S32).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Event {
     pub occurrence: OccurrenceMode,
+    /// Mandatory on new/revised events. Optional only to decode historical
+    /// events without rewriting immutable sources or their payload digests.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub action: Option<RecordRef>,
+    #[serde(default)]
+    pub worlds: Vec<WorldId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub region: Option<RecordRef>,
     pub time: TemporalExpression,
     /// Explicit within-event sequencing for ordered effects/phases.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1062,7 +1127,7 @@ impl std::hash::Hash for Event {
 /// `remembers`, and authored knowledge stay distinct. Do not silently
 /// promote a belief.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum EpistemicAttitudeKind {
     Believes,
     Suspects,
@@ -1084,7 +1149,7 @@ impl Canonical for EpistemicAttitudeKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct EpistemicAttitude {
     pub holder: RecordRef,
     pub proposition: RecordRef,
@@ -1097,7 +1162,7 @@ pub struct EpistemicAttitude {
 /// An observation: presence alone does not establish perception or
 /// understanding (spec §27.6).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Observation {
     pub observer: RecordRef,
     pub observed: RecordRef,
@@ -1112,7 +1177,7 @@ pub struct Observation {
 /// A communication: knowledge changes need receipt and the declared
 /// acquisition/interpretation basis (spec §27.6).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Communication {
     pub sender: RecordRef,
     pub intended_recipients: Vec<RecordRef>,
@@ -1127,7 +1192,7 @@ pub struct Communication {
 /// A memory: remembered content can be false, incomplete, or detached
 /// from objective events (spec §27.6).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Memory {
     pub holder: RecordRef,
     pub content: RecordRef,
@@ -1141,7 +1206,7 @@ pub struct Memory {
 ///
 /// Fictional secrecy and application access grants remain separate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Secret {
     pub scope: Vec<RecordRef>,
     pub fictional_knowers: Vec<RecordRef>,
@@ -1153,7 +1218,7 @@ pub struct Secret {
 /// A goal/plan: an approved plan does not execute itself or reserve
 /// resources automatically (spec §27.6).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Goal {
     pub actor: RecordRef,
     pub desired: Option<RecordRef>,
@@ -1164,7 +1229,7 @@ pub struct Goal {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum PlanStatus {
     Active,
     Abandoned,
@@ -1184,7 +1249,7 @@ impl Canonical for PlanStatus {
 /// A commitment: violations are permitted occurrences; prescribed
 /// consequences happen only when established (spec §27.6).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Commitment {
     pub parties: Vec<CommitmentParty>,
     pub obligated: RecordRef,
@@ -1194,14 +1259,14 @@ pub struct Commitment {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct CommitmentParty {
     pub record: RecordRef,
     pub role: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum CommitmentStatus {
     Unfulfilled,
     Fulfilled,
@@ -1226,7 +1291,7 @@ impl Canonical for CommitmentStatus {
 
 /// A source identity (spec §27.7).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Source {
     pub label: String,
     /// External identifier (an identifier, not a fetch — spec §13.1).
@@ -1239,7 +1304,7 @@ pub struct Source {
 /// Origin metadata for a source or source version (spec §14.1).
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(default)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct OriginMetadata {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub externally_asserted_author: Option<String>,
@@ -1249,7 +1314,7 @@ pub struct OriginMetadata {
 
 /// An immutable source version (spec §14.1, §27.7).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct SourceVersion {
     pub source: RecordRef,
     /// SHA-256 of the blob content.
@@ -1267,7 +1332,7 @@ pub struct SourceVersion {
 /// canonical text offsets are UTF-8 byte offsets in this named
 /// representation.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct DecodingDescriptor {
     pub encoding: String,
     /// The canonical decoded-text representation name.
@@ -1279,7 +1344,7 @@ pub struct DecodingDescriptor {
 ///
 /// Byte boundaries must align to decoded character boundaries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Anchor {
     pub source_version: VersionRef,
     pub locator: AnchorLocator,
@@ -1292,7 +1357,7 @@ pub struct Anchor {
 
 /// A precise structural locator (spec §27.7).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields, tag = "kind", rename_all = "snake_case")]
 pub enum AnchorLocator {
     /// UTF-8 byte offsets in the declared decoded-text representation.
     ByteRange { start: u64, end: u64 },
@@ -1330,7 +1395,7 @@ impl Canonical for AnchorLocator {
 /// Narrative work kinds (spec §5.6): a work is universe-owned metadata,
 /// never a manuscript store.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum WorkKind {
     Novel,
     Story,
@@ -1360,7 +1425,7 @@ impl Canonical for WorkKind {
 /// A work can span several worlds; world associations are zero-to-many and
 /// do not establish occurrences, travel, knowledge, or location.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Work {
     pub kind: WorkKind,
     pub title: String,
@@ -1378,7 +1443,7 @@ pub struct Work {
 /// Being included in a saga does not select an alternate continuity or
 /// give that work a private head.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct WorkVersion {
     pub work: RecordRef,
     pub version_label: String,
@@ -1388,7 +1453,7 @@ pub struct WorkVersion {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields, tag = "kind", rename_all = "snake_case")]
 pub enum WorkBinding {
     /// Bound to an explicit continuity/revision.
     Bound {
@@ -1403,7 +1468,7 @@ pub enum WorkBinding {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct WorkSegment {
     pub segment: String,
     pub continuity: ContinuityId,
@@ -1413,10 +1478,13 @@ pub struct WorkSegment {
 /// A scene reference: reader order, narration time, depicted event time,
 /// and local world time stay separate (spec §36.7).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct SceneRef {
     pub work_version: VersionRef,
     pub scene_id: String,
+    /// Explicit reader disclosures; depicted events alone do not establish knowledge.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub disclosed_records: Vec<RecordRef>,
     pub viewpoint: Option<RecordRef>,
     pub narrative_position: Option<u64>,
     pub depicted_events: Vec<RecordRef>,
@@ -1426,7 +1494,7 @@ pub struct SceneRef {
 
 /// A passage reference with a source locator.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct PassageRef {
     pub work_version: VersionRef,
     pub passage_id: String,
@@ -1436,7 +1504,7 @@ pub struct PassageRef {
 /// A saga/series: typed membership and ordering, non-exclusive (spec §5.6,
 /// §36.7).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Saga {
     pub title: String,
     pub labels: BTreeMap<String, String>,
@@ -1444,7 +1512,7 @@ pub struct Saga {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct SagaMembership {
     pub work: RecordRef,
     pub role: String,
@@ -1456,7 +1524,7 @@ pub struct SagaMembership {
 /// changing associations and changing physical location are separate
 /// operations.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct WorldAssociation {
     pub world: WorldId,
     /// The role of the association ("setting", "visit", "origin", ...).
@@ -1481,7 +1549,7 @@ impl std::hash::Hash for WorldAssociation {
 /// form is maintained by the service (normalization helps search, not
 /// identity).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct ContextualName {
     pub text: String,
     pub language: Option<String>,
@@ -1492,7 +1560,7 @@ pub struct ContextualName {
 
 /// A canonical entity (spec §5.1, §5.7).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Entity {
     pub names: Vec<ContextualName>,
     /// Type membership (multiple types permitted).
@@ -1512,7 +1580,7 @@ pub struct Entity {
 /// A resolution names the particular finding fingerprint and scope; it
 /// must not suppress a materially different future problem.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct IssueDecision {
     pub fingerprints: Vec<crate::ids::FindingFingerprint>,
     pub mode: IssueDecisionMode,
@@ -1522,7 +1590,7 @@ pub struct IssueDecision {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum IssueDecisionMode {
     /// Explicitly accept a scoped unresolved issue/inconsistency (I20).
     Accept,
@@ -1553,13 +1621,15 @@ impl Canonical for IssueDecisionMode {
 /// represented context), so a `kind` discriminator would collide with a
 /// payload field in the canonical object (duplicate key — spec §27.8).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(tag = "record_kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields, tag = "record_kind", rename_all = "snake_case")]
 // Closed tagged union: the largest variant (Rule) is not boxable without
 // re-firing this lint for the next-largest (Assertion), and canonical bytes
 // — not the in-memory representation — are the storage/identity form.
 #[allow(clippy::large_enum_variant)]
 pub enum Payload {
     Entity(Entity),
+    Appearance(Appearance),
+    ImageAsset(ImageAsset),
     World(World),
     Realm(Realm),
     Work(Work),
@@ -1582,6 +1652,8 @@ pub enum Payload {
     Rule(Rule),
     Exception(Exception),
     Event(Event),
+    ItemPower(ItemPower),
+    ActionDefinition(ActionDefinition),
     EpistemicAttitude(EpistemicAttitude),
     Observation(Observation),
     Communication(Communication),
@@ -1599,6 +1671,8 @@ impl Payload {
     pub fn kind(&self) -> RecordKind {
         match self {
             Payload::Entity(_) => RecordKind::Entity,
+            Payload::Appearance(_) => RecordKind::Appearance,
+            Payload::ImageAsset(_) => RecordKind::ImageAsset,
             Payload::World(_) => RecordKind::World,
             Payload::Realm(_) => RecordKind::Realm,
             Payload::Work(_) => RecordKind::Work,
@@ -1621,6 +1695,8 @@ impl Payload {
             Payload::Rule(_) => RecordKind::Rule,
             Payload::Exception(_) => RecordKind::Exception,
             Payload::Event(_) => RecordKind::Event,
+            Payload::ItemPower(_) => RecordKind::ItemPower,
+            Payload::ActionDefinition(_) => RecordKind::ActionDefinition,
             Payload::EpistemicAttitude(_) => RecordKind::EpistemicAttitude,
             Payload::Observation(_) => RecordKind::Observation,
             Payload::Communication(_) => RecordKind::Communication,
@@ -1706,6 +1782,8 @@ macro_rules! canonical_via_serde {
 }
 
 canonical_via_serde!(
+    Appearance,
+    ImageAsset,
     World,
     Realm,
     EntityType,
@@ -1730,6 +1808,8 @@ canonical_via_serde!(
     Event,
     EventParticipant,
     EntityEffect,
+    ActionDefinition,
+    AttributeRequirement,
     EpistemicAttitude,
     Observation,
     Communication,
@@ -1764,8 +1844,28 @@ canonical_via_serde!(
 /// (spec §27.9). Each operation carries a closed typed payload and, for
 /// replacement, the exact expected prior version.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields, tag = "kind", rename_all = "snake_case")]
 pub enum DomainOperation {
+    CreateAppearance {
+        client_ref: String,
+        record: Appearance,
+    },
+    ReviseAppearance {
+        record: RecordRef,
+        expected_version: RecordVersionId,
+        replacement: Appearance,
+    },
+    AddImageAsset {
+        client_ref: String,
+        record: ImageAsset,
+    },
+    SetStoryTime {
+        record: RecordRef,
+        expected_version: RecordVersionId,
+        value: String,
+        mode: crate::chronology::TimeChangeKind,
+        reason: String,
+    },
     // Identity
     CreateEntity {
         client_ref: String,
@@ -1846,6 +1946,19 @@ pub enum DomainOperation {
         record: RecordRef,
         expected_version: RecordVersionId,
         rationale: String,
+    },
+    // A proposition may be mentioned by an event without asserting it.
+    DefineProposition {
+        client_ref: String,
+        record: Proposition,
+    },
+    DefineItemPower {
+        client_ref: String,
+        record: ItemPower,
+    },
+    DefineAction {
+        client_ref: String,
+        record: ActionDefinition,
     },
     // Events
     RecordEvent {
@@ -1939,6 +2052,11 @@ pub enum DomainOperation {
         client_ref: String,
         record: IssueDecision,
     },
+    /// Adopt an existing immutable historical version through exact review.
+    AdoptRecordVersion {
+        source: Box<RecordVersion>,
+        expected_version: Option<RecordVersionId>,
+    },
     // Privileged
     TombstoneRecord {
         record: RecordRef,
@@ -1956,6 +2074,11 @@ pub enum DomainOperation {
         client_ref: String,
         record: DomainPack,
     },
+    ReviseDefinition {
+        record: RecordRef,
+        expected_version: RecordVersionId,
+        replacement: Box<Payload>,
+    },
     UpgradePack {
         record: RecordRef,
         expected_version: RecordVersionId,
@@ -1970,10 +2093,14 @@ impl DomainOperation {
         use DomainOperation::*;
         match self {
             CreateEntity { .. }
+            | CreateAppearance { .. }
+            | ReviseAppearance { .. }
+            | AddImageAsset { .. }
             | AddName { .. }
             | AddTypeMembership { .. }
             | AssertProposition { .. }
             | RecordRelation { .. }
+            | DefineProposition { .. }
             | RecordEvent { .. }
             | ReviseEvent { .. }
             | AddBelief { .. }
@@ -1993,10 +2120,13 @@ impl DomainOperation {
             | SetWorkBinding { .. }
             | AssociateWorkWorld { .. }
             | SetSagaMembership { .. } => OperationAuthority::Ordinary,
-            EndAssertionAt { .. } | SupersedeAssertion { .. } | RetractAssertion { .. } => {
-                OperationAuthority::Historical
-            }
-            DefineType { .. }
+            SetStoryTime { .. }
+            | EndAssertionAt { .. }
+            | SupersedeAssertion { .. }
+            | RetractAssertion { .. } => OperationAuthority::Historical,
+            DefineItemPower { .. }
+            | DefineAction { .. }
+            | DefineType { .. }
             | DefineProperty { .. }
             | DefineRelation { .. }
             | DefineUnit { .. }
@@ -2007,8 +2137,11 @@ impl DomainOperation {
             | SetCreativeBoundary { .. }
             | AddException { .. }
             | InstallPack { .. }
-            | UpgradePack { .. } => OperationAuthority::Definition,
-            TombstoneRecord { .. } | MergeEntities { .. } => OperationAuthority::Privileged,
+            | UpgradePack { .. }
+            | ReviseDefinition { .. } => OperationAuthority::Definition,
+            AdoptRecordVersion { .. } | TombstoneRecord { .. } | MergeEntities { .. } => {
+                OperationAuthority::Privileged
+            }
         }
     }
 }
@@ -2018,7 +2151,7 @@ impl DomainOperation {
 /// Grant evaluation follows *actual* effects and referenced definitions,
 /// not a supplied friendly label (E11).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum OperationAuthority {
     /// Ordinary detail creation (still content- and scope-checked).
     Ordinary,
@@ -2162,8 +2295,15 @@ mod tests {
 
     #[test]
     fn all_kind_strings_round_trip() {
-        for k in RecordKind::all() {
+        let schema = serde_json::to_value(schemars::schema_for!(RecordKind)).unwrap();
+        let declared = schema["enum"].as_array().unwrap();
+        let kinds = RecordKind::all();
+        assert_eq!(kinds.len(), declared.len());
+        let unique: std::collections::BTreeSet<_> = kinds.iter().collect();
+        assert_eq!(unique.len(), declared.len());
+        for k in kinds {
             assert_eq!(RecordKind::parse(k.as_str()).unwrap(), *k);
+            assert!(declared.contains(&serde_json::json!(k.as_str())));
         }
     }
 
@@ -2261,6 +2401,7 @@ mod tests {
                 universe: univ(),
                 kind: RepresentedContextKind::Objective,
                 parent: None,
+                chronology: None,
                 labels: BTreeMap::new(),
             }),
         ];

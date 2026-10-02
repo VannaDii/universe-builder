@@ -1,0 +1,26 @@
+{
+  "fixture_version": 1,
+  "universe": "The Ashen Cycle",
+  "worlds": ["Aster", "Nacre"],
+  "independent_universe": {"name": "The Glass Archive", "worlds": ["Aster"]},
+  "authored_premises": [
+    "The silver gate requires its charged seal for the established opening method.",
+    "Mara has exclusive, continuous custody of the one seal through Event 16 unless explicitly revised.",
+    "Iven lacks knowledge of the exact gate location before Event 18.",
+    "A claim spoken by Iven is an account, not an objective assertion.",
+    "The entrance set is open unless the scenario explicitly declares it exhaustive.",
+    "A shared character and a narrative work can be associated with Aster and Nacre without duplicating identity."
+  ],
+  "scenarios": [
+    {"id":"S01","candidate":"Iven opens the gate alone with the seal at Event 16","semantic_target":"conflict","current_evaluation":"unsupported"},
+    {"id":"S02","candidate":"Iven says he has the seal","semantic_target":"no automatic custody conflict","current_evaluation":"unsupported"},
+    {"id":"S03","candidate":"An objective assertion says Iven knows the exact location before Event 18","semantic_target":"conflict","current_evaluation":"unsupported"},
+    {"id":"S04","candidate":"Iven arrives accidentally before Event 18","semantic_target":"no knowledge conflict solely from arrival","current_evaluation":"unsupported"},
+    {"id":"S05","candidate":"Add a side entrance to an open entrance set","semantic_target":"definition requiring boundary review","current_evaluation":"unsupported"},
+    {"id":"S06","candidate":"Add a side entrance to an explicitly exhaustive fixed set","semantic_target":"conflict","current_evaluation":"unsupported"},
+    {"id":"S07","candidate":"Approve an off-page transfer before opening","semantic_target":"evaluate explicit event and state against all definitions","current_evaluation":"unsupported"},
+    {"id":"S08","candidate":"Transfer while Mara's continuous possession remains fixed","semantic_target":"conflict","current_evaluation":"unsupported"},
+    {"id":"S09","candidate":"New opening method applies only after Event 21","semantic_target":"earlier opening remains conflicting","current_evaluation":"unsupported"},
+    {"id":"S10","candidate":"Retrospective narrator describes the gate in the Event 16 passage","semantic_target":"use narrator and narration-time scope","current_evaluation":"unsupported"}
+  ]
+}

@@ -10,3 +10,6 @@
 fixtures/generated
 /docs/evidence
 *.log
+
+__pycache__/
+*.pyc

@@ -1,6 +1,6 @@
 [package]
 name = "universe-schema"
-description = "Universe Builder closed payload schemas, validation, and canonical digests."
+description = "Universe Builder definition registry, schema validation, and contract generation."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,6 +11,4 @@ universe-domain = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-unicode-normalization = { workspace = true }
-
-[dev-dependencies]
+schemars = { workspace = true }

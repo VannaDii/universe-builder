@@ -1,98 +1,145 @@
 # Universe Builder — Implementation Status
 
-Source of truth: `Universe_Builder_Full_Implementation_Plan_v0.4.md`
-(spec commit `c287a1b`). Decisions: `docs/adr/`. This file is updated at
-every committed increment and never lags the tree.
+Updated 2026-09-24 against the working tree. Design source: [v0.4 implementation plan](Universe_Builder_Full_Implementation_Plan_v0.4.md).
 
-## Overall state
+## Delivery boundary
 
-**In progress — WP02 (pure domain model).** The `universe-domain` crate is
-implemented and verified. All other crates are honest, compiling
-placeholders. Nothing here is a demonstration being reported as finished.
+Milestones **1–8 have an implementation candidate for facilitated final testing**. This is the bounded feature set described below, with executable/partial/descriptive/unsupported capabilities reported explicitly. It is not a declaration that every v0.4 acceptance scenario or provisional performance target has passed.
 
-## Crate status
+Current native interaction/VoiceOver verification remains paused by the user. LM Studio remains blocked while Bionic stays open. Clean-machine/offline, hosted CI, supported-OS and distribution verification remain pending. The sealed development bundle declares `release_accepted: false`.
 
-| Crate | Status | Spec area |
-|---|---|---|
-| `universe-domain` | **Implemented.** 10 modules; 35 tests passing; `fmt` + `clippy --all-targets` clean. | WP02.1, WP02.2, and the WP02.3 canonical-serializer core |
-| `universe-schema` | Placeholder | WP02.3 (definition registry, closed payload schemas, schema recursion checks) |
-| `universe-rules` | Placeholder | WP08 (rule compiler/evaluation) |
-| `universe-protocol` | Placeholder | WP03.1 |
-| `universe-client` | Placeholder | WP03.2–03.5 |
-| `universe-store` | Placeholder | WP05 |
-| `universe-service` | Placeholder | WP07 |
-| `universe-engine` | Placeholder | WP06 |
-| `universe-mcp` | Placeholder | WP04 |
-| `universe-cli` | Placeholder | WP10 (maintenance/import/export) |
-| `universe-ui` | Placeholder | WP11 |
-| `apps/desktop` | Placeholder | WP01.3 / WP11 |
-| `xtask` | Minimal (`help` only) | §33.17 automation entry point |
+## Implemented scope
 
-## What `universe-domain` contains
-
-- Newtyped IDs for all §27.1 families; definition families (`cal_`, `unit_`,
-  `vdef_`, `prop_`, `rule_`, `exc_`, `anch_`) with body-preserving
-  `RecordId` remapping (ADR-0001).
-- Exact values, precision alternatives, temporal/spatial expressions,
-  scopes, validity/persistence, represented contexts, frames, and the full
-  closed `Payload` set with the `record_kind` discriminator (ADR-0003).
-- One versioned canonical serializer: strict parser, sorted keys, raw UTF-8,
-  exact numeric tokens, set normalization, SHA-256 digests with schema
-  discriminator, length-prefixed `Hash` (ADR-0003).
-- The `rule-expr-v1` expression AST (in-domain per ADR-0001) with structural
-  validation.
-- Capability identifiers and `SCHEMA_VERSION` / `CONTRACT_VERSION`.
-
-## WP01 status (honest accounting)
-
-- **WP01.1:** the three *consequential* ADRs are written (topology, stack,
-  canonical). The remaining WP01.1 topics (shared engine, authorization,
-  immutable canon, MCP, time/uncertainty, SQLite, source ownership) will get
-  ADRs at the point each owning work package lands, so each ADR cites a
-  verified implementation rather than a plan.
-- **WP01.2 / WP01.5 (silver-gate and two-universe/multi-world fixtures):**
-  not yet written. Planned as `fixtures/` after the core crate chain lands
-  (domain → schema → rules → protocol → client → store → service → engine →
-  mcp → cli).
-- **WP01.3 (native Dioxus feasibility fixture):** not yet run; desktop is a
-  placeholder.
-- **WP01.4:** done — exact `=` pins, committed `Cargo.lock`,
-  `rust-toolchain.toml` (1.92.0).
-- Deviation from §26/§33.16 ordering (WP01–WP04 + fixtures first): we are
-  landing WP02's remaining pieces (`universe-schema`) before WP03/WP04 and
-  before the silver-gate fixtures, because the domain model is the substrate
-  every later crate and fixture consumes. The fixture contracts themselves
-  are unaffected; they will be written against the same §36/V-cases text.
-
-## Verification
-
-Current tree (this commit): `cargo fmt --check`, `cargo clippy --workspace
---all-targets` (zero warnings), `cargo check --workspace`, and
-`cargo test -p universe-domain` (35/35) all pass.
-
-## Environment note (developers)
-
-This machine has no accepted Xcode.app license. Use
-`export DEVELOPER_DIR=/Library/Developer/CommandLineTools` before cargo
-commands, or run `sudo xcodebuild -license` once.
-
-## Next increment (planned, dependency order per §33.16)
-
-1. `universe-schema` — WP02.3: definition registry, closed payload schema
-   validation (duplicate keys, unknown enums, schema recursion, silent
-   coercion tests), digest wiring. Closes WP02.
-2. `universe-rules` — WP08.1/08.3 structural compiler over the domain AST.
-3. `universe-protocol` + `universe-client` — WP03.
-4. `universe-store` — WP05 (SQLite 3.51.3 bundled, §28 DDL).
-5. `universe-service`, `universe-engine`, `universe-mcp`, `universe-cli`.
-6. `fixtures/` — silver-gate S01–S10 and §36 two-universe/multi-world
-   fixtures ("The Ashen Cycle", "The Glass Archive").
-7. `universe-ui` + `apps/desktop` — WP11.
-
-Each step commits with an updated section of this file.
-
-## Change log
-
-| Date | Change |
+| Milestone | Implementation and limits |
 |---|---|
-| 2026-07-22 | Spec committed (`c287a1b`). Workspace skeleton, pinned dependencies, `universe-domain` implemented and green (35 tests). ADRs 0001–0003, this file. |
+| 1 · WP01–03 baseline | Build/lint/test automation; typed domain and all 13 closed public tool contracts; generated schemas and valid/invalid fixtures. Unsupported evaluation cannot claim complete coverage. |
+| 2 · WP01/03/04 integration | Bounded IPC framing/handshakes, correlation, cancellation/recovery, real MCP stdio adapter and independent client checks. Ad-hoc signed native fixture and prior native author-loop evidence; full accessibility/host acceptance remains open. |
+| 3 · WP05 storage | Immutable canonical snapshots and append-only workflow history; atomic revisions/receipts; durable source and image bytes; reconstruction, migration, fault/crash/full-disk tests. Typed reference validation also runs during historical reads and recovery. Backups verify canonical/workflow digests and reconstruct heads before publication; supported schema upgrades first retain a verified private rollback copy. Admission enforces recovery limits before publishing new history. |
+| 4 · WP06 ownership | Authenticated installation profiles, current scoped grants, single package writer, coordinated startup and bounded worker capacity. Recovery failures release slots; publication has a short fresh-authority gate. |
+| 5 · WP07–10 authoring/research/recovery | Immutable proposal versions, reserved identities, explicit rebase, exact author approvals, atomic publication/retry; bounded basic rules, temporal validity and finite ordering; revision/grant-bound research and cached dependency briefs; UTF-8 anchors, logical archives/import previews/clones, bounded legacy conversion, verified backups and retention-safe compaction. |
+| 6 · WP11 native author workflow | Typed creation, definitions, qualified claims/relationships, narrative bindings, inspector edits, durable scoped drafts, readable exact review/approval/commit, source/recovery controls, rich searchable selectors and namespace reuse suggestions. Universal optional appearance descriptions, image references, visual relationships and time-bound appearance edits. No raw JSON editor. Current controls are compiled and exercised through pure/UI and engine tests; current packaged native interaction remains pending. |
+| 7 · WP12–14 continuity semantics | Exact occurred-event effects and explicit within-event order; time/context-bound knowledge, complete sets, temporal rules and scoped author exceptions; conservative impact, durable validation jobs, pinned forks/adoption and exact pack upgrades. Typed rule, boundary, complete-set and exception controls supplement the event/knowledge/pack forms. Custom-domain minimal/adversarial pairs retain authored distinctions. Advanced inference remains explicitly unsupported. |
+| 8 · WP15 hardening | Sealed component/helper manifest and tamper refusal; malformed MCP, isolation, revocation, fault/recovery and schema-upgrade regressions; headless packaged integration; standard-sized storage/evaluator/recovery workload and a separate multi-universe MCP benchmark; update/rollback runbook. External release acceptance remains open. |
+
+## Eight-item audit remediation
+
+The eight findings from the completion audit are implemented in order. This is a headless implementation result; the native and release gates above remain open.
+
+1. Subject research follows incoming propositions, positive/negative assertions, relationships, completeness, boundaries and issue decisions as well as outgoing dependencies. Traversal has an explicit work bound and preserves unresolved/restricted coverage.
+2. Definition discovery, inline validation and inline impact resolve exact world selectors and guards at the pinned revision. Inline writes must fit a named world's envelope.
+3. Context records and dependency manifests paginate together without skipping mandatory records. Proposal pages include authored operations and their compiled expansion. Cursors bind the frame, request, principal and current grant. Native proposal loading assembles all pages before review. A single record that cannot fit the requested budget produces an explicit limit error.
+4. Character/narrator research requires a matching authored context. Reader research requires a pinned scene, an exact bound work edition and explicit `disclosedRecords`; later scenes and mere event depiction do not imply earlier knowledge. Native state queries expose these perspective choices. This does not implement automatic perception or belief inference.
+5. Get returns typed summary, evidence and history groups. History follows the selected revision and fork ancestry, with at most 100 changes per requested record; restricted views report restricted history. Native history restoration creates a compensating draft for validation and approval. Issue decisions have typed accept/defer/resolve controls.
+6. Research profiles may run bounded inline checks without proposal permission. Restricted inline checks return generic coverage before compiling against hidden definitions. Explicit entity/predicate/continuity write limits, expiry and separate shared-write authorization support delegated commits after complete validation. Existing grants retain the approval requirement. Installation schema 2 prevents older engines from ignoring the new limits.
+7. At most two queued evaluations run on detached immutable candidates. Same-universe reads, polling and cancellation continue during evaluation; publication rechecks current authority and cancellation. Shutdown cancels and drains active evaluations, leaving interrupted jobs retryable.
+8. Nineteen optional starter vocabularies ship with their minimal/adversarial examples and install through ordinary proposals. They do not install executable domain simulations. Native administration lists/enrolls/revokes profiles and edits/withdraws grants. Author-only purge previews and confirms deletion of the **entire registered universe package**; selective canon purge is not offered. Changed previews fail, removal is recoverable after interruption, and backups/exports/client transcripts remain outside its scope.
+
+See [verification evidence](docs/semantic-release-verification.md#eight-item-completion-audit) for commands and remaining acceptance limits.
+
+## Appearance references
+
+Every entry kind, including worlds and abstract definitions, can have optional companion appearance records. The universe itself also has a reference target. Authors can supply detailed physical descriptions, sensory atmosphere, multiple captioned images, and explicit matches/complements/contrasts/detail relationships to other entries. There is no item-kind allowlist. References can remain temporally unspecified or use a named-calendar half-open interval; revisions preserve earlier descriptions.
+
+PNG/JPEG/WebP originals are copied into immutable, checksummed chunks inside the SQLite universe package. Previews are generated separately; moving or deleting the original external file does not remove the reference. Full physical backups retain drafts and image bytes. Logical exports include original bytes for included canonical image assets, and filtered entry exports follow companion appearances and their dependencies. Imports validate image bytes, dimensions, format, digest and chunk completeness before publication. Current limits are 10 MiB per image, 8192 pixels per edge, 32 megapixels and 16 images per appearance reference.
+
+The native editor uses text fields, rich entry/relationship selectors, a file picker and captioned previews. Authors can find, load and revise saved references. Writing context includes applicable appearance text, captions, metadata and explicit relationships, within its declared byte budget. Image pixels and descriptive prose do not become executable facts, and visual consistency is not automatically judged. Appearance changes are explicitly authored phases; continuous corrosion, dimming or other gradual simulation does not automatically generate prose or images. Native interaction of these new controls remains part of facilitated final testing.
+
+## Fictional chronology
+
+Every newly created universe requires an author-provided first interaction timestamp. Authors choose Gregorian dates with an explicit offset, or a named fictional clock with a tick label and optional fixed month length. No clock is initialized from the computer's current date.
+
+The first timestamp and current story time are canonical, revision-bound data. Reading, editing, waiting, autosave and ordinary commits never advance them. A reviewed time-change operation supplies a destination and reason: elapsed time must move forward; backward changes require explicit time travel. This changes the authored clock only; it does not yet simulate time-travel effects or branches.
+
+Named-calendar assertion intervals are half-open. Timers have an explicit start and positive duration in that calendar's ticks (seconds for Gregorian). State queries at a time exclude definitely inactive assertions and identify unresolved assertions, preserving explicit negatives. Unknown endpoints and independent clocks are not converted into guesses. Legacy clockless intervals remain unresolved in time-specific queries.
+
+“N months ago” is resolved from a pinned fictional date, never wall time. Gregorian uses the authored fixed offset and rejects nonexistent target month-days instead of silently rounding. Fictional months require a declared tick count. Seasonal calendars, DST rules, calendar conversion and arbitrary calendar formulas remain outside this increment.
+
+## Milestones 7–8
+
+Milestone 7 now includes a scrollable Timeline with declared world/region location filters, before/after state at exact occurred events, deterministic effect recompilation, explicit preconditions, possession-dependent powers and timers. Explicit knowledge is time/context bound. Objective membership completeness and exact-version author exceptions have conservative scope checks. Impact includes the full visible universe, including negative dependencies. Validation jobs append durable running/terminal records, recover by operation ID, support queued cancellation and page findings with bound cursors. Pinned forks, selected adoption, same-kind definition revisions and exact dependency pack upgrades are reviewable operations with typed native controls.
+
+Milestone 8 includes a sealed helper/component manifest, tamper rejection, malformed-contract mutations through MCP, headless package checks, two-universe interactive measurements, a 10,000-entity / 200,000-assertion / 2,000-rule / ten-continuity storage and recovery fixture, and an update/rollback runbook.
+
+**Acceptance remains open:** the 38 custom-domain fixtures establish representation and account/no-invention behavior; they do not establish general domain simulation. S01–S10 persistent-engine fixtures, additional S11–S21/S25–S35/S45 finite semantic checks, exact temporal boundary regressions and cross-world scope/travel tests now supplement that coverage. Independent-calendar conversion, automatic epistemic/causal inference and realm-dependent constraint evaluation remain explicit capability limits. Region filtering uses declared event locations. Native interaction/VoiceOver, LM Studio, clean-machine/offline, hosted CI, signing/notarization and the remaining full release matrix still need evidence. See [semantic and release evidence](docs/semantic-release-verification.md) and its final-testing checklist.
+
+## Evidence and pending verification
+
+See [authoring verification](docs/authoring-verification.md) for current commands, regression scope and verification limits; [fixture evidence](docs/fixture-verification.md) and [kernel/engine evidence](docs/kernel-engine-verification.md) retain earlier evidence.
+
+Native testing is paused at the user's request because test windows interfered with their work. The Mac is unlocked; a locked screen is no longer the blocker. Both fixture windows were closed when testing was paused. This increment does not reopen them or quit Bionic.
+
+Pre-read secret scans reported no findings. `sonar list projects --query universe-builder-mcp` returned no project, so full SonarQube code-quality analysis remains unavailable. Secret scans do not substitute for that analysis. No commit or PR was created; unrelated workspace changes were preserved.
+
+## 2026-10-01 local AI authoring evaluation
+
+Persistent MCP initialization and research/validation/proposal/impact/commit tool
+descriptions now instruct external agents to verify provisional prose's material
+continuity changes, commit selected changes to canon, confirm the receipt, and
+continue from fresh committed context. The obsolete instruction claiming commit
+was unavailable is removed. Existing approval/delegation and admission rules are
+preserved. Only successful `universe_commit` makes changes canon.
+
+The current locked workspace check passed 256 tests with 1 ignored workload;
+independent contract/MCP/installation checks and 11 new harness regressions passed.
+Direct local MLX testing scored 8/8 workflow decisions and 11/12 prose assessments.
+The model-authored selected-prose commit succeeded; its age fact appeared in fresh
+context and a subsequent conflicting age change was blocked. The model's expired
+ignorance mistake remains a recorded qualification failure. This is direct
+application-JSON/MLX evidence, not LM Studio native-host acceptance.
+
+See the [authoring workflow](docs/ai-authoring-workflow.md) and
+[readiness assessment](docs/novel-authoring-readiness.md) for reproducible commands,
+the exact transcript and remaining author-host/native acceptance work.
+
+## 2026-10-02 passage provenance and chapter/retcon pilot
+
+Source evidence and passage references now require actual anchor targets.
+Research includes sourced observations, depicted-event scenes and anchored
+passages. MCP instructions require exact source/passage links, distinguish
+performed events from preparations, and preserve old sources/editions on retcon.
+The public 13-tool contracts and approval/delegation boundaries are unchanged.
+
+The accepted local MLX pilot generates a three-scene chapter and continuation,
+commits their declared material changes, rejects an incomplete delayed-handoff
+retcon, commits the corrected chronology, retains old state/source versions,
+rejects a stale approved change and recovers the exact receipt/current head
+after terminating its owned engine. Evidence includes 332 public calls, 15 canon
+commits, 12 passage references, exact author approvals and a separate source audit.
+Locked verification passes 258 tests with 1 ignored workload; 18 Python harness
+tests and independent contract/MCP/installation checks pass.
+
+Earlier producer passes missed actual source implications; those are retained
+and rejected explicitly. Model self-review is not a full continuity certificate.
+The accepted pilot uses declared material vocabulary and narrow fixture checks;
+unrestricted extraction, actual-host/native acceptance and book-scale profiling
+remain open. See [chapter verification](docs/chapter-retcon-verification.md) and
+the [authoring workflow](docs/ai-authoring-workflow.md).
+
+## October 2: Approved owning-entity action attributes
+
+Vanna approved the design change documented in
+[ADR-0006](docs/adr/ADR-0006-declared-actions-and-owner-attributes.md). New/revised
+events must name an author-controlled action definition. Its mandatory values
+are evaluated on exactly one individual/object per required role in the exact
+pre-event state and applicable context/world. Optional conditions cannot bypass
+these requirements. Direct and possession-derived attributes share an evaluator;
+explicit muting, expiry, transfer and unresolved/conflicting custody cannot leak
+an ability to another owner. General scalar attributes use the same check.
+Historical actionless events remain readable; older evaluator validation/approval
+bindings require refresh. Existing ordinary fixtures declare their actions
+explicitly. The author form requires action selection and offers typed action
+declarations; native rendering/accessibility are still unqualified.
+
+Final locked verification passes 269 Rust tests (one ignored workload), strict
+Clippy, formatting and generated-contract drift. The 18 Python tests,
+independent 26-schema/13-valid/91-invalid corpus, MCP protocol/restart and
+persistent installation checks pass. The chapter/retcon regression still passes
+332 public calls and 15 commits. The power MCP pilot passes all 11 admission
+cases, with 70 calls and two selected commits. CI includes its deterministic path.
+
+The final local MLX review is **model failure**, 9/11 exact verdicts. It falsely
+approves an explicitly muted recipient and the item itself; mandatory engine
+validation rejects both and neither becomes canon. Earlier failed MLX evidence
+is retained. Prose extraction/action classification still requires source review;
+passing structured constraints does not certify arbitrary manuscript semantics.
+See [execution evidence](docs/novel-authoring-readiness.md#wall-traversal-and-declared-powers-october-2-verification).

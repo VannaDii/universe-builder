@@ -15,19 +15,22 @@ macro_rules! define_id {
     ($name:ident, $prefix:literal, $doc:expr) => {
         #[doc = $doc]
         #[derive(
-            Debug,
-            Clone,
-            PartialEq,
-            Eq,
-            Hash,
-            PartialOrd,
-            Ord,
-            Serialize,
-            Deserialize,
-            schemars::JsonSchema,
+            Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, schemars::JsonSchema,
         )]
         #[serde(transparent)]
-        pub struct $name(pub String);
+        pub struct $name(
+            #[schemars(regex(pattern = concat!("^", $prefix, "[0-9a-f]{24}$")))] pub String,
+        );
+
+        impl std::fmt::Display for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { f.write_str(&self.0) }
+        }
+        impl<'de> Deserialize<'de> for $name {
+            fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+                let value = String::deserialize(deserializer)?;
+                Self::parse(&value).map_err(serde::de::Error::custom)
+            }
+        }
 
         impl $name {
             /// Serialized prefix, e.g. `unv_`.
@@ -50,7 +53,7 @@ macro_rules! define_id {
             /// Parse and validate an id string.
             pub fn parse(value: &str) -> Result<Self, crate::error::DomainError> {
                 Id::check_prefix(Self::PREFIX, value)?;
-                if value.len() != Self::PREFIX.len() + ID_BODY_LEN {
+                if value.len() != Self::PREFIX.len() + ID_BODY_LEN || !value[Self::PREFIX.len()..].bytes().all(|b|matches!(b,b'0'..=b'9'|b'a'..=b'f')) {
                     return Err(crate::error::DomainError::InvalidId {
                         kind: Self::PREFIX.to_string(),
                         value: value.to_string(),
@@ -401,5 +404,18 @@ mod tests {
     fn generic_id_accepts_known_prefixes() {
         assert!(Id::is_known("rec_abc123def456abc123def45"));
         assert!(!Id::is_known("nonsense_abc123def456abc123def4"));
+    }
+}
+
+#[cfg(test)]
+mod wire_id_tests {
+    use super::*;
+    #[test]
+    fn typed_ids_reject_invalid_bodies_during_deserialization() {
+        for body in ["z".repeat(24), "A".repeat(24), "_".repeat(24)] {
+            let value = format!("unv_{body}");
+            assert!(UniverseId::parse(&value).is_err());
+            assert!(serde_json::from_value::<UniverseId>(serde_json::json!(value)).is_err());
+        }
     }
 }

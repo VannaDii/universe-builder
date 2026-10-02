@@ -14,7 +14,7 @@ use crate::value::{RecordRef, VersionRef};
 
 /// Support or refutation of a proposition (spec §5.2).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum Polarity {
     Support,
     Refutation,
@@ -32,7 +32,7 @@ impl Canonical for Polarity {
 /// Explicit precision alternatives (spec §27.2). An estimate is never
 /// silently converted into an exact value or a probability distribution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum Precision {
     Exact,
     Approximate,
@@ -58,7 +58,7 @@ impl Canonical for Precision {
 /// Weather and fatigue are not carried forward simply because ownership
 /// usually persists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum PersistenceSemantics {
     /// Explicit validity interval governs.
     ExplicitInterval,
@@ -90,7 +90,7 @@ impl Canonical for PersistenceSemantics {
 /// infinity (spec §5.3). Intervals are half-open `[start, end)` where
 /// exact interval algebra applies (S26).
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields, tag = "kind", rename_all = "snake_case")]
 pub enum Validity {
     /// No temporal claim was made. Distinct from `Unknown`.
     #[default]
@@ -101,6 +101,13 @@ pub enum Validity {
     Instant { at: TemporalExpression },
     /// Half-open interval `[start, end)` for exact endpoints.
     Interval {
+        start: TemporalBound,
+        end: TemporalBound,
+    },
+    /// Half-open validity on an explicitly authored clock. Legacy intervals
+    /// without a clock remain unresolved for time-specific queries.
+    CalendarInterval {
+        calendar: crate::ids::CalendarId,
         start: TemporalBound,
         end: TemporalBound,
     },
@@ -133,6 +140,7 @@ impl Validity {
             self,
             Validity::Instant { .. }
                 | Validity::Interval { .. }
+                | Validity::CalendarInterval { .. }
                 | Validity::PersistentUntilChanged { .. }
         )
     }
@@ -141,7 +149,9 @@ impl Validity {
     /// interval can be derived (unspecified, condition-dependent, unknown).
     pub fn as_interval(&self) -> Option<(TemporalBound, TemporalBound)> {
         match self {
-            Validity::Interval { start, end } => Some((start.clone(), end.clone())),
+            Validity::Interval { start, end } | Validity::CalendarInterval { start, end, .. } => {
+                Some((start.clone(), end.clone()))
+            }
             Validity::Instant { at } => {
                 let b = match at {
                     crate::temporal::TemporalExpression::Exact { value, .. } => {
@@ -184,7 +194,7 @@ impl Validity {
 /// A content match verifies a citation anchor, not the source's truth.
 /// Verified vs. unverified links are distinct.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields, tag = "kind", rename_all = "snake_case")]
 pub enum EvidenceBasis {
     /// Authorial decision with a note.
     AuthorDecision { note: String },
@@ -261,7 +271,7 @@ impl Canonical for EvidenceBasis {
 #[derive(
     Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema,
 )]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields, tag = "kind", rename_all = "snake_case")]
 pub enum Applicability {
     /// Explicitly declared true across the whole universe.
     UniverseWide,
@@ -310,7 +320,7 @@ impl Canonical for Applicability {
 /// The scope of an assertion or rule: applicability + represented context
 /// + optional realm (spec §27.3).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Scope {
     pub applicability: Applicability,
     /// The represented context record (objective reality, a character,

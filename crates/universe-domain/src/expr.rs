@@ -28,7 +28,7 @@ use crate::value::{limits, RecordRef, Value};
 
 /// A named binding in an expression environment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum Quantifier {
     ForAll,
     Exists,
@@ -36,7 +36,7 @@ pub enum Quantifier {
 
 /// Three-way comparator for numeric and exact comparisons.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum Comparator {
     Eq,
     Neq,
@@ -61,7 +61,7 @@ impl Canonical for Comparator {
 
 /// An operand of an expression node.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields, tag = "kind", rename_all = "snake_case")]
 pub enum Operand {
     /// A variable bound by the rule scope or a quantifier.
     Variable {
@@ -131,13 +131,19 @@ impl Canonical for Operand {
 
 /// The declarative expression tree (spec §9.4).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields, tag = "kind", rename_all = "snake_case")]
 pub enum Expr {
     /// Scoped absence of opposing evidence in this exact candidate; never a truth claim.
     NoOpposingEvidence {
         subject: Operand,
         predicate: String,
         context: Operand,
+    },
+    /// Authored attitude evidence only; observation/presence never implies knowledge.
+    Attitude {
+        holder: crate::value::RecordRef,
+        proposition: crate::value::RecordRef,
+        attitude: crate::records::EpistemicAttitudeKind,
     },
     /// `true` / `false` literals (boolean composition — spec §9.4).
     ///
@@ -291,7 +297,7 @@ impl Canonical for Expr {
         use Expr::*;
         let kind = |s: &str| CanonicalValue::Str(s.to_string());
         match self {
-            NoOpposingEvidence { .. } => crate::canonical::canonical_serde(self),
+            NoOpposingEvidence { .. } | Attitude { .. } => crate::canonical::canonical_serde(self),
             Lit { value: b } => CanonicalValue::obj(vec![
                 ("kind".into(), kind("lit")),
                 ("value".into(), CanonicalValue::Bool(*b)),
@@ -565,6 +571,14 @@ impl Expr {
                     check_op(subject)?;
                     check_op(context)?;
                     out.predicates.push(predicate.clone());
+                }
+                Attitude {
+                    holder,
+                    proposition,
+                    ..
+                } => {
+                    out.referenced_records.push(holder.record.clone());
+                    out.referenced_records.push(proposition.record.clone());
                 }
                 Lit { .. } => {}
                 Not { expr: inner } => walk(inner, in_scope, depth + 1, nodes, out)?,

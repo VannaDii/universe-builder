@@ -1,0 +1,51 @@
+class MultiverseMcp < Formula
+  desc "Local universe authoring desktop and MCP server"
+  homepage "$homepage"
+  version "$version"
+
+$downloads
+$architecture_dependency
+
+  depends_on :macos
+  on_macos do
+    depends_on macos: :sequoia
+  end
+
+  # The complete bundle is signed. Homebrew must not relocate or strip its Mach-O files.
+  def install
+    # Homebrew strips the archive's single enclosing .app directory when staging.
+    (libexec/"Multiverse MCP.app").install "Contents"
+    bin.install_symlink libexec/"Multiverse MCP.app/Contents/MacOS/multiverse-mcp"
+  end
+
+  def skip_clean?(_path)
+    true
+  end
+
+  def caveats
+    <<~EOS
+      Open the author workspace:
+        multiverse-mcp ux
+      Add a Finder/Dock shortcut (or add --destination ~/Desktop):
+        multiverse-mcp shortcut --launcher #{opt_bin}/multiverse-mcp
+      MCP hosts use: #{opt_bin}/multiverse-mcp serve --installation PATH --profile PROFILE_ID
+
+      Preview build: ad-hoc signed, not notarized; release acceptance remains open.
+      Before upgrading, close the desktop and shut down each installation with:
+        multiverse-mcp admin --installation PATH --profile AUTHOR_ID shutdown
+      Installation data lives outside this package and is retained on uninstall.
+    EOS
+  end
+
+  test do
+    assert_match version.to_s, shell_output("#{bin}/multiverse-mcp --version")
+    system "/usr/bin/codesign", "--verify", "--deep", "--strict", libexec/"Multiverse MCP.app"
+    installation = testpath/"installation"
+    author = shell_output("#{bin}/multiverse-mcp admin --installation #{installation} init").strip
+    begin
+      assert_match "universes", shell_output("#{bin}/multiverse-mcp admin --installation #{installation} --profile #{author} status")
+    ensure
+      system bin/"multiverse-mcp", "admin", "--installation", installation, "--profile", author, "shutdown"
+    end
+  end
+end

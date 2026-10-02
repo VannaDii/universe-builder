@@ -1,0 +1,99 @@
+name: Versioned macOS preview
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            architecture: arm64
+          - runner: macos-15-intel
+            architecture: x86_64
+    runs-on: ${{ matrix.runner }}
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "15.0"
+      UNIVERSE_PYTHON: python
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate tag and architecture
+        env:
+          EXPECTED_ARCH: ${{ matrix.architecture }}
+        run: |
+          python3 - <<'PY'
+          import os, platform, tomllib
+          from pathlib import Path
+          version = tomllib.loads(Path('Cargo.toml').read_text())['workspace']['package']['version']
+          assert os.environ['RELEASE_TAG'] == f'v{version}', 'Tag must match Cargo version'
+          assert platform.machine() == os.environ['EXPECTED_ARCH']
+          PY
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.92.0 --component rustfmt --component clippy
+      - run: python -m pip install jsonschema==4.25.1
+      - run: cargo run --locked -p xtask -- check
+      - run: cargo run --locked -p xtask -- validate-contracts
+      - run: python scripts/test_distribution.py
+      - run: cargo run --locked -p xtask -- package-release
+      - run: python scripts/verify_release.py --bundle 'target/distribution/Multiverse MCP.app'
+      - run: python scripts/verify_launcher.py --bin-dir 'target/distribution/Multiverse MCP.app/Contents/MacOS'
+      - run: python scripts/mcp_smoke.py --bin-dir 'target/distribution/Multiverse MCP.app/Contents/MacOS'
+      - run: python scripts/installation_smoke.py --bin-dir 'target/distribution/Multiverse MCP.app/Contents/MacOS'
+      - name: Create versioned archive
+        run: python scripts/distribution.py archive --bundle 'target/distribution/Multiverse MCP.app' --tag "$RELEASE_TAG" --output dist
+      - name: Verify Homebrew installation and the sealed installed bundle
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: |
+          brew tap-new local/multiverse-release-test
+          python scripts/distribution.py formula --assets dist --version "${RELEASE_TAG#v}" --local \
+            --output "$(brew --repository local/multiverse-release-test)/Formula/multiverse-mcp.rb"
+          brew install local/multiverse-release-test/multiverse-mcp
+          brew test local/multiverse-release-test/multiverse-mcp
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.architecture }}
+          path: dist/*
+          if-no-files-found: error
+
+  draft:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: dist
+      - name: Generate formula from the actual release archives
+        run: python scripts/distribution.py formula --assets dist --version "${RELEASE_TAG#v}" --repository "$GH_REPO" --output dist/multiverse-mcp.rb
+      - name: Create draft preview for review
+        run: |
+          gh release create "$RELEASE_TAG" dist/* --verify-tag --draft --prerelease \
+            --title "Multiverse MCP $RELEASE_TAG (preview)" \
+            --notes-file packaging/preview-release-notes.md

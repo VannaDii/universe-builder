@@ -1,4 +1,23 @@
-//! Universe Builder service: installation registry, authorization, context
-//! handles, proposal lifecycle, validation orchestration, queries.
-//!
-//! Placeholder: not yet implemented (see IMPLEMENTATION_STATUS.md, WP06/07/09).
+//! Shared application service: authenticated persistent authoring and a separate
+//! disposable feasibility backend. All canon changes use validated exact approvals.
+pub mod fixture;
+pub mod ipc;
+
+pub mod registry;
+pub mod runtime;
+
+mod operations;
+mod workflow;
+
+mod drafts;
+mod imports;
+mod provenance;
+mod validation;
+
+mod actions;
+mod events;
+
+mod powers;
+
+mod boundary_checks;
+mod rule_checks;

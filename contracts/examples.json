@@ -1,0 +1,175 @@
+[
+  {
+    "tool": "universe_describe",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "mode": "summary"
+    }
+  },
+  {
+    "tool": "universe_open_context",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "continuity_id": "cont_000000000000000000000001",
+      "revision": {
+        "kind": "head"
+      },
+      "represented_context": "rec_00000000000000000000005a",
+      "temporal_query": {
+        "kind": "timeless"
+      },
+      "temporal_systems": [],
+      "perspective": "author"
+    }
+  },
+  {
+    "tool": "universe_search",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "context_id": "ctx_000000000000000000000001",
+      "query": "Mara",
+      "typed_filters": {
+        "record_kinds": []
+      },
+      "limit": 25
+    }
+  },
+  {
+    "tool": "universe_get",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "context_id": "ctx_000000000000000000000001",
+      "record_ids": [
+        "rec_00000000000000000000000a"
+      ],
+      "field_groups": [
+        "payload"
+      ]
+    }
+  },
+  {
+    "tool": "universe_get_state",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "context_id": "ctx_000000000000000000000001",
+      "entity_ids": [
+        "rec_00000000000000000000000a"
+      ],
+      "predicate_filters": []
+    }
+  },
+  {
+    "tool": "universe_get_context",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "context_id": "ctx_000000000000000000000001",
+      "focus_ids": [
+        "rec_00000000000000000000000a"
+      ],
+      "purpose": "research",
+      "byte_budget": 24576
+    }
+  },
+  {
+    "tool": "universe_validate",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "context_id": "ctx_000000000000000000000001",
+      "mode": "inline",
+      "operations": [
+        {
+          "kind": "create_entity",
+          "client_ref": "new_entity",
+          "record": {
+            "names": [],
+            "types": [],
+            "worldAssociations": [],
+            "labels": {
+              "en": "The Lantern House"
+            },
+            "metadata": {}
+          }
+        }
+      ],
+      "check_scope": "candidate"
+    }
+  },
+  {
+    "tool": "universe_propose",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "context_id": "ctx_000000000000000000000001",
+      "action": "create",
+      "operations": [
+        {
+          "kind": "create_entity",
+          "client_ref": "new_entity",
+          "record": {
+            "names": [],
+            "types": [],
+            "worldAssociations": [],
+            "labels": {
+              "en": "The Lantern House"
+            },
+            "metadata": {}
+          }
+        }
+      ],
+      "submission": "draft",
+      "rationale": "Fixture proposal",
+      "idempotency_key": "fixture-1"
+    }
+  },
+  {
+    "tool": "universe_get_proposal",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "proposal_id": "prp_000000000000000000000001",
+      "version": 1
+    }
+  },
+  {
+    "tool": "universe_get_impact",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "context_id": "ctx_000000000000000000000001",
+      "mode": "inline",
+      "changed_records": [
+        "rec_00000000000000000000000a"
+      ],
+      "scope": "dependencies",
+      "byte_budget": 24576
+    }
+  },
+  {
+    "tool": "universe_commit",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "proposal_reference": {
+        "proposal_id": "prp_000000000000000000000001",
+        "version": 1,
+        "digest": "fixture-digest"
+      },
+      "expected_base_revision": "rev_000000000000000000000001",
+      "validation_run": "val_000000000000000000000001",
+      "idempotency_key": "commit-1"
+    }
+  },
+  {
+    "tool": "universe_get_operation",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "lookup": "key",
+      "operation_kind": "propose",
+      "idempotency_key": "fixture-1"
+    }
+  },
+  {
+    "tool": "universe_cancel_operation",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "operation_id": "op_000000000000000000000001",
+      "idempotency_key": "cancel-1"
+    }
+  }
+]

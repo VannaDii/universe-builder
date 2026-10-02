@@ -11,6 +11,8 @@ name = "universe-mcp"
 path = "src/main.rs"
 
 [dependencies]
+futures = { workspace = true }
+tokio-util = { workspace = true }
 universe-client = { workspace = true }
 universe-protocol = { workspace = true }
 universe-domain = { workspace = true }

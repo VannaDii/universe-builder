@@ -1498,6 +1498,13 @@ A proposal cannot silently shorten an established “Mara continuously possesses
 
 ### 27.5 Event effects: one canonical state authority
 
+Approved October 2 extension: new/revised events also bind a declared action
+whose mandatory attributes resolve on the entity filling each owning role at
+pre-event time. Direct and possession-granted attributes share evidence checks;
+historical actionless records remain readable. The accepted representation,
+compatibility and authority decisions are in
+[ADR-0006](docs/adr/ADR-0006-declared-actions-and-owner-attributes.md).
+
 An event definition contains occurrence mode, participants, temporal/sequence frame, preconditions, and authored effect specifications. `record_event` compiles those effects into explicit assertion operations in the same immutable proposal revision. The proposal records the expansion version and generated IDs before approval.
 
 Each effect-generated assertion identifies the event and effect slot that established it. The compiled assertion operations—not a second mutable `current_state` object—are the canonical state representation used by queries. Event specifications and their generated assertions must satisfy a structural linkage check. Rebuilding a state projection reads admitted assertions; it does not autonomously replay events and invent another state history.

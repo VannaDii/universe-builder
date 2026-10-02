@@ -23,7 +23,7 @@ use crate::value::{limits, RecordRef};
 #[derive(
     Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema,
 )]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields, tag = "kind", rename_all = "snake_case")]
 pub enum TemporalBound {
     /// No bound: the interval extends without limit in that direction.
     Unbounded,
@@ -51,7 +51,7 @@ impl TemporalBound {
 
 /// A relation between two times without inventing dates (spec §7.1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum TemporalRelation {
     /// Strict before. Cycles within one declared acyclic ordering are invalid (S28).
     Before,
@@ -71,7 +71,7 @@ pub enum TemporalRelation {
 /// applies (spec §7.1); the author-facing display must explain boundary
 /// meaning (S26).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields, tag = "kind", rename_all = "snake_case")]
 pub enum TemporalExpression {
     /// Exact instant in a named calendar.
     Exact { calendar: CalendarId, value: String },

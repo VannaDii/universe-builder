@@ -14,6 +14,7 @@
 //! - universe vs. world vs. work/saga ownership (§5.6, §36.1)
 
 pub mod canonical;
+pub mod chronology;
 pub mod error;
 pub mod expr;
 pub mod frame;
@@ -69,3 +70,7 @@ pub mod capabilities {
     pub const KNOWLEDGE_EXPLICIT_ATTITUDES: &str = "knowledge.explicit_attitudes.v1";
     pub const CONTINUITY_PINNED_INHERITANCE: &str = "continuity.pinned_inheritance.v1";
 }
+
+pub mod appearance;
+
+pub mod starter;

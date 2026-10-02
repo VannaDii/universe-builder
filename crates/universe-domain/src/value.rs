@@ -21,7 +21,7 @@ use crate::temporal::TemporalExpression;
 #[derive(
     Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, schemars::JsonSchema,
 )]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct RecordRef {
     /// Universe namespace. `None` only in wire input pending expansion.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -73,7 +73,7 @@ impl RecordRef {
 #[derive(
     Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, schemars::JsonSchema,
 )]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct VersionRef {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub universe: Option<UniverseId>,
@@ -86,7 +86,7 @@ pub struct VersionRef {
 #[derive(
     Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, schemars::JsonSchema,
 )]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct LocalRef {
     pub client_ref: String,
 }
@@ -118,7 +118,7 @@ impl Canonical for LocalRef {
 
 /// The discriminated value type (spec §5.3).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields, tag = "kind", rename_all = "snake_case")]
 pub enum Value {
     /// Preserves the author's exact Unicode string content (spec §27.8).
     Text {
@@ -410,7 +410,7 @@ pub fn compare_exact_digits(a: &str, b: &str) -> Option<i8> {
 /// only the qualitative relations below live in values; the predicates
 /// themselves are definitions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields, tag = "kind", rename_all = "snake_case")]
 pub enum SpatialExpression {
     ContainedIn {
         target: RecordRef,

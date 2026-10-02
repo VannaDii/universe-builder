@@ -19,7 +19,7 @@ use crate::value::RecordRef;
 /// point-of-view filter is not an access-control mechanism unless the
 /// author explicitly configures a restricted principal.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum Perspective {
     /// The author's omniscient view of the universe.
     Author,
@@ -50,7 +50,7 @@ impl Canonical for Perspective {
 
 /// The temporal part of a frame.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields, tag = "kind", rename_all = "snake_case")]
 pub enum FrameTime {
     /// All validities: the query makes no temporal claim (spec §27.1:
     /// "an explicitly timeless/all-validities query").
@@ -69,7 +69,7 @@ pub enum FrameTime {
 /// Which side of an event a frame observes (spec §30.2 event entry/exit
 /// selector). Preconditions see `Before`; effects see `After`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub enum EventTimeSide {
     /// The pre-event state.
     Before,
@@ -112,7 +112,7 @@ impl Canonical for FrameTime {
 /// layer). The frame never stores a hidden current-world selection: world
 /// focus is per supporting request (spec §11.3, §27.1, I24).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Frame {
     pub universe: UniverseId,
     pub continuity: ContinuityId,
@@ -122,6 +122,9 @@ pub struct Frame {
     pub context: RecordRef,
     pub time: FrameTime,
     pub perspective: Perspective,
+    /// Exact authored scene defining reader disclosure order.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reader_scene: Option<RecordId>,
     /// Optional personal experienced sequence (spec §7.1): a separately
     /// declared ordering, never inferred.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -147,6 +150,9 @@ impl Canonical for Frame {
                 CanonicalValue::Str(self.universe.to_owned()),
             ),
         ];
+        if let Some(scene) = &self.reader_scene {
+            f.push(("readerScene".into(), CanonicalValue::Str(scene.to_owned())));
+        }
         if let Some(p) = &self.personal_sequence {
             f.push(("personalSequence".into(), CanonicalValue::Str(p.clone())));
         }
