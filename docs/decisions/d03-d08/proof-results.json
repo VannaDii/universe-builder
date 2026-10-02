@@ -2,7 +2,7 @@
   "proof_kind": "design_preparation_arithmetic_not_runtime_qualification",
   "oracle_sha256": "3ead237bf50ef60413a9d62ef0505daf57961168b2bfbf5d74de02f711e77107",
   "independence": "Same-agent frozen requirement oracle; independent handwritten encoder and OpenSSL digest calculation versus Python JSON/hashlib. No separate reviewer implied.",
-  "passed_checks": 26,
+  "passed_checks": 36,
   "checks": [
     {
       "check": "three-stage example hashes match stored binding fields",
@@ -102,6 +102,46 @@
     },
     {
       "check": "embedding candidate digest in candidate breaks original binding",
+      "result": "pass"
+    },
+    {
+      "check": "restricted response exactly omits all fingerprints and identities",
+      "result": "pass"
+    },
+    {
+      "check": "query completion carries no final authority binding",
+      "result": "pass"
+    },
+    {
+      "check": "stale response preserves record-only input scope",
+      "result": "pass"
+    },
+    {
+      "check": "all inventory ranges contained in declared source scope",
+      "result": "pass"
+    },
+    {
+      "check": "mapping and inventory identifiers reciprocally agree",
+      "result": "pass"
+    },
+    {
+      "check": "all reference examples explicitly bind universe",
+      "result": "pass"
+    },
+    {
+      "check": "readerScene changes actual proposal tuple digest",
+      "result": "pass"
+    },
+    {
+      "check": "personalSequence changes actual proposal tuple digest",
+      "result": "pass"
+    },
+    {
+      "check": "inconsistent B fragment binds exact changed source bytes",
+      "result": "pass"
+    },
+    {
+      "check": "inconsistent B offsets independently align",
       "result": "pass"
     },
     {

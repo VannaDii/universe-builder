@@ -679,7 +679,8 @@
       "unresolved_count": 0,
       "inventory_digest": "c3f71a820591606018d1b4cfe538c41d80b0dca8e5a1518ebd458280cbc8c808"
     },
-    "final_binding_digest": "b90fa2b366734d2fdb0cc8c014baf302f080fc6abdf1daad6bf92cc3a87b945d"
+    "final_binding_digest": "b90fa2b366734d2fdb0cc8c014baf302f080fc6abdf1daad6bf92cc3a87b945d",
+    "kind": "evaluated"
   },
   "source_only_result_fragment": {
     "execution": {
@@ -1172,5 +1173,395 @@
       "shared": false,
       "protected": false
     }
-  ]
+  ],
+  "restricted_result": {
+    "kind": "restricted",
+    "execution_coverage": "restricted",
+    "submitted_input": {
+      "kind": "restricted"
+    },
+    "assessment": {
+      "kind": "restricted"
+    }
+  },
+  "query_result": {
+    "kind": "evaluated",
+    "execution": {
+      "operation_id": null,
+      "run_id": "val_000000000000000000000001",
+      "coverage": "complete",
+      "findings": [],
+      "opposing_evidence": [],
+      "unsupported_capabilities": [],
+      "input_digest": "5e1781077dd7b466f29a926ea2ebe8cd813acc2c831fbf8ba74f074b9878467f",
+      "evaluator_version": "proposed-v3-assessment-evaluator"
+    },
+    "submitted_input": {
+      "kind": "query",
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000001"
+        },
+        "time": {
+          "kind": "timeless"
+        },
+        "perspective": "author"
+      },
+      "check_scope": "universe"
+    },
+    "assessment": {
+      "kind": "absent"
+    },
+    "final_binding_digest": null
+  },
+  "stale_result_fragment": {
+    "submitted_input": {
+      "kind": "record_candidate",
+      "proposal": {
+        "proposal_id": "prp_000000000000000000000001",
+        "version": 1,
+        "digest": "3ef0b94746f89e6eb53f24f372a89fa24ba3186499ce0e721aaab311f8160e55"
+      },
+      "includes_sources": true
+    },
+    "assessment": {
+      "kind": "stale",
+      "assessment_reference": {
+        "assessment_id": "asm_000000000000000000000001",
+        "digest": "cf147089d651894030e61895720f2faf29067a21995b3797b6b674b56e6ae22e"
+      },
+      "reasons": [
+        "source_changed",
+        "edition_changed"
+      ]
+    },
+    "final_binding_digest": null
+  },
+  "inconsistent_body_fragment": {
+    "sources": [
+      {
+        "key": "passage-a",
+        "source_version": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000002",
+          "version": "ver_000000000000000000000102"
+        },
+        "blob_digest": "4abe1a2260d95df0b333c4fed2fa9f1d70e677c6bfb91de3040ee5dfc3d609df",
+        "byte_size": 49,
+        "representation": "exact-utf8-v1",
+        "ranges": [
+          {
+            "start": 0,
+            "end": 49
+          }
+        ],
+        "work_edition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000003",
+          "version": "ver_000000000000000000000003"
+        },
+        "passage_id": "scene-1"
+      }
+    ],
+    "declared_inventory": [
+      {
+        "item_id": "utterance",
+        "source_key": "passage-a",
+        "range": {
+          "start": 0,
+          "end": 36
+        },
+        "material_kind": "action",
+        "statement": "Mara utters the quoted statement.",
+        "mapping_ids": [
+          "speech"
+        ],
+        "unresolved_ids": []
+      },
+      {
+        "item_id": "attributed-door",
+        "source_key": "passage-a",
+        "range": {
+          "start": 11,
+          "end": 36
+        },
+        "material_kind": "fact",
+        "statement": "Mara says the door is open in reported context.",
+        "mapping_ids": [
+          "reported-open"
+        ],
+        "unresolved_ids": []
+      },
+      {
+        "item_id": "waiting",
+        "source_key": "passage-a",
+        "range": {
+          "start": 37,
+          "end": 49
+        },
+        "material_kind": "unchanged_state",
+        "statement": "Iven waits; no knowledge acquisition is asserted.",
+        "mapping_ids": [
+          "waiting"
+        ],
+        "unresolved_ids": []
+      }
+    ],
+    "claim_mappings": [
+      {
+        "referents": [
+          {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000004",
+            "version": "ver_000000000000000000000004"
+          }
+        ],
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000001",
+          "version": "ver_000000000000000000000001"
+        },
+        "world": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000005",
+          "version": "ver_000000000000000000000005"
+        },
+        "realm": null,
+        "story_time": {
+          "kind": "exact",
+          "calendar": "cal_00000000000000000000000f",
+          "value": "12"
+        },
+        "narration_position": {
+          "kind": "work_position",
+          "work_edition": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000003",
+            "version": "ver_000000000000000000000003"
+          },
+          "scene_id": "scene-1",
+          "ordinal": 1
+        },
+        "reader_position": {
+          "kind": "work_position",
+          "work_edition": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000003",
+            "version": "ver_000000000000000000000003"
+          },
+          "scene_id": "scene-1",
+          "ordinal": 1
+        },
+        "occurrence": "occurred",
+        "modality": "asserted",
+        "candidate_links": [
+          {
+            "kind": "unchanged_record",
+            "version": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000009",
+              "version": "ver_000000000000000000000009"
+            }
+          }
+        ],
+        "judgment": "supported",
+        "rationale": "Synthetic gold mapping; externally assessed, not engine entailment.",
+        "mapping_id": "speech",
+        "item_ids": [
+          "utterance"
+        ],
+        "semantic": {
+          "kind": "action",
+          "action": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000006",
+            "version": "ver_000000000000000000000006"
+          },
+          "participants": [
+            {
+              "role": "speaker",
+              "participant": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000004",
+                "version": "ver_000000000000000000000004"
+              }
+            }
+          ],
+          "prerequisites": [],
+          "effects": []
+        }
+      },
+      {
+        "referents": [
+          {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000007",
+            "version": "ver_000000000000000000000007"
+          }
+        ],
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000a",
+          "version": "ver_00000000000000000000000a"
+        },
+        "world": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000005",
+          "version": "ver_000000000000000000000005"
+        },
+        "realm": null,
+        "story_time": {
+          "kind": "exact",
+          "calendar": "cal_00000000000000000000000f",
+          "value": "12"
+        },
+        "narration_position": {
+          "kind": "work_position",
+          "work_edition": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000003",
+            "version": "ver_000000000000000000000003"
+          },
+          "scene_id": "scene-1",
+          "ordinal": 1
+        },
+        "reader_position": {
+          "kind": "work_position",
+          "work_edition": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000003",
+            "version": "ver_000000000000000000000003"
+          },
+          "scene_id": "scene-1",
+          "ordinal": 1
+        },
+        "occurrence": "reported",
+        "modality": "attributed",
+        "candidate_links": [
+          {
+            "kind": "unchanged_record",
+            "version": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_00000000000000000000000b",
+              "version": "ver_00000000000000000000000b"
+            }
+          }
+        ],
+        "judgment": "contradicted",
+        "rationale": "Deliberately mismatched attributed open claim; source B states closed.",
+        "mapping_id": "reported-open",
+        "item_ids": [
+          "attributed-door"
+        ],
+        "semantic": {
+          "kind": "claim",
+          "predicate": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000008",
+            "version": "ver_000000000000000000000008"
+          },
+          "subject": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000007",
+            "version": "ver_000000000000000000000007"
+          },
+          "value": {
+            "kind": "boolean",
+            "value": true
+          },
+          "roles": [],
+          "polarity": "support"
+        }
+      },
+      {
+        "referents": [
+          {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000c",
+            "version": "ver_00000000000000000000000c"
+          }
+        ],
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000001",
+          "version": "ver_000000000000000000000001"
+        },
+        "world": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000005",
+          "version": "ver_000000000000000000000005"
+        },
+        "realm": null,
+        "story_time": {
+          "kind": "exact",
+          "calendar": "cal_00000000000000000000000f",
+          "value": "12"
+        },
+        "narration_position": {
+          "kind": "work_position",
+          "work_edition": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000003",
+            "version": "ver_000000000000000000000003"
+          },
+          "scene_id": "scene-1",
+          "ordinal": 1
+        },
+        "reader_position": {
+          "kind": "work_position",
+          "work_edition": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000003",
+            "version": "ver_000000000000000000000003"
+          },
+          "scene_id": "scene-1",
+          "ordinal": 1
+        },
+        "occurrence": "occurred",
+        "modality": "asserted",
+        "candidate_links": [
+          {
+            "kind": "unchanged_record",
+            "version": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_00000000000000000000000d",
+              "version": "ver_00000000000000000000000d"
+            }
+          }
+        ],
+        "judgment": "supported",
+        "rationale": "Synthetic gold mapping; externally assessed, not engine entailment.",
+        "mapping_id": "waiting",
+        "item_ids": [
+          "waiting"
+        ],
+        "semantic": {
+          "kind": "claim",
+          "predicate": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000e",
+            "version": "ver_00000000000000000000000e"
+          },
+          "subject": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000c",
+            "version": "ver_00000000000000000000000c"
+          },
+          "value": {
+            "kind": "boolean",
+            "value": true
+          },
+          "roles": [],
+          "polarity": "support"
+        }
+      }
+    ],
+    "unresolved": [],
+    "conclusion": "inconsistent",
+    "note": "Replacement requires new work edition/candidate/proposal binding. This fragment is not an attachment with the old candidate digest."
+  }
 }

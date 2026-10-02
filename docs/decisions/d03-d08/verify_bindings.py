@@ -98,6 +98,23 @@ def main():
     ok('inserting claimed self digest changes hash, cannot reuse original',sha(b'source-assessment:v1:'+reference(cycle))!=cycle['digest'])
     cyclic_candidate=copy.deepcopy(candidate); cyclic_candidate['assessment_candidate_digest']=body['proposal']['digest']
     ok('embedding candidate digest in candidate breaks original binding',sha(reference(cyclic_candidate))!=body['proposal']['digest'])
+    # Closed response/fixture accounting checks, not implementation of proposed service.
+    restricted=e['restricted_result']
+    ok('restricted response exactly omits all fingerprints and identities',restricted=={'kind':'restricted','execution_coverage':'restricted','submitted_input':{'kind':'restricted'},'assessment':{'kind':'restricted'}})
+    ok('query completion carries no final authority binding',e['query_result']['execution']['coverage']=='complete' and e['query_result']['submitted_input']['kind']=='query' and e['query_result']['assessment']=={'kind':'absent'} and e['query_result']['final_binding_digest'] is None)
+    ok('stale response preserves record-only input scope',e['stale_result_fragment']['submitted_input']['kind']=='record_candidate' and e['stale_result_fragment']['final_binding_digest'] is None)
+    source_by_key={v['key']:v for v in body['sources']}
+    mappings={v['mapping_id']:v for v in body['claim_mappings']}
+    items={v['item_id']:v for v in body['declared_inventory']}
+    ok('all inventory ranges contained in declared source scope',all(any(r['start']<=v['range']['start']<v['range']['end']<=r['end'] for r in source_by_key[v['source_key']]['ranges']) for v in items.values()))
+    ok('mapping and inventory identifiers reciprocally agree',all(v['item_id'] in mappings[mid]['item_ids'] for v in items.values() for mid in v['mapping_ids']) and all(v['mapping_id'] in items[iid]['mapping_ids'] for v in mappings.values() for iid in v['item_ids']))
+    ok('all reference examples explicitly bind universe',all(v['universe']==body['base_frame']['universe'] for v in body['dependencies']) and all(v['source_version']['universe']==body['base_frame']['universe'] for v in body['sources']))
+    for field,value in [('readerScene','rec_'+'b'*24),('personalSequence','sequence-b')]:
+        changed=copy.deepcopy(pp);changed[0]['base_frame'][field]=value
+        ok(field+' changes actual proposal tuple digest',exact(changed)['sha256']!=proofs['production_shaped_candidate']['sha256'])
+    fragment=e['inconsistent_body_fragment']
+    ok('inconsistent B fragment binds exact changed source bytes',fragment['sources'][0]['blob_digest']==sha(braw) and fragment['sources'][0]['byte_size']==49 and fragment['conclusion']=='inconsistent' and fragment['claim_mappings'][1]['judgment']=='contradicted')
+    ok('inconsistent B offsets independently align',[(v['range']['start'],v['range']['end']) for v in fragment['declared_inventory']]==[(0,36),(11,36),(37,49)])
     rows=(ROOT/'oracle.md').read_text().splitlines()
     oracle_ids=[r.split('|')[1].strip() for r in rows if r.startswith('| O')]
     ok('38 independently frozen requirement fixtures present',oracle_ids==['O%02d'%i for i in range(1,39)])
