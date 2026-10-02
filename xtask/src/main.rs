@@ -25,8 +25,8 @@ fn schemas(check: bool) -> Result<()> {
         fs::create_dir_all(&dir)?;
     }
     let catalog = universe_protocol::tool_schemas();
-    let entries =
-        std::iter::once(("tools.json", serde_json::to_value(catalog)?)).chain(std::iter::once((
+    let entries = std::iter::once(("tools.json", serde_json::to_value(catalog)?))
+        .chain(std::iter::once((
             "examples.json",
             serde_json::Value::Array(
                 universe_protocol::examples::valid()
@@ -34,6 +34,10 @@ fn schemas(check: bool) -> Result<()> {
                     .map(|(tool, args)| serde_json::json!({"tool":tool,"args":args}))
                     .collect(),
             ),
+        )))
+        .chain(std::iter::once((
+            "source-assessments.json",
+            universe_protocol::assessment::schemas(),
         )));
     for (name, value) in entries {
         let text = serde_json::to_string_pretty(&value)? + "\n";
@@ -204,6 +208,10 @@ fn main() -> Result<()> {
             run(
                 &std::env::var("UNIVERSE_PYTHON").unwrap_or_else(|_| "python3".into()),
                 &["scripts/validate_contracts.py"],
+            )?;
+            run(
+                &std::env::var("UNIVERSE_PYTHON").unwrap_or_else(|_| "python3".into()),
+                &["scripts/test_source_assessment_contracts.py"],
             )
         }
         Some("package-fixture") => package(false),

@@ -15,3 +15,5 @@ pub const MAX_IN_FLIGHT: usize = 16;
 pub mod installation;
 
 pub mod validation_scope;
+
+pub mod assessment;
