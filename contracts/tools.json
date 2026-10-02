@@ -21063,7 +21063,7 @@
   },
   {
     "name": "universe_validate",
-    "description": "Validate the exact structured continuity claims and consequences of draft prose before considering it usable. Inspect both findings and coverage; source text alone is not semantically checked. Validation does not commit canon. Explicit universe required; unavailable in fixture mode.",
+    "description": "Validate the exact structured continuity claims and consequences of draft prose before considering it usable. Inspect execution findings/coverage, submitted_input and assessment separately; complete engine checks and source-only commits never certify manuscript continuity. Validation does not commit canon. Explicit universe required; unavailable in fixture mode.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Validate",
@@ -28874,7 +28874,7 @@
           "$ref": "#/$defs/Delivery"
         },
         "result": {
-          "$ref": "#/$defs/Validation"
+          "$ref": "#/$defs/ValidationV3"
         }
       },
       "additionalProperties": false,
@@ -29863,6 +29863,71 @@
             "complete"
           ]
         },
+        "ValidationV3": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "execution": {
+                  "$ref": "#/$defs/Validation"
+                },
+                "submitted_input": {
+                  "$ref": "#/$defs/SubmittedInput"
+                },
+                "assessment": {
+                  "$ref": "#/$defs/AssessmentState"
+                },
+                "final_binding_digest": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Sha256Hex"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "evaluated"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "execution",
+                "submitted_input",
+                "assessment",
+                "final_binding_digest"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "execution_coverage": {
+                  "$ref": "#/$defs/RestrictedCoverage"
+                },
+                "submitted_input": {
+                  "$ref": "#/$defs/RestrictedInput"
+                },
+                "assessment": {
+                  "$ref": "#/$defs/RestrictedAssessment"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "restricted"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "execution_coverage",
+                "submitted_input",
+                "assessment"
+              ]
+            }
+          ]
+        },
         "Validation": {
           "type": "object",
           "properties": {
@@ -30511,6 +30576,440 @@
             "persistence",
             "provenance",
             "budget"
+          ]
+        },
+        "SubmittedInput": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "frame": {
+                  "$ref": "#/$defs/Frame"
+                },
+                "check_scope": {
+                  "$ref": "#/$defs/CheckScope"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "query"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "frame",
+                "check_scope"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "proposal": {
+                  "$ref": "#/$defs/ProposalRef"
+                },
+                "includes_sources": {
+                  "type": "boolean"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "record_candidate"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "proposal",
+                "includes_sources"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "proposal": {
+                  "$ref": "#/$defs/ProposalRef"
+                },
+                "sources": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/SourceBinding"
+                  }
+                },
+                "inventory_digest": {
+                  "$ref": "#/$defs/Sha256Hex"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "source_assessed_candidate"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "proposal",
+                "sources",
+                "inventory_digest"
+              ]
+            }
+          ]
+        },
+        "CheckScope": {
+          "type": "string",
+          "enum": [
+            "candidate",
+            "dependencies",
+            "universe"
+          ]
+        },
+        "ProposalRef": {
+          "type": "object",
+          "properties": {
+            "proposal_id": {
+              "$ref": "#/$defs/ProposalId"
+            },
+            "version": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "digest": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "proposal_id",
+            "version",
+            "digest"
+          ]
+        },
+        "ProposalId": {
+          "description": "Stable identity of a proposal.",
+          "type": "string",
+          "pattern": "^prp_[0-9a-f]{24}$"
+        },
+        "SourceBinding": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "source_version": {
+              "$ref": "#/$defs/AssessmentVersionRef"
+            },
+            "blob_digest": {
+              "$ref": "#/$defs/Sha256Hex"
+            },
+            "byte_size": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "representation": {
+              "$ref": "#/$defs/SourceRepresentation"
+            },
+            "ranges": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ByteRange"
+              }
+            },
+            "work_edition": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "passage_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "source_version",
+            "blob_digest",
+            "byte_size",
+            "representation",
+            "ranges",
+            "work_edition",
+            "passage_id"
+          ]
+        },
+        "AssessmentVersionRef": {
+          "description": "Exact workflow evidence references use the existing domain wire keys and IDs.",
+          "type": "object",
+          "properties": {
+            "universe": {
+              "$ref": "#/$defs/UniverseId"
+            },
+            "record": {
+              "$ref": "#/$defs/RecordId"
+            },
+            "version": {
+              "$ref": "#/$defs/RecordVersionId"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "universe",
+            "record",
+            "version"
+          ]
+        },
+        "Sha256Hex": {
+          "description": "Owning decoder enforces the same exact digest shape as the JSON schema.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "SourceRepresentation": {
+          "type": "string",
+          "enum": [
+            "exact-utf8-v1"
+          ]
+        },
+        "ByteRange": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "end": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "start",
+            "end"
+          ]
+        },
+        "AssessmentState": {
+          "description": "Approved reporting states. The current service produces only absent and\nunavailable_legacy; future bound states require recorded assessment evidence.",
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "absent"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "unavailable_legacy"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "reason": {
+                  "$ref": "#/$defs/UnavailableReason"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "unavailable"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "reason"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "assessment_reference": {
+                  "$ref": "#/$defs/AssessmentRef"
+                },
+                "reasons": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/StaleReason"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "stale"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "assessment_reference",
+                "reasons"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "assessment_reference": {
+                  "$ref": "#/$defs/AssessmentRef"
+                },
+                "selection_generation": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "byte_verification": {
+                  "$ref": "#/$defs/ByteVerification"
+                },
+                "declared_conclusion": {
+                  "$ref": "#/$defs/DeclaredConclusion"
+                },
+                "inventory_count": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "mapping_count": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "unresolved_count": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "inventory_digest": {
+                  "$ref": "#/$defs/Sha256Hex"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "bound"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "assessment_reference",
+                "selection_generation",
+                "byte_verification",
+                "declared_conclusion",
+                "inventory_count",
+                "mapping_count",
+                "unresolved_count",
+                "inventory_digest"
+              ]
+            }
+          ]
+        },
+        "UnavailableReason": {
+          "type": "string",
+          "enum": [
+            "missing_retained_material",
+            "unsupported_representation",
+            "failed_or_cancelled_check"
+          ]
+        },
+        "AssessmentRef": {
+          "type": "object",
+          "properties": {
+            "assessment_id": {
+              "$ref": "#/$defs/AssessmentId"
+            },
+            "digest": {
+              "$ref": "#/$defs/Sha256Hex"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "assessment_id",
+            "digest"
+          ]
+        },
+        "AssessmentId": {
+          "type": "string",
+          "pattern": "^asm_[0-9a-f]{24}$"
+        },
+        "StaleReason": {
+          "type": "string",
+          "enum": [
+            "candidate_changed",
+            "source_changed",
+            "edition_changed",
+            "dependency_changed",
+            "selection_changed",
+            "evaluator_changed"
+          ]
+        },
+        "ByteVerification": {
+          "type": "string",
+          "enum": [
+            "verified"
+          ]
+        },
+        "DeclaredConclusion": {
+          "type": "string",
+          "enum": [
+            "consistent_with_declared_inventory",
+            "inconsistent",
+            "unresolved"
+          ]
+        },
+        "RestrictedCoverage": {
+          "type": "string",
+          "enum": [
+            "restricted"
+          ]
+        },
+        "RestrictedInput": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "restricted"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            }
+          ]
+        },
+        "RestrictedAssessment": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "restricted"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            }
           ]
         }
       }
@@ -56857,7 +57356,7 @@
           "$ref": "#/$defs/Delivery"
         },
         "result": {
-          "$ref": "#/$defs/OperationStatus"
+          "$ref": "#/$defs/OperationStatusV3"
         }
       },
       "additionalProperties": false,
@@ -57846,13 +58345,14 @@
             "complete"
           ]
         },
-        "OperationStatus": {
+        "OperationStatusV3": {
+          "description": "Public operation view; durable v2 operation bytes retain their original shape.",
           "type": "object",
           "properties": {
             "validation": {
               "anyOf": [
                 {
-                  "$ref": "#/$defs/Validation"
+                  "$ref": "#/$defs/ValidationV3"
                 },
                 {
                   "type": "null"
@@ -57904,6 +58404,71 @@
             "kind",
             "state",
             "cancellation_requested"
+          ]
+        },
+        "ValidationV3": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "execution": {
+                  "$ref": "#/$defs/Validation"
+                },
+                "submitted_input": {
+                  "$ref": "#/$defs/SubmittedInput"
+                },
+                "assessment": {
+                  "$ref": "#/$defs/AssessmentState"
+                },
+                "final_binding_digest": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Sha256Hex"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "evaluated"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "execution",
+                "submitted_input",
+                "assessment",
+                "final_binding_digest"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "execution_coverage": {
+                  "$ref": "#/$defs/RestrictedCoverage"
+                },
+                "submitted_input": {
+                  "$ref": "#/$defs/RestrictedInput"
+                },
+                "assessment": {
+                  "$ref": "#/$defs/RestrictedAssessment"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "restricted"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "execution_coverage",
+                "submitted_input",
+                "assessment"
+              ]
+            }
           ]
         },
         "Validation": {
@@ -58556,6 +59121,440 @@
             "budget"
           ]
         },
+        "SubmittedInput": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "frame": {
+                  "$ref": "#/$defs/Frame"
+                },
+                "check_scope": {
+                  "$ref": "#/$defs/CheckScope"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "query"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "frame",
+                "check_scope"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "proposal": {
+                  "$ref": "#/$defs/ProposalRef"
+                },
+                "includes_sources": {
+                  "type": "boolean"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "record_candidate"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "proposal",
+                "includes_sources"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "proposal": {
+                  "$ref": "#/$defs/ProposalRef"
+                },
+                "sources": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/SourceBinding"
+                  }
+                },
+                "inventory_digest": {
+                  "$ref": "#/$defs/Sha256Hex"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "source_assessed_candidate"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "proposal",
+                "sources",
+                "inventory_digest"
+              ]
+            }
+          ]
+        },
+        "CheckScope": {
+          "type": "string",
+          "enum": [
+            "candidate",
+            "dependencies",
+            "universe"
+          ]
+        },
+        "ProposalRef": {
+          "type": "object",
+          "properties": {
+            "proposal_id": {
+              "$ref": "#/$defs/ProposalId"
+            },
+            "version": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "digest": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "proposal_id",
+            "version",
+            "digest"
+          ]
+        },
+        "ProposalId": {
+          "description": "Stable identity of a proposal.",
+          "type": "string",
+          "pattern": "^prp_[0-9a-f]{24}$"
+        },
+        "SourceBinding": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "source_version": {
+              "$ref": "#/$defs/AssessmentVersionRef"
+            },
+            "blob_digest": {
+              "$ref": "#/$defs/Sha256Hex"
+            },
+            "byte_size": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "representation": {
+              "$ref": "#/$defs/SourceRepresentation"
+            },
+            "ranges": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ByteRange"
+              }
+            },
+            "work_edition": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "passage_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "source_version",
+            "blob_digest",
+            "byte_size",
+            "representation",
+            "ranges",
+            "work_edition",
+            "passage_id"
+          ]
+        },
+        "AssessmentVersionRef": {
+          "description": "Exact workflow evidence references use the existing domain wire keys and IDs.",
+          "type": "object",
+          "properties": {
+            "universe": {
+              "$ref": "#/$defs/UniverseId"
+            },
+            "record": {
+              "$ref": "#/$defs/RecordId"
+            },
+            "version": {
+              "$ref": "#/$defs/RecordVersionId"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "universe",
+            "record",
+            "version"
+          ]
+        },
+        "Sha256Hex": {
+          "description": "Owning decoder enforces the same exact digest shape as the JSON schema.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "SourceRepresentation": {
+          "type": "string",
+          "enum": [
+            "exact-utf8-v1"
+          ]
+        },
+        "ByteRange": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "end": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "start",
+            "end"
+          ]
+        },
+        "AssessmentState": {
+          "description": "Approved reporting states. The current service produces only absent and\nunavailable_legacy; future bound states require recorded assessment evidence.",
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "absent"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "unavailable_legacy"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "reason": {
+                  "$ref": "#/$defs/UnavailableReason"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "unavailable"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "reason"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "assessment_reference": {
+                  "$ref": "#/$defs/AssessmentRef"
+                },
+                "reasons": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/StaleReason"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "stale"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "assessment_reference",
+                "reasons"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "assessment_reference": {
+                  "$ref": "#/$defs/AssessmentRef"
+                },
+                "selection_generation": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "byte_verification": {
+                  "$ref": "#/$defs/ByteVerification"
+                },
+                "declared_conclusion": {
+                  "$ref": "#/$defs/DeclaredConclusion"
+                },
+                "inventory_count": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "mapping_count": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "unresolved_count": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "inventory_digest": {
+                  "$ref": "#/$defs/Sha256Hex"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "bound"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "assessment_reference",
+                "selection_generation",
+                "byte_verification",
+                "declared_conclusion",
+                "inventory_count",
+                "mapping_count",
+                "unresolved_count",
+                "inventory_digest"
+              ]
+            }
+          ]
+        },
+        "UnavailableReason": {
+          "type": "string",
+          "enum": [
+            "missing_retained_material",
+            "unsupported_representation",
+            "failed_or_cancelled_check"
+          ]
+        },
+        "AssessmentRef": {
+          "type": "object",
+          "properties": {
+            "assessment_id": {
+              "$ref": "#/$defs/AssessmentId"
+            },
+            "digest": {
+              "$ref": "#/$defs/Sha256Hex"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "assessment_id",
+            "digest"
+          ]
+        },
+        "AssessmentId": {
+          "type": "string",
+          "pattern": "^asm_[0-9a-f]{24}$"
+        },
+        "StaleReason": {
+          "type": "string",
+          "enum": [
+            "candidate_changed",
+            "source_changed",
+            "edition_changed",
+            "dependency_changed",
+            "selection_changed",
+            "evaluator_changed"
+          ]
+        },
+        "ByteVerification": {
+          "type": "string",
+          "enum": [
+            "verified"
+          ]
+        },
+        "DeclaredConclusion": {
+          "type": "string",
+          "enum": [
+            "consistent_with_declared_inventory",
+            "inconsistent",
+            "unresolved"
+          ]
+        },
+        "RestrictedCoverage": {
+          "type": "string",
+          "enum": [
+            "restricted"
+          ]
+        },
+        "RestrictedInput": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "restricted"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            }
+          ]
+        },
+        "RestrictedAssessment": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "restricted"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            }
+          ]
+        },
         "OperationKind": {
           "type": "string",
           "enum": [
@@ -58647,11 +59646,6 @@
             "operation_id",
             "withdrawn"
           ]
-        },
-        "ProposalId": {
-          "description": "Stable identity of a proposal.",
-          "type": "string",
-          "pattern": "^prp_[0-9a-f]{24}$"
         },
         "Submission": {
           "type": "string",
@@ -65281,7 +66275,7 @@
           "$ref": "#/$defs/Delivery"
         },
         "result": {
-          "$ref": "#/$defs/OperationStatus"
+          "$ref": "#/$defs/OperationStatusV3"
         }
       },
       "additionalProperties": false,
@@ -66270,13 +67264,14 @@
             "complete"
           ]
         },
-        "OperationStatus": {
+        "OperationStatusV3": {
+          "description": "Public operation view; durable v2 operation bytes retain their original shape.",
           "type": "object",
           "properties": {
             "validation": {
               "anyOf": [
                 {
-                  "$ref": "#/$defs/Validation"
+                  "$ref": "#/$defs/ValidationV3"
                 },
                 {
                   "type": "null"
@@ -66328,6 +67323,71 @@
             "kind",
             "state",
             "cancellation_requested"
+          ]
+        },
+        "ValidationV3": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "execution": {
+                  "$ref": "#/$defs/Validation"
+                },
+                "submitted_input": {
+                  "$ref": "#/$defs/SubmittedInput"
+                },
+                "assessment": {
+                  "$ref": "#/$defs/AssessmentState"
+                },
+                "final_binding_digest": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Sha256Hex"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "evaluated"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "execution",
+                "submitted_input",
+                "assessment",
+                "final_binding_digest"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "execution_coverage": {
+                  "$ref": "#/$defs/RestrictedCoverage"
+                },
+                "submitted_input": {
+                  "$ref": "#/$defs/RestrictedInput"
+                },
+                "assessment": {
+                  "$ref": "#/$defs/RestrictedAssessment"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "restricted"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "execution_coverage",
+                "submitted_input",
+                "assessment"
+              ]
+            }
           ]
         },
         "Validation": {
@@ -66980,6 +68040,440 @@
             "budget"
           ]
         },
+        "SubmittedInput": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "frame": {
+                  "$ref": "#/$defs/Frame"
+                },
+                "check_scope": {
+                  "$ref": "#/$defs/CheckScope"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "query"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "frame",
+                "check_scope"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "proposal": {
+                  "$ref": "#/$defs/ProposalRef"
+                },
+                "includes_sources": {
+                  "type": "boolean"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "record_candidate"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "proposal",
+                "includes_sources"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "proposal": {
+                  "$ref": "#/$defs/ProposalRef"
+                },
+                "sources": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/SourceBinding"
+                  }
+                },
+                "inventory_digest": {
+                  "$ref": "#/$defs/Sha256Hex"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "source_assessed_candidate"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "proposal",
+                "sources",
+                "inventory_digest"
+              ]
+            }
+          ]
+        },
+        "CheckScope": {
+          "type": "string",
+          "enum": [
+            "candidate",
+            "dependencies",
+            "universe"
+          ]
+        },
+        "ProposalRef": {
+          "type": "object",
+          "properties": {
+            "proposal_id": {
+              "$ref": "#/$defs/ProposalId"
+            },
+            "version": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "digest": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "proposal_id",
+            "version",
+            "digest"
+          ]
+        },
+        "ProposalId": {
+          "description": "Stable identity of a proposal.",
+          "type": "string",
+          "pattern": "^prp_[0-9a-f]{24}$"
+        },
+        "SourceBinding": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "source_version": {
+              "$ref": "#/$defs/AssessmentVersionRef"
+            },
+            "blob_digest": {
+              "$ref": "#/$defs/Sha256Hex"
+            },
+            "byte_size": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "representation": {
+              "$ref": "#/$defs/SourceRepresentation"
+            },
+            "ranges": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ByteRange"
+              }
+            },
+            "work_edition": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "passage_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "source_version",
+            "blob_digest",
+            "byte_size",
+            "representation",
+            "ranges",
+            "work_edition",
+            "passage_id"
+          ]
+        },
+        "AssessmentVersionRef": {
+          "description": "Exact workflow evidence references use the existing domain wire keys and IDs.",
+          "type": "object",
+          "properties": {
+            "universe": {
+              "$ref": "#/$defs/UniverseId"
+            },
+            "record": {
+              "$ref": "#/$defs/RecordId"
+            },
+            "version": {
+              "$ref": "#/$defs/RecordVersionId"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "universe",
+            "record",
+            "version"
+          ]
+        },
+        "Sha256Hex": {
+          "description": "Owning decoder enforces the same exact digest shape as the JSON schema.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "SourceRepresentation": {
+          "type": "string",
+          "enum": [
+            "exact-utf8-v1"
+          ]
+        },
+        "ByteRange": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "end": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "start",
+            "end"
+          ]
+        },
+        "AssessmentState": {
+          "description": "Approved reporting states. The current service produces only absent and\nunavailable_legacy; future bound states require recorded assessment evidence.",
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "absent"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "unavailable_legacy"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "reason": {
+                  "$ref": "#/$defs/UnavailableReason"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "unavailable"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "reason"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "assessment_reference": {
+                  "$ref": "#/$defs/AssessmentRef"
+                },
+                "reasons": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/StaleReason"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "stale"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "assessment_reference",
+                "reasons"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "assessment_reference": {
+                  "$ref": "#/$defs/AssessmentRef"
+                },
+                "selection_generation": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "byte_verification": {
+                  "$ref": "#/$defs/ByteVerification"
+                },
+                "declared_conclusion": {
+                  "$ref": "#/$defs/DeclaredConclusion"
+                },
+                "inventory_count": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "mapping_count": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "unresolved_count": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "inventory_digest": {
+                  "$ref": "#/$defs/Sha256Hex"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "bound"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "assessment_reference",
+                "selection_generation",
+                "byte_verification",
+                "declared_conclusion",
+                "inventory_count",
+                "mapping_count",
+                "unresolved_count",
+                "inventory_digest"
+              ]
+            }
+          ]
+        },
+        "UnavailableReason": {
+          "type": "string",
+          "enum": [
+            "missing_retained_material",
+            "unsupported_representation",
+            "failed_or_cancelled_check"
+          ]
+        },
+        "AssessmentRef": {
+          "type": "object",
+          "properties": {
+            "assessment_id": {
+              "$ref": "#/$defs/AssessmentId"
+            },
+            "digest": {
+              "$ref": "#/$defs/Sha256Hex"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "assessment_id",
+            "digest"
+          ]
+        },
+        "AssessmentId": {
+          "type": "string",
+          "pattern": "^asm_[0-9a-f]{24}$"
+        },
+        "StaleReason": {
+          "type": "string",
+          "enum": [
+            "candidate_changed",
+            "source_changed",
+            "edition_changed",
+            "dependency_changed",
+            "selection_changed",
+            "evaluator_changed"
+          ]
+        },
+        "ByteVerification": {
+          "type": "string",
+          "enum": [
+            "verified"
+          ]
+        },
+        "DeclaredConclusion": {
+          "type": "string",
+          "enum": [
+            "consistent_with_declared_inventory",
+            "inconsistent",
+            "unresolved"
+          ]
+        },
+        "RestrictedCoverage": {
+          "type": "string",
+          "enum": [
+            "restricted"
+          ]
+        },
+        "RestrictedInput": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "restricted"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            }
+          ]
+        },
+        "RestrictedAssessment": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "restricted"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            }
+          ]
+        },
         "OperationKind": {
           "type": "string",
           "enum": [
@@ -67071,11 +68565,6 @@
             "operation_id",
             "withdrawn"
           ]
-        },
-        "ProposalId": {
-          "description": "Stable identity of a proposal.",
-          "type": "string",
-          "pattern": "^prp_[0-9a-f]{24}$"
         },
         "Submission": {
           "type": "string",

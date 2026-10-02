@@ -1,0 +1,57 @@
+{
+  "scope": "approved D03/D08 validation reporting slice",
+  "proof": "docs/evidence/input-scope-2026-10-02/run6.json",
+  "proof_sha256": "30c9ac9a9f14605f0b6c2797de7a6f7ef84021c13ce4b5a9ca31cb917fea4488",
+  "rust": {
+    "passed": 73,
+    "failed": 0,
+    "ignored": 1,
+    "packages": [
+      "universe-protocol",
+      "universe-client",
+      "universe-service"
+    ]
+  },
+  "scope_schema_tests": {
+    "passed": 3,
+    "failed": 0
+  },
+  "contracts": {
+    "schemas": 26,
+    "valid_examples": 13,
+    "invalid_examples": 91,
+    "fresh": true
+  },
+  "native_code_compilation": "passed; no UI qualification",
+  "mcp": {
+    "current_calls": 37,
+    "upgrade_calls": 16,
+    "cases": [
+      "structured",
+      "source_only",
+      "mixed",
+      "structured_after_source_history",
+      "query",
+      "restricted",
+      "queued",
+      "completed_queue_retry",
+      "restart",
+      "legacy_view",
+      "legacy_authority_denial",
+      "fresh_commit"
+    ],
+    "preserved_v2_entries": {
+      "count": 11,
+      "all_bytes_unchanged": true
+    }
+  },
+  "historical_audit_tamper_tests": {
+    "g05_passed": 6,
+    "continuity_baseline_passed": 6
+  },
+  "excluded": [
+    "assessment attachment submission",
+    "language interpretation",
+    "native UI qualification"
+  ]
+}

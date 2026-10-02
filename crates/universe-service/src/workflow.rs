@@ -3,17 +3,18 @@ use crate::{
     operations::{self, Footprint},
     registry::Principal,
 };
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use universe_domain::{
     canonical::canonical_serde, frame::*, ids::*, records::*, scope::Applicability,
     value::RecordRef,
 };
-use universe_protocol::{request::*, response::*, ProtocolError, Request};
+use universe_protocol::{ProtocolError, Request, request::*, response::*};
 use universe_store::kernel::{Assignment, CommitInput, Kernel};
-const EVALUATOR: &str = "finite-policy-v4-opposing-evidence";
+const EVALUATOR: &str = "finite-policy-v5-input-scope";
+use universe_protocol::validation_scope::*;
 pub(crate) fn hash<T: Serialize>(v: &T) -> String {
     hex::encode(Sha256::digest(canonical_serde(v).to_bytes()))
 }
@@ -57,6 +58,8 @@ pub(crate) struct Checked {
     proposal_digest: String,
     validation: Validation,
     admissible: bool,
+    #[serde(default)]
+    report: Option<ValidationV3>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 struct StoredOperation {
@@ -98,6 +101,7 @@ impl ValidationTask {
             return Ok(Checked {
                 proposal_digest: self.proposal.proposal.digest.clone(),
                 admissible: false,
+                report: None,
                 validation: Validation {
                     operation_id: None,
                     run_id: ValidationRunId::generate(&mut rand::rng()),
@@ -446,6 +450,125 @@ impl Workflow<'_> {
             changes: p.changes.clone(),
         })
     }
+    fn has_final(c: &Checked, p: &StoredProposal) -> bool {
+        matches!(
+            &c.report,
+            Some(ValidationV3::Evaluated {
+                final_binding_digest: Some(_),
+                ..
+            })
+        ) && hash(&c.report) == hash(&Some(Self::report(p, c.validation.clone(), false, true)))
+    }
+    fn query_report(execution: Validation, frame: Frame, check_scope: CheckScope) -> ValidationV3 {
+        if execution.coverage == Coverage::Restricted {
+            return ValidationV3::restricted();
+        }
+        ValidationV3::Evaluated {
+            execution,
+            submitted_input: SubmittedInput::Query { frame, check_scope },
+            assessment: AssessmentState::Absent {},
+            final_binding_digest: None,
+        }
+    }
+    fn report(
+        p: &StoredProposal,
+        execution: Validation,
+        legacy: bool,
+        finished: bool,
+    ) -> ValidationV3 {
+        if execution.coverage == Coverage::Restricted {
+            return ValidationV3::restricted();
+        }
+        // Derived from compiled writes, including adopted/replaced source records.
+        // Sources already in canon do not promote a structured-only submission.
+        let includes_sources = p.changes.iter().any(|a| {
+            a.next.as_ref().is_some_and(|r| {
+                matches!(
+                    r.payload,
+                    Payload::Source(_)
+                        | Payload::SourceVersion(_)
+                        | Payload::Anchor(_)
+                        | Payload::WorkVersion(_)
+                )
+            })
+        });
+        let proposal = ProposalRef {
+            proposal_id: p.proposal.proposal_id.clone(),
+            version: p.proposal.version,
+            digest: p.proposal.digest.clone(),
+        };
+        let submitted_input = SubmittedInput::RecordCandidate {
+            proposal: proposal.clone(),
+            includes_sources,
+        };
+        let assessment = if legacy {
+            AssessmentState::UnavailableLegacy {}
+        } else {
+            AssessmentState::Absent {}
+        };
+        let final_binding_digest = if finished && !legacy {
+            let binding = json!({"kind":"source_validation_binding_v1","proposal":proposal,"base_frame":p.proposal.base_frame,"selection":{"proposal":proposal,"generation":0,"selected":null},"submitted_input":submitted_input,"assessment_state":assessment,"execution_result_digest":hash(&execution),"evaluator_version":execution.evaluator_version});
+            Some(
+                Sha256Hex::parse(hex::encode(Sha256::digest(
+                    [
+                        b"source-validation:v1:".as_slice(),
+                        canonical_serde(&binding).to_bytes().as_slice(),
+                    ]
+                    .concat(),
+                )))
+                .expect("SHA256 hex"),
+            )
+        } else {
+            None
+        };
+        ValidationV3::Evaluated {
+            execution,
+            submitted_input,
+            assessment,
+            final_binding_digest,
+        }
+    }
+    fn public_status(&self, status: OperationStatus) -> anyhow::Result<OperationStatusV3> {
+        let report = if let Some(execution) = &status.validation {
+            if self.scope.is_some() || execution.coverage == Coverage::Restricted {
+                Some(ValidationV3::restricted())
+            } else {
+                let saved = self
+                    .kernel
+                    .workflow_get(&format!("validation:{}", execution.run_id))?;
+                let checked = saved.map(serde_json::from_value::<Checked>).transpose()?;
+                if let Some(mut report) = checked.and_then(|c| c.report) {
+                    if let ValidationV3::Evaluated {
+                        execution: core, ..
+                    } = &mut report
+                    {
+                        *core = *execution.clone();
+                    }
+                    Some(report)
+                } else {
+                    let proposal = status.proposal.as_ref().ok_or_else(denied)?;
+                    let p: StoredProposal = self.load(&format!(
+                        "proposal:{}:{:020}",
+                        proposal.proposal_id, proposal.version
+                    ))?;
+                    Some(Self::report(
+                        &p,
+                        *execution.clone(),
+                        execution.evaluator_version != EVALUATOR,
+                        false,
+                    ))
+                }
+            }
+        } else {
+            None
+        };
+        let mut public = OperationStatusV3::from_stored(status, report);
+        if self.scope.is_some() && public.validation.is_some() {
+            public.failure = None;
+            public.proposal = None;
+        }
+        Ok(public)
+    }
     fn operation_key(&self, kind: &str, key: &str) -> String {
         format!("request:{}:{kind}:{}", self.principal.id, hash(&key))
     }
@@ -598,6 +721,12 @@ impl Workflow<'_> {
         match result {
             Ok(mut checked) => {
                 checked.validation.operation_id = Some(id.clone());
+                let proposal = op.status.proposal.as_ref().ok_or_else(denied)?;
+                let p: StoredProposal = self.load(&format!(
+                    "proposal:{}:{:020}",
+                    proposal.proposal_id, proposal.version
+                ))?;
+                checked.report = Some(Self::report(&p, checked.validation.clone(), false, true));
                 op.status.validation = Some(Box::new(checked.validation.clone()));
                 op.status.state = OperationState::Succeeded;
                 self.persist(&[
@@ -626,6 +755,7 @@ impl Workflow<'_> {
             return Ok(Checked {
                 proposal_digest: p.proposal.digest.clone(),
                 admissible: false,
+                report: None,
                 validation: Validation {
                     operation_id: None,
                     run_id: ValidationRunId::generate(&mut rand::rng()),
@@ -915,6 +1045,7 @@ impl Workflow<'_> {
         };
         Ok(Checked {
             proposal_digest: p.proposal.digest.clone(),
+            report: Some(Self::report(p, validation.clone(), false, true)),
             validation,
             admissible,
         })
@@ -1130,6 +1261,7 @@ impl Workflow<'_> {
             || p.proposal.withdrawn
             || !matches!(p.proposal.submission, Submission::Submitted)
             || checked.proposal_digest != r.digest
+            || !Self::has_final(&checked, &p)
             || checked.validation.evaluator_version != EVALUATOR
             || !checked.admissible
             || self.kernel.head(&p.proposal.base_frame.continuity)?
@@ -1956,25 +2088,13 @@ impl Workflow<'_> {
                         .kernel
                         .records(&ctx.frame.continuity, &ctx.frame.revision)?;
                     world_focus = self.focus(args, &base)?;
-                    let validation = Validation {
-                        operation_id: None,
-                        run_id: ValidationRunId::generate(&mut rand::rng()),
-                        coverage: Coverage::Restricted,
-                        findings: vec![],
-                        opposing_evidence: vec![],
-                        unsupported_capabilities: vec![
-                            "Author validation required for complete evaluation scope".into(),
-                        ],
-                        input_digest: hash(args),
-                        evaluator_version: EVALUATOR.into(),
-                    };
                     return self.wrap(
                         args,
                         frame,
                         world_focus,
                         true,
                         None,
-                        serde_json::to_value(validation)?,
+                        serde_json::to_value(ValidationV3::restricted())?,
                     );
                 }
                 let p = if args["mode"] == "proposal" || args["mode"] == "queued_proposal" {
@@ -2083,15 +2203,28 @@ impl Workflow<'_> {
                         None,
                         true,
                         None,
-                        serde_json::to_value(op.status.validation.ok_or_else(denied)?)?,
+                        serde_json::to_value(
+                            self.public_status(op.status)?
+                                .validation
+                                .ok_or_else(denied)?,
+                        )?,
                     );
                 }
-                let checked = self.check(&p)?;
+                let mut checked = self.check(&p)?;
+                checked.report = Some(if args["mode"] == "inline" {
+                    Self::query_report(
+                        checked.validation.clone(),
+                        ctx.frame.clone(),
+                        field(args, "check_scope")?,
+                    )
+                } else {
+                    Self::report(&p, checked.validation.clone(), false, true)
+                });
                 self.save(
                     format!("validation:{}", checked.validation.run_id),
                     &checked,
                 )?;
-                serde_json::to_value(checked.validation)?
+                serde_json::to_value(checked.report)?
             }
             Request::Commit(a) => {
                 let p = self.proposal(&a.proposal_reference)?;
@@ -2129,6 +2262,7 @@ impl Workflow<'_> {
                 let checked: Checked = self.load(&format!("validation:{}", a.validation_run))?;
                 if checked.proposal_digest != p.proposal.digest
                     || !checked.admissible
+                    || !Self::has_final(&checked, &p)
                     || checked.validation.evaluator_version != EVALUATOR
                 {
                     return Err(ProtocolError::ApprovalStale.into());
@@ -2232,6 +2366,20 @@ impl Workflow<'_> {
                 if let Some(proposal) = &status.proposal {
                     frame = Some(proposal.base_frame.clone());
                 }
+                if self.scope.is_some() && status.validation.is_some() {
+                    if args.get("cursor").is_some() {
+                        return Err(denied());
+                    }
+                    // Do not page private findings or expose their cursor/count metadata.
+                    return self.wrap(
+                        args,
+                        frame,
+                        None,
+                        true,
+                        None,
+                        serde_json::to_value(self.public_status(status)?)?,
+                    );
+                }
                 if let Some(validation) = &mut status.validation {
                     let pinned = frame.as_ref().ok_or_else(denied)?;
                     let mut binding = args.clone();
@@ -2250,7 +2398,7 @@ impl Workflow<'_> {
                 } else if args.get("cursor").is_some() {
                     return Err(denied());
                 }
-                serde_json::to_value(status)?
+                serde_json::to_value(self.public_status(status)?)?
             }
             Request::CancelOperation(a) => {
                 let mut op = self.operation(&format!("operation:{}", a.operation_id))?;
@@ -2264,7 +2412,7 @@ impl Workflow<'_> {
                         }
                         .into());
                     }
-                    serde_json::to_value(self.operation(&key)?.status)?
+                    serde_json::to_value(self.public_status(self.operation(&key)?.status)?)?
                 } else {
                     let mut entries = Vec::new();
                     if !matches!(
@@ -2282,7 +2430,7 @@ impl Workflow<'_> {
                     entries.push((key, serde_json::to_value(&op)?));
                     self.persist(&entries)?;
                     cancel_validation(self.kernel.universe(), &a.operation_id);
-                    serde_json::to_value(op.status)?
+                    serde_json::to_value(self.public_status(op.status)?)?
                 }
             }
             Request::GetImpact(_) => {
@@ -2814,11 +2962,13 @@ mod job_tests {
             workflow.operation(&key).unwrap().status.state,
             OperationState::Cancelled
         );
-        assert!(workflow
-            .kernel
-            .workflow_get(&format!("job:{id}:terminal"))
-            .unwrap()
-            .is_none());
+        assert!(
+            workflow
+                .kernel
+                .workflow_get(&format!("job:{id}:terminal"))
+                .unwrap()
+                .is_none()
+        );
         drop(kernel);
         let mut kernel = Kernel::open(&path).unwrap();
         let workflow = Workflow {

@@ -117,7 +117,7 @@ def audit(directory):
             check(value["proposal_digest"] == p["digest"] and value["validation"] == v,
                   "validation not pinned to exact proposal")
             check(any(c["tool"] == "universe_validate" and not c["expected_error"]
-                      and c["result"]["result"] == v for c in calls), "validation differs from wire result")
+                      and c["result"]["result"].get("execution", c["result"]["result"]) == v for c in calls), "validation differs from wire result")
             return value
 
         def approvals(p, v):
@@ -195,11 +195,11 @@ def audit(directory):
                           and c["arguments"].get("idempotency_key") == row["case"]]
             validation_call = [c for c in calls[:42] if c["tool"] == "universe_validate"
                                and c["arguments"]["proposal_reference"]["proposal_id"] == p["proposal_id"]
-                               and (c["result"] if case_id == "C01" else c["result"]["result"]) == v]
+                               and (c["result"] if case_id == "C01" else c["result"]["result"].get("execution", c["result"]["result"])) == v]
             check(len(probe_call) == len(validation_call) == 1, "missing baseline request")
             check(probe_call[0]["arguments"]["operations"] == row["operations"], "stimulus differs from wire request")
             check(normalize(row["operations"]) == historical[case_id]["operations"], "original probe stimulus changed")
-            check((validation_call[0]["result"] if case_id == "C01" else validation_call[0]["result"]["result"]) == v,
+            check((validation_call[0]["result"] if case_id == "C01" else validation_call[0]["result"]["result"].get("execution", validation_call[0]["result"]["result"])) == v,
                   "baseline validation not from recorded request")
             if case_id == "C01":
                 observation = {"error_code": v["code"], "error_field": v["field"],

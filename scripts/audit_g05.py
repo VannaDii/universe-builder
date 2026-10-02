@@ -129,7 +129,8 @@ def audit(directory):
    check(a['support']['proposition']==a['refutation']['proposition'],'mechanism A not same ID')
    b=report['cases'][1]['validation']['opposing_evidence']
    check(any(d['support']['proposition']!=d['refutation']['proposition'] for d in b),'mechanism B not distinct IDs')
-   check(report['restricted_validation']['result']['coverage']=='restricted' and not report['restricted_validation']['result'].get('opposing_evidence') and not report['restricted_validation']['result']['findings'],'restricted diagnostics leaked')
+   restricted=report['restricted_validation']['result']
+   check(restricted=={'kind':'restricted','execution_coverage':'restricted','submitted_input':{'kind':'restricted'},'assessment':{'kind':'restricted'}} or (restricted.get('coverage')=='restricted' and not restricted.get('opposing_evidence') and not restricted.get('findings')),'restricted diagnostics leaked')
    check(report['head_before_restart']==report['head_after_restart'],'restart changed head')
    for r in report['active_after_restart']:check(versions[membership[r['identity']['record_id']]]==r,'restart active record differs')
    history=snapshot(report['historical_revision'])
@@ -139,7 +140,8 @@ def audit(directory):
   else:
    check(report['head_before']==report['head_after_denial'],'upgrade denial changed head')
    check(report['old_validation']['evaluator_version']!=report['fresh_validation']['evaluator_version'],'evaluator did not change')
-   check(report['old_status']==report['historical_status'],'historical operation differs')
+   history=report['historical_status']
+   check(report['old_status']==history or (history['validation'].get('assessment')=={'kind':'unavailable_legacy'} and history['validation'].get('final_binding_digest') is None and history['validation'].get('execution')==report['old_status']['validation']),'historical operation differs')
    check(report['stale_approval']['returncode']!=0,'stale approval accepted')
    check(db.execute("SELECT count(*) FROM operation_receipts WHERE idempotency_key='stale-evaluator'").fetchone()[0]==0,'stale receipt exists')
    receipt(report['old_proposal'],report['fresh_validation'],report['fresh_arguments'],report['fresh_commit'])

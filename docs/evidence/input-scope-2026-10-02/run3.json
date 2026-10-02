@@ -1,0 +1,1687 @@
+{
+  "status": "failed",
+  "mcp": [
+    {
+      "tool": "universe_open_context",
+      "arguments": {
+        "universe": "The Cairn Archive Pilot",
+        "continuity_id": "cont_f371685769000acdf7022fef",
+        "revision": {
+          "kind": "head"
+        },
+        "represented_context": "rec_aebf5df77f1e2c640ef7f83c",
+        "temporal_query": {
+          "kind": "timeless"
+        },
+        "temporal_systems": [],
+        "perspective": "author"
+      },
+      "expected_error": false,
+      "result": {
+        "contract_version": "3",
+        "request_id": 1,
+        "universe_id": "unv_6e0b2697d232da35c2d351e5",
+        "universe": "The Cairn Archive Pilot",
+        "alias_matched": false,
+        "frame": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "continuity": "cont_f371685769000acdf7022fef",
+          "revision": "rev_a4a8beebe5e84d8230c20cfb",
+          "context": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "record": "rec_aebf5df77f1e2c640ef7f83c"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_focus": null,
+        "authorization_scope": "universe grant",
+        "delivery": {
+          "complete": true,
+          "cursor": null
+        },
+        "result": {
+          "context_id": "ctx_ddac27ee4531162ce35f9107",
+          "frame": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "continuity": "cont_f371685769000acdf7022fef",
+            "revision": "rev_a4a8beebe5e84d8230c20cfb",
+            "context": {
+              "universe": "unv_6e0b2697d232da35c2d351e5",
+              "record": "rec_aebf5df77f1e2c640ef7f83c"
+            },
+            "time": {
+              "kind": "timeless"
+            },
+            "perspective": "author"
+          }
+        }
+      }
+    },
+    {
+      "tool": "universe_get",
+      "arguments": {
+        "universe": "The Cairn Archive Pilot",
+        "context_id": "ctx_ddac27ee4531162ce35f9107",
+        "record_ids": [
+          "rec_aebf5df77f1e2c640ef7f83c"
+        ],
+        "field_groups": [
+          "payload"
+        ]
+      },
+      "expected_error": false,
+      "result": {
+        "contract_version": "3",
+        "request_id": 1,
+        "universe_id": "unv_6e0b2697d232da35c2d351e5",
+        "universe": "The Cairn Archive Pilot",
+        "alias_matched": false,
+        "frame": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "continuity": "cont_f371685769000acdf7022fef",
+          "revision": "rev_a4a8beebe5e84d8230c20cfb",
+          "context": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "record": "rec_aebf5df77f1e2c640ef7f83c"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_focus": null,
+        "authorization_scope": "universe grant",
+        "delivery": {
+          "complete": true,
+          "cursor": null
+        },
+        "result": {
+          "records": [
+            {
+              "record_version_id": "ver_d0f409ce0ae42687f3a97827",
+              "identity": {
+                "universe_id": "unv_6e0b2697d232da35c2d351e5",
+                "record_id": "rec_aebf5df77f1e2c640ef7f83c",
+                "record_kind": "represented_context"
+              },
+              "payload_schema_version": "v1",
+              "payload": {
+                "record_kind": "represented_context",
+                "universe": "unv_6e0b2697d232da35c2d351e5",
+                "kind": {
+                  "kind": "objective"
+                },
+                "chronology": {
+                  "calendar": "cal_926b642f5f9d958ea16d9aea",
+                  "system": {
+                    "kind": "fictional",
+                    "tick_label": "days",
+                    "ticks_per_month": null
+                  },
+                  "first_interaction": "10",
+                  "current": "10"
+                },
+                "labels": {
+                  "en": "Objective reality"
+                }
+              },
+              "payload_digest": "5851d128714b8acc5348a82ae7bcdf6a2f5aca5f6f5b70f3f47251d1558be26d"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "tool": "universe_propose",
+      "arguments": {
+        "action": "create",
+        "universe": "The Cairn Archive Pilot",
+        "context_id": "ctx_ddac27ee4531162ce35f9107",
+        "operations": [
+          {
+            "kind": "create_entity",
+            "client_ref": "rec_000000000000000000030d41",
+            "record": {
+              "names": [],
+              "types": [],
+              "worldAssociations": [],
+              "labels": {
+                "en": "Entity 1"
+              },
+              "metadata": {}
+            }
+          }
+        ],
+        "submission": "submitted",
+        "rationale": "Whole manuscript continuity assessed (unsupported caller claim)",
+        "idempotency_key": "structured"
+      },
+      "expected_error": false,
+      "result": {
+        "contract_version": "3",
+        "request_id": 1,
+        "universe_id": "unv_6e0b2697d232da35c2d351e5",
+        "universe": "The Cairn Archive Pilot",
+        "alias_matched": false,
+        "frame": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "continuity": "cont_f371685769000acdf7022fef",
+          "revision": "rev_a4a8beebe5e84d8230c20cfb",
+          "context": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "record": "rec_aebf5df77f1e2c640ef7f83c"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_focus": null,
+        "authorization_scope": "universe grant",
+        "delivery": {
+          "complete": true,
+          "cursor": null
+        },
+        "result": {
+          "base_frame": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "continuity": "cont_f371685769000acdf7022fef",
+            "revision": "rev_a4a8beebe5e84d8230c20cfb",
+            "context": {
+              "universe": "unv_6e0b2697d232da35c2d351e5",
+              "record": "rec_aebf5df77f1e2c640ef7f83c"
+            },
+            "time": {
+              "kind": "timeless"
+            },
+            "perspective": "author"
+          },
+          "world_scope": null,
+          "proposal_id": "prp_4e48c593ad9d6104759ff295",
+          "version": 1,
+          "digest": "fd5f528a1c17c2a2de22702743892f2e412d729eb5e5cea6ac378f952fdd826f",
+          "submission": "submitted",
+          "operations": [
+            {
+              "kind": "create_entity",
+              "client_ref": "rec_000000000000000000030d41",
+              "record": {
+                "names": [],
+                "types": [],
+                "worldAssociations": [],
+                "labels": {
+                  "en": "Entity 1"
+                },
+                "metadata": {}
+              }
+            }
+          ],
+          "rationale": "Whole manuscript continuity assessed (unsupported caller claim)",
+          "canonical": false,
+          "operation_id": "op_77bb7a93e5072b4835f5d832",
+          "withdrawn": false
+        }
+      }
+    },
+    {
+      "tool": "universe_validate",
+      "arguments": {
+        "mode": "proposal",
+        "universe": "The Cairn Archive Pilot",
+        "context_id": "ctx_ddac27ee4531162ce35f9107",
+        "proposal_reference": {
+          "proposal_id": "prp_4e48c593ad9d6104759ff295",
+          "version": 1,
+          "digest": "fd5f528a1c17c2a2de22702743892f2e412d729eb5e5cea6ac378f952fdd826f"
+        },
+        "check_scope": "universe"
+      },
+      "expected_error": false,
+      "result": {
+        "contract_version": "3",
+        "request_id": 1,
+        "universe_id": "unv_6e0b2697d232da35c2d351e5",
+        "universe": "The Cairn Archive Pilot",
+        "alias_matched": false,
+        "frame": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "continuity": "cont_f371685769000acdf7022fef",
+          "revision": "rev_a4a8beebe5e84d8230c20cfb",
+          "context": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "record": "rec_aebf5df77f1e2c640ef7f83c"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_focus": null,
+        "authorization_scope": "universe grant",
+        "delivery": {
+          "complete": true,
+          "cursor": null
+        },
+        "result": {
+          "kind": "evaluated",
+          "execution": {
+            "run_id": "val_9de19057e840e18ad3dc5f49",
+            "coverage": "complete",
+            "findings": [],
+            "unsupported_capabilities": [],
+            "input_digest": "fd5f528a1c17c2a2de22702743892f2e412d729eb5e5cea6ac378f952fdd826f",
+            "evaluator_version": "finite-policy-v5-input-scope"
+          },
+          "submitted_input": {
+            "kind": "record_candidate",
+            "proposal": {
+              "proposal_id": "prp_4e48c593ad9d6104759ff295",
+              "version": 1,
+              "digest": "fd5f528a1c17c2a2de22702743892f2e412d729eb5e5cea6ac378f952fdd826f"
+            },
+            "includes_sources": false
+          },
+          "assessment": {
+            "kind": "absent"
+          },
+          "final_binding_digest": "4ddc9aeb7ef9ea32717ae79567ed503b7ae86d21a7e82c3b19d87fdc23116181"
+        }
+      }
+    },
+    {
+      "tool": "universe_commit",
+      "arguments": {
+        "universe": "The Cairn Archive Pilot",
+        "proposal_reference": {
+          "proposal_id": "prp_4e48c593ad9d6104759ff295",
+          "version": 1,
+          "digest": "fd5f528a1c17c2a2de22702743892f2e412d729eb5e5cea6ac378f952fdd826f"
+        },
+        "expected_base_revision": "rev_a4a8beebe5e84d8230c20cfb",
+        "validation_run": "val_9de19057e840e18ad3dc5f49",
+        "idempotency_key": "structured-commit"
+      },
+      "expected_error": true,
+      "result": {
+        "code": "APPROVAL_REQUIRED",
+        "message": "author must approve this exact proposal and validation"
+      }
+    },
+    {
+      "tool": "universe_commit",
+      "arguments": {
+        "universe": "The Cairn Archive Pilot",
+        "proposal_reference": {
+          "proposal_id": "prp_4e48c593ad9d6104759ff295",
+          "version": 1,
+          "digest": "fd5f528a1c17c2a2de22702743892f2e412d729eb5e5cea6ac378f952fdd826f"
+        },
+        "expected_base_revision": "rev_a4a8beebe5e84d8230c20cfb",
+        "validation_run": "val_9de19057e840e18ad3dc5f49",
+        "idempotency_key": "structured-commit"
+      },
+      "expected_error": false,
+      "result": {
+        "contract_version": "3",
+        "request_id": 1,
+        "universe_id": "unv_6e0b2697d232da35c2d351e5",
+        "universe": "The Cairn Archive Pilot",
+        "alias_matched": false,
+        "frame": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "continuity": "cont_f371685769000acdf7022fef",
+          "revision": "rev_a4a8beebe5e84d8230c20cfb",
+          "context": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "record": "rec_aebf5df77f1e2c640ef7f83c"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_focus": null,
+        "authorization_scope": "universe grant",
+        "delivery": {
+          "complete": true,
+          "cursor": null
+        },
+        "result": {
+          "operation_id": "op_e842df4e9d716bb953e1023d",
+          "proposal_id": "prp_4e48c593ad9d6104759ff295",
+          "revision": "rev_1df3f8d7d47affd531856b81"
+        }
+      }
+    },
+    {
+      "tool": "universe_commit",
+      "arguments": {
+        "universe": "The Cairn Archive Pilot",
+        "proposal_reference": {
+          "proposal_id": "prp_4e48c593ad9d6104759ff295",
+          "version": 1,
+          "digest": "fd5f528a1c17c2a2de22702743892f2e412d729eb5e5cea6ac378f952fdd826f"
+        },
+        "expected_base_revision": "rev_a4a8beebe5e84d8230c20cfb",
+        "validation_run": "val_9de19057e840e18ad3dc5f49",
+        "idempotency_key": "structured-commit"
+      },
+      "expected_error": false,
+      "result": {
+        "contract_version": "3",
+        "request_id": 1,
+        "universe_id": "unv_6e0b2697d232da35c2d351e5",
+        "universe": "The Cairn Archive Pilot",
+        "alias_matched": false,
+        "frame": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "continuity": "cont_f371685769000acdf7022fef",
+          "revision": "rev_a4a8beebe5e84d8230c20cfb",
+          "context": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "record": "rec_aebf5df77f1e2c640ef7f83c"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_focus": null,
+        "authorization_scope": "universe grant",
+        "delivery": {
+          "complete": true,
+          "cursor": null
+        },
+        "result": {
+          "operation_id": "op_e842df4e9d716bb953e1023d",
+          "proposal_id": "prp_4e48c593ad9d6104759ff295",
+          "revision": "rev_1df3f8d7d47affd531856b81"
+        }
+      }
+    },
+    {
+      "tool": "universe_open_context",
+      "arguments": {
+        "universe": "The Cairn Archive Pilot",
+        "continuity_id": "cont_f371685769000acdf7022fef",
+        "revision": {
+          "kind": "head"
+        },
+        "represented_context": "rec_aebf5df77f1e2c640ef7f83c",
+        "temporal_query": {
+          "kind": "timeless"
+        },
+        "temporal_systems": [],
+        "perspective": "author"
+      },
+      "expected_error": false,
+      "result": {
+        "contract_version": "3",
+        "request_id": 1,
+        "universe_id": "unv_6e0b2697d232da35c2d351e5",
+        "universe": "The Cairn Archive Pilot",
+        "alias_matched": false,
+        "frame": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "continuity": "cont_f371685769000acdf7022fef",
+          "revision": "rev_1df3f8d7d47affd531856b81",
+          "context": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "record": "rec_aebf5df77f1e2c640ef7f83c"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_focus": null,
+        "authorization_scope": "universe grant",
+        "delivery": {
+          "complete": true,
+          "cursor": null
+        },
+        "result": {
+          "context_id": "ctx_ff522a420b85c2239816c496",
+          "frame": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "continuity": "cont_f371685769000acdf7022fef",
+            "revision": "rev_1df3f8d7d47affd531856b81",
+            "context": {
+              "universe": "unv_6e0b2697d232da35c2d351e5",
+              "record": "rec_aebf5df77f1e2c640ef7f83c"
+            },
+            "time": {
+              "kind": "timeless"
+            },
+            "perspective": "author"
+          }
+        }
+      }
+    },
+    {
+      "tool": "universe_propose",
+      "arguments": {
+        "action": "create",
+        "universe": "The Cairn Archive Pilot",
+        "context_id": "ctx_ff522a420b85c2239816c496",
+        "operations": [
+          {
+            "kind": "record_narrative_reference",
+            "client_ref": "rec_5bddad3828c4eacf63d336ca",
+            "record": "source",
+            "payload": {
+              "record_kind": "source",
+              "label": "source_only",
+              "origin": {
+                "originNote": null
+              },
+              "versions": [
+                "rec_a6b745ad0406cd568099ca71"
+              ]
+            }
+          },
+          {
+            "kind": "record_narrative_reference",
+            "client_ref": "rec_a6b745ad0406cd568099ca71",
+            "record": "source_version",
+            "payload": {
+              "record_kind": "source_version",
+              "source": {
+                "universe": "unv_6e0b2697d232da35c2d351e5",
+                "record": "rec_5bddad3828c4eacf63d336ca"
+              },
+              "digest": "66884b37bd95bfbfacb61079e10631fb0127517c58fcb8026c5f981dc0dcb2fb",
+              "mediaType": "text/plain; charset=utf-8",
+              "byteSize": 30,
+              "importActor": "prn_b180054d993a85c60de20e2f",
+              "importTime": "2026-10-02T21:19:24.906208+00:00",
+              "decoding": {
+                "encoding": "UTF-8",
+                "representation": "exact-utf8-v1",
+                "byteLength": 30
+              },
+              "origin": {
+                "originNote": null
+              }
+            }
+          }
+        ],
+        "submission": "submitted",
+        "rationale": "Whole manuscript continuity assessed (unsupported caller claim)",
+        "idempotency_key": "source_only"
+      },
+      "expected_error": false,
+      "result": {
+        "contract_version": "3",
+        "request_id": 1,
+        "universe_id": "unv_6e0b2697d232da35c2d351e5",
+        "universe": "The Cairn Archive Pilot",
+        "alias_matched": false,
+        "frame": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "continuity": "cont_f371685769000acdf7022fef",
+          "revision": "rev_1df3f8d7d47affd531856b81",
+          "context": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "record": "rec_aebf5df77f1e2c640ef7f83c"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_focus": null,
+        "authorization_scope": "universe grant",
+        "delivery": {
+          "complete": true,
+          "cursor": null
+        },
+        "result": {
+          "base_frame": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "continuity": "cont_f371685769000acdf7022fef",
+            "revision": "rev_1df3f8d7d47affd531856b81",
+            "context": {
+              "universe": "unv_6e0b2697d232da35c2d351e5",
+              "record": "rec_aebf5df77f1e2c640ef7f83c"
+            },
+            "time": {
+              "kind": "timeless"
+            },
+            "perspective": "author"
+          },
+          "world_scope": null,
+          "proposal_id": "prp_fc7fb580d8c63d7e9e455005",
+          "version": 1,
+          "digest": "bff48a10e0d228b8828b0497681dba3975edd40e6f86649a5fb7dcdf7b2f4a90",
+          "submission": "submitted",
+          "operations": [
+            {
+              "kind": "record_narrative_reference",
+              "client_ref": "rec_5bddad3828c4eacf63d336ca",
+              "record": "source",
+              "payload": {
+                "record_kind": "source",
+                "label": "source_only",
+                "origin": {
+                  "originNote": null
+                },
+                "versions": [
+                  "rec_a6b745ad0406cd568099ca71"
+                ]
+              }
+            },
+            {
+              "kind": "record_narrative_reference",
+              "client_ref": "rec_a6b745ad0406cd568099ca71",
+              "record": "source_version",
+              "payload": {
+                "record_kind": "source_version",
+                "source": {
+                  "universe": "unv_6e0b2697d232da35c2d351e5",
+                  "record": "rec_5bddad3828c4eacf63d336ca"
+                },
+                "digest": "66884b37bd95bfbfacb61079e10631fb0127517c58fcb8026c5f981dc0dcb2fb",
+                "mediaType": "text/plain; charset=utf-8",
+                "byteSize": 30,
+                "importActor": "prn_b180054d993a85c60de20e2f",
+                "importTime": "2026-10-02T21:19:24.906208+00:00",
+                "decoding": {
+                  "encoding": "UTF-8",
+                  "representation": "exact-utf8-v1",
+                  "byteLength": 30
+                },
+                "origin": {
+                  "originNote": null
+                }
+              }
+            }
+          ],
+          "rationale": "Whole manuscript continuity assessed (unsupported caller claim)",
+          "canonical": false,
+          "operation_id": "op_c57d1f246d0bc02512df2770",
+          "withdrawn": false
+        }
+      }
+    },
+    {
+      "tool": "universe_validate",
+      "arguments": {
+        "mode": "proposal",
+        "universe": "The Cairn Archive Pilot",
+        "context_id": "ctx_ff522a420b85c2239816c496",
+        "proposal_reference": {
+          "proposal_id": "prp_fc7fb580d8c63d7e9e455005",
+          "version": 1,
+          "digest": "bff48a10e0d228b8828b0497681dba3975edd40e6f86649a5fb7dcdf7b2f4a90"
+        },
+        "check_scope": "universe"
+      },
+      "expected_error": false,
+      "result": {
+        "contract_version": "3",
+        "request_id": 1,
+        "universe_id": "unv_6e0b2697d232da35c2d351e5",
+        "universe": "The Cairn Archive Pilot",
+        "alias_matched": false,
+        "frame": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "continuity": "cont_f371685769000acdf7022fef",
+          "revision": "rev_1df3f8d7d47affd531856b81",
+          "context": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "record": "rec_aebf5df77f1e2c640ef7f83c"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_focus": null,
+        "authorization_scope": "universe grant",
+        "delivery": {
+          "complete": true,
+          "cursor": null
+        },
+        "result": {
+          "kind": "evaluated",
+          "execution": {
+            "run_id": "val_88e24ed54c78821b54f625d8",
+            "coverage": "complete",
+            "findings": [],
+            "unsupported_capabilities": [],
+            "input_digest": "bff48a10e0d228b8828b0497681dba3975edd40e6f86649a5fb7dcdf7b2f4a90",
+            "evaluator_version": "finite-policy-v5-input-scope"
+          },
+          "submitted_input": {
+            "kind": "record_candidate",
+            "proposal": {
+              "proposal_id": "prp_fc7fb580d8c63d7e9e455005",
+              "version": 1,
+              "digest": "bff48a10e0d228b8828b0497681dba3975edd40e6f86649a5fb7dcdf7b2f4a90"
+            },
+            "includes_sources": true
+          },
+          "assessment": {
+            "kind": "absent"
+          },
+          "final_binding_digest": "38a63c56e6dd9c1f42e09ede390c3836b3ffa2323e1980d16a224914f3cdd4d5"
+        }
+      }
+    },
+    {
+      "tool": "universe_commit",
+      "arguments": {
+        "universe": "The Cairn Archive Pilot",
+        "proposal_reference": {
+          "proposal_id": "prp_fc7fb580d8c63d7e9e455005",
+          "version": 1,
+          "digest": "bff48a10e0d228b8828b0497681dba3975edd40e6f86649a5fb7dcdf7b2f4a90"
+        },
+        "expected_base_revision": "rev_1df3f8d7d47affd531856b81",
+        "validation_run": "val_88e24ed54c78821b54f625d8",
+        "idempotency_key": "source_only-commit"
+      },
+      "expected_error": true,
+      "result": {
+        "code": "APPROVAL_REQUIRED",
+        "message": "author must approve this exact proposal and validation"
+      }
+    },
+    {
+      "tool": "universe_commit",
+      "arguments": {
+        "universe": "The Cairn Archive Pilot",
+        "proposal_reference": {
+          "proposal_id": "prp_fc7fb580d8c63d7e9e455005",
+          "version": 1,
+          "digest": "bff48a10e0d228b8828b0497681dba3975edd40e6f86649a5fb7dcdf7b2f4a90"
+        },
+        "expected_base_revision": "rev_1df3f8d7d47affd531856b81",
+        "validation_run": "val_88e24ed54c78821b54f625d8",
+        "idempotency_key": "source_only-commit"
+      },
+      "expected_error": false,
+      "result": {
+        "contract_version": "3",
+        "request_id": 1,
+        "universe_id": "unv_6e0b2697d232da35c2d351e5",
+        "universe": "The Cairn Archive Pilot",
+        "alias_matched": false,
+        "frame": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "continuity": "cont_f371685769000acdf7022fef",
+          "revision": "rev_1df3f8d7d47affd531856b81",
+          "context": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "record": "rec_aebf5df77f1e2c640ef7f83c"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_focus": null,
+        "authorization_scope": "universe grant",
+        "delivery": {
+          "complete": true,
+          "cursor": null
+        },
+        "result": {
+          "operation_id": "op_9cbda56c991c68e63c142883",
+          "proposal_id": "prp_fc7fb580d8c63d7e9e455005",
+          "revision": "rev_2dcab79a43aa60e9d564f59d"
+        }
+      }
+    },
+    {
+      "tool": "universe_commit",
+      "arguments": {
+        "universe": "The Cairn Archive Pilot",
+        "proposal_reference": {
+          "proposal_id": "prp_fc7fb580d8c63d7e9e455005",
+          "version": 1,
+          "digest": "bff48a10e0d228b8828b0497681dba3975edd40e6f86649a5fb7dcdf7b2f4a90"
+        },
+        "expected_base_revision": "rev_1df3f8d7d47affd531856b81",
+        "validation_run": "val_88e24ed54c78821b54f625d8",
+        "idempotency_key": "source_only-commit"
+      },
+      "expected_error": false,
+      "result": {
+        "contract_version": "3",
+        "request_id": 1,
+        "universe_id": "unv_6e0b2697d232da35c2d351e5",
+        "universe": "The Cairn Archive Pilot",
+        "alias_matched": false,
+        "frame": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "continuity": "cont_f371685769000acdf7022fef",
+          "revision": "rev_1df3f8d7d47affd531856b81",
+          "context": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "record": "rec_aebf5df77f1e2c640ef7f83c"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_focus": null,
+        "authorization_scope": "universe grant",
+        "delivery": {
+          "complete": true,
+          "cursor": null
+        },
+        "result": {
+          "operation_id": "op_9cbda56c991c68e63c142883",
+          "proposal_id": "prp_fc7fb580d8c63d7e9e455005",
+          "revision": "rev_2dcab79a43aa60e9d564f59d"
+        }
+      }
+    },
+    {
+      "tool": "universe_open_context",
+      "arguments": {
+        "universe": "The Cairn Archive Pilot",
+        "continuity_id": "cont_f371685769000acdf7022fef",
+        "revision": {
+          "kind": "head"
+        },
+        "represented_context": "rec_aebf5df77f1e2c640ef7f83c",
+        "temporal_query": {
+          "kind": "timeless"
+        },
+        "temporal_systems": [],
+        "perspective": "author"
+      },
+      "expected_error": false,
+      "result": {
+        "contract_version": "3",
+        "request_id": 1,
+        "universe_id": "unv_6e0b2697d232da35c2d351e5",
+        "universe": "The Cairn Archive Pilot",
+        "alias_matched": false,
+        "frame": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "continuity": "cont_f371685769000acdf7022fef",
+          "revision": "rev_2dcab79a43aa60e9d564f59d",
+          "context": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "record": "rec_aebf5df77f1e2c640ef7f83c"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_focus": null,
+        "authorization_scope": "universe grant",
+        "delivery": {
+          "complete": true,
+          "cursor": null
+        },
+        "result": {
+          "context_id": "ctx_6911a64a6bf92eab3eebfe37",
+          "frame": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "continuity": "cont_f371685769000acdf7022fef",
+            "revision": "rev_2dcab79a43aa60e9d564f59d",
+            "context": {
+              "universe": "unv_6e0b2697d232da35c2d351e5",
+              "record": "rec_aebf5df77f1e2c640ef7f83c"
+            },
+            "time": {
+              "kind": "timeless"
+            },
+            "perspective": "author"
+          }
+        }
+      }
+    },
+    {
+      "tool": "universe_propose",
+      "arguments": {
+        "action": "create",
+        "universe": "The Cairn Archive Pilot",
+        "context_id": "ctx_6911a64a6bf92eab3eebfe37",
+        "operations": [
+          {
+            "kind": "create_entity",
+            "client_ref": "rec_000000000000000000030d43",
+            "record": {
+              "names": [],
+              "types": [],
+              "worldAssociations": [],
+              "labels": {
+                "en": "Entity 3"
+              },
+              "metadata": {}
+            }
+          },
+          {
+            "kind": "record_narrative_reference",
+            "client_ref": "rec_2e00fd1b82b856eb25f8c243",
+            "record": "source",
+            "payload": {
+              "record_kind": "source",
+              "label": "mixed",
+              "origin": {
+                "originNote": null
+              },
+              "versions": [
+                "rec_d7892ceb3f28fde2b28ff798"
+              ]
+            }
+          },
+          {
+            "kind": "record_narrative_reference",
+            "client_ref": "rec_d7892ceb3f28fde2b28ff798",
+            "record": "source_version",
+            "payload": {
+              "record_kind": "source_version",
+              "source": {
+                "universe": "unv_6e0b2697d232da35c2d351e5",
+                "record": "rec_2e00fd1b82b856eb25f8c243"
+              },
+              "digest": "66884b37bd95bfbfacb61079e10631fb0127517c58fcb8026c5f981dc0dcb2fb",
+              "mediaType": "text/plain; charset=utf-8",
+              "byteSize": 30,
+              "importActor": "prn_b180054d993a85c60de20e2f",
+              "importTime": "2026-10-02T21:19:24.951850+00:00",
+              "decoding": {
+                "encoding": "UTF-8",
+                "representation": "exact-utf8-v1",
+                "byteLength": 30
+              },
+              "origin": {
+                "originNote": null
+              }
+            }
+          }
+        ],
+        "submission": "submitted",
+        "rationale": "Whole manuscript continuity assessed (unsupported caller claim)",
+        "idempotency_key": "mixed"
+      },
+      "expected_error": false,
+      "result": {
+        "contract_version": "3",
+        "request_id": 1,
+        "universe_id": "unv_6e0b2697d232da35c2d351e5",
+        "universe": "The Cairn Archive Pilot",
+        "alias_matched": false,
+        "frame": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "continuity": "cont_f371685769000acdf7022fef",
+          "revision": "rev_2dcab79a43aa60e9d564f59d",
+          "context": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "record": "rec_aebf5df77f1e2c640ef7f83c"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_focus": null,
+        "authorization_scope": "universe grant",
+        "delivery": {
+          "complete": true,
+          "cursor": null
+        },
+        "result": {
+          "base_frame": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "continuity": "cont_f371685769000acdf7022fef",
+            "revision": "rev_2dcab79a43aa60e9d564f59d",
+            "context": {
+              "universe": "unv_6e0b2697d232da35c2d351e5",
+              "record": "rec_aebf5df77f1e2c640ef7f83c"
+            },
+            "time": {
+              "kind": "timeless"
+            },
+            "perspective": "author"
+          },
+          "world_scope": null,
+          "proposal_id": "prp_c516183185dc0f8c149c77e7",
+          "version": 1,
+          "digest": "bcb274e90dd01716952cec8c24d770028282e3bf438308948f64d68853395783",
+          "submission": "submitted",
+          "operations": [
+            {
+              "kind": "create_entity",
+              "client_ref": "rec_000000000000000000030d43",
+              "record": {
+                "names": [],
+                "types": [],
+                "worldAssociations": [],
+                "labels": {
+                  "en": "Entity 3"
+                },
+                "metadata": {}
+              }
+            },
+            {
+              "kind": "record_narrative_reference",
+              "client_ref": "rec_2e00fd1b82b856eb25f8c243",
+              "record": "source",
+              "payload": {
+                "record_kind": "source",
+                "label": "mixed",
+                "origin": {
+                  "originNote": null
+                },
+                "versions": [
+                  "rec_d7892ceb3f28fde2b28ff798"
+                ]
+              }
+            },
+            {
+              "kind": "record_narrative_reference",
+              "client_ref": "rec_d7892ceb3f28fde2b28ff798",
+              "record": "source_version",
+              "payload": {
+                "record_kind": "source_version",
+                "source": {
+                  "universe": "unv_6e0b2697d232da35c2d351e5",
+                  "record": "rec_2e00fd1b82b856eb25f8c243"
+                },
+                "digest": "66884b37bd95bfbfacb61079e10631fb0127517c58fcb8026c5f981dc0dcb2fb",
+                "mediaType": "text/plain; charset=utf-8",
+                "byteSize": 30,
+                "importActor": "prn_b180054d993a85c60de20e2f",
+                "importTime": "2026-10-02T21:19:24.951850+00:00",
+                "decoding": {
+                  "encoding": "UTF-8",
+                  "representation": "exact-utf8-v1",
+                  "byteLength": 30
+                },
+                "origin": {
+                  "originNote": null
+                }
+              }
+            }
+          ],
+          "rationale": "Whole manuscript continuity assessed (unsupported caller claim)",
+          "canonical": false,
+          "operation_id": "op_2e639de11acc317860b68d9a",
+          "withdrawn": false
+        }
+      }
+    },
+    {
+      "tool": "universe_validate",
+      "arguments": {
+        "mode": "proposal",
+        "universe": "The Cairn Archive Pilot",
+        "context_id": "ctx_6911a64a6bf92eab3eebfe37",
+        "proposal_reference": {
+          "proposal_id": "prp_c516183185dc0f8c149c77e7",
+          "version": 1,
+          "digest": "bcb274e90dd01716952cec8c24d770028282e3bf438308948f64d68853395783"
+        },
+        "check_scope": "universe"
+      },
+      "expected_error": false,
+      "result": {
+        "contract_version": "3",
+        "request_id": 1,
+        "universe_id": "unv_6e0b2697d232da35c2d351e5",
+        "universe": "The Cairn Archive Pilot",
+        "alias_matched": false,
+        "frame": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "continuity": "cont_f371685769000acdf7022fef",
+          "revision": "rev_2dcab79a43aa60e9d564f59d",
+          "context": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "record": "rec_aebf5df77f1e2c640ef7f83c"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_focus": null,
+        "authorization_scope": "universe grant",
+        "delivery": {
+          "complete": true,
+          "cursor": null
+        },
+        "result": {
+          "kind": "evaluated",
+          "execution": {
+            "run_id": "val_09799e631516cae7d977358c",
+            "coverage": "complete",
+            "findings": [],
+            "unsupported_capabilities": [],
+            "input_digest": "bcb274e90dd01716952cec8c24d770028282e3bf438308948f64d68853395783",
+            "evaluator_version": "finite-policy-v5-input-scope"
+          },
+          "submitted_input": {
+            "kind": "record_candidate",
+            "proposal": {
+              "proposal_id": "prp_c516183185dc0f8c149c77e7",
+              "version": 1,
+              "digest": "bcb274e90dd01716952cec8c24d770028282e3bf438308948f64d68853395783"
+            },
+            "includes_sources": true
+          },
+          "assessment": {
+            "kind": "absent"
+          },
+          "final_binding_digest": "391516a10e870ab8f098e10ffd18b614beae6aa6dfb658e6d7581b4b975e3129"
+        }
+      }
+    },
+    {
+      "tool": "universe_commit",
+      "arguments": {
+        "universe": "The Cairn Archive Pilot",
+        "proposal_reference": {
+          "proposal_id": "prp_c516183185dc0f8c149c77e7",
+          "version": 1,
+          "digest": "bcb274e90dd01716952cec8c24d770028282e3bf438308948f64d68853395783"
+        },
+        "expected_base_revision": "rev_2dcab79a43aa60e9d564f59d",
+        "validation_run": "val_09799e631516cae7d977358c",
+        "idempotency_key": "mixed-commit"
+      },
+      "expected_error": true,
+      "result": {
+        "code": "APPROVAL_REQUIRED",
+        "message": "author must approve this exact proposal and validation"
+      }
+    },
+    {
+      "tool": "universe_commit",
+      "arguments": {
+        "universe": "The Cairn Archive Pilot",
+        "proposal_reference": {
+          "proposal_id": "prp_c516183185dc0f8c149c77e7",
+          "version": 1,
+          "digest": "bcb274e90dd01716952cec8c24d770028282e3bf438308948f64d68853395783"
+        },
+        "expected_base_revision": "rev_2dcab79a43aa60e9d564f59d",
+        "validation_run": "val_09799e631516cae7d977358c",
+        "idempotency_key": "mixed-commit"
+      },
+      "expected_error": false,
+      "result": {
+        "contract_version": "3",
+        "request_id": 1,
+        "universe_id": "unv_6e0b2697d232da35c2d351e5",
+        "universe": "The Cairn Archive Pilot",
+        "alias_matched": false,
+        "frame": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "continuity": "cont_f371685769000acdf7022fef",
+          "revision": "rev_2dcab79a43aa60e9d564f59d",
+          "context": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "record": "rec_aebf5df77f1e2c640ef7f83c"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_focus": null,
+        "authorization_scope": "universe grant",
+        "delivery": {
+          "complete": true,
+          "cursor": null
+        },
+        "result": {
+          "operation_id": "op_c19a66cb722ffcb33725bbc9",
+          "proposal_id": "prp_c516183185dc0f8c149c77e7",
+          "revision": "rev_bd38ed04adfb41899e32179c"
+        }
+      }
+    },
+    {
+      "tool": "universe_commit",
+      "arguments": {
+        "universe": "The Cairn Archive Pilot",
+        "proposal_reference": {
+          "proposal_id": "prp_c516183185dc0f8c149c77e7",
+          "version": 1,
+          "digest": "bcb274e90dd01716952cec8c24d770028282e3bf438308948f64d68853395783"
+        },
+        "expected_base_revision": "rev_2dcab79a43aa60e9d564f59d",
+        "validation_run": "val_09799e631516cae7d977358c",
+        "idempotency_key": "mixed-commit"
+      },
+      "expected_error": false,
+      "result": {
+        "contract_version": "3",
+        "request_id": 1,
+        "universe_id": "unv_6e0b2697d232da35c2d351e5",
+        "universe": "The Cairn Archive Pilot",
+        "alias_matched": false,
+        "frame": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "continuity": "cont_f371685769000acdf7022fef",
+          "revision": "rev_2dcab79a43aa60e9d564f59d",
+          "context": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "record": "rec_aebf5df77f1e2c640ef7f83c"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_focus": null,
+        "authorization_scope": "universe grant",
+        "delivery": {
+          "complete": true,
+          "cursor": null
+        },
+        "result": {
+          "operation_id": "op_c19a66cb722ffcb33725bbc9",
+          "proposal_id": "prp_c516183185dc0f8c149c77e7",
+          "revision": "rev_bd38ed04adfb41899e32179c"
+        }
+      }
+    },
+    {
+      "tool": "universe_open_context",
+      "arguments": {
+        "universe": "The Cairn Archive Pilot",
+        "continuity_id": "cont_f371685769000acdf7022fef",
+        "revision": {
+          "kind": "head"
+        },
+        "represented_context": "rec_aebf5df77f1e2c640ef7f83c",
+        "temporal_query": {
+          "kind": "timeless"
+        },
+        "temporal_systems": [],
+        "perspective": "author"
+      },
+      "expected_error": false,
+      "result": {
+        "contract_version": "3",
+        "request_id": 1,
+        "universe_id": "unv_6e0b2697d232da35c2d351e5",
+        "universe": "The Cairn Archive Pilot",
+        "alias_matched": false,
+        "frame": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "continuity": "cont_f371685769000acdf7022fef",
+          "revision": "rev_bd38ed04adfb41899e32179c",
+          "context": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "record": "rec_aebf5df77f1e2c640ef7f83c"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_focus": null,
+        "authorization_scope": "universe grant",
+        "delivery": {
+          "complete": true,
+          "cursor": null
+        },
+        "result": {
+          "context_id": "ctx_c2f43fc672117f2628abeda4",
+          "frame": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "continuity": "cont_f371685769000acdf7022fef",
+            "revision": "rev_bd38ed04adfb41899e32179c",
+            "context": {
+              "universe": "unv_6e0b2697d232da35c2d351e5",
+              "record": "rec_aebf5df77f1e2c640ef7f83c"
+            },
+            "time": {
+              "kind": "timeless"
+            },
+            "perspective": "author"
+          }
+        }
+      }
+    },
+    {
+      "tool": "universe_propose",
+      "arguments": {
+        "action": "create",
+        "universe": "The Cairn Archive Pilot",
+        "context_id": "ctx_c2f43fc672117f2628abeda4",
+        "operations": [
+          {
+            "kind": "create_entity",
+            "client_ref": "rec_000000000000000000030d44",
+            "record": {
+              "names": [],
+              "types": [],
+              "worldAssociations": [],
+              "labels": {
+                "en": "Entity 4"
+              },
+              "metadata": {}
+            }
+          }
+        ],
+        "submission": "submitted",
+        "rationale": "after-sources",
+        "idempotency_key": "after-sources"
+      },
+      "expected_error": false,
+      "result": {
+        "contract_version": "3",
+        "request_id": 1,
+        "universe_id": "unv_6e0b2697d232da35c2d351e5",
+        "universe": "The Cairn Archive Pilot",
+        "alias_matched": false,
+        "frame": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "continuity": "cont_f371685769000acdf7022fef",
+          "revision": "rev_bd38ed04adfb41899e32179c",
+          "context": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "record": "rec_aebf5df77f1e2c640ef7f83c"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_focus": null,
+        "authorization_scope": "universe grant",
+        "delivery": {
+          "complete": true,
+          "cursor": null
+        },
+        "result": {
+          "base_frame": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "continuity": "cont_f371685769000acdf7022fef",
+            "revision": "rev_bd38ed04adfb41899e32179c",
+            "context": {
+              "universe": "unv_6e0b2697d232da35c2d351e5",
+              "record": "rec_aebf5df77f1e2c640ef7f83c"
+            },
+            "time": {
+              "kind": "timeless"
+            },
+            "perspective": "author"
+          },
+          "world_scope": null,
+          "proposal_id": "prp_6f81f70833c2f467b598e835",
+          "version": 1,
+          "digest": "0ae5396a776850a69509813b21294da2e5578f46195a83d24d1849af53ade4af",
+          "submission": "submitted",
+          "operations": [
+            {
+              "kind": "create_entity",
+              "client_ref": "rec_000000000000000000030d44",
+              "record": {
+                "names": [],
+                "types": [],
+                "worldAssociations": [],
+                "labels": {
+                  "en": "Entity 4"
+                },
+                "metadata": {}
+              }
+            }
+          ],
+          "rationale": "after-sources",
+          "canonical": false,
+          "operation_id": "op_b132bd1c83edfd79d7345d96",
+          "withdrawn": false
+        }
+      }
+    },
+    {
+      "tool": "universe_validate",
+      "arguments": {
+        "mode": "proposal",
+        "universe": "The Cairn Archive Pilot",
+        "context_id": "ctx_c2f43fc672117f2628abeda4",
+        "proposal_reference": {
+          "proposal_id": "prp_6f81f70833c2f467b598e835",
+          "version": 1,
+          "digest": "0ae5396a776850a69509813b21294da2e5578f46195a83d24d1849af53ade4af"
+        },
+        "check_scope": "universe"
+      },
+      "expected_error": false,
+      "result": {
+        "contract_version": "3",
+        "request_id": 1,
+        "universe_id": "unv_6e0b2697d232da35c2d351e5",
+        "universe": "The Cairn Archive Pilot",
+        "alias_matched": false,
+        "frame": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "continuity": "cont_f371685769000acdf7022fef",
+          "revision": "rev_bd38ed04adfb41899e32179c",
+          "context": {
+            "universe": "unv_6e0b2697d232da35c2d351e5",
+            "record": "rec_aebf5df77f1e2c640ef7f83c"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_focus": null,
+        "authorization_scope": "universe grant",
+        "delivery": {
+          "complete": true,
+          "cursor": null
+        },
+        "result": {
+          "kind": "evaluated",
+          "execution": {
+            "run_id": "val_eec5a2ac848a7a99a9b0531e",
+            "coverage": "complete",
+            "findings": [],
+            "unsupported_capabilities": [],
+            "input_digest": "0ae5396a776850a69509813b21294da2e5578f46195a83d24d1849af53ade4af",
+            "evaluator_version": "finite-policy-v5-input-scope"
+          },
+          "submitted_input": {
+            "kind": "record_candidate",
+            "proposal": {
+              "proposal_id": "prp_6f81f70833c2f467b598e835",
+              "version": 1,
+              "digest": "0ae5396a776850a69509813b21294da2e5578f46195a83d24d1849af53ade4af"
+            },
+            "includes_sources": false
+          },
+          "assessment": {
+            "kind": "absent"
+          },
+          "final_binding_digest": "363aaca4bc9df749c000075b1c9a520f54a90b2e4b107ce4cc938bc01ffd156e"
+        }
+      }
+    }
+  ],
+  "structured": {
+    "proposal": {
+      "base_frame": {
+        "universe": "unv_6e0b2697d232da35c2d351e5",
+        "continuity": "cont_f371685769000acdf7022fef",
+        "revision": "rev_a4a8beebe5e84d8230c20cfb",
+        "context": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "record": "rec_aebf5df77f1e2c640ef7f83c"
+        },
+        "time": {
+          "kind": "timeless"
+        },
+        "perspective": "author"
+      },
+      "world_scope": null,
+      "proposal_id": "prp_4e48c593ad9d6104759ff295",
+      "version": 1,
+      "digest": "fd5f528a1c17c2a2de22702743892f2e412d729eb5e5cea6ac378f952fdd826f",
+      "submission": "submitted",
+      "operations": [
+        {
+          "kind": "create_entity",
+          "client_ref": "rec_000000000000000000030d41",
+          "record": {
+            "names": [],
+            "types": [],
+            "worldAssociations": [],
+            "labels": {
+              "en": "Entity 1"
+            },
+            "metadata": {}
+          }
+        }
+      ],
+      "rationale": "Whole manuscript continuity assessed (unsupported caller claim)",
+      "canonical": false,
+      "operation_id": "op_77bb7a93e5072b4835f5d832",
+      "withdrawn": false
+    },
+    "validation": {
+      "kind": "evaluated",
+      "execution": {
+        "run_id": "val_9de19057e840e18ad3dc5f49",
+        "coverage": "complete",
+        "findings": [],
+        "unsupported_capabilities": [],
+        "input_digest": "fd5f528a1c17c2a2de22702743892f2e412d729eb5e5cea6ac378f952fdd826f",
+        "evaluator_version": "finite-policy-v5-input-scope"
+      },
+      "submitted_input": {
+        "kind": "record_candidate",
+        "proposal": {
+          "proposal_id": "prp_4e48c593ad9d6104759ff295",
+          "version": 1,
+          "digest": "fd5f528a1c17c2a2de22702743892f2e412d729eb5e5cea6ac378f952fdd826f"
+        },
+        "includes_sources": false
+      },
+      "assessment": {
+        "kind": "absent"
+      },
+      "final_binding_digest": "4ddc9aeb7ef9ea32717ae79567ed503b7ae86d21a7e82c3b19d87fdc23116181"
+    },
+    "receipt": {
+      "operation_id": "op_e842df4e9d716bb953e1023d",
+      "proposal_id": "prp_4e48c593ad9d6104759ff295",
+      "revision": "rev_1df3f8d7d47affd531856b81"
+    }
+  },
+  "source_only": {
+    "proposal": {
+      "base_frame": {
+        "universe": "unv_6e0b2697d232da35c2d351e5",
+        "continuity": "cont_f371685769000acdf7022fef",
+        "revision": "rev_1df3f8d7d47affd531856b81",
+        "context": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "record": "rec_aebf5df77f1e2c640ef7f83c"
+        },
+        "time": {
+          "kind": "timeless"
+        },
+        "perspective": "author"
+      },
+      "world_scope": null,
+      "proposal_id": "prp_fc7fb580d8c63d7e9e455005",
+      "version": 1,
+      "digest": "bff48a10e0d228b8828b0497681dba3975edd40e6f86649a5fb7dcdf7b2f4a90",
+      "submission": "submitted",
+      "operations": [
+        {
+          "kind": "record_narrative_reference",
+          "client_ref": "rec_5bddad3828c4eacf63d336ca",
+          "record": "source",
+          "payload": {
+            "record_kind": "source",
+            "label": "source_only",
+            "origin": {
+              "originNote": null
+            },
+            "versions": [
+              "rec_a6b745ad0406cd568099ca71"
+            ]
+          }
+        },
+        {
+          "kind": "record_narrative_reference",
+          "client_ref": "rec_a6b745ad0406cd568099ca71",
+          "record": "source_version",
+          "payload": {
+            "record_kind": "source_version",
+            "source": {
+              "universe": "unv_6e0b2697d232da35c2d351e5",
+              "record": "rec_5bddad3828c4eacf63d336ca"
+            },
+            "digest": "66884b37bd95bfbfacb61079e10631fb0127517c58fcb8026c5f981dc0dcb2fb",
+            "mediaType": "text/plain; charset=utf-8",
+            "byteSize": 30,
+            "importActor": "prn_b180054d993a85c60de20e2f",
+            "importTime": "2026-10-02T21:19:24.906208+00:00",
+            "decoding": {
+              "encoding": "UTF-8",
+              "representation": "exact-utf8-v1",
+              "byteLength": 30
+            },
+            "origin": {
+              "originNote": null
+            }
+          }
+        }
+      ],
+      "rationale": "Whole manuscript continuity assessed (unsupported caller claim)",
+      "canonical": false,
+      "operation_id": "op_c57d1f246d0bc02512df2770",
+      "withdrawn": false
+    },
+    "validation": {
+      "kind": "evaluated",
+      "execution": {
+        "run_id": "val_88e24ed54c78821b54f625d8",
+        "coverage": "complete",
+        "findings": [],
+        "unsupported_capabilities": [],
+        "input_digest": "bff48a10e0d228b8828b0497681dba3975edd40e6f86649a5fb7dcdf7b2f4a90",
+        "evaluator_version": "finite-policy-v5-input-scope"
+      },
+      "submitted_input": {
+        "kind": "record_candidate",
+        "proposal": {
+          "proposal_id": "prp_fc7fb580d8c63d7e9e455005",
+          "version": 1,
+          "digest": "bff48a10e0d228b8828b0497681dba3975edd40e6f86649a5fb7dcdf7b2f4a90"
+        },
+        "includes_sources": true
+      },
+      "assessment": {
+        "kind": "absent"
+      },
+      "final_binding_digest": "38a63c56e6dd9c1f42e09ede390c3836b3ffa2323e1980d16a224914f3cdd4d5"
+    },
+    "receipt": {
+      "operation_id": "op_9cbda56c991c68e63c142883",
+      "proposal_id": "prp_fc7fb580d8c63d7e9e455005",
+      "revision": "rev_2dcab79a43aa60e9d564f59d"
+    }
+  },
+  "mixed": {
+    "proposal": {
+      "base_frame": {
+        "universe": "unv_6e0b2697d232da35c2d351e5",
+        "continuity": "cont_f371685769000acdf7022fef",
+        "revision": "rev_2dcab79a43aa60e9d564f59d",
+        "context": {
+          "universe": "unv_6e0b2697d232da35c2d351e5",
+          "record": "rec_aebf5df77f1e2c640ef7f83c"
+        },
+        "time": {
+          "kind": "timeless"
+        },
+        "perspective": "author"
+      },
+      "world_scope": null,
+      "proposal_id": "prp_c516183185dc0f8c149c77e7",
+      "version": 1,
+      "digest": "bcb274e90dd01716952cec8c24d770028282e3bf438308948f64d68853395783",
+      "submission": "submitted",
+      "operations": [
+        {
+          "kind": "create_entity",
+          "client_ref": "rec_000000000000000000030d43",
+          "record": {
+            "names": [],
+            "types": [],
+            "worldAssociations": [],
+            "labels": {
+              "en": "Entity 3"
+            },
+            "metadata": {}
+          }
+        },
+        {
+          "kind": "record_narrative_reference",
+          "client_ref": "rec_2e00fd1b82b856eb25f8c243",
+          "record": "source",
+          "payload": {
+            "record_kind": "source",
+            "label": "mixed",
+            "origin": {
+              "originNote": null
+            },
+            "versions": [
+              "rec_d7892ceb3f28fde2b28ff798"
+            ]
+          }
+        },
+        {
+          "kind": "record_narrative_reference",
+          "client_ref": "rec_d7892ceb3f28fde2b28ff798",
+          "record": "source_version",
+          "payload": {
+            "record_kind": "source_version",
+            "source": {
+              "universe": "unv_6e0b2697d232da35c2d351e5",
+              "record": "rec_2e00fd1b82b856eb25f8c243"
+            },
+            "digest": "66884b37bd95bfbfacb61079e10631fb0127517c58fcb8026c5f981dc0dcb2fb",
+            "mediaType": "text/plain; charset=utf-8",
+            "byteSize": 30,
+            "importActor": "prn_b180054d993a85c60de20e2f",
+            "importTime": "2026-10-02T21:19:24.951850+00:00",
+            "decoding": {
+              "encoding": "UTF-8",
+              "representation": "exact-utf8-v1",
+              "byteLength": 30
+            },
+            "origin": {
+              "originNote": null
+            }
+          }
+        }
+      ],
+      "rationale": "Whole manuscript continuity assessed (unsupported caller claim)",
+      "canonical": false,
+      "operation_id": "op_2e639de11acc317860b68d9a",
+      "withdrawn": false
+    },
+    "validation": {
+      "kind": "evaluated",
+      "execution": {
+        "run_id": "val_09799e631516cae7d977358c",
+        "coverage": "complete",
+        "findings": [],
+        "unsupported_capabilities": [],
+        "input_digest": "bcb274e90dd01716952cec8c24d770028282e3bf438308948f64d68853395783",
+        "evaluator_version": "finite-policy-v5-input-scope"
+      },
+      "submitted_input": {
+        "kind": "record_candidate",
+        "proposal": {
+          "proposal_id": "prp_c516183185dc0f8c149c77e7",
+          "version": 1,
+          "digest": "bcb274e90dd01716952cec8c24d770028282e3bf438308948f64d68853395783"
+        },
+        "includes_sources": true
+      },
+      "assessment": {
+        "kind": "absent"
+      },
+      "final_binding_digest": "391516a10e870ab8f098e10ffd18b614beae6aa6dfb658e6d7581b4b975e3129"
+    },
+    "receipt": {
+      "operation_id": "op_c19a66cb722ffcb33725bbc9",
+      "proposal_id": "prp_c516183185dc0f8c149c77e7",
+      "revision": "rev_bd38ed04adfb41899e32179c"
+    }
+  }
+}

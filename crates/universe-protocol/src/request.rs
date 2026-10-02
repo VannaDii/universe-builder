@@ -1,0 +1,970 @@
+//! Closed application contracts (spec 30). Transport and MCP share these types.
+use crate::{ProtocolError, ProtocolResult};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use universe_domain::{ids::*, DomainOperation, FrameTime, Perspective, RecordKind};
+
+pub fn present<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(
+    d: D,
+) -> Result<Option<T>, D::Error> {
+    T::deserialize(d).map(Some)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct Selector(
+    #[schemars(length(min = 1, max = 256), regex(pattern = r"^[^\s*/\\][^*/\\]*$"))] pub String,
+);
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ProposalRef {
+    pub proposal_id: ProposalId,
+    pub version: u64,
+    pub digest: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Filters {
+    pub record_kinds: Vec<RecordKind>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Submission {
+    Draft,
+    Submitted,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CheckScope {
+    Candidate,
+    Dependencies,
+    Universe,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum FieldGroup {
+    Summary,
+    Payload,
+    Evidence,
+    History,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum RevisionSelector {
+    Head,
+    Exact { revision_id: RevisionId },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum OperationKind {
+    Propose,
+    Validate,
+    Commit,
+    Cancel,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "mode", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Describe {
+    Summary {
+        universe: Selector,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "UniverseId")]
+        universe_id: Option<UniverseId>,
+    },
+    Capabilities {
+        universe: Selector,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "UniverseId")]
+        universe_id: Option<UniverseId>,
+    },
+    Worlds {
+        universe: Selector,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "UniverseId")]
+        universe_id: Option<UniverseId>,
+        context_id: ContextId,
+    },
+    Definitions {
+        universe: Selector,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "UniverseId")]
+        universe_id: Option<UniverseId>,
+        context_id: ContextId,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "Selector")]
+        world: Option<Selector>,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "WorldId")]
+        world_id: Option<WorldId>,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct OpenContext {
+    pub universe: Selector,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "UniverseId")]
+    pub universe_id: Option<UniverseId>,
+    pub continuity_id: ContinuityId,
+    pub revision: RevisionSelector,
+    pub represented_context: RecordId,
+    pub temporal_query: FrameTime,
+    pub temporal_systems: Vec<CalendarId>,
+    pub perspective: Perspective,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "RecordId")]
+    pub reader_scene: Option<RecordId>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Search {
+    pub universe: Selector,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "UniverseId")]
+    pub universe_id: Option<UniverseId>,
+    pub context_id: ContextId,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "Selector")]
+    pub world: Option<Selector>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "WorldId")]
+    pub world_id: Option<WorldId>,
+    pub query: String,
+    pub typed_filters: Filters,
+    #[schemars(range(min = 1, max = 100))]
+    pub limit: u32,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "String")]
+    pub cursor: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Get {
+    pub universe: Selector,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "UniverseId")]
+    pub universe_id: Option<UniverseId>,
+    pub context_id: ContextId,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "Selector")]
+    pub world: Option<Selector>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "WorldId")]
+    pub world_id: Option<WorldId>,
+    #[schemars(length(min = 1, max = 100))]
+    pub record_ids: Vec<RecordId>,
+    pub field_groups: Vec<FieldGroup>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetState {
+    pub universe: Selector,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "UniverseId")]
+    pub universe_id: Option<UniverseId>,
+    pub context_id: ContextId,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "Selector")]
+    pub world: Option<Selector>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "WorldId")]
+    pub world_id: Option<WorldId>,
+    #[schemars(length(min = 1, max = 100))]
+    pub entity_ids: Vec<RecordId>,
+    pub predicate_filters: Vec<RecordId>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "RecordId")]
+    pub event: Option<RecordId>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "universe_domain::frame::EventTimeSide")]
+    pub event_side: Option<universe_domain::frame::EventTimeSide>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetContext {
+    pub universe: Selector,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "UniverseId")]
+    pub universe_id: Option<UniverseId>,
+    pub context_id: ContextId,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "Selector")]
+    pub world: Option<Selector>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "WorldId")]
+    pub world_id: Option<WorldId>,
+    #[schemars(length(min = 1, max = 100))]
+    pub focus_ids: Vec<RecordId>,
+    #[schemars(length(min = 1, max = 4096))]
+    pub purpose: String,
+    #[schemars(range(min = 256, max = 65536))]
+    pub byte_budget: u32,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "String")]
+    pub cursor: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "mode", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Validate {
+    QueuedProposal {
+        universe: Selector,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "UniverseId")]
+        universe_id: Option<UniverseId>,
+        context_id: ContextId,
+        proposal_reference: ProposalRef,
+        check_scope: CheckScope,
+        idempotency_key: String,
+    },
+    Inline {
+        universe: Selector,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "UniverseId")]
+        universe_id: Option<UniverseId>,
+        context_id: ContextId,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "Selector")]
+        world: Option<Selector>,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "WorldId")]
+        world_id: Option<WorldId>,
+        #[schemars(length(min = 1, max = 100))]
+        operations: Vec<DomainOperation>,
+        check_scope: CheckScope,
+    },
+    Proposal {
+        universe: Selector,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "UniverseId")]
+        universe_id: Option<UniverseId>,
+        context_id: ContextId,
+        proposal_reference: ProposalRef,
+        check_scope: CheckScope,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Propose {
+    Create {
+        universe: Selector,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "UniverseId")]
+        universe_id: Option<UniverseId>,
+        context_id: ContextId,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "Selector")]
+        world: Option<Selector>,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "WorldId")]
+        world_id: Option<WorldId>,
+        #[schemars(length(min = 1, max = 100))]
+        operations: Vec<DomainOperation>,
+        submission: Submission,
+        #[schemars(length(min = 1, max = 4096))]
+        rationale: String,
+        #[schemars(length(min = 1, max = 4096))]
+        idempotency_key: String,
+    },
+    Revise {
+        universe: Selector,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "UniverseId")]
+        universe_id: Option<UniverseId>,
+        context_id: ContextId,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "Selector")]
+        world: Option<Selector>,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "WorldId")]
+        world_id: Option<WorldId>,
+        proposal_reference: ProposalRef,
+        #[schemars(length(min = 1, max = 100))]
+        operations: Vec<DomainOperation>,
+        submission: Submission,
+        #[schemars(length(min = 1, max = 4096))]
+        rationale: String,
+        #[schemars(length(min = 1, max = 4096))]
+        idempotency_key: String,
+    },
+    Submit {
+        universe: Selector,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "UniverseId")]
+        universe_id: Option<UniverseId>,
+        context_id: ContextId,
+        proposal_reference: ProposalRef,
+        #[schemars(length(min = 1, max = 4096))]
+        idempotency_key: String,
+    },
+    Withdraw {
+        universe: Selector,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "UniverseId")]
+        universe_id: Option<UniverseId>,
+        context_id: ContextId,
+        proposal_reference: ProposalRef,
+        #[schemars(length(min = 1, max = 4096))]
+        idempotency_key: String,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetProposal {
+    pub universe: Selector,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "UniverseId")]
+    pub universe_id: Option<UniverseId>,
+    pub proposal_id: ProposalId,
+    pub version: u64,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "String")]
+    pub cursor: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "FieldGroup")]
+    pub view_group: Option<FieldGroup>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "mode", rename_all = "snake_case", deny_unknown_fields)]
+pub enum GetImpact {
+    Inline {
+        universe: Selector,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "UniverseId")]
+        universe_id: Option<UniverseId>,
+        context_id: ContextId,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "Selector")]
+        world: Option<Selector>,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "WorldId")]
+        world_id: Option<WorldId>,
+        #[schemars(length(min = 1, max = 100))]
+        changed_records: Vec<RecordId>,
+        scope: CheckScope,
+        #[schemars(range(min = 256, max = 65536))]
+        byte_budget: u32,
+    },
+    Proposal {
+        universe: Selector,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "UniverseId")]
+        universe_id: Option<UniverseId>,
+        context_id: ContextId,
+        proposal_reference: ProposalRef,
+        scope: CheckScope,
+        #[schemars(range(min = 256, max = 65536))]
+        byte_budget: u32,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Commit {
+    pub universe: Selector,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "UniverseId")]
+    pub universe_id: Option<UniverseId>,
+    pub proposal_reference: ProposalRef,
+    pub expected_base_revision: RevisionId,
+    pub validation_run: ValidationRunId,
+    #[schemars(length(min = 1, max = 4096))]
+    pub idempotency_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "lookup", rename_all = "snake_case", deny_unknown_fields)]
+pub enum GetOperation {
+    Id {
+        universe: Selector,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "UniverseId")]
+        universe_id: Option<UniverseId>,
+        operation_id: OperationId,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "String")]
+        cursor: Option<String>,
+    },
+    Key {
+        universe: Selector,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "UniverseId")]
+        universe_id: Option<UniverseId>,
+        operation_kind: OperationKind,
+        #[schemars(length(min = 1, max = 4096))]
+        idempotency_key: String,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "String")]
+        cursor: Option<String>,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CancelOperation {
+    pub universe: Selector,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "UniverseId")]
+    pub universe_id: Option<UniverseId>,
+    pub operation_id: OperationId,
+    #[schemars(length(min = 1, max = 4096))]
+    pub idempotency_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "tool", content = "args", deny_unknown_fields)]
+pub enum Request {
+    #[serde(rename = "universe_describe")]
+    Describe(Describe),
+    #[serde(rename = "universe_open_context")]
+    OpenContext(OpenContext),
+    #[serde(rename = "universe_search")]
+    Search(Search),
+    #[serde(rename = "universe_get")]
+    Get(Get),
+    #[serde(rename = "universe_get_state")]
+    GetState(GetState),
+    #[serde(rename = "universe_get_context")]
+    GetContext(GetContext),
+    #[serde(rename = "universe_validate")]
+    Validate(Validate),
+    #[serde(rename = "universe_propose")]
+    Propose(Propose),
+    #[serde(rename = "universe_get_proposal")]
+    GetProposal(GetProposal),
+    #[serde(rename = "universe_get_impact")]
+    GetImpact(GetImpact),
+    #[serde(rename = "universe_commit")]
+    Commit(Commit),
+    #[serde(rename = "universe_get_operation")]
+    GetOperation(GetOperation),
+    #[serde(rename = "universe_cancel_operation")]
+    CancelOperation(CancelOperation),
+}
+impl Request {
+    pub fn tool_name(&self) -> &'static str {
+        match self {
+            Self::Describe(..) => "universe_describe",
+            Self::OpenContext(..) => "universe_open_context",
+            Self::Search(..) => "universe_search",
+            Self::Get(..) => "universe_get",
+            Self::GetState(..) => "universe_get_state",
+            Self::GetContext(..) => "universe_get_context",
+            Self::Validate(..) => "universe_validate",
+            Self::Propose(..) => "universe_propose",
+            Self::GetProposal(..) => "universe_get_proposal",
+            Self::GetImpact(..) => "universe_get_impact",
+            Self::Commit(..) => "universe_commit",
+            Self::GetOperation(..) => "universe_get_operation",
+            Self::CancelOperation(..) => "universe_cancel_operation",
+        }
+    }
+    pub fn universe(&self) -> &Selector {
+        match self {
+            Self::Describe(Describe::Summary { universe, .. }) => universe,
+            Self::Describe(Describe::Capabilities { universe, .. }) => universe,
+            Self::Describe(Describe::Worlds { universe, .. }) => universe,
+            Self::Describe(Describe::Definitions { universe, .. }) => universe,
+            Self::OpenContext(a) => &a.universe,
+            Self::Search(a) => &a.universe,
+            Self::Get(a) => &a.universe,
+            Self::GetState(a) => &a.universe,
+            Self::GetContext(a) => &a.universe,
+            Self::Validate(Validate::Inline { universe, .. }) => universe,
+            Self::Validate(
+                Validate::Proposal { universe, .. } | Validate::QueuedProposal { universe, .. },
+            ) => universe,
+            Self::Propose(Propose::Create { universe, .. }) => universe,
+            Self::Propose(Propose::Revise { universe, .. }) => universe,
+            Self::Propose(Propose::Submit { universe, .. }) => universe,
+            Self::Propose(Propose::Withdraw { universe, .. }) => universe,
+            Self::GetProposal(a) => &a.universe,
+            Self::GetImpact(GetImpact::Inline { universe, .. }) => universe,
+            Self::GetImpact(GetImpact::Proposal { universe, .. }) => universe,
+            Self::Commit(a) => &a.universe,
+            Self::GetOperation(GetOperation::Id { universe, .. }) => universe,
+            Self::GetOperation(GetOperation::Key { universe, .. }) => universe,
+            Self::CancelOperation(a) => &a.universe,
+        }
+    }
+    pub fn from_tool(name: &str, args: serde_json::Value) -> ProtocolResult<Self> {
+        let request: Self = serde_json::from_value(serde_json::json!({"tool":name,"args":args}))
+            .map_err(|e| ProtocolError::invalid_argument("arguments", e.to_string()))?;
+        request.validate()?;
+        Ok(request)
+    }
+    pub fn validate(&self) -> ProtocolResult<()> {
+        let all = serde_json::to_value(self)
+            .map_err(|_| ProtocolError::invalid_argument("request", "cannot encode"))?;
+        let args = &all["args"];
+        for key in ["universe", "world"] {
+            if let Some(value) = args.get(key) {
+                let v = value.as_str().unwrap_or("");
+                if v.trim().is_empty()
+                    || v.len() > 256
+                    || v.contains(['*', '/', '\\'])
+                    || v.chars().any(char::is_control)
+                    || v.starts_with(char::is_whitespace)
+                {
+                    return Err(ProtocolError::invalid_argument(
+                        key,
+                        "expected an exact nonblank selector",
+                    ));
+                }
+            }
+        }
+        if args.get("world_id").is_some() && args.get("world").is_none() {
+            return Err(ProtocolError::invalid_argument(
+                "world_id",
+                "requires world",
+            ));
+        }
+        if args.get("event").is_some() != args.get("event_side").is_some() {
+            return Err(ProtocolError::invalid_argument(
+                "event",
+                "event and event_side must be supplied together",
+            ));
+        }
+        for key in ["idempotency_key", "rationale", "purpose"] {
+            if let Some(v) = args.get(key) {
+                if v.as_str()
+                    .is_none_or(|s| s.trim().is_empty() || s.len() > 4096)
+                {
+                    return Err(ProtocolError::invalid_argument(
+                        key,
+                        "expected 1..4096 bytes",
+                    ));
+                }
+            }
+        }
+        for key in [
+            "operations",
+            "record_ids",
+            "entity_ids",
+            "focus_ids",
+            "changed_records",
+        ] {
+            if let Some(a) = args.get(key).and_then(|v| v.as_array()) {
+                if a.is_empty() || a.len() > 100 {
+                    return Err(ProtocolError::invalid_argument(
+                        key,
+                        "expected 1..100 items",
+                    ));
+                }
+            }
+        }
+        for (key, lo, hi) in [("limit", 1, 100), ("byte_budget", 256, 65536)] {
+            if let Some(v) = args.get(key).and_then(|v| v.as_u64()) {
+                if !(lo..=hi).contains(&v) {
+                    return Err(ProtocolError::invalid_argument(
+                        key,
+                        "outside request limits",
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolSchema {
+    pub name: String,
+    pub description: String,
+    pub input_schema: serde_json::Value,
+    pub output_schema: serde_json::Value,
+}
+pub fn tool_schemas() -> Vec<ToolSchema> {
+    vec![
+        ToolSchema {
+            name: "universe_describe".into(),
+            description: "Describe: explicit universe required; fixture mode has no canon writes."
+                .into(),
+            input_schema: augment_schema(
+                serde_json::to_value(schemars::schema_for!(Describe)).expect("schema"),
+            ),
+            output_schema: serde_json::to_value(schemars::schema_for!(
+                crate::response::DescribeResult
+            ))
+            .expect("schema"),
+        },
+        ToolSchema {
+            name: "universe_open_context".into(),
+            description:
+                "OpenContext: explicit universe required; fixture mode has no canon writes.".into(),
+            input_schema: augment_schema(
+                serde_json::to_value(schemars::schema_for!(OpenContext)).expect("schema"),
+            ),
+            output_schema: serde_json::to_value(schemars::schema_for!(
+                crate::response::OpenContextResult
+            ))
+            .expect("schema"),
+        },
+        ToolSchema {
+            name: "universe_search".into(),
+            description: "Search: explicit universe required; fixture mode has no canon writes."
+                .into(),
+            input_schema: augment_schema(
+                serde_json::to_value(schemars::schema_for!(Search)).expect("schema"),
+            ),
+            output_schema: serde_json::to_value(schemars::schema_for!(
+                crate::response::SearchResult
+            ))
+            .expect("schema"),
+        },
+        ToolSchema {
+            name: "universe_get".into(),
+            description: "Get: explicit universe required; fixture mode has no canon writes."
+                .into(),
+            input_schema: augment_schema(
+                serde_json::to_value(schemars::schema_for!(Get)).expect("schema"),
+            ),
+            output_schema: serde_json::to_value(schemars::schema_for!(crate::response::GetResult))
+                .expect("schema"),
+        },
+        ToolSchema {
+            name: "universe_get_state".into(),
+            description: "Read explicit and derived state at the pinned story time/perspective before verifying prose. Inspect unresolved evidence and semantic coverage. Explicit universe required; unavailable in fixture mode."
+                .into(),
+            input_schema: augment_schema(
+                serde_json::to_value(schemars::schema_for!(GetState)).expect("schema"),
+            ),
+            output_schema: serde_json::to_value(schemars::schema_for!(
+                crate::response::GetStateResult
+            ))
+            .expect("schema"),
+        },
+        ToolSchema {
+            name: "universe_get_context".into(),
+            description:
+                "Research dependency-closed canon before verifying draft prose. Follow pagination and inspect coverage; complete delivery is not prose validation. Explicit universe required; unavailable in fixture mode.".into(),
+            input_schema: augment_schema(
+                serde_json::to_value(schemars::schema_for!(GetContext)).expect("schema"),
+            ),
+            output_schema: serde_json::to_value(schemars::schema_for!(
+                crate::response::GetContextResult
+            ))
+            .expect("schema"),
+        },
+        ToolSchema {
+            name: "universe_validate".into(),
+            description: "Validate the exact structured continuity claims and consequences of draft prose before considering it usable. Inspect execution findings/coverage, submitted_input and assessment separately; complete engine checks and source-only commits never certify manuscript continuity. Validation does not commit canon. Explicit universe required; unavailable in fixture mode."
+                .into(),
+            input_schema: augment_schema(
+                serde_json::to_value(schemars::schema_for!(Validate)).expect("schema"),
+            ),
+            output_schema: serde_json::to_value(schemars::schema_for!(
+                crate::response::ValidateResult
+            ))
+            .expect("schema"),
+        },
+        ToolSchema {
+            name: "universe_propose".into(),
+            description: "Propose structured facts, events and other material universe changes represented by draft prose, preserving evidence references when available. Proposals are provisional until validated, approved and committed. Explicit universe required; fixture proposals cannot become canon."
+                .into(),
+            input_schema: augment_schema(
+                serde_json::to_value(schemars::schema_for!(Propose)).expect("schema"),
+            ),
+            output_schema: serde_json::to_value(schemars::schema_for!(
+                crate::response::ProposeResult
+            ))
+            .expect("schema"),
+        },
+        ToolSchema {
+            name: "universe_get_proposal".into(),
+            description:
+                "GetProposal: explicit universe required; fixture mode has no canon writes.".into(),
+            input_schema: augment_schema(
+                serde_json::to_value(schemars::schema_for!(GetProposal)).expect("schema"),
+            ),
+            output_schema: serde_json::to_value(schemars::schema_for!(
+                crate::response::GetProposalResult
+            ))
+            .expect("schema"),
+        },
+        ToolSchema {
+            name: "universe_get_impact".into(),
+            description: "Inspect affected canon and dependencies before using and committing verified prose changes. Explicit universe required; unavailable in fixture mode."
+                .into(),
+            input_schema: augment_schema(
+                serde_json::to_value(schemars::schema_for!(GetImpact)).expect("schema"),
+            ),
+            output_schema: serde_json::to_value(schemars::schema_for!(
+                crate::response::GetImpactResult
+            ))
+            .expect("schema"),
+        },
+        ToolSchema {
+            name: "universe_commit".into(),
+            description: "After the author chooses to use verified prose, commit its exact validated structured universe changes so future writing includes their impact. Requires current authority and exact author approval or bounded delegation. Confirm the receipt and reopen at the committed revision. Explicit universe required; denied in fixture mode."
+                .into(),
+            input_schema: augment_schema(
+                serde_json::to_value(schemars::schema_for!(Commit)).expect("schema"),
+            ),
+            output_schema: serde_json::to_value(schemars::schema_for!(
+                crate::response::CommitResult
+            ))
+            .expect("schema"),
+        },
+        ToolSchema {
+            name: "universe_get_operation".into(),
+            description:
+                "GetOperation: explicit universe required; fixture mode has no canon writes.".into(),
+            input_schema: augment_schema(
+                serde_json::to_value(schemars::schema_for!(GetOperation)).expect("schema"),
+            ),
+            output_schema: serde_json::to_value(schemars::schema_for!(
+                crate::response::GetOperationResult
+            ))
+            .expect("schema"),
+        },
+        ToolSchema {
+            name: "universe_cancel_operation".into(),
+            description:
+                "CancelOperation: explicit universe required; fixture mode has no canon writes."
+                    .into(),
+            input_schema: augment_schema(
+                serde_json::to_value(schemars::schema_for!(CancelOperation)).expect("schema"),
+            ),
+            output_schema: serde_json::to_value(schemars::schema_for!(
+                crate::response::CancelOperationResult
+            ))
+            .expect("schema"),
+        },
+    ]
+}
+fn augment_schema(mut schema: serde_json::Value) -> serde_json::Value {
+    fn visit(v: &mut serde_json::Value) {
+        if let Some(props) = v.get("properties").and_then(|p| p.as_object()) {
+            let world = props.contains_key("world_id");
+            let event = props.contains_key("event");
+            if world {
+                v["dependentRequired"] = serde_json::json!({"world_id":["world"]});
+            }
+            if event {
+                v["dependentRequired"] = serde_json::json!({"world_id":["world"],"event":["event_side"],"event_side":["event"]});
+            }
+        }
+        if let Some(m) = v.as_object_mut() {
+            for value in m.values_mut() {
+                visit(value)
+            }
+        } else if let Some(a) = v.as_array_mut() {
+            for value in a {
+                visit(value)
+            }
+        }
+    }
+    visit(&mut schema);
+    schema
+}

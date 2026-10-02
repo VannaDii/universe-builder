@@ -80,7 +80,7 @@ def exercise(s, report):
     original=s.agent;s.client.close();s.agent=local;s.connect();s.open()
     report['restricted_validation']=s.call('universe_validate',{'mode':'inline','universe':NAME,'context_id':s.ctx,'operations':[entity(9)],'check_scope':'universe'})
     restricted=report['restricted_validation']['result']
-    require(restricted['coverage']=='restricted' and not restricted['findings'] and not restricted.get('opposing_evidence'),'restricted scan leaked diagnostics')
+    require(restricted=={'kind':'restricted','execution_coverage':'restricted','submitted_input':{'kind':'restricted'},'assessment':{'kind':'restricted'}},'restricted scan leaked diagnostics')
     s.client.close();s.agent=original;s.connect();s.open()
     check('exception-setup',[assertion(80,25,'support'),rule(70,'block_unless_exception',3,11)],publish=True)
     policy=s.get([s.rid(70)])[0]

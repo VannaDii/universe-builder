@@ -1,0 +1,8 @@
+{
+  "structured": {"kind":"evaluated","coverage":"complete","input_kind":"record_candidate","includes_sources":false,"assessment":{"kind":"absent"},"has_final_binding":true},
+  "source_only": {"kind":"evaluated","coverage":"complete","input_kind":"record_candidate","includes_sources":true,"assessment":{"kind":"absent"},"has_final_binding":true},
+  "mixed": {"kind":"evaluated","coverage":"complete","input_kind":"record_candidate","includes_sources":true,"assessment":{"kind":"absent"},"has_final_binding":true},
+  "query": {"kind":"evaluated","coverage":"complete","input_kind":"query","assessment":{"kind":"absent"},"has_final_binding":false},
+  "legacy": {"kind":"evaluated","coverage":"complete","input_kind":"record_candidate","includes_sources":false,"assessment":{"kind":"unavailable_legacy"},"has_final_binding":false},
+  "restricted": {"kind":"restricted","execution_coverage":"restricted","submitted_input":{"kind":"restricted"},"assessment":{"kind":"restricted"}}
+}

@@ -15,7 +15,12 @@ from pilot_support import NAME
 
 
 def stale_evaluator(s, report, old_bin, new_bin):
-    s.start(); report['installation']=s.u
+    s.start()
+    from jsonschema import Draft202012Validator
+    for tool in s.client.request('tools/list',{})['tools']:
+        if tool['name'] in ('universe_validate','universe_get_operation'):
+            s.client.schemas[tool['name']]=(Draft202012Validator(tool['inputSchema']),Draft202012Validator(tool['outputSchema']))
+    report['installation']=s.u
     p=s.propose([{'kind':'create_entity','client_ref':s.rid(90),'record':{'names':[],'types':[],'worldAssociations':[],'labels':{'en':'Old evaluator candidate'},'metadata':{}}}],'old-candidate')
     queued=s.call('universe_validate',{'mode':'queued_proposal','universe':NAME,'context_id':s.ctx,'proposal_reference':s.reference(p),'check_scope':'universe','idempotency_key':'old-validation'})['result']
     import time
@@ -36,7 +41,7 @@ def stale_evaluator(s, report, old_bin, new_bin):
     report['stale_approval']={'returncode':approval.returncode,'stderr':approval.stderr}
     report['head_after_denial']=s.open()['frame']['revision']
     report['historical_status']=s.call('universe_get_operation',{'lookup':'id','universe':NAME,'operation_id':queued['operation_id']})['result']
-    require(report['historical_status']==status,'old receipt unreadable after evaluator upgrade')
+    require(report['historical_status']['validation']['execution']==status['validation'] and report['historical_status']['validation']['assessment']=={'kind':'unavailable_legacy'} and report['historical_status']['validation']['final_binding_digest'] is None,'old evidence incorrectly upgraded')
     fresh=s.validate(p);require(fresh['evaluator_version']!=v['evaluator_version'],'evaluator did not change')
     s.approval(p,fresh)
     args=s.commit_args(p,fresh,'fresh-evaluator')
