@@ -1,0 +1,5 @@
+{
+  "returncode": 0,
+  "stdout": "",
+  "stderr": "test_changed_wire_request_is_rejected (__main__.EvidenceAuditTests.test_changed_wire_request_is_rejected) ... ok\ntest_kernel_receipt_retargeting_is_rejected (__main__.EvidenceAuditTests.test_kernel_receipt_retargeting_is_rejected) ... ok\ntest_missing_exact_approval_is_rejected (__main__.EvidenceAuditTests.test_missing_exact_approval_is_rejected) ... ok\ntest_resulting_head_mutation_is_rejected (__main__.EvidenceAuditTests.test_resulting_head_mutation_is_rejected) ... ok\ntest_saved_evidence_passes (__main__.EvidenceAuditTests.test_saved_evidence_passes) ... ok\ntest_source_text_mutation_is_rejected (__main__.EvidenceAuditTests.test_source_text_mutation_is_rejected) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.141s\n\nOK\n"
+}

@@ -1,0 +1,1420 @@
+{
+  "status": "passed",
+  "fresh_installations": 2,
+  "equivalent": true,
+  "controls_work": true,
+  "gap_ids": [
+    "G01",
+    "G02",
+    "G03",
+    "G04",
+    "G05",
+    "G06",
+    "G07",
+    "G08",
+    "G09",
+    "G10",
+    "G11"
+  ],
+  "audits": [
+    "run-a/audit.json",
+    "run-b/audit.json"
+  ],
+  "equivalence": {
+    "G01": {
+      "observed_engine": {
+        "coverage": "complete",
+        "findings": 0,
+        "approval": "accepted"
+      },
+      "operations": [
+        {
+          "kind": "record_event",
+          "client_ref": "rec_000000000000000000030da4",
+          "record": {
+            "occurrence": "occurred",
+            "action": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d54"
+            },
+            "time": {
+              "kind": "exact",
+              "calendar": "cal_<generated>",
+              "value": "12"
+            },
+            "participants": [
+              {
+                "record": {
+                  "universe": "unv_<generated>",
+                  "record": "rec_000000000000000000030d41"
+                },
+                "role": "actor"
+              }
+            ],
+            "preconditions": [],
+            "effects": [],
+            "labels": {
+              "en": "Mara walks through a solid wall"
+            }
+          }
+        }
+      ],
+      "canonical_payloads": [
+        {
+          "record_kind": "event",
+          "occurrence": "occurred",
+          "action": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030d54"
+          },
+          "worlds": [],
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_<generated>",
+            "value": "12"
+          },
+          "participants": [
+            {
+              "record": {
+                "universe": "unv_<generated>",
+                "record": "rec_000000000000000000030d41"
+              },
+              "role": "actor"
+            }
+          ],
+          "preconditions": [],
+          "effects": [],
+          "labels": {
+            "en": "Mara walks through a solid wall"
+          },
+          "expansionVersion": "events-v1"
+        }
+      ],
+      "receipt_verified": true
+    },
+    "C01": {
+      "observed_engine": {
+        "error_code": "INVALID_ARGUMENT",
+        "error_field": "event.action.requirements",
+        "approval": "not attempted: no validation run"
+      },
+      "operations": [
+        {
+          "kind": "record_event",
+          "client_ref": "rec_000000000000000000030da5",
+          "record": {
+            "occurrence": "occurred",
+            "action": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d55"
+            },
+            "time": {
+              "kind": "exact",
+              "calendar": "cal_<generated>",
+              "value": "12"
+            },
+            "participants": [
+              {
+                "record": {
+                  "universe": "unv_<generated>",
+                  "record": "rec_000000000000000000030d41"
+                },
+                "role": "actor"
+              }
+            ],
+            "preconditions": [],
+            "effects": [],
+            "labels": {
+              "en": "Mara walks through a solid wall"
+            }
+          }
+        }
+      ],
+      "canonical_payloads": [],
+      "receipt_verified": false
+    },
+    "G02": {
+      "observed_engine": {
+        "coverage": "complete",
+        "findings": 0,
+        "approval": "accepted"
+      },
+      "operations": [
+        {
+          "kind": "record_event",
+          "client_ref": "rec_000000000000000000030da6",
+          "record": {
+            "occurrence": "occurred",
+            "action": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d54"
+            },
+            "time": {
+              "kind": "exact",
+              "calendar": "cal_<generated>",
+              "value": "12"
+            },
+            "participants": [
+              {
+                "record": {
+                  "universe": "unv_<generated>",
+                  "record": "rec_000000000000000000030d41"
+                },
+                "role": "actor"
+              }
+            ],
+            "preconditions": [],
+            "effects": [],
+            "labels": {
+              "en": "Mara chats over breakfast"
+            }
+          }
+        }
+      ],
+      "canonical_payloads": [
+        {
+          "record_kind": "event",
+          "occurrence": "occurred",
+          "action": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030d54"
+          },
+          "worlds": [],
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_<generated>",
+            "value": "12"
+          },
+          "participants": [
+            {
+              "record": {
+                "universe": "unv_<generated>",
+                "record": "rec_000000000000000000030d41"
+              },
+              "role": "actor"
+            }
+          ],
+          "preconditions": [],
+          "effects": [],
+          "labels": {
+            "en": "Mara chats over breakfast"
+          },
+          "expansionVersion": "events-v1"
+        }
+      ],
+      "receipt_verified": true
+    },
+    "G03": {
+      "observed_engine": {
+        "coverage": "complete",
+        "findings": 0,
+        "approval": "accepted"
+      },
+      "operations": [
+        {
+          "kind": "record_event",
+          "client_ref": "rec_000000000000000000030da7",
+          "record": {
+            "occurrence": "occurred",
+            "action": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d54"
+            },
+            "time": {
+              "kind": "exact",
+              "calendar": "cal_<generated>",
+              "value": "12"
+            },
+            "participants": [
+              {
+                "record": {
+                  "universe": "unv_<generated>",
+                  "record": "rec_000000000000000000030d41"
+                },
+                "role": "actor"
+              }
+            ],
+            "preconditions": [],
+            "effects": [],
+            "labels": {
+              "en": "Mara fires her empty pistol twice"
+            }
+          }
+        }
+      ],
+      "canonical_payloads": [
+        {
+          "record_kind": "event",
+          "occurrence": "occurred",
+          "action": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030d54"
+          },
+          "worlds": [],
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_<generated>",
+            "value": "12"
+          },
+          "participants": [
+            {
+              "record": {
+                "universe": "unv_<generated>",
+                "record": "rec_000000000000000000030d41"
+              },
+              "role": "actor"
+            }
+          ],
+          "preconditions": [],
+          "effects": [],
+          "labels": {
+            "en": "Mara fires her empty pistol twice"
+          },
+          "expansionVersion": "events-v1"
+        }
+      ],
+      "receipt_verified": true
+    },
+    "G05": {
+      "observed_engine": {
+        "coverage": "complete",
+        "findings": 0,
+        "approval": "accepted"
+      },
+      "operations": [
+        {
+          "kind": "assert_proposition",
+          "client_ref": "rec_000000000000000000030da8",
+          "proposition": {
+            "subject": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d41"
+            },
+            "predicate": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d4a"
+            },
+            "value": {
+              "kind": "boolean",
+              "value": false
+            },
+            "context": {
+              "universe": "unv_<generated>",
+              "record": "rec_<generated>"
+            },
+            "quantification": "particular"
+          },
+          "assertion": {
+            "proposition": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030da8"
+            },
+            "polarity": "refutation",
+            "scope": {
+              "context": {
+                "universe": "unv_<generated>",
+                "record": "rec_<generated>"
+              },
+              "applicability": {
+                "kind": "universe_wide"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_<generated>",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "basis": {
+              "kind": "author_decision",
+              "note": "Synthetic probe"
+            }
+          }
+        }
+      ],
+      "canonical_payloads": [
+        {
+          "record_kind": "assertion",
+          "proposition": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030da8"
+          },
+          "polarity": "refutation",
+          "scope": {
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "context": {
+              "universe": "unv_<generated>",
+              "record": "rec_<generated>"
+            }
+          },
+          "validity": {
+            "kind": "calendar_interval",
+            "calendar": "cal_<generated>",
+            "start": {
+              "kind": "exact",
+              "value": "10"
+            },
+            "end": {
+              "kind": "unbounded"
+            }
+          },
+          "persistence": "explicit_interval",
+          "precision": "exact",
+          "basis": {
+            "kind": "author_decision",
+            "note": "Synthetic probe"
+          }
+        },
+        {
+          "record_kind": "proposition",
+          "predicate": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030d4a"
+          },
+          "subject": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030d41"
+          },
+          "value": {
+            "kind": "boolean",
+            "value": false
+          },
+          "quantification": "particular",
+          "context": {
+            "universe": "unv_<generated>",
+            "record": "rec_<generated>"
+          }
+        }
+      ],
+      "receipt_verified": true
+    },
+    "C02": {
+      "observed_engine": {
+        "coverage": "complete",
+        "findings": 1,
+        "approval": "denied",
+        "finding_outcomes": [
+          "conflicting"
+        ]
+      },
+      "operations": [
+        {
+          "kind": "assert_proposition",
+          "client_ref": "rec_000000000000000000030da9",
+          "proposition": {
+            "subject": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d41"
+            },
+            "predicate": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d4a"
+            },
+            "value": {
+              "kind": "boolean",
+              "value": true
+            },
+            "context": {
+              "universe": "unv_<generated>",
+              "record": "rec_<generated>"
+            },
+            "quantification": "particular"
+          },
+          "assertion": {
+            "proposition": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030da9"
+            },
+            "polarity": "support",
+            "scope": {
+              "context": {
+                "universe": "unv_<generated>",
+                "record": "rec_<generated>"
+              },
+              "applicability": {
+                "kind": "universe_wide"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_<generated>",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "basis": {
+              "kind": "author_decision",
+              "note": "Synthetic probe"
+            }
+          }
+        }
+      ],
+      "canonical_payloads": [],
+      "receipt_verified": false
+    },
+    "G06": {
+      "observed_engine": {
+        "coverage": "complete",
+        "findings": 0,
+        "approval": "accepted"
+      },
+      "operations": [
+        {
+          "kind": "add_belief",
+          "client_ref": "rec_000000000000000000030daa",
+          "record": {
+            "holder": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d42"
+            },
+            "proposition": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d62"
+            },
+            "attitude": "knows",
+            "certainty": null,
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_<generated>",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "basis": {
+              "kind": "author_decision",
+              "note": "No acquisition chain"
+            }
+          }
+        }
+      ],
+      "canonical_payloads": [
+        {
+          "record_kind": "epistemic_attitude",
+          "holder": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030d42"
+          },
+          "proposition": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030d62"
+          },
+          "attitude": "knows",
+          "certainty": null,
+          "validity": {
+            "kind": "calendar_interval",
+            "calendar": "cal_<generated>",
+            "start": {
+              "kind": "exact",
+              "value": "10"
+            },
+            "end": {
+              "kind": "unbounded"
+            }
+          },
+          "basis": {
+            "kind": "author_decision",
+            "note": "No acquisition chain"
+          }
+        }
+      ],
+      "receipt_verified": true
+    },
+    "G07": {
+      "observed_engine": {
+        "coverage": "complete",
+        "findings": 0,
+        "approval": "accepted"
+      },
+      "operations": [
+        {
+          "kind": "record_communication",
+          "client_ref": "rec_000000000000000000030dab",
+          "record": {
+            "sender": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d41"
+            },
+            "intendedRecipients": [
+              {
+                "universe": "unv_<generated>",
+                "record": "rec_000000000000000000030d42"
+              }
+            ],
+            "actualRecipients": [
+              {
+                "universe": "unv_<generated>",
+                "record": "rec_000000000000000000030d42"
+              }
+            ],
+            "content": [
+              {
+                "universe": "unv_<generated>",
+                "record": "rec_000000000000000000030d62"
+              }
+            ],
+            "channel": "ordinary letter",
+            "sentAt": {
+              "kind": "exact",
+              "calendar": "cal_<generated>",
+              "value": "15"
+            },
+            "receivedAt": {
+              "kind": "exact",
+              "calendar": "cal_<generated>",
+              "value": "5"
+            },
+            "distorted": false
+          }
+        }
+      ],
+      "canonical_payloads": [
+        {
+          "record_kind": "communication",
+          "sender": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030d41"
+          },
+          "intendedRecipients": [
+            {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d42"
+            }
+          ],
+          "actualRecipients": [
+            {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d42"
+            }
+          ],
+          "content": [
+            {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d62"
+            }
+          ],
+          "channel": "ordinary letter",
+          "sentAt": {
+            "kind": "exact",
+            "calendar": "cal_<generated>",
+            "value": "15"
+          },
+          "receivedAt": {
+            "kind": "exact",
+            "calendar": "cal_<generated>",
+            "value": "5"
+          },
+          "distorted": false
+        }
+      ],
+      "receipt_verified": true
+    },
+    "G08": {
+      "observed_engine": {
+        "coverage": "complete",
+        "findings": 0,
+        "approval": "accepted"
+      },
+      "operations": [
+        {
+          "kind": "record_relation",
+          "client_ref": "rec_000000000000000000030dac",
+          "proposition": {
+            "subject": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d41"
+            },
+            "predicate": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d68"
+            },
+            "value": null,
+            "context": {
+              "universe": "unv_<generated>",
+              "record": "rec_<generated>"
+            },
+            "quantification": "particular",
+            "roles": [
+              {
+                "role": "counterpart",
+                "participant": {
+                  "universe": "unv_<generated>",
+                  "record": "rec_000000000000000000030d42"
+                }
+              }
+            ]
+          },
+          "assertion": {
+            "proposition": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030dac"
+            },
+            "polarity": "support",
+            "scope": {
+              "context": {
+                "universe": "unv_<generated>",
+                "record": "rec_<generated>"
+              },
+              "applicability": {
+                "kind": "universe_wide"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_<generated>",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "basis": {
+              "kind": "author_decision",
+              "note": "Synthetic probe"
+            }
+          }
+        },
+        {
+          "kind": "record_relation",
+          "client_ref": "rec_000000000000000000030dad",
+          "proposition": {
+            "subject": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d41"
+            },
+            "predicate": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d68"
+            },
+            "value": null,
+            "context": {
+              "universe": "unv_<generated>",
+              "record": "rec_<generated>"
+            },
+            "quantification": "particular",
+            "roles": [
+              {
+                "role": "counterpart",
+                "participant": {
+                  "universe": "unv_<generated>",
+                  "record": "rec_000000000000000000030d43"
+                }
+              }
+            ]
+          },
+          "assertion": {
+            "proposition": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030dad"
+            },
+            "polarity": "support",
+            "scope": {
+              "context": {
+                "universe": "unv_<generated>",
+                "record": "rec_<generated>"
+              },
+              "applicability": {
+                "kind": "universe_wide"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_<generated>",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "basis": {
+              "kind": "author_decision",
+              "note": "Synthetic probe"
+            }
+          }
+        }
+      ],
+      "canonical_payloads": [
+        {
+          "record_kind": "assertion",
+          "proposition": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030dac"
+          },
+          "polarity": "support",
+          "scope": {
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "context": {
+              "universe": "unv_<generated>",
+              "record": "rec_<generated>"
+            }
+          },
+          "validity": {
+            "kind": "calendar_interval",
+            "calendar": "cal_<generated>",
+            "start": {
+              "kind": "exact",
+              "value": "10"
+            },
+            "end": {
+              "kind": "unbounded"
+            }
+          },
+          "persistence": "explicit_interval",
+          "precision": "exact",
+          "basis": {
+            "kind": "author_decision",
+            "note": "Synthetic probe"
+          }
+        },
+        {
+          "record_kind": "assertion",
+          "proposition": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030dad"
+          },
+          "polarity": "support",
+          "scope": {
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "context": {
+              "universe": "unv_<generated>",
+              "record": "rec_<generated>"
+            }
+          },
+          "validity": {
+            "kind": "calendar_interval",
+            "calendar": "cal_<generated>",
+            "start": {
+              "kind": "exact",
+              "value": "10"
+            },
+            "end": {
+              "kind": "unbounded"
+            }
+          },
+          "persistence": "explicit_interval",
+          "precision": "exact",
+          "basis": {
+            "kind": "author_decision",
+            "note": "Synthetic probe"
+          }
+        },
+        {
+          "record_kind": "proposition",
+          "predicate": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030d68"
+          },
+          "subject": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030d41"
+          },
+          "roles": [
+            {
+              "role": "counterpart",
+              "participant": {
+                "universe": "unv_<generated>",
+                "record": "rec_000000000000000000030d42"
+              }
+            }
+          ],
+          "quantification": "particular",
+          "context": {
+            "universe": "unv_<generated>",
+            "record": "rec_<generated>"
+          }
+        },
+        {
+          "record_kind": "proposition",
+          "predicate": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030d68"
+          },
+          "subject": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030d41"
+          },
+          "roles": [
+            {
+              "role": "counterpart",
+              "participant": {
+                "universe": "unv_<generated>",
+                "record": "rec_000000000000000000030d43"
+              }
+            }
+          ],
+          "quantification": "particular",
+          "context": {
+            "universe": "unv_<generated>",
+            "record": "rec_<generated>"
+          }
+        }
+      ],
+      "receipt_verified": true
+    },
+    "G09": {
+      "observed_engine": {
+        "coverage": "complete",
+        "findings": 0,
+        "approval": "accepted"
+      },
+      "operations": [
+        {
+          "kind": "create_appearance",
+          "client_ref": "rec_000000000000000000030dae",
+          "record": {
+            "target": {
+              "kind": "entry",
+              "entry": {
+                "universe": "unv_<generated>",
+                "record": "rec_000000000000000000030d41"
+              }
+            },
+            "label": "Mara appearance",
+            "physical_description": "Mara has white hair.",
+            "atmosphere": "",
+            "images": [],
+            "links": [],
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_<generated>",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            }
+          }
+        }
+      ],
+      "canonical_payloads": [
+        {
+          "record_kind": "appearance",
+          "target": {
+            "kind": "entry",
+            "entry": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d41"
+            }
+          },
+          "label": "Mara appearance",
+          "physical_description": "Mara has white hair.",
+          "atmosphere": "",
+          "images": [],
+          "links": [],
+          "validity": {
+            "kind": "calendar_interval",
+            "calendar": "cal_<generated>",
+            "start": {
+              "kind": "exact",
+              "value": "10"
+            },
+            "end": {
+              "kind": "unbounded"
+            }
+          }
+        }
+      ],
+      "receipt_verified": true
+    },
+    "G04": {
+      "observed_engine": {
+        "coverage": "complete",
+        "findings": 0,
+        "approval": "accepted"
+      },
+      "operations": [
+        {
+          "kind": "define_proposition",
+          "client_ref": "rec_000000000000000000030daf",
+          "record": {
+            "subject": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d41"
+            },
+            "predicate": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d4f"
+            },
+            "value": {
+              "kind": "boolean",
+              "value": true
+            },
+            "context": {
+              "universe": "unv_<generated>",
+              "record": "rec_<generated>"
+            },
+            "quantification": "particular"
+          }
+        },
+        {
+          "kind": "record_event",
+          "client_ref": "rec_000000000000000000030db0",
+          "record": {
+            "occurrence": "occurred",
+            "action": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d54"
+            },
+            "time": {
+              "kind": "exact",
+              "calendar": "cal_<generated>",
+              "value": "12"
+            },
+            "participants": [
+              {
+                "record": {
+                  "universe": "unv_<generated>",
+                  "record": "rec_000000000000000000030d41"
+                },
+                "role": "actor"
+              }
+            ],
+            "preconditions": [],
+            "effects": [
+              {
+                "slot": "grant",
+                "proposition": {
+                  "universe": "unv_<generated>",
+                  "record": "rec_000000000000000000030daf"
+                },
+                "polarity": "support",
+                "scope": {
+                  "context": {
+                    "universe": "unv_<generated>",
+                    "record": "rec_<generated>"
+                  },
+                  "applicability": {
+                    "kind": "universe_wide"
+                  }
+                },
+                "validity": {
+                  "kind": "calendar_interval",
+                  "calendar": "cal_<generated>",
+                  "start": {
+                    "kind": "exact",
+                    "value": "12"
+                  },
+                  "end": {
+                    "kind": "unbounded"
+                  }
+                },
+                "order": 0
+              }
+            ],
+            "labels": {
+              "en": "Mara becomes invulnerable while walking"
+            }
+          }
+        }
+      ],
+      "canonical_payloads": [
+        {
+          "record_kind": "event",
+          "occurrence": "occurred",
+          "action": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030d54"
+          },
+          "worlds": [],
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_<generated>",
+            "value": "12"
+          },
+          "participants": [
+            {
+              "record": {
+                "universe": "unv_<generated>",
+                "record": "rec_000000000000000000030d41"
+              },
+              "role": "actor"
+            }
+          ],
+          "preconditions": [],
+          "effects": [
+            {
+              "slot": "grant",
+              "proposition": {
+                "universe": "unv_<generated>",
+                "record": "rec_000000000000000000030daf"
+              },
+              "polarity": "support",
+              "validity": {
+                "kind": "calendar_interval",
+                "calendar": "cal_<generated>",
+                "start": {
+                  "kind": "exact",
+                  "value": "12"
+                },
+                "end": {
+                  "kind": "unbounded"
+                }
+              },
+              "scope": {
+                "applicability": {
+                  "kind": "universe_wide"
+                },
+                "context": {
+                  "universe": "unv_<generated>",
+                  "record": "rec_<generated>"
+                }
+              },
+              "order": 0
+            }
+          ],
+          "labels": {
+            "en": "Mara becomes invulnerable while walking"
+          },
+          "expansionVersion": "events-v1"
+        },
+        {
+          "record_kind": "assertion",
+          "proposition": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030daf"
+          },
+          "polarity": "support",
+          "scope": {
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "context": {
+              "universe": "unv_<generated>",
+              "record": "rec_<generated>"
+            }
+          },
+          "validity": {
+            "kind": "calendar_interval",
+            "calendar": "cal_<generated>",
+            "start": {
+              "kind": "exact",
+              "value": "12"
+            },
+            "end": {
+              "kind": "unbounded"
+            }
+          },
+          "persistence": "explicit_interval",
+          "precision": "exact",
+          "basis": {
+            "kind": "author_decision",
+            "note": "Compiled event rec_000000000000000000030db0 slot grant"
+          },
+          "establishedBy": {
+            "event": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030db0"
+            },
+            "slot": "grant"
+          }
+        },
+        {
+          "record_kind": "proposition",
+          "predicate": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030d4f"
+          },
+          "subject": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030d41"
+          },
+          "value": {
+            "kind": "boolean",
+            "value": true
+          },
+          "quantification": "particular",
+          "context": {
+            "universe": "unv_<generated>",
+            "record": "rec_<generated>"
+          }
+        }
+      ],
+      "receipt_verified": true
+    },
+    "G11": {
+      "observed_engine": {
+        "coverage": "complete",
+        "findings": 0,
+        "approval": "accepted"
+      },
+      "operations": [
+        {
+          "kind": "record_narrative_reference",
+          "client_ref": "rec_<generated>",
+          "record": "source",
+          "payload": {
+            "record_kind": "source",
+            "label": "Contradictory source",
+            "origin": {
+              "originNote": null
+            },
+            "versions": [
+              "rec_<generated>"
+            ]
+          }
+        },
+        {
+          "kind": "record_narrative_reference",
+          "client_ref": "rec_<generated>",
+          "record": "source_version",
+          "payload": {
+            "record_kind": "source_version",
+            "source": {
+              "universe": "unv_<generated>",
+              "record": "rec_<generated>"
+            },
+            "digest": "13a16c6168c8995fc30e28fcfc178395285796d58efdcba7f30f5c194b40d824",
+            "mediaType": "text/plain; charset=utf-8",
+            "byteSize": 35,
+            "importActor": "prn_<generated>",
+            "importTime": "<import timestamp>",
+            "decoding": {
+              "encoding": "UTF-8",
+              "representation": "exact-utf8-v1",
+              "byteLength": 35
+            },
+            "origin": {
+              "originNote": null
+            }
+          }
+        }
+      ],
+      "canonical_payloads": [
+        {
+          "record_kind": "source_version",
+          "source": {
+            "universe": "unv_<generated>",
+            "record": "rec_<generated>"
+          },
+          "digest": "13a16c6168c8995fc30e28fcfc178395285796d58efdcba7f30f5c194b40d824",
+          "mediaType": "text/plain; charset=utf-8",
+          "byteSize": 35,
+          "importActor": "prn_<generated>",
+          "importTime": "<import timestamp>",
+          "decoding": {
+            "encoding": "UTF-8",
+            "representation": "exact-utf8-v1",
+            "byteLength": 35
+          },
+          "origin": {
+            "originNote": null
+          }
+        },
+        {
+          "record_kind": "source",
+          "label": "Contradictory source",
+          "origin": {
+            "originNote": null
+          },
+          "versions": [
+            "rec_<generated>"
+          ]
+        }
+      ],
+      "receipt_verified": true
+    },
+    "G10": {
+      "observed_engine": {
+        "coverage": "complete",
+        "findings": 0,
+        "approval": "accepted"
+      },
+      "operations": [
+        {
+          "kind": "add_source_anchor",
+          "client_ref": "rec_000000000000000000030db1",
+          "record": {
+            "sourceVersion": {
+              "universe": "unv_<generated>",
+              "record": "rec_<generated>",
+              "version": "ver_<generated>"
+            },
+            "locator": {
+              "kind": "byte_range",
+              "start": 15,
+              "end": 35
+            },
+            "excerpt": "Iven has black hair.",
+            "excerptDigest": "2bf91f5e3c563d0a9a4477e33745176fa72255506721bd1cbb00e36ae912f802",
+            "context": {
+              "universe": "unv_<generated>",
+              "record": "rec_<generated>"
+            }
+          }
+        },
+        {
+          "kind": "assert_proposition",
+          "client_ref": "rec_000000000000000000030db2",
+          "proposition": {
+            "subject": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d42"
+            },
+            "predicate": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030d4c"
+            },
+            "value": {
+              "kind": "text",
+              "text": "white"
+            },
+            "context": {
+              "universe": "unv_<generated>",
+              "record": "rec_<generated>"
+            },
+            "quantification": "particular"
+          },
+          "assertion": {
+            "proposition": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030db2"
+            },
+            "polarity": "support",
+            "scope": {
+              "context": {
+                "universe": "unv_<generated>",
+                "record": "rec_<generated>"
+              },
+              "applicability": {
+                "kind": "universe_wide"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_<generated>",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "basis": {
+              "kind": "source_anchor",
+              "anchor": {
+                "universe": "unv_<generated>",
+                "record": "rec_000000000000000000030db1"
+              },
+              "verified": true
+            }
+          }
+        }
+      ],
+      "canonical_payloads": [
+        {
+          "record_kind": "assertion",
+          "proposition": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030db2"
+          },
+          "polarity": "support",
+          "scope": {
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "context": {
+              "universe": "unv_<generated>",
+              "record": "rec_<generated>"
+            }
+          },
+          "validity": {
+            "kind": "calendar_interval",
+            "calendar": "cal_<generated>",
+            "start": {
+              "kind": "exact",
+              "value": "10"
+            },
+            "end": {
+              "kind": "unbounded"
+            }
+          },
+          "persistence": "explicit_interval",
+          "precision": "exact",
+          "basis": {
+            "kind": "source_anchor",
+            "anchor": {
+              "universe": "unv_<generated>",
+              "record": "rec_000000000000000000030db1"
+            },
+            "verified": true
+          }
+        },
+        {
+          "record_kind": "anchor",
+          "sourceVersion": {
+            "universe": "unv_<generated>",
+            "record": "rec_<generated>",
+            "version": "ver_<generated>"
+          },
+          "locator": {
+            "kind": "byte_range",
+            "start": 15,
+            "end": 35
+          },
+          "excerptDigest": "2bf91f5e3c563d0a9a4477e33745176fa72255506721bd1cbb00e36ae912f802",
+          "excerpt": "Iven has black hair.",
+          "context": {
+            "universe": "unv_<generated>",
+            "record": "rec_<generated>"
+          }
+        },
+        {
+          "record_kind": "proposition",
+          "predicate": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030d4c"
+          },
+          "subject": {
+            "universe": "unv_<generated>",
+            "record": "rec_000000000000000000030d42"
+          },
+          "value": {
+            "kind": "text",
+            "text": "white"
+          },
+          "quantification": "particular",
+          "context": {
+            "universe": "unv_<generated>",
+            "record": "rec_<generated>"
+          }
+        }
+      ],
+      "receipt_verified": true
+    }
+  }
+}
