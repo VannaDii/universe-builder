@@ -1,0 +1,178 @@
+{
+  "proof_kind": "design_preparation_arithmetic_not_runtime_qualification",
+  "oracle_sha256": "3ead237bf50ef60413a9d62ef0505daf57961168b2bfbf5d74de02f711e77107",
+  "independence": "Same-agent frozen requirement oracle; independent handwritten encoder and OpenSSL digest calculation versus Python JSON/hashlib. No separate reviewer implied.",
+  "passed_checks": 26,
+  "checks": [
+    {
+      "check": "three-stage example hashes match stored binding fields",
+      "result": "pass"
+    },
+    {
+      "check": "production tuple empty digest and closed stored proposal shape",
+      "result": "pass"
+    },
+    {
+      "check": "independent UTF-8 gold offsets",
+      "result": "pass"
+    },
+    {
+      "check": "all source bytes and lengths verified",
+      "result": "pass"
+    },
+    {
+      "check": "anchor inside curly quote rejected by independent decoder",
+      "result": "pass"
+    },
+    {
+      "check": "stale source B differs from A",
+      "result": "pass"
+    },
+    {
+      "check": "object key reordering preserves binding",
+      "result": "pass"
+    },
+    {
+      "check": "candidate_digest changes attachment digest",
+      "result": "pass"
+    },
+    {
+      "check": "source_version changes attachment digest",
+      "result": "pass"
+    },
+    {
+      "check": "source_bytes changes attachment digest",
+      "result": "pass"
+    },
+    {
+      "check": "work_edition changes attachment digest",
+      "result": "pass"
+    },
+    {
+      "check": "mapping_context changes attachment digest",
+      "result": "pass"
+    },
+    {
+      "check": "inventory_omission changes attachment digest",
+      "result": "pass"
+    },
+    {
+      "check": "unresolved_item changes attachment digest",
+      "result": "pass"
+    },
+    {
+      "check": "assessor_identity changes attachment digest",
+      "result": "pass"
+    },
+    {
+      "check": "ordered_inventory changes attachment digest",
+      "result": "pass"
+    },
+    {
+      "check": "unchanged_dependency changes attachment digest",
+      "result": "pass"
+    },
+    {
+      "check": "replacement invalidates final validation hash",
+      "result": "pass"
+    },
+    {
+      "check": "withdrawal invalidates final validation hash",
+      "result": "pass"
+    },
+    {
+      "check": "selection_generation invalidates final validation hash",
+      "result": "pass"
+    },
+    {
+      "check": "evaluator invalidates final validation hash",
+      "result": "pass"
+    },
+    {
+      "check": "submitted_scope invalidates final validation hash",
+      "result": "pass"
+    },
+    {
+      "check": "body excludes own identity/digest/final digest",
+      "result": "pass"
+    },
+    {
+      "check": "inserting claimed self digest changes hash, cannot reuse original",
+      "result": "pass"
+    },
+    {
+      "check": "embedding candidate digest in candidate breaks original binding",
+      "result": "pass"
+    },
+    {
+      "check": "38 independently frozen requirement fixtures present",
+      "result": "pass"
+    }
+  ],
+  "gold_utf8_ranges": [
+    [
+      0,
+      34
+    ],
+    [
+      11,
+      34
+    ],
+    [
+      35,
+      47
+    ]
+  ],
+  "source_a_sha256": "6cd9d1ff9ef48b3c5a702ad4140aabcb143ef1285f467c53007c5a081a0075a7",
+  "source_b_sha256": "4abe1a2260d95df0b333c4fed2fa9f1d70e677c6bfb91de3040ee5dfc3d609df",
+  "bindings": {
+    "production_shaped_candidate": {
+      "canonical_utf8": "[{\"base_frame\":{\"context\":{\"record\":\"rec_000000000000000000000001\",\"universe\":\"unv_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"perspective\":\"author\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"timeless\"},\"universe\":\"unv_000000000000000000000001\"},\"canonical\":false,\"digest\":\"\",\"operation_id\":\"op_000000000000000000000001\",\"operations\":[],\"proposal_id\":\"prp_000000000000000000000001\",\"rationale\":\"Exact no-change proposal digest arithmetic fixture.\",\"submission\":\"submitted\",\"version\":1,\"withdrawn\":false,\"world_scope\":null},[],{\"protected\":false,\"shared\":false,\"worlds\":[]}]",
+      "prefix_utf8": "",
+      "sha256": "91eaafdc0921b147d93f9cd83e071af43e73a9be58e84adc5419280fc5aa85ad",
+      "byte_length": 617
+    },
+    "candidate_miniature": {
+      "canonical_utf8": "{\"active_record_versions\":[{\"record\":\"rec_000000000000000000000001\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000001\"},{\"record\":\"rec_000000000000000000000003\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000003\"},{\"record\":\"rec_000000000000000000000004\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000004\"},{\"record\":\"rec_000000000000000000000005\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000005\"},{\"record\":\"rec_000000000000000000000006\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000006\"},{\"record\":\"rec_000000000000000000000007\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000007\"},{\"record\":\"rec_000000000000000000000008\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000008\"},{\"record\":\"rec_000000000000000000000009\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000009\"},{\"record\":\"rec_00000000000000000000000a\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_00000000000000000000000a\"},{\"record\":\"rec_00000000000000000000000b\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_00000000000000000000000b\"},{\"record\":\"rec_00000000000000000000000c\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_00000000000000000000000c\"},{\"record\":\"rec_00000000000000000000000d\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_00000000000000000000000d\"},{\"record\":\"rec_00000000000000000000000e\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_00000000000000000000000e\"},{\"record\":\"rec_00000000000000000000000f\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_00000000000000000000000f\"}],\"base_frame\":{\"context\":{\"record\":\"rec_000000000000000000000001\",\"universe\":\"unv_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"perspective\":\"author\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"timeless\"},\"universe\":\"unv_000000000000000000000001\"},\"compiled_changes\":[],\"fixture_kind\":\"miniature_frozen_candidate_not_production_preimage\",\"sources\":[{\"blob_digest\":\"6cd9d1ff9ef48b3c5a702ad4140aabcb143ef1285f467c53007c5a081a0075a7\",\"version\":{\"record\":\"rec_000000000000000000000002\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000002\"}}]}",
+      "prefix_utf8": "",
+      "sha256": "3ef0b94746f89e6eb53f24f372a89fa24ba3186499ce0e721aaab311f8160e55",
+      "byte_length": 2386
+    },
+    "assessment": {
+      "canonical_utf8": "{\"assessor\":{\"assessed_at\":\"2026-10-02T20:00:00Z\",\"method\":\"human_review\",\"principal\":\"prn_000000000000000000000001\",\"tool\":null},\"base_frame\":{\"context\":{\"record\":\"rec_000000000000000000000001\",\"universe\":\"unv_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"perspective\":\"author\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"timeless\"},\"universe\":\"unv_000000000000000000000001\"},\"claim_mappings\":[{\"candidate_links\":[{\"kind\":\"unchanged_record\",\"version\":{\"record\":\"rec_000000000000000000000009\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000009\"}}],\"context\":{\"record\":\"rec_000000000000000000000001\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000001\"},\"item_ids\":[\"utterance\"],\"judgment\":\"supported\",\"mapping_id\":\"speech\",\"modality\":\"asserted\",\"narration_position\":{\"kind\":\"work_position\",\"ordinal\":1,\"scene_id\":\"scene-1\",\"work_edition\":{\"record\":\"rec_000000000000000000000003\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000003\"}},\"occurrence\":\"occurred\",\"rationale\":\"Synthetic gold mapping; externally assessed, not engine entailment.\",\"reader_position\":{\"kind\":\"work_position\",\"ordinal\":1,\"scene_id\":\"scene-1\",\"work_edition\":{\"record\":\"rec_000000000000000000000003\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000003\"}},\"realm\":null,\"referents\":[{\"record\":\"rec_000000000000000000000004\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000004\"}],\"semantic\":{\"action\":{\"record\":\"rec_000000000000000000000006\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000006\"},\"effects\":[],\"kind\":\"action\",\"participants\":[{\"participant\":{\"record\":\"rec_000000000000000000000004\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000004\"},\"role\":\"speaker\"}],\"prerequisites\":[]},\"story_time\":{\"calendar\":\"cal_00000000000000000000000f\",\"kind\":\"exact\",\"value\":\"12\"},\"world\":{\"record\":\"rec_000000000000000000000005\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000005\"}},{\"candidate_links\":[{\"kind\":\"unchanged_record\",\"version\":{\"record\":\"rec_00000000000000000000000b\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_00000000000000000000000b\"}}],\"context\":{\"record\":\"rec_00000000000000000000000a\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_00000000000000000000000a\"},\"item_ids\":[\"attributed-door\"],\"judgment\":\"supported\",\"mapping_id\":\"reported-open\",\"modality\":\"attributed\",\"narration_position\":{\"kind\":\"work_position\",\"ordinal\":1,\"scene_id\":\"scene-1\",\"work_edition\":{\"record\":\"rec_000000000000000000000003\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000003\"}},\"occurrence\":\"reported\",\"rationale\":\"Synthetic gold mapping; externally assessed, not engine entailment.\",\"reader_position\":{\"kind\":\"work_position\",\"ordinal\":1,\"scene_id\":\"scene-1\",\"work_edition\":{\"record\":\"rec_000000000000000000000003\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000003\"}},\"realm\":null,\"referents\":[{\"record\":\"rec_000000000000000000000007\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000007\"}],\"semantic\":{\"kind\":\"claim\",\"polarity\":\"support\",\"predicate\":{\"record\":\"rec_000000000000000000000008\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000008\"},\"roles\":[],\"subject\":{\"record\":\"rec_000000000000000000000007\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000007\"},\"value\":{\"kind\":\"boolean\",\"value\":true}},\"story_time\":{\"calendar\":\"cal_00000000000000000000000f\",\"kind\":\"exact\",\"value\":\"12\"},\"world\":{\"record\":\"rec_000000000000000000000005\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000005\"}},{\"candidate_links\":[{\"kind\":\"unchanged_record\",\"version\":{\"record\":\"rec_00000000000000000000000d\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_00000000000000000000000d\"}}],\"context\":{\"record\":\"rec_000000000000000000000001\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000001\"},\"item_ids\":[\"waiting\"],\"judgment\":\"supported\",\"mapping_id\":\"waiting\",\"modality\":\"asserted\",\"narration_position\":{\"kind\":\"work_position\",\"ordinal\":1,\"scene_id\":\"scene-1\",\"work_edition\":{\"record\":\"rec_000000000000000000000003\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000003\"}},\"occurrence\":\"occurred\",\"rationale\":\"Synthetic gold mapping; externally assessed, not engine entailment.\",\"reader_position\":{\"kind\":\"work_position\",\"ordinal\":1,\"scene_id\":\"scene-1\",\"work_edition\":{\"record\":\"rec_000000000000000000000003\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000003\"}},\"realm\":null,\"referents\":[{\"record\":\"rec_00000000000000000000000c\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_00000000000000000000000c\"}],\"semantic\":{\"kind\":\"claim\",\"polarity\":\"support\",\"predicate\":{\"record\":\"rec_00000000000000000000000e\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_00000000000000000000000e\"},\"roles\":[],\"subject\":{\"record\":\"rec_00000000000000000000000c\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_00000000000000000000000c\"},\"value\":{\"kind\":\"boolean\",\"value\":true}},\"story_time\":{\"calendar\":\"cal_00000000000000000000000f\",\"kind\":\"exact\",\"value\":\"12\"},\"world\":{\"record\":\"rec_000000000000000000000005\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000005\"}}],\"conclusion\":\"consistent_with_declared_inventory\",\"declared_inventory\":[{\"item_id\":\"utterance\",\"mapping_ids\":[\"speech\"],\"material_kind\":\"action\",\"range\":{\"end\":34,\"start\":0},\"source_key\":\"passage-a\",\"statement\":\"Mara utters the quoted statement.\",\"unresolved_ids\":[]},{\"item_id\":\"attributed-door\",\"mapping_ids\":[\"reported-open\"],\"material_kind\":\"fact\",\"range\":{\"end\":34,\"start\":11},\"source_key\":\"passage-a\",\"statement\":\"Mara says the door is open in reported context.\",\"unresolved_ids\":[]},{\"item_id\":\"waiting\",\"mapping_ids\":[\"waiting\"],\"material_kind\":\"unchanged_state\",\"range\":{\"end\":47,\"start\":35},\"source_key\":\"passage-a\",\"statement\":\"Iven waits; no knowledge acquisition is asserted.\",\"unresolved_ids\":[]}],\"dependencies\":[{\"record\":\"rec_000000000000000000000001\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000001\"},{\"record\":\"rec_000000000000000000000003\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000003\"},{\"record\":\"rec_000000000000000000000004\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000004\"},{\"record\":\"rec_000000000000000000000005\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000005\"},{\"record\":\"rec_000000000000000000000006\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000006\"},{\"record\":\"rec_000000000000000000000007\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000007\"},{\"record\":\"rec_000000000000000000000008\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000008\"},{\"record\":\"rec_000000000000000000000009\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000009\"},{\"record\":\"rec_00000000000000000000000a\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_00000000000000000000000a\"},{\"record\":\"rec_00000000000000000000000b\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_00000000000000000000000b\"},{\"record\":\"rec_00000000000000000000000c\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_00000000000000000000000c\"},{\"record\":\"rec_00000000000000000000000d\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_00000000000000000000000d\"},{\"record\":\"rec_00000000000000000000000e\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_00000000000000000000000e\"},{\"record\":\"rec_00000000000000000000000f\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_00000000000000000000000f\"}],\"inventory_declaration\":{\"exclusions\":[],\"kind\":\"material_inventory_declared\",\"rationale\":\"All three gold material items included; passage scope only.\"},\"kind\":\"source_assessment_v1\",\"proposal\":{\"digest\":\"3ef0b94746f89e6eb53f24f372a89fa24ba3186499ce0e721aaab311f8160e55\",\"proposal_id\":\"prp_000000000000000000000001\",\"version\":1},\"sources\":[{\"blob_digest\":\"6cd9d1ff9ef48b3c5a702ad4140aabcb143ef1285f467c53007c5a081a0075a7\",\"byte_size\":47,\"key\":\"passage-a\",\"passage_id\":\"scene-1\",\"ranges\":[{\"end\":47,\"start\":0}],\"representation\":\"exact-utf8-v1\",\"source_version\":{\"record\":\"rec_000000000000000000000002\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000002\"},\"work_edition\":{\"record\":\"rec_000000000000000000000003\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000003\"}}],\"unresolved\":[]}",
+      "prefix_utf8": "source-assessment:v1:",
+      "sha256": "cf147089d651894030e61895720f2faf29067a21995b3797b6b674b56e6ae22e",
+      "byte_length": 8877
+    },
+    "execution": {
+      "canonical_utf8": "{\"coverage\":\"complete\",\"evaluator_version\":\"proposed-v3-assessment-evaluator\",\"findings\":[],\"input_digest\":\"3ef0b94746f89e6eb53f24f372a89fa24ba3186499ce0e721aaab311f8160e55\",\"operation_id\":null,\"opposing_evidence\":[],\"run_id\":\"val_000000000000000000000001\",\"unsupported_capabilities\":[]}",
+      "prefix_utf8": "",
+      "sha256": "7e66a076b150a9df49e0b2776a44758be5340c779ee8cdf1b3187ee99513619b",
+      "byte_length": 287
+    },
+    "inventory": {
+      "canonical_utf8": "[{\"item_id\":\"utterance\",\"mapping_ids\":[\"speech\"],\"material_kind\":\"action\",\"range\":{\"end\":34,\"start\":0},\"source_key\":\"passage-a\",\"statement\":\"Mara utters the quoted statement.\",\"unresolved_ids\":[]},{\"item_id\":\"attributed-door\",\"mapping_ids\":[\"reported-open\"],\"material_kind\":\"fact\",\"range\":{\"end\":34,\"start\":11},\"source_key\":\"passage-a\",\"statement\":\"Mara says the door is open in reported context.\",\"unresolved_ids\":[]},{\"item_id\":\"waiting\",\"mapping_ids\":[\"waiting\"],\"material_kind\":\"unchanged_state\",\"range\":{\"end\":47,\"start\":35},\"source_key\":\"passage-a\",\"statement\":\"Iven waits; no knowledge acquisition is asserted.\",\"unresolved_ids\":[]}]",
+      "prefix_utf8": "",
+      "sha256": "c3f71a820591606018d1b4cfe538c41d80b0dca8e5a1518ebd458280cbc8c808",
+      "byte_length": 640
+    },
+    "final_validation": {
+      "canonical_utf8": "{\"base_frame\":{\"context\":{\"record\":\"rec_000000000000000000000001\",\"universe\":\"unv_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"perspective\":\"author\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"timeless\"},\"universe\":\"unv_000000000000000000000001\"},\"evaluator_version\":\"proposed-v3-assessment-evaluator\",\"execution_result_digest\":\"7e66a076b150a9df49e0b2776a44758be5340c779ee8cdf1b3187ee99513619b\",\"kind\":\"source_validation_binding_v1\",\"proposal\":{\"digest\":\"3ef0b94746f89e6eb53f24f372a89fa24ba3186499ce0e721aaab311f8160e55\",\"proposal_id\":\"prp_000000000000000000000001\",\"version\":1},\"selection\":{\"generation\":1,\"proposal\":{\"digest\":\"3ef0b94746f89e6eb53f24f372a89fa24ba3186499ce0e721aaab311f8160e55\",\"proposal_id\":\"prp_000000000000000000000001\",\"version\":1},\"selected\":{\"assessment_id\":\"asm_000000000000000000000001\",\"digest\":\"cf147089d651894030e61895720f2faf29067a21995b3797b6b674b56e6ae22e\"}},\"submitted_input\":{\"inventory_digest\":\"c3f71a820591606018d1b4cfe538c41d80b0dca8e5a1518ebd458280cbc8c808\",\"kind\":\"source_assessed_candidate\",\"proposal\":{\"digest\":\"3ef0b94746f89e6eb53f24f372a89fa24ba3186499ce0e721aaab311f8160e55\",\"proposal_id\":\"prp_000000000000000000000001\",\"version\":1},\"sources\":[{\"blob_digest\":\"6cd9d1ff9ef48b3c5a702ad4140aabcb143ef1285f467c53007c5a081a0075a7\",\"byte_size\":47,\"key\":\"passage-a\",\"passage_id\":\"scene-1\",\"ranges\":[{\"end\":47,\"start\":0}],\"representation\":\"exact-utf8-v1\",\"source_version\":{\"record\":\"rec_000000000000000000000002\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000002\"},\"work_edition\":{\"record\":\"rec_000000000000000000000003\",\"universe\":\"unv_000000000000000000000001\",\"version\":\"ver_000000000000000000000003\"}}]}}",
+      "prefix_utf8": "source-validation:v1:",
+      "sha256": "b90fa2b366734d2fdb0cc8c014baf302f080fc6abdf1daad6bf92cc3a87b945d",
+      "byte_length": 1738
+    }
+  },
+  "mutated_assessment_digests": {
+    "candidate_digest": "5ce8e56be3b172321f0ea9bd03abbfeac78520ffe89237d154218fcb542542f8",
+    "source_version": "cee0f6a70fcf62fa4dec0154a5730dbec0d1773311a1aeccb1d191ef294db9d5",
+    "source_bytes": "6fc6f2482384fe22d9d7a68eb0ff60f13f76900a4a57ca68de3ab00e42626b42",
+    "work_edition": "0a0debacf7c6d12407d269d48ffc8934e5a2fc589babf50388907efbfb187567",
+    "mapping_context": "5fb1674e1243a8264f23f6723ec85e5ec9cd0f8a5e8a7cfd3ea758a69ae37a9d",
+    "inventory_omission": "22f18c8ab2c9fe24642d2abfd824e15a6f75cdeb8a9f5a19c4fd38c1a5f090f1",
+    "unresolved_item": "5df1592235114b39347b9fc2934eaf754b34b5627995dd6bc7eac64999605149",
+    "assessor_identity": "a3ef85249b16e5c7bbb1ee52da4c1337dd36589bfe370f5afdd87f285528978e",
+    "ordered_inventory": "2828e1049199eab62c5237c37e42ffa9095e15dc622061155c7930a22d4fd1f8",
+    "unchanged_dependency": "8b1a48423662725ebf23e08aac4a16fcc34ed0cd003e13dade74a79f466fb1d3"
+  }
+}
