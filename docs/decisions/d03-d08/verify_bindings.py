@@ -52,7 +52,24 @@ def main():
         checks.append({'check':name,'result':'pass'})
     ok('three-stage example hashes match stored binding fields',True)
     pp=e['production_shaped_proposal_preimage']
-    ok('production tuple empty digest and closed stored proposal shape',pp[0]['digest']=='' and len(pp)==3 and pp[1]==[] and pp[2]=={'worlds':[],'shared':False,'protected':False})
+    ok('production tuple empty digest and source-anchor assignment shape',pp[0]['digest']=='' and len(pp)==3 and len(pp[1])==1 and pp[0]['operations'][0]['kind']=='add_source_anchor' and pp[2]=={'worlds':[],'shared':True,'protected':False})
+    prod=e['production_bound_example']
+    prod_body=prod['assessment']['body'];prod_binding=prod['final_binding']
+    proofs['production_assessment']=exact(prod_body,b'source-assessment:v1:')
+    proofs['production_execution']=exact(prod['execution_core'])
+    proofs['production_final_validation']=exact(prod_binding,b'source-validation:v1:')
+    ok('production C linked throughout full assessment chain',all(v==proofs['production_shaped_candidate']['sha256'] for v in [prod['proposal_digest'],prod_body['proposal']['digest'],prod['selection']['proposal']['digest'],prod['execution_core']['input_digest'],prod_binding['proposal']['digest'],prod_binding['submitted_input']['proposal']['digest']]))
+    ok('production A linked to selected assessment and final validation',proofs['production_assessment']['sha256']==prod['assessment']['digest']==prod_binding['selection']['selected']['digest'])
+    ok('production execution digest uses owning typed serializer omissions',not {'operation_id','opposing_evidence'} & prod['execution_core'].keys() and proofs['production_execution']['sha256']==prod_binding['execution_result_digest'])
+    ok('production final V matches complete final example',proofs['production_final_validation']['sha256']==prod['validation_v3']['final_binding_digest'])
+    ok('normal final binding binds exact assessment state',prod_binding['assessment_state']==prod['validation_v3']['assessment'] and binding['assessment_state']==e['validation_v3']['assessment'])
+    anchor=pp[1][0]['next']
+    ok('source anchor canonical payload digest independently matches',exact(anchor['payload'],b'anchor:v1:')['sha256']==anchor['payload_digest'])
+    ok('public examples use existing tool names and separate action variants',e['attachment_request_example']['tool']==e['selection_request_example']['tool']=='universe_propose' and e['assessment_retrieval_request_example']['tool']=='universe_get_proposal' and e['attachment_request_example']['args']['action']=='attach_assessment' and e['selection_request_example']['args']['action']=='select_assessment')
+    fresh=e['fresh_record_only_binding'];fresh_result=e['fresh_record_only_result']
+    proofs['fresh_record_only_final_validation']=exact(fresh,b'source-validation:v1:')
+    ok('fresh record-only validation binds unavailable selected state',fresh['submitted_input']['kind']=='record_candidate' and fresh['assessment_state']==fresh_result['assessment'] and fresh['selection']==prod['selection'] and proofs['fresh_record_only_final_validation']['sha256']==fresh_result['final_binding_digest'])
+    ok('fresh record-only validation binds its own execution run',exact(fresh_result['execution'])['sha256']==fresh['execution_result_digest'] and fresh['execution_result_digest']!=prod_binding['execution_result_digest'])
     raw=e['source_a'].encode(); braw=e['source_b'].encode()
     # Literal byte arithmetic derives gold locations without reading mapping offsets.
     expected=[(0,34),(11,34),(35,47)]
