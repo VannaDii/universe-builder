@@ -274,7 +274,7 @@ impl RecordVersion {
         Ok(Self {
             record_version_id,
             identity,
-            payload_schema_version: crate::SCHEMA_VERSION.to_string(),
+            payload_schema_version: payload.schema_version().to_string(),
             payload,
             payload_digest,
         })
@@ -2280,5 +2280,32 @@ mod tests {
             assert_eq!(fields.iter().filter(|(k, _)| k == "kind").count(), 1);
             assert_eq!(fields.iter().filter(|(k, _)| k == "record_kind").count(), 1);
         }
+    }
+}
+
+impl Payload {
+    /// Only the new expression requires v2. Historical v1 bytes and digests
+    /// remain unchanged and readable by the current host.
+    pub fn schema_version(&self) -> &'static str {
+        let new_expression = match self {
+            Self::Rule(r) => r.expression.uses_opposing_evidence(),
+            Self::Boundary(b) => b.constraints.iter().any(Expr::uses_opposing_evidence),
+            Self::Event(e) => e.preconditions.iter().any(Expr::uses_opposing_evidence),
+            Self::Goal(s) => s.prerequisites.iter().any(Expr::uses_opposing_evidence),
+            Self::Commitment(c) => c.conditions.iter().any(Expr::uses_opposing_evidence),
+            _ => false,
+        };
+        if new_expression {
+            "v2"
+        } else {
+            crate::SCHEMA_VERSION
+        }
+    }
+}
+impl RecordVersion {
+    pub fn supported_schema(&self) -> bool {
+        self.payload_schema_version == self.payload.schema_version()
+            || (self.payload_schema_version == "v2"
+                && self.payload.schema_version() == crate::SCHEMA_VERSION)
     }
 }

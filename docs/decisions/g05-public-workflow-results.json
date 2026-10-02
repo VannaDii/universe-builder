@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-02",
+  "scope": "G05 structured public workflow; prose and integrated-story qualification remain open",
+  "rust_tests": {
+    "passed": 251,
+    "failed": 0,
+    "ignored": 1
+  },
+  "contracts": {
+    "schemas": 26,
+    "valid_examples": 13,
+    "invalid_examples": 91
+  },
+  "proof_directory": "docs/evidence/g05-public-2026-10-02-run8",
+  "comparison": {
+    "status": "passed",
+    "fresh_installations": 2,
+    "evaluator_upgrade": true
+  },
+  "runs": {
+    "run-a": {
+      "status": "passed",
+      "cases": 25,
+      "mcp_calls": 180,
+      "sessions": 6,
+      "kernel_receipts": 17,
+      "limits": "Independent program audit, not external human review or prose/story qualification.",
+      "artifacts_sha256": {
+        "mcp-transcript.jsonl": "fbb786ca65bc8e057e7abc752285fee176e6a2b7566f2150e0bd8fdd05152c73",
+        "package.sqlite": "970b9415a7cd913f0546000ec553bbed16e4b84adf33d51288c8b46758c8232c",
+        "report.json": "532aaf73e52a9d58649bf392457c7c6f4552f0054e7a62a8fb6de48620e14ef4",
+        "audit.json": "e1387746a13601776a4d8e4ff0a1b6cf111048f0a68f7f4e3cb4406fc948b0b5"
+      }
+    },
+    "run-b": {
+      "status": "passed",
+      "cases": 25,
+      "mcp_calls": 180,
+      "sessions": 6,
+      "kernel_receipts": 17,
+      "limits": "Independent program audit, not external human review or prose/story qualification.",
+      "artifacts_sha256": {
+        "mcp-transcript.jsonl": "a1926eeca424f9dfeac246d7e913b84788353adedb1125a44d6dcdd609feba4b",
+        "package.sqlite": "e42d28eded3b7e07287cd3e70e65449a65336f5223c79c820f9d2e98fbcbce23",
+        "report.json": "24b6e571d43fcece64c74a97dd0fcd1ec768386a72a21396080fd9ed9b7768ea",
+        "audit.json": "e1387746a13601776a4d8e4ff0a1b6cf111048f0a68f7f4e3cb4406fc948b0b5"
+      }
+    },
+    "evaluator-upgrade": {
+      "status": "passed",
+      "cases": 0,
+      "mcp_calls": 113,
+      "sessions": 3,
+      "kernel_receipts": 2,
+      "limits": "Independent program audit, not external human review or prose/story qualification.",
+      "artifacts_sha256": {
+        "mcp-transcript.jsonl": "1d03f4888278b4c7471ab04cbf7ccf8cf229ce7cefa4ab48994c35b74f9d3106",
+        "package.sqlite": "32a0afc51c02936bab4052a4d33131b4d962cc724f217c5e7838094982dba4bd",
+        "report.json": "c528c792cd0cb1f32761818e10ebc0b654e8bc9256c4a94a458aa2c1c48235bc",
+        "audit.json": "dd0acf32a6a246410d302a1f814d0ab5b249b790e23327c051e942e1106d5bb0"
+      }
+    }
+  },
+  "audit_tamper_tests": 6,
+  "source_identity_sha256": "8ca40d8e1d812a78ac06b123a56941ccabe5e5c78c6a65417d164777a40cff7e"
+}

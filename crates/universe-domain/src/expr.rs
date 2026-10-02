@@ -133,6 +133,12 @@ impl Canonical for Operand {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Expr {
+    /// Scoped absence of opposing evidence in this exact candidate; never a truth claim.
+    NoOpposingEvidence {
+        subject: Operand,
+        predicate: String,
+        context: Operand,
+    },
     /// `true` / `false` literals (boolean composition — spec §9.4).
     ///
     /// Struct variants (not newtype) for all boolean forms: serde's
@@ -285,6 +291,7 @@ impl Canonical for Expr {
         use Expr::*;
         let kind = |s: &str| CanonicalValue::Str(s.to_string());
         match self {
+            NoOpposingEvidence { .. } => crate::canonical::canonical_serde(self),
             Lit { value: b } => CanonicalValue::obj(vec![
                 ("kind".into(), kind("lit")),
                 ("value".into(), CanonicalValue::Bool(*b)),
@@ -550,6 +557,15 @@ impl Expr {
                 Ok(())
             };
             match self_ref(e) {
+                NoOpposingEvidence {
+                    subject,
+                    predicate,
+                    context,
+                } => {
+                    check_op(subject)?;
+                    check_op(context)?;
+                    out.predicates.push(predicate.clone());
+                }
                 Lit { .. } => {}
                 Not { expr: inner } => walk(inner, in_scope, depth + 1, nodes, out)?,
                 All { exprs: items } | Any { exprs: items } => {
@@ -797,5 +813,19 @@ mod tests {
             }),
         };
         assert!(matches!(bad.analyze(), Err(DomainError::Expression { .. })));
+    }
+}
+
+impl Expr {
+    pub fn uses_opposing_evidence(&self) -> bool {
+        match self {
+            Self::NoOpposingEvidence { .. } => true,
+            Self::Not { expr } => expr.uses_opposing_evidence(),
+            Self::All { exprs } | Self::Any { exprs } => {
+                exprs.iter().any(Self::uses_opposing_evidence)
+            }
+            Self::Quantify { body, .. } => body.uses_opposing_evidence(),
+            _ => false,
+        }
     }
 }

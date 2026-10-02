@@ -778,3 +778,78 @@ fn four_truth_states_and_unrelated_absence_survive_detection() {
         }
     }
 }
+
+#[test]
+fn scoped_metacondition_uses_exact_kernel_with_index_candidate_corrections_and_uncertainty() {
+    use universe_domain::{
+        expr::{Expr, Operand},
+        frame::FrameTime,
+        Frame,
+    };
+    let mut records = base();
+    let frame: Frame = serde_json::from_value(serde_json::json!({
+        "universe":universe(), "continuity":"cont_000000000000000000000001",
+        "revision":"rev_000000000000000000000001", "context":rr(3),
+        "time":{"kind":"at","time":{"kind":"exact","calendar":cal(1),"value":"12"}}, "perspective":"author"
+    })).unwrap();
+    let expression = Expr::NoOpposingEvidence {
+        subject: Operand::Record { record: rr(1) },
+        predicate: "test:open".into(),
+        context: Operand::Record { record: rr(3) },
+    };
+    let run = |records: &[RecordVersion],
+               frame: &Frame,
+               corrections: Vec<(&RecordId, Option<&RecordVersion>)>,
+               indexed| {
+        let index = universe_rules::EvaluationIndex::new(records);
+        universe_rules::basic::evaluate(
+            &expression,
+            &universe_rules::EvaluationContext {
+                frame: Some(frame),
+                base_snapshot: records,
+                candidate_changes: corrections,
+                index: if indexed { Some(&index) } else { None },
+                world_scope: Some(vec![]),
+            },
+        )
+    };
+    for indexed in [false, true] {
+        let (e, c) = run(&records, &frame, vec![], indexed);
+        assert!(c);
+        assert_eq!(e.outcome(), universe_rules::EvidenceOutcome::Refuted);
+        assert!(e
+            .all_sources()
+            .contains(&records.last().unwrap().record_version_id));
+        let (e, c) = run(&records, &frame, vec![(&rr(31).record, None)], indexed);
+        assert!(c);
+        assert_eq!(e.outcome(), universe_rules::EvidenceOutcome::Supported);
+        let mut later = frame.clone();
+        later.time = FrameTime::At {
+            time: TemporalExpression::Exact {
+                calendar: cal(1),
+                value: "20".into(),
+            },
+        };
+        let (e, c) = run(&records, &later, vec![], indexed);
+        assert!(c);
+        assert_eq!(e.outcome(), universe_rules::EvidenceOutcome::Supported);
+    }
+    if let Payload::Assertion(a) = &mut records.last_mut().unwrap().payload {
+        a.validity = Validity::Unknown;
+    }
+    let (e, c) = run(&records, &frame, vec![], true);
+    assert!(!c);
+    assert_eq!(e.outcome(), universe_rules::EvidenceOutcome::NotEstablished);
+    // Definition ambiguity must not select whichever record was indexed first.
+    let Payload::Property(def) = records
+        .iter()
+        .find(|r| matches!(r.payload, Payload::Property(_)))
+        .unwrap()
+        .payload
+        .clone()
+    else {
+        unreachable!()
+    };
+    records.push(record(90, Payload::Property(def)));
+    assert!(!run(&records, &frame, vec![], true).1);
+}

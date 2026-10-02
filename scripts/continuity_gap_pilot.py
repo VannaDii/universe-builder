@@ -181,6 +181,10 @@ def evidence_index(output, audits):
 
 
 def main():
+    if "--g05" in sys.argv:
+        from g05_pilot import main as g05_main
+        g05_main([a for a in sys.argv[1:] if a != "--g05"])
+        return
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
