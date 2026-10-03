@@ -1,0 +1,98 @@
+{
+  "status": "passed",
+  "cases": {
+    "declared_grant": {
+      "allowed": true,
+      "head_control": "passed"
+    },
+    "missing_mandatory": {
+      "allowed": false,
+      "head_control": "passed"
+    },
+    "walking_grants_power": {
+      "allowed": false,
+      "head_control": "passed"
+    },
+    "wrong_recipient": {
+      "allowed": false,
+      "head_control": "passed"
+    },
+    "wrong_world": {
+      "allowed": false,
+      "head_control": "passed"
+    },
+    "wrong_value": {
+      "allowed": false,
+      "head_control": "passed"
+    },
+    "wrong_polarity": {
+      "allowed": false,
+      "head_control": "passed"
+    },
+    "wrong_order": {
+      "allowed": false,
+      "head_control": "passed"
+    },
+    "wrong_lifetime": {
+      "allowed": false,
+      "head_control": "passed"
+    },
+    "missing_role": {
+      "allowed": false,
+      "head_control": "passed"
+    },
+    "ambiguous_role": {
+      "allowed": false,
+      "head_control": "passed"
+    },
+    "optional_absent": {
+      "allowed": true,
+      "head_control": "passed"
+    },
+    "planned_missing": {
+      "allowed": true,
+      "head_control": "passed"
+    },
+    "contractless_touched_event": {
+      "allowed": false,
+      "head_control": "passed"
+    },
+    "contractless_touched_action": {
+      "allowed": false,
+      "head_control": "passed"
+    },
+    "conditional_true": {
+      "allowed": true,
+      "head_control": "passed"
+    },
+    "conditional_missing": {
+      "allowed": false,
+      "head_control": "passed"
+    },
+    "conditional_false_absent": {
+      "allowed": true,
+      "head_control": "passed"
+    },
+    "conditional_false_present": {
+      "allowed": false,
+      "head_control": "passed"
+    },
+    "conditional_refuted_absent": {
+      "allowed": true,
+      "head_control": "passed"
+    },
+    "planned_unresolved_condition": {
+      "allowed": true,
+      "head_control": "passed"
+    },
+    "conditional_unknown": {
+      "allowed": false,
+      "head_control": "passed"
+    }
+  },
+  "rejected": 15,
+  "committed": 7,
+  "mcp_calls": 203,
+  "exact_frozen_assertions_queries_approvals_and_unchanged_heads": "passed",
+  "limit": "Independent program audit; no prose/native or resource arithmetic qualification."
+}

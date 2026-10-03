@@ -13,7 +13,7 @@ use universe_domain::{
 };
 use universe_protocol::{request::*, response::*, ProtocolError, Request};
 use universe_store::kernel::{Assignment, CommitInput, Kernel};
-const EVALUATOR: &str = "finite-policy-v5-input-scope";
+const EVALUATOR: &str = "finite-policy-v6-declared-effects";
 use universe_protocol::validation_scope::*;
 use validation_binding::ValidationCapture;
 pub(crate) fn hash<T: Serialize>(v: &T) -> String {
@@ -950,7 +950,12 @@ impl Workflow<'_> {
         }
         let evaluation_index = universe_rules::EvaluationIndex::new(&candidate);
         let mut findings = Vec::new();
-        let mut unsupported_capabilities = Vec::new();
+        let mut unsupported_capabilities = crate::consequences::validate(
+            &candidate,
+            base,
+            &p.changes.iter().map(|c| c.record_id.clone()).collect(),
+            &p.proposal.base_frame,
+        )?;
         let mut admissible = true;
         let worlds = if p.footprint.shared {
             candidate
@@ -3066,6 +3071,95 @@ fn cache_brief(key: String, value: Value) {
 #[cfg(test)]
 mod job_tests {
     use super::*;
+    #[test]
+    fn prior_evaluator_validation_and_approval_cannot_authorize_effect_semantics() {
+        let dir = tempfile::tempdir().unwrap();
+        let u = UniverseId::generate(&mut rand::rng());
+        let cont = ContinuityId::generate(&mut rand::rng());
+        let profile = ProfileId::generate(&mut rand::rng());
+        let principal = PrincipalId::parse(&profile.as_str().replacen("prf_", "prn_", 1)).unwrap();
+        let mut kernel = Kernel::create(
+            &dir.path().join("effects.db"),
+            u.clone(),
+            "Effects",
+            cont.clone(),
+            &principal,
+        )
+        .unwrap();
+        let head = kernel.head(&cont).unwrap();
+        let mut workflow = Workflow {
+            kernel: &mut kernel,
+            authority: None,
+            principal: Principal {
+                id: profile.clone(),
+                author: true,
+            },
+            approval_author: profile.clone(),
+            scope: None,
+            permissions: (true, true, true),
+            name: "Effects".into(),
+        };
+        let proposal: Proposal = serde_json::from_value(json!({"base_frame":{"universe":u,"continuity":cont,"revision":head,"context":{"universe":u,"record":"rec_000000000000000000000001"},"time":{"kind":"timeless"},"perspective":"author"},"world_scope":null,"proposal_id":ProposalId::generate(&mut rand::rng()),"version":1,"digest":"reviewed-effects","submission":"submitted","operations":[],"rationale":"Evaluator upgrade control","canonical":false,"operation_id":OperationId::generate(&mut rand::rng()),"withdrawn":false})).unwrap();
+        let reference = ProposalRef {
+            proposal_id: proposal.proposal_id.clone(),
+            version: 1,
+            digest: proposal.digest.clone(),
+        };
+        let stored = StoredProposal {
+            proposal,
+            owner: profile.clone(),
+            author_origin: true,
+            changes: vec![],
+            footprint: Footprint::default(),
+        };
+        workflow
+            .save(
+                format!("proposal:{}:{:020}", reference.proposal_id, 1),
+                &stored,
+            )
+            .unwrap();
+        for evaluator in ["finite-policy-v5-input-scope", EVALUATOR] {
+            let run = ValidationRunId::generate(&mut rand::rng());
+            let checked = Checked {
+                proposal_digest: reference.digest.clone(),
+                validation: Validation {
+                    operation_id: None,
+                    run_id: run.clone(),
+                    coverage: Coverage::Complete,
+                    findings: vec![],
+                    opposing_evidence: vec![],
+                    unsupported_capabilities: vec![],
+                    input_digest: "effects".into(),
+                    evaluator_version: evaluator.into(),
+                },
+                admissible: true,
+                report: None,
+                capture: None,
+            };
+            workflow
+                .save(format!("validation:{run}"), &checked)
+                .unwrap();
+            workflow.save(format!("approval:{}:{}:{run}",profile,reference.digest), &json!({"author":profile,"proposal":reference,"validation_digest":hash(&checked),"evaluator":"finite-policy-v5-input-scope"})).unwrap();
+            if evaluator != EVALUATOR {
+                assert!(matches!(
+                    workflow
+                        .approve(&reference, &run)
+                        .unwrap_err()
+                        .downcast_ref::<ProtocolError>(),
+                    Some(ProtocolError::ApprovalStale)
+                ));
+            }
+            let request: Request = serde_json::from_value(json!({"tool":"universe_commit","args":{"universe":"Effects","proposal_reference":reference,"expected_base_revision":head,"validation_run":run,"idempotency_key":evaluator}})).unwrap();
+            assert!(matches!(
+                workflow
+                    .execute(request)
+                    .unwrap_err()
+                    .downcast_ref::<ProtocolError>(),
+                Some(ProtocolError::ApprovalStale)
+            ));
+            assert_eq!(workflow.kernel.head(&cont).unwrap(), head);
+        }
+    }
     #[test]
     fn queued_cancel_and_interrupted_detection_are_durable_without_mutating_operation_receipts() {
         let dir = tempfile::tempdir().unwrap();

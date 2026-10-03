@@ -15,6 +15,7 @@ mod provenance;
 mod validation;
 
 mod actions;
+mod consequences;
 mod events;
 
 mod powers;

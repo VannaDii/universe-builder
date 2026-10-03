@@ -200,24 +200,57 @@ fn entity(name: &str, id: &str) -> Value {
     json!({"kind":"create_entity","client_ref":id,"record":{"names":[],"types":[],"worldAssociations":[],"labels":{"en":name},"metadata":{}}})
 }
 async fn proposal(c: &mut EngineClient, ctx: &Value, ops: Vec<Value>, key: &str) -> Value {
-    // Existing fixtures declare ordinary action vocabulary explicitly. The
-    // production compiler never fills an omitted action; admission tests below
-    // dispatch raw proposals when testing omissions.
+    // Fixture-only vocabulary for preexisting timeline tests. The effect gold
+    // fixtures and MCP proof do not use this convenience helper.
     let mut ops = ops;
-    if ops
-        .iter()
-        .any(|o| o["kind"] == "record_event" && o["record"].get("action").is_none())
-    {
+    for op in &mut ops {
+        if op["kind"] == "define_action" && op["record"].get("consequenceContract").is_none() {
+            op["record"]["consequenceContract"] =
+                json!({"kind":"action_consequences_v1","slots":[]});
+        }
+    }
+    let mut declarations = Vec::new();
+    for i in 0..ops.len() {
+        if ops[i]["kind"] != "record_event" || ops[i]["record"].get("action").is_some() {
+            continue;
+        }
         let frame = c.call(tool("universe_search", json!({"universe":"Alpha","context_id":ctx,"query":"","typed_filters":{"record_kinds":[]},"limit":1}))).await.unwrap()["frame"].clone();
         let action = RecordId::generate(&mut rand::rng());
-        let reference = json!({"universe":frame["universe"],"record":action});
-        for op in &mut ops {
-            if op["kind"] == "record_event" && op["record"].get("action").is_none() {
-                op["record"]["action"] = reference.clone();
-            }
+        let mut slots = Vec::new();
+        let effects = ops[i]["record"]["effects"].as_array().unwrap().clone();
+        for effect in effects {
+            let prop_id = &effect["proposition"]["record"];
+            let prop = if let Some(op) = ops.iter().find(|o| o["client_ref"] == *prop_id) {
+                op["record"].clone()
+            } else {
+                c.call(tool("universe_get", json!({"universe":"Alpha","context_id":ctx,"record_ids":[prop_id],"field_groups":[]}))).await.unwrap()["result"]["records"][0]["payload"].clone()
+            };
+            let role = format!("effect_{}", effect["slot"].as_str().unwrap());
+            ops[i]["record"]["participants"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"role":role,"record":prop["subject"]}));
+            let lifetime = if effect["validity"]["end"]["kind"] == "unbounded" {
+                json!({"kind":"until_changed"})
+            } else {
+                let start: i128 = effect["validity"]["start"]["value"]
+                    .as_str()
+                    .unwrap()
+                    .parse()
+                    .unwrap();
+                let end: i128 = effect["validity"]["end"]["value"]
+                    .as_str()
+                    .unwrap()
+                    .parse()
+                    .unwrap();
+                json!({"kind":"ticks","count":(end-start).to_string()})
+            };
+            slots.push(json!({"slot":effect["slot"],"order":effect["order"],"presence":"required","target":{"role":role,"predicate":prop["predicate"]},"condition":{"kind":"always"},"change":{"kind":"set","polarity":effect["polarity"],"value":prop["value"]},"lifetime":lifetime}));
         }
-        ops.push(json!({"kind":"define_action","client_ref":action,"record":{"namespace":"fixture","key":action,"labels":{},"requirements":[],"scope":{"context":frame["context"],"applicability":{"kind":"universe_wide"}},"validity":{"kind":"unspecified"}}}));
+        ops[i]["record"]["action"] = json!({"universe":frame["universe"],"record":action});
+        declarations.push(json!({"kind":"define_action","client_ref":action,"record":{"namespace":"fixture","key":action,"labels":{},"requirements":[],"consequenceContract":{"kind":"action_consequences_v1","slots":slots},"scope":{"context":frame["context"],"applicability":{"kind":"universe_wide"}},"validity":{"kind":"unspecified"}}}));
     }
+    ops.extend(declarations);
     c.call(tool("universe_propose",json!({"action":"create","universe":"Alpha","context_id":ctx,"operations":ops,"submission":"submitted","rationale":"test review","idempotency_key":key}))).await.unwrap()["result"].clone()
 }
 async fn validate(c: &mut EngineClient, ctx: &Value, p: &Value) -> Value {
@@ -1578,6 +1611,7 @@ async fn event_timeline_possession_powers_timers_and_historical_revision() {
     replacement.as_object_mut().unwrap().remove("record_kind");
     replacement["time"]["value"] = json!("35");
     replacement["effects"][0]["validity"]["start"]["value"] = json!("35");
+    replacement["effects"][0]["validity"]["end"]["value"] = json!("45");
     let p=proposal(&mut c,&ctx,vec![json!({"kind":"revise_event","record":rr(23),"expected_version":old["record_version_id"],"replacement":replacement})],"event-revise").await;
     publish_proposal(&mut c, &ctx, &p, "event-revise-publish").await;
     let before = c

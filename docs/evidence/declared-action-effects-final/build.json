@@ -1,0 +1,16 @@
+{
+  "command": [
+    "cargo",
+    "build",
+    "--locked",
+    "-p",
+    "universe-cli",
+    "-p",
+    "universe-engine",
+    "-p",
+    "universe-mcp"
+  ],
+  "returncode": 0,
+  "stdout": "",
+  "stderr": "   Compiling universe-service v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-service)\n   Compiling universe-cli v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-cli)\n   Compiling universe-engine v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-engine)\n    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.27s\n"
+}

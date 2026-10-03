@@ -190,3 +190,16 @@ access exposes no assessment identifiers, excerpts, counts, hashes or cursors.
 See [assessment review verification](docs/assessment-review-verification.md).
 Assessment validation/approval/commit enforcement, language interpretation and
 native interaction/accessibility qualification remain outside this increment.
+
+## Declared action effects (October 3, 2026)
+
+The shared action/event validation path now enforces Goal 15's required/permitted
+set effects: exact slots, role owners, predicates, values/polarities, full scope,
+order, conditions and lifetime. Missing obligations, unrelated power grants and
+wrong recipient/world effects reject through actual MCP validation without head
+movement. Generated assertions remain frozen in reviewed proposals; prior
+evaluator approvals are stale under `finite-policy-v6-declared-effects`.
+Forty-one independent effect fixtures and 22 audited MCP cases (15 rejected,
+seven committed) pass, including exact queried assertions and expiry/restart.
+Resource arithmetic, simultaneous spending and prose/native qualification remain
+excluded. See [effect enforcement verification](docs/declared-action-effects-verification.md).

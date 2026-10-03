@@ -247,7 +247,7 @@ async fn v16_v17_cross_world_journey_preserves_identity_and_failed_destination_i
     let wid = |n| format!("wld_{:024x}", 12000 + n);
     let rr = |n| json!({"universe":u["universe_id"],"record":id(n)});
     let clock=c.call(tool("universe_get",json!({"universe":"Alpha","context_id":ctx,"record_ids":[u["context_id"]],"field_groups":[]}))).await.unwrap()["result"]["records"][0]["payload"]["chronology"]["calendar"].clone();
-    let scope = json!({"applicability":{"kind":"universe_wide"},"context":{"universe":u["universe_id"],"record":u["context_id"]}});
+    let scope = json!({"applicability":{"kind":"worlds","world_ids":[wid(1),wid(2)]},"context":{"universe":u["universe_id"],"record":u["context_id"]}});
     let prop = |n, subject, place| json!({"kind":"define_proposition","client_ref":id(n),"record":{"subject":rr(subject),"predicate":rr(7),"roles":[],"value":{"kind":"entity_ref","ref":rr(place)},"quantification":"particular","context":scope["context"]}});
     let effect = |slot: &str, proposition, t, order| json!({"slot":slot,"proposition":rr(proposition),"polarity":"support","scope":scope,"validity":{"kind":"calendar_interval","calendar":clock,"start":{"kind":"exact","value":format!("{t}")},"end":{"kind":"unbounded"}},"order":order});
     let event = |n, t, person, item| json!({"kind":"record_event","client_ref":id(n),"record":{"occurrence":"occurred","worlds":[wid(1),wid(2)],"time":{"kind":"exact","calendar":clock,"value":format!("{t}")},"participants":[{"record":rr(3),"role":"traveler"},{"record":rr(4),"role":"carried item"},{"record":rr(5),"role":"departure"},{"record":rr(6),"role":"destination"}],"labels":{"en":"Crossing"},"effects":[effect("traveler",person,t,0),effect("item",item,t,1)]}});

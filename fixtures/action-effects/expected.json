@@ -1,0 +1,1774 @@
+{
+  "scope": "Independent authored assignment expectations; no production expansion or evaluator computes gold.",
+  "records": [
+    {
+      "record_kind": "entity",
+      "names": [],
+      "types": [],
+      "worldAssociations": [],
+      "labels": {},
+      "metadata": {}
+    },
+    {
+      "record_kind": "entity",
+      "names": [],
+      "types": [],
+      "worldAssociations": [],
+      "labels": {},
+      "metadata": {}
+    },
+    {
+      "record_kind": "property",
+      "namespace": "gold",
+      "key": "invulnerable",
+      "labels": {},
+      "subjectTypes": [],
+      "value": {
+        "kind": "boolean"
+      },
+      "multiplicity": "single",
+      "persistence": "explicit_interval",
+      "exclusive": false,
+      "symmetric": false,
+      "transitive": false
+    },
+    {
+      "record_kind": "proposition",
+      "subject": {
+        "universe": "unv_000000000000000000000001",
+        "record": "rec_000000000000000000000001"
+      },
+      "predicate": {
+        "universe": "unv_000000000000000000000001",
+        "record": "rec_000000000000000000000003"
+      },
+      "value": {
+        "kind": "boolean",
+        "value": true
+      },
+      "context": {
+        "universe": "unv_000000000000000000000001",
+        "record": "rec_00000000000000000000000a"
+      },
+      "quantification": "particular"
+    },
+    {
+      "record_kind": "action_definition",
+      "namespace": "gold",
+      "key": "enchant",
+      "labels": {},
+      "requirements": [],
+      "consequenceContract": {
+        "kind": "action_consequences_v1",
+        "slots": [
+          {
+            "slot": "grant",
+            "order": 0,
+            "presence": "required",
+            "target": {
+              "role": "recipient",
+              "predicate": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000003"
+              }
+            },
+            "condition": {
+              "kind": "always"
+            },
+            "change": {
+              "kind": "set",
+              "polarity": "support",
+              "value": {
+                "kind": "boolean",
+                "value": true
+              }
+            },
+            "lifetime": {
+              "kind": "ticks",
+              "count": "5"
+            }
+          }
+        ]
+      },
+      "scope": {
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000a"
+        },
+        "applicability": {
+          "kind": "universe_wide"
+        }
+      },
+      "validity": {
+        "kind": "unspecified"
+      }
+    },
+    {
+      "record_kind": "event",
+      "occurrence": "occurred",
+      "action": {
+        "universe": "unv_000000000000000000000001",
+        "record": "rec_000000000000000000000005"
+      },
+      "time": {
+        "kind": "exact",
+        "calendar": "cal_000000000000000000000009",
+        "value": "11"
+      },
+      "participants": [
+        {
+          "record": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000001"
+          },
+          "role": "recipient"
+        }
+      ],
+      "effects": [
+        {
+          "slot": "grant",
+          "order": 0,
+          "proposition": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000004"
+          },
+          "polarity": "support",
+          "scope": {
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_00000000000000000000000a"
+            },
+            "applicability": {
+              "kind": "universe_wide"
+            }
+          },
+          "validity": {
+            "kind": "calendar_interval",
+            "calendar": "cal_000000000000000000000009",
+            "start": {
+              "kind": "exact",
+              "value": "11"
+            },
+            "end": {
+              "kind": "exact",
+              "value": "16"
+            }
+          }
+        }
+      ],
+      "preconditions": [],
+      "labels": {}
+    },
+    {
+      "record_kind": "proposition",
+      "subject": {
+        "universe": "unv_000000000000000000000001",
+        "record": "rec_000000000000000000000001"
+      },
+      "predicate": {
+        "universe": "unv_000000000000000000000001",
+        "record": "rec_000000000000000000000003"
+      },
+      "value": {
+        "kind": "boolean",
+        "value": false
+      },
+      "context": {
+        "universe": "unv_000000000000000000000001",
+        "record": "rec_00000000000000000000000a"
+      },
+      "quantification": "particular"
+    },
+    {
+      "record_kind": "assertion",
+      "proposition": {
+        "universe": "unv_000000000000000000000001",
+        "record": "rec_000000000000000000000004"
+      },
+      "polarity": "support",
+      "scope": {
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000a"
+        },
+        "applicability": {
+          "kind": "universe_wide"
+        }
+      },
+      "validity": {
+        "kind": "calendar_interval",
+        "calendar": "cal_000000000000000000000009",
+        "start": {
+          "kind": "exact",
+          "value": "0"
+        },
+        "end": {
+          "kind": "exact",
+          "value": "11"
+        }
+      },
+      "persistence": "explicit_interval",
+      "precision": "exact",
+      "basis": {
+        "kind": "author_decision",
+        "note": "Independent premise"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "declared_grant",
+      "allowed": true,
+      "mutations": [],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "missing_mandatory",
+      "allowed": false,
+      "mutations": [
+        {
+          "record": 6,
+          "path": "effects",
+          "value": []
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "walking_grants_power",
+      "allowed": false,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract.slots",
+          "value": []
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "wrong_recipient",
+      "allowed": false,
+      "mutations": [
+        {
+          "record": 4,
+          "path": "subject",
+          "value": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000002"
+          }
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "wrong_world",
+      "allowed": false,
+      "mutations": [
+        {
+          "record": 6,
+          "path": "effects.0.scope.applicability",
+          "value": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_000000000000000000000020"
+            ]
+          }
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "wrong_value",
+      "allowed": false,
+      "mutations": [
+        {
+          "record": 4,
+          "path": "value",
+          "value": {
+            "kind": "boolean",
+            "value": false
+          }
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "wrong_polarity",
+      "allowed": false,
+      "mutations": [
+        {
+          "record": 6,
+          "path": "effects.0.polarity",
+          "value": "refutation"
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "wrong_order",
+      "allowed": false,
+      "mutations": [
+        {
+          "record": 6,
+          "path": "effects.0.order",
+          "value": 1
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "wrong_predicate",
+      "allowed": false,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract.slots.0.target.predicate",
+          "value": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000009"
+          }
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "wrong_context",
+      "allowed": false,
+      "mutations": [
+        {
+          "record": 4,
+          "path": "context",
+          "value": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "wrong_lifetime",
+      "allowed": false,
+      "mutations": [
+        {
+          "record": 6,
+          "path": "effects.0.validity.end",
+          "value": {
+            "kind": "unbounded"
+          }
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "duplicate_slot",
+      "allowed": false,
+      "mutations": [
+        {
+          "record": 6,
+          "path": "effects",
+          "value": [
+            {
+              "slot": "grant",
+              "order": 0,
+              "proposition": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000004"
+              },
+              "polarity": "support",
+              "scope": {
+                "context": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_00000000000000000000000a"
+                },
+                "applicability": {
+                  "kind": "universe_wide"
+                }
+              },
+              "validity": {
+                "kind": "calendar_interval",
+                "calendar": "cal_000000000000000000000009",
+                "start": {
+                  "kind": "exact",
+                  "value": "11"
+                },
+                "end": {
+                  "kind": "exact",
+                  "value": "16"
+                }
+              }
+            },
+            {
+              "slot": "grant",
+              "order": 0,
+              "proposition": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000004"
+              },
+              "polarity": "support",
+              "scope": {
+                "context": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_00000000000000000000000a"
+                },
+                "applicability": {
+                  "kind": "universe_wide"
+                }
+              },
+              "validity": {
+                "kind": "calendar_interval",
+                "calendar": "cal_000000000000000000000009",
+                "start": {
+                  "kind": "exact",
+                  "value": "11"
+                },
+                "end": {
+                  "kind": "exact",
+                  "value": "16"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "missing_role",
+      "allowed": false,
+      "mutations": [
+        {
+          "record": 6,
+          "path": "participants",
+          "value": []
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "ambiguous_role",
+      "allowed": false,
+      "mutations": [
+        {
+          "record": 6,
+          "path": "participants",
+          "value": [
+            {
+              "record": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000001"
+              },
+              "role": "recipient"
+            },
+            {
+              "record": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000001"
+              },
+              "role": "recipient"
+            }
+          ]
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "optional_absent",
+      "allowed": true,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract.slots.0.presence",
+          "value": "optional"
+        },
+        {
+          "record": 6,
+          "path": "effects",
+          "value": []
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "planned_missing",
+      "allowed": true,
+      "mutations": [
+        {
+          "record": 6,
+          "path": "occurrence",
+          "value": "planned"
+        },
+        {
+          "record": 6,
+          "path": "effects",
+          "value": []
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "contractless_touched_event",
+      "allowed": false,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract",
+          "value": null
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "contractless_touched_action",
+      "allowed": false,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract",
+          "value": null
+        }
+      ],
+      "changed": [
+        5
+      ]
+    },
+    {
+      "id": "historical_contractless",
+      "allowed": true,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract",
+          "value": null
+        }
+      ],
+      "changed": []
+    },
+    {
+      "id": "conditional_true",
+      "allowed": true,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract.slots.0.condition",
+          "value": {
+            "kind": "attribute_equals",
+            "role": "recipient",
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000003"
+            },
+            "value": {
+              "kind": "boolean",
+              "value": true
+            }
+          }
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "conditional_missing",
+      "allowed": false,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract.slots.0.condition",
+          "value": {
+            "kind": "attribute_equals",
+            "role": "recipient",
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000003"
+            },
+            "value": {
+              "kind": "boolean",
+              "value": true
+            }
+          }
+        },
+        {
+          "record": 8,
+          "path": "validity",
+          "value": {
+            "kind": "calendar_interval",
+            "calendar": "cal_000000000000000000000009",
+            "start": {
+              "kind": "exact",
+              "value": "11"
+            },
+            "end": {
+              "kind": "unbounded"
+            }
+          }
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "conditional_false_absent",
+      "allowed": true,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract.slots.0.condition",
+          "value": {
+            "kind": "attribute_equals",
+            "role": "recipient",
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000003"
+            },
+            "value": {
+              "kind": "boolean",
+              "value": true
+            }
+          }
+        },
+        {
+          "record": 8,
+          "path": "proposition",
+          "value": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000007"
+          }
+        },
+        {
+          "record": 6,
+          "path": "effects",
+          "value": []
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "conditional_false_present",
+      "allowed": false,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract.slots.0.condition",
+          "value": {
+            "kind": "attribute_equals",
+            "role": "recipient",
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000003"
+            },
+            "value": {
+              "kind": "boolean",
+              "value": true
+            }
+          }
+        },
+        {
+          "record": 8,
+          "path": "proposition",
+          "value": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000007"
+          }
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "conditional_refuted_absent",
+      "allowed": true,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract.slots.0.condition",
+          "value": {
+            "kind": "attribute_equals",
+            "role": "recipient",
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000003"
+            },
+            "value": {
+              "kind": "boolean",
+              "value": true
+            }
+          }
+        },
+        {
+          "record": 8,
+          "path": "polarity",
+          "value": "refutation"
+        },
+        {
+          "record": 6,
+          "path": "effects",
+          "value": []
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "planned_unresolved_condition",
+      "allowed": true,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract.slots.0.condition",
+          "value": {
+            "kind": "attribute_equals",
+            "role": "recipient",
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000003"
+            },
+            "value": {
+              "kind": "boolean",
+              "value": true
+            }
+          }
+        },
+        {
+          "record": 8,
+          "path": "validity",
+          "value": {
+            "kind": "unknown"
+          }
+        },
+        {
+          "record": 6,
+          "path": "occurrence",
+          "value": "planned"
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "conditional_unknown",
+      "allowed": false,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract.slots.0.condition",
+          "value": {
+            "kind": "attribute_equals",
+            "role": "recipient",
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000003"
+            },
+            "value": {
+              "kind": "boolean",
+              "value": true
+            }
+          }
+        },
+        {
+          "record": 8,
+          "path": "validity",
+          "value": {
+            "kind": "unknown"
+          }
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "unchanged_missing_mandatory",
+      "allowed": false,
+      "mcp": false,
+      "mutations": [
+        {
+          "record": 6,
+          "path": "effects",
+          "value": []
+        }
+      ],
+      "changed": []
+    },
+    {
+      "id": "planned_wrong_recipient",
+      "allowed": false,
+      "mcp": false,
+      "mutations": [
+        {
+          "record": 6,
+          "path": "occurrence",
+          "value": "planned"
+        },
+        {
+          "record": 4,
+          "path": "subject",
+          "value": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000002"
+          }
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "condition_alternative_evidence",
+      "allowed": false,
+      "mcp": false,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract.slots.0.condition",
+          "value": {
+            "kind": "attribute_equals",
+            "role": "recipient",
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000003"
+            },
+            "value": {
+              "kind": "boolean",
+              "value": true
+            }
+          }
+        },
+        {
+          "record": 8,
+          "path": "alternatives",
+          "value": [
+            {
+              "kind": "boolean",
+              "value": false
+            }
+          ]
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "condition_approximate",
+      "allowed": false,
+      "mcp": false,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract.slots.0.condition",
+          "value": {
+            "kind": "attribute_equals",
+            "role": "recipient",
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000003"
+            },
+            "value": {
+              "kind": "boolean",
+              "value": true
+            }
+          }
+        },
+        {
+          "record": 8,
+          "path": "precision",
+          "value": "approximate"
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "condition_expired",
+      "allowed": false,
+      "mcp": false,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract.slots.0.condition",
+          "value": {
+            "kind": "attribute_equals",
+            "role": "recipient",
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000003"
+            },
+            "value": {
+              "kind": "boolean",
+              "value": true
+            }
+          }
+        },
+        {
+          "record": 8,
+          "path": "validity.end.value",
+          "value": "10"
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "condition_wrong_world",
+      "allowed": false,
+      "mcp": false,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract.slots.0.condition",
+          "value": {
+            "kind": "attribute_equals",
+            "role": "recipient",
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000003"
+            },
+            "value": {
+              "kind": "boolean",
+              "value": true
+            }
+          }
+        },
+        {
+          "record": 8,
+          "path": "scope.applicability",
+          "value": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_000000000000000000000020"
+            ]
+          }
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "duplicate_event_worlds",
+      "allowed": false,
+      "mcp": false,
+      "mutations": [
+        {
+          "record": 6,
+          "path": "worlds",
+          "value": [
+            "wld_000000000000000000000020",
+            "wld_000000000000000000000020"
+          ]
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "effect_extra_realm",
+      "allowed": false,
+      "mcp": false,
+      "mutations": [
+        {
+          "record": 6,
+          "path": "effects.0.scope.realm",
+          "value": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "effect_unlisted_roles",
+      "allowed": false,
+      "mcp": false,
+      "mutations": [
+        {
+          "record": 4,
+          "path": "roles",
+          "value": [
+            {
+              "role": "extra",
+              "participant": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000002"
+              }
+            }
+          ]
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "two_declared_recipients",
+      "allowed": true,
+      "mcp": false,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract.slots",
+          "value": [
+            {
+              "slot": "grant",
+              "order": 0,
+              "presence": "required",
+              "target": {
+                "role": "recipient",
+                "predicate": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000003"
+                }
+              },
+              "condition": {
+                "kind": "always"
+              },
+              "change": {
+                "kind": "set",
+                "polarity": "support",
+                "value": {
+                  "kind": "boolean",
+                  "value": true
+                }
+              },
+              "lifetime": {
+                "kind": "ticks",
+                "count": "5"
+              }
+            },
+            {
+              "slot": "grant2",
+              "order": 1,
+              "presence": "required",
+              "target": {
+                "role": "bystander",
+                "predicate": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000003"
+                }
+              },
+              "condition": {
+                "kind": "always"
+              },
+              "change": {
+                "kind": "set",
+                "polarity": "support",
+                "value": {
+                  "kind": "boolean",
+                  "value": true
+                }
+              },
+              "lifetime": {
+                "kind": "ticks",
+                "count": "5"
+              }
+            }
+          ]
+        },
+        {
+          "record": 6,
+          "path": "participants",
+          "value": [
+            {
+              "record": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000001"
+              },
+              "role": "recipient"
+            },
+            {
+              "record": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000002"
+              },
+              "role": "bystander"
+            }
+          ]
+        },
+        {
+          "record": 7,
+          "path": "subject",
+          "value": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000002"
+          }
+        },
+        {
+          "record": 7,
+          "path": "value",
+          "value": {
+            "kind": "boolean",
+            "value": true
+          }
+        },
+        {
+          "record": 6,
+          "path": "effects",
+          "value": [
+            {
+              "slot": "grant",
+              "order": 0,
+              "proposition": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000004"
+              },
+              "polarity": "support",
+              "scope": {
+                "context": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_00000000000000000000000a"
+                },
+                "applicability": {
+                  "kind": "universe_wide"
+                }
+              },
+              "validity": {
+                "kind": "calendar_interval",
+                "calendar": "cal_000000000000000000000009",
+                "start": {
+                  "kind": "exact",
+                  "value": "11"
+                },
+                "end": {
+                  "kind": "exact",
+                  "value": "16"
+                }
+              }
+            },
+            {
+              "slot": "grant2",
+              "order": 1,
+              "proposition": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000007"
+              },
+              "polarity": "support",
+              "scope": {
+                "context": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_00000000000000000000000a"
+                },
+                "applicability": {
+                  "kind": "universe_wide"
+                }
+              },
+              "validity": {
+                "kind": "calendar_interval",
+                "calendar": "cal_000000000000000000000009",
+                "start": {
+                  "kind": "exact",
+                  "value": "11"
+                },
+                "end": {
+                  "kind": "exact",
+                  "value": "16"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "second_effect_wrong_world",
+      "allowed": false,
+      "mcp": false,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract.slots",
+          "value": [
+            {
+              "slot": "grant",
+              "order": 0,
+              "presence": "required",
+              "target": {
+                "role": "recipient",
+                "predicate": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000003"
+                }
+              },
+              "condition": {
+                "kind": "always"
+              },
+              "change": {
+                "kind": "set",
+                "polarity": "support",
+                "value": {
+                  "kind": "boolean",
+                  "value": true
+                }
+              },
+              "lifetime": {
+                "kind": "ticks",
+                "count": "5"
+              }
+            },
+            {
+              "slot": "grant2",
+              "order": 1,
+              "presence": "required",
+              "target": {
+                "role": "bystander",
+                "predicate": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000003"
+                }
+              },
+              "condition": {
+                "kind": "always"
+              },
+              "change": {
+                "kind": "set",
+                "polarity": "support",
+                "value": {
+                  "kind": "boolean",
+                  "value": true
+                }
+              },
+              "lifetime": {
+                "kind": "ticks",
+                "count": "5"
+              }
+            }
+          ]
+        },
+        {
+          "record": 6,
+          "path": "participants",
+          "value": [
+            {
+              "record": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000001"
+              },
+              "role": "recipient"
+            },
+            {
+              "record": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000002"
+              },
+              "role": "bystander"
+            }
+          ]
+        },
+        {
+          "record": 7,
+          "path": "subject",
+          "value": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000002"
+          }
+        },
+        {
+          "record": 7,
+          "path": "value",
+          "value": {
+            "kind": "boolean",
+            "value": true
+          }
+        },
+        {
+          "record": 6,
+          "path": "effects",
+          "value": [
+            {
+              "slot": "grant",
+              "order": 0,
+              "proposition": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000004"
+              },
+              "polarity": "support",
+              "scope": {
+                "context": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_00000000000000000000000a"
+                },
+                "applicability": {
+                  "kind": "universe_wide"
+                }
+              },
+              "validity": {
+                "kind": "calendar_interval",
+                "calendar": "cal_000000000000000000000009",
+                "start": {
+                  "kind": "exact",
+                  "value": "11"
+                },
+                "end": {
+                  "kind": "exact",
+                  "value": "16"
+                }
+              }
+            },
+            {
+              "slot": "grant2",
+              "order": 1,
+              "proposition": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000007"
+              },
+              "polarity": "support",
+              "scope": {
+                "context": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_00000000000000000000000a"
+                },
+                "applicability": {
+                  "kind": "universe_wide"
+                }
+              },
+              "validity": {
+                "kind": "calendar_interval",
+                "calendar": "cal_000000000000000000000009",
+                "start": {
+                  "kind": "exact",
+                  "value": "11"
+                },
+                "end": {
+                  "kind": "exact",
+                  "value": "16"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "record": 6,
+          "path": "effects.1.scope.applicability",
+          "value": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_000000000000000000000020"
+            ]
+          }
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "aliased_role_targets",
+      "allowed": false,
+      "mcp": false,
+      "mutations": [
+        {
+          "record": 5,
+          "path": "consequenceContract.slots",
+          "value": [
+            {
+              "slot": "grant",
+              "order": 0,
+              "presence": "required",
+              "target": {
+                "role": "recipient",
+                "predicate": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000003"
+                }
+              },
+              "condition": {
+                "kind": "always"
+              },
+              "change": {
+                "kind": "set",
+                "polarity": "support",
+                "value": {
+                  "kind": "boolean",
+                  "value": true
+                }
+              },
+              "lifetime": {
+                "kind": "ticks",
+                "count": "5"
+              }
+            },
+            {
+              "slot": "grant2",
+              "order": 1,
+              "presence": "required",
+              "target": {
+                "role": "bystander",
+                "predicate": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000003"
+                }
+              },
+              "condition": {
+                "kind": "always"
+              },
+              "change": {
+                "kind": "set",
+                "polarity": "support",
+                "value": {
+                  "kind": "boolean",
+                  "value": true
+                }
+              },
+              "lifetime": {
+                "kind": "ticks",
+                "count": "5"
+              }
+            }
+          ]
+        },
+        {
+          "record": 6,
+          "path": "participants",
+          "value": [
+            {
+              "record": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000001"
+              },
+              "role": "recipient"
+            },
+            {
+              "record": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000001"
+              },
+              "role": "bystander"
+            }
+          ]
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "multiworld_optional_absent",
+      "allowed": true,
+      "mcp": false,
+      "mutations": [
+        {
+          "record": 6,
+          "path": "worlds",
+          "value": [
+            "wld_000000000000000000000020",
+            "wld_000000000000000000000021"
+          ]
+        },
+        {
+          "record": 5,
+          "path": "consequenceContract.slots.0.condition",
+          "value": {
+            "kind": "attribute_equals",
+            "role": "recipient",
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000003"
+            },
+            "value": {
+              "kind": "boolean",
+              "value": true
+            }
+          }
+        },
+        {
+          "record": 8,
+          "path": "scope.applicability",
+          "value": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_000000000000000000000020"
+            ]
+          }
+        },
+        {
+          "record": 5,
+          "path": "consequenceContract.slots.0.presence",
+          "value": "optional"
+        },
+        {
+          "record": 6,
+          "path": "effects",
+          "value": []
+        }
+      ],
+      "extraRecords": [
+        {
+          "record_kind": "assertion",
+          "proposition": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000007"
+          },
+          "polarity": "support",
+          "scope": {
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_00000000000000000000000a"
+            },
+            "applicability": {
+              "kind": "worlds",
+              "world_ids": [
+                "wld_000000000000000000000021"
+              ]
+            }
+          },
+          "validity": {
+            "kind": "calendar_interval",
+            "calendar": "cal_000000000000000000000009",
+            "start": {
+              "kind": "exact",
+              "value": "0"
+            },
+            "end": {
+              "kind": "exact",
+              "value": "11"
+            }
+          },
+          "persistence": "explicit_interval",
+          "precision": "exact",
+          "basis": {
+            "kind": "author_decision",
+            "note": "Independent premise"
+          }
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "multiworld_required_absent",
+      "allowed": false,
+      "mcp": false,
+      "mutations": [
+        {
+          "record": 6,
+          "path": "worlds",
+          "value": [
+            "wld_000000000000000000000020",
+            "wld_000000000000000000000021"
+          ]
+        },
+        {
+          "record": 5,
+          "path": "consequenceContract.slots.0.condition",
+          "value": {
+            "kind": "attribute_equals",
+            "role": "recipient",
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000003"
+            },
+            "value": {
+              "kind": "boolean",
+              "value": true
+            }
+          }
+        },
+        {
+          "record": 8,
+          "path": "scope.applicability",
+          "value": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_000000000000000000000020"
+            ]
+          }
+        },
+        {
+          "record": 6,
+          "path": "effects",
+          "value": []
+        }
+      ],
+      "extraRecords": [
+        {
+          "record_kind": "assertion",
+          "proposition": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000007"
+          },
+          "polarity": "support",
+          "scope": {
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_00000000000000000000000a"
+            },
+            "applicability": {
+              "kind": "worlds",
+              "world_ids": [
+                "wld_000000000000000000000021"
+              ]
+            }
+          },
+          "validity": {
+            "kind": "calendar_interval",
+            "calendar": "cal_000000000000000000000009",
+            "start": {
+              "kind": "exact",
+              "value": "0"
+            },
+            "end": {
+              "kind": "exact",
+              "value": "11"
+            }
+          },
+          "persistence": "explicit_interval",
+          "precision": "exact",
+          "basis": {
+            "kind": "author_decision",
+            "note": "Independent premise"
+          }
+        }
+      ],
+      "changed": [
+        6
+      ]
+    },
+    {
+      "id": "multiworld_conditional_present",
+      "allowed": false,
+      "mcp": false,
+      "mutations": [
+        {
+          "record": 6,
+          "path": "worlds",
+          "value": [
+            "wld_000000000000000000000020",
+            "wld_000000000000000000000021"
+          ]
+        },
+        {
+          "record": 5,
+          "path": "consequenceContract.slots.0.condition",
+          "value": {
+            "kind": "attribute_equals",
+            "role": "recipient",
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000003"
+            },
+            "value": {
+              "kind": "boolean",
+              "value": true
+            }
+          }
+        },
+        {
+          "record": 8,
+          "path": "scope.applicability",
+          "value": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_000000000000000000000020"
+            ]
+          }
+        },
+        {
+          "record": 6,
+          "path": "effects.0.scope.applicability",
+          "value": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_000000000000000000000020",
+              "wld_000000000000000000000021"
+            ]
+          }
+        }
+      ],
+      "extraRecords": [
+        {
+          "record_kind": "assertion",
+          "proposition": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000007"
+          },
+          "polarity": "support",
+          "scope": {
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_00000000000000000000000a"
+            },
+            "applicability": {
+              "kind": "worlds",
+              "world_ids": [
+                "wld_000000000000000000000021"
+              ]
+            }
+          },
+          "validity": {
+            "kind": "calendar_interval",
+            "calendar": "cal_000000000000000000000009",
+            "start": {
+              "kind": "exact",
+              "value": "0"
+            },
+            "end": {
+              "kind": "exact",
+              "value": "11"
+            }
+          },
+          "persistence": "explicit_interval",
+          "precision": "exact",
+          "basis": {
+            "kind": "author_decision",
+            "note": "Independent premise"
+          }
+        }
+      ],
+      "changed": [
+        6
+      ]
+    }
+  ]
+}
