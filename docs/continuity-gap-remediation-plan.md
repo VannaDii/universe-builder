@@ -1,6 +1,6 @@
 # Continuity gap remediation and proof plan
 
-Prepared October 2, 2026, America/Los_Angeles. Status: proposed implementation and acceptance plan. This document addresses all eleven confirmed gaps and all fourteen additional writing-risk families from the preceding assessment. Creating this plan does not approve its proposed domain or workflow contract changes.
+Prepared October 2, 2026, America/Los_Angeles. Historical implementation and acceptance proposal. The remaining execution roadmap is superseded by the [factual universe realignment plan](factual-universe-realignment-plan.md), following Vanna's October 3 product and storage clarification. Completed work and evidence retain their recorded scope; the original gaps and risk scenarios below remain reference material. Neither plan approves unaccepted domain or storage changes.
 
 **1. Objective and completion boundary**
 
