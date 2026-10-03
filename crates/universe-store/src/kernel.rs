@@ -1279,3 +1279,56 @@ impl Kernel {
         )
     }
 }
+
+#[cfg(test)]
+mod consequence_reference_tests {
+    use super::*;
+    #[test]
+    fn consequence_references_use_existing_indexes_and_namespace_guards() {
+        let fixtures: Value = serde_json::from_str(include_str!(
+            "../../../fixtures/action-consequences/payload-digests.json"
+        ))
+        .unwrap();
+        let u = "unv_000000000000000000000001";
+        let grant = &fixtures[5]["payload"];
+        let found = references(grant, u).unwrap();
+        for path in [
+            "/consequenceContract/slots/0/target/predicate",
+            "/consequenceContract/slots/0/condition/predicate",
+        ] {
+            assert!(found.records.iter().any(|(_, _, p)| p == path));
+            for replacement in [
+                Value::Null,
+                serde_json::json!("unv_000000000000000000000002"),
+            ] {
+                let mut bad = grant.clone();
+                bad.pointer_mut(path).unwrap()["universe"] = replacement;
+                assert!(references(&bad, u).is_err());
+            }
+        }
+        let transfer = &fixtures[4]["payload"];
+        let found = references(transfer, u).unwrap();
+        assert_eq!(
+            found
+                .typed
+                .iter()
+                .filter(
+                    |(id, kind)| id == "rec_000000000000000000000007" && *kind == RecordKind::Unit
+                )
+                .count(),
+            2
+        );
+        // References inside declared values remain references, not prose.
+        let mut value_ref = grant.clone();
+        value_ref["consequenceContract"]["slots"][0]["change"]["value"] = serde_json::json!({"kind":"entity_ref","ref":{"universe":u,"record":"rec_00000000000000000000000f"}});
+        let _: Payload = serde_json::from_value(value_ref.clone()).unwrap();
+        assert!(references(&value_ref, u)
+            .unwrap()
+            .records
+            .iter()
+            .any(|(id, _, _)| id == "rec_00000000000000000000000f"));
+        value_ref["consequenceContract"]["slots"][0]["change"]["value"]["ref"]["universe"] =
+            serde_json::json!("unv_000000000000000000000002");
+        assert!(references(&value_ref, u).is_err());
+    }
+}

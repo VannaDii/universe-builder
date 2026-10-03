@@ -212,6 +212,10 @@ fn main() -> Result<()> {
             run(
                 &std::env::var("UNIVERSE_PYTHON").unwrap_or_else(|_| "python3".into()),
                 &["scripts/test_source_assessment_contracts.py"],
+            )?;
+            run(
+                &std::env::var("UNIVERSE_PYTHON").unwrap_or_else(|_| "python3".into()),
+                &["scripts/test_action_consequence_contracts.py"],
             )
         }
         Some("package-fixture") => package(false),

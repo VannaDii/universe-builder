@@ -32,6 +32,65 @@ fn shape(value: &Value, shape: &ValueShape) -> bool {
         _ => false,
     }
 }
+/// Checks definition declarations against the exact candidate's properties and units.
+/// This does not match or execute event effects.
+fn validate_action_contract(
+    action: &ActionDefinition,
+    universe: &UniverseId,
+    map: &BTreeMap<&RecordId, &Payload>,
+) -> anyhow::Result<()> {
+    use universe_domain::consequences::{EffectChange, EffectCondition};
+    let Some(contract) = &action.consequence_contract else {
+        return Ok(());
+    };
+    contract.validate().map_err(|e| invalid(&e))?;
+    let property = |reference: &universe_domain::RecordRef| -> anyhow::Result<&PropertyDef> {
+        if reference.universe.as_ref() != Some(universe) {
+            return Err(invalid(
+                "consequence property must name the action universe",
+            ));
+        }
+        match map.get(&reference.record) {
+            Some(Payload::Property(p)) => Ok(p),
+            _ => Err(invalid("consequence predicate must resolve to a property")),
+        }
+    };
+    for slot in &contract.slots {
+        let target = property(&slot.target.predicate)?;
+        if let EffectCondition::AttributeEquals {
+            predicate, value, ..
+        } = &slot.condition
+        {
+            if !shape(value, &property(predicate)?.value) {
+                return Err(invalid(
+                    "consequence condition value does not conform to its property",
+                ));
+            }
+        }
+        match &slot.change {
+            EffectChange::Set { value, .. } => {
+                if !shape(value, &target.value) {
+                    return Err(invalid(
+                        "consequence set value does not conform to its property",
+                    ));
+                }
+            }
+            EffectChange::Delta { unit, .. } => {
+                let matches = match (&target.value, unit) {
+                    (ValueShape::Integer, None) => true,
+                    (ValueShape::Quantity { unit: expected }, Some(unit)) if expected == unit => {
+                        matches!(map.get(&unit.to_record_id()?), Some(Payload::Unit(_)))
+                    }
+                    _ => false,
+                };
+                if target.multiplicity != Multiplicity::Single || !matches {
+                    return Err(invalid("consequence delta requires a single integer or exact-unit quantity property"));
+                }
+            }
+        }
+    }
+    Ok(())
+}
 /// Returns structural failures; conflict findings are evaluated separately.
 pub fn structural(records: &[RecordVersion]) -> anyhow::Result<()> {
     universe_rules::time::check_orderings(records).map_err(invalid)?;
@@ -63,6 +122,7 @@ pub fn structural(records: &[RecordVersion]) -> anyhow::Result<()> {
                         "action needs a bounded name, explicit scope and supported requirements",
                     ));
                 }
+                validate_action_contract(a, &record.identity.universe_id, &map)?;
                 let mut seen = BTreeSet::new();
                 for req in &a.requirements {
                     if req.role.trim().is_empty()
@@ -795,5 +855,172 @@ mod completeness_tests {
         other.scope.context = rr(9);
         records[0] = version(7, Payload::Completeness(other));
         assert!(completeness_conflicts(&records).0.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod consequence_definition_tests {
+    use super::*;
+    use serde_json::{json, Value as Json};
+    fn rr(n: usize) -> Json {
+        json!({"universe":"unv_000000000000000000000001", "record":format!("rec_{n:024x}")})
+    }
+    fn fixtures() -> Vec<Json> {
+        serde_json::from_str(include_str!(
+            "../../../fixtures/action-consequences/payload-digests.json"
+        ))
+        .unwrap()
+    }
+    fn property(shape: Json, multiplicity: &str) -> Payload {
+        serde_json::from_value(json!({"record_kind":"property","namespace":"test","key":"stock","labels":{},"subjectTypes":[],"value":shape,"multiplicity":multiplicity,"persistence":"explicit_interval","exclusive":false,"symmetric":false,"transitive":false})).unwrap()
+    }
+    fn check(
+        payload: Json,
+        target: Option<Payload>,
+        condition: Option<Payload>,
+        unit: Option<Payload>,
+    ) -> bool {
+        let Payload::ActionDefinition(action) = serde_json::from_value(payload).unwrap() else {
+            panic!()
+        };
+        let target_id = RecordId::parse(rr(2)["record"].as_str().unwrap()).unwrap();
+        let condition_id = RecordId::parse(rr(3)["record"].as_str().unwrap()).unwrap();
+        let unit_id = RecordId::parse(rr(7)["record"].as_str().unwrap()).unwrap();
+        let mut map = BTreeMap::new();
+        if let Some(p) = &target {
+            map.insert(&target_id, p);
+        }
+        if let Some(p) = &condition {
+            map.insert(&condition_id, p);
+        }
+        if let Some(p) = &unit {
+            map.insert(&unit_id, p);
+        }
+        validate_action_contract(
+            &action,
+            &UniverseId::parse("unv_000000000000000000000001").unwrap(),
+            &map,
+        )
+        .is_ok()
+    }
+    fn unit() -> Payload {
+        serde_json::from_value(json!({"record_kind":"unit","namespace":"test","key":"round","labels":{},"dimension":"ammunition","symbol":"rd","validity":{"kind":"unspecified"}})).unwrap()
+    }
+    #[test]
+    fn consequence_references_resolve_to_candidate_properties_and_exact_units() {
+        let fire = fixtures()[3]["payload"].clone();
+        assert!(check(
+            fire.clone(),
+            Some(property(json!({"kind":"integer"}), "single")),
+            None,
+            None
+        ));
+        assert!(!check(fire.clone(), None, None, None));
+        assert!(!check(
+            fire.clone(),
+            Some(property(json!({"kind":"boolean"}), "single")),
+            None,
+            None
+        ));
+        assert!(!check(
+            fire.clone(),
+            Some(property(json!({"kind":"integer"}), "multiple")),
+            None,
+            None
+        ));
+        assert!(!check(fire.clone(), Some(unit()), None, None));
+        let mut cross = fire;
+        cross["consequenceContract"]["slots"][0]["target"]["predicate"]["universe"] =
+            json!("unv_000000000000000000000002");
+        assert!(!check(
+            cross,
+            Some(property(json!({"kind":"integer"}), "single")),
+            None,
+            None
+        ));
+        let transfer = fixtures()[4]["payload"].clone();
+        let qty = json!({"kind":"quantity","unit":"unit_000000000000000000000007"});
+        assert!(check(
+            transfer.clone(),
+            Some(property(qty.clone(), "single")),
+            None,
+            Some(unit())
+        ));
+        assert!(!check(
+            transfer.clone(),
+            Some(property(qty, "single")),
+            None,
+            None
+        ));
+        assert!(!check(
+            transfer.clone(),
+            Some(property(
+                json!({"kind":"quantity","unit":"unit_000000000000000000000008"}),
+                "single"
+            )),
+            None,
+            Some(unit())
+        ));
+        assert!(!check(
+            transfer,
+            Some(property(json!({"kind":"integer"}), "single")),
+            None,
+            Some(unit())
+        ));
+    }
+    #[test]
+    fn set_and_condition_values_must_conform_to_properties() {
+        let grant = fixtures()[5]["payload"].clone();
+        assert!(check(
+            grant.clone(),
+            Some(property(json!({"kind":"boolean"}), "single")),
+            Some(property(json!({"kind":"boolean"}), "single")),
+            None
+        ));
+        assert!(!check(
+            grant.clone(),
+            Some(property(json!({"kind":"boolean"}), "single")),
+            None,
+            None
+        ));
+        assert!(!check(
+            grant.clone(),
+            Some(property(json!({"kind":"integer"}), "single")),
+            Some(property(json!({"kind":"boolean"}), "single")),
+            None
+        ));
+        assert!(!check(
+            grant.clone(),
+            Some(property(json!({"kind":"boolean"}), "single")),
+            Some(property(json!({"kind":"integer"}), "single")),
+            None
+        ));
+        let mut cross = grant;
+        cross["consequenceContract"]["slots"][0]["condition"]["predicate"]["universe"] =
+            json!("unv_000000000000000000000002");
+        assert!(!check(
+            cross,
+            Some(property(json!({"kind":"boolean"}), "single")),
+            Some(property(json!({"kind":"boolean"}), "single")),
+            None
+        ));
+        for n in [0, 2] {
+            assert!(check(fixtures()[n]["payload"].clone(), None, None, None));
+        }
+    }
+    #[test]
+    fn directly_constructed_invalid_contracts_are_rejected() {
+        let Payload::ActionDefinition(mut action) =
+            serde_json::from_value(fixtures()[3]["payload"].clone()).unwrap()
+        else {
+            panic!()
+        };
+        action.consequence_contract.as_mut().unwrap().slots[0].order = 64;
+        assert!(validate_action_contract(
+            &action,
+            &UniverseId::parse("unv_000000000000000000000001").unwrap(),
+            &BTreeMap::new()
+        )
+        .is_err());
     }
 }

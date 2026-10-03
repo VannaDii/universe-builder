@@ -15,6 +15,7 @@
 
 pub mod canonical;
 pub mod chronology;
+pub mod consequences;
 pub mod error;
 pub mod expr;
 pub mod frame;

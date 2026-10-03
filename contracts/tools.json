@@ -7163,6 +7163,10 @@
                     "$ref": "#/$defs/AttributeRequirement"
                   }
                 },
+                "consequenceContract": {
+                  "description": "Omitted for immutable historical definitions. Declaration only; event\nconsequence enforcement is not implemented by this domain contract.",
+                  "$ref": "#/$defs/ConsequenceContract"
+                },
                 "scope": {
                   "$ref": "#/$defs/Scope"
                 },
@@ -9858,6 +9862,243 @@
             "role",
             "predicate",
             "value"
+          ]
+        },
+        "ConsequenceContract": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "$ref": "#/$defs/ConsequenceKind"
+            },
+            "slots": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EffectSlot"
+              },
+              "maxItems": 64
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "slots"
+          ]
+        },
+        "ConsequenceKind": {
+          "type": "string",
+          "enum": [
+            "action_consequences_v1"
+          ]
+        },
+        "EffectSlot": {
+          "type": "object",
+          "properties": {
+            "slot": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "order": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0,
+              "maximum": 63
+            },
+            "presence": {
+              "$ref": "#/$defs/EffectPresence"
+            },
+            "target": {
+              "$ref": "#/$defs/EffectTarget"
+            },
+            "condition": {
+              "$ref": "#/$defs/EffectCondition"
+            },
+            "change": {
+              "$ref": "#/$defs/EffectChange"
+            },
+            "lifetime": {
+              "$ref": "#/$defs/EffectLifetime"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "slot",
+            "order",
+            "presence",
+            "target",
+            "condition",
+            "change",
+            "lifetime"
+          ]
+        },
+        "EffectPresence": {
+          "type": "string",
+          "enum": [
+            "required",
+            "optional"
+          ]
+        },
+        "EffectTarget": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "predicate": {
+              "$ref": "#/$defs/RecordRef"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "predicate"
+          ]
+        },
+        "EffectCondition": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "always"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "predicate": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "attribute_equals"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "role",
+                "predicate",
+                "value"
+              ]
+            }
+          ]
+        },
+        "EffectChange": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "polarity": {
+                  "$ref": "#/$defs/Polarity"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "set"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "polarity",
+                "value"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "delta": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "minimum": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "maximum": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "unit": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/UnitId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "delta"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "delta",
+                "minimum",
+                "maximum",
+                "unit"
+              ]
+            }
+          ]
+        },
+        "ConsequenceInteger": {
+          "description": "Exact bounded decimal string; never converted through a host float.",
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
+        },
+        "EffectLifetime": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "until_changed"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "ticks"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "count"
+              ]
+            }
           ]
         },
         "PlanStatus": {
@@ -12754,6 +12995,10 @@
                     "$ref": "#/$defs/AttributeRequirement"
                   }
                 },
+                "consequenceContract": {
+                  "description": "Omitted for immutable historical definitions. Declaration only; event\nconsequence enforcement is not implemented by this domain contract.",
+                  "$ref": "#/$defs/ConsequenceContract"
+                },
                 "scope": {
                   "$ref": "#/$defs/Scope"
                 },
@@ -15449,6 +15694,243 @@
             "role",
             "predicate",
             "value"
+          ]
+        },
+        "ConsequenceContract": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "$ref": "#/$defs/ConsequenceKind"
+            },
+            "slots": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EffectSlot"
+              },
+              "maxItems": 64
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "slots"
+          ]
+        },
+        "ConsequenceKind": {
+          "type": "string",
+          "enum": [
+            "action_consequences_v1"
+          ]
+        },
+        "EffectSlot": {
+          "type": "object",
+          "properties": {
+            "slot": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "order": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0,
+              "maximum": 63
+            },
+            "presence": {
+              "$ref": "#/$defs/EffectPresence"
+            },
+            "target": {
+              "$ref": "#/$defs/EffectTarget"
+            },
+            "condition": {
+              "$ref": "#/$defs/EffectCondition"
+            },
+            "change": {
+              "$ref": "#/$defs/EffectChange"
+            },
+            "lifetime": {
+              "$ref": "#/$defs/EffectLifetime"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "slot",
+            "order",
+            "presence",
+            "target",
+            "condition",
+            "change",
+            "lifetime"
+          ]
+        },
+        "EffectPresence": {
+          "type": "string",
+          "enum": [
+            "required",
+            "optional"
+          ]
+        },
+        "EffectTarget": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "predicate": {
+              "$ref": "#/$defs/RecordRef"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "predicate"
+          ]
+        },
+        "EffectCondition": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "always"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "predicate": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "attribute_equals"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "role",
+                "predicate",
+                "value"
+              ]
+            }
+          ]
+        },
+        "EffectChange": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "polarity": {
+                  "$ref": "#/$defs/Polarity"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "set"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "polarity",
+                "value"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "delta": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "minimum": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "maximum": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "unit": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/UnitId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "delta"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "delta",
+                "minimum",
+                "maximum",
+                "unit"
+              ]
+            }
+          ]
+        },
+        "ConsequenceInteger": {
+          "description": "Exact bounded decimal string; never converted through a host float.",
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
+        },
+        "EffectLifetime": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "until_changed"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "ticks"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "count"
+              ]
+            }
           ]
         },
         "PlanStatus": {
@@ -18190,6 +18672,10 @@
                     "$ref": "#/$defs/AttributeRequirement"
                   }
                 },
+                "consequenceContract": {
+                  "description": "Omitted for immutable historical definitions. Declaration only; event\nconsequence enforcement is not implemented by this domain contract.",
+                  "$ref": "#/$defs/ConsequenceContract"
+                },
                 "scope": {
                   "$ref": "#/$defs/Scope"
                 },
@@ -20885,6 +21371,243 @@
             "role",
             "predicate",
             "value"
+          ]
+        },
+        "ConsequenceContract": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "$ref": "#/$defs/ConsequenceKind"
+            },
+            "slots": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EffectSlot"
+              },
+              "maxItems": 64
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "slots"
+          ]
+        },
+        "ConsequenceKind": {
+          "type": "string",
+          "enum": [
+            "action_consequences_v1"
+          ]
+        },
+        "EffectSlot": {
+          "type": "object",
+          "properties": {
+            "slot": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "order": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0,
+              "maximum": 63
+            },
+            "presence": {
+              "$ref": "#/$defs/EffectPresence"
+            },
+            "target": {
+              "$ref": "#/$defs/EffectTarget"
+            },
+            "condition": {
+              "$ref": "#/$defs/EffectCondition"
+            },
+            "change": {
+              "$ref": "#/$defs/EffectChange"
+            },
+            "lifetime": {
+              "$ref": "#/$defs/EffectLifetime"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "slot",
+            "order",
+            "presence",
+            "target",
+            "condition",
+            "change",
+            "lifetime"
+          ]
+        },
+        "EffectPresence": {
+          "type": "string",
+          "enum": [
+            "required",
+            "optional"
+          ]
+        },
+        "EffectTarget": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "predicate": {
+              "$ref": "#/$defs/RecordRef"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "predicate"
+          ]
+        },
+        "EffectCondition": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "always"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "predicate": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "attribute_equals"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "role",
+                "predicate",
+                "value"
+              ]
+            }
+          ]
+        },
+        "EffectChange": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "polarity": {
+                  "$ref": "#/$defs/Polarity"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "set"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "polarity",
+                "value"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "delta": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "minimum": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "maximum": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "unit": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/UnitId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "delta"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "delta",
+                "minimum",
+                "maximum",
+                "unit"
+              ]
+            }
+          ]
+        },
+        "ConsequenceInteger": {
+          "description": "Exact bounded decimal string; never converted through a host float.",
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
+        },
+        "EffectLifetime": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "until_changed"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "ticks"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "count"
+              ]
+            }
           ]
         },
         "PlanStatus": {
@@ -24362,6 +25085,10 @@
                 "$ref": "#/$defs/AttributeRequirement"
               }
             },
+            "consequenceContract": {
+              "description": "Omitted for immutable historical definitions. Declaration only; event\nconsequence enforcement is not implemented by this domain contract.",
+              "$ref": "#/$defs/ConsequenceContract"
+            },
             "scope": {
               "$ref": "#/$defs/Scope"
             },
@@ -24398,6 +25125,243 @@
             "role",
             "predicate",
             "value"
+          ]
+        },
+        "ConsequenceContract": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "$ref": "#/$defs/ConsequenceKind"
+            },
+            "slots": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EffectSlot"
+              },
+              "maxItems": 64
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "slots"
+          ]
+        },
+        "ConsequenceKind": {
+          "type": "string",
+          "enum": [
+            "action_consequences_v1"
+          ]
+        },
+        "EffectSlot": {
+          "type": "object",
+          "properties": {
+            "slot": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "order": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0,
+              "maximum": 63
+            },
+            "presence": {
+              "$ref": "#/$defs/EffectPresence"
+            },
+            "target": {
+              "$ref": "#/$defs/EffectTarget"
+            },
+            "condition": {
+              "$ref": "#/$defs/EffectCondition"
+            },
+            "change": {
+              "$ref": "#/$defs/EffectChange"
+            },
+            "lifetime": {
+              "$ref": "#/$defs/EffectLifetime"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "slot",
+            "order",
+            "presence",
+            "target",
+            "condition",
+            "change",
+            "lifetime"
+          ]
+        },
+        "EffectPresence": {
+          "type": "string",
+          "enum": [
+            "required",
+            "optional"
+          ]
+        },
+        "EffectTarget": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "predicate": {
+              "$ref": "#/$defs/RecordRef"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "predicate"
+          ]
+        },
+        "EffectCondition": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "always"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "predicate": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "attribute_equals"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "role",
+                "predicate",
+                "value"
+              ]
+            }
+          ]
+        },
+        "EffectChange": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "polarity": {
+                  "$ref": "#/$defs/Polarity"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "set"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "polarity",
+                "value"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "delta": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "minimum": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "maximum": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "unit": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/UnitId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "delta"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "delta",
+                "minimum",
+                "maximum",
+                "unit"
+              ]
+            }
+          ]
+        },
+        "ConsequenceInteger": {
+          "description": "Exact bounded decimal string; never converted through a host float.",
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
+        },
+        "EffectLifetime": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "until_changed"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "ticks"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "count"
+              ]
+            }
           ]
         },
         "Event": {
@@ -27941,6 +28905,10 @@
                   "items": {
                     "$ref": "#/$defs/AttributeRequirement"
                   }
+                },
+                "consequenceContract": {
+                  "description": "Omitted for immutable historical definitions. Declaration only; event\nconsequence enforcement is not implemented by this domain contract.",
+                  "$ref": "#/$defs/ConsequenceContract"
                 },
                 "scope": {
                   "$ref": "#/$defs/Scope"
@@ -35492,6 +36460,10 @@
                 "$ref": "#/$defs/AttributeRequirement"
               }
             },
+            "consequenceContract": {
+              "description": "Omitted for immutable historical definitions. Declaration only; event\nconsequence enforcement is not implemented by this domain contract.",
+              "$ref": "#/$defs/ConsequenceContract"
+            },
             "scope": {
               "$ref": "#/$defs/Scope"
             },
@@ -35528,6 +36500,243 @@
             "role",
             "predicate",
             "value"
+          ]
+        },
+        "ConsequenceContract": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "$ref": "#/$defs/ConsequenceKind"
+            },
+            "slots": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EffectSlot"
+              },
+              "maxItems": 64
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "slots"
+          ]
+        },
+        "ConsequenceKind": {
+          "type": "string",
+          "enum": [
+            "action_consequences_v1"
+          ]
+        },
+        "EffectSlot": {
+          "type": "object",
+          "properties": {
+            "slot": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "order": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0,
+              "maximum": 63
+            },
+            "presence": {
+              "$ref": "#/$defs/EffectPresence"
+            },
+            "target": {
+              "$ref": "#/$defs/EffectTarget"
+            },
+            "condition": {
+              "$ref": "#/$defs/EffectCondition"
+            },
+            "change": {
+              "$ref": "#/$defs/EffectChange"
+            },
+            "lifetime": {
+              "$ref": "#/$defs/EffectLifetime"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "slot",
+            "order",
+            "presence",
+            "target",
+            "condition",
+            "change",
+            "lifetime"
+          ]
+        },
+        "EffectPresence": {
+          "type": "string",
+          "enum": [
+            "required",
+            "optional"
+          ]
+        },
+        "EffectTarget": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "predicate": {
+              "$ref": "#/$defs/RecordRef"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "predicate"
+          ]
+        },
+        "EffectCondition": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "always"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "predicate": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "attribute_equals"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "role",
+                "predicate",
+                "value"
+              ]
+            }
+          ]
+        },
+        "EffectChange": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "polarity": {
+                  "$ref": "#/$defs/Polarity"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "set"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "polarity",
+                "value"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "delta": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "minimum": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "maximum": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "unit": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/UnitId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "delta"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "delta",
+                "minimum",
+                "maximum",
+                "unit"
+              ]
+            }
+          ]
+        },
+        "ConsequenceInteger": {
+          "description": "Exact bounded decimal string; never converted through a host float.",
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
+        },
+        "EffectLifetime": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "until_changed"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "ticks"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "count"
+              ]
+            }
           ]
         },
         "Event": {
@@ -39071,6 +40280,10 @@
                   "items": {
                     "$ref": "#/$defs/AttributeRequirement"
                   }
+                },
+                "consequenceContract": {
+                  "description": "Omitted for immutable historical definitions. Declaration only; event\nconsequence enforcement is not implemented by this domain contract.",
+                  "$ref": "#/$defs/ConsequenceContract"
                 },
                 "scope": {
                   "$ref": "#/$defs/Scope"
@@ -43413,6 +44626,10 @@
                 "$ref": "#/$defs/AttributeRequirement"
               }
             },
+            "consequenceContract": {
+              "description": "Omitted for immutable historical definitions. Declaration only; event\nconsequence enforcement is not implemented by this domain contract.",
+              "$ref": "#/$defs/ConsequenceContract"
+            },
             "scope": {
               "$ref": "#/$defs/Scope"
             },
@@ -43449,6 +44666,243 @@
             "role",
             "predicate",
             "value"
+          ]
+        },
+        "ConsequenceContract": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "$ref": "#/$defs/ConsequenceKind"
+            },
+            "slots": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EffectSlot"
+              },
+              "maxItems": 64
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "slots"
+          ]
+        },
+        "ConsequenceKind": {
+          "type": "string",
+          "enum": [
+            "action_consequences_v1"
+          ]
+        },
+        "EffectSlot": {
+          "type": "object",
+          "properties": {
+            "slot": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "order": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0,
+              "maximum": 63
+            },
+            "presence": {
+              "$ref": "#/$defs/EffectPresence"
+            },
+            "target": {
+              "$ref": "#/$defs/EffectTarget"
+            },
+            "condition": {
+              "$ref": "#/$defs/EffectCondition"
+            },
+            "change": {
+              "$ref": "#/$defs/EffectChange"
+            },
+            "lifetime": {
+              "$ref": "#/$defs/EffectLifetime"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "slot",
+            "order",
+            "presence",
+            "target",
+            "condition",
+            "change",
+            "lifetime"
+          ]
+        },
+        "EffectPresence": {
+          "type": "string",
+          "enum": [
+            "required",
+            "optional"
+          ]
+        },
+        "EffectTarget": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "predicate": {
+              "$ref": "#/$defs/RecordRef"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "predicate"
+          ]
+        },
+        "EffectCondition": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "always"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "predicate": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "attribute_equals"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "role",
+                "predicate",
+                "value"
+              ]
+            }
+          ]
+        },
+        "EffectChange": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "polarity": {
+                  "$ref": "#/$defs/Polarity"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "set"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "polarity",
+                "value"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "delta": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "minimum": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "maximum": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "unit": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/UnitId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "delta"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "delta",
+                "minimum",
+                "maximum",
+                "unit"
+              ]
+            }
+          ]
+        },
+        "ConsequenceInteger": {
+          "description": "Exact bounded decimal string; never converted through a host float.",
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
+        },
+        "EffectLifetime": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "until_changed"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "ticks"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "count"
+              ]
+            }
           ]
         },
         "Event": {
@@ -46992,6 +48446,10 @@
                   "items": {
                     "$ref": "#/$defs/AttributeRequirement"
                   }
+                },
+                "consequenceContract": {
+                  "description": "Omitted for immutable historical definitions. Declaration only; event\nconsequence enforcement is not implemented by this domain contract.",
+                  "$ref": "#/$defs/ConsequenceContract"
                 },
                 "scope": {
                   "$ref": "#/$defs/Scope"
@@ -51554,6 +53012,10 @@
                 "$ref": "#/$defs/AttributeRequirement"
               }
             },
+            "consequenceContract": {
+              "description": "Omitted for immutable historical definitions. Declaration only; event\nconsequence enforcement is not implemented by this domain contract.",
+              "$ref": "#/$defs/ConsequenceContract"
+            },
             "scope": {
               "$ref": "#/$defs/Scope"
             },
@@ -51590,6 +53052,243 @@
             "role",
             "predicate",
             "value"
+          ]
+        },
+        "ConsequenceContract": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "$ref": "#/$defs/ConsequenceKind"
+            },
+            "slots": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EffectSlot"
+              },
+              "maxItems": 64
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "slots"
+          ]
+        },
+        "ConsequenceKind": {
+          "type": "string",
+          "enum": [
+            "action_consequences_v1"
+          ]
+        },
+        "EffectSlot": {
+          "type": "object",
+          "properties": {
+            "slot": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "order": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0,
+              "maximum": 63
+            },
+            "presence": {
+              "$ref": "#/$defs/EffectPresence"
+            },
+            "target": {
+              "$ref": "#/$defs/EffectTarget"
+            },
+            "condition": {
+              "$ref": "#/$defs/EffectCondition"
+            },
+            "change": {
+              "$ref": "#/$defs/EffectChange"
+            },
+            "lifetime": {
+              "$ref": "#/$defs/EffectLifetime"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "slot",
+            "order",
+            "presence",
+            "target",
+            "condition",
+            "change",
+            "lifetime"
+          ]
+        },
+        "EffectPresence": {
+          "type": "string",
+          "enum": [
+            "required",
+            "optional"
+          ]
+        },
+        "EffectTarget": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "predicate": {
+              "$ref": "#/$defs/RecordRef"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "predicate"
+          ]
+        },
+        "EffectCondition": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "always"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "predicate": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "attribute_equals"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "role",
+                "predicate",
+                "value"
+              ]
+            }
+          ]
+        },
+        "EffectChange": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "polarity": {
+                  "$ref": "#/$defs/Polarity"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "set"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "polarity",
+                "value"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "delta": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "minimum": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "maximum": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "unit": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/UnitId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "delta"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "delta",
+                "minimum",
+                "maximum",
+                "unit"
+              ]
+            }
+          ]
+        },
+        "ConsequenceInteger": {
+          "description": "Exact bounded decimal string; never converted through a host float.",
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
+        },
+        "EffectLifetime": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "until_changed"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "ticks"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "count"
+              ]
+            }
           ]
         },
         "Event": {
@@ -55133,6 +56832,10 @@
                   "items": {
                     "$ref": "#/$defs/AttributeRequirement"
                   }
+                },
+                "consequenceContract": {
+                  "description": "Omitted for immutable historical definitions. Declaration only; event\nconsequence enforcement is not implemented by this domain contract.",
+                  "$ref": "#/$defs/ConsequenceContract"
                 },
                 "scope": {
                   "$ref": "#/$defs/Scope"
@@ -64028,6 +65731,10 @@
                 "$ref": "#/$defs/AttributeRequirement"
               }
             },
+            "consequenceContract": {
+              "description": "Omitted for immutable historical definitions. Declaration only; event\nconsequence enforcement is not implemented by this domain contract.",
+              "$ref": "#/$defs/ConsequenceContract"
+            },
             "scope": {
               "$ref": "#/$defs/Scope"
             },
@@ -64064,6 +65771,243 @@
             "role",
             "predicate",
             "value"
+          ]
+        },
+        "ConsequenceContract": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "$ref": "#/$defs/ConsequenceKind"
+            },
+            "slots": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EffectSlot"
+              },
+              "maxItems": 64
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "slots"
+          ]
+        },
+        "ConsequenceKind": {
+          "type": "string",
+          "enum": [
+            "action_consequences_v1"
+          ]
+        },
+        "EffectSlot": {
+          "type": "object",
+          "properties": {
+            "slot": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "order": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0,
+              "maximum": 63
+            },
+            "presence": {
+              "$ref": "#/$defs/EffectPresence"
+            },
+            "target": {
+              "$ref": "#/$defs/EffectTarget"
+            },
+            "condition": {
+              "$ref": "#/$defs/EffectCondition"
+            },
+            "change": {
+              "$ref": "#/$defs/EffectChange"
+            },
+            "lifetime": {
+              "$ref": "#/$defs/EffectLifetime"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "slot",
+            "order",
+            "presence",
+            "target",
+            "condition",
+            "change",
+            "lifetime"
+          ]
+        },
+        "EffectPresence": {
+          "type": "string",
+          "enum": [
+            "required",
+            "optional"
+          ]
+        },
+        "EffectTarget": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "predicate": {
+              "$ref": "#/$defs/RecordRef"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "predicate"
+          ]
+        },
+        "EffectCondition": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "always"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "predicate": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "attribute_equals"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "role",
+                "predicate",
+                "value"
+              ]
+            }
+          ]
+        },
+        "EffectChange": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "polarity": {
+                  "$ref": "#/$defs/Polarity"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "set"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "polarity",
+                "value"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "delta": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "minimum": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "maximum": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "unit": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/UnitId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "delta"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "delta",
+                "minimum",
+                "maximum",
+                "unit"
+              ]
+            }
+          ]
+        },
+        "ConsequenceInteger": {
+          "description": "Exact bounded decimal string; never converted through a host float.",
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
+        },
+        "EffectLifetime": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "until_changed"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "ticks"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "count"
+              ]
+            }
           ]
         },
         "Event": {
@@ -67607,6 +69551,10 @@
                   "items": {
                     "$ref": "#/$defs/AttributeRequirement"
                   }
+                },
+                "consequenceContract": {
+                  "description": "Omitted for immutable historical definitions. Declaration only; event\nconsequence enforcement is not implemented by this domain contract.",
+                  "$ref": "#/$defs/ConsequenceContract"
                 },
                 "scope": {
                   "$ref": "#/$defs/Scope"
@@ -72947,6 +74895,10 @@
                 "$ref": "#/$defs/AttributeRequirement"
               }
             },
+            "consequenceContract": {
+              "description": "Omitted for immutable historical definitions. Declaration only; event\nconsequence enforcement is not implemented by this domain contract.",
+              "$ref": "#/$defs/ConsequenceContract"
+            },
             "scope": {
               "$ref": "#/$defs/Scope"
             },
@@ -72983,6 +74935,243 @@
             "role",
             "predicate",
             "value"
+          ]
+        },
+        "ConsequenceContract": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "$ref": "#/$defs/ConsequenceKind"
+            },
+            "slots": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EffectSlot"
+              },
+              "maxItems": 64
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "slots"
+          ]
+        },
+        "ConsequenceKind": {
+          "type": "string",
+          "enum": [
+            "action_consequences_v1"
+          ]
+        },
+        "EffectSlot": {
+          "type": "object",
+          "properties": {
+            "slot": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "order": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0,
+              "maximum": 63
+            },
+            "presence": {
+              "$ref": "#/$defs/EffectPresence"
+            },
+            "target": {
+              "$ref": "#/$defs/EffectTarget"
+            },
+            "condition": {
+              "$ref": "#/$defs/EffectCondition"
+            },
+            "change": {
+              "$ref": "#/$defs/EffectChange"
+            },
+            "lifetime": {
+              "$ref": "#/$defs/EffectLifetime"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "slot",
+            "order",
+            "presence",
+            "target",
+            "condition",
+            "change",
+            "lifetime"
+          ]
+        },
+        "EffectPresence": {
+          "type": "string",
+          "enum": [
+            "required",
+            "optional"
+          ]
+        },
+        "EffectTarget": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "predicate": {
+              "$ref": "#/$defs/RecordRef"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "predicate"
+          ]
+        },
+        "EffectCondition": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "always"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "predicate": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "attribute_equals"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "role",
+                "predicate",
+                "value"
+              ]
+            }
+          ]
+        },
+        "EffectChange": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "polarity": {
+                  "$ref": "#/$defs/Polarity"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "set"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "polarity",
+                "value"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "delta": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "minimum": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "maximum": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "unit": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/UnitId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "delta"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "delta",
+                "minimum",
+                "maximum",
+                "unit"
+              ]
+            }
+          ]
+        },
+        "ConsequenceInteger": {
+          "description": "Exact bounded decimal string; never converted through a host float.",
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
+        },
+        "EffectLifetime": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "until_changed"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "$ref": "#/$defs/ConsequenceInteger"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "ticks"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "count"
+              ]
+            }
           ]
         },
         "Event": {
@@ -76526,6 +78715,10 @@
                   "items": {
                     "$ref": "#/$defs/AttributeRequirement"
                   }
+                },
+                "consequenceContract": {
+                  "description": "Omitted for immutable historical definitions. Declaration only; event\nconsequence enforcement is not implemented by this domain contract.",
+                  "$ref": "#/$defs/ConsequenceContract"
                 },
                 "scope": {
                   "$ref": "#/$defs/Scope"

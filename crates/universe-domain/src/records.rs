@@ -999,6 +999,15 @@ pub struct ActionDefinition {
     pub key: String,
     pub labels: BTreeMap<String, String>,
     pub requirements: Vec<AttributeRequirement>,
+    /// Omitted for immutable historical definitions. Declaration only; event
+    /// consequence enforcement is not implemented by this domain contract.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::consequences::present_contract"
+    )]
+    #[schemars(with = "crate::consequences::ConsequenceContract")]
+    pub consequence_contract: Option<crate::consequences::ConsequenceContract>,
     pub scope: Scope,
     pub validity: Validity,
 }
