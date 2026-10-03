@@ -1,0 +1,5 @@
+{
+  "returncode": 0,
+  "stdout": "",
+  "stderr": "test_changed_head_membership_fails (__main__.AuditTests.test_changed_head_membership_fails) ... ok\ntest_changed_oracle_fails (__main__.AuditTests.test_changed_oracle_fails) ... ok\ntest_changed_wire_owner_fails (__main__.AuditTests.test_changed_wire_owner_fails) ... ok\ntest_forged_allowed_outcome_fails_even_with_rebound_oracle_hash (__main__.AuditTests.test_forged_allowed_outcome_fails_even_with_rebound_oracle_hash) ... ok\ntest_missing_approval_fails (__main__.AuditTests.test_missing_approval_fails) ... ok\ntest_retargeted_kernel_receipt_fails (__main__.AuditTests.test_retargeted_kernel_receipt_fails) ... ok\ntest_saved_proof_passes (__main__.AuditTests.test_saved_proof_passes) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 0.122s\n\nOK\n"
+}

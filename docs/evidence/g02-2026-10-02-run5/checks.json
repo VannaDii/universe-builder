@@ -1,0 +1,19 @@
+{
+  "focused_rust": {
+    "passed": 3,
+    "log": "focused-rust-tests.log"
+  },
+  "workspace": {
+    "passed": 312,
+    "ignored": 1,
+    "format": "passed",
+    "strict_clippy": "passed",
+    "schema_drift": "passed",
+    "log": "workspace-check.log"
+  },
+  "audit_tests": {
+    "passed": 7,
+    "log": "audit-negative-tests.json"
+  },
+  "engine_defects_demonstrated": 0
+}

@@ -1,0 +1,172 @@
+{
+  "status": "passed",
+  "cases": {
+    "dead_breath": {
+      "allowed": false,
+      "calculated": false,
+      "validation_lines": [
+        24,
+        25
+      ]
+    },
+    "dead_inspect": {
+      "allowed": false,
+      "calculated": false,
+      "validation_lines": [
+        30,
+        31
+      ]
+    },
+    "unconscious_inspect": {
+      "allowed": false,
+      "calculated": false,
+      "validation_lines": [
+        36,
+        37
+      ]
+    },
+    "borrowed_breath": {
+      "allowed": false,
+      "calculated": false,
+      "validation_lines": [
+        42,
+        43
+      ]
+    },
+    "borrowed_conscious": {
+      "allowed": false,
+      "calculated": false,
+      "validation_lines": [
+        48,
+        49
+      ]
+    },
+    "unknown_conscious": {
+      "allowed": false,
+      "calculated": false,
+      "validation_lines": [
+        54,
+        55
+      ]
+    },
+    "unknown_refutation": {
+      "allowed": false,
+      "calculated": false,
+      "validation_lines": [
+        60,
+        61
+      ]
+    },
+    "missing_conscious": {
+      "allowed": false,
+      "calculated": false,
+      "validation_lines": [
+        66,
+        67
+      ]
+    },
+    "same_event_grant": {
+      "allowed": false,
+      "calculated": false,
+      "validation_lines": [
+        72,
+        73
+      ]
+    },
+    "carrier_missing_mobile": {
+      "allowed": false,
+      "calculated": false,
+      "validation_lines": [
+        78,
+        79
+      ]
+    },
+    "ambiguous_actor": {
+      "allowed": false,
+      "calculated": false,
+      "validation_lines": [
+        84,
+        85
+      ]
+    },
+    "conscious_start": {
+      "allowed": false,
+      "calculated": false,
+      "validation_lines": [
+        90,
+        91
+      ]
+    },
+    "at_restoration": {
+      "allowed": false,
+      "calculated": false,
+      "validation_lines": [
+        96,
+        97
+      ]
+    },
+    "conscious_inspect": {
+      "allowed": true,
+      "calculated": true,
+      "validation_lines": [
+        102,
+        103
+      ]
+    },
+    "living_breath": {
+      "allowed": true,
+      "calculated": true,
+      "validation_lines": [
+        116,
+        117
+      ]
+    },
+    "undead_speech": {
+      "allowed": true,
+      "calculated": true,
+      "validation_lines": [
+        130,
+        131
+      ]
+    },
+    "carry_unconscious": {
+      "allowed": true,
+      "calculated": true,
+      "validation_lines": [
+        144,
+        145
+      ]
+    },
+    "before_loss": {
+      "allowed": true,
+      "calculated": true,
+      "validation_lines": [
+        158,
+        159
+      ]
+    },
+    "at_loss": {
+      "allowed": true,
+      "calculated": true,
+      "validation_lines": [
+        172,
+        173
+      ]
+    },
+    "after_restoration": {
+      "allowed": true,
+      "calculated": true,
+      "validation_lines": [
+        186,
+        187
+      ]
+    }
+  },
+  "illegal_rejected": 13,
+  "legal_committed": 7,
+  "publications": 9,
+  "mcp_calls": 158,
+  "retcon_dependents_invalidated": 2,
+  "history_and_restart": "passed",
+  "limit": "Independent program/storage audit, not an external human review or arbitrary prose qualification."
+}

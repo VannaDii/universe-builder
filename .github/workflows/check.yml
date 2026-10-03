@@ -28,6 +28,8 @@ jobs:
         run: python scripts/chapter_retcon_pilot.py --regression --output "$RUNNER_TEMP/chapter-pilot"
       - name: Owning-entity attributes and declared powers
         run: python scripts/power_authoring_pilot.py --output "$RUNNER_TEMP/power-pilot"
+      - name: Authored G02 action applicability and independent audit
+        run: python scripts/g02_pilot.py --output "$RUNNER_TEMP/g02-pilot"
       - run: python scripts/verify_launcher.py --bin-dir target/debug
       - name: Native and host gates
         run: echo 'Native GUI, VoiceOver, clean-machine, and LM Studio checks require separate evidence; not run by this job.'

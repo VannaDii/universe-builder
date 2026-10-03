@@ -151,6 +151,14 @@ source/prose review, not an excuse to claim arbitrary manuscript continuity.
 
 ## What still matters before sustained novel use
 
+The [October 2 G02 applicability qualification](g02-action-applicability-verification.md)
+now proves authored breathing/consciousness requirements on exact owners,
+unknown evidence rejection, legal undead speech, another actor moving an
+unconscious body, pre-event incapacity/restoration boundaries and retcon
+invalidation. All twenty structured outcomes and the persistent MCP/history
+audit pass. Action classification and exhaustive prose extraction retain the
+separate review limits described below.
+
 1. **Prove the intended writing host passes the instructions through.** The local
    test reads MCP initialization directly and passes its instructions to the MLX
    model. It does not qualify LM Studio's native function calling or its complete

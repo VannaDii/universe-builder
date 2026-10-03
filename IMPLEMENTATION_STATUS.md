@@ -10,6 +10,14 @@ Current native interaction/VoiceOver verification remains paused by the user. LM
 
 ## Implemented scope
 
+October 2 G02 qualification: the existing ADR-0006 path passes twenty authored
+action-applicability outcomes, including thirteen illegal rejections, seven
+committed legal controls and earlier incapacity retcon invalidation of two
+dependent actions. Nine publications and 158 MCP calls pass the independent
+wire/state/history audit and restart recovery. No engine defect or design change
+was needed. Focused regressions, documentation and CI now cover this scope;
+see [G02 proof results](docs/g02-action-applicability-verification.md).
+
 | Milestone | Implementation and limits |
 |---|---|
 | 1 · WP01–03 baseline | Build/lint/test automation; typed domain and all 13 closed public tool contracts; generated schemas and valid/invalid fixtures. Unsupported evaluation cannot claim complete coverage. |

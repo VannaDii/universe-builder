@@ -30,6 +30,13 @@ action declaration. Existing validations/approvals from an older evaluator must
 be refreshed. See [the approved decision](adr/ADR-0006-declared-actions-and-owner-attributes.md)
 and [executed power evidence](novel-authoring-readiness.md#wall-traversal-and-declared-powers-october-2-verification).
 
+For G02, declare breathing, consciousness, mobility or other capabilities only
+on the roles and actions that need them. Life, body and agency are separate
+facts: an authored undead speaker can have speech capability, and a capable
+actor can move an unconscious patient. Unknown capability evidence does not
+authorize use. See the [authoring requirements and applicability proofs](g02-action-applicability-verification.md)
+for exact incapacity/restoration boundaries and retcon invalidation.
+
 ## Prose verification and canon commits
 
 Draft prose remains provisional until its material continuity claims have been

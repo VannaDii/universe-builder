@@ -321,4 +321,58 @@ mod tests {
         }
         assert!(validate(&rows, &changed(), &frame).is_err());
     }
+    #[test]
+    fn g02_capability_uses_exact_pre_event_interval_boundaries() {
+        let (mut rows, frame) = fixture();
+        if let Payload::Assertion(a) = &mut rows[3].payload {
+            if let Validity::CalendarInterval { end, .. } = &mut a.validity {
+                *end = universe_domain::temporal::TemporalBound::Exact { value: "20".into() };
+            }
+        }
+        // Immediately before the ending boundary the capability still holds;
+        // immediately before its starting boundary it has not yet begun.
+        for (tick, allowed) in [(10, false), (11, true), (20, true), (21, false)] {
+            if let Payload::Event(e) = &mut rows[5].payload {
+                e.time = serde_json::from_value(json!({"kind":"exact","calendar":"cal_000000000000000000000009","value":tick.to_string()})).unwrap();
+            }
+            assert_eq!(
+                validate(&rows, &changed(), &frame).is_ok(),
+                allowed,
+                "{tick}"
+            );
+        }
+    }
+    #[test]
+    fn g02_earlier_incapacity_revalidates_unchanged_dependent_action() {
+        let (mut rows, frame) = fixture();
+        assert!(validate(&rows, &BTreeSet::new(), &frame).is_ok());
+        if let Payload::Assertion(a) = &mut rows[3].payload {
+            if let Validity::CalendarInterval { end, .. } = &mut a.validity {
+                *end = universe_domain::temporal::TemporalBound::Exact { value: "10".into() };
+            }
+        }
+        // Only evidence changes; the existing event must still be checked.
+        let changed_evidence = BTreeSet::from([RecordId::parse(&id(4)).unwrap()]);
+        assert!(validate(&rows, &changed_evidence, &frame)
+            .unwrap_err()
+            .to_string()
+            .contains("event.action.requirements"));
+    }
+    #[test]
+    fn g02_patient_incapacity_does_not_apply_to_the_capable_actor() {
+        let (mut rows, frame) = fixture();
+        rows.push(record(7, json!({"record_kind":"entity","names":[],"types":[],"worldAssociations":[],"labels":{},"metadata":{}})));
+        if let Payload::Event(e) = &mut rows[5].payload {
+            e.participants
+                .push(serde_json::from_value(json!({"record":rr(7),"role":"patient"})).unwrap());
+        }
+        assert!(validate(&rows, &changed(), &frame).is_ok());
+        // Swapping the patient into the required actor role cannot borrow the
+        // original actor's capability, even though that entity is present.
+        if let Payload::Event(e) = &mut rows[5].payload {
+            e.participants[0].role = "patient".into();
+            e.participants[1].role = "actor".into();
+        }
+        assert!(validate(&rows, &changed(), &frame).is_err());
+    }
 }
