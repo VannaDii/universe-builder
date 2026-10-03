@@ -1,0 +1,106 @@
+{
+  "bounds": {
+    "minimum": "0",
+    "maximum": "10"
+  },
+  "cases": [
+    {
+      "id": "fire",
+      "initial": {
+        "actor": "1"
+      },
+      "debits": {
+        "actor": "1"
+      },
+      "credits": {},
+      "expected": {
+        "actor": "0"
+      }
+    },
+    {
+      "id": "transfer",
+      "initial": {
+        "sender": "5",
+        "recipient": "1"
+      },
+      "debits": {
+        "sender": "2"
+      },
+      "credits": {
+        "recipient": "2"
+      },
+      "expected": {
+        "sender": "3",
+        "recipient": "3"
+      }
+    },
+    {
+      "id": "replenish",
+      "initial": {
+        "actor": "1"
+      },
+      "debits": {},
+      "credits": {
+        "actor": "3"
+      },
+      "expected": {
+        "actor": "4"
+      }
+    },
+    {
+      "id": "empty_fire",
+      "initial": {
+        "actor": "0"
+      },
+      "debits": {
+        "actor": "1"
+      },
+      "credits": {},
+      "expected": {
+        "actor": "-1"
+      },
+      "admissible": false
+    },
+    {
+      "id": "overfill",
+      "initial": {
+        "actor": "8"
+      },
+      "debits": {},
+      "credits": {
+        "actor": "3"
+      },
+      "expected": {
+        "actor": "11"
+      },
+      "admissible": false
+    }
+  ],
+  "grant": {
+    "start": "10",
+    "duration": "3",
+    "expectedEnd": "13",
+    "recipientRecord": "rec_000000000000000000000005"
+  },
+  "sequential": {
+    "initial": "1",
+    "costs": [
+      "1",
+      "1"
+    ],
+    "expectedAfter": [
+      "0",
+      "-1"
+    ]
+  },
+  "missingBalance": {
+    "initial": null,
+    "cost": "1",
+    "expected": "unresolved"
+  },
+  "i128": {
+    "initial": "170141183460469231731687303715884105727",
+    "credit": "1",
+    "expected": "overflow"
+  }
+}

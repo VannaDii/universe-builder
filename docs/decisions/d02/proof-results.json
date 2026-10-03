@@ -1,0 +1,53 @@
+{
+  "approval": "pending",
+  "baseline": "eb7ac8c4ff95842f21b1427828182dd79483bf6e",
+  "currentCodeRegressionTests": {
+    "baseline": "eb7ac8c4ff95842f21b1427828182dd79483bf6e",
+    "runs": [
+      {
+        "command": "cargo test --locked -p universe-service actions::tests -- --nocapture",
+        "failed": 0,
+        "passed": 8
+      },
+      {
+        "command": "cargo test --locked -p universe-rules events::tests -- --nocapture",
+        "failed": 0,
+        "passed": 3
+      }
+    ],
+    "scope": "Existing behavior only; D02 is not implemented",
+    "status": "passed"
+  },
+  "externalIndependentReviewer": false,
+  "independentCalculationGroups": 9,
+  "method": "Independent Fraction ledger equations vs integer calculations from concrete proposed payloads; separate algorithms, same preparing agent. Not engine integration.",
+  "owningSourceSha256": {
+    "crates/universe-domain/src/records.rs": "dd84b915b2e848f7797b0c892856e19d07ba30cad790802401cce4eb9d2d77ea",
+    "crates/universe-domain/src/value.rs": "fedbc0621f94f6b78bb239ebbaec215b5180ce5909381a48e0c35718b4afc370",
+    "crates/universe-rules/src/events.rs": "d1035dd556ef13dae68ce3abb93ceaf284bdc92148d4f2c255a2d0613a7c1af7",
+    "crates/universe-service/src/actions.rs": "9bbf95cf6bd2091a331e22e840ff5414947b1fbf4a84e209fa47e0f323bca7e5",
+    "crates/universe-service/src/events.rs": "b8670e3cf2fd676dce76622f686ddd01b2ac48b53fdc04c5d68467806fc6ac2a",
+    "crates/universe-service/src/operations.rs": "d649de464f32fcdf469f43d901fb2e093632fe6e2ded3584fe7de7bb55218093",
+    "crates/universe-service/src/validation.rs": "6d4d891f1bffdddfc1db3f83d9e2ffbcd2c5da1d7f3839173f981c8ab67ecd91",
+    "crates/universe-service/src/validation_binding.rs": "8dfcabed812ca1fecc955c9345390742dfbbce70eb774529ece95e551fcbb4b4",
+    "crates/universe-service/src/workflow.rs": "882efa8edef684904d46a3380942e0fc529ba478ffaae8a28772a9c4c01602e7",
+    "crates/universe-store/src/kernel.rs": "5c2d7df062ae816a1a25e23a95fec798c05ea036f09b42a9eef7defa25e9420a"
+  },
+  "runtimeQualification": false,
+  "sha256": {
+    "d02-action-consequences.md": "3be13f194511d311f52367585d4acf965a3ea39c1490c9be30bcd7f83ae5bff9",
+    "d02/acceptance.md": "2120b25fdca2cb470f7d31608751c9c892650125b567c90b3eb795618dab80f7",
+    "d02/current-code-test-results.json": "473cccc749472112d260de33927c316151d24401ff705eb837657ab9fd41ff78",
+    "d02/independent-calculation.py": "f2232cc14ad42b3ea52ef0aacfdfca0c24e3d83a506d635bfdfb8d109962aeb9",
+    "d02/independent-ledger.json": "4a1b81145137a5e6b5ba925d9942d51f280dac78a8ae818a95b3b4332778cb18",
+    "d02/independent-results.json": "a8f8af498636b672e1cbd0a6133e918a01e267af4c0377598c6c63641cffa510",
+    "d02/payload-calculation.py": "0aea0519fbac41bc2dc6f6aef1826c9ab771cc02afecff5e53cb09118263b654",
+    "d02/payload-results.json": "a8f8af498636b672e1cbd0a6133e918a01e267af4c0377598c6c63641cffa510",
+    "d02/payloads.json": "a53be16104a25e2a789b4d209b9a156c81a728ea6a7035ac7c4fe66cceed31aa",
+    "d02/review.md": "385fd17cd776e9dabfb194454018f872f5b16d8c7aa5a2301c0f67e087b8cda5",
+    "d02/tamper-results.json": "6256dd395bb9278409e43e3ccbf9e8196f9f857e2896af29de8a789e6abcdeaf",
+    "d02/verify-proofs.py": "cfee2fd5b72aa94fa85d8ca59ae70165c7228ffd8a7390554968d3e2e80eff4c"
+  },
+  "status": "passed_design_preparation_only",
+  "tamperControls": 7
+}

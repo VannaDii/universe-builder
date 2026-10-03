@@ -1,0 +1,43 @@
+{
+  "empty_fire": {
+    "post": {
+      "actor": "-1"
+    },
+    "withinBounds": false
+  },
+  "fire": {
+    "post": {
+      "actor": "0"
+    },
+    "withinBounds": true
+  },
+  "grant": {
+    "end": "13",
+    "recipient": "rec_000000000000000000000005"
+  },
+  "i128": "overflow",
+  "missingBalance": "unresolved",
+  "overfill": {
+    "post": {
+      "actor": "11"
+    },
+    "withinBounds": false
+  },
+  "replenish": {
+    "post": {
+      "actor": "4"
+    },
+    "withinBounds": true
+  },
+  "sequential": [
+    "0",
+    "-1"
+  ],
+  "transfer": {
+    "post": {
+      "recipient": "3",
+      "sender": "3"
+    },
+    "withinBounds": true
+  }
+}
