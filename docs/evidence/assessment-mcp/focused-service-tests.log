@@ -1,0 +1,13 @@
+    Blocking waiting for file lock on build directory
+   Compiling universe-protocol v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-protocol)
+   Compiling universe-client v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-client)
+   Compiling universe-service v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-service)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 31.38s
+     Running unittests src/lib.rs (target/debug/deps/universe_service-64e461c3b61b2bf4)
+
+running 3 tests
+test workflow::assessments::tests::public_actions_preserve_frozen_proposal_and_recover_selection_retries ... ok
+test workflow::assessments::tests::durable_bindings_atomic_retries_access_replacement_and_restart ... ok
+test workflow::assessments::tests::exact_anchor_dependency_and_missing_material_admission ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.17s

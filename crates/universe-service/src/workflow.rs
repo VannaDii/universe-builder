@@ -1415,7 +1415,7 @@ impl Workflow<'_> {
                 } else {
                     vec![]
                 };
-                serde_json::to_value(Description{fixture:false,worlds,definition_ids,capabilities:vec![Capability{id:"canon.commit.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact author approval or explicit expiring entity/predicate/continuity delegation; fresh complete validation and current grants required".into()},Capability{id:"opposing_evidence.v1".into(),status:CapabilityStatus::Implemented,limitation:"Candidate-wide polarity diagnostics and explicitly scoped NoOpposingEvidence policies. Unresolved comparisons remain partial; no prose or integrated-story qualification.".into()},Capability{id:"basic.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact scalar, finite collection and integer-tick temporal expressions; unsupported blocking checks fail admission".into()},Capability{id:"events.owner_attributes.v1".into(),status:CapabilityStatus::Implemented,limitation:"New/revised events require declared actions. Mandatory values resolve on exactly one participant per owning role at pre-event time; direct and explicit item grants share evidence. Missing, muted, conflicting and unsupported prerequisites block use. Legacy actionless events remain readable but are not certified; prose/action classification still requires author review.".into()},Capability{id:"events.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact occurred-event effects, explicit within-event order, pre/post state and possession powers. Noncommuting effects from separate simultaneous events and complex causality are rejected.".into()},
+                serde_json::to_value(Description{fixture:false,worlds,definition_ids,capabilities:vec![Capability{id:"source_assessment.v1".into(),status:CapabilityStatus::Partial,limitation:"Authenticated immutable attachment and generation-checked selection through universe_propose. Retrieval, validation/approval/commit integration and native assessment UI remain unavailable.".into()},Capability{id:"canon.commit.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact author approval or explicit expiring entity/predicate/continuity delegation; fresh complete validation and current grants required".into()},Capability{id:"opposing_evidence.v1".into(),status:CapabilityStatus::Implemented,limitation:"Candidate-wide polarity diagnostics and explicitly scoped NoOpposingEvidence policies. Unresolved comparisons remain partial; no prose or integrated-story qualification.".into()},Capability{id:"basic.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact scalar, finite collection and integer-tick temporal expressions; unsupported blocking checks fail admission".into()},Capability{id:"events.owner_attributes.v1".into(),status:CapabilityStatus::Implemented,limitation:"New/revised events require declared actions. Mandatory values resolve on exactly one participant per owning role at pre-event time; direct and explicit item grants share evidence. Missing, muted, conflicting and unsupported prerequisites block use. Legacy actionless events remain readable but are not certified; prose/action classification still requires author review.".into()},Capability{id:"events.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact occurred-event effects, explicit within-event order, pre/post state and possession powers. Noncommuting effects from separate simultaneous events and complex causality are rejected.".into()},
                     Capability{id:"knowledge.explicit.v1".into(),status:CapabilityStatus::Implemented,limitation:"Explicit, time-bound holder attitudes in their represented context. Presence, sending and receipt do not infer knowledge.".into()},
                     Capability{id:"perspective.views.v1".into(),status:CapabilityStatus::Implemented,limitation:"Character and narrator views require matching represented contexts. Reader views require an exact scene and explicit disclosures in its bound work edition. No automatic knowledge inference.".into()},
                     Capability{id:"history.v1".into(),status:CapabilityStatus::Implemented,limitation:"Typed summaries, evidence and pinned record history; history is limited to 100 changes per record and unrestricted author-perspective reads. Native restoration produces a reviewed compensating revision.".into()},
@@ -1857,6 +1857,24 @@ impl Workflow<'_> {
                         brief
                     }
                 }
+            }
+            Request::Propose(action @ (Propose::AttachAssessment { .. } | Propose::SelectAssessment { .. })) => {
+                let ctx = self.context(&field(args, "context_id")?)?;
+                let r: ProposalRef = field(args, "proposal_reference")?;
+                let p = self.proposal(&r).map_err(|_| denied())?;
+                if ctx.frame != p.proposal.base_frame {
+                    return Err(ProtocolError::ApprovalStale.into());
+                }
+                frame = Some(ctx.frame);
+                world_focus = p.proposal.world_scope.clone();
+                let selection = match action {
+                    Propose::AttachAssessment { expected_selection_generation, body, idempotency_key, .. } =>
+                        self.attach_assessment(&r, expected_selection_generation, body, &idempotency_key)?,
+                    Propose::SelectAssessment { expected_selection_generation, assessment_reference, idempotency_key, .. } =>
+                        self.select_assessment(&r, expected_selection_generation, assessment_reference, &idempotency_key)?,
+                    _ => unreachable!(),
+                };
+                serde_json::to_value(selection)?
             }
             Request::Propose(_) => {
                 if !matches!(

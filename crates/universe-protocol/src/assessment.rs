@@ -15,7 +15,7 @@ use universe_domain::{
     Frame,
 };
 
-fn required_nullable<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(
+pub(crate) fn required_nullable<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(
     d: D,
 ) -> Result<Option<T>, D::Error> {
     Option::<T>::deserialize(d)

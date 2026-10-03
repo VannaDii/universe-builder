@@ -246,6 +246,9 @@ impl Fixture {
     }Ok(Response::Get(scope.wrap(Records{records,summaries:vec![],evidence:vec![],history:vec![],history_coverage:None})))
    }
    Request::Propose(action) => {
+    if matches!(action, Propose::AttachAssessment{..}|Propose::SelectAssessment{..}) {
+     return Err(unsupported("assessment actions require a persistent installation"));
+    }
     let key=args["idempotency_key"].as_str().unwrap().to_owned();
     let mut semantic=args.clone();semantic.as_object_mut().unwrap().remove("universe");semantic.as_object_mut().unwrap().remove("universe_id");
     semantic.as_object_mut().unwrap().remove("context_id");semantic["frame"]=serde_json::to_value(&frame).unwrap();
@@ -255,7 +258,7 @@ impl Fixture {
     let receipt_key=(universe.id.clone(),key);
     if let Some(receipt)=self.receipts.get(&receipt_key) {
      if receipt.fingerprint!=fingerprint{return Err(ProtocolError::IdempotencyKeyReused{message:"different proposal content".into()})}
-     return Ok(Response::Propose(scope.wrap(receipt.proposal.clone())))
+     return Ok(Response::Propose(scope.wrap(ProposalOutcome::Proposal(receipt.proposal.clone()))))
     }
     if self.receipts.len()>=256 {return Err(limit())}
     let operation_id=OperationId::parse(&self.allocate("op")).unwrap();
@@ -266,6 +269,7 @@ impl Fixture {
      }
      Propose::Submit{proposal_reference,..}=>{let mut p=self.bound_proposal(&universe.id,&proposal_reference)?;p.version+=1;p.submission=Submission::Submitted;p}
      Propose::Withdraw{proposal_reference,..}=>{let mut p=self.bound_proposal(&universe.id,&proposal_reference)?;p.version+=1;p.withdrawn=true;p}
+     Propose::AttachAssessment{..}|Propose::SelectAssessment{..}=>unreachable!("rejected before fixture mutation"),
     };
     // Explicit foreign namespace references cannot become fixture proposals.
     reject_foreign_references(&serde_json::to_value(&proposal.operations).unwrap(),&universe.id)?;
@@ -275,7 +279,7 @@ impl Fixture {
     proposal.digest=hex::encode(Sha256::digest(universe_domain::canonical::canonical_serde(&serde_json::json!({"frame":proposal.base_frame,"world_scope":proposal.world_scope,"version":proposal.version,"operations":proposal.operations,"rationale":proposal.rationale,"submission":proposal.submission,"withdrawn":proposal.withdrawn})).to_bytes()));
     self.proposals.insert((proposal.proposal_id.clone(),proposal.version),(universe.id.clone(),proposal.clone()));
     self.receipts.insert(receipt_key,Receipt{universe:universe.id.clone(),fingerprint,proposal:proposal.clone()});
-    Ok(Response::Propose(scope.wrap(proposal)))
+    Ok(Response::Propose(scope.wrap(ProposalOutcome::Proposal(proposal))))
    }
    Request::GetProposal(a)=>{
     if a.view_group.as_ref().is_some_and(|g|!matches!(g,FieldGroup::Payload)){return Err(unsupported("fixture proposal view supports the payload field group only"))}

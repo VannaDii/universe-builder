@@ -319,7 +319,15 @@ pub type GetResult = Envelope<Records>;
 pub type GetStateResult = Envelope<State>;
 pub type GetContextResult = Envelope<ContextBrief>;
 pub type ValidateResult = Envelope<crate::validation_scope::ValidationV3>;
-pub type ProposeResult = Envelope<Proposal>;
+/// Semantic proposal actions retain their wire shape; assessment actions return
+/// the independently versioned selection without modifying the frozen proposal.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum ProposalOutcome {
+    Proposal(Proposal),
+    AssessmentSelection(crate::assessment::AssessmentSelection),
+}
+pub type ProposeResult = Envelope<ProposalOutcome>;
 pub type GetProposalResult = Envelope<Proposal>;
 pub type GetImpactResult = Envelope<Impact>;
 pub type CommitResult = Envelope<CommitReceipt>;

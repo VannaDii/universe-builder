@@ -31017,11 +31017,105 @@
   },
   {
     "name": "universe_propose",
-    "description": "Propose structured facts, events and other material universe changes represented by draft prose, preserving evidence references when available. Proposals are provisional until validated, approved and committed. Explicit universe required; fixture proposals cannot become canon.",
+    "description": "Propose structured facts, events and other material universe changes represented by draft prose, preserving evidence references when available. Proposals are provisional until validated, approved and committed. attach_assessment and select_assessment attach immutable assessor declarations or replace/withdraw selection without changing the frozen proposal. Explicit universe required; fixture proposals cannot become canon.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Propose",
       "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "universe": {
+              "$ref": "#/$defs/Selector"
+            },
+            "universe_id": {
+              "$ref": "#/$defs/UniverseId"
+            },
+            "context_id": {
+              "$ref": "#/$defs/ContextId"
+            },
+            "proposal_reference": {
+              "$ref": "#/$defs/ProposalRef"
+            },
+            "expected_selection_generation": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "body": {
+              "$ref": "#/$defs/SourceAssessmentV1"
+            },
+            "idempotency_key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "action": {
+              "type": "string",
+              "const": "attach_assessment"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "action",
+            "universe",
+            "context_id",
+            "proposal_reference",
+            "expected_selection_generation",
+            "body",
+            "idempotency_key"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "universe": {
+              "$ref": "#/$defs/Selector"
+            },
+            "universe_id": {
+              "$ref": "#/$defs/UniverseId"
+            },
+            "context_id": {
+              "$ref": "#/$defs/ContextId"
+            },
+            "proposal_reference": {
+              "$ref": "#/$defs/ProposalRef"
+            },
+            "expected_selection_generation": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "assessment_reference": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssessmentRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "idempotency_key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "action": {
+              "type": "string",
+              "const": "select_assessment"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "action",
+            "universe",
+            "context_id",
+            "proposal_reference",
+            "expected_selection_generation",
+            "idempotency_key"
+          ]
+        },
         {
           "type": "object",
           "properties": {
@@ -31231,6 +31325,1833 @@
           "description": "Opaque application context handle (frame pin, not a grant).",
           "type": "string",
           "pattern": "^ctx_[0-9a-f]{24}$"
+        },
+        "ProposalRef": {
+          "type": "object",
+          "properties": {
+            "proposal_id": {
+              "$ref": "#/$defs/ProposalId"
+            },
+            "version": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "digest": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "proposal_id",
+            "version",
+            "digest"
+          ]
+        },
+        "ProposalId": {
+          "description": "Stable identity of a proposal.",
+          "type": "string",
+          "pattern": "^prp_[0-9a-f]{24}$"
+        },
+        "SourceAssessmentV1": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "$ref": "#/$defs/AssessmentKind"
+            },
+            "proposal": {
+              "type": "object",
+              "properties": {
+                "proposal_id": {
+                  "$ref": "#/$defs/ProposalId"
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 18446744073709551615
+                },
+                "digest": {
+                  "$ref": "#/$defs/Sha256Hex"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "proposal_id",
+                "version",
+                "digest"
+              ]
+            },
+            "base_frame": {
+              "$ref": "#/$defs/Frame"
+            },
+            "assessor": {
+              "$ref": "#/$defs/Assessor"
+            },
+            "sources": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SourceBinding"
+              },
+              "minItems": 1,
+              "maxItems": 64
+            },
+            "dependencies": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/AssessmentVersionRef"
+              },
+              "maxItems": 16384
+            },
+            "declared_inventory": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/MaterialItem"
+              },
+              "maxItems": 4096
+            },
+            "inventory_declaration": {
+              "$ref": "#/$defs/InventoryDeclaration"
+            },
+            "claim_mappings": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ClaimMapping"
+              },
+              "maxItems": 4096
+            },
+            "unresolved": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/UnresolvedDisposition"
+              },
+              "maxItems": 4096
+            },
+            "conclusion": {
+              "$ref": "#/$defs/DeclaredConclusion"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "proposal",
+            "base_frame",
+            "assessor",
+            "sources",
+            "dependencies",
+            "declared_inventory",
+            "inventory_declaration",
+            "claim_mappings",
+            "unresolved",
+            "conclusion"
+          ]
+        },
+        "AssessmentKind": {
+          "type": "string",
+          "enum": [
+            "source_assessment_v1"
+          ]
+        },
+        "Sha256Hex": {
+          "description": "Owning decoder enforces the same exact digest shape as the JSON schema.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "Frame": {
+          "description": "The effective frame: fully resolved before evaluation (spec §27.1).\n\nA context handle pins this frame (plus expiry/owner in the service\nlayer). The frame never stores a hidden current-world selection: world\nfocus is per supporting request (spec §11.3, §27.1, I24).",
+          "type": "object",
+          "properties": {
+            "universe": {
+              "$ref": "#/$defs/UniverseId"
+            },
+            "continuity": {
+              "$ref": "#/$defs/ContinuityId"
+            },
+            "revision": {
+              "$ref": "#/$defs/RevisionId"
+            },
+            "context": {
+              "description": "The represented context record (objective reality, a character's\nbeliefs, a source narrative, ...).",
+              "$ref": "#/$defs/RecordRef"
+            },
+            "time": {
+              "$ref": "#/$defs/FrameTime"
+            },
+            "perspective": {
+              "$ref": "#/$defs/Perspective"
+            },
+            "readerScene": {
+              "description": "Exact authored scene defining reader disclosure order.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "personalSequence": {
+              "description": "Optional personal experienced sequence (spec §7.1): a separately\ndeclared ordering, never inferred.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "universe",
+            "continuity",
+            "revision",
+            "context",
+            "time",
+            "perspective"
+          ]
+        },
+        "ContinuityId": {
+          "description": "Stable identity of a continuity (one canon revision head).",
+          "type": "string",
+          "pattern": "^cont_[0-9a-f]{24}$"
+        },
+        "RevisionId": {
+          "description": "Stable identity of an immutable canon revision.",
+          "type": "string",
+          "pattern": "^rev_[0-9a-f]{24}$"
+        },
+        "RecordRef": {
+          "description": "A canonical record reference with an explicit universe namespace\n(spec §27.1). The namespace may be omitted in *wire* input where the\nrequired `universe` argument supplies it; the service expands and rejects\nconflicting namespaces before storage. Canonical payloads always carry it.",
+          "type": "object",
+          "properties": {
+            "universe": {
+              "description": "Universe namespace. `None` only in wire input pending expansion.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/UniverseId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "record": {
+              "description": "Stable record identity (resolved through the requested revision's\nmembership map — spec §27.1).",
+              "$ref": "#/$defs/RecordId"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "record"
+          ]
+        },
+        "RecordId": {
+          "description": "Stable identity of a canonical record within a universe.",
+          "type": "string",
+          "pattern": "^rec_[0-9a-f]{24}$"
+        },
+        "FrameTime": {
+          "description": "The temporal part of a frame.",
+          "oneOf": [
+            {
+              "description": "All validities: the query makes no temporal claim (spec §27.1:\n\"an explicitly timeless/all-validities query\").",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "timeless"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "description": "Evaluate at or within this temporal expression.",
+              "type": "object",
+              "properties": {
+                "time": {
+                  "$ref": "#/$defs/TemporalExpression"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "at"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "time"
+              ]
+            },
+            {
+              "description": "State at the moment of a specific event (entry/exit framing\nis handled by the event's own time; this names the anchor).",
+              "type": "object",
+              "properties": {
+                "event": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "side": {
+                  "$ref": "#/$defs/EventTimeSide"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "at_event"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "event",
+                "side"
+              ],
+              "dependentRequired": {
+                "world_id": [
+                  "world"
+                ],
+                "event": [
+                  "event_side"
+                ],
+                "event_side": [
+                  "event"
+                ]
+              }
+            }
+          ]
+        },
+        "TemporalExpression": {
+          "description": "The temporal value type (spec §5.3, §7.1).\n\nIntervals are half-open `[start, end)` where exact interval algebra\napplies (spec §7.1); the author-facing display must explain boundary\nmeaning (S26).",
+          "oneOf": [
+            {
+              "description": "Exact instant in a named calendar.",
+              "type": "object",
+              "properties": {
+                "calendar": {
+                  "$ref": "#/$defs/CalendarId"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "exact"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "calendar",
+                "value"
+              ]
+            },
+            {
+              "description": "Interval. Where both endpoints are exact, semantics are half-open\n`[start, end)`.",
+              "type": "object",
+              "properties": {
+                "calendar": {
+                  "$ref": "#/$defs/CalendarId"
+                },
+                "start": {
+                  "$ref": "#/$defs/TemporalBound"
+                },
+                "end": {
+                  "$ref": "#/$defs/TemporalBound"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "interval"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "calendar",
+                "start",
+                "end"
+              ]
+            },
+            {
+              "description": "Approximate moment (\"about ten days in\" is not an exact ten-day\nduration without an author definition — spec §5.3).",
+              "type": "object",
+              "properties": {
+                "calendar": {
+                  "$ref": "#/$defs/CalendarId"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "uncertainty": {
+                  "description": "Boxed: breaks the `Value` ↔ `TemporalExpression` recursion.",
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "approximate"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "calendar",
+                "value",
+                "uncertainty"
+              ]
+            },
+            {
+              "description": "A duration in the calendar's own unit structure.",
+              "type": "object",
+              "properties": {
+                "calendar": {
+                  "$ref": "#/$defs/CalendarId"
+                },
+                "amount": {
+                  "description": "Boxed: breaks the `Value` ↔ `TemporalExpression` recursion.",
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "duration"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "calendar",
+                "amount"
+              ]
+            },
+            {
+              "description": "Relative ordering constraint against another record's time.",
+              "type": "object",
+              "properties": {
+                "calendar": {
+                  "$ref": "#/$defs/CalendarId"
+                },
+                "relation": {
+                  "$ref": "#/$defs/TemporalRelation"
+                },
+                "target": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "relative"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "calendar",
+                "relation",
+                "target"
+              ]
+            },
+            {
+              "description": "No temporal claim: the author did not define one.",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "unspecified"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "CalendarId": {
+          "description": "Stable identity of a calendar / temporal reference system definition.",
+          "type": "string",
+          "pattern": "^cal_[0-9a-f]{24}$"
+        },
+        "TemporalBound": {
+          "description": "How a boundary of an interval is known (spec §27.2).\n\n`Unknown` and `Unbounded` are deliberately distinct (S27): an undefined\nendpoint is not silently infinite or zero-length.",
+          "oneOf": [
+            {
+              "description": "No bound: the interval extends without limit in that direction.",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "unbounded"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "description": "The author has not established the endpoint.",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "unknown"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "description": "Exact point, as a string in the named calendar's unit structure.",
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "exact"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "value"
+              ]
+            },
+            {
+              "description": "Approximate point with declared uncertainty.",
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "uncertainty": {
+                  "description": "Boxed: `Value` may embed `TemporalExpression`, so one side of\nthe mutual recursion must be indirect (infinite-size rule).",
+                  "$ref": "#/$defs/Value"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "approximate"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "value",
+                "uncertainty"
+              ]
+            },
+            {
+              "description": "Bounded but not exact: the endpoint lies within this range of points.",
+              "type": "object",
+              "properties": {
+                "lower": {
+                  "type": "string"
+                },
+                "upper": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "bounded_uncertainty"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "lower",
+                "upper"
+              ]
+            }
+          ]
+        },
+        "Value": {
+          "description": "The discriminated value type (spec §5.3).",
+          "oneOf": [
+            {
+              "description": "Preserves the author's exact Unicode string content (spec §27.8).",
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "text"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "text"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "boolean"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "boolean"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "value"
+              ]
+            },
+            {
+              "description": "Exact integers are decimal digit strings, never host floats.",
+              "type": "object",
+              "properties": {
+                "digits": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "integer"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "digits"
+              ]
+            },
+            {
+              "description": "Exact decimal quantities, preserved at authored precision.",
+              "type": "object",
+              "properties": {
+                "digits": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "decimal"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "digits"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "numerator": {
+                  "type": "string"
+                },
+                "denominator": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "rational"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "numerator",
+                "denominator"
+              ]
+            },
+            {
+              "description": "`Quantity(value, unit_id)`. Conversion requires an explicit\ncompatible unit definition (spec §5.3).",
+              "type": "object",
+              "properties": {
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "unit": {
+                  "$ref": "#/$defs/UnitId"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "quantity"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "value",
+                "unit"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "lower": {
+                  "$ref": "#/$defs/Value"
+                },
+                "upper": {
+                  "$ref": "#/$defs/Value"
+                },
+                "lower_inclusive": {
+                  "type": "boolean"
+                },
+                "upper_inclusive": {
+                  "type": "boolean"
+                },
+                "unit": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/UnitId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "range"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "lower",
+                "upper",
+                "lower_inclusive",
+                "upper_inclusive"
+              ]
+            },
+            {
+              "description": "Struct variants (not newtype) for the reference/expression forms:\nserde's internally-tagged newtype form would inline the content's\nfields into the tagged map (duplicate `kind` key when the content is\nitself tagged) and hit the recursion limit for recursive content.\nField keys match the canonical impl below.",
+              "type": "object",
+              "properties": {
+                "ref": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "entity_ref"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "ref"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "ref": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "record_ref"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "ref"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "ref": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "proposition_ref"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "ref"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "temporal": {
+                  "$ref": "#/$defs/TemporalExpression"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "temporal"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "temporal"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "spatial": {
+                  "$ref": "#/$defs/SpatialExpression"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "spatial"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "spatial"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "definition": {
+                  "$ref": "#/$defs/ValueDefinitionId"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "enum"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "definition",
+                "key"
+              ]
+            },
+            {
+              "description": "Ordered; authored sequence order is canonical (spec §27.2).",
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/Value"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "sequence"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "items"
+              ]
+            },
+            {
+              "description": "Set semantics: normalized by stable identity at the service.",
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/Value"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "set"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "items"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "definition": {
+                  "$ref": "#/$defs/ValueDefinitionId"
+                },
+                "fields": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/$defs/Value"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "structured"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "definition",
+                "fields"
+              ]
+            }
+          ]
+        },
+        "UnitId": {
+          "description": "Stable identity of a unit definition record.",
+          "type": "string",
+          "pattern": "^unit_[0-9a-f]{24}$"
+        },
+        "SpatialExpression": {
+          "description": "A qualitative spatial expression (spec §7.4).\n\nOwnership, custody, containment, control, occupancy, legal access,\nphysical access, and knowledge of an entrance are separate predicates:\nonly the qualitative relations below live in values; the predicates\nthemselves are definitions.",
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "target": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "contained_in"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "target"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "target": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "adjacent_to"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "target"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "target": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "connected_to"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "target"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "reference": {
+                  "type": "string"
+                },
+                "values": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/Value"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "coordinates"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "reference",
+                "values"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "unit": {
+                  "$ref": "#/$defs/UnitId"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "distance"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "from",
+                "value",
+                "unit"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "unspecified"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "ValueDefinitionId": {
+          "description": "Stable identity of a structured value definition record.",
+          "type": "string",
+          "pattern": "^vdef_[0-9a-f]{24}$"
+        },
+        "TemporalRelation": {
+          "description": "A relation between two times without inventing dates (spec §7.1).",
+          "oneOf": [
+            {
+              "description": "Strict before. Cycles within one declared acyclic ordering are invalid (S28).",
+              "type": "string",
+              "const": "before"
+            },
+            {
+              "description": "Strict after.",
+              "type": "string",
+              "const": "after"
+            },
+            {
+              "description": "Starts and ends within.",
+              "type": "string",
+              "const": "during"
+            },
+            {
+              "description": "Time ranges overlap (may be definite, indeterminate, or refuted).",
+              "type": "string",
+              "const": "overlaps"
+            },
+            {
+              "description": "Same instant (exact only).",
+              "type": "string",
+              "const": "simultaneous"
+            }
+          ]
+        },
+        "EventTimeSide": {
+          "description": "Which side of an event a frame observes (spec §30.2 event entry/exit\nselector). Preconditions see `Before`; effects see `After`.",
+          "oneOf": [
+            {
+              "description": "The pre-event state.",
+              "type": "string",
+              "const": "before"
+            },
+            {
+              "description": "The post-event state.",
+              "type": "string",
+              "const": "after"
+            }
+          ]
+        },
+        "Perspective": {
+          "description": "How a query views the universe (spec §8.3).\n\nAuthor-known truth, character perspective, and reader disclosure are\nseparate views. Author permissions are a security dimension; a\npoint-of-view filter is not an access-control mechanism unless the\nauthor explicitly configures a restricted principal.",
+          "oneOf": [
+            {
+              "description": "The author's omniscient view of the universe.",
+              "type": "string",
+              "const": "author"
+            },
+            {
+              "description": "A character's fictional knowledge (bounded by records).",
+              "type": "object",
+              "properties": {
+                "character": {
+                  "$ref": "#/$defs/RecordId"
+                }
+              },
+              "required": [
+                "character"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "description": "A source/narrator's depicted view.",
+              "type": "object",
+              "properties": {
+                "narrator": {
+                  "$ref": "#/$defs/RecordId"
+                }
+              },
+              "required": [
+                "narrator"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "description": "Reader disclosure position.",
+              "type": "string",
+              "const": "reader"
+            }
+          ]
+        },
+        "Assessor": {
+          "type": "object",
+          "properties": {
+            "principal": {
+              "$ref": "#/$defs/PrincipalId"
+            },
+            "method": {
+              "$ref": "#/$defs/Method"
+            },
+            "tool": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ToolIdentity"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "assessed_at": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "principal",
+            "method",
+            "tool",
+            "assessed_at"
+          ]
+        },
+        "PrincipalId": {
+          "description": "Stable identity of an authenticated application principal.",
+          "type": "string",
+          "pattern": "^prn_[0-9a-f]{24}$"
+        },
+        "Method": {
+          "type": "string",
+          "enum": [
+            "human_review",
+            "external_model_review"
+          ]
+        },
+        "ToolIdentity": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "model_revision": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "procedure_digest": {
+              "$ref": "#/$defs/Sha256Hex"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "version",
+            "model_revision",
+            "procedure_digest"
+          ]
+        },
+        "SourceBinding": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "source_version": {
+              "$ref": "#/$defs/AssessmentVersionRef"
+            },
+            "blob_digest": {
+              "$ref": "#/$defs/Sha256Hex"
+            },
+            "byte_size": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "representation": {
+              "$ref": "#/$defs/SourceRepresentation"
+            },
+            "ranges": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ByteRange"
+              }
+            },
+            "work_edition": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "passage_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "source_version",
+            "blob_digest",
+            "byte_size",
+            "representation",
+            "ranges",
+            "work_edition",
+            "passage_id"
+          ]
+        },
+        "AssessmentVersionRef": {
+          "description": "Exact workflow evidence references use the existing domain wire keys and IDs.",
+          "type": "object",
+          "properties": {
+            "universe": {
+              "$ref": "#/$defs/UniverseId"
+            },
+            "record": {
+              "$ref": "#/$defs/RecordId"
+            },
+            "version": {
+              "$ref": "#/$defs/RecordVersionId"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "universe",
+            "record",
+            "version"
+          ]
+        },
+        "RecordVersionId": {
+          "description": "Stable identity of an immutable record version.",
+          "type": "string",
+          "pattern": "^ver_[0-9a-f]{24}$"
+        },
+        "SourceRepresentation": {
+          "type": "string",
+          "enum": [
+            "exact-utf8-v1"
+          ]
+        },
+        "ByteRange": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "end": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "start",
+            "end"
+          ]
+        },
+        "MaterialItem": {
+          "type": "object",
+          "properties": {
+            "item_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "source_key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "range": {
+              "$ref": "#/$defs/ByteRange"
+            },
+            "material_kind": {
+              "$ref": "#/$defs/MaterialKind"
+            },
+            "statement": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "mapping_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "unresolved_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "item_id",
+            "source_key",
+            "range",
+            "material_kind",
+            "statement",
+            "mapping_ids",
+            "unresolved_ids"
+          ]
+        },
+        "MaterialKind": {
+          "type": "string",
+          "enum": [
+            "fact",
+            "action",
+            "prerequisite",
+            "effect",
+            "knowledge",
+            "description",
+            "disclosure",
+            "unchanged_state"
+          ]
+        },
+        "InventoryDeclaration": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "$ref": "#/$defs/InventoryKind"
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "exclusions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Exclusion"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "rationale",
+            "exclusions"
+          ]
+        },
+        "InventoryKind": {
+          "type": "string",
+          "enum": [
+            "material_inventory_declared",
+            "no_material_claims"
+          ]
+        },
+        "Exclusion": {
+          "type": "object",
+          "properties": {
+            "source_key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "range": {
+              "$ref": "#/$defs/ByteRange"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "source_key",
+            "range",
+            "reason"
+          ]
+        },
+        "ClaimMapping": {
+          "type": "object",
+          "properties": {
+            "mapping_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "item_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "referents": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/AssessmentVersionRef"
+              }
+            },
+            "context": {
+              "$ref": "#/$defs/AssessmentVersionRef"
+            },
+            "world": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "realm": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "story_time": {
+              "$ref": "#/$defs/TemporalExpression"
+            },
+            "narration_position": {
+              "$ref": "#/$defs/Position"
+            },
+            "reader_position": {
+              "$ref": "#/$defs/Position"
+            },
+            "occurrence": {
+              "$ref": "#/$defs/Occurrence"
+            },
+            "modality": {
+              "$ref": "#/$defs/Modality"
+            },
+            "semantic": {
+              "$ref": "#/$defs/SemanticMapping"
+            },
+            "candidate_links": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/CandidateLink"
+              }
+            },
+            "judgment": {
+              "$ref": "#/$defs/MappingJudgment"
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "mapping_id",
+            "item_ids",
+            "referents",
+            "context",
+            "world",
+            "realm",
+            "story_time",
+            "narration_position",
+            "reader_position",
+            "occurrence",
+            "modality",
+            "semantic",
+            "candidate_links",
+            "judgment",
+            "rationale"
+          ]
+        },
+        "Position": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "not_applicable"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "reason": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "unknown"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "reason"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "work_edition": {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                "scene_id": {
+                  "type": "string"
+                },
+                "ordinal": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "work_position"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "work_edition",
+                "scene_id",
+                "ordinal"
+              ]
+            }
+          ]
+        },
+        "Occurrence": {
+          "type": "string",
+          "enum": [
+            "occurred",
+            "planned",
+            "hypothetical",
+            "reported",
+            "unknown"
+          ]
+        },
+        "Modality": {
+          "type": "string",
+          "enum": [
+            "asserted",
+            "negated",
+            "possible",
+            "counterfactual",
+            "attributed",
+            "unknown"
+          ]
+        },
+        "SemanticMapping": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "predicate": {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                "subject": {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "roles": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/RoleParticipant"
+                  }
+                },
+                "polarity": {
+                  "$ref": "#/$defs/Polarity"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "claim"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "predicate",
+                "subject",
+                "value",
+                "roles",
+                "polarity"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "action": {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                "participants": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/RoleParticipant"
+                  }
+                },
+                "prerequisites": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/AssessmentVersionRef"
+                  }
+                },
+                "effects": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/AssessmentVersionRef"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "action"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "action",
+                "participants",
+                "prerequisites",
+                "effects"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "holder": {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                "content": {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                "acquisition": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/AssessmentVersionRef"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "knowledge"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "holder",
+                "content",
+                "acquisition"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "subject": {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                "depiction": {
+                  "$ref": "#/$defs/Depiction"
+                },
+                "implied_claims": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/AssessmentVersionRef"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "source_description"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "subject",
+                "depiction",
+                "implied_claims"
+              ]
+            }
+          ]
+        },
+        "RoleParticipant": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "participant": {
+              "$ref": "#/$defs/AssessmentVersionRef"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "participant"
+          ]
+        },
+        "Polarity": {
+          "description": "Support or refutation of a proposition (spec §5.2).",
+          "type": "string",
+          "enum": [
+            "support",
+            "refutation"
+          ]
+        },
+        "Depiction": {
+          "type": "string",
+          "enum": [
+            "factual",
+            "subjective",
+            "inspiration"
+          ]
+        },
+        "CandidateLink": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "$ref": "#/$defs/CandidateLinkKind"
+            },
+            "version": {
+              "$ref": "#/$defs/AssessmentVersionRef"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "version"
+          ]
+        },
+        "CandidateLinkKind": {
+          "type": "string",
+          "enum": [
+            "proposed_record",
+            "unchanged_record",
+            "historical_evidence"
+          ]
+        },
+        "MappingJudgment": {
+          "type": "string",
+          "enum": [
+            "supported",
+            "contradicted",
+            "unresolved"
+          ]
+        },
+        "UnresolvedDisposition": {
+          "type": "object",
+          "properties": {
+            "unresolved_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "item_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reason": {
+              "$ref": "#/$defs/UnresolvedReason"
+            },
+            "detail": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "unresolved_id",
+            "item_ids",
+            "reason",
+            "detail"
+          ]
+        },
+        "UnresolvedReason": {
+          "type": "string",
+          "enum": [
+            "ambiguous_referent",
+            "ambiguous_modality",
+            "unsupported_semantics",
+            "missing_evidence",
+            "unrepresented_material",
+            "interpretation_disagreement"
+          ]
+        },
+        "DeclaredConclusion": {
+          "type": "string",
+          "enum": [
+            "consistent_with_declared_inventory",
+            "inconsistent",
+            "unresolved"
+          ]
+        },
+        "AssessmentRef": {
+          "type": "object",
+          "properties": {
+            "assessment_id": {
+              "$ref": "#/$defs/AssessmentId"
+            },
+            "digest": {
+              "$ref": "#/$defs/Sha256Hex"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "assessment_id",
+            "digest"
+          ]
+        },
+        "AssessmentId": {
+          "type": "string",
+          "pattern": "^asm_[0-9a-f]{24}$"
         },
         "WorldId": {
           "description": "Stable identity of a named world record within a universe.",
@@ -32479,36 +34400,6 @@
             }
           ]
         },
-        "RecordRef": {
-          "description": "A canonical record reference with an explicit universe namespace\n(spec §27.1). The namespace may be omitted in *wire* input where the\nrequired `universe` argument supplies it; the service expands and rejects\nconflicting namespaces before storage. Canonical payloads always carry it.",
-          "type": "object",
-          "properties": {
-            "universe": {
-              "description": "Universe namespace. `None` only in wire input pending expansion.",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/UniverseId"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "record": {
-              "description": "Stable record identity (resolved through the requested revision's\nmembership map — spec §27.1).",
-              "$ref": "#/$defs/RecordId"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "record"
-          ]
-        },
-        "RecordId": {
-          "description": "Stable identity of a canonical record within a universe.",
-          "type": "string",
-          "pattern": "^rec_[0-9a-f]{24}$"
-        },
         "AppearanceImage": {
           "type": "object",
           "properties": {
@@ -32696,744 +34587,6 @@
               "additionalProperties": false
             }
           ]
-        },
-        "TemporalExpression": {
-          "description": "The temporal value type (spec §5.3, §7.1).\n\nIntervals are half-open `[start, end)` where exact interval algebra\napplies (spec §7.1); the author-facing display must explain boundary\nmeaning (S26).",
-          "oneOf": [
-            {
-              "description": "Exact instant in a named calendar.",
-              "type": "object",
-              "properties": {
-                "calendar": {
-                  "$ref": "#/$defs/CalendarId"
-                },
-                "value": {
-                  "type": "string"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "exact"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "calendar",
-                "value"
-              ]
-            },
-            {
-              "description": "Interval. Where both endpoints are exact, semantics are half-open\n`[start, end)`.",
-              "type": "object",
-              "properties": {
-                "calendar": {
-                  "$ref": "#/$defs/CalendarId"
-                },
-                "start": {
-                  "$ref": "#/$defs/TemporalBound"
-                },
-                "end": {
-                  "$ref": "#/$defs/TemporalBound"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "interval"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "calendar",
-                "start",
-                "end"
-              ]
-            },
-            {
-              "description": "Approximate moment (\"about ten days in\" is not an exact ten-day\nduration without an author definition — spec §5.3).",
-              "type": "object",
-              "properties": {
-                "calendar": {
-                  "$ref": "#/$defs/CalendarId"
-                },
-                "value": {
-                  "type": "string"
-                },
-                "uncertainty": {
-                  "description": "Boxed: breaks the `Value` ↔ `TemporalExpression` recursion.",
-                  "$ref": "#/$defs/Value"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "approximate"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "calendar",
-                "value",
-                "uncertainty"
-              ]
-            },
-            {
-              "description": "A duration in the calendar's own unit structure.",
-              "type": "object",
-              "properties": {
-                "calendar": {
-                  "$ref": "#/$defs/CalendarId"
-                },
-                "amount": {
-                  "description": "Boxed: breaks the `Value` ↔ `TemporalExpression` recursion.",
-                  "$ref": "#/$defs/Value"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "duration"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "calendar",
-                "amount"
-              ]
-            },
-            {
-              "description": "Relative ordering constraint against another record's time.",
-              "type": "object",
-              "properties": {
-                "calendar": {
-                  "$ref": "#/$defs/CalendarId"
-                },
-                "relation": {
-                  "$ref": "#/$defs/TemporalRelation"
-                },
-                "target": {
-                  "$ref": "#/$defs/RecordRef"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "relative"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "calendar",
-                "relation",
-                "target"
-              ]
-            },
-            {
-              "description": "No temporal claim: the author did not define one.",
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "type": "string",
-                  "const": "unspecified"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            }
-          ]
-        },
-        "CalendarId": {
-          "description": "Stable identity of a calendar / temporal reference system definition.",
-          "type": "string",
-          "pattern": "^cal_[0-9a-f]{24}$"
-        },
-        "TemporalBound": {
-          "description": "How a boundary of an interval is known (spec §27.2).\n\n`Unknown` and `Unbounded` are deliberately distinct (S27): an undefined\nendpoint is not silently infinite or zero-length.",
-          "oneOf": [
-            {
-              "description": "No bound: the interval extends without limit in that direction.",
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "type": "string",
-                  "const": "unbounded"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "description": "The author has not established the endpoint.",
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "type": "string",
-                  "const": "unknown"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "description": "Exact point, as a string in the named calendar's unit structure.",
-              "type": "object",
-              "properties": {
-                "value": {
-                  "type": "string"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "exact"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "value"
-              ]
-            },
-            {
-              "description": "Approximate point with declared uncertainty.",
-              "type": "object",
-              "properties": {
-                "value": {
-                  "type": "string"
-                },
-                "uncertainty": {
-                  "description": "Boxed: `Value` may embed `TemporalExpression`, so one side of\nthe mutual recursion must be indirect (infinite-size rule).",
-                  "$ref": "#/$defs/Value"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "approximate"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "value",
-                "uncertainty"
-              ]
-            },
-            {
-              "description": "Bounded but not exact: the endpoint lies within this range of points.",
-              "type": "object",
-              "properties": {
-                "lower": {
-                  "type": "string"
-                },
-                "upper": {
-                  "type": "string"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "bounded_uncertainty"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "lower",
-                "upper"
-              ]
-            }
-          ]
-        },
-        "Value": {
-          "description": "The discriminated value type (spec §5.3).",
-          "oneOf": [
-            {
-              "description": "Preserves the author's exact Unicode string content (spec §27.8).",
-              "type": "object",
-              "properties": {
-                "text": {
-                  "type": "string"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "text"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "text"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "value": {
-                  "type": "boolean"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "boolean"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "value"
-              ]
-            },
-            {
-              "description": "Exact integers are decimal digit strings, never host floats.",
-              "type": "object",
-              "properties": {
-                "digits": {
-                  "type": "string"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "integer"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "digits"
-              ]
-            },
-            {
-              "description": "Exact decimal quantities, preserved at authored precision.",
-              "type": "object",
-              "properties": {
-                "digits": {
-                  "type": "string"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "decimal"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "digits"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "numerator": {
-                  "type": "string"
-                },
-                "denominator": {
-                  "type": "string"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "rational"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "numerator",
-                "denominator"
-              ]
-            },
-            {
-              "description": "`Quantity(value, unit_id)`. Conversion requires an explicit\ncompatible unit definition (spec §5.3).",
-              "type": "object",
-              "properties": {
-                "value": {
-                  "$ref": "#/$defs/Value"
-                },
-                "unit": {
-                  "$ref": "#/$defs/UnitId"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "quantity"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "value",
-                "unit"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "lower": {
-                  "$ref": "#/$defs/Value"
-                },
-                "upper": {
-                  "$ref": "#/$defs/Value"
-                },
-                "lower_inclusive": {
-                  "type": "boolean"
-                },
-                "upper_inclusive": {
-                  "type": "boolean"
-                },
-                "unit": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/$defs/UnitId"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "range"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "lower",
-                "upper",
-                "lower_inclusive",
-                "upper_inclusive"
-              ]
-            },
-            {
-              "description": "Struct variants (not newtype) for the reference/expression forms:\nserde's internally-tagged newtype form would inline the content's\nfields into the tagged map (duplicate `kind` key when the content is\nitself tagged) and hit the recursion limit for recursive content.\nField keys match the canonical impl below.",
-              "type": "object",
-              "properties": {
-                "ref": {
-                  "$ref": "#/$defs/RecordRef"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "entity_ref"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "ref"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "ref": {
-                  "$ref": "#/$defs/RecordRef"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "record_ref"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "ref"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "ref": {
-                  "$ref": "#/$defs/RecordRef"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "proposition_ref"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "ref"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "temporal": {
-                  "$ref": "#/$defs/TemporalExpression"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "temporal"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "temporal"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "spatial": {
-                  "$ref": "#/$defs/SpatialExpression"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "spatial"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "spatial"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "definition": {
-                  "$ref": "#/$defs/ValueDefinitionId"
-                },
-                "key": {
-                  "type": "string"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "enum"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "definition",
-                "key"
-              ]
-            },
-            {
-              "description": "Ordered; authored sequence order is canonical (spec §27.2).",
-              "type": "object",
-              "properties": {
-                "items": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/Value"
-                  }
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "sequence"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "items"
-              ]
-            },
-            {
-              "description": "Set semantics: normalized by stable identity at the service.",
-              "type": "object",
-              "properties": {
-                "items": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/Value"
-                  }
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "set"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "items"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "definition": {
-                  "$ref": "#/$defs/ValueDefinitionId"
-                },
-                "fields": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "$ref": "#/$defs/Value"
-                  }
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "structured"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "definition",
-                "fields"
-              ]
-            }
-          ]
-        },
-        "UnitId": {
-          "description": "Stable identity of a unit definition record.",
-          "type": "string",
-          "pattern": "^unit_[0-9a-f]{24}$"
-        },
-        "SpatialExpression": {
-          "description": "A qualitative spatial expression (spec §7.4).\n\nOwnership, custody, containment, control, occupancy, legal access,\nphysical access, and knowledge of an entrance are separate predicates:\nonly the qualitative relations below live in values; the predicates\nthemselves are definitions.",
-          "oneOf": [
-            {
-              "type": "object",
-              "properties": {
-                "target": {
-                  "$ref": "#/$defs/RecordRef"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "contained_in"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "target"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "target": {
-                  "$ref": "#/$defs/RecordRef"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "adjacent_to"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "target"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "target": {
-                  "$ref": "#/$defs/RecordRef"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "connected_to"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "target"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "reference": {
-                  "type": "string"
-                },
-                "values": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/Value"
-                  }
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "coordinates"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "reference",
-                "values"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "from": {
-                  "$ref": "#/$defs/RecordRef"
-                },
-                "value": {
-                  "$ref": "#/$defs/Value"
-                },
-                "unit": {
-                  "$ref": "#/$defs/UnitId"
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "distance"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "from",
-                "value",
-                "unit"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "type": "string",
-                  "const": "unspecified"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            }
-          ]
-        },
-        "ValueDefinitionId": {
-          "description": "Stable identity of a structured value definition record.",
-          "type": "string",
-          "pattern": "^vdef_[0-9a-f]{24}$"
-        },
-        "TemporalRelation": {
-          "description": "A relation between two times without inventing dates (spec §7.1).",
-          "oneOf": [
-            {
-              "description": "Strict before. Cycles within one declared acyclic ordering are invalid (S28).",
-              "type": "string",
-              "const": "before"
-            },
-            {
-              "description": "Strict after.",
-              "type": "string",
-              "const": "after"
-            },
-            {
-              "description": "Starts and ends within.",
-              "type": "string",
-              "const": "during"
-            },
-            {
-              "description": "Time ranges overlap (may be definite, indeterminate, or refuted).",
-              "type": "string",
-              "const": "overlaps"
-            },
-            {
-              "description": "Same instant (exact only).",
-              "type": "string",
-              "const": "simultaneous"
-            }
-          ]
-        },
-        "RecordVersionId": {
-          "description": "Stable identity of an immutable record version.",
-          "type": "string",
-          "pattern": "^ver_[0-9a-f]{24}$"
         },
         "ImageAsset": {
           "type": "object",
@@ -33814,16 +34967,6 @@
             }
           ]
         },
-        "ContinuityId": {
-          "description": "Stable identity of a continuity (one canon revision head).",
-          "type": "string",
-          "pattern": "^cont_[0-9a-f]{24}$"
-        },
-        "RevisionId": {
-          "description": "Stable identity of an immutable canon revision.",
-          "type": "string",
-          "pattern": "^rev_[0-9a-f]{24}$"
-        },
         "WorkSegment": {
           "type": "object",
           "properties": {
@@ -33979,14 +35122,6 @@
             "persistence",
             "precision",
             "basis"
-          ]
-        },
-        "Polarity": {
-          "description": "Support or refutation of a proposition (spec §5.2).",
-          "type": "string",
-          "enum": [
-            "support",
-            "refutation"
           ]
         },
         "Scope": {
@@ -38640,11 +39775,6 @@
           },
           "additionalProperties": false
         },
-        "PrincipalId": {
-          "description": "Stable identity of an authenticated application principal.",
-          "type": "string",
-          "pattern": "^prn_[0-9a-f]{24}$"
-        },
         "DecodingDescriptor": {
           "description": "The decoding descriptor of a text source version (spec §27.7):\ncanonical text offsets are UTF-8 byte offsets in this named\nrepresentation.",
           "type": "object",
@@ -38824,33 +39954,6 @@
             "draft",
             "submitted"
           ]
-        },
-        "ProposalRef": {
-          "type": "object",
-          "properties": {
-            "proposal_id": {
-              "$ref": "#/$defs/ProposalId"
-            },
-            "version": {
-              "type": "integer",
-              "format": "uint64",
-              "minimum": 0
-            },
-            "digest": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "proposal_id",
-            "version",
-            "digest"
-          ]
-        },
-        "ProposalId": {
-          "description": "Stable identity of a proposal.",
-          "type": "string",
-          "pattern": "^prp_[0-9a-f]{24}$"
         }
       }
     },
@@ -38903,7 +40006,7 @@
           "$ref": "#/$defs/Delivery"
         },
         "result": {
-          "$ref": "#/$defs/Proposal"
+          "$ref": "#/$defs/ProposalOutcome"
         }
       },
       "additionalProperties": false,
@@ -39890,6 +40993,17 @@
           "additionalProperties": false,
           "required": [
             "complete"
+          ]
+        },
+        "ProposalOutcome": {
+          "description": "Semantic proposal actions retain their wire shape; assessment actions return\nthe independently versioned selection without modifying the frozen proposal.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Proposal"
+            },
+            {
+              "$ref": "#/$defs/AssessmentSelection"
+            }
           ]
         },
         "Proposal": {
@@ -46796,6 +47910,79 @@
           "description": "Stable identity of a durable operation.",
           "type": "string",
           "pattern": "^op_[0-9a-f]{24}$"
+        },
+        "AssessmentSelection": {
+          "type": "object",
+          "properties": {
+            "proposal": {
+              "type": "object",
+              "properties": {
+                "proposal_id": {
+                  "$ref": "#/$defs/ProposalId"
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 18446744073709551615
+                },
+                "digest": {
+                  "$ref": "#/$defs/Sha256Hex"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "proposal_id",
+                "version",
+                "digest"
+              ]
+            },
+            "generation": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "selected": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssessmentRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "proposal",
+            "generation",
+            "selected"
+          ]
+        },
+        "Sha256Hex": {
+          "description": "Owning decoder enforces the same exact digest shape as the JSON schema.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "AssessmentRef": {
+          "type": "object",
+          "properties": {
+            "assessment_id": {
+              "$ref": "#/$defs/AssessmentId"
+            },
+            "digest": {
+              "$ref": "#/$defs/Sha256Hex"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "assessment_id",
+            "digest"
+          ]
+        },
+        "AssessmentId": {
+          "type": "string",
+          "pattern": "^asm_[0-9a-f]{24}$"
         }
       }
     }

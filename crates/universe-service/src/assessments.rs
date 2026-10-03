@@ -703,6 +703,108 @@ mod tests {
         }
     }
     #[test]
+    fn public_actions_preserve_frozen_proposal_and_recover_selection_retries() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("public.sqlite");
+        let profile = ProfileId::generate(&mut rand::rng());
+        let principal = PrincipalId::parse(&profile.as_str().replacen("prf_", "prn_", 1)).unwrap();
+        let u = UniverseId::generate(&mut rand::rng());
+        let cont = ContinuityId::generate(&mut rand::rng());
+        let mut kernel =
+            Kernel::create(&path, u.clone(), "Public actions", cont.clone(), &principal).unwrap();
+        let frame = Frame {
+            universe: u.clone(),
+            continuity: cont.clone(),
+            revision: kernel.head(&cont).unwrap(),
+            context: RecordRef::new(u, RecordId::generate(&mut rand::rng())),
+            time: FrameTime::Timeless,
+            perspective: Perspective::Author,
+            reader_scene: None,
+            personal_sequence: None,
+        };
+        let mut w = workflow(&mut kernel, &profile);
+        let text = "Exact café bytes.\n";
+        let staged = w.stage_source("Public source".into(), text.into()).unwrap();
+        let p = freeze(
+            &mut w,
+            frame.clone(),
+            serde_json::from_value(staged["operations"].clone()).unwrap(),
+            None,
+        );
+        let r = reference(&p);
+        let ctx = ContextId::generate(&mut rand::rng());
+        w.save(
+            format!("context:{ctx}"),
+            &Context {
+                owner: profile.clone(),
+                scope: w.scope_hash(),
+                expires: now() + 3600,
+                frame,
+            },
+        )
+        .unwrap();
+        let b = body(&p, &profile, text);
+        let attach = json!({"action":"attach_assessment","universe":w.name,"context_id":ctx,
+            "proposal_reference":r,"expected_selection_generation":0,"body":b,"idempotency_key":"public-attach"});
+        let execute = |w: &mut Workflow<'_>, args: Value| {
+            w.execute(Request::from_tool("universe_propose", args).unwrap())
+        };
+        let a = execute(&mut w, attach.clone()).unwrap()["result"].clone();
+        assert_eq!(a["generation"], 1);
+        let mut replace = attach.clone();
+        replace["expected_selection_generation"] = json!(1);
+        replace["idempotency_key"] = json!("public-replace");
+        replace["body"]["assessor"]["assessed_at"] = json!("2026-10-03T00:00:01Z");
+        let a2 = execute(&mut w, replace.clone()).unwrap()["result"].clone();
+        assert_ne!(a["selected"], a2["selected"]);
+        let select = json!({"action":"select_assessment","universe":w.name,"context_id":ctx,
+            "proposal_reference":r,"expected_selection_generation":2,"assessment_reference":a["selected"],"idempotency_key":"public-reselect"});
+        let selected = execute(&mut w, select.clone()).unwrap()["result"].clone();
+        assert_eq!(selected["generation"], 3);
+        let mut clear = select.clone();
+        clear["expected_selection_generation"] = json!(3);
+        clear["assessment_reference"] = Value::Null;
+        clear["idempotency_key"] = json!("public-clear");
+        let cleared = execute(&mut w, clear.clone()).unwrap()["result"].clone();
+        assert_eq!(cleared["generation"], 4);
+        assert!(cleared["selected"].is_null());
+        let stable = snapshot(&w);
+        for (request, result) in [
+            (attach.clone(), a),
+            (replace, a2),
+            (select.clone(), selected),
+            (clear.clone(), cleared),
+        ] {
+            assert_eq!(execute(&mut w, request).unwrap()["result"], result);
+            assert_eq!(snapshot(&w), stable);
+        }
+        let mut impersonation = attach.clone();
+        impersonation["body"]["assessor"]["principal"] =
+            json!(PrincipalId::generate(&mut rand::rng()));
+        let mut mismatch = attach.clone();
+        mismatch["expected_selection_generation"] = json!(4);
+        let mut stale = select.clone();
+        stale["idempotency_key"] = json!("public-stale");
+        for invalid in [impersonation, mismatch, stale] {
+            assert!(execute(&mut w, invalid).is_err());
+            assert_eq!(snapshot(&w), stable);
+        }
+        let mut missing = clear;
+        missing
+            .as_object_mut()
+            .unwrap()
+            .remove("assessment_reference");
+        assert!(Request::from_tool("universe_propose", missing).is_err());
+        w.permissions.0 = false;
+        assert!(execute(&mut w, attach).is_err());
+        assert_eq!(snapshot(&w), stable);
+        assert_eq!(hash(&w.proposal(&r).unwrap()), hash(&p));
+        assert_eq!(
+            w.kernel.head(&cont).unwrap(),
+            p.proposal.base_frame.revision
+        );
+    }
+    #[test]
     fn durable_bindings_atomic_retries_access_replacement_and_restart() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("assessments.sqlite");

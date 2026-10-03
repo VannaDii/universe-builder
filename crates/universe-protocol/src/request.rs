@@ -371,6 +371,39 @@ pub enum Validate {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Propose {
+    AttachAssessment {
+        universe: Selector,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "UniverseId")]
+        universe_id: Option<UniverseId>,
+        context_id: ContextId,
+        proposal_reference: ProposalRef,
+        expected_selection_generation: u64,
+        body: crate::assessment::SourceAssessmentV1,
+        #[schemars(length(min = 1, max = 4096))]
+        idempotency_key: String,
+    },
+    SelectAssessment {
+        universe: Selector,
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "present"
+        )]
+        #[schemars(with = "UniverseId")]
+        universe_id: Option<UniverseId>,
+        context_id: ContextId,
+        proposal_reference: ProposalRef,
+        expected_selection_generation: u64,
+        #[serde(deserialize_with = "crate::assessment::required_nullable")]
+        assessment_reference: Option<crate::validation_scope::AssessmentRef>,
+        #[schemars(length(min = 1, max = 4096))]
+        idempotency_key: String,
+    },
     Create {
         universe: Selector,
         #[serde(
@@ -689,6 +722,8 @@ impl Request {
             Self::Propose(Propose::Revise { universe, .. }) => universe,
             Self::Propose(Propose::Submit { universe, .. }) => universe,
             Self::Propose(Propose::Withdraw { universe, .. }) => universe,
+            Self::Propose(Propose::AttachAssessment { universe, .. }) => universe,
+            Self::Propose(Propose::SelectAssessment { universe, .. }) => universe,
             Self::GetProposal(a) => &a.universe,
             Self::GetImpact(GetImpact::Inline { universe, .. }) => universe,
             Self::GetImpact(GetImpact::Proposal { universe, .. }) => universe,
@@ -870,7 +905,7 @@ pub fn tool_schemas() -> Vec<ToolSchema> {
         },
         ToolSchema {
             name: "universe_propose".into(),
-            description: "Propose structured facts, events and other material universe changes represented by draft prose, preserving evidence references when available. Proposals are provisional until validated, approved and committed. Explicit universe required; fixture proposals cannot become canon."
+            description: "Propose structured facts, events and other material universe changes represented by draft prose, preserving evidence references when available. Proposals are provisional until validated, approved and committed. attach_assessment and select_assessment attach immutable assessor declarations or replace/withdraw selection without changing the frozen proposal. Explicit universe required; fixture proposals cannot become canon."
                 .into(),
             input_schema: augment_schema(
                 serde_json::to_value(schemars::schema_for!(Propose)).expect("schema"),

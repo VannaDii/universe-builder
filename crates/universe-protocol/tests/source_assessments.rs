@@ -404,3 +404,39 @@ fn assessment_is_rejected_as_a_canonical_domain_operation() {
         .is_err());
     }
 }
+
+#[test]
+fn proposal_assessment_actions_are_closed_and_selection_requires_explicit_null() {
+    use universe_protocol::{response::ProposalOutcome, Request};
+    let e = examples();
+    let body = e["assessment"]["body"].clone();
+    let attach = json!({"action":"attach_assessment","universe":"Example",
+        "context_id":"ctx_000000000000000000000001","proposal_reference":body["proposal"],
+        "expected_selection_generation":0,"body":body,"idempotency_key":"attach"});
+    let decoded = Request::from_tool("universe_propose", attach.clone()).unwrap();
+    assert_eq!(serde_json::to_value(decoded).unwrap()["args"], attach);
+    let mut select = attach.clone();
+    select["action"] = json!("select_assessment");
+    select.as_object_mut().unwrap().remove("body");
+    select["assessment_reference"] = Value::Null;
+    Request::from_tool("universe_propose", select.clone()).unwrap();
+    let mut missing = select.clone();
+    missing
+        .as_object_mut()
+        .unwrap()
+        .remove("assessment_reference");
+    assert!(Request::from_tool("universe_propose", missing).is_err());
+    for mut invalid in [attach.clone(), select.clone()] {
+        invalid["operations"] = json!([]);
+        assert!(Request::from_tool("universe_propose", invalid).is_err());
+    }
+    let mut invalid = attach;
+    invalid["body"]["assessor"]["extra"] = json!("forbidden");
+    assert!(Request::from_tool("universe_propose", invalid).is_err());
+    let selection = json!({"proposal":body["proposal"],"generation":1,"selected":null});
+    let outcome: ProposalOutcome = serde_json::from_value(selection.clone()).unwrap();
+    assert!(matches!(outcome, ProposalOutcome::AssessmentSelection(_)));
+    assert_eq!(serde_json::to_value(outcome).unwrap(), selection);
+    let malformed = json!({"proposal":body["proposal"],"generation":1});
+    assert!(serde_json::from_value::<ProposalOutcome>(malformed).is_err());
+}

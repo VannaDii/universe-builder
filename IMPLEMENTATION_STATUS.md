@@ -152,5 +152,19 @@ readback states are implemented. Service/store/protocol checks passed (125 tests
 one standard workload intentionally ignored), with independent read-only SQLite
 audits before and after restart, source text revision and proposal replacement.
 See [assessment persistence verification](docs/assessment-persistence-verification.md).
-Public attachment submission, final validation/approval/commit integration and
-prose qualification remain subsequent goals.
+Public attachment and selection are implemented in the next slice below. Final
+validation/approval/commit integration and prose qualification remain subsequent goals.
+
+
+## Assessment MCP submission (October 2, 2026)
+
+The existing `universe_propose` exposes closed `attach_assessment` and
+`select_assessment` actions with replacement and explicit-null withdrawal.
+Authenticated assessor admission, proposal/source permissions, generation checks
+and exact retry recovery reuse Goal 8's immutable atomic storage service.
+Twenty-four actual MCP cases pass with an independent transcript/SQLite-state
+and hash audit; three focused service tests and ten assessment protocol tests pass.
+Frozen proposal and canonical state remain unchanged by assessment requests.
+See [public assessment verification](docs/assessment-mcp-verification.md).
+Assessment retrieval and validation/approval/commit integration remain unavailable;
+this slice does not qualify native assessment interaction or assessed prose.

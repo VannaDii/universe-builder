@@ -101,7 +101,7 @@ pub fn App() -> Element {
           spawn(async move {
            let mut args=examples::valid()[7].1.clone();args["universe"]=json!(u);args["context_id"]=json!(ctx);args["operations"][0]["record"]["labels"]["en"]=json!(label);args["operations"][0]["record"]["metadata"]["draft_value_state"]=json!({"kind":"text","text":state});args["rationale"]=json!("Native feasibility proposal; no asserted fact or canon change");args["idempotency_key"]=json!(format!("desktop-{}",std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos()));
            let result=call(&c,"universe_propose",args).await;
-           if generation()==g {status.set(match result {Ok(Response::Propose(p))=>format!("Draft saved · {} · noncanonical · no approval or commit",p.result.proposal_id.0),Ok(_)=>"Unexpected result".into(),Err(e)=>e});busy.set(false);review.set(None);let _=document::eval("requestAnimationFrame(() => document.getElementById('review-button').focus());");}
+           if generation()==g {status.set(match result {Ok(Response::Propose(p))=>match p.result {universe_protocol::response::ProposalOutcome::Proposal(p)=>format!("Draft saved · {} · noncanonical · no approval or commit",p.proposal_id.0),universe_protocol::response::ProposalOutcome::AssessmentSelection(_)=>"Unexpected assessment result".into()},Ok(_)=>"Unexpected result".into(),Err(e)=>e});busy.set(false);review.set(None);let _=document::eval("requestAnimationFrame(() => document.getElementById('review-button').focus());");}
           });
          },"Save noncanonical proposal"}
        }

@@ -1,0 +1,7 @@
+{
+  "verdict": "pass",
+  "cases": 24,
+  "independently_checked_preserved_rows": 440,
+  "transcript_sha256": "5e180cd86b8a57cbbb8cdc83f1801928c58a59de6396d8f9ebf861ea00af8839",
+  "oracle": "A01-A11; source/code/test inspection required for A12"
+}
