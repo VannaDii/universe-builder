@@ -203,3 +203,17 @@ Forty-one independent effect fixtures and 22 audited MCP cases (15 rejected,
 seven committed) pass, including exact queried assertions and expiry/restart.
 Resource arithmetic, simultaneous spending and prose/native qualification remain
 excluded. See [effect enforcement verification](docs/declared-action-effects-verification.md).
+
+## Exact resource transitions (October 3, 2026)
+
+Occurred delta effects now resolve exact pre-event stock on the declared object
+and verify authored post-values using checked integer arithmetic, declared bounds
+and exact units. Missing/uncertain/conflicting evidence, forged balances,
+underflow/overflow and invalid atomic debit/credit effects reject without canon
+movement or silent repair. Forty-four independent accounting fixtures, 39 audited
+MCP transition cases (12 committed, 27 rejected), two evidence-retcon controls and
+seven auditor tests pass. Generated assertions, queried balances and restart
+receipts agree with independently audited SQLite history. Prior evaluator
+validations/approvals are stale under `finite-policy-v7-resource-transitions`.
+Multi-event ordering, reusable world-rule enforcement and prose qualification
+remain excluded. See [resource verification](docs/resource-transition-verification.md).

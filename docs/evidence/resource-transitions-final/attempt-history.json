@@ -1,0 +1,6 @@
+{
+  "attempt-1": "repeated world selector caused storage failure after first valid case; fixed per-case names",
+  "attempt-2": "38 MCP cases passed before final power/evidence controls were added",
+  "attempt-3": "extra possession-power fixture used incorrect ValueShape field spelling; corrected to subject_types",
+  "final": "39 transitions, two retcon controls and seven auditor tests pass"
+}

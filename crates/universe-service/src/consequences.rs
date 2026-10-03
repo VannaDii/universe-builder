@@ -8,7 +8,7 @@ use universe_domain::{
     records::*,
     scope::*,
     temporal::{TemporalBound, TemporalExpression},
-    value::RecordRef,
+    value::{RecordRef, Value},
     Frame,
 };
 use universe_protocol::ProtocolError;
@@ -36,6 +36,165 @@ fn owner<'a>(
         ));
     }
     Ok(&p.record)
+}
+
+/// Resolve stock only from explicit direct/generated assertions. Possession powers
+/// and unasserted propositions cannot establish a spendable balance.
+fn magnitude(value: &Value, unit: &Option<UnitId>) -> anyhow::Result<i128> {
+    let value = match (value, unit) {
+        (Value::Integer { .. }, None) => value,
+        (
+            Value::Quantity {
+                value,
+                unit: actual,
+            },
+            Some(expected),
+        ) if actual == expected => value,
+        _ => {
+            return Err(invalid(
+                "resource requires an integer in the exact declared unit",
+            ))
+        }
+    };
+    let Value::Integer { digits } = value else {
+        return Err(invalid(
+            "resource magnitude must be an exact bounded integer",
+        ));
+    };
+    digits
+        .parse()
+        .map_err(|_| invalid("resource magnitude outside supported integer bounds"))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn transition(
+    records: &[RecordVersion],
+    by_id: &BTreeMap<&RecordId, &RecordVersion>,
+    event: &Event,
+    slot: &EffectSlot,
+    frame: &Frame,
+    worlds: &[Vec<RecordId>],
+    charge: &mut impl FnMut(usize) -> anyhow::Result<()>,
+) -> anyhow::Result<()> {
+    let EffectChange::Delta {
+        delta,
+        minimum,
+        maximum,
+        unit,
+    } = &slot.change
+    else {
+        return Ok(());
+    };
+    let target = owner(event, &slot.target.role, by_id)?;
+    let effect = event
+        .effects
+        .iter()
+        .find(|e| e.slot == slot.slot)
+        .ok_or_else(|| invalid("missing resource effect"))?;
+    let Some(Payload::Proposition(post)) =
+        by_id.get(&effect.proposition.record).map(|r| &r.payload)
+    else {
+        return Err(invalid("resource post-value unavailable"));
+    };
+    if effect.polarity != Polarity::Support {
+        return Err(invalid(
+            "resource effects must support the proposed balance",
+        ));
+    }
+    let proposed = magnitude(
+        post.value
+            .as_ref()
+            .ok_or_else(|| invalid("resource post-value missing"))?,
+        unit,
+    )?;
+    for world in worlds {
+        let mut supported = BTreeSet::new();
+        let mut refuted = BTreeSet::new();
+        charge(records.len())?;
+        for record in records {
+            let Payload::Assertion(a) = &record.payload else {
+                continue;
+            };
+            let Some(Payload::Proposition(p)) =
+                by_id.get(&a.proposition.record).map(|r| &r.payload)
+            else {
+                continue;
+            };
+            if &p.subject != target
+                || p.predicate != slot.target.predicate
+                || p.context != frame.context
+                || a.scope.context != frame.context
+                || !p.roles.is_empty()
+                || p.quantification != Quantification::Particular
+            {
+                continue;
+            }
+            let applies = match &a.scope.applicability {
+                Applicability::UniverseWide => true,
+                Applicability::Worlds { world_ids } => world_ids.iter().any(|w| {
+                    world
+                        .iter()
+                        .any(|r| r.as_str().strip_prefix("rec_") == w.as_str().strip_prefix("wld_"))
+                }),
+                _ => return Err(invalid("resource scope unresolved")),
+            };
+            if !applies {
+                continue;
+            }
+            match universe_rules::events::applies(&a.validity, &frame.time, records) {
+                Some(false) => continue,
+                None => return Err(invalid("resource pre-event time evidence unresolved")),
+                Some(true) => {}
+            }
+            if a.scope.realm.is_some()
+                || a.precision != Precision::Exact
+                || !a.alternatives.is_empty()
+            {
+                return Err(invalid(
+                    "resource pre-event evidence is uncertain or nonobjective",
+                ));
+            }
+            let n = magnitude(
+                p.value
+                    .as_ref()
+                    .ok_or_else(|| invalid("resource pre-value missing"))?,
+                unit,
+            )?;
+            match a.polarity {
+                Polarity::Support => {
+                    supported.insert(n);
+                }
+                Polarity::Refutation => {
+                    refuted.insert(n);
+                }
+            }
+        }
+        if supported.len() != 1 || !supported.is_disjoint(&refuted) {
+            return Err(invalid(
+                "resource pre-event balance missing, conflicting or ambiguous",
+            ));
+        }
+        let before = *supported.first().expect("one supported balance");
+        if before < minimum.get() || before > maximum.get() {
+            return Err(invalid(
+                "resource pre-event balance outside declared bounds",
+            ));
+        }
+        let after = before
+            .checked_add(delta.get())
+            .ok_or_else(|| invalid("resource arithmetic overflow"))?;
+        if after < minimum.get() || after > maximum.get() {
+            return Err(invalid(
+                "resource transition underflow or overflow of declared bounds",
+            ));
+        }
+        if proposed != after {
+            return Err(invalid(
+                "resource post-value does not equal pre-value plus declared change",
+            ));
+        }
+    }
+    Ok(())
 }
 
 pub fn validate(
@@ -323,9 +482,15 @@ pub fn validate(
                 && (present || slot.presence == EffectPresence::Required)
                 && matches!(slot.change, EffectChange::Delta { .. })
             {
-                return Err(invalid(
-                    "resource delta execution is unresolved in this evaluator",
-                ));
+                transition(
+                    records,
+                    &by_id,
+                    event,
+                    slot,
+                    &event_frame,
+                    &world_queries,
+                    &mut charge,
+                )?;
             }
         }
     }
@@ -344,10 +509,18 @@ mod tests {
     use serde_json::{json, Value};
     #[test]
     fn independent_expected_effect_fixtures() {
-        let fixture: Value = serde_json::from_str(include_str!(
+        fixtures(include_str!(
             "../../../fixtures/action-effects/expected.json"
-        ))
-        .unwrap();
+        ));
+    }
+    #[test]
+    fn independent_resource_transition_fixtures() {
+        fixtures(include_str!(
+            "../../../fixtures/resource-transitions/expected.json"
+        ));
+    }
+    fn fixtures(raw: &str) {
+        let fixture: Value = serde_json::from_str(raw).unwrap();
         for case in fixture["cases"].as_array().unwrap() {
             let mut payloads = fixture["records"].as_array().unwrap().clone();
             for m in case["mutations"].as_array().unwrap() {

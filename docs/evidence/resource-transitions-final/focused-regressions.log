@@ -1,0 +1,9 @@
+   Compiling universe-service v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-service)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.23s
+     Running unittests src/lib.rs (target/debug/deps/universe_service-64e461c3b61b2bf4)
+
+running 2 tests
+test consequences::tests::independent_expected_effect_fixtures ... ok
+test consequences::tests::independent_resource_transition_fixtures ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 38 filtered out; finished in 0.03s

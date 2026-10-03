@@ -1,0 +1,13 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running `target/debug/xtask validate-contracts`
+PASS: 26 schemas, 13 valid examples, 91 invalid examples
+......
+----------------------------------------------------------------------
+Ran 6 tests in 2.656s
+
+OK
+.....
+----------------------------------------------------------------------
+Ran 5 tests in 1.034s
+
+OK

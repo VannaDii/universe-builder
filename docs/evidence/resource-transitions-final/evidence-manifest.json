@@ -1,0 +1,18 @@
+{
+  "attempt-history.json": "bde95ab6d188c8262e1c57275be2fac49f024a8961453420255c49243f411582",
+  "audit-execution.json": "869fbb5aa1e91c578f4cc17553b070257cececfb6d0a65584853c52ea98b7bd3",
+  "audit-negative-tests.json": "591548760b918cad9f99ec7133ab7746a740297b588a273c7a71a2c3f4fc2253",
+  "audit.json": "78956329787d85a7107183c6eb4ee1920ce3f9c85d17cdac0f0b7ecb273d58e3",
+  "build-identity.json": "138e9c970598124f27f4886ac0bba727a392e4ca1d1a73549b5bb7eedbdbb4c4",
+  "build.json": "f81531f0035e493ba2393fa021662036cefe4d7c8f77ad047148a921a577fc10",
+  "contract-check.log": "47db1aa134b708d52574cf4e49316477559cd90886a717604f17e5e57dade843",
+  "focused-regressions.log": "0bdeccbabfd08901c2af10cce92a3dde0518b199b91c500b1f7454db79a35011",
+  "independent-accounting.json": "ce4fe758960243c32963778e5734ba1da7be5417dbe6a56ffb826275e5b7de6c",
+  "mcp-transcript.jsonl": "66af659c74969dc0577eb7c4f1d8327a720aa2ecb114bd6ff1ef0c0a91f7416f",
+  "oracle.json": "16ff7706f087fcb22561e7a732e7401ff852a8b1bee165a58705a7b8cb45d566",
+  "package.sqlite": "1b81595855dd9277a80469a88bdd79400758fab15aa34bdd69ba780633462a9e",
+  "report.json": "593878cd6a4bbe638f31491c3140e2ae5acbbcaf144c006f41bf13daa15b8d19",
+  "result.json": "fc5335f7de6ce140809bbf755736e8abd7ec97ee1ec614238fbd2c4e5bf30904",
+  "verification.json": "dacda5a465e13e0a9acb11eb2f4232243a5967e0223fffc81c049bbb877dcdcd",
+  "workspace-check.log": "c912a44b3be089dd91a9608e17d6f023507b392623c5920514df29e4c3046cc1"
+}

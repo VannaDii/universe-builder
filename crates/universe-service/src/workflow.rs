@@ -13,7 +13,7 @@ use universe_domain::{
 };
 use universe_protocol::{request::*, response::*, ProtocolError, Request};
 use universe_store::kernel::{Assignment, CommitInput, Kernel};
-const EVALUATOR: &str = "finite-policy-v6-declared-effects";
+const EVALUATOR: &str = "finite-policy-v7-resource-transitions";
 use universe_protocol::validation_scope::*;
 use validation_binding::ValidationCapture;
 pub(crate) fn hash<T: Serialize>(v: &T) -> String {
@@ -3118,7 +3118,11 @@ mod job_tests {
                 &stored,
             )
             .unwrap();
-        for evaluator in ["finite-policy-v5-input-scope", EVALUATOR] {
+        for evaluator in [
+            "finite-policy-v5-input-scope",
+            "finite-policy-v6-declared-effects",
+            EVALUATOR,
+        ] {
             let run = ValidationRunId::generate(&mut rand::rng());
             let checked = Checked {
                 proposal_digest: reference.digest.clone(),
@@ -3139,7 +3143,7 @@ mod job_tests {
             workflow
                 .save(format!("validation:{run}"), &checked)
                 .unwrap();
-            workflow.save(format!("approval:{}:{}:{run}",profile,reference.digest), &json!({"author":profile,"proposal":reference,"validation_digest":hash(&checked),"evaluator":"finite-policy-v5-input-scope"})).unwrap();
+            workflow.save(format!("approval:{}:{}:{run}",profile,reference.digest), &json!({"author":profile,"proposal":reference,"validation_digest":hash(&checked),"evaluator":"finite-policy-v6-declared-effects"})).unwrap();
             if evaluator != EVALUATOR {
                 assert!(matches!(
                     workflow
