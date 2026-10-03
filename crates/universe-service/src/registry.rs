@@ -162,6 +162,17 @@ impl Registry {
         )?;
         Ok(ProfileId::parse(&id)?)
     }
+    /// Existing append-only audit sequences fence validation against grant ABA.
+    pub(crate) fn validation_authority_sequence(
+        &self,
+        profile: &ProfileId,
+        universe: &UniverseId,
+    ) -> anyhow::Result<i64> {
+        Ok(self.db.query_row(
+            "SELECT coalesce(max(sequence),0) FROM audit WHERE (action IN ('grant_scope','withdraw_grant') AND target=?1) OR (action='revoke' AND target=?2)",
+            params![format!("{profile}:{universe}"), profile.as_str()], |r| r.get(0),
+        )?)
+    }
     pub fn enroll(&mut self, p: &Principal) -> anyhow::Result<ProfileId> {
         Self::require_author(p)?;
         self.enroll_inner(Some(p), false)
@@ -330,6 +341,13 @@ impl Registry {
         tx.execute(
             "INSERT INTO audit(actor,action,target) VALUES(?1,'grant',?2)",
             params![p.id.as_str(), grant.profile_id.as_str()],
+        )?;
+        tx.execute(
+            "INSERT INTO audit(actor,action,target) VALUES(?1,'grant_scope',?2)",
+            params![
+                p.id.as_str(),
+                format!("{}:{}", grant.profile_id, grant.universe_id)
+            ],
         )?;
         tx.commit()?;
         Ok(())

@@ -1,5 +1,10 @@
 # Validation input scope
 
+This document records the earlier reporting-only slice. Current selected-assessment
+validation behavior and qualification are in [Selected assessment validation
+bindings](validation-binding-verification.md). Historical proofs below retain
+their original scope.
+
 October 2, 2026. Implements the reporting slice of the [approved D03/D08 decision](decisions/d03-d08-source-assessments.md). Execution coverage, submitted input and assessment evidence are separate axes. This does not implement assessment attachment submission, language interpretation or native interaction qualification.
 
 Protocol 3 validation returns `ValidationV3`. Evaluated results contain `execution`, `submitted_input`, `assessment` and an explicitly nullable `final_binding_digest`. Restricted results are exactly:

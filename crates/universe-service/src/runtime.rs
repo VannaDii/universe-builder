@@ -970,7 +970,9 @@ impl Runtime {
         if let Some(authority) = disclosure {
             // Apply the same full authority gate used during preparation: world,
             // entity, predicate and continuity limits can all restrict review.
-            let _guard = authority.lock().map_err(|_| ProtocolError::not_found("resource"))?;
+            let _guard = authority
+                .lock()
+                .map_err(|_| ProtocolError::not_found("resource"))?;
             return Ok(value);
         }
         let registry = self.registry.lock().unwrap();
@@ -1347,6 +1349,145 @@ mod ownership_tests {
         let _ = release.send(());
         reader.join().unwrap();
         assert!(responsive.is_ok());
+    }
+    #[test]
+    fn queued_selected_tool_requests_reject_replacement_withdrawal_and_live_grant_changes() {
+        for mutation in ["replacement", "withdrawal", "grant", "restored-grant"] {
+            let dir = tempfile::tempdir().unwrap();
+            let root = dir.path().join("installation");
+            let author = initialize(&root).unwrap();
+            let runtime = Arc::new(runtime(&root));
+            let hello = |id: ProfileId| {
+                let profile: ProfileFile = serde_json::from_slice(
+                    &std::fs::read(root.join("profiles").join(format!("{id}.json"))).unwrap(),
+                )
+                .unwrap();
+                EngineHello {
+                    protocol_version: PROTOCOL_VERSION.into(),
+                    profile_id: id,
+                    credential: profile.credential,
+                    client_name: "binding-test".into(),
+                }
+            };
+            let author_hello = hello(author.clone());
+            let u = runtime
+                .execute(
+                    &author_hello,
+                    EngineRequest::CreateUniverse {
+                        name: "Bindings".into(),
+                        start: universe_domain::chronology::UniverseStart::Fictional {
+                            calendar_name: "Days".into(),
+                            initial_tick: "0".into(),
+                            tick_label: "days".into(),
+                            ticks_per_month: None,
+                        },
+                    },
+                )
+                .unwrap();
+            let uid: UniverseId = serde_json::from_value(u["universe_id"].clone()).unwrap();
+            let agent: ProfileId = serde_json::from_value(
+                runtime
+                    .execute(&author_hello, EngineRequest::Enroll)
+                    .unwrap()["profile_id"]
+                    .clone(),
+            )
+            .unwrap();
+            let grant = |propose| EngineRequest::Grant {
+                grant: GrantSpec {
+                    profile_id: agent.clone(),
+                    universe_id: uid.clone(),
+                    worlds: None,
+                    propose,
+                    edit: propose,
+                    protected: propose,
+                    limits: GrantLimits::default(),
+                },
+            };
+            runtime.execute(&author_hello, grant(true)).unwrap();
+            let h = hello(agent.clone());
+            let tool = |name: &str, args: Value| EngineRequest::Tool {
+                request: Box::new(universe_protocol::Request::from_tool(name, args).unwrap()),
+            };
+            let ctx = runtime.execute(&h,tool("universe_open_context",json!({"universe":"Bindings","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":u["context_id"],"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"}))).unwrap()["result"]["context_id"].clone();
+            let text = "Exact café bytes.\n";
+            let staged = runtime
+                .execute(
+                    &author_hello,
+                    EngineRequest::StageSource {
+                        universe: universe_protocol::request::Selector("Bindings".into()),
+                        label: "Binding proof".into(),
+                        text: text.into(),
+                    },
+                )
+                .unwrap();
+            let p = runtime.execute(&h,tool("universe_propose",json!({"action":"create","universe":"Bindings","context_id":ctx,"operations":staged["operations"],"submission":"submitted","rationale":"Binding proof","idempotency_key":"proposal"}))).unwrap()["result"].clone();
+            let reference =
+                json!({"proposal_id":p["proposal_id"],"version":p["version"],"digest":p["digest"]});
+            let viewed = runtime.execute(&h,tool("universe_get_proposal",json!({"universe":"Bindings","proposal_id":p["proposal_id"],"version":p["version"]}))).unwrap()["result"].clone();
+            let source = viewed["compiled_changes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|c| &c["next"])
+                .find(|r| r["payload"]["record_kind"] == "source_version")
+                .unwrap();
+            let mut body = json!({"kind":"source_assessment_v1","proposal":reference,"base_frame":p["base_frame"],"assessor":{"principal":agent.as_str().replacen("prf_","prn_",1),"method":"human_review","tool":null,"assessed_at":"2026-10-03T00:00:00Z"},"sources":[{"key":"passage","source_version":{"universe":uid,"record":source["identity"]["record_id"],"version":source["record_version_id"]},"blob_digest":source["payload"]["digest"],"byte_size":text.len(),"representation":"exact-utf8-v1","ranges":[{"start":0,"end":text.len()}],"work_edition":null,"passage_id":null}],"dependencies":[],"declared_inventory":[],"inventory_declaration":{"kind":"no_material_claims","exclusions":[],"rationale":"Synthetic material"},"claim_mappings":[],"unresolved":[],"conclusion":"consistent_with_declared_inventory"});
+            let attach = |body: Value, generation, key| {
+                tool(
+                    "universe_propose",
+                    json!({"action":"attach_assessment","universe":"Bindings","context_id":ctx,"proposal_reference":reference,"expected_selection_generation":generation,"body":body,"idempotency_key":key}),
+                )
+            };
+            runtime
+                .execute(&h, attach(body.clone(), 0, "first"))
+                .unwrap();
+            let (entered, release) = crate::workflow::pause_evaluation(uid.clone());
+            let queued = runtime.execute(&h,tool("universe_validate",json!({"mode":"queued_proposal","universe":"Bindings","context_id":ctx,"proposal_reference":reference,"check_scope":"universe","idempotency_key":"queue"}))).unwrap();
+            entered.recv_timeout(Duration::from_secs(5)).unwrap();
+            let oid = queued["result"]["execution"]["operation_id"].clone();
+            match mutation {
+                "replacement" => {
+                    body["assessor"]["assessed_at"] = json!("2026-10-03T00:00:01Z");
+                    runtime.execute(&h, attach(body, 1, "second")).unwrap();
+                }
+                "withdrawal" => {
+                    runtime.execute(&h,tool("universe_propose",json!({"action":"select_assessment","universe":"Bindings","context_id":ctx,"proposal_reference":reference,"expected_selection_generation":1,"assessment_reference":null,"idempotency_key":"withdraw"}))).unwrap();
+                }
+                "grant" => {
+                    runtime.execute(&author_hello, grant(false)).unwrap();
+                }
+                "restored-grant" => {
+                    runtime.execute(&author_hello, grant(false)).unwrap();
+                    runtime.execute(&author_hello, grant(true)).unwrap();
+                }
+                _ => unreachable!(),
+            }
+            release.send(()).unwrap();
+            let deadline = std::time::Instant::now() + Duration::from_secs(5);
+            loop {
+                let status = runtime
+                    .execute(
+                        &h,
+                        tool(
+                            "universe_get_operation",
+                            json!({"lookup":"id","universe":"Bindings","operation_id":oid}),
+                        ),
+                    )
+                    .unwrap()["result"]
+                    .clone();
+                if status["state"] != "running" {
+                    assert!(
+                        status["state"] == "failed" || status["state"] == "interrupted",
+                        "{mutation}: {status}"
+                    );
+                    assert!(status["validation"]["final_binding_digest"].is_null());
+                    assert_eq!(status["validation"]["assessment"]["kind"], "unavailable");
+                    break;
+                }
+                assert!(std::time::Instant::now() < deadline);
+                std::thread::sleep(Duration::from_millis(10));
+            }
+        }
     }
     #[test]
     fn failed_recovery_does_not_exhaust_worker_capacity() {

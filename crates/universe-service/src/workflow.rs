@@ -3,18 +3,19 @@ use crate::{
     operations::{self, Footprint},
     registry::Principal,
 };
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use serde_json::{Value, json};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use universe_domain::{
     canonical::canonical_serde, frame::*, ids::*, records::*, scope::Applicability,
     value::RecordRef,
 };
-use universe_protocol::{ProtocolError, Request, request::*, response::*};
+use universe_protocol::{request::*, response::*, ProtocolError, Request};
 use universe_store::kernel::{Assignment, CommitInput, Kernel};
 const EVALUATOR: &str = "finite-policy-v5-input-scope";
 use universe_protocol::validation_scope::*;
+use validation_binding::ValidationCapture;
 pub(crate) fn hash<T: Serialize>(v: &T) -> String {
     hex::encode(Sha256::digest(canonical_serde(v).to_bytes()))
 }
@@ -60,6 +61,8 @@ pub(crate) struct Checked {
     admissible: bool,
     #[serde(default)]
     report: Option<ValidationV3>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    capture: Option<ValidationCapture>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 struct StoredOperation {
@@ -68,6 +71,8 @@ struct StoredOperation {
     status: OperationStatus,
     input: Option<CommitInput>,
     footprint: Footprint,
+    #[serde(default)]
+    validation_capture: Option<ValidationCapture>,
 }
 pub(crate) struct ValidationTask {
     proposal: StoredProposal,
@@ -75,6 +80,7 @@ pub(crate) struct ValidationTask {
     candidate: Vec<RecordVersion>,
     author: ProfileId,
     restricted: bool,
+    capture: Option<ValidationCapture>,
 }
 impl ValidationTask {
     pub(crate) fn evaluate(
@@ -102,6 +108,7 @@ impl ValidationTask {
                 proposal_digest: self.proposal.proposal.digest.clone(),
                 admissible: false,
                 report: None,
+                capture: None,
                 validation: Validation {
                     operation_id: None,
                     run_id: ValidationRunId::generate(&mut rand::rng()),
@@ -116,7 +123,7 @@ impl ValidationTask {
                 },
             });
         }
-        Workflow::evaluate(
+        let mut checked = Workflow::evaluate(
             &self.proposal,
             self.candidate,
             &self.base,
@@ -128,7 +135,9 @@ impl ValidationTask {
                     Ok(())
                 }
             },
-        )
+        )?;
+        checked.capture = self.capture;
+        Ok(checked)
     }
 }
 #[cfg(test)]
@@ -450,7 +459,16 @@ impl Workflow<'_> {
             changes: p.changes.clone(),
         })
     }
-    fn has_final(c: &Checked, p: &StoredProposal) -> bool {
+    fn has_final(&self, c: &Checked, p: &StoredProposal) -> bool {
+        // Assessment-aware publication is a separate goal. Preserve the existing
+        // generation-zero record path, and revoke it after any selection change.
+        let r = validation_binding::proposal_reference(p);
+        if !self
+            .assessment_selection_raw(&r)
+            .is_ok_and(|s| s.generation == 0 && s.selected.is_none())
+        {
+            return false;
+        }
         matches!(
             &c.report,
             Some(ValidationV3::Evaluated {
@@ -479,44 +497,34 @@ impl Workflow<'_> {
         if execution.coverage == Coverage::Restricted {
             return ValidationV3::restricted();
         }
-        // Derived from compiled writes, including adopted/replaced source records.
-        // Sources already in canon do not promote a structured-only submission.
-        let includes_sources = p.changes.iter().any(|a| {
-            a.next.as_ref().is_some_and(|r| {
-                matches!(
-                    r.payload,
-                    Payload::Source(_)
-                        | Payload::SourceVersion(_)
-                        | Payload::Anchor(_)
-                        | Payload::WorkVersion(_)
-                )
-            })
-        });
-        let proposal = ProposalRef {
-            proposal_id: p.proposal.proposal_id.clone(),
-            version: p.proposal.version,
-            digest: p.proposal.digest.clone(),
-        };
-        let submitted_input = SubmittedInput::RecordCandidate {
-            proposal: proposal.clone(),
-            includes_sources,
-        };
+        // Compatibility for legacy/pending evidence and the existing unselected
+        // publication gate. Completed validation uses its captured selection.
+        let proposal = validation_binding::proposal_reference(p);
+        let submitted_input = validation_binding::record_input(p);
         let assessment = if legacy {
             AssessmentState::UnavailableLegacy {}
         } else {
             AssessmentState::Absent {}
         };
         let final_binding_digest = if finished && !legacy {
-            let binding = json!({"kind":"source_validation_binding_v1","proposal":proposal,"base_frame":p.proposal.base_frame,"selection":{"proposal":proposal,"generation":0,"selected":null},"submitted_input":submitted_input,"assessment_state":assessment,"execution_result_digest":hash(&execution),"evaluator_version":execution.evaluator_version});
+            use universe_protocol::assessment::*;
             Some(
-                Sha256Hex::parse(hex::encode(Sha256::digest(
-                    [
-                        b"source-validation:v1:".as_slice(),
-                        canonical_serde(&binding).to_bytes().as_slice(),
-                    ]
-                    .concat(),
-                )))
-                .expect("SHA256 hex"),
+                SourceValidationBindingV1 {
+                    kind: ValidationBindingKind::SourceValidationBindingV1,
+                    proposal: proposal.clone(),
+                    base_frame: p.proposal.base_frame.clone(),
+                    selection: AssessmentSelection {
+                        proposal,
+                        generation: 0,
+                        selected: None,
+                    },
+                    submitted_input: submitted_input.clone(),
+                    assessment_state: assessment.clone(),
+                    execution_result_digest: execution_result_digest(&execution),
+                    evaluator_version: execution.evaluator_version.clone(),
+                }
+                .digest()
+                .expect("verified generation-zero record binding"),
             )
         } else {
             None
@@ -551,12 +559,36 @@ impl Workflow<'_> {
                         "proposal:{}:{:020}",
                         proposal.proposal_id, proposal.version
                     ))?;
-                    Some(Self::report(
-                        &p,
-                        *execution.clone(),
-                        execution.evaluator_version != EVALUATOR,
-                        false,
-                    ))
+                    let op: StoredOperation =
+                        self.load(&format!("operation:{}", status.operation_id))?;
+                    let mut report = match &op.validation_capture {
+                        Some(capture) => capture.report(&p, *execution.clone(), false)?,
+                        None => Self::report(
+                            &p,
+                            *execution.clone(),
+                            execution.evaluator_version != EVALUATOR,
+                            false,
+                        ),
+                    };
+                    if matches!(
+                        status.state,
+                        OperationState::Failed
+                            | OperationState::Cancelled
+                            | OperationState::Interrupted
+                    ) {
+                        if let ValidationV3::Evaluated {
+                            assessment,
+                            submitted_input,
+                            ..
+                        } = &mut report
+                        {
+                            *assessment = AssessmentState::Unavailable {
+                                reason: UnavailableReason::FailedOrCancelledCheck,
+                            };
+                            *submitted_input = validation_binding::record_input(&p);
+                        }
+                    }
+                    Some(report)
                 }
             }
         } else {
@@ -668,6 +700,19 @@ impl Workflow<'_> {
         })?;
         self.write_boundaries(&p)?;
         let restricted = self.scope.is_some();
+        let capture = if restricted {
+            None
+        } else {
+            Some(op.validation_capture.clone().ok_or_else(|| {
+                unsupported("queued validation requires a fresh selection capture")
+            })?)
+        };
+        if let Some(capture) = &capture {
+            let authority = self.authority.clone();
+            let guard = authority.as_ref().map(|a| a.lock()).transpose()?;
+            self.verify_validation_authority(capture, guard.as_deref())?;
+            self.verify_validation_capture(&p, capture)?;
+        }
         let (base, candidate) = if restricted {
             (vec![], vec![])
         } else {
@@ -703,6 +748,7 @@ impl Workflow<'_> {
             candidate,
             author: self.approval_author.clone(),
             restricted,
+            capture,
         }))
     }
     pub(crate) fn finish_validation(
@@ -726,16 +772,30 @@ impl Workflow<'_> {
                     "proposal:{}:{:020}",
                     proposal.proposal_id, proposal.version
                 ))?;
-                checked.report = Some(Self::report(&p, checked.validation.clone(), false, true));
+                let capture = checked.capture.clone();
+                checked.report = Some(match &capture {
+                    Some(capture) => capture.report(&p, checked.validation.clone(), true)?,
+                    None => ValidationV3::restricted(),
+                });
                 op.status.validation = Some(Box::new(checked.validation.clone()));
                 op.status.state = OperationState::Succeeded;
-                self.persist(&[
+                let entries = [
                     (
                         format!("validation:{}", checked.validation.run_id),
                         serde_json::to_value(&checked)?,
                     ),
-                    (key, serde_json::to_value(&op)?),
-                ])?;
+                    (key.clone(), serde_json::to_value(&op)?),
+                ];
+                if let Err(error) = self.persist_bound_validation(&p, capture.as_ref(), &entries) {
+                    // Never retain completed evidence for a superseded run.
+                    op.status.validation = self
+                        .load::<StoredOperation>(&format!("operation:{id}"))?
+                        .status
+                        .validation;
+                    op.status.state = OperationState::Failed;
+                    op.status.failure = Some(error.to_string());
+                    self.save(key, &op)?;
+                }
             }
             Err(error) => {
                 op.status.state = OperationState::Failed;
@@ -756,6 +816,7 @@ impl Workflow<'_> {
                 proposal_digest: p.proposal.digest.clone(),
                 admissible: false,
                 report: None,
+                capture: None,
                 validation: Validation {
                     operation_id: None,
                     run_id: ValidationRunId::generate(&mut rand::rng()),
@@ -1045,7 +1106,8 @@ impl Workflow<'_> {
         };
         Ok(Checked {
             proposal_digest: p.proposal.digest.clone(),
-            report: Some(Self::report(p, validation.clone(), false, true)),
+            report: None,
+            capture: None,
             validation,
             admissible,
         })
@@ -1262,7 +1324,7 @@ impl Workflow<'_> {
             || p.proposal.withdrawn
             || !matches!(p.proposal.submission, Submission::Submitted)
             || checked.proposal_digest != r.digest
-            || !Self::has_final(&checked, &p)
+            || !self.has_final(&checked, &p)
             || checked.validation.evaluator_version != EVALUATOR
             || !checked.admissible
             || self.kernel.head(&p.proposal.base_frame.continuity)?
@@ -1859,7 +1921,9 @@ impl Workflow<'_> {
                     }
                 }
             }
-            Request::Propose(action @ (Propose::AttachAssessment { .. } | Propose::SelectAssessment { .. })) => {
+            Request::Propose(
+                action @ (Propose::AttachAssessment { .. } | Propose::SelectAssessment { .. }),
+            ) => {
                 let ctx = self.context(&field(args, "context_id")?)?;
                 let r: ProposalRef = field(args, "proposal_reference")?;
                 let p = self.proposal(&r).map_err(|_| denied())?;
@@ -1869,10 +1933,28 @@ impl Workflow<'_> {
                 frame = Some(ctx.frame);
                 world_focus = p.proposal.world_scope.clone();
                 let selection = match action {
-                    Propose::AttachAssessment { expected_selection_generation, body, idempotency_key, .. } =>
-                        self.attach_assessment(&r, expected_selection_generation, body, &idempotency_key)?,
-                    Propose::SelectAssessment { expected_selection_generation, assessment_reference, idempotency_key, .. } =>
-                        self.select_assessment(&r, expected_selection_generation, assessment_reference, &idempotency_key)?,
+                    Propose::AttachAssessment {
+                        expected_selection_generation,
+                        body,
+                        idempotency_key,
+                        ..
+                    } => self.attach_assessment(
+                        &r,
+                        expected_selection_generation,
+                        body,
+                        &idempotency_key,
+                    )?,
+                    Propose::SelectAssessment {
+                        expected_selection_generation,
+                        assessment_reference,
+                        idempotency_key,
+                        ..
+                    } => self.select_assessment(
+                        &r,
+                        expected_selection_generation,
+                        assessment_reference,
+                        &idempotency_key,
+                    )?,
                     _ => unreachable!(),
                 };
                 serde_json::to_value(selection)?
@@ -2022,6 +2104,7 @@ impl Workflow<'_> {
                             cancellation_requested: false,
                         },
                         input: None,
+                        validation_capture: None,
                         footprint: p.footprint.clone(),
                     };
                     let mut entries = vec![
@@ -2058,8 +2141,16 @@ impl Workflow<'_> {
                 })?;
                 frame = Some(p.proposal.base_frame.clone());
                 if matches!(a.view_group, Some(ProposalView::Assessment)) {
-                    let (page, done, next) = self.assessment_page(args, &p, a.assessment_reference.as_ref())?;
-                    return self.wrap(args, frame, world_focus, done, next, serde_json::to_value(page)?);
+                    let (page, done, next) =
+                        self.assessment_page(args, &p, a.assessment_reference.as_ref())?;
+                    return self.wrap(
+                        args,
+                        frame,
+                        world_focus,
+                        done,
+                        next,
+                        serde_json::to_value(page)?,
+                    );
                 }
                 let mut proposal = p.proposal;
                 let start = self.offset(args, &proposal.base_frame)?;
@@ -2209,6 +2300,11 @@ impl Workflow<'_> {
                                 cancellation_requested: false,
                             },
                             input: None,
+                            validation_capture: if self.scope.is_some() {
+                                None
+                            } else {
+                                Some(self.capture_validation(&p)?)
+                            },
                             footprint: p.footprint.clone(),
                         };
                         self.persist(&[
@@ -2233,19 +2329,31 @@ impl Workflow<'_> {
                         )?,
                     );
                 }
+                let capture = if args["mode"] == "inline" || self.scope.is_some() {
+                    None
+                } else {
+                    Some(self.capture_validation(&p)?)
+                };
                 let mut checked = self.check(&p)?;
+                checked.capture = capture.clone();
                 checked.report = Some(if args["mode"] == "inline" {
                     Self::query_report(
                         checked.validation.clone(),
                         ctx.frame.clone(),
                         field(args, "check_scope")?,
                     )
+                } else if let Some(capture) = &capture {
+                    capture.report(&p, checked.validation.clone(), true)?
                 } else {
-                    Self::report(&p, checked.validation.clone(), false, true)
+                    ValidationV3::restricted()
                 });
-                self.save(
-                    format!("validation:{}", checked.validation.run_id),
-                    &checked,
+                self.persist_bound_validation(
+                    &p,
+                    capture.as_ref(),
+                    &[(
+                        format!("validation:{}", checked.validation.run_id),
+                        serde_json::to_value(&checked)?,
+                    )],
                 )?;
                 serde_json::to_value(checked.report)?
             }
@@ -2285,7 +2393,7 @@ impl Workflow<'_> {
                 let checked: Checked = self.load(&format!("validation:{}", a.validation_run))?;
                 if checked.proposal_digest != p.proposal.digest
                     || !checked.admissible
-                    || !Self::has_final(&checked, &p)
+                    || !self.has_final(&checked, &p)
                     || checked.validation.evaluator_version != EVALUATOR
                 {
                     return Err(ProtocolError::ApprovalStale.into());
@@ -2347,6 +2455,7 @@ impl Workflow<'_> {
                             receipt: None,
                             cancellation_requested: false,
                         },
+                        validation_capture: None,
                         input: Some(input.clone()),
                         footprint: p.footprint.clone(),
                     };
@@ -2965,6 +3074,7 @@ mod job_tests {
                 failure: None,
             },
             input: None,
+            validation_capture: None,
             footprint: Footprint::default(),
         };
         workflow.save(key.clone(), &op).unwrap();
@@ -2985,13 +3095,11 @@ mod job_tests {
             workflow.operation(&key).unwrap().status.state,
             OperationState::Cancelled
         );
-        assert!(
-            workflow
-                .kernel
-                .workflow_get(&format!("job:{id}:terminal"))
-                .unwrap()
-                .is_none()
-        );
+        assert!(workflow
+            .kernel
+            .workflow_get(&format!("job:{id}:terminal"))
+            .unwrap()
+            .is_none());
         drop(kernel);
         let mut kernel = Kernel::open(&path).unwrap();
         let workflow = Workflow {
@@ -3019,3 +3127,6 @@ mod job_tests {
 
 #[path = "assessments.rs"]
 mod assessments;
+
+#[path = "validation_binding.rs"]
+mod validation_binding;

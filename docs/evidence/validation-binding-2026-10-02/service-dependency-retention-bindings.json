@@ -1,0 +1,544 @@
+{
+  "bindings": [
+    {
+      "label": "active-dependency",
+      "proposal": {
+        "base_frame": {
+          "universe": "unv_7745d94caf7204164cc1ac40",
+          "continuity": "cont_65c03881e550b7bbb164b60b",
+          "revision": "rev_f25a6175dcf354c6381bebdd",
+          "context": {
+            "universe": "unv_7745d94caf7204164cc1ac40",
+            "record": "rec_49f008c09a3da08a81922a8e"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_scope": null,
+        "proposal_id": "prp_c6fce574b4e77c1056e2d688",
+        "version": 2,
+        "digest": "06bf5625a9a727c5fe43cd9e5d1c9dbfc5b94324913e93a0da18899279034e1c",
+        "submission": "submitted",
+        "operations": [
+          {
+            "kind": "record_narrative_reference",
+            "client_ref": "rec_6663a837b58632cc48cce59f",
+            "record": "source",
+            "payload": {
+              "record_kind": "source",
+              "label": "Binding proof",
+              "origin": {
+                "originNote": null
+              },
+              "versions": [
+                "rec_c3b479daf4cb53a5513747b7"
+              ]
+            }
+          },
+          {
+            "kind": "record_narrative_reference",
+            "client_ref": "rec_c3b479daf4cb53a5513747b7",
+            "record": "source_version",
+            "payload": {
+              "record_kind": "source_version",
+              "source": {
+                "universe": "unv_7745d94caf7204164cc1ac40",
+                "record": "rec_6663a837b58632cc48cce59f"
+              },
+              "digest": "51152c38211f02d7f77d79dae58e8c10b268dfb6aa2cf8f0409db5887a8efbc8",
+              "mediaType": "text/plain; charset=utf-8",
+              "byteSize": 19,
+              "importActor": "prn_945236d60b96d6e3c7cd3c7c",
+              "importTime": "2026-10-03T01:37:59.448995+00:00",
+              "decoding": {
+                "encoding": "UTF-8",
+                "representation": "exact-utf8-v1",
+                "byteLength": 19
+              },
+              "origin": {
+                "originNote": null
+              }
+            }
+          },
+          {
+            "kind": "create_entity",
+            "client_ref": "dependency",
+            "record": {
+              "names": [],
+              "types": [],
+              "worldAssociations": [],
+              "labels": {
+                "en": "Dependency"
+              },
+              "metadata": {}
+            }
+          }
+        ],
+        "rationale": "Synthetic storage proof",
+        "canonical": false,
+        "operation_id": "op_031129b4e11690878ae53c10",
+        "withdrawn": false
+      },
+      "validation": {
+        "kind": "evaluated",
+        "execution": {
+          "run_id": "val_7375154e6e9fbee054cf1d99",
+          "coverage": "complete",
+          "findings": [],
+          "unsupported_capabilities": [],
+          "input_digest": "06bf5625a9a727c5fe43cd9e5d1c9dbfc5b94324913e93a0da18899279034e1c",
+          "evaluator_version": "finite-policy-v5-input-scope"
+        },
+        "submitted_input": {
+          "kind": "source_assessed_candidate",
+          "proposal": {
+            "proposal_id": "prp_c6fce574b4e77c1056e2d688",
+            "version": 2,
+            "digest": "06bf5625a9a727c5fe43cd9e5d1c9dbfc5b94324913e93a0da18899279034e1c"
+          },
+          "sources": [
+            {
+              "key": "passage",
+              "source_version": {
+                "universe": "unv_7745d94caf7204164cc1ac40",
+                "record": "rec_c3b479daf4cb53a5513747b7",
+                "version": "ver_298007097f13e0fb38057a65"
+              },
+              "blob_digest": "51152c38211f02d7f77d79dae58e8c10b268dfb6aa2cf8f0409db5887a8efbc8",
+              "byte_size": 19,
+              "representation": "exact-utf8-v1",
+              "ranges": [
+                {
+                  "start": 0,
+                  "end": 19
+                }
+              ],
+              "work_edition": null,
+              "passage_id": null
+            }
+          ],
+          "inventory_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "assessment": {
+          "kind": "bound",
+          "assessment_reference": {
+            "assessment_id": "asm_430ee16ace5faafd514162e1",
+            "digest": "56376870ff412ae3d0382ab8a8c5acffe6ce86d4613bc2e9f5f17ec403925746"
+          },
+          "selection_generation": 1,
+          "byte_verification": "verified",
+          "declared_conclusion": "consistent_with_declared_inventory",
+          "inventory_count": 0,
+          "mapping_count": 0,
+          "unresolved_count": 0,
+          "inventory_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "final_binding_digest": "fe85b7f208e4021fd5358f58f9d1a3b76fa94e4ced68abfe341fed5994894dec"
+      },
+      "selection": {
+        "proposal": {
+          "proposal_id": "prp_c6fce574b4e77c1056e2d688",
+          "version": 2,
+          "digest": "06bf5625a9a727c5fe43cd9e5d1c9dbfc5b94324913e93a0da18899279034e1c"
+        },
+        "generation": 1,
+        "selected": {
+          "assessment_id": "asm_430ee16ace5faafd514162e1",
+          "digest": "56376870ff412ae3d0382ab8a8c5acffe6ce86d4613bc2e9f5f17ec403925746"
+        }
+      },
+      "envelope": {
+        "assessment_id": "asm_430ee16ace5faafd514162e1",
+        "digest": "56376870ff412ae3d0382ab8a8c5acffe6ce86d4613bc2e9f5f17ec403925746",
+        "body": {
+          "kind": "source_assessment_v1",
+          "proposal": {
+            "proposal_id": "prp_c6fce574b4e77c1056e2d688",
+            "version": 2,
+            "digest": "06bf5625a9a727c5fe43cd9e5d1c9dbfc5b94324913e93a0da18899279034e1c"
+          },
+          "base_frame": {
+            "universe": "unv_7745d94caf7204164cc1ac40",
+            "continuity": "cont_65c03881e550b7bbb164b60b",
+            "revision": "rev_f25a6175dcf354c6381bebdd",
+            "context": {
+              "universe": "unv_7745d94caf7204164cc1ac40",
+              "record": "rec_49f008c09a3da08a81922a8e"
+            },
+            "time": {
+              "kind": "timeless"
+            },
+            "perspective": "author"
+          },
+          "assessor": {
+            "principal": "prn_945236d60b96d6e3c7cd3c7c",
+            "method": "human_review",
+            "tool": null,
+            "assessed_at": "2026-10-03T00:00:00Z"
+          },
+          "sources": [
+            {
+              "key": "passage",
+              "source_version": {
+                "universe": "unv_7745d94caf7204164cc1ac40",
+                "record": "rec_c3b479daf4cb53a5513747b7",
+                "version": "ver_298007097f13e0fb38057a65"
+              },
+              "blob_digest": "51152c38211f02d7f77d79dae58e8c10b268dfb6aa2cf8f0409db5887a8efbc8",
+              "byte_size": 19,
+              "representation": "exact-utf8-v1",
+              "ranges": [
+                {
+                  "start": 0,
+                  "end": 19
+                }
+              ],
+              "work_edition": null,
+              "passage_id": null
+            }
+          ],
+          "dependencies": [
+            {
+              "universe": "unv_7745d94caf7204164cc1ac40",
+              "record": "rec_8aecac0a18dd3454213e6dc9",
+              "version": "ver_17a60b2ff2342afc4ef915a1"
+            }
+          ],
+          "declared_inventory": [],
+          "inventory_declaration": {
+            "kind": "no_material_claims",
+            "rationale": "Synthetic source without declared material",
+            "exclusions": []
+          },
+          "claim_mappings": [],
+          "unresolved": [],
+          "conclusion": "consistent_with_declared_inventory"
+        }
+      },
+      "source_bytes_utf8": {
+        "passage": "Exact café bytes.\n"
+      }
+    },
+    {
+      "label": "changed-dependency",
+      "proposal": {
+        "base_frame": {
+          "universe": "unv_7745d94caf7204164cc1ac40",
+          "continuity": "cont_65c03881e550b7bbb164b60b",
+          "revision": "rev_f25a6175dcf354c6381bebdd",
+          "context": {
+            "universe": "unv_7745d94caf7204164cc1ac40",
+            "record": "rec_49f008c09a3da08a81922a8e"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_scope": null,
+        "proposal_id": "prp_c6fce574b4e77c1056e2d688",
+        "version": 2,
+        "digest": "06bf5625a9a727c5fe43cd9e5d1c9dbfc5b94324913e93a0da18899279034e1c",
+        "submission": "submitted",
+        "operations": [
+          {
+            "kind": "record_narrative_reference",
+            "client_ref": "rec_6663a837b58632cc48cce59f",
+            "record": "source",
+            "payload": {
+              "record_kind": "source",
+              "label": "Binding proof",
+              "origin": {
+                "originNote": null
+              },
+              "versions": [
+                "rec_c3b479daf4cb53a5513747b7"
+              ]
+            }
+          },
+          {
+            "kind": "record_narrative_reference",
+            "client_ref": "rec_c3b479daf4cb53a5513747b7",
+            "record": "source_version",
+            "payload": {
+              "record_kind": "source_version",
+              "source": {
+                "universe": "unv_7745d94caf7204164cc1ac40",
+                "record": "rec_6663a837b58632cc48cce59f"
+              },
+              "digest": "51152c38211f02d7f77d79dae58e8c10b268dfb6aa2cf8f0409db5887a8efbc8",
+              "mediaType": "text/plain; charset=utf-8",
+              "byteSize": 19,
+              "importActor": "prn_945236d60b96d6e3c7cd3c7c",
+              "importTime": "2026-10-03T01:37:59.448995+00:00",
+              "decoding": {
+                "encoding": "UTF-8",
+                "representation": "exact-utf8-v1",
+                "byteLength": 19
+              },
+              "origin": {
+                "originNote": null
+              }
+            }
+          },
+          {
+            "kind": "create_entity",
+            "client_ref": "dependency",
+            "record": {
+              "names": [],
+              "types": [],
+              "worldAssociations": [],
+              "labels": {
+                "en": "Dependency"
+              },
+              "metadata": {}
+            }
+          }
+        ],
+        "rationale": "Synthetic storage proof",
+        "canonical": false,
+        "operation_id": "op_031129b4e11690878ae53c10",
+        "withdrawn": false
+      },
+      "validation": {
+        "kind": "evaluated",
+        "execution": {
+          "run_id": "val_5d418ce0f2c4645e0305e5a8",
+          "coverage": "complete",
+          "findings": [],
+          "unsupported_capabilities": [],
+          "input_digest": "06bf5625a9a727c5fe43cd9e5d1c9dbfc5b94324913e93a0da18899279034e1c",
+          "evaluator_version": "finite-policy-v5-input-scope"
+        },
+        "submitted_input": {
+          "kind": "record_candidate",
+          "proposal": {
+            "proposal_id": "prp_c6fce574b4e77c1056e2d688",
+            "version": 2,
+            "digest": "06bf5625a9a727c5fe43cd9e5d1c9dbfc5b94324913e93a0da18899279034e1c"
+          },
+          "includes_sources": true
+        },
+        "assessment": {
+          "kind": "stale",
+          "assessment_reference": {
+            "assessment_id": "asm_430ee16ace5faafd514162e1",
+            "digest": "56376870ff412ae3d0382ab8a8c5acffe6ce86d4613bc2e9f5f17ec403925746"
+          },
+          "reasons": [
+            "candidate_changed",
+            "source_changed",
+            "dependency_changed"
+          ]
+        },
+        "final_binding_digest": "ff85c09b9be5d8ab25bedc32f30fcc390f1c16e1bb5a3002187b7a1eb03153b7"
+      },
+      "selection": {
+        "proposal": {
+          "proposal_id": "prp_c6fce574b4e77c1056e2d688",
+          "version": 2,
+          "digest": "06bf5625a9a727c5fe43cd9e5d1c9dbfc5b94324913e93a0da18899279034e1c"
+        },
+        "generation": 1,
+        "selected": {
+          "assessment_id": "asm_430ee16ace5faafd514162e1",
+          "digest": "56376870ff412ae3d0382ab8a8c5acffe6ce86d4613bc2e9f5f17ec403925746"
+        }
+      },
+      "envelope": {
+        "assessment_id": "asm_430ee16ace5faafd514162e1",
+        "digest": "56376870ff412ae3d0382ab8a8c5acffe6ce86d4613bc2e9f5f17ec403925746",
+        "body": {
+          "kind": "source_assessment_v1",
+          "proposal": {
+            "proposal_id": "prp_c6fce574b4e77c1056e2d688",
+            "version": 2,
+            "digest": "06bf5625a9a727c5fe43cd9e5d1c9dbfc5b94324913e93a0da18899279034e1c"
+          },
+          "base_frame": {
+            "universe": "unv_7745d94caf7204164cc1ac40",
+            "continuity": "cont_65c03881e550b7bbb164b60b",
+            "revision": "rev_f25a6175dcf354c6381bebdd",
+            "context": {
+              "universe": "unv_7745d94caf7204164cc1ac40",
+              "record": "rec_49f008c09a3da08a81922a8e"
+            },
+            "time": {
+              "kind": "timeless"
+            },
+            "perspective": "author"
+          },
+          "assessor": {
+            "principal": "prn_945236d60b96d6e3c7cd3c7c",
+            "method": "human_review",
+            "tool": null,
+            "assessed_at": "2026-10-03T00:00:00Z"
+          },
+          "sources": [
+            {
+              "key": "passage",
+              "source_version": {
+                "universe": "unv_7745d94caf7204164cc1ac40",
+                "record": "rec_c3b479daf4cb53a5513747b7",
+                "version": "ver_298007097f13e0fb38057a65"
+              },
+              "blob_digest": "51152c38211f02d7f77d79dae58e8c10b268dfb6aa2cf8f0409db5887a8efbc8",
+              "byte_size": 19,
+              "representation": "exact-utf8-v1",
+              "ranges": [
+                {
+                  "start": 0,
+                  "end": 19
+                }
+              ],
+              "work_edition": null,
+              "passage_id": null
+            }
+          ],
+          "dependencies": [
+            {
+              "universe": "unv_7745d94caf7204164cc1ac40",
+              "record": "rec_8aecac0a18dd3454213e6dc9",
+              "version": "ver_17a60b2ff2342afc4ef915a1"
+            }
+          ],
+          "declared_inventory": [],
+          "inventory_declaration": {
+            "kind": "no_material_claims",
+            "rationale": "Synthetic source without declared material",
+            "exclusions": []
+          },
+          "claim_mappings": [],
+          "unresolved": [],
+          "conclusion": "consistent_with_declared_inventory"
+        }
+      },
+      "source_bytes_utf8": {
+        "passage": "Exact café bytes.\n"
+      }
+    },
+    {
+      "label": "missing-assessment-record-only",
+      "proposal": {
+        "base_frame": {
+          "universe": "unv_7745d94caf7204164cc1ac40",
+          "continuity": "cont_65c03881e550b7bbb164b60b",
+          "revision": "rev_f25a6175dcf354c6381bebdd",
+          "context": {
+            "universe": "unv_7745d94caf7204164cc1ac40",
+            "record": "rec_49f008c09a3da08a81922a8e"
+          },
+          "time": {
+            "kind": "timeless"
+          },
+          "perspective": "author"
+        },
+        "world_scope": null,
+        "proposal_id": "prp_c6fce574b4e77c1056e2d688",
+        "version": 2,
+        "digest": "06bf5625a9a727c5fe43cd9e5d1c9dbfc5b94324913e93a0da18899279034e1c",
+        "submission": "submitted",
+        "operations": [
+          {
+            "kind": "record_narrative_reference",
+            "client_ref": "rec_6663a837b58632cc48cce59f",
+            "record": "source",
+            "payload": {
+              "record_kind": "source",
+              "label": "Binding proof",
+              "origin": {
+                "originNote": null
+              },
+              "versions": [
+                "rec_c3b479daf4cb53a5513747b7"
+              ]
+            }
+          },
+          {
+            "kind": "record_narrative_reference",
+            "client_ref": "rec_c3b479daf4cb53a5513747b7",
+            "record": "source_version",
+            "payload": {
+              "record_kind": "source_version",
+              "source": {
+                "universe": "unv_7745d94caf7204164cc1ac40",
+                "record": "rec_6663a837b58632cc48cce59f"
+              },
+              "digest": "51152c38211f02d7f77d79dae58e8c10b268dfb6aa2cf8f0409db5887a8efbc8",
+              "mediaType": "text/plain; charset=utf-8",
+              "byteSize": 19,
+              "importActor": "prn_945236d60b96d6e3c7cd3c7c",
+              "importTime": "2026-10-03T01:37:59.448995+00:00",
+              "decoding": {
+                "encoding": "UTF-8",
+                "representation": "exact-utf8-v1",
+                "byteLength": 19
+              },
+              "origin": {
+                "originNote": null
+              }
+            }
+          },
+          {
+            "kind": "create_entity",
+            "client_ref": "dependency",
+            "record": {
+              "names": [],
+              "types": [],
+              "worldAssociations": [],
+              "labels": {
+                "en": "Dependency"
+              },
+              "metadata": {}
+            }
+          }
+        ],
+        "rationale": "Synthetic storage proof",
+        "canonical": false,
+        "operation_id": "op_031129b4e11690878ae53c10",
+        "withdrawn": false
+      },
+      "validation": {
+        "kind": "evaluated",
+        "execution": {
+          "run_id": "val_5b4de30877de56ee93768929",
+          "coverage": "complete",
+          "findings": [],
+          "unsupported_capabilities": [],
+          "input_digest": "06bf5625a9a727c5fe43cd9e5d1c9dbfc5b94324913e93a0da18899279034e1c",
+          "evaluator_version": "finite-policy-v5-input-scope"
+        },
+        "submitted_input": {
+          "kind": "record_candidate",
+          "proposal": {
+            "proposal_id": "prp_c6fce574b4e77c1056e2d688",
+            "version": 2,
+            "digest": "06bf5625a9a727c5fe43cd9e5d1c9dbfc5b94324913e93a0da18899279034e1c"
+          },
+          "includes_sources": true
+        },
+        "assessment": {
+          "kind": "unavailable",
+          "reason": "missing_retained_material"
+        },
+        "final_binding_digest": "b284c21d616cb8e5f7067217b15a87d945b725bcdbd6378b31e5e652b145bc1a"
+      },
+      "selection": {
+        "proposal": {
+          "proposal_id": "prp_c6fce574b4e77c1056e2d688",
+          "version": 2,
+          "digest": "06bf5625a9a727c5fe43cd9e5d1c9dbfc5b94324913e93a0da18899279034e1c"
+        },
+        "generation": 1,
+        "selected": {
+          "assessment_id": "asm_430ee16ace5faafd514162e1",
+          "digest": "56376870ff412ae3d0382ab8a8c5acffe6ce86d4613bc2e9f5f17ec403925746"
+        }
+      },
+      "envelope": null,
+      "source_bytes_utf8": {}
+    }
+  ]
+}

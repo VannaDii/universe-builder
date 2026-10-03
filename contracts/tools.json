@@ -30795,7 +30795,7 @@
           ]
         },
         "AssessmentState": {
-          "description": "Approved reporting states. The current service produces only absent and\nunavailable_legacy; future bound states require recorded assessment evidence.",
+          "description": "Assessment declarations are bound to verified recorded evidence and exact\nselection generations; execution coverage remains a separate reporting axis.",
           "oneOf": [
             {
               "type": "object",
@@ -56164,7 +56164,7 @@
           "pattern": "^asm_[0-9a-f]{24}$"
         },
         "AssessmentState": {
-          "description": "Approved reporting states. The current service produces only absent and\nunavailable_legacy; future bound states require recorded assessment evidence.",
+          "description": "Assessment declarations are bound to verified recorded evidence and exact\nselection generations; execution coverage remains a separate reporting axis.",
           "oneOf": [
             {
               "type": "object",
@@ -61700,7 +61700,7 @@
           ]
         },
         "AssessmentState": {
-          "description": "Approved reporting states. The current service produces only absent and\nunavailable_legacy; future bound states require recorded assessment evidence.",
+          "description": "Assessment declarations are bound to verified recorded evidence and exact\nselection generations; execution coverage remains a separate reporting axis.",
           "oneOf": [
             {
               "type": "object",
@@ -70619,7 +70619,7 @@
           ]
         },
         "AssessmentState": {
-          "description": "Approved reporting states. The current service produces only absent and\nunavailable_legacy; future bound states require recorded assessment evidence.",
+          "description": "Assessment declarations are bound to verified recorded evidence and exact\nselection generations; execution coverage remains a separate reporting axis.",
           "oneOf": [
             {
               "type": "object",

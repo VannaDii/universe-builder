@@ -149,7 +149,10 @@ impl Workflow<'_> {
         }
         Ok(())
     }
-    fn assessment_selection_raw(&self, r: &ProposalRef) -> anyhow::Result<AssessmentSelection> {
+    pub(super) fn assessment_selection_raw(
+        &self,
+        r: &ProposalRef,
+    ) -> anyhow::Result<AssessmentSelection> {
         match self.kernel.workflow_latest_key(&selection_prefix(r))? {
             Some(key) => self.load(&key),
             None => Ok(AssessmentSelection {
@@ -501,6 +504,18 @@ impl Workflow<'_> {
     )> {
         let authority = self.authority.clone();
         let _guard = authority.as_ref().map(|a| a.lock()).transpose()?;
+        self.resolve_assessment(r, exact)
+    }
+    /// Caller holds the installation authority gate when persisting validation.
+    pub(super) fn resolve_assessment(
+        &self,
+        r: &ProposalRef,
+        exact: Option<&AssessmentRef>,
+    ) -> anyhow::Result<(
+        AssessmentSelection,
+        AssessmentState,
+        Option<AssessmentEnvelope>,
+    )> {
         let p = self.proposal(r).map_err(|_| denied())?;
         self.assessment_access(&p, None)?;
         let selection = self.assessment_selection_raw(r)?;
@@ -672,10 +687,10 @@ impl Workflow<'_> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use super::*;
     use std::path::Path;
-    fn workflow<'a>(kernel: &'a mut Kernel, profile: &ProfileId) -> Workflow<'a> {
+    pub(crate) fn workflow<'a>(kernel: &'a mut Kernel, profile: &ProfileId) -> Workflow<'a> {
         Workflow {
             kernel,
             authority: None,
@@ -689,14 +704,14 @@ mod tests {
             name: "Assessment proofs".into(),
         }
     }
-    fn reference(p: &StoredProposal) -> ProposalRef {
+    pub(crate) fn reference(p: &StoredProposal) -> ProposalRef {
         ProposalRef {
             proposal_id: p.proposal.proposal_id.clone(),
             version: p.proposal.version,
             digest: p.proposal.digest.clone(),
         }
     }
-    fn freeze(
+    pub(crate) fn freeze(
         w: &mut Workflow<'_>,
         frame: Frame,
         ops: Vec<DomainOperation>,
@@ -740,7 +755,7 @@ mod tests {
         .unwrap();
         p
     }
-    fn body(p: &StoredProposal, profile: &ProfileId, text: &str) -> SourceAssessmentV1 {
+    pub(crate) fn body(p: &StoredProposal, profile: &ProfileId, text: &str) -> SourceAssessmentV1 {
         let source = p
             .changes
             .iter()
@@ -1080,29 +1095,25 @@ mod tests {
         let mut bad = b.clone();
         bad.assessor.principal = PrincipalId::generate(&mut rand::rng());
         assert!(w.attach_assessment(&r, 1, bad, "impersonate").is_err());
-        assert!(
-            w.attach_assessment(&r, 0, b.clone(), "stale-generation")
-                .is_err()
-        );
+        assert!(w
+            .attach_assessment(&r, 0, b.clone(), "stale-generation")
+            .is_err());
         let mut changed = b.clone();
         changed.assessor.assessed_at = "2026-10-03T00:00:01Z".into();
         assert!(w.attach_assessment(&r, 1, changed, "attach-a").is_err());
-        assert!(
-            w.select_assessment(&r, 1, s1.selected.clone(), "no-change")
-                .is_err()
-        );
+        assert!(w
+            .select_assessment(&r, 1, s1.selected.clone(), "no-change")
+            .is_err());
         let mut wrong = s1.selected.clone().unwrap();
         wrong.digest = Sha256Hex::parse("f".repeat(64)).unwrap();
-        assert!(
-            w.select_assessment(&r, 1, Some(wrong), "wrong-digest")
-                .is_err()
-        );
+        assert!(w
+            .select_assessment(&r, 1, Some(wrong), "wrong-digest")
+            .is_err());
         w.permissions.0 = false;
         assert!(w.attach_assessment(&r, 0, b.clone(), "attach-a").is_err());
-        assert!(
-            w.attach_assessment(&r, 1, b.clone(), "no-permission")
-                .is_err()
-        );
+        assert!(w
+            .attach_assessment(&r, 1, b.clone(), "no-permission")
+            .is_err());
         w.permissions.0 = true;
         w.principal = Principal {
             id: ProfileId::generate(&mut rand::rng()),
@@ -1115,10 +1126,9 @@ mod tests {
             access_error,
             w.get_assessment(&unknown, None).unwrap_err().to_string()
         );
-        assert!(
-            w.attach_assessment(&r, 1, b.clone(), "wrong-owner")
-                .is_err()
-        );
+        assert!(w
+            .attach_assessment(&r, 1, b.clone(), "wrong-owner")
+            .is_err());
         w.principal = Principal {
             id: profile.clone(),
             author: true,
@@ -1128,30 +1138,28 @@ mod tests {
         w.scope = None;
         assert_eq!(snapshot(&w), before);
         // A changed second entry must roll back the first inserted entry.
-        assert!(
-            w.kernel
-                .workflow_compare_append(
-                    &[],
-                    &[
-                        ("assessment:rollback".into(), json!("must not survive")),
-                        (
-                            envelope_key(s1.selected.as_ref().unwrap()),
-                            json!("collision")
-                        )
-                    ]
-                )
-                .is_err()
-        );
+        assert!(w
+            .kernel
+            .workflow_compare_append(
+                &[],
+                &[
+                    ("assessment:rollback".into(), json!("must not survive")),
+                    (
+                        envelope_key(s1.selected.as_ref().unwrap()),
+                        json!("collision")
+                    )
+                ]
+            )
+            .is_err());
         assert_eq!(snapshot(&w), before);
         let prefix = selection_prefix(&r);
-        assert!(
-            w.kernel
-                .workflow_compare_append(
-                    &[(prefix, None)],
-                    &[("assessment:cas-failed".into(), json!(1))]
-                )
-                .is_err()
-        );
+        assert!(w
+            .kernel
+            .workflow_compare_append(
+                &[(prefix, None)],
+                &[("assessment:cas-failed".into(), json!(1))]
+            )
+            .is_err());
         assert_eq!(snapshot(&w), before);
         // Unresolved is applicable, never absent or a positive declaration.
         let mut unresolved = serde_json::to_value(&b).unwrap();
@@ -1206,10 +1214,9 @@ mod tests {
         );
         let stable = snapshot(&w);
         assert!(w.attach_assessment(&r, 4, b.clone(), "replaced").is_err());
-        assert!(
-            w.select_assessment(&r2, 0, s1.selected.clone(), "cross-proposal")
-                .is_err()
-        );
+        assert!(w
+            .select_assessment(&r2, 0, s1.selected.clone(), "cross-proposal")
+            .is_err());
         assert_eq!(snapshot(&w), stable);
         let b2 = body(&p2, &profile, "Revised bytes.\n");
         w.attach_assessment(&r2, 0, b2, "source-revision").unwrap();
@@ -1325,22 +1332,19 @@ mod tests {
         let baseline = snapshot(&w);
         let mut wrong = b.clone();
         wrong.sources[0].ranges[0].start = 1;
-        assert!(
-            w.attach_assessment(&r, 0, wrong, "anchor-outside-range")
-                .is_err()
-        );
+        assert!(w
+            .attach_assessment(&r, 0, wrong, "anchor-outside-range")
+            .is_err());
         let mut wrong = b.clone();
         wrong.dependencies[0].record = RecordId::generate(&mut rand::rng());
-        assert!(
-            w.attach_assessment(&r, 0, wrong, "dependency-identity")
-                .is_err()
-        );
+        assert!(w
+            .attach_assessment(&r, 0, wrong, "dependency-identity")
+            .is_err());
         let mut wrong = b.clone();
         wrong.dependencies[0].universe = UniverseId::generate(&mut rand::rng());
-        assert!(
-            w.attach_assessment(&r, 0, wrong, "dependency-universe")
-                .is_err()
-        );
+        assert!(w
+            .attach_assessment(&r, 0, wrong, "dependency-universe")
+            .is_err());
         assert_eq!(snapshot(&w), baseline);
         // Invalid immutable anchor excerpts and source versions reject attachment
         // admission even when the assessment claims matching candidate bindings.
@@ -1378,19 +1382,17 @@ mod tests {
             let mut invalid_body = body(&invalid, &profile, text);
             invalid_body.dependencies = b.dependencies.clone();
             let unchanged = snapshot(&w);
-            assert!(
-                w.attach_assessment(&ir, 0, invalid_body, &format!("bad-anchor-{index}"))
-                    .is_err()
-            );
+            assert!(w
+                .attach_assessment(&ir, 0, invalid_body, &format!("bad-anchor-{index}"))
+                .is_err());
             assert_eq!(snapshot(&w), unchanged);
         }
         let mut wrong = b.clone();
         wrong.sources[0].work_edition = Some(wrong.sources[0].source_version.clone());
         let unchanged = snapshot(&w);
-        assert!(
-            w.attach_assessment(&r, 0, wrong, "wrong-edition-type")
-                .is_err()
-        );
+        assert!(w
+            .attach_assessment(&r, 0, wrong, "wrong-edition-type")
+            .is_err());
         assert_eq!(snapshot(&w), unchanged);
         w.attach_assessment(&r, 0, b.clone(), "exact-anchor")
             .unwrap();
@@ -1416,13 +1418,12 @@ mod tests {
         drop(w);
         drop(kernel);
         let db = rusqlite::Connection::open(&path).unwrap();
-        assert!(
-            db.execute(
+        assert!(db
+            .execute(
                 "DELETE FROM workflow_entries WHERE key=?1",
                 [format!("source:{digest}")]
             )
-            .is_err()
-        );
+            .is_err());
         // Deliberate corruption of this disposable fixture; production deletion
         // remains forbidden by both storage API and SQL trigger.
         db.execute_batch("DROP TRIGGER workflow_entries_no_delete")
@@ -1443,10 +1444,9 @@ mod tests {
             }
         ));
         let missing = snapshot(&w);
-        assert!(
-            w.attach_assessment(&r, 1, b, "cannot-write-missing")
-                .is_err()
-        );
+        assert!(w
+            .attach_assessment(&r, 1, b, "cannot-write-missing")
+            .is_err());
         assert_eq!(snapshot(&w), missing);
         let selected = w.assessment_selection_raw(&r).unwrap().selected.unwrap();
         drop(w);

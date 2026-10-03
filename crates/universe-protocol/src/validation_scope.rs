@@ -6,8 +6,8 @@ use crate::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use universe_domain::{
-    Frame,
     ids::{RecordId, RecordVersionId, UniverseId},
+    Frame,
 };
 
 fn required_nullable<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(
@@ -157,8 +157,8 @@ pub enum SubmittedInput {
         inventory_digest: Sha256Hex,
     },
 }
-/// Approved reporting states. The current service produces only absent and
-/// unavailable_legacy; future bound states require recorded assessment evidence.
+/// Assessment declarations are bound to verified recorded evidence and exact
+/// selection generations; execution coverage remains a separate reporting axis.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum AssessmentState {
@@ -260,7 +260,7 @@ impl OperationStatusV3 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value, json};
+    use serde_json::{json, Value};
     fn restricted_fixture() -> Value {
         serde_json::from_str::<Value>(include_str!(
             "../../../fixtures/validation-scope/expected.json"

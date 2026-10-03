@@ -144,7 +144,10 @@ async fn wall_traversal_requires_owning_entity_attributes() {
         let p = proposal(&mut c, &ctx, vec![op], &format!("colour-{n}")).await;
         let result = c.call(tool("universe_validate", json!({"mode":"proposal","universe":"Alpha","context_id":ctx,"proposal_reference":reference(&p),"check_scope":"universe"}))).await;
         if allowed {
-            assert_eq!(result.unwrap()["result"]["execution"]["coverage"], "complete");
+            assert_eq!(
+                result.unwrap()["result"]["execution"]["coverage"],
+                "complete"
+            );
         } else {
             assert!(result
                 .unwrap_err()
@@ -219,7 +222,11 @@ async fn proposal(c: &mut EngineClient, ctx: &Value, ops: Vec<Value>, key: &str)
 }
 async fn validate(c: &mut EngineClient, ctx: &Value, p: &Value) -> Value {
     let report = c.call(tool("universe_validate",json!({"mode":"proposal","universe":"Alpha","context_id":ctx,"proposal_reference":reference(p),"check_scope":"universe"}))).await.unwrap()["result"].clone();
-    if report["kind"] == "restricted" { report } else { report["execution"].clone() }
+    if report["kind"] == "restricted" {
+        report
+    } else {
+        report["execution"].clone()
+    }
 }
 fn commit(p: &Value, v: &Value, key: &str) -> EngineRequest {
     tool(
@@ -1685,7 +1692,10 @@ async fn durable_validation_jobs_page_evidence_retry_restart_and_isolate_owners(
             .unwrap();
     }
     assert_eq!(page["result"]["state"], "succeeded", "{page}");
-    assert_eq!(page["result"]["validation"]["execution"]["coverage"], "complete");
+    assert_eq!(
+        page["result"]["validation"]["execution"]["coverage"],
+        "complete"
+    );
     assert_eq!(page["delivery"]["complete"], false);
     assert_eq!(
         page["result"]["validation"]["execution"]["findings"]
@@ -1991,7 +2001,10 @@ async fn scoped_validation_has_no_hidden_finding_oracle_but_exact_author_approva
         .to_string()
         .contains("rec_000000000000000000002013"));
     let limited = validate(&mut a, &ac, &p).await;
-    assert_eq!(limited, json!({"kind":"restricted","execution_coverage":"restricted","submitted_input":{"kind":"restricted"},"assessment":{"kind":"restricted"}}));
+    assert_eq!(
+        limited,
+        json!({"kind":"restricted","execution_coverage":"restricted","submitted_input":{"kind":"restricted"},"assessment":{"kind":"restricted"}})
+    );
     assert!(!limited.to_string().contains("advice_499"));
     let author_ctx = context(&mut c, &u, "Alpha").await;
     let checked = validate(&mut c, &author_ctx, &p).await;
@@ -2241,7 +2254,10 @@ async fn silver_gate_s01_to_s10_use_pinned_candidates_and_explicit_story_time() 
         let should_pass = [2, 4, 5, 7, 10].contains(&number);
         if should_pass {
             let validated = result.unwrap_or_else(|e| panic!("S{number:02}: {e}"));
-            assert_eq!(validated["result"]["execution"]["coverage"], "complete", "S{number:02}");
+            assert_eq!(
+                validated["result"]["execution"]["coverage"], "complete",
+                "S{number:02}"
+            );
             publish_proposal(&mut c, &ctx, &p, &format!("S{number:02}-commit")).await;
             if [2, 4, 7, 10].contains(&number) {
                 let opened=c.call(tool("universe_open_context",json!({"universe":"Alpha","continuity_id":branch,"revision":{"kind":"head"},"represented_context":u["context_id"],"temporal_query":{"kind":"at","time":{"kind":"exact","calendar":cal,"value":"16"}},"temporal_systems":[],"perspective":"author"}))).await.unwrap();
@@ -2258,7 +2274,10 @@ async fn silver_gate_s01_to_s10_use_pinned_candidates_and_explicit_story_time() 
                 c.call(EngineRequest::Approve {
                     universe: Selector("Alpha".into()),
                     proposal_reference: reference(&p),
-                    validation_run: serde_json::from_value(v["result"]["execution"]["run_id"].clone()).unwrap()
+                    validation_run: serde_json::from_value(
+                        v["result"]["execution"]["run_id"].clone()
+                    )
+                    .unwrap()
                 })
                 .await
                 .is_err(),
