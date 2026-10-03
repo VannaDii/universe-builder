@@ -1,0 +1,16 @@
+{
+  "crates/universe-service/src/lib.rs": "d2fee1c355e32b880d180d15c5e96d3d7ab0eff3188f826f4287081cd8a1942f",
+  "crates/universe-service/src/object_rule_capability_checks.rs": "3688412603f869bb5c2cd299c5ad867b7cf87ea06a1abb610b34829943bed8ce",
+  "docs/decisions/reusable-object-rules.md": "10d78fbd185bc5ace818c786fb5c6a59adab77aadb3a73194b502602abc9a0d6",
+  "docs/evidence/object-rules/capabilities.txt": "4c56912fad708e9ec557eb1c12b6ce91369da6228f289a4beff6b8629bb49e05",
+  "docs/evidence/object-rules/capability-results.json": "fb126b4403c8f20da3237ba2653977000b0a2f2fe4219710d8db36268c25be4f",
+  "docs/evidence/object-rules/cumulative-independent.txt": "c346f1228fe88f4ab3cb336ffa610dc3a34ec7c7bb7d05df7a1c222f2d928881",
+  "docs/evidence/object-rules/existing-resource-accounting.json": "ce4fe758960243c32963778e5734ba1da7be5417dbe6a56ffb826275e5b7de6c",
+  "docs/evidence/object-rules/final-clippy.txt": "8cb29262eec1449c18e72ec2c2dd60e336cc3cd895d4d52940ea99c70e5d9518",
+  "docs/evidence/object-rules/independent-judgments.json": "b102ded58971a21c8af9dc78efc7981f65f7fdda5c2e5df7d87339cca2cddf1f",
+  "docs/evidence/object-rules/verification.json": "14493f17d3d65e5b34adff8553f9a1f5168cc735fb03ad45e2355b92c3aeb9a9",
+  "docs/evidence/object-rules/workspace-check.txt": "179b417567c457c8e278e5343be088450bf0f3b5a51f49e18897309ed8ad19d9",
+  "fixtures/object-rules/capabilities.json": "bbe0ca44794042c599b4328d78ed856f9e3e7acf5756dc9259ac00c787ee90bb",
+  "fixtures/object-rules/independent-examples.json": "ce8fa4f7254b92133b6273a39c860c75339c293b71fcf30702484a051e2fa142",
+  "scripts/judge_object_rule_examples.py": "527daf1b8ccfb5544dda14222805a2cf59681f28534c4633cb5c4295d686d989"
+}

@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "baseline_commit": "7609ba2",
+  "work_started_at_utc": "2026-10-03T21:59:52Z",
+  "verification_completed_at_utc": "2026-10-03T22:14:01.987542+00:00",
+  "capability_cases": 26,
+  "capability_checks": 52,
+  "independent_examples": 30,
+  "existing_resource_accounting_cases": 44,
+  "existing_cumulative_fixtures": 9,
+  "workspace": {
+    "command": "cargo run --locked -p xtask -- check",
+    "exit_code": 0,
+    "passed": 327,
+    "failed": 0,
+    "ignored": 1,
+    "formatting": "passed",
+    "clippy_warnings_as_errors": "passed",
+    "schema_freshness": "passed"
+  },
+  "final_test_module_clippy": {
+    "exit_code": 0
+  },
+  "production_behavior_changes": false,
+  "extension_implemented": false,
+  "once_only_runtime_initializer_implemented": false,
+  "independent_judgment": "Program judgments from separately authored static examples; no human review or new live MCP session.",
+  "setup_corrections": "Early probe harness errors (non-Serialize evidence enum, wire key spellings and unspecified time validity) were corrected without changing production behavior.",
+  "scope": "Decision package and executable capability characterization only."
+}

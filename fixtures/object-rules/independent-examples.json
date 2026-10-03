@@ -1,0 +1,321 @@
+{
+  "scope": "Authored semantic judgments independent of the expression AST and production evaluator. Static examples only; no simulation or initialization service.",
+  "scope_examples": [
+    {
+      "name": "world_A_uses_A_stock",
+      "rule_worlds": [
+        "A"
+      ],
+      "query_world": "A",
+      "assertion_worlds": [
+        "A"
+      ],
+      "context": "objective",
+      "assertion_context": "objective",
+      "expected": "applicable"
+    },
+    {
+      "name": "world_A_excludes_B",
+      "rule_worlds": [
+        "A"
+      ],
+      "query_world": "B",
+      "assertion_worlds": [
+        "B"
+      ],
+      "context": "objective",
+      "assertion_context": "objective",
+      "expected": "outside_rule"
+    },
+    {
+      "name": "A_cannot_borrow_B",
+      "rule_worlds": [
+        "A"
+      ],
+      "query_world": "A",
+      "assertion_worlds": [
+        "B"
+      ],
+      "context": "objective",
+      "assertion_context": "objective",
+      "expected": "missing_evidence"
+    },
+    {
+      "name": "universe_rule_applies_in_B",
+      "rule_worlds": null,
+      "query_world": "B",
+      "assertion_worlds": null,
+      "context": "objective",
+      "assertion_context": "objective",
+      "expected": "applicable"
+    },
+    {
+      "name": "universe_scope_is_not_pooling",
+      "rule_worlds": null,
+      "query_world": "B",
+      "assertion_worlds": [
+        "A"
+      ],
+      "context": "objective",
+      "assertion_context": "objective",
+      "expected": "missing_evidence"
+    },
+    {
+      "name": "belief_cannot_supply_objective_stock",
+      "rule_worlds": null,
+      "query_world": "A",
+      "assertion_worlds": null,
+      "context": "objective",
+      "assertion_context": "belief",
+      "expected": "missing_evidence"
+    }
+  ],
+  "initialization_examples": [
+    {
+      "name": "explicit_first_start",
+      "established_start": "10",
+      "known_initial_record": false,
+      "existing_stock": null,
+      "requested_tick": "10",
+      "requested_amount": "12",
+      "authorized_reload": false,
+      "expected": "propose_initial_assertion"
+    },
+    {
+      "name": "scene_change_preserves_eleven",
+      "established_start": "10",
+      "known_initial_record": true,
+      "existing_stock": "11",
+      "requested_tick": "20",
+      "requested_amount": "12",
+      "authorized_reload": false,
+      "expected": "do_not_initialize"
+    },
+    {
+      "name": "restart_preserves_two",
+      "established_start": "10",
+      "known_initial_record": true,
+      "existing_stock": "2",
+      "requested_tick": "30",
+      "requested_amount": "12",
+      "authorized_reload": false,
+      "expected": "do_not_initialize"
+    },
+    {
+      "name": "holder_change_preserves_zero",
+      "established_start": "10",
+      "known_initial_record": true,
+      "existing_stock": "0",
+      "requested_tick": "40",
+      "requested_amount": "12",
+      "authorized_reload": false,
+      "expected": "do_not_initialize"
+    },
+    {
+      "name": "missing_start_needs_clarification",
+      "established_start": null,
+      "known_initial_record": false,
+      "existing_stock": null,
+      "requested_tick": "10",
+      "requested_amount": "12",
+      "authorized_reload": false,
+      "expected": "clarify_start"
+    },
+    {
+      "name": "deleted_initial_record_cannot_rebootstrap_current_stock",
+      "established_start": "10",
+      "known_initial_record": false,
+      "existing_stock": "2",
+      "requested_tick": "10",
+      "requested_amount": "12",
+      "authorized_reload": false,
+      "expected": "clarify_existing_stock"
+    },
+    {
+      "name": "authored_reload_is_transition",
+      "established_start": "10",
+      "known_initial_record": true,
+      "existing_stock": "0",
+      "requested_tick": "40",
+      "requested_amount": "3",
+      "authorized_reload": true,
+      "expected": "reload_transition"
+    },
+    {
+      "name": "new_object_later_start",
+      "established_start": "50",
+      "known_initial_record": false,
+      "existing_stock": null,
+      "requested_tick": "50",
+      "requested_amount": "12",
+      "authorized_reload": false,
+      "expected": "propose_initial_assertion"
+    },
+    {
+      "name": "late_first_observation_is_not_start",
+      "established_start": "10",
+      "known_initial_record": false,
+      "existing_stock": null,
+      "requested_tick": "20",
+      "requested_amount": "12",
+      "authorized_reload": false,
+      "expected": "clarify_start"
+    }
+  ],
+  "accounting_examples": [
+    {
+      "name": "capacity_without_stock",
+      "capacity": "12",
+      "stock": null,
+      "delta": "-1",
+      "proposed_after": "11",
+      "expected": "missing_stock"
+    },
+    {
+      "name": "partial_load_supports_five_shots",
+      "capacity": "12",
+      "stock": [
+        "5"
+      ],
+      "delta": "-5",
+      "proposed_after": "0",
+      "expected": "allowed"
+    },
+    {
+      "name": "sixth_shot_on_partial_load",
+      "capacity": "12",
+      "stock": [
+        "5"
+      ],
+      "delta": "-6",
+      "proposed_after": "-1",
+      "expected": "outside_bounds"
+    },
+    {
+      "name": "twelve_shots_on_full_load",
+      "capacity": "12",
+      "stock": [
+        "12"
+      ],
+      "delta": "-12",
+      "proposed_after": "0",
+      "expected": "allowed"
+    },
+    {
+      "name": "thirteenth_shot",
+      "capacity": "12",
+      "stock": [
+        "0"
+      ],
+      "delta": "-1",
+      "proposed_after": "-1",
+      "expected": "outside_bounds"
+    },
+    {
+      "name": "explicit_reload_three",
+      "capacity": "12",
+      "stock": [
+        "0"
+      ],
+      "delta": "3",
+      "proposed_after": "3",
+      "expected": "allowed"
+    },
+    {
+      "name": "reload_beyond_capacity",
+      "capacity": "12",
+      "stock": [
+        "11"
+      ],
+      "delta": "3",
+      "proposed_after": "14",
+      "expected": "outside_bounds"
+    },
+    {
+      "name": "holder_handoff_does_not_reset",
+      "capacity": "12",
+      "stock": [
+        "2"
+      ],
+      "delta": "-1",
+      "proposed_after": "11",
+      "expected": "forged_post"
+    },
+    {
+      "name": "ambiguous_stock",
+      "capacity": "12",
+      "stock": [
+        "12",
+        "13"
+      ],
+      "delta": "-1",
+      "proposed_after": "11",
+      "expected": "ambiguous_stock"
+    },
+    {
+      "name": "corroborating_equal_stock",
+      "capacity": "12",
+      "stock": [
+        "12",
+        "12"
+      ],
+      "delta": "-1",
+      "proposed_after": "11",
+      "expected": "allowed"
+    }
+  ],
+  "matching_examples": [
+    {
+      "name": "direct_type_membership",
+      "requested_type": "gun",
+      "entity_types": [
+        "gun"
+      ],
+      "explicit_set": null,
+      "entity_id": "g1",
+      "expected": true
+    },
+    {
+      "name": "same_name_different_type",
+      "requested_type": "gun",
+      "entity_types": [
+        "prop"
+      ],
+      "explicit_set": null,
+      "entity_id": "g2",
+      "expected": false
+    },
+    {
+      "name": "new_matching_entity_joins_dynamic_set",
+      "requested_type": "gun",
+      "entity_types": [
+        "gun"
+      ],
+      "explicit_set": null,
+      "entity_id": "g3",
+      "expected": true
+    },
+    {
+      "name": "new_matching_entity_not_in_finite_set",
+      "requested_type": "gun",
+      "entity_types": [
+        "gun"
+      ],
+      "explicit_set": [
+        "g1"
+      ],
+      "entity_id": "g3",
+      "expected": false
+    },
+    {
+      "name": "no_implicit_subtype_inference",
+      "requested_type": "gun",
+      "entity_types": [
+        "laser_gun"
+      ],
+      "explicit_set": null,
+      "entity_id": "g4",
+      "expected": false
+    }
+  ]
+}

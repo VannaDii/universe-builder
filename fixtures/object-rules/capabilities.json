@@ -1,0 +1,6509 @@
+{
+  "scope": "Current production rule evaluator capability probes; expected pass for limitations records actual existing behavior, not desired admission. No extension is implemented.",
+  "cases": [
+    {
+      "name": "exact_identity",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "claim",
+              "subject": {
+                "kind": "record",
+                "ref": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000050"
+                }
+              },
+              "predicate": "example:rounds",
+              "value": {
+                "kind": "value",
+                "value": {
+                  "kind": "integer",
+                  "digits": "12"
+                }
+              },
+              "polarity": "support"
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": true,
+        "outcome": "supported",
+        "complete": true
+      },
+      "judgment": ""
+    },
+    {
+      "name": "second_same_type_not_automatically_selected",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "claim",
+              "subject": {
+                "kind": "record",
+                "ref": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000050"
+                }
+              },
+              "predicate": "example:rounds",
+              "value": {
+                "kind": "value",
+                "value": {
+                  "kind": "integer",
+                  "digits": "12"
+                }
+              },
+              "polarity": "support"
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": true,
+        "outcome": "supported",
+        "complete": true
+      },
+      "judgment": "Existing body mentions gun 80 only. Missing stock on gun 81 is missed."
+    },
+    {
+      "name": "subjectTypes_do_not_bind_subject",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "claim",
+              "subject": {
+                "kind": "variable",
+                "name": "object"
+              },
+              "predicate": "example:rounds",
+              "value": {
+                "kind": "value",
+                "value": {
+                  "kind": "integer",
+                  "digits": "12"
+                }
+              },
+              "polarity": "support"
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": false,
+        "outcome": "not_established",
+        "complete": false
+      },
+      "judgment": ""
+    },
+    {
+      "name": "subjectTypes_do_not_filter_explicit_identity",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000052"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "claim",
+              "subject": {
+                "kind": "record",
+                "ref": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000052"
+                }
+              },
+              "predicate": "example:rounds",
+              "value": {
+                "kind": "value",
+                "value": {
+                  "kind": "integer",
+                  "digits": "12"
+                }
+              },
+              "polarity": "support"
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": true,
+        "outcome": "supported",
+        "complete": true
+      },
+      "judgment": "Explicit nonmatching entity is still checked."
+    },
+    {
+      "name": "finite_objects_missing_second",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "quantify",
+              "variable": "object",
+              "over": {
+                "kind": "value",
+                "value": {
+                  "kind": "sequence",
+                  "items": [
+                    {
+                      "kind": "record_ref",
+                      "ref": {
+                        "universe": "unv_000000000000000000000001",
+                        "record": "rec_000000000000000000000050"
+                      }
+                    },
+                    {
+                      "kind": "record_ref",
+                      "ref": {
+                        "universe": "unv_000000000000000000000001",
+                        "record": "rec_000000000000000000000051"
+                      }
+                    }
+                  ]
+                }
+              },
+              "complete": true,
+              "quantifier": "for_all",
+              "body": {
+                "kind": "claim",
+                "subject": {
+                  "kind": "variable",
+                  "name": "object"
+                },
+                "predicate": "example:rounds",
+                "value": {
+                  "kind": "value",
+                  "value": {
+                    "kind": "integer",
+                    "digits": "12"
+                  }
+                },
+                "polarity": "support"
+              }
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": false,
+        "outcome": "not_established",
+        "complete": true
+      },
+      "judgment": ""
+    },
+    {
+      "name": "finite_objects_both_supported",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "quantify",
+              "variable": "object",
+              "over": {
+                "kind": "value",
+                "value": {
+                  "kind": "sequence",
+                  "items": [
+                    {
+                      "kind": "record_ref",
+                      "ref": {
+                        "universe": "unv_000000000000000000000001",
+                        "record": "rec_000000000000000000000050"
+                      }
+                    },
+                    {
+                      "kind": "record_ref",
+                      "ref": {
+                        "universe": "unv_000000000000000000000001",
+                        "record": "rec_000000000000000000000051"
+                      }
+                    }
+                  ]
+                }
+              },
+              "complete": true,
+              "quantifier": "for_all",
+              "body": {
+                "kind": "claim",
+                "subject": {
+                  "kind": "variable",
+                  "name": "object"
+                },
+                "predicate": "example:rounds",
+                "value": {
+                  "kind": "value",
+                  "value": {
+                    "kind": "integer",
+                    "digits": "12"
+                  }
+                },
+                "polarity": "support"
+              }
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        },
+        {
+          "id": 5,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000051"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 6,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000005"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": true,
+        "outcome": "supported",
+        "complete": true
+      },
+      "judgment": ""
+    },
+    {
+      "name": "finite_open_domain_cannot_prove_universal",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "quantify",
+              "variable": "object",
+              "over": {
+                "kind": "value",
+                "value": {
+                  "kind": "sequence",
+                  "items": [
+                    {
+                      "kind": "record_ref",
+                      "ref": {
+                        "universe": "unv_000000000000000000000001",
+                        "record": "rec_000000000000000000000050"
+                      }
+                    },
+                    {
+                      "kind": "record_ref",
+                      "ref": {
+                        "universe": "unv_000000000000000000000001",
+                        "record": "rec_000000000000000000000051"
+                      }
+                    }
+                  ]
+                }
+              },
+              "complete": false,
+              "quantifier": "for_all",
+              "body": {
+                "kind": "claim",
+                "subject": {
+                  "kind": "variable",
+                  "name": "object"
+                },
+                "predicate": "example:rounds",
+                "value": {
+                  "kind": "value",
+                  "value": {
+                    "kind": "integer",
+                    "digits": "12"
+                  }
+                },
+                "polarity": "support"
+              }
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": false,
+        "outcome": "not_established",
+        "complete": true
+      },
+      "judgment": ""
+    },
+    {
+      "name": "world_A_support_A",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "worlds",
+                "world_ids": [
+                  "wld_000000000000000000000014"
+                ]
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "worlds",
+              "world_ids": [
+                "wld_000000000000000000000014"
+              ]
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "claim",
+              "subject": {
+                "kind": "record",
+                "ref": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000050"
+                }
+              },
+              "predicate": "example:rounds",
+              "value": {
+                "kind": "value",
+                "value": {
+                  "kind": "integer",
+                  "digits": "12"
+                }
+              },
+              "polarity": "support"
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": true,
+        "outcome": "supported",
+        "complete": true
+      },
+      "judgment": ""
+    },
+    {
+      "name": "world_A_cannot_borrow_B",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "worlds",
+                "world_ids": [
+                  "wld_000000000000000000000015"
+                ]
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "worlds",
+              "world_ids": [
+                "wld_000000000000000000000014"
+              ]
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "claim",
+              "subject": {
+                "kind": "record",
+                "ref": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000050"
+                }
+              },
+              "predicate": "example:rounds",
+              "value": {
+                "kind": "value",
+                "value": {
+                  "kind": "integer",
+                  "digits": "12"
+                }
+              },
+              "polarity": "support"
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": false,
+        "outcome": "not_established",
+        "complete": true
+      },
+      "judgment": ""
+    },
+    {
+      "name": "universe_rule_world_support_not_universal",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "worlds",
+                "world_ids": [
+                  "wld_000000000000000000000014"
+                ]
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "claim",
+              "subject": {
+                "kind": "record",
+                "ref": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000050"
+                }
+              },
+              "predicate": "example:rounds",
+              "value": {
+                "kind": "value",
+                "value": {
+                  "kind": "integer",
+                  "digits": "12"
+                }
+              },
+              "polarity": "support"
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014",
+        "rec_000000000000000000000015"
+      ],
+      "expected": {
+        "accepted": false,
+        "outcome": "not_established",
+        "complete": true
+      },
+      "judgment": ""
+    },
+    {
+      "name": "universe_rule_shared_support_each_world",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "claim",
+              "subject": {
+                "kind": "record",
+                "ref": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000050"
+                }
+              },
+              "predicate": "example:rounds",
+              "value": {
+                "kind": "value",
+                "value": {
+                  "kind": "integer",
+                  "digits": "12"
+                }
+              },
+              "polarity": "support"
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014",
+        "rec_000000000000000000000015"
+      ],
+      "expected": {
+        "accepted": true,
+        "outcome": "supported",
+        "complete": true
+      },
+      "judgment": ""
+    },
+    {
+      "name": "conditional_scope_unsupported",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "unspecified"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "claim",
+              "subject": {
+                "kind": "record",
+                "ref": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000050"
+                }
+              },
+              "predicate": "example:rounds",
+              "value": {
+                "kind": "value",
+                "value": {
+                  "kind": "integer",
+                  "digits": "12"
+                }
+              },
+              "polarity": "support"
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": false,
+        "outcome": "not_established",
+        "complete": false
+      },
+      "judgment": ""
+    },
+    {
+      "name": "initial_amount_at_start",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "instant",
+              "at": {
+                "kind": "exact",
+                "calendar": "cal_00000000000000000000000a",
+                "value": "10"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "claim",
+              "subject": {
+                "kind": "record",
+                "ref": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000050"
+                }
+              },
+              "predicate": "example:rounds",
+              "value": {
+                "kind": "value",
+                "value": {
+                  "kind": "integer",
+                  "digits": "12"
+                }
+              },
+              "polarity": "support"
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "instant",
+              "at": {
+                "kind": "exact",
+                "calendar": "cal_00000000000000000000000a",
+                "value": "10"
+              }
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": true,
+        "outcome": "supported",
+        "complete": true
+      },
+      "judgment": ""
+    },
+    {
+      "name": "permanent_initial_equality_rejects_consumption",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "11"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "claim",
+              "subject": {
+                "kind": "record",
+                "ref": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000050"
+                }
+              },
+              "predicate": "example:rounds",
+              "value": {
+                "kind": "value",
+                "value": {
+                  "kind": "integer",
+                  "digits": "12"
+                }
+              },
+              "polarity": "support"
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": false,
+        "outcome": "not_established",
+        "complete": true
+      },
+      "judgment": "Initial twelve is not a permanent equality after use."
+    },
+    {
+      "name": "claim_does_not_initialize_missing_stock",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "claim",
+              "subject": {
+                "kind": "record",
+                "ref": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000050"
+                }
+              },
+              "predicate": "example:rounds",
+              "value": {
+                "kind": "value",
+                "value": {
+                  "kind": "integer",
+                  "digits": "12"
+                }
+              },
+              "polarity": "support"
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": false,
+        "outcome": "not_established",
+        "complete": true
+      },
+      "judgment": ""
+    },
+    {
+      "name": "capacity_is_not_stock",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000007"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "claim",
+              "subject": {
+                "kind": "record",
+                "ref": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000050"
+                }
+              },
+              "predicate": "example:rounds",
+              "value": {
+                "kind": "value",
+                "value": {
+                  "kind": "integer",
+                  "digits": "12"
+                }
+              },
+              "polarity": "support"
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        },
+        {
+          "id": 7,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "capacity",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": false,
+        "outcome": "not_established",
+        "complete": true
+      },
+      "judgment": ""
+    },
+    {
+      "name": "finite_bounds_twelve",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "any",
+              "exprs": [
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "0"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "1"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "2"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "3"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "4"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "5"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "6"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "7"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "8"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "9"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "10"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "11"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "12"
+                    }
+                  },
+                  "polarity": "support"
+                }
+              ]
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": true,
+        "outcome": "supported",
+        "complete": true
+      },
+      "judgment": ""
+    },
+    {
+      "name": "finite_bounds_zero",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "0"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "any",
+              "exprs": [
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "0"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "1"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "2"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "3"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "4"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "5"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "6"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "7"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "8"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "9"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "10"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "11"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "12"
+                    }
+                  },
+                  "polarity": "support"
+                }
+              ]
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": true,
+        "outcome": "supported",
+        "complete": true
+      },
+      "judgment": ""
+    },
+    {
+      "name": "finite_bounds_thirteen_rejects",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "13"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "any",
+              "exprs": [
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "0"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "1"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "2"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "3"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "4"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "5"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "6"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "7"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "8"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "9"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "10"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "11"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "12"
+                    }
+                  },
+                  "polarity": "support"
+                }
+              ]
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": false,
+        "outcome": "not_established",
+        "complete": true
+      },
+      "judgment": ""
+    },
+    {
+      "name": "finite_bounds_conflicting_supported_values_slip_through",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "any",
+              "exprs": [
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "0"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "1"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "2"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "3"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "4"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "5"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "6"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "7"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "8"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "9"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "10"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "11"
+                    }
+                  },
+                  "polarity": "support"
+                },
+                {
+                  "kind": "claim",
+                  "subject": {
+                    "kind": "record",
+                    "ref": {
+                      "universe": "unv_000000000000000000000001",
+                      "record": "rec_000000000000000000000050"
+                    }
+                  },
+                  "predicate": "example:rounds",
+                  "value": {
+                    "kind": "value",
+                    "value": {
+                      "kind": "integer",
+                      "digits": "12"
+                    }
+                  },
+                  "polarity": "support"
+                }
+              ]
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        },
+        {
+          "id": 5,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "13"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 6,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000005"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": true,
+        "outcome": "supported",
+        "complete": true
+      },
+      "judgment": "Supported 12 OR ... passes despite additional supported 13. Not safe unique stock resolution."
+    },
+    {
+      "name": "record_operand_is_not_property_value",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "compare",
+              "left": {
+                "kind": "record",
+                "ref": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000050"
+                }
+              },
+              "op": "lt_eq",
+              "right": {
+                "kind": "value",
+                "value": {
+                  "kind": "integer",
+                  "digits": "12"
+                }
+              }
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": false,
+        "outcome": "not_established",
+        "complete": false
+      },
+      "judgment": ""
+    },
+    {
+      "name": "authorized_exception_retains_finding",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "lit",
+              "value": false
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "instant",
+              "at": {
+                "kind": "exact",
+                "calendar": "cal_00000000000000000000000a",
+                "value": "10"
+              }
+            }
+          }
+        },
+        {
+          "id": 5,
+          "payload": {
+            "record_kind": "issue_decision",
+            "fingerprints": [],
+            "mode": "accept",
+            "scope": "rec_000000000000000000000004",
+            "rationale": "Author permits this exact exception",
+            "principal": "prn_000000000000000000000001"
+          }
+        },
+        {
+          "id": 6,
+          "payload": {
+            "record_kind": "exception",
+            "rule": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000004"
+            },
+            "ruleVersion": "ver_000000000000000000000004",
+            "scope": {
+              "applicability": {
+                "kind": "worlds",
+                "world_ids": [
+                  "wld_000000000000000000000014"
+                ]
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "instant",
+              "at": {
+                "kind": "exact",
+                "calendar": "cal_00000000000000000000000a",
+                "value": "10"
+              }
+            },
+            "authorizingDecision": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000005"
+            },
+            "rationale": "Only world A at established tick 10"
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": true,
+        "outcome": "refuted",
+        "complete": true
+      },
+      "judgment": ""
+    },
+    {
+      "name": "exception_does_not_cover_other_world",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "lit",
+              "value": false
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "instant",
+              "at": {
+                "kind": "exact",
+                "calendar": "cal_00000000000000000000000a",
+                "value": "10"
+              }
+            }
+          }
+        },
+        {
+          "id": 5,
+          "payload": {
+            "record_kind": "issue_decision",
+            "fingerprints": [],
+            "mode": "accept",
+            "scope": "rec_000000000000000000000004",
+            "rationale": "Author permits this exact exception",
+            "principal": "prn_000000000000000000000001"
+          }
+        },
+        {
+          "id": 6,
+          "payload": {
+            "record_kind": "exception",
+            "rule": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000004"
+            },
+            "ruleVersion": "ver_000000000000000000000004",
+            "scope": {
+              "applicability": {
+                "kind": "worlds",
+                "world_ids": [
+                  "wld_000000000000000000000014"
+                ]
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "instant",
+              "at": {
+                "kind": "exact",
+                "calendar": "cal_00000000000000000000000a",
+                "value": "10"
+              }
+            },
+            "authorizingDecision": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000005"
+            },
+            "rationale": "Only world A at established tick 10"
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014",
+        "rec_000000000000000000000015"
+      ],
+      "expected": {
+        "accepted": false,
+        "outcome": "refuted",
+        "complete": true
+      },
+      "judgment": ""
+    },
+    {
+      "name": "stale_exception_rejects",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "lit",
+              "value": false
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "instant",
+              "at": {
+                "kind": "exact",
+                "calendar": "cal_00000000000000000000000a",
+                "value": "10"
+              }
+            }
+          }
+        },
+        {
+          "id": 5,
+          "payload": {
+            "record_kind": "issue_decision",
+            "fingerprints": [],
+            "mode": "accept",
+            "scope": "rec_000000000000000000000004",
+            "rationale": "Author permits this exact exception",
+            "principal": "prn_000000000000000000000001"
+          }
+        },
+        {
+          "id": 6,
+          "payload": {
+            "record_kind": "exception",
+            "rule": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000004"
+            },
+            "ruleVersion": "ver_0000000000000000000003e7",
+            "scope": {
+              "applicability": {
+                "kind": "worlds",
+                "world_ids": [
+                  "wld_000000000000000000000014"
+                ]
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "instant",
+              "at": {
+                "kind": "exact",
+                "calendar": "cal_00000000000000000000000a",
+                "value": "10"
+              }
+            },
+            "authorizingDecision": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000005"
+            },
+            "rationale": "Only world A at established tick 10"
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": false,
+        "outcome": "refuted",
+        "complete": true
+      },
+      "judgment": ""
+    },
+    {
+      "name": "missing_acceptance_rejects",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "block_unless_exception",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "lit",
+              "value": false
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "instant",
+              "at": {
+                "kind": "exact",
+                "calendar": "cal_00000000000000000000000a",
+                "value": "10"
+              }
+            }
+          }
+        },
+        {
+          "id": 5,
+          "payload": {
+            "record_kind": "issue_decision",
+            "fingerprints": [],
+            "mode": "defer",
+            "scope": "rec_000000000000000000000004",
+            "rationale": "Author permits this exact exception",
+            "principal": "prn_000000000000000000000001"
+          }
+        },
+        {
+          "id": 6,
+          "payload": {
+            "record_kind": "exception",
+            "rule": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000004"
+            },
+            "ruleVersion": "ver_000000000000000000000004",
+            "scope": {
+              "applicability": {
+                "kind": "worlds",
+                "world_ids": [
+                  "wld_000000000000000000000014"
+                ]
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "instant",
+              "at": {
+                "kind": "exact",
+                "calendar": "cal_00000000000000000000000a",
+                "value": "10"
+              }
+            },
+            "authorizingDecision": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000005"
+            },
+            "rationale": "Only world A at established tick 10"
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": false,
+        "outcome": "refuted",
+        "complete": true
+      },
+      "judgment": ""
+    },
+    {
+      "name": "always_block_cannot_be_waived",
+      "records": [
+        {
+          "id": 1,
+          "payload": {
+            "record_kind": "property",
+            "namespace": "example",
+            "key": "rounds",
+            "labels": {},
+            "value": {
+              "kind": "integer"
+            },
+            "multiplicity": "single",
+            "persistence": "explicit_interval",
+            "exclusive": false,
+            "symmetric": false,
+            "transitive": false
+          }
+        },
+        {
+          "id": 80,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 81,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000046"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 82,
+          "payload": {
+            "record_kind": "entity",
+            "names": [],
+            "types": [
+              "rec_000000000000000000000047"
+            ],
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        },
+        {
+          "id": 2,
+          "payload": {
+            "record_kind": "proposition",
+            "subject": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000050"
+            },
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000001"
+            },
+            "value": {
+              "kind": "integer",
+              "digits": "12"
+            },
+            "quantification": "particular",
+            "context": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000063"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "payload": {
+            "record_kind": "assertion",
+            "proposition": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000002"
+            },
+            "polarity": "support",
+            "scope": {
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000a",
+              "start": {
+                "kind": "exact",
+                "value": "10"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            },
+            "persistence": "explicit_interval",
+            "precision": "exact",
+            "alternatives": [],
+            "basis": {
+              "kind": "author_decision",
+              "note": "Explicit established stock"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "payload": {
+            "record_kind": "rule",
+            "namespace": "example",
+            "key": "loaded",
+            "labels": {
+              "author_wording": "These guns start with twelve rounds and cannot fire more than twelve times between reloads."
+            },
+            "kind": "physical_constraint",
+            "commitPolicy": "always_block",
+            "applicability": {
+              "kind": "universe_wide"
+            },
+            "subjectTypes": [
+              "rec_000000000000000000000046"
+            ],
+            "targetPredicates": [
+              "example:rounds"
+            ],
+            "expression": {
+              "kind": "lit",
+              "value": false
+            },
+            "capabilities": [
+              "basic.v1",
+              "finite.v1"
+            ],
+            "executable": true,
+            "validity": {
+              "kind": "instant",
+              "at": {
+                "kind": "exact",
+                "calendar": "cal_00000000000000000000000a",
+                "value": "10"
+              }
+            }
+          }
+        },
+        {
+          "id": 5,
+          "payload": {
+            "record_kind": "issue_decision",
+            "fingerprints": [],
+            "mode": "accept",
+            "scope": "rec_000000000000000000000004",
+            "rationale": "Author permits this exact exception",
+            "principal": "prn_000000000000000000000001"
+          }
+        },
+        {
+          "id": 6,
+          "payload": {
+            "record_kind": "exception",
+            "rule": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000004"
+            },
+            "ruleVersion": "ver_000000000000000000000004",
+            "scope": {
+              "applicability": {
+                "kind": "worlds",
+                "world_ids": [
+                  "wld_000000000000000000000014"
+                ]
+              },
+              "context": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000063"
+              }
+            },
+            "validity": {
+              "kind": "instant",
+              "at": {
+                "kind": "exact",
+                "calendar": "cal_00000000000000000000000a",
+                "value": "10"
+              }
+            },
+            "authorizingDecision": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000005"
+            },
+            "rationale": "Only world A at established tick 10"
+          }
+        }
+      ],
+      "rule": 4,
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000063"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000a",
+            "value": "10"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_000000000000000000000014"
+      ],
+      "expected": {
+        "accepted": false,
+        "outcome": "refuted",
+        "complete": true
+      },
+      "judgment": ""
+    }
+  ],
+  "undecided_operands": [
+    {
+      "kind": "entities_of_type",
+      "entity_type": {
+        "universe": "unv_000000000000000000000001",
+        "record": "rec_000000000000000000000046"
+      }
+    },
+    {
+      "kind": "resource_value",
+      "subject": {
+        "kind": "variable",
+        "name": "object"
+      },
+      "predicate": {
+        "universe": "unv_000000000000000000000001",
+        "record": "rec_000000000000000000000001"
+      },
+      "unit": null
+    }
+  ]
+}

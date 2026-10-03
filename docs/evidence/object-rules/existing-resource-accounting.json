@@ -1,0 +1,452 @@
+{
+  "status": "passed",
+  "cases": {
+    "consumption": {
+      "allowed": true,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "12",
+          "delta": "-1",
+          "expected_after": "11",
+          "proposed_after": "11"
+        }
+      ]
+    },
+    "replenishment": {
+      "allowed": true,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "11",
+          "delta": "1",
+          "expected_after": "12",
+          "proposed_after": "12"
+        }
+      ]
+    },
+    "last_round": {
+      "allowed": true,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "1",
+          "delta": "-1",
+          "expected_after": "0",
+          "proposed_after": "0"
+        }
+      ]
+    },
+    "forged_balance": {
+      "allowed": false,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "12",
+          "delta": "-1",
+          "expected_after": "11",
+          "proposed_after": "12"
+        }
+      ],
+      "reason": "arithmetic"
+    },
+    "missing_debit": {
+      "allowed": false,
+      "calculations": [],
+      "reason": "missing"
+    },
+    "missing_evidence": {
+      "allowed": false,
+      "calculations": [],
+      "reason": "evidence"
+    },
+    "wrong_owner_evidence": {
+      "allowed": false,
+      "calculations": [],
+      "reason": "evidence"
+    },
+    "refutation_only": {
+      "allowed": false,
+      "calculations": [],
+      "reason": "evidence"
+    },
+    "unknown_time": {
+      "allowed": false,
+      "calculations": [],
+      "reason": "time"
+    },
+    "expired_evidence": {
+      "allowed": false,
+      "calculations": [],
+      "reason": "evidence"
+    },
+    "same_time_bootstrap": {
+      "allowed": false,
+      "calculations": [],
+      "reason": "evidence"
+    },
+    "uncertain_evidence": {
+      "allowed": false,
+      "calculations": [],
+      "reason": "uncertain"
+    },
+    "underflow": {
+      "allowed": false,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "0",
+          "delta": "-1",
+          "expected_after": "-1",
+          "proposed_after": "-1"
+        }
+      ],
+      "reason": "arithmetic"
+    },
+    "overflow_cap": {
+      "allowed": false,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "12",
+          "delta": "1",
+          "expected_after": "13",
+          "proposed_after": "13"
+        }
+      ],
+      "reason": "arithmetic"
+    },
+    "pre_outside_bounds": {
+      "allowed": false,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "13",
+          "delta": "-1",
+          "expected_after": "12",
+          "proposed_after": "12"
+        }
+      ],
+      "reason": "arithmetic"
+    },
+    "large_exact": {
+      "allowed": true,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "9007199254740993",
+          "delta": "-1",
+          "expected_after": "9007199254740992",
+          "proposed_after": "9007199254740992"
+        }
+      ]
+    },
+    "i128_max": {
+      "allowed": true,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "170141183460469231731687303715884105726",
+          "delta": "1",
+          "expected_after": "170141183460469231731687303715884105727",
+          "proposed_after": "170141183460469231731687303715884105727"
+        }
+      ]
+    },
+    "host_overflow": {
+      "allowed": false,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "170141183460469231731687303715884105727",
+          "delta": "1",
+          "expected_after": "170141183460469231731687303715884105728",
+          "proposed_after": "170141183460469231731687303715884105727"
+        }
+      ],
+      "reason": "arithmetic"
+    },
+    "host_underflow": {
+      "allowed": false,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "-170141183460469231731687303715884105728",
+          "delta": "-1",
+          "expected_after": "-170141183460469231731687303715884105729",
+          "proposed_after": "-170141183460469231731687303715884105728"
+        }
+      ],
+      "reason": "arithmetic"
+    },
+    "magnitude_overflow": {
+      "allowed": false,
+      "calculations": [],
+      "reason": "bounds"
+    },
+    "fractional_stock": {
+      "allowed": false,
+      "calculations": [],
+      "reason": "integer"
+    },
+    "optional_omitted": {
+      "allowed": true,
+      "calculations": []
+    },
+    "planned": {
+      "allowed": true,
+      "calculations": []
+    },
+    "atomic_transfer": {
+      "allowed": true,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "12",
+          "delta": "-1",
+          "expected_after": "11",
+          "proposed_after": "11"
+        },
+        {
+          "slot": "credit",
+          "world": null,
+          "before": "4",
+          "delta": "1",
+          "expected_after": "5",
+          "proposed_after": "5"
+        }
+      ]
+    },
+    "forged_credit": {
+      "allowed": false,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "12",
+          "delta": "-1",
+          "expected_after": "11",
+          "proposed_after": "11"
+        },
+        {
+          "slot": "credit",
+          "world": null,
+          "before": "4",
+          "delta": "1",
+          "expected_after": "5",
+          "proposed_after": "6"
+        }
+      ],
+      "reason": "arithmetic"
+    },
+    "missing_credit": {
+      "allowed": false,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "12",
+          "delta": "-1",
+          "expected_after": "11",
+          "proposed_after": "11"
+        }
+      ],
+      "reason": "missing"
+    },
+    "missing_credit_evidence": {
+      "allowed": false,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "12",
+          "delta": "-1",
+          "expected_after": "11",
+          "proposed_after": "11"
+        }
+      ],
+      "reason": "time"
+    },
+    "credit_overflow": {
+      "allowed": false,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "12",
+          "delta": "-1",
+          "expected_after": "11",
+          "proposed_after": "11"
+        },
+        {
+          "slot": "credit",
+          "world": null,
+          "before": "12",
+          "delta": "1",
+          "expected_after": "13",
+          "proposed_after": "13"
+        }
+      ],
+      "reason": "arithmetic"
+    },
+    "alias_owners": {
+      "allowed": false,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "12",
+          "delta": "-1",
+          "expected_after": "11",
+          "proposed_after": "11"
+        }
+      ],
+      "reason": "alias"
+    },
+    "corroborated": {
+      "allowed": true,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "12",
+          "delta": "-1",
+          "expected_after": "11",
+          "proposed_after": "11"
+        }
+      ]
+    },
+    "ambiguous_balance": {
+      "allowed": false,
+      "calculations": [],
+      "reason": "evidence"
+    },
+    "conflicting_balance": {
+      "allowed": false,
+      "calculations": [],
+      "reason": "evidence"
+    },
+    "leading_zero_spelling": {
+      "allowed": true,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "12",
+          "delta": "-1",
+          "expected_after": "11",
+          "proposed_after": "11"
+        }
+      ]
+    },
+    "post_missing": {
+      "allowed": false,
+      "calculations": [],
+      "reason": "'value'"
+    },
+    "exact_unit": {
+      "allowed": true,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": null,
+          "before": "12",
+          "delta": "-1",
+          "expected_after": "11",
+          "proposed_after": "11"
+        }
+      ]
+    },
+    "fractional_quantity": {
+      "allowed": false,
+      "calculations": [],
+      "reason": "integer"
+    },
+    "wrong_unit": {
+      "allowed": false,
+      "calculations": [],
+      "reason": "unit"
+    },
+    "unitless_quantity": {
+      "allowed": false,
+      "calculations": [],
+      "reason": "integer"
+    },
+    "wrong_post_unit": {
+      "allowed": false,
+      "calculations": [],
+      "reason": "unit"
+    },
+    "multiworld_agree": {
+      "allowed": true,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": "wld_00000000000000000000000e",
+          "before": "12",
+          "delta": "-1",
+          "expected_after": "11",
+          "proposed_after": "11"
+        },
+        {
+          "slot": "debit",
+          "world": "wld_00000000000000000000000f",
+          "before": "12",
+          "delta": "-1",
+          "expected_after": "11",
+          "proposed_after": "11"
+        }
+      ]
+    },
+    "multiworld_differ": {
+      "allowed": false,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": "wld_00000000000000000000000e",
+          "before": "12",
+          "delta": "-1",
+          "expected_after": "11",
+          "proposed_after": "11"
+        }
+      ],
+      "reason": "evidence"
+    },
+    "world_cannot_supply_universe": {
+      "allowed": false,
+      "calculations": [],
+      "reason": "evidence"
+    },
+    "missing_one_world": {
+      "allowed": false,
+      "calculations": [
+        {
+          "slot": "debit",
+          "world": "wld_00000000000000000000000e",
+          "before": "12",
+          "delta": "-1",
+          "expected_after": "11",
+          "proposed_after": "11"
+        }
+      ],
+      "reason": "evidence"
+    },
+    "power_not_stock": {
+      "allowed": false,
+      "calculations": [],
+      "reason": "evidence"
+    }
+  }
+}

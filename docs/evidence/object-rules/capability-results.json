@@ -1,0 +1,477 @@
+{
+  "status": "passed",
+  "cases": 26,
+  "evaluation_paths": 2,
+  "checks": 52,
+  "results": [
+    {
+      "case": "exact_identity",
+      "indexed": false,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "exact_identity",
+      "indexed": true,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "second_same_type_not_automatically_selected",
+      "indexed": false,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "second_same_type_not_automatically_selected",
+      "indexed": true,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "subjectTypes_do_not_bind_subject",
+      "indexed": false,
+      "actual": {
+        "accepted": false,
+        "complete": false,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "subjectTypes_do_not_bind_subject",
+      "indexed": true,
+      "actual": {
+        "accepted": false,
+        "complete": false,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "subjectTypes_do_not_filter_explicit_identity",
+      "indexed": false,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "subjectTypes_do_not_filter_explicit_identity",
+      "indexed": true,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "finite_objects_missing_second",
+      "indexed": false,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "finite_objects_missing_second",
+      "indexed": true,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "finite_objects_both_supported",
+      "indexed": false,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "finite_objects_both_supported",
+      "indexed": true,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "finite_open_domain_cannot_prove_universal",
+      "indexed": false,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "finite_open_domain_cannot_prove_universal",
+      "indexed": true,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "world_A_support_A",
+      "indexed": false,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "world_A_support_A",
+      "indexed": true,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "world_A_cannot_borrow_B",
+      "indexed": false,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "world_A_cannot_borrow_B",
+      "indexed": true,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "universe_rule_world_support_not_universal",
+      "indexed": false,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "universe_rule_world_support_not_universal",
+      "indexed": true,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "universe_rule_shared_support_each_world",
+      "indexed": false,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "universe_rule_shared_support_each_world",
+      "indexed": true,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "conditional_scope_unsupported",
+      "indexed": false,
+      "actual": {
+        "accepted": false,
+        "complete": false,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "conditional_scope_unsupported",
+      "indexed": true,
+      "actual": {
+        "accepted": false,
+        "complete": false,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "initial_amount_at_start",
+      "indexed": false,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "initial_amount_at_start",
+      "indexed": true,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "permanent_initial_equality_rejects_consumption",
+      "indexed": false,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "permanent_initial_equality_rejects_consumption",
+      "indexed": true,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "claim_does_not_initialize_missing_stock",
+      "indexed": false,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "claim_does_not_initialize_missing_stock",
+      "indexed": true,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "capacity_is_not_stock",
+      "indexed": false,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "capacity_is_not_stock",
+      "indexed": true,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "finite_bounds_twelve",
+      "indexed": false,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "finite_bounds_twelve",
+      "indexed": true,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "finite_bounds_zero",
+      "indexed": false,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "finite_bounds_zero",
+      "indexed": true,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "finite_bounds_thirteen_rejects",
+      "indexed": false,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "finite_bounds_thirteen_rejects",
+      "indexed": true,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "finite_bounds_conflicting_supported_values_slip_through",
+      "indexed": false,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "finite_bounds_conflicting_supported_values_slip_through",
+      "indexed": true,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "case": "record_operand_is_not_property_value",
+      "indexed": false,
+      "actual": {
+        "accepted": false,
+        "complete": false,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "record_operand_is_not_property_value",
+      "indexed": true,
+      "actual": {
+        "accepted": false,
+        "complete": false,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "case": "authorized_exception_retains_finding",
+      "indexed": false,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "refuted"
+      }
+    },
+    {
+      "case": "authorized_exception_retains_finding",
+      "indexed": true,
+      "actual": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "refuted"
+      }
+    },
+    {
+      "case": "exception_does_not_cover_other_world",
+      "indexed": false,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "refuted"
+      }
+    },
+    {
+      "case": "exception_does_not_cover_other_world",
+      "indexed": true,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "refuted"
+      }
+    },
+    {
+      "case": "stale_exception_rejects",
+      "indexed": false,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "refuted"
+      }
+    },
+    {
+      "case": "stale_exception_rejects",
+      "indexed": true,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "refuted"
+      }
+    },
+    {
+      "case": "missing_acceptance_rejects",
+      "indexed": false,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "refuted"
+      }
+    },
+    {
+      "case": "missing_acceptance_rejects",
+      "indexed": true,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "refuted"
+      }
+    },
+    {
+      "case": "always_block_cannot_be_waived",
+      "indexed": false,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "refuted"
+      }
+    },
+    {
+      "case": "always_block_cannot_be_waived",
+      "indexed": true,
+      "actual": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "refuted"
+      }
+    }
+  ],
+  "unsupported_new_operands_rejected": 2
+}

@@ -22,3 +22,6 @@ mod powers;
 
 mod boundary_checks;
 mod rule_checks;
+
+#[cfg(test)]
+mod object_rule_capability_checks;
