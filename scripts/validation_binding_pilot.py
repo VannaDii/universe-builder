@@ -68,8 +68,7 @@ def run(bin_dir, output):
             first=attach(s,p,body,0,'first');a=record('selected',validate(s,p))
             # Earlier generation-zero evidence loses exact author authority.
             assert s.approval(p,absent['execution'],check=False).returncode!=0
-            # Assessment-aware publication integration is intentionally unavailable.
-            assert s.approval(p,a['execution'],check=False).returncode!=0
+            assert s.approval(p,a['execution'],check=False).returncode==0
             s.call('universe_commit',s.commit_args(p,absent['execution'],'obsolete-run'),error=True)
             oid,q=queued(s,p,'queued-selected');record('queued-selected',q)
             replacement=copy.deepcopy(body);replacement['assessor']['assessed_at']='2026-10-03T00:00:01Z'

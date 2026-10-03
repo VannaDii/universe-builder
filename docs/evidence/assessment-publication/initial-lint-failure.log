@@ -1,0 +1,22 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.24s
+     Running `target/debug/xtask check`
+    Checking universe-store v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-store)
+    Checking universe-client v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-client)
+    Checking universe-service v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-service)
+    Checking universe-ui v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-ui)
+    Checking universe-mcp v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-mcp)
+    Checking universe-engine v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-engine)
+    Checking universe-cli v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-cli)
+error: this boolean expression can be simplified
+   --> crates/universe-service/src/validation_binding.rs:511:17
+    |
+511 |         assert!(!w.publication_capture(&p, &absent).is_ok());
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `w.publication_capture(&p, &absent).is_err()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.92.0/index.html#nonminimal_bool
+    = note: `-D clippy::nonminimal-bool` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::nonminimal_bool)]`
+
+error: could not compile `universe-service` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+Error: cargo failed: exit status: 101

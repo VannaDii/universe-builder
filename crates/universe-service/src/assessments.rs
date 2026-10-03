@@ -516,8 +516,35 @@ impl Workflow<'_> {
         AssessmentState,
         Option<AssessmentEnvelope>,
     )> {
+        self.resolve_assessment_inner(r, exact, false)
+    }
+    /// Read-only private publication revalidation. The commit route already
+    /// checks the complete write footprint and exact author/delegated authority.
+    /// Public assessment access continues to enforce dependency visibility.
+    pub(super) fn resolve_publication_assessment(
+        &self,
+        r: &ProposalRef,
+    ) -> anyhow::Result<(
+        AssessmentSelection,
+        AssessmentState,
+        Option<AssessmentEnvelope>,
+    )> {
+        self.resolve_assessment_inner(r, None, true)
+    }
+    fn resolve_assessment_inner(
+        &self,
+        r: &ProposalRef,
+        exact: Option<&AssessmentRef>,
+        private: bool,
+    ) -> anyhow::Result<(
+        AssessmentSelection,
+        AssessmentState,
+        Option<AssessmentEnvelope>,
+    )> {
         let p = self.proposal(r).map_err(|_| denied())?;
-        self.assessment_access(&p, None)?;
+        if !private {
+            self.assessment_access(&p, None)?;
+        }
         let selection = self.assessment_selection_raw(r)?;
         if let Some(reference) = &selection.selected {
             if self
@@ -527,7 +554,7 @@ impl Workflow<'_> {
             {
                 // Without its body, dependency scope cannot be established for
                 // a partial viewer. Only the unrestricted author can read loss.
-                if !self.principal.author || self.scope.is_some() {
+                if !private && (!self.principal.author || self.scope.is_some()) {
                     return Err(denied());
                 }
                 let historical = match exact.filter(|requested| hash(*requested) != hash(reference))
@@ -539,7 +566,9 @@ impl Workflow<'_> {
                         if e.body.proposal != *r {
                             return Err(denied());
                         }
-                        self.assessment_access(&p, Some(&e.body))?;
+                        if !private {
+                            self.assessment_access(&p, Some(&e.body))?;
+                        }
                         Some(e)
                     }
                     None => None,
@@ -559,7 +588,9 @@ impl Workflow<'_> {
                 if e.body.proposal != *r {
                     return Err(denied());
                 }
-                self.assessment_access(&p, Some(&e.body))?;
+                if !private {
+                    self.assessment_access(&p, Some(&e.body))?;
+                }
                 Some(e)
             }
             None => None,
@@ -568,7 +599,9 @@ impl Workflow<'_> {
             None => AssessmentState::Absent {},
             Some(reference) => {
                 let e = self.assessment_envelope_raw(reference)?;
-                self.assessment_access(&p, Some(&e.body))?;
+                if !private {
+                    self.assessment_access(&p, Some(&e.body))?;
+                }
                 let reasons = self.assessment_stale_reasons(&p, &e.body)?;
                 if !reasons.is_empty() {
                     AssessmentState::Stale {

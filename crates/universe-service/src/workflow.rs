@@ -161,6 +161,22 @@ pub(crate) fn pause_evaluation(
         .insert(u, (entered, blocked));
     (wait, release)
 }
+#[cfg(test)]
+static PUBLICATION_PAUSES: std::sync::OnceLock<std::sync::Mutex<EvaluationPauses>> =
+    std::sync::OnceLock::new();
+#[cfg(test)]
+pub(crate) fn pause_publication(
+    u: UniverseId,
+) -> (std::sync::mpsc::Receiver<()>, std::sync::mpsc::Sender<()>) {
+    let (entered, wait) = std::sync::mpsc::channel();
+    let (release, blocked) = std::sync::mpsc::channel();
+    PUBLICATION_PAUSES
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap()
+        .insert(u, (entered, blocked));
+    (wait, release)
+}
 type ActiveJobs = std::collections::BTreeMap<
     (UniverseId, OperationId),
     std::sync::Arc<std::sync::atomic::AtomicBool>,
@@ -459,24 +475,6 @@ impl Workflow<'_> {
             changes: p.changes.clone(),
         })
     }
-    fn has_final(&self, c: &Checked, p: &StoredProposal) -> bool {
-        // Assessment-aware publication is a separate goal. Preserve the existing
-        // generation-zero record path, and revoke it after any selection change.
-        let r = validation_binding::proposal_reference(p);
-        if !self
-            .assessment_selection_raw(&r)
-            .is_ok_and(|s| s.generation == 0 && s.selected.is_none())
-        {
-            return false;
-        }
-        matches!(
-            &c.report,
-            Some(ValidationV3::Evaluated {
-                final_binding_digest: Some(_),
-                ..
-            })
-        ) && hash(&c.report) == hash(&Some(Self::report(p, c.validation.clone(), false, true)))
-    }
     fn query_report(execution: Validation, frame: Frame, check_scope: CheckScope) -> ValidationV3 {
         if execution.coverage == Coverage::Restricted {
             return ValidationV3::restricted();
@@ -501,7 +499,7 @@ impl Workflow<'_> {
             return ValidationV3::restricted();
         }
         // Compatibility for legacy/pending evidence and the existing unselected
-        // publication gate. Completed validation uses its captured selection.
+        // record evidence. Completed validation uses its captured selection.
         let proposal = validation_binding::proposal_reference(p);
         let submitted_input = validation_binding::record_input(p);
         let assessment = if legacy {
@@ -1327,7 +1325,6 @@ impl Workflow<'_> {
             || p.proposal.withdrawn
             || !matches!(p.proposal.submission, Submission::Submitted)
             || checked.proposal_digest != r.digest
-            || !self.has_final(&checked, &p)
             || checked.validation.evaluator_version != EVALUATOR
             || !checked.admissible
             || self.kernel.head(&p.proposal.base_frame.continuity)?
@@ -1335,8 +1332,15 @@ impl Workflow<'_> {
         {
             return Err(ProtocolError::ApprovalStale.into());
         }
-        // Approval binds both the exact resolved proposal and evaluator evidence.
-        self.save(format!("approval:{}:{}:{run}",self.approval_author,r.digest),&json!({"author":self.principal.id,"proposal":r,"validation_digest":hash(&checked),"evaluator":EVALUATOR}))?;
+        let capture = self.publication_capture(&p, &checked)?;
+        let authority = self.authority.clone();
+        let guard = authority.as_ref().map(|a| a.lock()).transpose()?;
+        self.verify_validation_authority(&capture, guard.as_deref())?;
+        // Exact selection and full Checked evidence authorize this run only.
+        self.kernel.workflow_compare_append(&capture.comparisons(), &[(
+            format!("approval:{}:{}:{run}", self.approval_author, r.digest),
+            json!({"author":self.principal.id,"proposal":r,"validation_digest":hash(&checked),"evaluator":EVALUATOR}),
+        )])?;
         Ok(json!({"approved":r,"validation_run":run}))
     }
     pub fn execute(&mut self, request: Request) -> anyhow::Result<Value> {
@@ -1481,7 +1485,7 @@ impl Workflow<'_> {
                 } else {
                     vec![]
                 };
-                serde_json::to_value(Description{fixture:false,worlds,definition_ids,capabilities:vec![Capability{id:"source_assessment.v1".into(),status:CapabilityStatus::Partial,limitation:"Authenticated immutable attachment and generation-checked selection through universe_propose. Pinned permission-checked assessment retrieval and shared author review are available. Validation/approval/commit integration and native interaction qualification remain unavailable.".into()},Capability{id:"canon.commit.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact author approval or explicit expiring entity/predicate/continuity delegation; fresh complete validation and current grants required".into()},Capability{id:"opposing_evidence.v1".into(),status:CapabilityStatus::Implemented,limitation:"Candidate-wide polarity diagnostics and explicitly scoped NoOpposingEvidence policies. Unresolved comparisons remain partial; no prose or integrated-story qualification.".into()},Capability{id:"basic.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact scalar, finite collection and integer-tick temporal expressions; unsupported blocking checks fail admission".into()},Capability{id:"events.owner_attributes.v1".into(),status:CapabilityStatus::Implemented,limitation:"New/revised events require declared actions. Mandatory values resolve on exactly one participant per owning role at pre-event time; direct and explicit item grants share evidence. Missing, muted, conflicting and unsupported prerequisites block use. Legacy actionless events remain readable but are not certified; prose/action classification still requires author review.".into()},Capability{id:"events.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact occurred-event effects, explicit within-event order, pre/post state and possession powers. Noncommuting effects from separate simultaneous events and complex causality are rejected.".into()},
+                serde_json::to_value(Description{fixture:false,worlds,definition_ids,capabilities:vec![Capability{id:"source_assessment.v1".into(),status:CapabilityStatus::Partial,limitation:"Authenticated immutable attachment and generation-checked selection through universe_propose. Pinned permission-checked assessment retrieval and shared author review are available. Exact assessment or absence and selection generation bind validation, approval and atomic commit. Native interaction and prose qualification remain unavailable.".into()},Capability{id:"canon.commit.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact author approval or explicit expiring entity/predicate/continuity delegation; fresh complete validation and current grants required".into()},Capability{id:"opposing_evidence.v1".into(),status:CapabilityStatus::Implemented,limitation:"Candidate-wide polarity diagnostics and explicitly scoped NoOpposingEvidence policies. Unresolved comparisons remain partial; no prose or integrated-story qualification.".into()},Capability{id:"basic.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact scalar, finite collection and integer-tick temporal expressions; unsupported blocking checks fail admission".into()},Capability{id:"events.owner_attributes.v1".into(),status:CapabilityStatus::Implemented,limitation:"New/revised events require declared actions. Mandatory values resolve on exactly one participant per owning role at pre-event time; direct and explicit item grants share evidence. Missing, muted, conflicting and unsupported prerequisites block use. Legacy actionless events remain readable but are not certified; prose/action classification still requires author review.".into()},Capability{id:"events.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact occurred-event effects, explicit within-event order, pre/post state and possession powers. Noncommuting effects from separate simultaneous events and complex causality are rejected.".into()},
                     Capability{id:"knowledge.explicit.v1".into(),status:CapabilityStatus::Implemented,limitation:"Explicit, time-bound holder attitudes in their represented context. Presence, sending and receipt do not infer knowledge.".into()},
                     Capability{id:"perspective.views.v1".into(),status:CapabilityStatus::Implemented,limitation:"Character and narrator views require matching represented contexts. Reader views require an exact scene and explicit disclosures in its bound work edition. No automatic knowledge inference.".into()},
                     Capability{id:"history.v1".into(),status:CapabilityStatus::Implemented,limitation:"Typed summaries, evidence and pinned record history; history is limited to 100 changes per record and unrestricted author-perspective reads. Native restoration produces a reviewed compensating revision.".into()},
@@ -2396,7 +2400,6 @@ impl Workflow<'_> {
                 let checked: Checked = self.load(&format!("validation:{}", a.validation_run))?;
                 if checked.proposal_digest != p.proposal.digest
                     || !checked.admissible
-                    || !self.has_final(&checked, &p)
                     || checked.validation.evaluator_version != EVALUATOR
                 {
                     return Err(ProtocolError::ApprovalStale.into());
@@ -2424,6 +2427,7 @@ impl Workflow<'_> {
                         return Err(ProtocolError::ApprovalStale.into());
                     }
                 }
+                let capture = self.publication_capture(&p, &checked)?;
                 let head = self.kernel.head(&p.proposal.base_frame.continuity)?;
                 if head != a.expected_base_revision {
                     return Err(ProtocolError::BaseRevisionConflict {
@@ -2437,10 +2441,17 @@ impl Workflow<'_> {
                 let scope = self.scope.take();
                 let fresh = self.check(&p);
                 self.scope = scope;
-                let fresh = fresh?;
-                if !fresh.admissible {
+                let mut fresh = fresh?;
+                // Reuse the approved run identity solely for comparison; this
+                // private evaluation never creates another validation receipt.
+                fresh.validation.run_id = checked.validation.run_id.clone();
+                fresh.validation.operation_id = checked.validation.operation_id.clone();
+                if !fresh.admissible || hash(&fresh.validation) != hash(&checked.validation) {
                     return Err(ProtocolError::ApprovalStale.into());
                 }
+                // Re-resolve scope/state after evaluation and compare the exact
+                // final digest, including explicit absence and withdrawal generation.
+                self.publication_capture(&p, &checked)?;
                 let input = self.input(&p, a.idempotency_key)?;
                 let op = if self.kernel.workflow_get(&key)?.is_some() {
                     self.operation(&key)?
@@ -2478,10 +2489,25 @@ impl Workflow<'_> {
                     .into());
                 }
                 let authority = self.authority.clone();
-                let _guard = authority.as_ref().map(|a| a.lock()).transpose()?;
-                // The universe worker serializes candidates. SQLite rechecks the head
-                // and publishes the revision and receipt under this current-authority gate.
-                let revision = self.kernel.commit(&input)?;
+                #[cfg(test)]
+                if let Some((entered, release)) = PUBLICATION_PAUSES
+                    .get_or_init(Default::default)
+                    .lock()
+                    .unwrap()
+                    .remove(self.kernel.universe())
+                {
+                    entered.send(()).unwrap();
+                    release
+                        .recv_timeout(std::time::Duration::from_secs(5))
+                        .unwrap();
+                }
+                let guard = authority.as_ref().map(|a| a.lock()).transpose()?;
+                self.verify_validation_authority(&capture, guard.as_deref())?;
+                // Current authority remains locked through SQLite's selection,
+                // proposal and head comparison and canonical receipt publication.
+                let revision = self
+                    .kernel
+                    .commit_compared(&input, &capture.comparisons())?;
                 serde_json::to_value(CommitReceipt {
                     operation_id: op.status.operation_id,
                     proposal_id: p.proposal.proposal_id,

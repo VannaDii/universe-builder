@@ -1,4 +1,4 @@
-//! Selection snapshots and exact validation bindings. No assessment publication path.
+//! Selection snapshots and exact validation/publication bindings.
 use super::*;
 use universe_protocol::assessment::{
     execution_result_digest, AssessmentSelection, SourceValidationBindingV1, ValidationBindingKind,
@@ -70,7 +70,7 @@ impl ValidationCapture {
             final_binding_digest,
         })
     }
-    fn comparisons(&self) -> Vec<(String, Option<String>)> {
+    pub(super) fn comparisons(&self) -> Vec<(String, Option<String>)> {
         let r = &self.selection.proposal;
         let prefix = format!("assessment-selection:{}:{:020}:", r.proposal_id, r.version);
         vec![
@@ -87,6 +87,32 @@ impl ValidationCapture {
     }
 }
 impl Workflow<'_> {
+    /// Publication may privately inspect author-approved evidence for a scoped
+    /// committer. This never changes write boundaries or discloses that evidence.
+    pub(super) fn publication_capture(
+        &mut self,
+        p: &StoredProposal,
+        checked: &Checked,
+    ) -> anyhow::Result<ValidationCapture> {
+        let capture = self.capture_binding(p, true)?;
+        if !matches!(
+            checked.report,
+            Some(ValidationV3::Evaluated {
+                final_binding_digest: Some(_),
+                ..
+            })
+        ) || hash(&checked.report)
+            != hash(&Some(capture.report(
+                p,
+                checked.validation.clone(),
+                true,
+            )?))
+        {
+            return Err(ProtocolError::ApprovalStale.into());
+        }
+        Ok(capture)
+    }
+
     fn validation_authority_digest(&self) -> String {
         hash(&(
             &self.principal.id,
@@ -99,6 +125,13 @@ impl Workflow<'_> {
         &self,
         p: &StoredProposal,
     ) -> anyhow::Result<ValidationCapture> {
+        self.capture_binding(p, false)
+    }
+    fn capture_binding(
+        &self,
+        p: &StoredProposal,
+        private: bool,
+    ) -> anyhow::Result<ValidationCapture> {
         let authority = self.authority.clone();
         let _guard = authority.as_ref().map(|a| a.lock()).transpose()?;
         let r = proposal_reference(p);
@@ -106,7 +139,11 @@ impl Workflow<'_> {
         // Unassessed records retain their existing write-boundary admission.
         // Full source/dependency visibility is required only for an attachment.
         let (selection, assessment, envelope) = if selection.selected.is_some() {
-            self.resolve_assessment(&r, None)?
+            if private {
+                self.resolve_publication_assessment(&r)?
+            } else {
+                self.resolve_assessment(&r, None)?
+            }
         } else {
             (selection, AssessmentState::Absent {}, None)
         };
@@ -257,6 +294,137 @@ mod tests {
         .unwrap();
         checked
     }
+    fn commit_request(p: &StoredProposal, c: &Checked, key: &str) -> Request {
+        Request::from_tool("universe_commit", json!({"universe":"Assessment proofs",
+            "proposal_reference":reference(p),"expected_base_revision":p.proposal.base_frame.revision,
+            "validation_run":c.validation.run_id,"idempotency_key":key})).unwrap()
+    }
+    #[test]
+    fn assessment_publication_exact_approval_withdrawal_and_restart() {
+        for withdrawn in [false, true] {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("package.sqlite");
+            let profile = ProfileId::generate(&mut rand::rng());
+            let mut kernel = kernel(&path);
+            let (p, mut b) = setup(&mut kernel, &profile);
+            let mut w = workflow(&mut kernel, &profile);
+            let r = reference(&p);
+            let first = w.attach_assessment(&r, 0, b.clone(), "first").unwrap();
+            let checked = synchronous(&mut w, &p);
+            let mut forged = serde_json::to_value(&checked).unwrap();
+            forged["report"]["final_binding_digest"] = json!("0".repeat(64));
+            let forged: Checked = serde_json::from_value(forged).unwrap();
+            assert!(w.publication_capture(&p, &forged).is_err());
+            w.approve(&r, &checked.validation.run_id).unwrap();
+            let original = w
+                .kernel
+                .workflow_get(&format!(
+                    "assessment:{}",
+                    serde_json::to_value(&first.selected.as_ref().unwrap().assessment_id)
+                        .unwrap()
+                        .as_str()
+                        .unwrap()
+                ))
+                .unwrap();
+            let head = w.kernel.head(&p.proposal.base_frame.continuity).unwrap();
+            b.assessor.assessed_at = "2026-10-03T00:00:01Z".into();
+            w.attach_assessment(&r, 1, b, "replacement").unwrap();
+            assert!(w.approve(&r, &checked.validation.run_id).is_err());
+            assert!(w.execute(commit_request(&p, &checked, "stale")).is_err());
+            // Returning to the original identity still changes generation.
+            w.select_assessment(&r, 2, first.selected.clone(), "reselect")
+                .unwrap();
+            assert!(w.execute(commit_request(&p, &checked, "aba")).is_err());
+            let rebound = synchronous(&mut w, &p);
+            w.approve(&r, &rebound.validation.run_id).unwrap();
+            w.select_assessment(&r, 3, None, "withdraw").unwrap();
+            assert!(w
+                .execute(commit_request(&p, &rebound, "withdrawn"))
+                .is_err());
+            assert_eq!(
+                w.kernel.head(&p.proposal.base_frame.continuity).unwrap(),
+                head
+            );
+            if !withdrawn {
+                w.select_assessment(&r, 4, first.selected.clone(), "restore")
+                    .unwrap();
+            }
+            let final_run = synchronous(&mut w, &p);
+            w.approve(&r, &final_run.validation.run_id).unwrap();
+            let request = commit_request(&p, &final_run, "valid");
+            let receipt = w.execute(request.clone()).unwrap()["result"].clone();
+            assert_ne!(receipt["revision"], json!(head));
+            assert_eq!(w.execute(request.clone()).unwrap()["result"], receipt);
+            assert_eq!(
+                w.kernel
+                    .workflow_get(&format!(
+                        "assessment:{}",
+                        serde_json::to_value(&first.selected.as_ref().unwrap().assessment_id)
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                    ))
+                    .unwrap(),
+                original
+            );
+            drop(w);
+            drop(kernel);
+            let mut kernel = Kernel::open(&path).unwrap();
+            let mut w = workflow(&mut kernel, &profile);
+            assert_eq!(w.execute(request).unwrap()["result"], receipt);
+            assert_eq!(
+                w.kernel
+                    .workflow_get(&format!(
+                        "assessment:{}",
+                        serde_json::to_value(&first.selected.unwrap().assessment_id)
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                    ))
+                    .unwrap(),
+                original
+            );
+        }
+    }
+    #[test]
+    fn assessment_publication_does_not_block_unresolved_or_unavailable_records() {
+        for unavailable in [false, true] {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("package.sqlite");
+            let profile = ProfileId::generate(&mut rand::rng());
+            let mut kernel = kernel(&path);
+            let (p, mut b) = setup(&mut kernel, &profile);
+            let mut w = workflow(&mut kernel, &profile);
+            b.declared_inventory = serde_json::from_value(json!([{"item_id":"i","source_key":"passage","range":{"start":0,"end":5},"material_kind":"description","statement":"Uncertain","mapping_ids":[],"unresolved_ids":["u"]}])).unwrap();
+            b.inventory_declaration.kind = InventoryKind::MaterialInventoryDeclared;
+            b.unresolved = serde_json::from_value(json!([{"unresolved_id":"u","item_ids":["i"],"reason":"unrepresented_material","detail":"Explicit"}])).unwrap();
+            b.conclusion = DeclaredConclusion::Unresolved;
+            let selection = w
+                .attach_assessment(&reference(&p), 0, b, "unresolved")
+                .unwrap();
+            if unavailable {
+                let db = rusqlite::Connection::open(&path).unwrap();
+                db.execute_batch("DROP TRIGGER workflow_entries_no_delete")
+                    .unwrap();
+                db.execute(
+                    "DELETE FROM workflow_entries WHERE key=?1",
+                    [format!(
+                        "assessment:{}",
+                        serde_json::to_value(&selection.selected.unwrap().assessment_id)
+                            .unwrap()
+                            .as_str()
+                            .unwrap()
+                    )],
+                )
+                .unwrap();
+                db.execute_batch("CREATE TRIGGER workflow_entries_no_delete BEFORE DELETE ON workflow_entries BEGIN SELECT RAISE(ABORT, 'immutable workflow entry'); END").unwrap();
+            }
+            let c = synchronous(&mut w, &p);
+            w.approve(&reference(&p), &c.validation.run_id).unwrap();
+            w.execute(commit_request(&p, &c, "ordinary-admission"))
+                .unwrap();
+        }
+    }
     fn queued(w: &mut Workflow<'_>, p: &StoredProposal, key: &str) -> OperationId {
         let id = OperationId::generate(&mut rand::rng());
         let op = StoredOperation {
@@ -347,15 +515,15 @@ mod tests {
         let mut w = workflow(&mut kernel, &profile);
         let r = reference(&p);
         let absent = synchronous(&mut w, &p);
-        assert!(w.has_final(&absent, &p));
+        assert!(w.publication_capture(&p, &absent).is_ok());
         w.approve(&r, &absent.validation.run_id).unwrap();
         let mut proofs = vec![case(&w, "absent", &p, &absent)];
         w.attach_assessment(&r, 0, b.clone(), "first").unwrap();
-        assert!(!w.has_final(&absent, &p));
+        assert!(w.publication_capture(&p, &absent).is_err());
         assert!(w.approve(&r, &absent.validation.run_id).is_err());
         let first = synchronous(&mut w, &p);
         proofs.push(case(&w, "selected", &p, &first));
-        assert!(!w.has_final(&first, &p)); // No assessment-aware publication integration.
+        assert!(w.publication_capture(&p, &first).is_ok());
         let id = queued(&mut w, &p, "queue");
         w.run_validation(&id).unwrap();
         let op = w.operation(&format!("operation:{id}")).unwrap();

@@ -89,6 +89,17 @@ host must pass initialization instructions to its model for them to have effect.
 
 ## Prose and evidence
 
+Source assessment attachments now participate in the complete publication path.
+After freezing a submitted proposal, attach/select its exact assessment and review
+all pinned pages. Completed validation binds that identity or explicit absence,
+selection generation, submitted scope and assessment state. Author approval and
+delegated commit require that exact final binding; replacement, withdrawal and
+reselection require fresh validation and applicable approval. Private revalidation
+and atomic publication check the same selection. Assessment conclusions remain
+assessor declarations and do not add universal admission blockers. Fresh raw-source
+and record publication remains available under the existing rules. See
+[executed publication proofs](assessment-publication-verification.md).
+
 Preserve exact used text through author source staging in the desktop or CLI.
 Link each material change to its exact immutable source version and supporting
 passage anchor before using it to continue the story. Source staging

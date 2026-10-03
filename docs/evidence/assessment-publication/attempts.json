@@ -1,0 +1,37 @@
+{
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "failed",
+      "stage": "restart operation lookup input schema",
+      "request": {
+        "lookup": "idempotency",
+        "operation_kind": "commit",
+        "idempotency_key": "assessed-commit"
+      },
+      "reason": "Producer used idempotency instead of the existing closed discriminator key; rejected locally by JSON Schema before transmission.",
+      "correction": "Use the existing lookup=key contract. No service change."
+    },
+    {
+      "attempt": 2,
+      "status": "failed",
+      "stage": "revoked-profile response recording",
+      "reason": "Authentication rejection correctly returned an MCP error with text content but no structuredContent; producer assumed structuredContent exists on all errors.",
+      "correction": "Accept the existing text-only authentication error shape while auditing its error flag and unchanged state. No service change.",
+      "evidence": "failed-attempt.json"
+    },
+    {
+      "attempt": "focused-delegation-1",
+      "status": "failed",
+      "reason": "Bounded delegation intentionally denies public source assessment dependency review. Fixture incorrectly attempted attachment as bounded agent. Testing author-validated evidence also required the private publication resolver to avoid applying public read visibility to that read-only recheck.",
+      "correction": "Author attaches and validates; bounded agent commits without a new approval. Private resolver checks bytes/state without returning source evidence; public dependency visibility remains enforced."
+    },
+    {
+      "attempt": "strict-lint-1",
+      "status": "failed",
+      "reason": "New test used negated is_ok rather than is_err.",
+      "correction": "Simplified expression. No lint allowances.",
+      "evidence": "initial-lint-failure.log"
+    }
+  ]
+}

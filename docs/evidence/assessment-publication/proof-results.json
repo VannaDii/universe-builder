@@ -1,0 +1,114 @@
+{
+  "status": "pass",
+  "base_commit": "984dd1fbc9ab8ccdb9c4033dd4b013c0a3b69f71",
+  "qualification": {
+    "command": "cargo run --locked -p xtask -- check",
+    "passed": 309,
+    "failed": 0,
+    "ignored": 1,
+    "strict_all_target_workspace_clippy": "pass",
+    "formatting": "pass",
+    "generated_schemas": "pass"
+  },
+  "build": {
+    "command": "cargo build --locked -p universe-cli -p universe-engine -p universe-mcp",
+    "status": "pass"
+  },
+  "contracts": {
+    "source_assessment_tests": 6,
+    "validation_scope_tests": 3,
+    "tool_schemas": 26,
+    "valid_examples": 13,
+    "invalid_examples": 91,
+    "status": "pass"
+  },
+  "public_mcp_author_workflow": {
+    "cases": 33,
+    "independent_binding_and_approval_checks": 8,
+    "restart_exact": true,
+    "historical_bytes_exact": true,
+    "status": "pass"
+  },
+  "independent_oracle_negative_tests": {
+    "tests": 4,
+    "status": "pass"
+  },
+  "validation_binding_regression": {
+    "independent_bindings": 8,
+    "status": "pass"
+  },
+  "deterministic_controls": {
+    "service_after_private_revalidation": [
+      "replacement",
+      "withdrawal",
+      "grant_revocation",
+      "grant_restoration",
+      "profile_revocation"
+    ],
+    "delegation": [
+      "assessed_commit_without_approval",
+      "withdrawal",
+      "replacement",
+      "revoked_bounds",
+      "expiry",
+      "public_source_review_denial"
+    ],
+    "store_prepublication": [
+      "replacement",
+      "withdrawal",
+      "identity_restoration",
+      "initial_selection",
+      "proposal_revision"
+    ],
+    "store_check_to_head": "independent writer receives SQLITE_BUSY inside publication transaction",
+    "rollback_fault_points": [
+      "versions",
+      "changes",
+      "head",
+      "projections",
+      "receipt",
+      "before_commit"
+    ],
+    "status": "pass"
+  },
+  "admission_controls": [
+    "generation_zero_unassessed",
+    "fresh_withdrawal_raw_source",
+    "unresolved_assessment",
+    "unavailable_assessment_record",
+    "source_integrity_failure_remains_denied"
+  ],
+  "excluded": [
+    "new_universal_assessment_blockers",
+    "prose_model_qualification",
+    "broader_continuity_gap_closure"
+  ],
+  "evidence_hashes": {
+    "attempts.json": "c2beb24733cd4813a806e4a8d1fbd31e860d50fba51bde2fa2ac65b6d449db2e",
+    "audit.log": "767113b39c7646a4ab9153767962eea0afdbcf5de40d05b53643f85258d31eee",
+    "binding-regression.log": "abc6b34fdb05cf94bbe12a8dbe0a32cca8a659b41ad9235389eb1f0626546289",
+    "build.log": "61cd59aac55c3f0344f25eb0ca78ba0477c9ce4d1df005502fbfa00f07f63ee2",
+    "failed-attempt.json": "a93fa64a476f78d260eae17ce42373dbe28e9b7c15f96a29d5cc1bb96af06887",
+    "independent-audit.json": "0b7f4a3cbb6b0fce23beaed4f87b8ff49736faaa1a9a358e29016062cd43c6dd",
+    "initial-lint-failure.log": "6eb43030c9c1f7a28f6ffe8e1ec3ef52b38c9fd47e32fa653334fe82bebcbd2d",
+    "mcp.log": "66ce7ab1a68dd52bc24d9c98898fd4ee17d0dd02b1891fc49ae900a5d22c5ab8",
+    "oracle-tests.log": "62de378b578bd9359bba17c522ca345559491d42db29b8ad2e5b545550797c8a",
+    "oracle.md": "58d375a26bb8d0911048ba369469de5e47160aaec5907850aac8582c8a60d489",
+    "oracle.sha256": "31a103ca04aded9ffb30e41436ac9bc25f1ccecdd1f48a9df1cf071c0ac07779",
+    "regression-audit.log": "92ca456517431962de6c7a389436dd69d8ba633177ef1fe19244e574fd2d1e03",
+    "regression-bindings.json": "86d5646bd5191312b2461767026096381a0af657bec2b38c2b7bb6775ebcf128",
+    "regression-independent.json": "a17e9e275785fdee449a4aea5e516f09bdf7c54ce21b215ecfa466de4f1104a4",
+    "scope-contracts.log": "65e5db7630fc6b067dabaa4bc230b32c0066062fc413d0872b15997affbc3492",
+    "source-contracts.log": "43e15ffe0ce4bc7530b1186cb650a7b15c9e606617eb6c327d68862441175738",
+    "tool-contracts.log": "a0735450518654b52c0a57eb2b8e049e6eb36bb08586859679fd3bed4dbaedb3",
+    "transcript.json": "4b34824ac85c30426b34752c8e69ad59486fc750b0891f97591eba9166f5c454",
+    "workspace-check.log": "f49759bad48a4483968766cf181e24e37905fd0c9afd9859ee488f06e0b95656"
+  },
+  "implementation_hashes": {
+    "crates/universe-service/src/workflow.rs": "882efa8edef684904d46a3380942e0fc529ba478ffaae8a28772a9c4c01602e7",
+    "crates/universe-service/src/validation_binding.rs": "8dfcabed812ca1fecc955c9345390742dfbbce70eb774529ece95e551fcbb4b4",
+    "crates/universe-service/src/assessments.rs": "1cd149f1cde20ca1bf99206ab211acc279a71faeda7cd36f5d447a05898ad67c",
+    "crates/universe-store/src/kernel.rs": "5c2d7df062ae816a1a25e23a95fec798c05ea036f09b42a9eef7defa25e9420a",
+    "crates/universe-mcp/src/instructions.rs": "787043ac115421a69432d7b57c8ee789ce4702a3328b7d3fca259692816bb7b9"
+  }
+}

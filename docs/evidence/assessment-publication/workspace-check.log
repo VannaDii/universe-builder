@@ -1,0 +1,530 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.19s
+     Running `target/debug/xtask check`
+    Blocking waiting for file lock on build directory
+    Checking universe-service v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-service)
+    Checking universe-builder-desktop v0.1.0 (/Users/vanna/Source/universe-builder-mcp/apps/desktop)
+    Checking universe-engine v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-engine)
+    Checking universe-cli v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 03s
+   Compiling universe-store v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-store)
+   Compiling universe-client v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-client)
+   Compiling universe-service v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-service)
+   Compiling universe-ui v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-ui)
+   Compiling universe-mcp v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-mcp)
+   Compiling universe-cli v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-cli)
+   Compiling universe-engine v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-engine)
+   Compiling universe-builder-desktop v0.1.0 (/Users/vanna/Source/universe-builder-mcp/apps/desktop)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.37s
+     Running unittests src/main.rs (target/debug/deps/universe_builder-6635d44649543a7a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/launcher.rs (target/debug/deps/multiverse_mcp-62a9728d7eebd1e7)
+
+running 3 tests
+test tests::shortcut_quotes_shell_metacharacters ... ok
+test tests::forwarding_keeps_flags_and_literal_arguments ... ok
+test tests::ux_and_shortcut_require_a_complete_connection ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/universe-b06603eed45b48da)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/universe_client-27fa09326a5d9344)
+
+running 5 tests
+test transport_tests::incompatible_handshake_is_not_retried ... ok
+test transport_tests::oversized_incoming_frame_disconnects_without_reading_payload ... ok
+test transport_tests::responses_can_arrive_out_of_order_without_eof ... ok
+test transport_tests::handshake_has_deadline ... ok
+test transport_tests::timeout_cancels_and_removes_pending_entry ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running unittests src/lib.rs (target/debug/deps/universe_domain-72a43e1f22909196)
+
+running 39 tests
+test canonical::tests::non_finite_numbers_cannot_be_represented ... ok
+test canonical::tests::canonical_bytes_sort_keys_and_preserve_unicode ... ok
+test canonical::tests::strict_parser_rejects_duplicate_keys ... ok
+test canonical::tests::strict_parser_round_trips ... ok
+test ids::tests::generic_id_accepts_known_prefixes ... ok
+test expr::tests::deep_expressions_hit_the_depth_bound ... ok
+test chronology::tests::explicit_start_elapsed_and_travel_preserve_first_interaction ... ok
+test expr::tests::unbound_variables_are_rejected ... ok
+test expr::tests::quantifier_binding_scopes_correctly ... ok
+test canonical::tests::digest_is_stable_and_content_sensitive ... ok
+test ids::tests::ids_round_trip_through_serialization ... ok
+test chronology::tests::fictional_months_require_an_authored_conversion ... ok
+test ids::tests::invalid_ids_are_rejected ... ok
+test ids::wire_id_tests::typed_ids_reject_invalid_bodies_during_deserialization ... ok
+test records::tests::assertion_and_proposition_are_distinct_records ... ok
+test records::tests::all_kind_strings_round_trip ... ok
+test records::tests::operation_authority_classification ... ok
+test expr::tests::expression_round_trips ... ok
+test records::tests::entity_round_trips_with_world_associations ... ok
+test records::tests::work_and_saga_memberships_are_nonexclusive ... ok
+test scope::tests::applicability_forms_are_distinct ... ok
+test scope::tests::unknown_and_unbounded_boundaries_are_distinct ... ok
+test scope::tests::value_is_not_part_of_scope ... ok
+test scope::tests::half_open_interval_round_trips ... ok
+test records::tests::digest_covers_kind_and_content ... ok
+test temporal::tests::cross_calendar_values_are_not_comparable_implicitly ... ok
+test temporal::tests::undefined_endpoint_is_not_unbounded ... ok
+test temporal::tests::interval_round_trips ... ok
+test value::tests::exact_digit_comparison_is_independent_of_representation ... ok
+test records::tests::payload_tag_record_kind_coexists_with_payload_kind_fields ... ok
+test value::tests::false_zero_empty_and_unspecified_are_distinct_values ... ok
+test value::tests::large_integer_survives_without_float_coercion ... ok
+test value::tests::malformed_numerics_are_rejected ... ok
+test value::tests::record_ref_namespace_resolution ... ok
+test value::tests::record_ref_omits_universe_key_when_unresolved ... ok
+test value::tests::sequence_order_and_set_normalization_are_distinct ... ok
+test value::tests::value_round_trips_through_serde ... ok
+test starter::tests::all_nineteen_packs_have_distinct_vocabulary_and_reviewable_operations ... ok
+test ids::tests::id_generation_is_unique_and_prefixed ... ok
+
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running unittests src/main.rs (target/debug/deps/universe_engine-72bfee647ee5ec12)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/universe_mcp-7624d79ebff8a0fc)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/universe_protocol-a3c69c8229991995)
+
+running 15 tests
+test error::tests::is_protocol_failure_identifies_malformed ... ok
+test error::tests::not_found_hides_existence ... ok
+test error::tests::error_codes_match_spec ... ok
+test validation_scope::tests::exact_digest_decoder ... ok
+test error::tests::serialization_roundtrip ... ok
+test examples::tests::duplicate_keys_and_excessive_depth_fail_before_admission ... ok
+test validation_scope::tests::legacy_wire_shape_is_not_silently_upgraded ... ok
+test wire::tests::escaped_duplicate_keys_and_invalid_json_are_rejected ... ok
+test examples::tests::conditional_world_fields_are_rejected ... ok
+test wire::tests::standard_json_escapes_are_accepted_without_changing_unicode ... ok
+test validation_scope::tests::restricted_matches_independent_fixture_and_rejects_disclosure ... ok
+test examples::tests::optional_does_not_mean_null_and_nested_payloads_are_closed ... ok
+test validation_scope::tests::approved_query_fixture_requires_explicit_nullable_binding ... ok
+test validation_scope::tests::approved_assessed_reporting_fixture_decodes_without_enabling_submission ... ok
+test examples::tests::all_thirteen_tools_have_valid_examples_and_closed_schemas ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/source_assessments.rs (target/debug/deps/source_assessments-25f978e35df098b8)
+
+running 11 tests
+test assessment_is_rejected_as_a_canonical_domain_operation ... ok
+test selection_and_final_binding_reject_incoherent_or_restricted_scope ... ok
+test external_attribution_empty_inventory_and_nullable_roundtrip ... ok
+test proposal_assessment_actions_are_closed_and_selection_requires_explicit_null ... ok
+test assessment_view_is_closed_and_exact_reference_requires_that_view ... ok
+test bytes_and_frozen_binding_checks_do_not_trust_caller_hashes ... ok
+test independent_unicode_escapes_exact_u64_and_object_order_fixture ... ok
+test all_semantic_variants_roundtrip_and_unresolved_dispositions_remain_accounted ... ok
+test independent_bytes_digests_and_connected_production_binding ... ok
+test malformed_unsupported_and_unaccounted_payloads_fail ... ok
+test material_mutations_change_assessment_and_final_bindings ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running unittests src/lib.rs (target/debug/deps/universe_rules-efc56fcfd3bf8dcd)
+
+running 46 tests
+test basic::tests::exact_comparison_avoids_float_rounding_and_reports_overflow ... ok
+test compiler::tests::references_extracted ... ok
+test basic::tests::temporal_boundaries_are_half_open_and_never_cross_calendars ... ok
+test basic::tests::quantifiers_preserve_open_domain_and_variable_binding ... ok
+test basic::tests::incomplete_collections_cannot_establish_negative_membership_or_exact_count ... ok
+test evaluator::tests::lit_false_is_refuted ... ok
+test compiler::tests::claim_compiles ... ok
+test compiler::tests::quantify_compiles ... ok
+test evaluator::tests::all_with_true_and_false ... ok
+test compiler::tests::simple_compiles ... ok
+test evaluator::tests::exact_text_comparison_is_supported ... ok
+test evaluator::tests::any_with_one_true ... ok
+test evaluator::tests::lit_true_is_supported ... ok
+test evaluator::tests::not_inverts ... ok
+test compiler::tests::all_with_no_exprs ... ok
+test evaluator::tests::quantification_is_explicitly_unsupported ... ok
+test compiler::tests::depth_exceeded ... ok
+test evidence::tests::all_conjunction ... ok
+test evidence::tests::any_disjunction ... ok
+test evidence::tests::conflicting_evidence ... ok
+test evidence::tests::deduplicates ... ok
+test evidence::tests::double_negation ... ok
+test evidence::tests::evidence_bit_and ... ok
+test evidence::tests::evidence_bit_or ... ok
+test evidence::tests::idempotence ... ok
+test evidence::tests::indeterminate_bit ... ok
+test evidence::tests::no_explosion ... ok
+test evidence::tests::not_established_has_no_sources ... ok
+test evidence::tests::not_swaps ... ok
+test evidence::tests::outcome_display ... ok
+test evidence::tests::refuted_evidence ... ok
+test evidence::tests::supported_evidence ... ok
+test evidence::truth_table::every_pair_matches_spec_31_2 ... ok
+test events::tests::same_time_noncommuting_events_fail_and_predicted_events_have_no_effect ... ok
+test events::tests::atomic_event_uses_explicit_effect_order_without_exposing_intermediate_state ... ok
+test time::tests::half_open_validity_and_legacy_unknown_clock ... ok
+test time::tests::uncertain_boundary_never_silently_selects_a_date ... ok
+test events::tests::order_independent_recompilation_and_forged_effect_rejection ... ok
+test powers::tests::only_actual_recipient_and_complete_evidence_chain ... ok
+test powers::tests::world_scoped_grant_never_widens_and_accepts_universe_wide_custody ... ok
+test powers::tests::explicit_owner_muting_restoration_and_other_owner_isolation ... ok
+test powers::tests::conflicts_and_unknown_custody_block_even_when_other_holder_not_requested ... ok
+test powers::tests::explicit_transfer_and_expiry_do_not_leak_prior_owner_attributes ... ok
+test time::tests::strict_order_cycles_require_positive_evidence_in_the_same_clock_and_scope ... ok
+test basic::tests::nested_finite_evaluation_stops_at_the_shared_work_budget ... ok
+test compiler::tests::nodes_exceeded ... ok
+
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/coverage.rs (target/debug/deps/coverage-2b83b9e70f447d7f)
+
+running 3 tests
+test descriptive_rules_cannot_be_activated_by_compilation ... ok
+test unsupported_child_prevents_complete_claim_even_if_other_child_is_true ... ok
+test explicit_belief_is_not_knowledge_and_acquisition_is_time_and_context_bound ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/domain_catalog.rs (target/debug/deps/domain_catalog-e6b877240ec1cd9a)
+
+running 38 tests
+test d01_minimal_realms_and_cosmology ... ok
+test d02_minimal_overlapping_regions_and_map ... ok
+test d02_adversarial_overlapping_regions_and_map ... ok
+test d06_minimal_customs_and_preferences ... ok
+test d01_adversarial_realms_and_cosmology ... ok
+test d04_minimal_names_bodies_and_identity ... ok
+test d03_minimal_life_and_survival ... ok
+test d07_minimal_claims_and_control ... ok
+test d07_adversarial_claims_and_control ... ok
+test d04_adversarial_names_bodies_and_identity ... ok
+test d03_adversarial_life_and_survival ... ok
+test d06_adversarial_customs_and_preferences ... ok
+test d08_adversarial_law_treaty_and_proceedings ... ok
+test d09_minimal_mission_and_practice ... ok
+test d05_minimal_chosen_households ... ok
+test d05_adversarial_chosen_households ... ok
+test d09_adversarial_mission_and_practice ... ok
+test d08_minimal_law_treaty_and_proceedings ... ok
+test d10_minimal_currency_inventory_and_debt ... ok
+test d13_minimal_devices_and_prerequisites ... ok
+test d13_adversarial_devices_and_prerequisites ... ok
+test d10_adversarial_currency_inventory_and_debt ... ok
+test d14_minimal_rooms_entrances_and_supply ... ok
+test d11_minimal_doctrine_and_belief ... ok
+test d12_minimal_language_and_messages ... ok
+test d14_adversarial_rooms_entrances_and_supply ... ok
+test d11_adversarial_doctrine_and_belief ... ok
+test d12_adversarial_language_and_messages ... ok
+test d15_minimal_routes_and_capacity ... ok
+test d15_adversarial_routes_and_capacity ... ok
+test d16_minimal_work_edition_and_copy ... ok
+test d17_adversarial_events_and_accounts ... ok
+test d17_minimal_events_and_accounts ... ok
+test d16_adversarial_work_edition_and_copy ... ok
+test d19_minimal_narrative_and_viewpoint ... ok
+test d18_minimal_plans_and_disclosure ... ok
+test d19_adversarial_narrative_and_viewpoint ... ok
+test d18_adversarial_plans_and_disclosure ... ok
+
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/opposing.rs (target/debug/deps/opposing-ba8a36ce6411dcc3)
+
+running 9 tests
+test scoped_metacondition_uses_exact_kernel_with_index_candidate_corrections_and_uncertainty ... ok
+test role_multisets_are_named_and_preserve_multiplicity ... ok
+test four_truth_states_and_unrelated_absence_survive_detection ... ok
+test source_anchor_and_derivation_chains_remain_separate ... ok
+test identity_normalization_value_inequality_and_unresolved_equality ... ok
+test frozen_world_and_realm_oracles ... ok
+test frozen_identity_context_and_value_oracles ... ok
+test chains_uncertainty_duplicates_and_snapshot_isolation ... ok
+test frozen_temporal_oracles_and_boundary_variations ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests/semantic_acceptance.rs (target/debug/deps/semantic_acceptance-a79b07e5c9b184ac)
+
+running 7 tests
+test numeric_ranges_require_agreement_and_respect_open_endpoints_and_units ... ok
+test e06_finite_quantification_requires_completeness_for_absence ... ok
+test s11_s12_s13_missing_is_not_empty_and_completeness_expires ... ok
+test s21_treaty_has_multiple_signatories_guarantor_and_beneficiary ... ok
+test s25_s26_s27_s30_uncertainty_half_open_and_independent_calendars ... ok
+test s16_s33_s34_false_belief_presence_and_transmission_do_not_produce_knowledge ... ok
+test s14_s15_accounts_conflict_locally_without_explosion_or_objective_promotion ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/universe_schema-95d0f3af8d977583)
+
+running 10 tests
+test validation::tests::registry_rejects_tampered_payload ... ok
+test validation::tests::cross_universe_definition_is_rejected ... ok
+test validation::tests::pack_cannot_declare_unknown_capability ... ok
+test validation::tests::duplicate_namespace_key_is_rejected ... ok
+test validation::tests::inheritance_cycle_is_detected ... ok
+test validation::tests::dangling_inverse_is_rejected ... ok
+test validation::tests::self_recursive_value_definition_is_rejected ... ok
+test validation::tests::valid_definitions_pass ... ok
+test validation::tests::zero_and_negative_unit_scale_are_invalid ... ok
+test validation::tests::property_unit_must_exist_and_match_dimension ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/universe_service-cdabb42cbbf90d36)
+
+running 31 tests
+test provenance::tests::passage_cannot_use_an_entity_as_a_source_anchor ... ok
+test provenance::tests::source_anchor_flag_does_not_let_an_entity_become_evidence ... ok
+test rule_checks::tests::s18_narrow_exception_does_not_disable_the_rest_of_a_rule ... ok
+test actions::tests::an_event_cannot_self_grant_its_pre_event_attribute ... ok
+test rule_checks::tests::s35_temporal_rules_check_every_cell_without_period_or_world_leakage ... ok
+test actions::tests::historical_actionless_events_decode_unchanged_but_cannot_be_created_or_revised ... ok
+test actions::tests::unknown_attributes_and_invalid_action_references_do_not_authorize_use ... ok
+test boundary_checks::tests::removing_old_temporal_evidence_and_unknown_dates_do_not_escape_boundary ... ok
+test validation::completeness_tests::objective_completeness_does_not_escape_its_context_or_realm_or_observer ... ok
+test actions::tests::action_context_world_and_validity_never_widen ... ok
+test boundary_checks::tests::temporal_boundary_follows_existing_proposition_and_exact_exception_cells ... ok
+test actions::tests::missing_ambiguous_and_nonentity_owners_cannot_satisfy_requirements ... ok
+test rule_checks::tests::generated_interval_cases_match_tick_by_tick_reference_and_record_permutations ... ok
+test workflow::job_tests::queued_cancel_and_interrupted_detection_are_durable_without_mutating_operation_receipts ... ok
+test runtime::ownership_tests::concurrent_recovery_releases_failures_and_shares_one_writer ... ok
+test runtime::ownership_tests::failed_recovery_does_not_exhaust_worker_capacity ... ok
+test workflow::assessments::tests::public_actions_preserve_frozen_proposal_and_recover_selection_retries ... ok
+test runtime::ownership_tests::detached_validation_allows_same_universe_reads_polling_and_cancellation ... ok
+test runtime::ownership_tests::queued_universe_work_does_not_hold_installation_authority ... ok
+test workflow::validation_binding::tests::assessment_publication_does_not_block_unresolved_or_unavailable_records ... ok
+test workflow::assessments::tests::durable_bindings_atomic_retries_access_replacement_and_restart ... ok
+test workflow::validation_binding::tests::synchronous_and_queued_exact_bindings_replacement_withdrawal_unresolved_and_restart ... ok
+test workflow::validation_binding::tests::changed_dependencies_are_stale_record_only_and_retention_loss_never_bypasses_integrity ... ok
+test workflow::assessments::tests::exact_anchor_dependency_and_missing_material_admission ... ok
+test workflow::validation_binding::tests::assessment_publication_exact_approval_withdrawal_and_restart ... ok
+test workflow::validation_binding::tests::queued_selection_proposal_head_and_authority_changes_discard_final_bindings ... ok
+test runtime::ownership_tests::queued_selected_tool_requests_reject_replacement_withdrawal_and_live_grant_changes ... ok
+test runtime::ownership_tests::assessment_publication_rejects_concurrent_selection_and_revoked_authority ... ok
+test runtime::ownership_tests::assessment_publication_delegation_requires_exact_selection_and_current_bounds ... ok
+test runtime::ownership_tests::concurrent_creates_reserve_capacity_before_touching_packages ... ok
+test workflow::assessments::tests::paged_review_reconstructs_history_and_denies_obsolete_or_restricted_cursors ... ok
+
+test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s
+
+     Running tests/fixture_loop.rs (target/debug/deps/fixture_loop-e1c645c63c94ae7d)
+
+running 10 tests
+test typed_unsupported_error_does_not_poison_connection ... ok
+test scoped_edits_cannot_modify_shared_records_or_unproven_effects ... ok
+test unknown_or_foreign_world_associations_are_rejected_even_without_focus ... ok
+test unsupported_views_are_not_returned_as_complete_payloads ... ok
+test lost_response_recovery_retry_conflict_and_no_canon_change ... ok
+test named_universes_no_remembered_world_and_cross_scope_rejection ... ok
+test selected_world_is_a_write_envelope_not_an_inferred_fact ... ok
+test stale_mutations_cannot_overwrite_or_resurrect_proposal_versions ... ok
+test concurrent_requests_are_correlated ... ok
+test capacity_does_not_prevent_receipt_recovery_or_exact_retry ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/installation.rs (target/debug/deps/installation-6b509accf53980c5)
+
+running 2 tests
+test world_grants_do_not_expand_to_shared_or_protected_writes ... ok
+test shared_engine_authentication_catalog_revocation_and_restart ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/standard_workload.rs (target/debug/deps/standard_workload-94bf48c4cd9bab60)
+
+running 1 test
+test standard_workload_preserves_full_history_and_evaluates_indexed_rules ... ignored, standard workload; run explicitly in release mode
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/workflow.rs (target/debug/deps/workflow-5813b3ad29da8eb3)
+
+running 22 tests
+test completion::s17_s19_s20_advisories_norms_and_s45_unresolved_boundary_with_exact_exception ... ok
+test completion::v16_v17_cross_world_journey_preserves_identity_and_failed_destination_is_atomic ... ok
+test fixed_author_boundary_blocks_edits_without_blocking_its_own_creation ... ok
+test basic_prerequisite_and_conflicting_evidence_block_admission ... ok
+test recovered_submitted_draft_revises_its_reserved_ids_and_invalidates_approval ... ok
+test drafts_survive_restart_without_canon_and_reject_cross_window_overwrites ... ok
+test restored_proposals_require_approval_from_the_current_installation_author ... ok
+test exact_rule_exception_allows_reviewed_departure_and_definition_revision_stales_it ... ok
+test contextual_search_saga_updates_dependency_briefs_and_cancel_keys ... ok
+test appearance::universal_appearance_context_temporal_revision_and_image_authority ... ok
+test pinned_fork_reviewed_adoption_and_pack_upgrade_preserve_parent_history ... ok
+test completion::named_world_scope_narratives_cursors_and_cross_universe_references ... ok
+test scoped_validation_has_no_hidden_finding_oracle_but_exact_author_approval_can_commit ... ok
+test author_agent_review_commit_retry_restart_and_isolation ... ok
+test authored_clock_state_boundaries_end_assertion_and_pinned_history ... ok
+test event_timeline_possession_powers_timers_and_historical_revision ... ok
+test utf8_sources_and_verified_backup_restore_keep_history ... ok
+test logical_archives_preview_clone_history_sources_and_filtered_dependencies ... ok
+test wall_traversal_requires_owning_entity_attributes ... ok
+test durable_validation_jobs_page_evidence_retry_restart_and_isolate_owners ... ok
+test silver_gate_s01_to_s10_use_pinned_candidates_and_explicit_story_time ... ok
+test audit::audit_eight_completion_paths ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.28s
+
+     Running unittests src/lib.rs (target/debug/deps/universe_store-1b07223b99a44e90)
+
+running 20 tests
+test migrations::tests::generate_schema_returns_sql ... ok
+test migrations::tests::migration_0_sql_is_non_empty ... ok
+test migrations::tests::migrations_are_non_empty ... ok
+test blob::tests::not_found_returns_error ... ok
+test blob::tests::too_large_is_rejected ... ok
+test blob::tests::digest_is_deterministic ... ok
+test blob::tests::contains_works ... ok
+test blob::tests::store_and_retrieve ... ok
+test blob::tests::list_returns_all ... ok
+test blob::tests::gc_removes_unreferenced ... ok
+test db::tests::transaction_commits ... ok
+test db::tests::failed_snapshot_verification_prevents_schema_upgrade ... ok
+test db::tests::open_creates_database ... ok
+test db::tests::wal_mode_is_enabled ... ok
+test db::tests::schema_version_is_current_on_new_db ... ok
+test projections::tests::read_heads_empty_returns_empty ... ok
+test db::tests::foreign_keys_are_enforced ... ok
+test db::tests::every_writer_uses_the_physical_restore_size_bound ... ok
+test db::tests::can_execute_sql ... ok
+test kernel::archive::legacy::tests::legacy_conversion_preserves_typed_history_and_original_and_rejects_ambiguous_sources ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/blobs.rs (target/debug/deps/blobs-3a9095c61e01bdb0)
+
+running 1 test
+test concurrent_publication_and_path_confinement ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/kernel.rs (target/debug/deps/kernel-20884d8cc9dccc20)
+
+running 26 tests
+test crash_child ... ok
+test assessment_publication_write_transaction_excludes_selection_between_check_and_head ... ok
+test future_version_is_rejected_without_modification ... ok
+test rebuild_failure_preserves_previous_generation ... ok
+test selector_normalization_is_exact_and_non_rebinding ... ok
+test branch_is_pinned_and_tombstones_preserve_history ... ok
+test constraints_reject_identity_mismatch_and_mutation ... ok
+test package_locks_reject_duplicate_and_link_paths ... ok
+test failed_migration_is_atomic_and_populated_legacy_is_preserved ... ok
+test backup_rejects_semantically_corrupt_content_despite_valid_sqlite_pages ... ok
+test metadata_references_are_indexed_while_authored_strings_stay_prose ... ok
+test recovery_rejects_previously_stored_dangling_metadata_references ... ok
+test snapshot_publication_is_atomic ... ok
+test world_namespace_constraints_and_cross_world_references ... ok
+test empty_legacy_scaffold_upgrades_atomically ... ok
+test restart_history_rebuild_and_retry ... ok
+test sqlite_full_rolls_back_the_entire_transaction ... ok
+test interrupted_backups_never_publish_partial_files_or_touch_canon ... ok
+test schema_one_upgrade_preserves_history_and_installs_immutable_workflow_storage ... ok
+test assessment_publication_concurrent_replacement_withdrawal_and_aba_reject ... ok
+test metadata_field_names_cannot_hide_foreign_or_dangling_references ... ok
+test assessment_publication_compares_selection_and_rolls_back_every_fault ... ok
+test all_commit_faults_roll_back ... ok
+test abrupt_process_exit_recovers_all_or_none ... ok
+test branch_depth_limit_rejects_before_publication_and_preserves_recovery ... ok
+test ten_thousand_entities_plus_metadata_survive_import_backup_restore_and_restart ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.59s
+
+     Running tests/media.rs (target/debug/deps/media-40a949ed789d487f)
+
+running 2 tests
+test rejects_non_images_oversized_inputs_and_missing_or_forged_assets ... ok
+test images_survive_source_removal_history_backup_filtered_export_and_clone ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.36s
+
+     Running unittests src/lib.rs (target/debug/deps/universe_ui-345b9dbafe0b1511)
+
+running 9 tests
+test select::tests::namespace_search_reuses_existing_spelling_and_requires_explicit_creation ... ok
+test select::tests::namespace_suggestions_include_pinned_definitions_and_pending_drafts ... ok
+test claim_editor::tests::blanks_are_not_zero_false_or_unbounded ... ok
+test claim_editor::tests::relationship_roles_and_worlds_are_explicit ... ok
+test claim_editor::tests::exact_values_and_unknown_time_remain_distinct ... ok
+test claim_editor::timer_tests::gregorian_timer_uses_authored_start_and_rejects_empty_negative_and_overflow ... ok
+test claim_editor::qualified_tests::ranges_alternatives_and_interval_endpoints_require_explicit_input ... ok
+test identity_editor::tests::shared_identity_and_work_binding_are_explicit ... ok
+test definitions::tests::definitions_require_typed_choices_and_distinct_roles ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/xtask-cc376abc5a67a95f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests universe_client
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests universe_domain
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests universe_protocol
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests universe_rules
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests universe_schema
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests universe_service
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests universe_store
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests universe_ui
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

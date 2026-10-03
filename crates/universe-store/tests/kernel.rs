@@ -1,3 +1,4 @@
+use sha2::Digest;
 use std::{collections::BTreeMap, path::Path};
 use universe_domain::{ids::*, records::*};
 use universe_store::{kernel::*, selector::selector_key, Database, StoreError};
@@ -112,6 +113,155 @@ fn all_commit_faults_roll_back() {
         let r = k.commit(&change).unwrap();
         assert_eq!(k.records(&cont(), &r).unwrap().len(), 1);
     }
+}
+#[test]
+fn assessment_publication_compares_selection_and_rolls_back_every_fault() {
+    for point in [
+        FaultPoint::Versions,
+        FaultPoint::Changes,
+        FaultPoint::Head,
+        FaultPoint::Projections,
+        FaultPoint::Receipt,
+        FaultPoint::BeforeCommit,
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("u.db");
+        let mut k = create(&path);
+        let head = k.head(&cont()).unwrap();
+        let prefix = "assessment-selection:proposal:00000000000000000001:";
+        let first = format!("{prefix}00000000000000000001");
+        k.workflow_put(&[(
+            first.clone(),
+            serde_json::json!({"selected":"assessment-a"}),
+        )])
+        .unwrap();
+        let expected = [(prefix.into(), Some(first))];
+        let change = input(&k, record(1, 1, "Mara"), None, "assessed");
+        assert!(k
+            .commit_compared_with_hook(&change, &expected, |p| {
+                if p == point {
+                    Err(StoreError::StorageFailure(
+                        "injected publication failure".into(),
+                    ))
+                } else {
+                    Ok(())
+                }
+            })
+            .is_err());
+        assert_eq!(k.head(&cont()).unwrap(), head);
+        assert!(k.receipt(&change).unwrap().is_none());
+        let conn = Database::open_existing(&path).unwrap().connect().unwrap();
+        for table in [
+            "record_versions",
+            "record_identities",
+            "commit_changes",
+            "operation_receipts",
+        ] {
+            assert_eq!(
+                conn.query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r
+                    .get::<_, i64>(0))
+                    .unwrap(),
+                0
+            );
+        }
+        let revision = k.commit_compared(&change, &expected).unwrap();
+        assert_eq!(k.receipt(&change).unwrap(), Some(revision));
+    }
+}
+#[test]
+fn assessment_publication_concurrent_replacement_withdrawal_and_aba_reject() {
+    for mutation in [
+        "replacement",
+        "withdrawal",
+        "aba",
+        "first-selection",
+        "proposal",
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("u.db");
+        let mut k = create(&path);
+        let head = k.head(&cont()).unwrap();
+        let prefix = "assessment-selection:proposal:00000000000000000001:";
+        let first = format!("{prefix}00000000000000000001");
+        if mutation != "first-selection" {
+            k.workflow_put(&[(
+                first.clone(),
+                serde_json::json!({"selected":"assessment-a"}),
+            )])
+            .unwrap();
+        }
+        k.workflow_put(&[(
+            "proposal:00000000000000000001".into(),
+            serde_json::json!({"version":1}),
+        )])
+        .unwrap();
+        let expected = [
+            (
+                prefix.into(),
+                (mutation != "first-selection").then_some(first),
+            ),
+            (
+                "proposal:".into(),
+                Some("proposal:00000000000000000001".into()),
+            ),
+        ];
+        let change = input(&k, record(1, 1, "Mara"), None, "assessed");
+        // A separate writer wins after service preparation, before BEGIN IMMEDIATE.
+        // Join is the deterministic ordering barrier; no timing assumption is used.
+        let writer_path = path.clone();
+        std::thread::spawn(move || {
+            let conn = Database::open_existing(&writer_path).unwrap().connect().unwrap();
+            let key = if mutation == "proposal" { "proposal:00000000000000000002".into() }
+                else { format!("{prefix}00000000000000000002") };
+            let body = serde_json::json!({"selected":if mutation == "withdrawal" {None} else {Some("assessment-b")}});
+            let hash = hex::encode(sha2::Sha256::digest(universe_domain::canonical::canonical_serde(&body).to_bytes()));
+            conn.execute("INSERT INTO workflow_entries VALUES(?1,?2,?3)", rusqlite::params![key, universe_domain::canonical::canonical_serde(&body).to_bytes(), hash]).unwrap();
+            if mutation == "aba" {
+                let body = serde_json::json!({"selected":"assessment-a"});
+                let hash = hex::encode(sha2::Sha256::digest(universe_domain::canonical::canonical_serde(&body).to_bytes()));
+                conn.execute("INSERT INTO workflow_entries VALUES(?1,?2,?3)", rusqlite::params![format!("{prefix}00000000000000000003"), universe_domain::canonical::canonical_serde(&body).to_bytes(), hash]).unwrap();
+            }
+        }).join().unwrap();
+        assert!(k.commit_compared(&change, &expected).is_err(), "{mutation}");
+        assert_eq!(k.head(&cont()).unwrap(), head);
+        assert!(k.receipt(&change).unwrap().is_none());
+        assert!(k.records(&cont(), &head).unwrap().is_empty());
+    }
+}
+#[test]
+fn assessment_publication_write_transaction_excludes_selection_between_check_and_head() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("u.db");
+    let mut k = create(&path);
+    let selection_key = "assessment-selection:proposal:00000000000000000001:00000000000000000001";
+    k.workflow_put(&[(
+        selection_key.into(),
+        serde_json::json!({"selected":"assessment-a"}),
+    )])
+    .unwrap();
+    let expected = [(
+        "assessment-selection:proposal:00000000000000000001:".into(),
+        Some(selection_key.into()),
+    )];
+    let change = input(&k, record(1, 1, "Mara"), None, "assessed");
+    let revision = k.commit_compared_with_hook(&change, &expected, |point| {
+        if point == FaultPoint::Versions {
+            let writer_path = path.clone();
+            std::thread::spawn(move || {
+                let db = rusqlite::Connection::open(writer_path).unwrap();
+                db.busy_timeout(std::time::Duration::ZERO).unwrap();
+                // This runs after selection comparison and before head movement.
+                let err = db.execute_batch("BEGIN IMMEDIATE").unwrap_err();
+                assert!(matches!(err, rusqlite::Error::SqliteFailure(e, _) if e.code == rusqlite::ErrorCode::DatabaseBusy));
+            }).join().unwrap();
+        }
+        Ok(())
+    }).unwrap();
+    assert_eq!(k.head(&cont()).unwrap(), revision);
+    assert_eq!(
+        k.workflow_latest_key(&expected[0].0).unwrap(),
+        expected[0].1
+    );
 }
 #[test]
 fn constraints_reject_identity_mismatch_and_mutation() {

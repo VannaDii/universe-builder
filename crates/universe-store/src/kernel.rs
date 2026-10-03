@@ -78,6 +78,21 @@ fn digest<T: Serialize>(v: &T) -> String {
 fn new_revision() -> RevisionId {
     RevisionId::generate(&mut rand::rng())
 }
+fn compare_workflow(
+    conn: &rusqlite::Connection,
+    expected: &[(String, Option<String>)],
+) -> StoreResult<()> {
+    for (prefix, expected_key) in expected {
+        let latest: Option<String> = conn.query_row(
+            "SELECT key FROM workflow_entries WHERE substr(key,1,length(?1))=?1 ORDER BY key DESC LIMIT 1",
+            [prefix], |r| r.get(0),
+        ).optional()?;
+        if &latest != expected_key {
+            return Err(invalid("workflow comparison conflict"));
+        }
+    }
+    Ok(())
+}
 impl Kernel {
     pub fn create(
         path: &Path,
@@ -220,6 +235,23 @@ impl Kernel {
     pub fn commit_with_hook(
         &mut self,
         input: &CommitInput,
+        hook: impl FnMut(FaultPoint) -> StoreResult<()>,
+    ) -> StoreResult<RevisionId> {
+        self.commit_compared_with_hook(input, &[], hook)
+    }
+    /// Compare immutable workflow selection/proposal keys in the same write
+    /// transaction as canonical publication. Exact receipt retries remain historical.
+    pub fn commit_compared(
+        &mut self,
+        input: &CommitInput,
+        expected: &[(String, Option<String>)],
+    ) -> StoreResult<RevisionId> {
+        self.commit_compared_with_hook(input, expected, |_| Ok(()))
+    }
+    pub fn commit_compared_with_hook(
+        &mut self,
+        input: &CommitInput,
+        expected: &[(String, Option<String>)],
         mut hook: impl FnMut(FaultPoint) -> StoreResult<()>,
     ) -> StoreResult<RevisionId> {
         if input.universe != self.universe
@@ -242,6 +274,7 @@ impl Kernel {
             }
             return RevisionId::parse(&revision).map_err(|_| invalid("invalid receipt"));
         }
+        compare_workflow(&tx, expected)?;
         let head: String = tx.query_row(
             "SELECT head_commit FROM continuities WHERE universe_id=?1 AND id=?2",
             params![uid, input.continuity.as_str()],
@@ -509,15 +542,7 @@ impl Kernel {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        for (prefix, expected_key) in expected {
-            let latest: Option<String> = tx.query_row(
-                "SELECT key FROM workflow_entries WHERE substr(key,1,length(?1))=?1 ORDER BY key DESC LIMIT 1",
-                [prefix], |r| r.get(0),
-            ).optional()?;
-            if &latest != expected_key {
-                return Err(invalid("workflow comparison conflict"));
-            }
-        }
+        compare_workflow(&tx, expected)?;
         for (key, value) in entries {
             let bytes = canonical_serde(value).to_bytes();
             if bytes.len() > 4 * 1_048_576 {

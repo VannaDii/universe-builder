@@ -1169,6 +1169,7 @@ async fn connection(
 #[cfg(test)]
 mod ownership_tests {
     use super::*;
+    use sha2::Digest;
     fn runtime(root: &Path) -> Runtime {
         Runtime {
             validation_jobs: Arc::new(Semaphore::new(2)),
@@ -1487,6 +1488,391 @@ mod ownership_tests {
                 assert!(std::time::Instant::now() < deadline);
                 std::thread::sleep(Duration::from_millis(10));
             }
+        }
+    }
+    #[test]
+    fn assessment_publication_rejects_concurrent_selection_and_revoked_authority() {
+        for mutation in [
+            "replacement",
+            "withdrawal",
+            "grant",
+            "restored-grant",
+            "revoke",
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            let root = dir.path().join("installation");
+            let author = initialize(&root).unwrap();
+            let runtime = Arc::new(runtime(&root));
+            let hello = |id: ProfileId| {
+                let profile: ProfileFile = serde_json::from_slice(
+                    &std::fs::read(root.join("profiles").join(format!("{id}.json"))).unwrap(),
+                )
+                .unwrap();
+                EngineHello {
+                    protocol_version: PROTOCOL_VERSION.into(),
+                    profile_id: id,
+                    credential: profile.credential,
+                    client_name: "binding-test".into(),
+                }
+            };
+            let author_hello = hello(author.clone());
+            let u = runtime
+                .execute(
+                    &author_hello,
+                    EngineRequest::CreateUniverse {
+                        name: "Bindings".into(),
+                        start: universe_domain::chronology::UniverseStart::Fictional {
+                            calendar_name: "Days".into(),
+                            initial_tick: "0".into(),
+                            tick_label: "days".into(),
+                            ticks_per_month: None,
+                        },
+                    },
+                )
+                .unwrap();
+            let uid: UniverseId = serde_json::from_value(u["universe_id"].clone()).unwrap();
+            let agent: ProfileId = serde_json::from_value(
+                runtime
+                    .execute(&author_hello, EngineRequest::Enroll)
+                    .unwrap()["profile_id"]
+                    .clone(),
+            )
+            .unwrap();
+            let grant = |propose| EngineRequest::Grant {
+                grant: GrantSpec {
+                    profile_id: agent.clone(),
+                    universe_id: uid.clone(),
+                    worlds: None,
+                    propose,
+                    edit: propose,
+                    protected: propose,
+                    limits: GrantLimits::default(),
+                },
+            };
+            runtime.execute(&author_hello, grant(true)).unwrap();
+            let h = hello(agent.clone());
+            let tool = |name: &str, args: Value| EngineRequest::Tool {
+                request: Box::new(universe_protocol::Request::from_tool(name, args).unwrap()),
+            };
+            let ctx = runtime.execute(&h,tool("universe_open_context",json!({"universe":"Bindings","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":u["context_id"],"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"}))).unwrap()["result"]["context_id"].clone();
+            let text = "Exact café bytes.\n";
+            let staged = runtime
+                .execute(
+                    &author_hello,
+                    EngineRequest::StageSource {
+                        universe: universe_protocol::request::Selector("Bindings".into()),
+                        label: "Binding proof".into(),
+                        text: text.into(),
+                    },
+                )
+                .unwrap();
+            let p = runtime.execute(&h,tool("universe_propose",json!({"action":"create","universe":"Bindings","context_id":ctx,"operations":staged["operations"],"submission":"submitted","rationale":"Binding proof","idempotency_key":"proposal"}))).unwrap()["result"].clone();
+            let reference =
+                json!({"proposal_id":p["proposal_id"],"version":p["version"],"digest":p["digest"]});
+            let viewed = runtime.execute(&h,tool("universe_get_proposal",json!({"universe":"Bindings","proposal_id":p["proposal_id"],"version":p["version"]}))).unwrap()["result"].clone();
+            let source = viewed["compiled_changes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|c| &c["next"])
+                .find(|r| r["payload"]["record_kind"] == "source_version")
+                .unwrap();
+            let body = json!({"kind":"source_assessment_v1","proposal":reference,"base_frame":p["base_frame"],"assessor":{"principal":agent.as_str().replacen("prf_","prn_",1),"method":"human_review","tool":null,"assessed_at":"2026-10-03T00:00:00Z"},"sources":[{"key":"passage","source_version":{"universe":uid,"record":source["identity"]["record_id"],"version":source["record_version_id"]},"blob_digest":source["payload"]["digest"],"byte_size":text.len(),"representation":"exact-utf8-v1","ranges":[{"start":0,"end":text.len()}],"work_edition":null,"passage_id":null}],"dependencies":[],"declared_inventory":[],"inventory_declaration":{"kind":"no_material_claims","exclusions":[],"rationale":"Synthetic material"},"claim_mappings":[],"unresolved":[],"conclusion":"consistent_with_declared_inventory"});
+            let attach = |body: Value, generation, key| {
+                tool(
+                    "universe_propose",
+                    json!({"action":"attach_assessment","universe":"Bindings","context_id":ctx,"proposal_reference":reference,"expected_selection_generation":generation,"body":body,"idempotency_key":key}),
+                )
+            };
+            runtime
+                .execute(&h, attach(body.clone(), 0, "first"))
+                .unwrap();
+            let validated = runtime.execute(&h,tool("universe_validate",json!({"mode":"proposal","universe":"Bindings","context_id":ctx,"proposal_reference":reference,"check_scope":"universe"}))).unwrap()["result"].clone();
+            let run: ValidationRunId =
+                serde_json::from_value(validated["execution"]["run_id"].clone()).unwrap();
+            runtime
+                .execute(
+                    &author_hello,
+                    EngineRequest::Approve {
+                        universe: universe_protocol::request::Selector("Bindings".into()),
+                        proposal_reference: serde_json::from_value(reference.clone()).unwrap(),
+                        validation_run: run.clone(),
+                    },
+                )
+                .unwrap();
+            let package = root.join("packages").join(format!("{uid}.sqlite"));
+            let db = rusqlite::Connection::open(&package).unwrap();
+            let head: String = db
+                .query_row("SELECT head_commit FROM continuities", [], |r| r.get(0))
+                .unwrap();
+            let receipts: i64 = db
+                .query_row("SELECT count(*) FROM operation_receipts", [], |r| r.get(0))
+                .unwrap();
+            let (entered, release) = crate::workflow::pause_publication(uid.clone());
+            let rt = runtime.clone();
+            let commit_hello = h.clone();
+            let request = tool(
+                "universe_commit",
+                json!({"universe":"Bindings","proposal_reference":reference,"expected_base_revision":p["base_frame"]["revision"],"validation_run":run,"idempotency_key":"commit"}),
+            );
+            let job = std::thread::spawn(move || rt.execute(&commit_hello, request));
+            entered.recv_timeout(Duration::from_secs(5)).unwrap();
+            match mutation {
+                "grant" | "restored-grant" => {
+                    runtime.execute(&author_hello, grant(false)).unwrap();
+                    if mutation == "restored-grant" {
+                        runtime.execute(&author_hello, grant(true)).unwrap();
+                    }
+                }
+                "revoke" => {
+                    runtime
+                        .execute(&author_hello, EngineRequest::Revoke { profile_id: agent })
+                        .unwrap();
+                }
+                "replacement" | "withdrawal" => {
+                    // The worker serializes public selections. A separate fixture
+                    // writer exercises the last SQLite comparison after private recheck.
+                    let key: String = db.query_row("SELECT key FROM workflow_entries WHERE key LIKE 'assessment-selection:%' ORDER BY key DESC LIMIT 1", [], |r| r.get(0)).unwrap();
+                    let raw: Vec<u8> = db
+                        .query_row(
+                            "SELECT payload FROM workflow_entries WHERE key=?1",
+                            [&key],
+                            |r| r.get(0),
+                        )
+                        .unwrap();
+                    let mut selection: Value = serde_json::from_slice(&raw).unwrap();
+                    selection["generation"] = json!(2);
+                    if mutation == "withdrawal" {
+                        selection["selected"] = Value::Null;
+                    } else {
+                        selection["selected"]["assessment_id"] =
+                            json!("asm_000000000000000000000002");
+                    }
+                    let next_key = format!("{}{:020}", &key[..key.len() - 20], 2);
+                    let bytes = universe_domain::canonical::canonical_serde(&selection).to_bytes();
+                    let digest = hex::encode(sha2::Sha256::digest(&bytes));
+                    db.execute(
+                        "INSERT INTO workflow_entries VALUES(?1,?2,?3)",
+                        rusqlite::params![next_key, bytes, digest],
+                    )
+                    .unwrap();
+                }
+                _ => unreachable!(),
+            }
+            release.send(()).unwrap();
+            assert!(job.join().unwrap().is_err(), "{mutation}");
+            assert_eq!(
+                db.query_row("SELECT head_commit FROM continuities", [], |r| r
+                    .get::<_, String>(0))
+                    .unwrap(),
+                head
+            );
+            assert_eq!(
+                db.query_row("SELECT count(*) FROM operation_receipts", [], |r| r
+                    .get::<_, i64>(0))
+                    .unwrap(),
+                receipts
+            );
+        }
+    }
+    #[test]
+    fn assessment_publication_delegation_requires_exact_selection_and_current_bounds() {
+        for mutation in ["valid", "withdrawal", "replacement", "revoked", "expired"] {
+            let dir = tempfile::tempdir().unwrap();
+            let root = dir.path().join("installation");
+            let author = initialize(&root).unwrap();
+            let runtime = Arc::new(runtime(&root));
+            let hello = |id: ProfileId| {
+                let profile: ProfileFile = serde_json::from_slice(
+                    &std::fs::read(root.join("profiles").join(format!("{id}.json"))).unwrap(),
+                )
+                .unwrap();
+                EngineHello {
+                    protocol_version: PROTOCOL_VERSION.into(),
+                    profile_id: id,
+                    credential: profile.credential,
+                    client_name: "binding-test".into(),
+                }
+            };
+            let author_hello = hello(author.clone());
+            let u = runtime
+                .execute(
+                    &author_hello,
+                    EngineRequest::CreateUniverse {
+                        name: "Bindings".into(),
+                        start: universe_domain::chronology::UniverseStart::Fictional {
+                            calendar_name: "Days".into(),
+                            initial_tick: "0".into(),
+                            tick_label: "days".into(),
+                            ticks_per_month: None,
+                        },
+                    },
+                )
+                .unwrap();
+            let uid: UniverseId = serde_json::from_value(u["universe_id"].clone()).unwrap();
+            let agent: ProfileId = serde_json::from_value(
+                runtime
+                    .execute(&author_hello, EngineRequest::Enroll)
+                    .unwrap()["profile_id"]
+                    .clone(),
+            )
+            .unwrap();
+            let grant = |propose| EngineRequest::Grant {
+                grant: GrantSpec {
+                    profile_id: agent.clone(),
+                    universe_id: uid.clone(),
+                    worlds: None,
+                    propose,
+                    edit: propose,
+                    protected: propose,
+                    limits: GrantLimits::default(),
+                },
+            };
+            runtime.execute(&author_hello, grant(true)).unwrap();
+            let h = hello(agent.clone());
+            let tool = |name: &str, args: Value| EngineRequest::Tool {
+                request: Box::new(universe_protocol::Request::from_tool(name, args).unwrap()),
+            };
+            let ctx = runtime.execute(&h,tool("universe_open_context",json!({"universe":"Bindings","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":u["context_id"],"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"}))).unwrap()["result"]["context_id"].clone();
+            let text = "Exact café bytes.\n";
+            let staged = runtime
+                .execute(
+                    &author_hello,
+                    EngineRequest::StageSource {
+                        universe: universe_protocol::request::Selector("Bindings".into()),
+                        label: "Binding proof".into(),
+                        text: text.into(),
+                    },
+                )
+                .unwrap();
+            let entity = RecordId::generate(&mut rand::rng());
+            let predicate = RecordId::generate(&mut rand::rng());
+            let mut ops = staged["operations"].as_array().unwrap().clone();
+            ops.push(json!({"kind":"create_entity","client_ref":entity,"record":{"names":[],"types":[],"worldAssociations":[],"labels":{"en":"Subject"},"metadata":{}}}));
+            ops.push(json!({"kind":"define_property","client_ref":predicate,"record":{"namespace":"proof","key":"flag","labels":{},"subjectTypes":[],"value":{"kind":"boolean"},"multiplicity":"single","persistence":"explicit_interval","exclusive":true,"symmetric":false,"transitive":false}}));
+            let setup = runtime.execute(&h,tool("universe_propose",json!({"action":"create","universe":"Bindings","context_id":ctx,"operations":ops,"submission":"submitted","rationale":"Retained source and delegation bounds","idempotency_key":"setup"}))).unwrap()["result"].clone();
+            let setup_ref = json!({"proposal_id":setup["proposal_id"],"version":setup["version"],"digest":setup["digest"]});
+            let viewed = runtime.execute(&h,tool("universe_get_proposal",json!({"universe":"Bindings","proposal_id":setup["proposal_id"],"version":setup["version"]}))).unwrap()["result"].clone();
+            let source = viewed["compiled_changes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|c| &c["next"])
+                .find(|r| r["payload"]["record_kind"] == "source_version")
+                .unwrap();
+            let v = runtime.execute(&h,tool("universe_validate",json!({"mode":"proposal","universe":"Bindings","context_id":ctx,"proposal_reference":setup_ref,"check_scope":"universe"}))).unwrap()["result"].clone();
+            runtime
+                .execute(
+                    &author_hello,
+                    EngineRequest::Approve {
+                        universe: universe_protocol::request::Selector("Bindings".into()),
+                        proposal_reference: serde_json::from_value(setup_ref.clone()).unwrap(),
+                        validation_run: serde_json::from_value(v["execution"]["run_id"].clone())
+                            .unwrap(),
+                    },
+                )
+                .unwrap();
+            runtime.execute(&h,tool("universe_commit",json!({"universe":"Bindings","proposal_reference":setup_ref,"expected_base_revision":setup["base_frame"]["revision"],"validation_run":v["execution"]["run_id"],"idempotency_key":"setup-commit"}))).unwrap();
+            let expiry = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+                + 3600;
+            let limits = GrantLimits {
+                entities: Some(vec![entity.clone()]),
+                predicates: Some(vec![predicate.clone()]),
+                continuities: Some(vec![
+                    serde_json::from_value(u["continuity_id"].clone()).unwrap()
+                ]),
+                expires_at: Some(expiry),
+                delegated_commit: true,
+                allow_shared: true,
+            };
+            let delegated = GrantSpec {
+                profile_id: agent.clone(),
+                universe_id: uid.clone(),
+                worlds: None,
+                propose: true,
+                edit: true,
+                protected: false,
+                limits,
+            };
+            runtime
+                .execute(
+                    &author_hello,
+                    EngineRequest::Grant {
+                        grant: delegated.clone(),
+                    },
+                )
+                .unwrap();
+            let ctx = runtime.execute(&h,tool("universe_open_context",json!({"universe":"Bindings","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":u["context_id"],"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"}))).unwrap()["result"]["context_id"].clone();
+            let proposition = json!({"kind":"define_proposition","client_ref":RecordId::generate(&mut rand::rng()),"record":{"subject":{"universe":uid,"record":entity},"predicate":{"universe":uid,"record":predicate},"value":{"kind":"boolean","value":true},"context":{"universe":uid,"record":u["context_id"]},"quantification":"particular"}});
+            let p = runtime.execute(&h,tool("universe_propose",json!({"action":"create","universe":"Bindings","context_id":ctx,"operations":[proposition],"submission":"submitted","rationale":"Delegated candidate","idempotency_key":"candidate"}))).unwrap()["result"].clone();
+            let reference =
+                json!({"proposal_id":p["proposal_id"],"version":p["version"],"digest":p["digest"]});
+            let author_ctx = runtime.execute(&author_hello,tool("universe_open_context",json!({"universe":"Bindings","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":u["context_id"],"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"}))).unwrap()["result"]["context_id"].clone();
+            let mut body = json!({"kind":"source_assessment_v1","proposal":reference,"base_frame":p["base_frame"],"assessor":{"principal":author.as_str().replacen("prf_","prn_",1),"method":"human_review","tool":null,"assessed_at":"2026-10-03T00:00:00Z"},"sources":[{"key":"passage","source_version":{"universe":uid,"record":source["identity"]["record_id"],"version":source["record_version_id"]},"blob_digest":source["payload"]["digest"],"byte_size":text.len(),"representation":"exact-utf8-v1","ranges":[{"start":0,"end":text.len()}],"work_edition":null,"passage_id":null}],"dependencies":[],"declared_inventory":[],"inventory_declaration":{"kind":"no_material_claims","exclusions":[],"rationale":"Synthetic material"},"claim_mappings":[],"unresolved":[],"conclusion":"consistent_with_declared_inventory"});
+            runtime.execute(&author_hello,tool("universe_propose",json!({"action":"attach_assessment","universe":"Bindings","context_id":author_ctx,"proposal_reference":reference,"expected_selection_generation":0,"body":body,"idempotency_key":"attach"}))).unwrap();
+            // Delegation grants publication bounds, not source review access.
+            assert!(runtime.execute(&h,tool("universe_get_proposal",json!({"universe":"Bindings","proposal_id":p["proposal_id"],"version":p["version"],"view_group":"assessment"}))).is_err());
+            let v = runtime.execute(&author_hello,tool("universe_validate",json!({"mode":"proposal","universe":"Bindings","context_id":author_ctx,"proposal_reference":reference,"check_scope":"universe"}))).unwrap()["result"].clone();
+            match mutation {
+                "withdrawal" => {
+                    runtime.execute(&author_hello,tool("universe_propose",json!({"action":"select_assessment","universe":"Bindings","context_id":author_ctx,"proposal_reference":reference,"expected_selection_generation":1,"assessment_reference":null,"idempotency_key":"withdraw"}))).unwrap();
+                }
+                "replacement" => {
+                    body["assessor"]["assessed_at"] = json!("2026-10-03T00:00:01Z");
+                    runtime.execute(&author_hello,tool("universe_propose",json!({"action":"attach_assessment","universe":"Bindings","context_id":author_ctx,"proposal_reference":reference,"expected_selection_generation":1,"body":body,"idempotency_key":"replace"}))).unwrap();
+                }
+                "revoked" => {
+                    runtime.execute(&author_hello, grant(false)).unwrap();
+                }
+                "expired" => {
+                    // Deterministic clock-independent expiry control in this owned fixture.
+                    let db = rusqlite::Connection::open(root.join("installation.sqlite")).unwrap();
+                    let mut expired = delegated.limits.clone();
+                    expired.expires_at = Some(1);
+                    db.execute(
+                        "UPDATE grant_limits SET limits=?1 WHERE profile=?2 AND universe=?3",
+                        rusqlite::params![
+                            serde_json::to_string(&expired).unwrap(),
+                            agent.as_str(),
+                            uid.as_str()
+                        ],
+                    )
+                    .unwrap();
+                }
+                "valid" => {}
+                _ => unreachable!(),
+            }
+            let db =
+                rusqlite::Connection::open(root.join("packages").join(format!("{uid}.sqlite")))
+                    .unwrap();
+            let head: String = db
+                .query_row("SELECT head_commit FROM continuities", [], |r| r.get(0))
+                .unwrap();
+            let outcome = runtime.execute(&h,tool("universe_commit",json!({"universe":"Bindings","proposal_reference":reference,"expected_base_revision":p["base_frame"]["revision"],"validation_run":v["execution"]["run_id"],"idempotency_key":"delegated"})));
+            assert_eq!(
+                outcome.is_ok(),
+                mutation == "valid",
+                "{mutation}: {outcome:?}"
+            );
+            let after: String = db
+                .query_row("SELECT head_commit FROM continuities", [], |r| r.get(0))
+                .unwrap();
+            if mutation == "valid" {
+                assert_ne!(head, after);
+            } else {
+                assert_eq!(head, after);
+            }
+            let approvals: i64 = db
+                .query_row(
+                    "SELECT count(*) FROM workflow_entries WHERE key LIKE ?1",
+                    [format!("approval:%:{}:%", p["digest"].as_str().unwrap())],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            assert_eq!(approvals, 0);
         }
     }
     #[test]
