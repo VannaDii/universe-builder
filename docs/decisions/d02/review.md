@@ -33,3 +33,7 @@ The focused existing action tests pass 8/8, including historical actionless deco
 ## Follow-up boundary — October 3, 2026
 
 Vanna approved required/allowed action effects in plain language and required author clarification plus reusable world/universe object rules. That addition is not implemented or covered by the eleven existing regressions or nine arithmetic groups. F44–F50 specify it. A per-action delta bound alone does not implement a world-wide per-gun limit or establish initial stock. Review current rule execution and type binding before proposing the smallest implementation change; do not claim that rule DTO storage proves executable cumulative enforcement. The original source review remains scoped to the existing action/event paths.
+
+## Final approval boundary — October 3, 2026
+
+D02 is approved as the entirety of the discussion, now recorded plainly in the main decision. Earlier technical recommendations and candidate fixtures do not expand that approval. Implementation must satisfy the approved object facts, required/allowed effects, clarification, scoped reusable rules, cumulative use and continuity protections. No implementation is claimed. Routine implementation choices do not create an additional blanket approval requirement; actual design flaws remain subject to Vanna's existing decision rule.

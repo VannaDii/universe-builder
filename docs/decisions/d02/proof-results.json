@@ -1,5 +1,5 @@
 {
-  "approval": "plain-language behavior approved; detailed implementation and world-rule binding pending",
+  "approval": "D02 approved as discussed; implementation notes are nonauthoritative suggestions",
   "baseline": "eb7ac8c4ff95842f21b1427828182dd79483bf6e",
   "currentCodeRegressionTests": {
     "baseline": "eb7ac8c4ff95842f21b1427828182dd79483bf6e",
@@ -35,18 +35,19 @@
   },
   "runtimeQualification": false,
   "sha256": {
-    "d02-action-consequences.md": "7c95141807daf34f67c4c35d5ff4300bc823dcb74fcdf52b7b3c6393fd44a1da",
-    "d02/acceptance.md": "6d29dc6b3c73a8a6db874e8718c6aa4616066200381b01e9612a52354bd547cd",
+    "d02-action-consequences.md": "d2985f999e35feba097d06300e3d79ac6bebf38980c61d7e3e6780a46f74ded9",
+    "d02/acceptance.md": "2162cb2d22b97594eab11e31114577ecfbc94d53c19008d07a1c47127906af1b",
     "d02/current-code-test-results.json": "473cccc749472112d260de33927c316151d24401ff705eb837657ab9fd41ff78",
+    "d02/implementation-notes.md": "745a6afbfc3ac3aaf04e86d2efcc123c8ebe0c8b9778fc45394b6632ffed3da6",
     "d02/independent-calculation.py": "f2232cc14ad42b3ea52ef0aacfdfca0c24e3d83a506d635bfdfb8d109962aeb9",
     "d02/independent-ledger.json": "4a1b81145137a5e6b5ba925d9942d51f280dac78a8ae818a95b3b4332778cb18",
     "d02/independent-results.json": "a8f8af498636b672e1cbd0a6133e918a01e267af4c0377598c6c63641cffa510",
     "d02/payload-calculation.py": "0aea0519fbac41bc2dc6f6aef1826c9ab771cc02afecff5e53cb09118263b654",
     "d02/payload-results.json": "a8f8af498636b672e1cbd0a6133e918a01e267af4c0377598c6c63641cffa510",
     "d02/payloads.json": "a53be16104a25e2a789b4d209b9a156c81a728ea6a7035ac7c4fe66cceed31aa",
-    "d02/review.md": "16373325070eee5d877c402abac04a8f13b33f3a43d48081db2d3128281fff23",
+    "d02/review.md": "662717639196ebcccf0153e97ac29b0f390a9abbde3893a3586efb732494ad72",
     "d02/tamper-results.json": "6256dd395bb9278409e43e3ccbf9e8196f9f857e2896af29de8a789e6abcdeaf",
-    "d02/verify-proofs.py": "8982226c66e69ec2bc1cf64fef5bd3bbce0cc2c15e7eae0481b30aaf867ac104"
+    "d02/verify-proofs.py": "4d9f2a811b4e9f72f01e35033071b063584efe82f74cedb3374b3ae798d74810"
   },
   "status": "passed_design_preparation_only",
   "tamperControls": 7

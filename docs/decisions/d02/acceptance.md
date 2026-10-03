@@ -1,6 +1,6 @@
 # Frozen D02 acceptance fixtures
 
-October 3, 2026. Proposal gold expectations, not observed engine outcomes. Freeze with this decision commit. Change an expectation only by an explicit revised decision; implementation failures do not redefine the gold.
+October 3, 2026. Candidate test cases from the earlier proposal, not observed engine outcomes. Only the behavior in [approved D02](../d02-action-consequences.md) is authoritative. Technical restrictions in these cases are suggestions, not additional approved requirements. Adapt implementation-specific cases to the approved behavior; failed qualification does not authorize changing that behavior.
 
 ## Setup and concrete inputs
 
