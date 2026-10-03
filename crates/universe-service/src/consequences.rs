@@ -16,6 +16,13 @@ use universe_protocol::ProtocolError;
 fn invalid(message: &str) -> anyhow::Error {
     ProtocolError::invalid_argument("event.action.effects", message).into()
 }
+
+struct ResourceUse<'a> {
+    worlds: &'a [WorldId],
+    calendar: &'a CalendarId,
+    tick: i128,
+    delta: bool,
+}
 fn owner<'a>(
     event: &'a Event,
     role: &str,
@@ -216,6 +223,7 @@ pub fn validate(
         Ok(())
     };
     let mut exclusions = Vec::new();
+    let mut resource_uses = BTreeMap::<_, Vec<ResourceUse<'_>>>::new();
     for record in records {
         charge(1)?;
         if let Payload::ActionDefinition(action) = &record.payload {
@@ -478,10 +486,35 @@ pub fn validate(
                     "missing mandatory effect or effect supplied for a false condition",
                 ));
             }
-            if enabled
-                && (present || slot.presence == EffectPresence::Required)
-                && matches!(slot.change, EffectChange::Delta { .. })
-            {
+            if enabled && present {
+                let (calendar, tick) =
+                    universe_rules::events::exact(&event.time).map_err(|e| invalid(&e))?;
+                let usage = ResourceUse {
+                    worlds: &event.worlds,
+                    calendar,
+                    tick,
+                    delta: matches!(slot.change, EffectChange::Delta { .. }),
+                };
+                let uses = resource_uses
+                    .entry((
+                        owner(event, &slot.target.role, &by_id)?,
+                        &slot.target.predicate,
+                        &action.scope.context,
+                    ))
+                    .or_default();
+                for previous in uses.iter().filter(|previous| usage.delta || previous.delta) {
+                    charge(1)?;
+                    if (usage.worlds.is_empty()
+                        || previous.worlds.is_empty()
+                        || usage.worlds.iter().any(|w| previous.worlds.contains(w)))
+                        && (usage.calendar != previous.calendar || usage.tick == previous.tick)
+                    {
+                        return Err(invalid("dependent resource uses require distinct times on the same named calendar"));
+                    }
+                }
+                uses.push(usage);
+            }
+            if enabled && present && matches!(slot.change, EffectChange::Delta { .. }) {
                 transition(
                     records,
                     &by_id,
@@ -518,6 +551,54 @@ mod tests {
         fixtures(include_str!(
             "../../../fixtures/resource-transitions/expected.json"
         ));
+    }
+    #[test]
+    fn cumulative_resource_fixtures() {
+        let fixture: Value = serde_json::from_str(include_str!(
+            "../../../fixtures/resource-transitions/cumulative.json"
+        ))
+        .unwrap();
+        for case in fixture["cases"].as_array().unwrap() {
+            let universe = UniverseId::parse("unv_000000000000000000000001").unwrap();
+            let mut rows: Vec<_> = case["records"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .enumerate()
+                .map(|(i, p)| {
+                    let payload: Payload = serde_json::from_value(p.clone()).unwrap();
+                    RecordVersion::build(
+                        RecordVersionId::parse(&format!("ver_{:024x}", i + 1)).unwrap(),
+                        RecordIdentity::new(
+                            universe.clone(),
+                            RecordId::parse(&format!("rec_{:024x}", i + 1)).unwrap(),
+                            payload.kind(),
+                        ),
+                        payload,
+                    )
+                    .unwrap()
+                })
+                .collect();
+            let expanded = if case["expand"].as_bool().unwrap() {
+                universe_rules::events::expand(&rows)
+            } else {
+                Ok(BTreeMap::new())
+            };
+            let result = expanded.map_err(anyhow::Error::msg).and_then(|assertions| {
+                for (i,(id,a)) in assertions.into_iter().enumerate() {
+                    rows.push(RecordVersion::build(RecordVersionId::parse(&format!("ver_{:024x}",1000+i)).unwrap(),RecordIdentity::new(universe.clone(),id,RecordKind::Assertion),Payload::Assertion(a)).unwrap());
+                }
+                let frame: Frame = serde_json::from_value(json!({"universe":universe,"continuity":"cont_000000000000000000000001","revision":"rev_000000000000000000000001","context":{"universe":universe,"record":"rec_00000000000000000000000a"},"time":{"kind":"timeless"},"perspective":"author"})).unwrap();
+                validate(&rows,&[],&rows.iter().map(|r|r.identity.record_id.clone()).collect(),&frame)
+            });
+            assert_eq!(
+                result.is_ok(),
+                case["allowed"].as_bool().unwrap(),
+                "{}: {:?}",
+                case["id"],
+                result
+            );
+        }
     }
     fn fixtures(raw: &str) {
         let fixture: Value = serde_json::from_str(raw).unwrap();

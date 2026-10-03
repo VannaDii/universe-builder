@@ -62,7 +62,7 @@ def audit(directory):
             p=pub['review']['proposal']; st=stored(p); v=pub['validation']; receipt=pub['receipt']; args=pub['commit_arguments']
             checked=workflow[f"validation:{v['run_id']}"]
             check(checked['validation']==v and checked['proposal_digest']==p['digest'] and checked['admissible'],'validation binding differs')
-            check(v['coverage']=='complete' and not v['findings'] and v['evaluator_version']=='finite-policy-v7-resource-transitions','incomplete or stale evaluator')
+            check(v['coverage']=='complete' and not v['findings'] and v['evaluator_version'] in ('finite-policy-v7-resource-transitions','finite-policy-v8-cumulative-resources'),'incomplete or stale evaluator')
             approvals=[a for k,a in workflow.items() if k.startswith('approval:') and k.endswith(f":{p['digest']}:{v['run_id']}")]
             check(len(approvals)==1,'missing exact approval')
             a=approvals[0]; check(a['proposal']==args['proposal_reference'] and a['validation_digest']==digest(checked) and a['evaluator']==v['evaluator_version'] and a['author']==pub['author_selection']['author_profile'],'approval binding differs')

@@ -1,0 +1,12 @@
+{
+  "audit-execution.json": "869fbb5aa1e91c578f4cc17553b070257cececfb6d0a65584853c52ea98b7bd3",
+  "audit-negative-tests.json": "01e4c6e7522ab87cdb00cf0edab2e3da7cce450c35db0d83d2e44d6d476465cb",
+  "audit.json": "78956329787d85a7107183c6eb4ee1920ce3f9c85d17cdac0f0b7ecb273d58e3",
+  "build-identity.json": "1f9fab8ac050d6c9583ced6578c59c117c1778904bd725ae1f2ced627f51b4b5",
+  "build.json": "081d37eaf3c5c28a9ff9373cb6a0c6c3980be2f29a8f73f19fbb697255072ba0",
+  "mcp-transcript.jsonl": "6fcd7456ad033f9d1d4ce1fa5b080fa13f21f8611d877137ca6dfc6d0feb08b1",
+  "oracle.json": "16ff7706f087fcb22561e7a732e7401ff852a8b1bee165a58705a7b8cb45d566",
+  "package.sqlite": "afa27c3a7c9c7db20b48cedec0d21102215d1c42d37ce08e162b1ebfbf61fcee",
+  "report.json": "614db802f82ab3c4141dbf388dd9183128e83de641067129480d2c99ad4d6180",
+  "result.json": "0a6e3224b03dd38401e0d5dab8403720b185e04a964c2ce025bef6a4b19e1e4a"
+}

@@ -1,0 +1,16 @@
+{
+  "command": [
+    "cargo",
+    "build",
+    "--locked",
+    "-p",
+    "universe-cli",
+    "-p",
+    "universe-engine",
+    "-p",
+    "universe-mcp"
+  ],
+  "returncode": 0,
+  "stdout": "",
+  "stderr": "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.18s\n"
+}

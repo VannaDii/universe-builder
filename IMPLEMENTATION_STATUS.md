@@ -217,3 +217,19 @@ receipts agree with independently audited SQLite history. Prior evaluator
 validations/approvals are stale under `finite-policy-v7-resource-transitions`.
 Multi-event ordering, reusable world-rule enforcement and prose qualification
 remain excluded. See [resource verification](docs/resource-transition-verification.md).
+
+## Cumulative resource continuity (October 3, 2026)
+
+Overlapping uses of a resource require distinct exact story times, including
+universe-wide/world-specific overlap and simultaneous set/delta changes. The
+accounting target remains the gun across holder changes, scenes and restart.
+Nine focused cumulative fixtures and independent Fraction replay pass. The audited
+MCP sequence passes 282 calls, 23 commits, eight unchanged-canon rejections,
+20 state queries, three scene editions and two engine restarts. Twelve established
+rounds reach zero; a thirteenth shot rejects; a declared three-round reload debits
+a four-round reserve; an overdraw rejects atomically. An earlier retcon with a
+valid first use rejects on an unchanged invalid successor. A valid earlier-time
+retcon preserves old editions and all retry receipts through restart. The prior
+39-case MCP regression also passes under `finite-policy-v8-cumulative-resources`.
+Reusable world-rule enforcement and prose qualification remain excluded.
+See [cumulative verification](docs/cumulative-resource-verification.md).

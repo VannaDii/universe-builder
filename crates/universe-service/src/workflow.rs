@@ -13,7 +13,7 @@ use universe_domain::{
 };
 use universe_protocol::{request::*, response::*, ProtocolError, Request};
 use universe_store::kernel::{Assignment, CommitInput, Kernel};
-const EVALUATOR: &str = "finite-policy-v7-resource-transitions";
+const EVALUATOR: &str = "finite-policy-v8-cumulative-resources";
 use universe_protocol::validation_scope::*;
 use validation_binding::ValidationCapture;
 pub(crate) fn hash<T: Serialize>(v: &T) -> String {

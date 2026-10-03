@@ -21,7 +21,7 @@ def rid(n):
     return f"rec_{200000+n:024x}"
 
 
-def wire_calls(path):
+def wire_calls(path, expected_sessions=2):
     calls, pending, sessions = [], {}, 0
     for line, entry in enumerate(map(json.loads, path.read_text().splitlines()), 1):
         f = entry["frame"]
@@ -43,7 +43,7 @@ def wire_calls(path):
                       "wire text/structured mismatch")
                 calls.append({"tool": q["params"]["name"], "arguments": q["params"]["arguments"],
                     "expected_error": bool(result.get("isError")), "result": body, "lines": [start, line]})
-    check(not pending and sessions == 2, "incomplete wire/restart sequence")
+    check(not pending and sessions == expected_sessions, "incomplete wire/restart sequence")
     return calls
 
 

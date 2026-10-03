@@ -1,0 +1,39 @@
+{
+  "status": "passed",
+  "workspace": {
+    "command": "cargo run --locked -p xtask -- check",
+    "exit_code": 0,
+    "tests": {
+      "passed": 326,
+      "failed": 0,
+      "ignored": 1
+    },
+    "format_clippy_schema_freshness": "passed",
+    "log": "workspace-check.log"
+  },
+  "focused": {
+    "command": "cargo test --locked -p universe-service consequences::tests --lib",
+    "exit_code": 0,
+    "rust_tests": 3,
+    "cumulative_cases": 9,
+    "prior_resource_cases": 44,
+    "prior_set_cases": 41,
+    "log": "focused-regressions.log"
+  },
+  "contracts": {
+    "command": "UNIVERSE_PYTHON=/tmp/continuity-gap-validation-runtime/bin/python cargo run --locked -p xtask -- validate-contracts",
+    "exit_code": 0,
+    "schemas": 26,
+    "valid_examples": 13,
+    "malformed_examples": 91,
+    "assessment_tests": 6,
+    "action_contract_tests": 5,
+    "log": "contract-check.log"
+  },
+  "fixture_sha256": {
+    "fixtures/resource-transitions/cumulative.json": "23b8c01afb2b4b08331f92fa9b9a3e2e5a8848e527059c1d70119f82a39e29c0",
+    "fixtures/resource-transitions/continuation.json": "bf2c5731cde9eb95b8abc1cc3211441c27a4ebcd7f3429cfe7ed63a6c5df4725"
+  },
+  "legacy_mcp_regression": "../cumulative-resources-legacy-regression/result.json",
+  "working_time": "Continuous active goal work; final duration and commit reported after completion."
+}
