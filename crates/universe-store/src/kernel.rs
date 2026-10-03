@@ -497,9 +497,27 @@ impl Kernel {
     }
     /// Publish proposal, request receipt and operation index together.
     pub fn workflow_put(&mut self, entries: &[(String, Value)]) -> StoreResult<()> {
+        self.workflow_compare_append(&[], entries)
+    }
+    /// Compare the latest immutable key in each namespace and append all evidence
+    /// in one immediate transaction. No mutable selection pointer is needed.
+    pub fn workflow_compare_append(
+        &mut self,
+        expected: &[(String, Option<String>)],
+        entries: &[(String, Value)],
+    ) -> StoreResult<()> {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        for (prefix, expected_key) in expected {
+            let latest: Option<String> = tx.query_row(
+                "SELECT key FROM workflow_entries WHERE substr(key,1,length(?1))=?1 ORDER BY key DESC LIMIT 1",
+                [prefix], |r| r.get(0),
+            ).optional()?;
+            if &latest != expected_key {
+                return Err(invalid("workflow comparison conflict"));
+            }
+        }
         for (key, value) in entries {
             let bytes = canonical_serde(value).to_bytes();
             if bytes.len() > 4 * 1_048_576 {
@@ -524,6 +542,12 @@ impl Kernel {
         }
         tx.commit()?;
         Ok(())
+    }
+    pub fn workflow_latest_key(&self, prefix: &str) -> StoreResult<Option<String>> {
+        Ok(self.conn.query_row(
+            "SELECT key FROM workflow_entries WHERE substr(key,1,length(?1))=?1 ORDER BY key DESC LIMIT 1",
+            [prefix], |r| r.get(0),
+        ).optional()?)
     }
     pub fn workflow_keys(&self, prefix: &str) -> StoreResult<Vec<String>> {
         Ok(self.conn.prepare("SELECT key FROM workflow_entries WHERE substr(key,1,?1)=?2 ORDER BY key LIMIT 10001")?

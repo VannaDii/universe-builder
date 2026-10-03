@@ -143,3 +143,14 @@ validation rejects both and neither becomes canon. Earlier failed MLX evidence
 is retained. Prose extraction/action classification still requires source review;
 passing structured constraints does not certify arbitrary manuscript semantics.
 See [execution evidence](docs/novel-authoring-readiness.md#wall-traversal-and-declared-powers-october-2-verification).
+
+## Internal assessment persistence (October 2, 2026)
+
+Immutable proposal-bound assessment attachments, append-only selection history,
+atomic generation/proposal comparisons, exact source/anchor checks and internal
+readback states are implemented. Service/store/protocol checks passed (125 tests;
+one standard workload intentionally ignored), with independent read-only SQLite
+audits before and after restart, source text revision and proposal replacement.
+See [assessment persistence verification](docs/assessment-persistence-verification.md).
+Public attachment submission, final validation/approval/commit integration and
+prose qualification remain subsequent goals.
