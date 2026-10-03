@@ -77,3 +77,17 @@ These source texts and gold mappings are authored decision fixtures; no model ex
 | Unresolved balance | “Mara fired from the old gun; nobody knew how many rounds remained.” / “The weapon discharged, but its prior ammunition count was unrecorded.” | occurred constrained fire, owner Mara, absent exact pre stock; unresolved F05/F06. Do not guess initial 1 or remaining 0. |
 
 Extraction must keep the event, condition, pre-stock and claimed post-stock distinct. Literal and held-out wording are separate inputs, not concatenated passages. A successful structured example does not establish that an external model will extract these mappings.
+
+## Added world-rule and clarification fixtures — October 3, 2026
+
+These extend the frozen preparation requirements following Vanna's direction; their runtime support is not yet established.
+
+| ID | Author facts and use | Required result |
+|---|---|---|
+| F44 | Author declares each gun holds at most twelve rounds between reloads; gun A is explicitly loaded with twelve, then fires twelve one-round shots across scenes. | Gun A has zero remaining. A thirteenth fails without an established reload. Count belongs to gun A, not the holder or current scene. |
+| F45 | The same cap exists, but gun A's starting load or earlier use is unknown. | Ask the author for the missing starting/history evidence; do not assume twelve remaining. The cap still rules out thirteen shots in one unreloaded period. |
+| F46 | Author declares every gun starts fully loaded with twelve; A and B have established individual starts. | Each receives its own initial stock once. Firing A does not spend B's ammunition, and mentioning A again does not initialize it again. |
+| F47 | Gun A has fired ten shots, then changes holder and is used in a later scene after restart. | Its remaining two rounds carry forward; changing owner, scene or process never reloads it. |
+| F48 | Empty gun A has an established reload of twelve, followed by one shot. | Eleven remain. A supposed reload with unknown amount/supply where supply is constrained asks for clarification instead of manufacturing rounds. |
+| F49 | Twelve-round rule belongs to world W1; a gun is used in W2, or an object-specific claim conflicts with the applicable rule. | Do not import W1's rule into W2. Ask for relevant W2 facts. A conflicting local claim cannot bypass W1's rule without an explicit authorized exception/change. |
+| F50 | Author changes the world rule or initial-load statement after dependent shots were validated. | Show affected guns/events and revalidate them; previous approval cannot publish the changed result. Preserve old editions and the author's original wording. |

@@ -29,3 +29,7 @@ No flaw in the accepted owner-attribute design was established; D02 specifies it
 ## Current-code verification executed
 
 The focused existing action tests pass 8/8, including historical actionless decode/omission, strict pre-event boundaries, wrong owners, world/context validity and earlier-evidence retcon revalidation. Existing event tests pass 3/3, including immutable generated assertion verification, explicit atomic effect ordering, same-time noncommuting rejection and predicted-event nonexecution. See `current-code-test-results.json`; owning source SHA-256 identities are frozen in `proof-results.json`. These eleven tests support the reuse review only. They do not exercise a consequence contract or certify any F01–F43 runtime result.
+
+## Follow-up boundary — October 3, 2026
+
+Vanna approved required/allowed action effects in plain language and required author clarification plus reusable world/universe object rules. That addition is not implemented or covered by the eleven existing regressions or nine arithmetic groups. F44–F50 specify it. A per-action delta bound alone does not implement a world-wide per-gun limit or establish initial stock. Review current rule execution and type binding before proposing the smallest implementation change; do not claim that rule DTO storage proves executable cumulative enforcement. The original source review remains scoped to the existing action/event paths.

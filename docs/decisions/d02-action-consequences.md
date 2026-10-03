@@ -1,6 +1,20 @@
 # D02: action consequences and resource transitions
 
-Prepared October 3, 2026. **Proposed; awaiting Vanna's decision. No implementation or approval.** Owning baseline: `eb7ac8c4ff95842f21b1427828182dd79483bf6e`. Extends [ADR-0006](../adr/ADR-0006-declared-actions-and-owner-attributes.md) for G03/G04 in the [remediation plan](../continuity-gap-remediation-plan.md). Read alongside the frozen [payloads](d02/payloads.json), [acceptance fixtures](d02/acceptance.md), and [compatibility/authority review](d02/review.md).
+Prepared October 3, 2026. **Vanna approved the plain-language behavior on October 3, 2026 and added the world-rule and clarification requirement below. Detailed payload and implementation choices remain proposed; no implementation has occurred.** Owning baseline: `eb7ac8c4ff95842f21b1427828182dd79483bf6e`. Extends [ADR-0006](../adr/ADR-0006-declared-actions-and-owner-attributes.md) for G03/G04 in the [remediation plan](../continuity-gap-remediation-plan.md). Read alongside the frozen [payloads](d02/payloads.json), [acceptance fixtures](d02/acceptance.md), and [compatibility/authority review](d02/review.md).
+
+## Author rules and clarification — agreed behavior
+
+Before an object is used, check the facts needed for that use against the author's rules for its world or universe. Ask the author for missing information; do not guess from the action or fill gaps silently. The author need not put those facts into the finished manuscript. Ask only for information relevant to the use, not every possible attribute of an object.
+
+An answer can establish a reusable rule. Keep the author's wording and store the agreed structured rule with its object type, world/universe scope, effective story time and author authority. Apply it to each matching object; the author should not have to repeat it for every gun. Ambiguous answers need clarification before their structured meaning is approved and published through the existing protected-rule workflow. A world rule does not silently change another world or an earlier edition. A particular object cannot bypass an applicable rule without an explicit author-approved exception or rule change.
+
+“All guns only have 12 rounds” is enough to request a rule limiting each gun to at most twelve shots between established reloads. It does not by itself prove that a gun encountered midway through the story is loaded or has twelve rounds left. Ask about its starting ammunition when exact remaining stock is needed. “Every gun starts fully loaded with twelve rounds” can establish that initial value for each matching gun at an established start; it cannot refill a gun each time it is mentioned or used.
+
+Account for ammunition on the actual gun, independently of who holds it. Carry consumption forward across scenes, changes of holder and restart. Reloading must be an established event with a declared amount; mentioning, handing over or drawing the gun is not a reload. If ammunition supply is constrained, reloading must account for that supply too. For a gun loaded with twelve rounds, twelve one-round shots leave zero; a thirteenth without a reload fails. A cap of twelve alone can disprove more than twelve shots, but cannot certify the first twelve when the starting load or earlier use is unknown. Report that uncertainty and ask the author.
+
+A movement event still grants no immunity. Apply authored relevant rules; do not invent protection, injury or terrestrial physics merely from the scene's wording.
+
+This is a required addition to the behavior, not approval of a new rule-storage format or a broad simulation. The existing typed rule/definition and event/assertion paths must be used where they can express it. Whether current executable rules can bind a per-object starting value and a cumulative between-reloads limit needs a focused code review before implementation. If they cannot, present the smallest necessary change plainly before building it. A maximum of twelve on a single action's delta is insufficient: it does not establish per-gun history or a reusable world rule.
 
 ## Decision requested
 
@@ -8,7 +22,7 @@ Approve one optional, closed `consequenceContract` on `ActionDefinition`. For ne
 
 This is the smallest useful extension: required slots prevent omitted consumption; a closed allowlist prevents unrelated grants; role binding prevents recipient substitution; a checked delta prevents invented balances. Requirements remain separate preconditions. An empty requirements list does **not** imply unconstrained consequences.
 
-Material choices needing Vanna's decision: (1) explicit contracts required for touched legacy records, with immutable untouched history readable but uncertified; (2) integer counts and integer quantities in one exact unit only; (3) unresolved conditions block occurred events even for optional slots; (4) distinct exact authored times for dependent separate events; (5) definition revisions revalidate all bound events in the candidate. The recommendation includes all five. Acceptance of this document authorizes a later implementation task, not canon changes or an automatic migration.
+Detailed choices still needing explicit technical confirmation: (1) explicit contracts required for touched legacy records, with immutable untouched history readable but uncertified; (2) integer counts and integer quantities in one exact unit only; (3) unresolved conditions block occurred events even for optional slots; (4) distinct exact authored times for dependent separate events; (5) definition revisions revalidate all bound events in the candidate. The recommendation includes all five. Acceptance of this document authorizes a later implementation task, not canon changes or an automatic migration.
 
 ## Closed payload contract
 
@@ -68,4 +82,4 @@ Free-form prose consequences cannot enforce costs or targets. Inferring effects 
 
 ## Preparation evidence
 
-The [proof results](d02/proof-results.json) compare independent Fraction-based ledger calculations with integer-based concrete-payload calculations, including target/slot checks and tampering controls. The [source review](d02/review.md) separates reused gates from required extensions. Both are design-preparation evidence from this session, not an independent human/agent review, engine implementation or runtime qualification. [Acceptance fixtures](d02/acceptance.md) freeze remaining runtime checks. Vanna's decision is still pending.
+The [proof results](d02/proof-results.json) compare independent Fraction-based ledger calculations with integer-based concrete-payload calculations, including target/slot checks and tampering controls. The [source review](d02/review.md) separates reused gates from required extensions. Both are design-preparation evidence from this session, not an independent human/agent review, engine implementation or runtime qualification. [Acceptance fixtures](d02/acceptance.md) freeze remaining runtime checks. The plain-language behavior is approved; detailed implementation choices and the added rule-binding design remain pending.

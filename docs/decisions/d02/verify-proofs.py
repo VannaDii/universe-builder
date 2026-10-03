@@ -21,7 +21,7 @@ source_root=root.parents[2]
 source_names=['crates/universe-domain/src/records.rs','crates/universe-domain/src/value.rs','crates/universe-service/src/actions.rs','crates/universe-rules/src/events.rs','crates/universe-service/src/events.rs','crates/universe-service/src/validation.rs','crates/universe-service/src/operations.rs','crates/universe-service/src/workflow.rs','crates/universe-service/src/validation_binding.rs','crates/universe-store/src/kernel.rs']
 report={'currentCodeRegressionTests':json.loads((root/'current-code-test-results.json').read_text()),'owningSourceSha256':{name:hashlib.sha256((source_root/name).read_bytes()).hexdigest() for name in source_names},'status':'passed_design_preparation_only','baseline':'eb7ac8c4ff95842f21b1427828182dd79483bf6e',
  'independentCalculationGroups':len(a),'tamperControls':len(tamper),'runtimeQualification':False,
- 'externalIndependentReviewer':False,'approval':'pending',
+ 'externalIndependentReviewer':False,'approval':'plain-language behavior approved; detailed implementation and world-rule binding pending',
  'method':'Independent Fraction ledger equations vs integer calculations from concrete proposed payloads; separate algorithms, same preparing agent. Not engine integration.',
  'sha256':{str(p.relative_to(root.parent)):hashlib.sha256(p.read_bytes()).hexdigest() for p in files}}
 (root/'proof-results.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
