@@ -440,3 +440,21 @@ fn proposal_assessment_actions_are_closed_and_selection_requires_explicit_null()
     let malformed = json!({"proposal":body["proposal"],"generation":1});
     assert!(serde_json::from_value::<ProposalOutcome>(malformed).is_err());
 }
+
+#[test]
+fn assessment_view_is_closed_and_exact_reference_requires_that_view() {
+    use universe_protocol::Request;
+    let reference = examples()["assessment"]["body"]["proposal"].clone();
+    let mut args = json!({"universe":"Example","proposal_id":reference["proposal_id"],
+        "version":reference["version"],"view_group":"assessment",
+        "assessment_reference":{"assessment_id":examples()["assessment"]["assessment_id"],
+        "digest":examples()["assessment"]["digest"]}});
+    Request::from_tool("universe_get_proposal", args.clone()).unwrap();
+    args["view_group"] = json!("payload");
+    assert!(Request::from_tool("universe_get_proposal", args.clone()).is_err());
+    args.as_object_mut().unwrap().remove("view_group");
+    assert!(Request::from_tool("universe_get_proposal", args.clone()).is_err());
+    args["view_group"] = json!("assessment");
+    args["assessment_reference"] = Value::Null;
+    assert!(Request::from_tool("universe_get_proposal", args).is_err());
+}

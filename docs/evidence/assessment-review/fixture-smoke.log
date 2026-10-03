@@ -1,0 +1,20 @@
+{
+  "status": "pass",
+  "route": "independent stdio",
+  "negotiated": "2025-11-25",
+  "tools": 13,
+  "checks": [
+    "91 malformed contract mutations across all tools",
+    "known record",
+    "omitted world",
+    "isolation",
+    "Unicode proposal",
+    "idempotency",
+    "receipt recovery",
+    "canon denial",
+    "text/structured parity",
+    "output schemas"
+  ]
+}
+{"adapter_restart_receipt_recovery": "pass", "equivalent_frame_retry": "pass"}
+{"older_requested": "2024-11-05", "negotiated": "2024-11-05", "read": "pass"}

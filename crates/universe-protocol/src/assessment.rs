@@ -354,6 +354,50 @@ pub struct AssessmentSelection {
 }
 canonical_fields!(AssessmentSelection, proposal, generation, selected);
 
+/// Complete service review. The selected state and requested historical envelope
+/// are independent: an exact historical request never changes current selection.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AssessmentReview {
+    pub selection: AssessmentSelection,
+    pub state: AssessmentState,
+    #[serde(deserialize_with = "required_nullable")]
+    #[schemars(required, schema_with = "nullable_envelope_schema")]
+    pub envelope: Option<AssessmentEnvelope>,
+}
+
+/// Large envelopes travel as UTF-8 aligned chunks of their owning canonical JSON.
+/// Concatenate chunks in byte-offset order, decode AssessmentEnvelope, then verify
+/// its body digest. A fragment is never a partial SourceAssessmentV1 declaration.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AssessmentFragment {
+    pub assessment_reference: AssessmentRef,
+    pub offset: u64,
+    pub total_bytes: u64,
+    pub canonical_envelope_utf8: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AssessmentReviewPage {
+    pub selection: AssessmentSelection,
+    pub state: AssessmentState,
+    #[serde(deserialize_with = "required_nullable")]
+    #[schemars(required, schema_with = "nullable_envelope_schema")]
+    pub envelope: Option<AssessmentEnvelope>,
+    #[serde(deserialize_with = "required_nullable")]
+    #[schemars(required, schema_with = "nullable_fragment_schema")]
+    pub fragment: Option<AssessmentFragment>,
+}
+
+fn nullable_envelope_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    generator.subschema_for::<Option<AssessmentEnvelope>>()
+}
+fn nullable_fragment_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    generator.subschema_for::<Option<AssessmentFragment>>()
+}
+
 pub type AssessmentResult<T> = Result<T, String>;
 fn ensure(ok: bool, message: &str) -> AssessmentResult<()> {
     if ok {

@@ -49,6 +49,16 @@ pub enum FieldGroup {
     Evidence,
     History,
 }
+/// Proposal assessment review is separate from canonical record field groups.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ProposalView {
+    Summary,
+    Payload,
+    Evidence,
+    History,
+    Assessment,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RevisionSelector {
@@ -524,8 +534,15 @@ pub struct GetProposal {
         skip_serializing_if = "Option::is_none",
         deserialize_with = "present"
     )]
-    #[schemars(with = "FieldGroup")]
-    pub view_group: Option<FieldGroup>,
+    #[schemars(with = "ProposalView")]
+    pub view_group: Option<ProposalView>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    #[schemars(with = "crate::validation_scope::AssessmentRef")]
+    pub assessment_reference: Option<crate::validation_scope::AssessmentRef>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -740,6 +757,16 @@ impl Request {
         Ok(request)
     }
     pub fn validate(&self) -> ProtocolResult<()> {
+        if let Self::GetProposal(a) = self {
+            if a.assessment_reference.is_some()
+                && !matches!(a.view_group, Some(ProposalView::Assessment))
+            {
+                return Err(ProtocolError::invalid_argument(
+                    "assessment_reference",
+                    "requires assessment view",
+                ));
+            }
+        }
         let all = serde_json::to_value(self)
             .map_err(|_| ProtocolError::invalid_argument("request", "cannot encode"))?;
         let args = &all["args"];
@@ -918,10 +945,15 @@ pub fn tool_schemas() -> Vec<ToolSchema> {
         ToolSchema {
             name: "universe_get_proposal".into(),
             description:
-                "GetProposal: explicit universe required; fixture mode has no canon writes.".into(),
-            input_schema: augment_schema(
-                serde_json::to_value(schemars::schema_for!(GetProposal)).expect("schema"),
-            ),
+                "Read a frozen proposal or view_group=assessment. Assessment view returns current selection/state and the exact selected or requested historical envelope. Follow pinned cursors; concatenate canonical_envelope_utf8 fragments by byte offset, decode and verify the body digest before treating review as complete. Current permissions are checked on every page. Explicit universe required; fixture mode has no assessments.".into(),
+            input_schema: {
+                let mut schema = augment_schema(serde_json::to_value(schemars::schema_for!(GetProposal)).expect("schema"));
+                schema["allOf"] = serde_json::json!([{
+                    "if":{"required":["assessment_reference"]},
+                    "then":{"required":["view_group"],"properties":{"view_group":{"const":"assessment"}}}
+                }]);
+                schema
+            },
             output_schema: serde_json::to_value(schemars::schema_for!(
                 crate::response::GetProposalResult
             ))

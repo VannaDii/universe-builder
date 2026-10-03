@@ -309,7 +309,7 @@ impl Runtime {
                 };
                 drop(registry);
                 let worker = self.worker(&u.universe_id, &u.path)?;
-                disclosure = Some((u.universe_id.clone(), scope.clone()));
+                disclosure = Some(authority.clone());
                 // Preparation and queue waits do not hold the installation authority gate.
                 let queued = matches!(
                     &*request,
@@ -967,14 +967,14 @@ impl Runtime {
             }
         };
         // Avoid disclosing an already computed result after revocation.
-        let registry = self.registry.lock().unwrap();
-        let current = registry.authenticate(h)?;
-        if let Some((u, scope)) = disclosure {
-            anyhow::ensure!(
-                registry.scope(&current, &u)? == scope,
-                "grant changed while processing; retry"
-            )
+        if let Some(authority) = disclosure {
+            // Apply the same full authority gate used during preparation: world,
+            // entity, predicate and continuity limits can all restrict review.
+            let _guard = authority.lock().map_err(|_| ProtocolError::not_found("resource"))?;
+            return Ok(value);
         }
+        let registry = self.registry.lock().unwrap();
+        registry.authenticate(h)?;
         Ok(value)
     }
 }

@@ -282,9 +282,9 @@ impl Fixture {
     Ok(Response::Propose(scope.wrap(ProposalOutcome::Proposal(proposal))))
    }
    Request::GetProposal(a)=>{
-    if a.view_group.as_ref().is_some_and(|g|!matches!(g,FieldGroup::Payload)){return Err(unsupported("fixture proposal view supports the payload field group only"))}
+    if a.view_group.as_ref().is_some_and(|g|!matches!(g,ProposalView::Payload)){return Err(unsupported("fixture proposal view supports the payload field group only"))}
     let p=self.proposals.get(&(a.proposal_id,a.version)).filter(|(u,p)|*u==universe.id&&p.version==a.version).map(|(_,p)|p.clone()).ok_or_else(||ProtocolError::not_found("proposal version"))?;
-    Ok(Response::GetProposal(scope.wrap(p)))
+    Ok(Response::GetProposal(scope.wrap(ProposalViewResult::Proposal(p))))
    }
    Request::GetOperation(a)=>{
     let receipt=match a {

@@ -166,5 +166,19 @@ Twenty-four actual MCP cases pass with an independent transcript/SQLite-state
 and hash audit; three focused service tests and ten assessment protocol tests pass.
 Frozen proposal and canonical state remain unchanged by assessment requests.
 See [public assessment verification](docs/assessment-mcp-verification.md).
-Assessment retrieval and validation/approval/commit integration remain unavailable;
-this slice does not qualify native assessment interaction or assessed prose.
+Assessment retrieval is implemented in the next slice below. This submission
+slice does not qualify validation/approval/commit integration, native assessment
+interaction or assessed prose.
+
+## Pinned assessment review (October 2, 2026)
+
+`universe_get_proposal` now provides a permission-checked assessment view with
+exact historical references and pagination pinned to proposal, assessment digest
+and selection generation. The existing author review uses the same service data
+and displays declared source ranges, inventory, mappings, exclusions and unresolved
+items. Independent reconstruction/digest checks, 88 real MCP review cases and two
+private author reviews pass; the Rust suite passes 134 tests. Restricted or revoked
+access exposes no assessment identifiers, excerpts, counts, hashes or cursors.
+See [assessment review verification](docs/assessment-review-verification.md).
+Assessment validation/approval/commit enforcement, language interpretation and
+native interaction/accessibility qualification remain outside this increment.

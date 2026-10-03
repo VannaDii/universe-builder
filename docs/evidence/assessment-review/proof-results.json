@@ -1,0 +1,41 @@
+{
+  "kind": "assessment-review-proof-results-v1",
+  "work_started_at_utc": "2026-10-03T00:50:08+00:00",
+  "completion_duration": "Reported from the active goal clock after committing all goal work; includes implementation, qualification, independent checks and commit.",
+  "rust": {
+    "passed": 134,
+    "failed": 0,
+    "ignored": 1,
+    "command": "cargo test -p universe-service -p universe-store -p universe-protocol -p universe-client -p universe-mcp"
+  },
+  "focused_service_tests": 4,
+  "assessment_protocol_tests": 11,
+  "independent_body_contract_tests": 6,
+  "actual_mcp_review_cases": 88,
+  "actual_private_author_reviews": 2,
+  "complete_reconstructions": 7,
+  "pages_per_reconstruction": 9,
+  "envelope_bytes": 267485,
+  "independent_reconstruction_and_digest_audit": "pass; handwritten canonical encoder, Python sorted JSON and OpenSSL SHA-256",
+  "oracle_mutation_controls": {
+    "passed": 4,
+    "controls": [
+      "missing final page",
+      "changed byte offset",
+      "changed envelope content",
+      "private count in denied result"
+    ]
+  },
+  "generic_permission_reference_and_cursor_denials": 19,
+  "schema_freshness": "pass",
+  "schema_validation": "26 schemas, 13 valid examples, 91 invalid examples",
+  "native_shared_contract_check": "cargo check -p universe-ui passed; interaction/accessibility qualification excluded",
+  "fixture_mcp_smoke": "pass; 13 tools, contract mutations, Unicode, retry and adapter restart controls",
+  "transcript_sha256": "5b760c68bbe5ae1940a9665ff27a5bbcda17a8cd9672d7714c2b8790dd03fe2f",
+  "excluded": [
+    "assessment approval enforcement",
+    "validation/commit binding integration",
+    "native interaction/accessibility qualification",
+    "language interpretation"
+  ]
+}

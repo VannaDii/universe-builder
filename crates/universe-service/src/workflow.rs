@@ -1242,13 +1242,14 @@ impl Workflow<'_> {
             return Err(denied());
         }
         let p = self.proposal(r)?;
+        let assessment = self.assessment_review(r, None)?;
         let base = self.kernel.records(
             &p.proposal.base_frame.continuity,
             &p.proposal.base_frame.revision,
         )?;
         let diff:Vec<_>=p.changes.iter().map(|change|json!({"record":change.record_id,"before":base.iter().find(|r|r.identity.record_id==change.record_id),"after":change.next})).collect();
         Ok(
-            json!({"proposal":p.proposal,"changes":p.changes,"diff":diff,"footprint":p.footprint,"latest":self.latest(&p.proposal)?}),
+            json!({"proposal":p.proposal,"changes":p.changes,"diff":diff,"footprint":p.footprint,"latest":self.latest(&p.proposal)?,"assessment_review":assessment}),
         )
     }
     pub fn approve(&mut self, r: &ProposalRef, run: &ValidationRunId) -> anyhow::Result<Value> {
@@ -1415,7 +1416,7 @@ impl Workflow<'_> {
                 } else {
                     vec![]
                 };
-                serde_json::to_value(Description{fixture:false,worlds,definition_ids,capabilities:vec![Capability{id:"source_assessment.v1".into(),status:CapabilityStatus::Partial,limitation:"Authenticated immutable attachment and generation-checked selection through universe_propose. Retrieval, validation/approval/commit integration and native assessment UI remain unavailable.".into()},Capability{id:"canon.commit.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact author approval or explicit expiring entity/predicate/continuity delegation; fresh complete validation and current grants required".into()},Capability{id:"opposing_evidence.v1".into(),status:CapabilityStatus::Implemented,limitation:"Candidate-wide polarity diagnostics and explicitly scoped NoOpposingEvidence policies. Unresolved comparisons remain partial; no prose or integrated-story qualification.".into()},Capability{id:"basic.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact scalar, finite collection and integer-tick temporal expressions; unsupported blocking checks fail admission".into()},Capability{id:"events.owner_attributes.v1".into(),status:CapabilityStatus::Implemented,limitation:"New/revised events require declared actions. Mandatory values resolve on exactly one participant per owning role at pre-event time; direct and explicit item grants share evidence. Missing, muted, conflicting and unsupported prerequisites block use. Legacy actionless events remain readable but are not certified; prose/action classification still requires author review.".into()},Capability{id:"events.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact occurred-event effects, explicit within-event order, pre/post state and possession powers. Noncommuting effects from separate simultaneous events and complex causality are rejected.".into()},
+                serde_json::to_value(Description{fixture:false,worlds,definition_ids,capabilities:vec![Capability{id:"source_assessment.v1".into(),status:CapabilityStatus::Partial,limitation:"Authenticated immutable attachment and generation-checked selection through universe_propose. Pinned permission-checked assessment retrieval and shared author review are available. Validation/approval/commit integration and native interaction qualification remain unavailable.".into()},Capability{id:"canon.commit.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact author approval or explicit expiring entity/predicate/continuity delegation; fresh complete validation and current grants required".into()},Capability{id:"opposing_evidence.v1".into(),status:CapabilityStatus::Implemented,limitation:"Candidate-wide polarity diagnostics and explicitly scoped NoOpposingEvidence policies. Unresolved comparisons remain partial; no prose or integrated-story qualification.".into()},Capability{id:"basic.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact scalar, finite collection and integer-tick temporal expressions; unsupported blocking checks fail admission".into()},Capability{id:"events.owner_attributes.v1".into(),status:CapabilityStatus::Implemented,limitation:"New/revised events require declared actions. Mandatory values resolve on exactly one participant per owning role at pre-event time; direct and explicit item grants share evidence. Missing, muted, conflicting and unsupported prerequisites block use. Legacy actionless events remain readable but are not certified; prose/action classification still requires author review.".into()},Capability{id:"events.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact occurred-event effects, explicit within-event order, pre/post state and possession powers. Noncommuting effects from separate simultaneous events and complex causality are rejected.".into()},
                     Capability{id:"knowledge.explicit.v1".into(),status:CapabilityStatus::Implemented,limitation:"Explicit, time-bound holder attitudes in their represented context. Presence, sending and receipt do not infer knowledge.".into()},
                     Capability{id:"perspective.views.v1".into(),status:CapabilityStatus::Implemented,limitation:"Character and narrator views require matching represented contexts. Reader views require an exact scene and explicit disclosures in its bound work edition. No automatic knowledge inference.".into()},
                     Capability{id:"history.v1".into(),status:CapabilityStatus::Implemented,limitation:"Typed summaries, evidence and pinned record history; history is limited to 100 changes per record and unrestricted author-perspective reads. Native restoration produces a reviewed compensating revision.".into()},
@@ -2056,6 +2057,10 @@ impl Workflow<'_> {
                     digest: p.proposal.digest,
                 })?;
                 frame = Some(p.proposal.base_frame.clone());
+                if matches!(a.view_group, Some(ProposalView::Assessment)) {
+                    let (page, done, next) = self.assessment_page(args, &p, a.assessment_reference.as_ref())?;
+                    return self.wrap(args, frame, world_focus, done, next, serde_json::to_value(page)?);
+                }
                 let mut proposal = p.proposal;
                 let start = self.offset(args, &proposal.base_frame)?;
                 let total = proposal.operations.len().max(p.changes.len());

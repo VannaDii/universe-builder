@@ -47989,7 +47989,7 @@
   },
   {
     "name": "universe_get_proposal",
-    "description": "GetProposal: explicit universe required; fixture mode has no canon writes.",
+    "description": "Read a frozen proposal or view_group=assessment. Assessment view returns current selection/state and the exact selected or requested historical envelope. Follow pinned cursors; concatenate canonical_envelope_utf8 fragments by byte offset, decode and verify the body digest before treating review as complete. Current permissions are checked on every page. Explicit universe required; fixture mode has no assessments.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "GetProposal",
@@ -48013,7 +48013,10 @@
           "type": "string"
         },
         "view_group": {
-          "$ref": "#/$defs/FieldGroup"
+          "$ref": "#/$defs/ProposalView"
+        },
+        "assessment_reference": {
+          "$ref": "#/$defs/AssessmentRef"
         }
       },
       "additionalProperties": false,
@@ -48039,16 +48042,62 @@
           "type": "string",
           "pattern": "^prp_[0-9a-f]{24}$"
         },
-        "FieldGroup": {
+        "ProposalView": {
+          "description": "Proposal assessment review is separate from canonical record field groups.",
           "type": "string",
           "enum": [
             "summary",
             "payload",
             "evidence",
-            "history"
+            "history",
+            "assessment"
           ]
+        },
+        "AssessmentRef": {
+          "type": "object",
+          "properties": {
+            "assessment_id": {
+              "$ref": "#/$defs/AssessmentId"
+            },
+            "digest": {
+              "$ref": "#/$defs/Sha256Hex"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "assessment_id",
+            "digest"
+          ]
+        },
+        "AssessmentId": {
+          "type": "string",
+          "pattern": "^asm_[0-9a-f]{24}$"
+        },
+        "Sha256Hex": {
+          "description": "Owning decoder enforces the same exact digest shape as the JSON schema.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "assessment_reference"
+            ]
+          },
+          "then": {
+            "required": [
+              "view_group"
+            ],
+            "properties": {
+              "view_group": {
+                "const": "assessment"
+              }
+            }
+          }
+        }
+      ]
     },
     "output_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -48099,7 +48148,7 @@
           "$ref": "#/$defs/Delivery"
         },
         "result": {
-          "$ref": "#/$defs/Proposal"
+          "$ref": "#/$defs/ProposalViewResult"
         }
       },
       "additionalProperties": false,
@@ -49086,6 +49135,16 @@
           "additionalProperties": false,
           "required": [
             "complete"
+          ]
+        },
+        "ProposalViewResult": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Proposal"
+            },
+            {
+              "$ref": "#/$defs/AssessmentReviewPage"
+            }
           ]
         },
         "Proposal": {
@@ -55992,6 +56051,1122 @@
           "description": "Stable identity of a durable operation.",
           "type": "string",
           "pattern": "^op_[0-9a-f]{24}$"
+        },
+        "AssessmentReviewPage": {
+          "type": "object",
+          "properties": {
+            "selection": {
+              "$ref": "#/$defs/AssessmentSelection"
+            },
+            "state": {
+              "$ref": "#/$defs/AssessmentState"
+            },
+            "envelope": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssessmentEnvelope"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "fragment": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssessmentFragment"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "selection",
+            "state",
+            "envelope",
+            "fragment"
+          ]
+        },
+        "AssessmentSelection": {
+          "type": "object",
+          "properties": {
+            "proposal": {
+              "type": "object",
+              "properties": {
+                "proposal_id": {
+                  "$ref": "#/$defs/ProposalId"
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 18446744073709551615
+                },
+                "digest": {
+                  "$ref": "#/$defs/Sha256Hex"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "proposal_id",
+                "version",
+                "digest"
+              ]
+            },
+            "generation": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "selected": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssessmentRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "proposal",
+            "generation",
+            "selected"
+          ]
+        },
+        "Sha256Hex": {
+          "description": "Owning decoder enforces the same exact digest shape as the JSON schema.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "AssessmentRef": {
+          "type": "object",
+          "properties": {
+            "assessment_id": {
+              "$ref": "#/$defs/AssessmentId"
+            },
+            "digest": {
+              "$ref": "#/$defs/Sha256Hex"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "assessment_id",
+            "digest"
+          ]
+        },
+        "AssessmentId": {
+          "type": "string",
+          "pattern": "^asm_[0-9a-f]{24}$"
+        },
+        "AssessmentState": {
+          "description": "Approved reporting states. The current service produces only absent and\nunavailable_legacy; future bound states require recorded assessment evidence.",
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "absent"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "unavailable_legacy"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "reason": {
+                  "$ref": "#/$defs/UnavailableReason"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "unavailable"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "reason"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "assessment_reference": {
+                  "$ref": "#/$defs/AssessmentRef"
+                },
+                "reasons": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/StaleReason"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "stale"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "assessment_reference",
+                "reasons"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "assessment_reference": {
+                  "$ref": "#/$defs/AssessmentRef"
+                },
+                "selection_generation": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "byte_verification": {
+                  "$ref": "#/$defs/ByteVerification"
+                },
+                "declared_conclusion": {
+                  "$ref": "#/$defs/DeclaredConclusion"
+                },
+                "inventory_count": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "mapping_count": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "unresolved_count": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "inventory_digest": {
+                  "$ref": "#/$defs/Sha256Hex"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "bound"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "assessment_reference",
+                "selection_generation",
+                "byte_verification",
+                "declared_conclusion",
+                "inventory_count",
+                "mapping_count",
+                "unresolved_count",
+                "inventory_digest"
+              ]
+            }
+          ]
+        },
+        "UnavailableReason": {
+          "type": "string",
+          "enum": [
+            "missing_retained_material",
+            "unsupported_representation",
+            "failed_or_cancelled_check"
+          ]
+        },
+        "StaleReason": {
+          "type": "string",
+          "enum": [
+            "candidate_changed",
+            "source_changed",
+            "edition_changed",
+            "dependency_changed",
+            "selection_changed",
+            "evaluator_changed"
+          ]
+        },
+        "ByteVerification": {
+          "type": "string",
+          "enum": [
+            "verified"
+          ]
+        },
+        "DeclaredConclusion": {
+          "type": "string",
+          "enum": [
+            "consistent_with_declared_inventory",
+            "inconsistent",
+            "unresolved"
+          ]
+        },
+        "AssessmentEnvelope": {
+          "type": "object",
+          "properties": {
+            "assessment_id": {
+              "$ref": "#/$defs/AssessmentId"
+            },
+            "digest": {
+              "$ref": "#/$defs/Sha256Hex"
+            },
+            "body": {
+              "$ref": "#/$defs/SourceAssessmentV1"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "assessment_id",
+            "digest",
+            "body"
+          ]
+        },
+        "SourceAssessmentV1": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "$ref": "#/$defs/AssessmentKind"
+            },
+            "proposal": {
+              "type": "object",
+              "properties": {
+                "proposal_id": {
+                  "$ref": "#/$defs/ProposalId"
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 18446744073709551615
+                },
+                "digest": {
+                  "$ref": "#/$defs/Sha256Hex"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "proposal_id",
+                "version",
+                "digest"
+              ]
+            },
+            "base_frame": {
+              "$ref": "#/$defs/Frame"
+            },
+            "assessor": {
+              "$ref": "#/$defs/Assessor"
+            },
+            "sources": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SourceBinding"
+              },
+              "minItems": 1,
+              "maxItems": 64
+            },
+            "dependencies": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/AssessmentVersionRef"
+              },
+              "maxItems": 16384
+            },
+            "declared_inventory": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/MaterialItem"
+              },
+              "maxItems": 4096
+            },
+            "inventory_declaration": {
+              "$ref": "#/$defs/InventoryDeclaration"
+            },
+            "claim_mappings": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ClaimMapping"
+              },
+              "maxItems": 4096
+            },
+            "unresolved": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/UnresolvedDisposition"
+              },
+              "maxItems": 4096
+            },
+            "conclusion": {
+              "$ref": "#/$defs/DeclaredConclusion"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "proposal",
+            "base_frame",
+            "assessor",
+            "sources",
+            "dependencies",
+            "declared_inventory",
+            "inventory_declaration",
+            "claim_mappings",
+            "unresolved",
+            "conclusion"
+          ]
+        },
+        "AssessmentKind": {
+          "type": "string",
+          "enum": [
+            "source_assessment_v1"
+          ]
+        },
+        "Assessor": {
+          "type": "object",
+          "properties": {
+            "principal": {
+              "$ref": "#/$defs/PrincipalId"
+            },
+            "method": {
+              "$ref": "#/$defs/Method"
+            },
+            "tool": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ToolIdentity"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "assessed_at": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "principal",
+            "method",
+            "tool",
+            "assessed_at"
+          ]
+        },
+        "Method": {
+          "type": "string",
+          "enum": [
+            "human_review",
+            "external_model_review"
+          ]
+        },
+        "ToolIdentity": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "model_revision": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "procedure_digest": {
+              "$ref": "#/$defs/Sha256Hex"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "version",
+            "model_revision",
+            "procedure_digest"
+          ]
+        },
+        "SourceBinding": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "source_version": {
+              "$ref": "#/$defs/AssessmentVersionRef"
+            },
+            "blob_digest": {
+              "$ref": "#/$defs/Sha256Hex"
+            },
+            "byte_size": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "representation": {
+              "$ref": "#/$defs/SourceRepresentation"
+            },
+            "ranges": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ByteRange"
+              }
+            },
+            "work_edition": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "passage_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "source_version",
+            "blob_digest",
+            "byte_size",
+            "representation",
+            "ranges",
+            "work_edition",
+            "passage_id"
+          ]
+        },
+        "AssessmentVersionRef": {
+          "description": "Exact workflow evidence references use the existing domain wire keys and IDs.",
+          "type": "object",
+          "properties": {
+            "universe": {
+              "$ref": "#/$defs/UniverseId"
+            },
+            "record": {
+              "$ref": "#/$defs/RecordId"
+            },
+            "version": {
+              "$ref": "#/$defs/RecordVersionId"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "universe",
+            "record",
+            "version"
+          ]
+        },
+        "SourceRepresentation": {
+          "type": "string",
+          "enum": [
+            "exact-utf8-v1"
+          ]
+        },
+        "ByteRange": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "end": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "start",
+            "end"
+          ]
+        },
+        "MaterialItem": {
+          "type": "object",
+          "properties": {
+            "item_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "source_key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "range": {
+              "$ref": "#/$defs/ByteRange"
+            },
+            "material_kind": {
+              "$ref": "#/$defs/MaterialKind"
+            },
+            "statement": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "mapping_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "unresolved_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "item_id",
+            "source_key",
+            "range",
+            "material_kind",
+            "statement",
+            "mapping_ids",
+            "unresolved_ids"
+          ]
+        },
+        "MaterialKind": {
+          "type": "string",
+          "enum": [
+            "fact",
+            "action",
+            "prerequisite",
+            "effect",
+            "knowledge",
+            "description",
+            "disclosure",
+            "unchanged_state"
+          ]
+        },
+        "InventoryDeclaration": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "$ref": "#/$defs/InventoryKind"
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "exclusions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Exclusion"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "rationale",
+            "exclusions"
+          ]
+        },
+        "InventoryKind": {
+          "type": "string",
+          "enum": [
+            "material_inventory_declared",
+            "no_material_claims"
+          ]
+        },
+        "Exclusion": {
+          "type": "object",
+          "properties": {
+            "source_key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "range": {
+              "$ref": "#/$defs/ByteRange"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "source_key",
+            "range",
+            "reason"
+          ]
+        },
+        "ClaimMapping": {
+          "type": "object",
+          "properties": {
+            "mapping_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "item_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "referents": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/AssessmentVersionRef"
+              }
+            },
+            "context": {
+              "$ref": "#/$defs/AssessmentVersionRef"
+            },
+            "world": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "realm": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "story_time": {
+              "$ref": "#/$defs/TemporalExpression"
+            },
+            "narration_position": {
+              "$ref": "#/$defs/Position"
+            },
+            "reader_position": {
+              "$ref": "#/$defs/Position"
+            },
+            "occurrence": {
+              "$ref": "#/$defs/Occurrence"
+            },
+            "modality": {
+              "$ref": "#/$defs/Modality"
+            },
+            "semantic": {
+              "$ref": "#/$defs/SemanticMapping"
+            },
+            "candidate_links": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/CandidateLink"
+              }
+            },
+            "judgment": {
+              "$ref": "#/$defs/MappingJudgment"
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "mapping_id",
+            "item_ids",
+            "referents",
+            "context",
+            "world",
+            "realm",
+            "story_time",
+            "narration_position",
+            "reader_position",
+            "occurrence",
+            "modality",
+            "semantic",
+            "candidate_links",
+            "judgment",
+            "rationale"
+          ]
+        },
+        "Position": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "not_applicable"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "reason": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "unknown"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "reason"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "work_edition": {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                "scene_id": {
+                  "type": "string"
+                },
+                "ordinal": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "work_position"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "work_edition",
+                "scene_id",
+                "ordinal"
+              ]
+            }
+          ]
+        },
+        "Occurrence": {
+          "type": "string",
+          "enum": [
+            "occurred",
+            "planned",
+            "hypothetical",
+            "reported",
+            "unknown"
+          ]
+        },
+        "Modality": {
+          "type": "string",
+          "enum": [
+            "asserted",
+            "negated",
+            "possible",
+            "counterfactual",
+            "attributed",
+            "unknown"
+          ]
+        },
+        "SemanticMapping": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "predicate": {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                "subject": {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "roles": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/RoleParticipant"
+                  }
+                },
+                "polarity": {
+                  "$ref": "#/$defs/Polarity"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "claim"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "predicate",
+                "subject",
+                "value",
+                "roles",
+                "polarity"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "action": {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                "participants": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/RoleParticipant"
+                  }
+                },
+                "prerequisites": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/AssessmentVersionRef"
+                  }
+                },
+                "effects": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/AssessmentVersionRef"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "action"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "action",
+                "participants",
+                "prerequisites",
+                "effects"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "holder": {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                "content": {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                "acquisition": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/AssessmentVersionRef"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "knowledge"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "holder",
+                "content",
+                "acquisition"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "subject": {
+                  "$ref": "#/$defs/AssessmentVersionRef"
+                },
+                "depiction": {
+                  "$ref": "#/$defs/Depiction"
+                },
+                "implied_claims": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/AssessmentVersionRef"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "source_description"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "subject",
+                "depiction",
+                "implied_claims"
+              ]
+            }
+          ]
+        },
+        "RoleParticipant": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "participant": {
+              "$ref": "#/$defs/AssessmentVersionRef"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "participant"
+          ]
+        },
+        "Depiction": {
+          "type": "string",
+          "enum": [
+            "factual",
+            "subjective",
+            "inspiration"
+          ]
+        },
+        "CandidateLink": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "$ref": "#/$defs/CandidateLinkKind"
+            },
+            "version": {
+              "$ref": "#/$defs/AssessmentVersionRef"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "version"
+          ]
+        },
+        "CandidateLinkKind": {
+          "type": "string",
+          "enum": [
+            "proposed_record",
+            "unchanged_record",
+            "historical_evidence"
+          ]
+        },
+        "MappingJudgment": {
+          "type": "string",
+          "enum": [
+            "supported",
+            "contradicted",
+            "unresolved"
+          ]
+        },
+        "UnresolvedDisposition": {
+          "type": "object",
+          "properties": {
+            "unresolved_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "item_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reason": {
+              "$ref": "#/$defs/UnresolvedReason"
+            },
+            "detail": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "unresolved_id",
+            "item_ids",
+            "reason",
+            "detail"
+          ]
+        },
+        "UnresolvedReason": {
+          "type": "string",
+          "enum": [
+            "ambiguous_referent",
+            "ambiguous_modality",
+            "unsupported_semantics",
+            "missing_evidence",
+            "unrepresented_material",
+            "interpretation_disagreement"
+          ]
+        },
+        "AssessmentFragment": {
+          "description": "Large envelopes travel as UTF-8 aligned chunks of their owning canonical JSON.\nConcatenate chunks in byte-offset order, decode AssessmentEnvelope, then verify\nits body digest. A fragment is never a partial SourceAssessmentV1 declaration.",
+          "type": "object",
+          "properties": {
+            "assessment_reference": {
+              "$ref": "#/$defs/AssessmentRef"
+            },
+            "offset": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "total_bytes": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "canonical_envelope_utf8": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "assessment_reference",
+            "offset",
+            "total_bytes",
+            "canonical_envelope_utf8"
+          ]
         }
       }
     }

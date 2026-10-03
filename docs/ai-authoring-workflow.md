@@ -219,3 +219,20 @@ outputs, explicit feedback, calls, actual validation failures, author reviews,
 approvals' exact references and successful receipts. The output text files remain
 external writing artifacts; only the committed structured records become canon.
 See [chapter pilot evidence](chapter-retcon-verification.md) for executed results.
+
+## Exact source assessment review
+
+After attaching or selecting an assessment, retrieve `universe_get_proposal`
+with the frozen proposal ID/version and `view_group:"assessment"`. Selection and
+state describe the current attachment; an optional exact `assessment_reference`
+retrieves authorized history without changing selection. Follow all cursors. For
+fragmented delivery concatenate `canonical_envelope_utf8` by UTF-8 byte offset,
+require complete delivery, decode the envelope and independently verify its
+body digest. Review the declared source ranges, inventory, mapping links,
+exclusions and unresolved material. A fragment alone is not an assessment body.
+
+Replacement, withdrawal, reselection or changed authority invalidates old cursors.
+Restart retrieval under current access instead of combining obsolete pages.
+Historical attachments remain exact history; their declared conclusion does not
+certify current canon or promote the existing record-only validation result into
+assessed prose. See [retrieval proofs](assessment-review-verification.md).

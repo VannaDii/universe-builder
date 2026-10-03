@@ -1,6 +1,4 @@
-//! Internal assessment persistence. No public route or validation authority.
-// These methods are staged for the subsequent public/native routing goal.
-#![allow(dead_code)]
+//! Immutable assessment persistence and permission-checked review; no approval authority.
 use super::*;
 use universe_protocol::assessment::*;
 
@@ -517,15 +515,26 @@ impl Workflow<'_> {
                 if !self.principal.author || self.scope.is_some() {
                     return Err(denied());
                 }
-                if exact.is_some_and(|requested| hash(requested) != hash(reference)) {
-                    return Err(denied());
-                }
+                let historical = match exact.filter(|requested| hash(*requested) != hash(reference))
+                {
+                    Some(requested) => {
+                        let e = self
+                            .assessment_envelope_raw(requested)
+                            .map_err(|_| denied())?;
+                        if e.body.proposal != *r {
+                            return Err(denied());
+                        }
+                        self.assessment_access(&p, Some(&e.body))?;
+                        Some(e)
+                    }
+                    None => None,
+                };
                 return Ok((
                     selection,
                     AssessmentState::Unavailable {
                         reason: UnavailableReason::MissingRetainedMaterial,
                     },
-                    None,
+                    historical,
                 ));
             }
         }
@@ -583,6 +592,82 @@ impl Workflow<'_> {
             }
         };
         Ok((selection, state, envelope))
+    }
+
+    pub(crate) fn assessment_review(
+        &self,
+        r: &ProposalRef,
+        exact: Option<&AssessmentRef>,
+    ) -> anyhow::Result<AssessmentReview> {
+        let (selection, state, envelope) = self.get_assessment(r, exact).map_err(|_| denied())?;
+        Ok(AssessmentReview {
+            selection,
+            state,
+            envelope,
+        })
+    }
+
+    pub(crate) fn assessment_page(
+        &mut self,
+        args: &Value,
+        p: &StoredProposal,
+        exact: Option<&AssessmentRef>,
+    ) -> anyhow::Result<(AssessmentReviewPage, bool, Option<String>)> {
+        let r = ProposalRef {
+            proposal_id: p.proposal.proposal_id.clone(),
+            version: p.proposal.version,
+            digest: p.proposal.digest.clone(),
+        };
+        // Authorization precedes all offsets, hashes, counts and cursor creation.
+        let review = self.assessment_review(&r, exact)?;
+        let mut binding = args.clone();
+        binding["assessment_pin"] = json!({"proposal":r,"selection":review.selection,
+            "envelope":review.envelope.as_ref().map(|e| AssessmentRef {
+                assessment_id:e.assessment_id.clone(),digest:e.digest.clone()})});
+        let start = self
+            .offset(&binding, &p.proposal.base_frame)
+            .map_err(|_| denied())?;
+        let mut page = AssessmentReviewPage {
+            selection: review.selection,
+            state: review.state,
+            envelope: None,
+            fragment: None,
+        };
+        let Some(envelope) = review.envelope else {
+            if start != 0 {
+                return Err(denied());
+            }
+            return Ok((page, true, None));
+        };
+        let bytes = canonical_serde(&envelope).to_bytes();
+        if start == 0 && bytes.len() <= 32768 {
+            page.envelope = Some(envelope);
+            return Ok((page, true, None));
+        }
+        let text = std::str::from_utf8(&bytes)?;
+        if start >= bytes.len() || !text.is_char_boundary(start) {
+            return Err(denied());
+        }
+        let mut end = (start + 32768).min(bytes.len());
+        while !text.is_char_boundary(end) {
+            end -= 1;
+        }
+        page.fragment = Some(AssessmentFragment {
+            assessment_reference: AssessmentRef {
+                assessment_id: envelope.assessment_id,
+                digest: envelope.digest,
+            },
+            offset: start as u64,
+            total_bytes: bytes.len() as u64,
+            canonical_envelope_utf8: text[start..end].into(),
+        });
+        let complete = end == bytes.len();
+        let cursor = if complete {
+            None
+        } else {
+            Some(self.cursor(&binding, &p.proposal.base_frame, end)?)
+        };
+        Ok((page, complete, cursor))
     }
 }
 
@@ -702,6 +787,128 @@ mod tests {
             std::fs::write(Path::new(&dir).join(format!("{phase}.json")), output.stdout).unwrap();
         }
     }
+    #[test]
+    fn paged_review_reconstructs_history_and_denies_obsolete_or_restricted_cursors() {
+        let dir = tempfile::tempdir().unwrap();
+        let profile = ProfileId::generate(&mut rand::rng());
+        let principal = PrincipalId::parse(&profile.as_str().replacen("prf_", "prn_", 1)).unwrap();
+        let u = UniverseId::generate(&mut rand::rng());
+        let cont = ContinuityId::generate(&mut rand::rng());
+        let path = dir.path().join("review.sqlite");
+        let mut kernel =
+            Kernel::create(&path, u.clone(), "Review", cont.clone(), &principal).unwrap();
+        let frame = Frame {
+            universe: u.clone(),
+            continuity: cont.clone(),
+            revision: kernel.head(&cont).unwrap(),
+            context: RecordRef::new(u, RecordId::generate(&mut rand::rng())),
+            time: FrameTime::Timeless,
+            perspective: Perspective::Author,
+            reader_scene: None,
+            personal_sequence: None,
+        };
+        let mut w = workflow(&mut kernel, &profile);
+        let text = "Exact café 日本語 🌙 bytes.\n";
+        let staged = w.stage_source("Review source".into(), text.into()).unwrap();
+        let p = freeze(
+            &mut w,
+            frame,
+            serde_json::from_value(staged["operations"].clone()).unwrap(),
+            None,
+        );
+        let r = reference(&p);
+        let mut b = body(&p, &profile, text);
+        for n in 0..40 {
+            b.inventory_declaration.exclusions.push(Exclusion {
+                source_key: "passage".into(),
+                range: ByteRange {
+                    start: 0,
+                    end: text.len() as u64,
+                },
+                reason: format!("{}{}", "é🌙日本語".repeat(500), n),
+            });
+        }
+        let first = w.attach_assessment(&r, 0, b.clone(), "first").unwrap();
+        let stored = w
+            .assessment_envelope_raw(first.selected.as_ref().unwrap())
+            .unwrap();
+        let mut args = json!({"universe":w.name,"proposal_id":r.proposal_id,"version":r.version,"view_group":"assessment"});
+        let (page, complete, cursor) = w.assessment_page(&args, &p, None).unwrap();
+        assert!(!complete);
+        let old_cursor = cursor.clone().unwrap();
+        let mut raw = page.fragment.unwrap().canonical_envelope_utf8;
+        args["cursor"] = json!(cursor);
+        loop {
+            let (page, complete, cursor) = w.assessment_page(&args, &p, None).unwrap();
+            let fragment = page.fragment.unwrap();
+            assert_eq!(fragment.offset as usize, raw.len());
+            raw.push_str(&fragment.canonical_envelope_utf8);
+            if complete {
+                assert!(cursor.is_none());
+                break;
+            }
+            args["cursor"] = json!(cursor);
+        }
+        assert_eq!(raw.as_bytes(), canonical_serde(&stored).to_bytes());
+        let reconstructed: AssessmentEnvelope = serde_json::from_str(&raw).unwrap();
+        reconstructed.verify().unwrap();
+        assert_eq!(
+            w.review(&r).unwrap()["assessment_review"]["envelope"],
+            serde_json::to_value(&stored).unwrap()
+        );
+        b.assessor.assessed_at = "2026-10-03T00:00:01Z".into();
+        w.attach_assessment(&r, 1, b, "replacement").unwrap();
+        args["cursor"] = json!(old_cursor);
+        assert!(w.assessment_page(&args, &p, None).is_err());
+        args.as_object_mut().unwrap().remove("cursor");
+        args["assessment_reference"] = serde_json::to_value(&first.selected).unwrap();
+        assert!(w
+            .assessment_page(&args, &p, first.selected.as_ref())
+            .is_ok());
+        let selected = w.assessment_selection_raw(&r).unwrap().selected.unwrap();
+        drop(w);
+        drop(kernel);
+        // Simulate retention loss only in this disposable corruption fixture.
+        // An unrelated missing selection must not erase authorized old bodies.
+        let db = rusqlite::Connection::open(&path).unwrap();
+        db.execute_batch("DROP TRIGGER workflow_entries_no_delete")
+            .unwrap();
+        db.execute(
+            "DELETE FROM workflow_entries WHERE key=?1",
+            [envelope_key(&selected)],
+        )
+        .unwrap();
+        db.execute_batch("CREATE TRIGGER workflow_entries_no_delete BEFORE DELETE ON workflow_entries BEGIN SELECT RAISE(ABORT, 'immutable workflow entry'); END;").unwrap();
+        drop(db);
+        let mut kernel = Kernel::open(&path).unwrap();
+        let mut w = workflow(&mut kernel, &profile);
+        let historical = w.assessment_review(&r, first.selected.as_ref()).unwrap();
+        assert!(matches!(
+            historical.state,
+            AssessmentState::Unavailable { .. }
+        ));
+        assert_eq!(hash(&historical.envelope.unwrap()), hash(&stored));
+        w.select_assessment(&r, 2, None, "withdraw").unwrap();
+        assert_eq!(
+            hash(
+                &w.assessment_review(&r, first.selected.as_ref())
+                    .unwrap()
+                    .envelope
+                    .unwrap()
+            ),
+            hash(&stored)
+        );
+        w.scope = Some(BTreeSet::new());
+        let before = snapshot(&w);
+        assert_eq!(
+            w.assessment_page(&args, &p, first.selected.as_ref())
+                .unwrap_err()
+                .to_string(),
+            denied().to_string()
+        );
+        assert_eq!(snapshot(&w), before);
+    }
+
     #[test]
     fn public_actions_preserve_frozen_proposal_and_recover_selection_retries() {
         let dir = tempfile::tempdir().unwrap();

@@ -328,7 +328,13 @@ pub enum ProposalOutcome {
     AssessmentSelection(crate::assessment::AssessmentSelection),
 }
 pub type ProposeResult = Envelope<ProposalOutcome>;
-pub type GetProposalResult = Envelope<Proposal>;
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum ProposalViewResult {
+    Proposal(Proposal),
+    Assessment(crate::assessment::AssessmentReviewPage),
+}
+pub type GetProposalResult = Envelope<ProposalViewResult>;
 pub type GetImpactResult = Envelope<Impact>;
 pub type CommitResult = Envelope<CommitReceipt>;
 pub type GetOperationResult = Envelope<crate::validation_scope::OperationStatusV3>;
