@@ -99,4 +99,15 @@ test intentionally ignored**. Source-assessment and validation-scope contract
 suites passed (6 and 3 tests); the tool oracle passed 26 schemas, 13 valid and 91
 invalid examples. Generated schemas, formatting and whitespace checks passed.
 All-target workspace lint also passes when only the two existing lint classes
-above are allowed; the normal strict gate remains blocked.
+above were allowed; the normal strict gate was blocked at the initial binding
+qualification.
+
+Follow-up lint cleanup on October 2 resolves the strict gate. Large enum payloads
+are boxed in their owning types; production implementations precede test modules
+in the domain and service files. The resulting outer request/response enum sizes
+also satisfy Clippy. No lint allowances were added. The full
+`cargo run --locked -p xtask -- check` passes: strict all-target workspace Clippy,
+302 workspace tests (one standard-workload test intentionally ignored), formatting
+and generated-schema comparison. Generated schemas are unchanged. The service
+independent binding checks pass within that suite, and the actual stdio MCP pilot
+again reproduces its eight final digests with the independent Python calculator.

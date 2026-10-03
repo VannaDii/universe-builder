@@ -581,95 +581,6 @@ pub fn completeness_conflicts(
     (findings, gaps)
 }
 
-#[cfg(test)]
-mod completeness_tests {
-    use super::*;
-    use universe_domain::{scope::Scope, temporal::TemporalBound, value::RecordRef};
-    #[test]
-    fn objective_completeness_does_not_escape_its_context_or_realm_or_observer() {
-        let u = UniverseId::generate(&mut rand::rng());
-        let rr = |n| {
-            RecordRef::new(
-                u.clone(),
-                RecordId::parse(&format!("rec_{n:024x}")).unwrap(),
-            )
-        };
-        let version = |n, payload: Payload| {
-            RecordVersion::build(
-                RecordVersionId::parse(&format!("ver_{n:024x}")).unwrap(),
-                RecordIdentity::new(u.clone(), rr(n).record, payload.kind()),
-                payload,
-            )
-            .unwrap()
-        };
-        let scope = Scope {
-            applicability: Applicability::UniverseWide,
-            context: rr(1),
-            realm: None,
-        };
-        let validity = Validity::CalendarInterval {
-            calendar: CalendarId::parse("cal_000000000000000000000001").unwrap(),
-            start: TemporalBound::Exact { value: "10".into() },
-            end: TemporalBound::Exact { value: "20".into() },
-        };
-        let declaration = CompletenessDecl {
-            subject: rr(2),
-            predicate: rr(3).record.to_string(),
-            members: vec![],
-            completeness: CompletenessKind::ObjectiveReality,
-            validity: validity.clone(),
-            scope: scope.clone(),
-        };
-        let proposition = version(
-            4,
-            Payload::Proposition(Proposition {
-                subject: rr(2),
-                predicate: rr(3),
-                roles: vec![],
-                value: Some(Value::EntityRef { record: rr(5) }),
-                quantification: Quantification::Particular,
-                context: scope.context.clone(),
-            }),
-        );
-        let assertion = version(
-            6,
-            Payload::Assertion(Assertion {
-                proposition: rr(4),
-                polarity: Polarity::Support,
-                scope: scope.clone(),
-                validity,
-                persistence: universe_domain::scope::PersistenceSemantics::ExplicitInterval,
-                precision: Precision::Exact,
-                alternatives: vec![],
-                basis: universe_domain::scope::EvidenceBasis::AuthorDecision {
-                    note: "side entrance".into(),
-                },
-                established_by: None,
-            }),
-        );
-        let mut records = vec![
-            version(7, Payload::Completeness(declaration.clone())),
-            proposition,
-            assertion,
-        ];
-        assert_eq!(completeness_conflicts(&records).0.len(), 1);
-        let mut observer = declaration.clone();
-        observer.completeness = CompletenessKind::ObserverKnown {
-            observer: EntityIdAlias::from_id(rr(9).record).unwrap(),
-        };
-        records[0] = version(7, Payload::Completeness(observer));
-        assert!(completeness_conflicts(&records).0.is_empty());
-        let mut other = declaration.clone();
-        other.scope.realm = Some(rr(8));
-        records[0] = version(7, Payload::Completeness(other));
-        assert!(completeness_conflicts(&records).0.is_empty());
-        let mut other = declaration;
-        other.scope.context = rr(9);
-        records[0] = version(7, Payload::Completeness(other));
-        assert!(completeness_conflicts(&records).0.is_empty());
-    }
-}
-
 /// Automatic diagnostics do not decide admission. Policy findings above retain
 /// authored rule identities; these entries bind both original evidence chains.
 pub(crate) fn opposing_evidence(
@@ -796,4 +707,93 @@ pub(crate) fn opposing_evidence(
             })
         })
         .collect()
+}
+
+#[cfg(test)]
+mod completeness_tests {
+    use super::*;
+    use universe_domain::{scope::Scope, temporal::TemporalBound, value::RecordRef};
+    #[test]
+    fn objective_completeness_does_not_escape_its_context_or_realm_or_observer() {
+        let u = UniverseId::generate(&mut rand::rng());
+        let rr = |n| {
+            RecordRef::new(
+                u.clone(),
+                RecordId::parse(&format!("rec_{n:024x}")).unwrap(),
+            )
+        };
+        let version = |n, payload: Payload| {
+            RecordVersion::build(
+                RecordVersionId::parse(&format!("ver_{n:024x}")).unwrap(),
+                RecordIdentity::new(u.clone(), rr(n).record, payload.kind()),
+                payload,
+            )
+            .unwrap()
+        };
+        let scope = Scope {
+            applicability: Applicability::UniverseWide,
+            context: rr(1),
+            realm: None,
+        };
+        let validity = Validity::CalendarInterval {
+            calendar: CalendarId::parse("cal_000000000000000000000001").unwrap(),
+            start: TemporalBound::Exact { value: "10".into() },
+            end: TemporalBound::Exact { value: "20".into() },
+        };
+        let declaration = CompletenessDecl {
+            subject: rr(2),
+            predicate: rr(3).record.to_string(),
+            members: vec![],
+            completeness: CompletenessKind::ObjectiveReality,
+            validity: validity.clone(),
+            scope: scope.clone(),
+        };
+        let proposition = version(
+            4,
+            Payload::Proposition(Proposition {
+                subject: rr(2),
+                predicate: rr(3),
+                roles: vec![],
+                value: Some(Value::EntityRef { record: rr(5) }),
+                quantification: Quantification::Particular,
+                context: scope.context.clone(),
+            }),
+        );
+        let assertion = version(
+            6,
+            Payload::Assertion(Assertion {
+                proposition: rr(4),
+                polarity: Polarity::Support,
+                scope: scope.clone(),
+                validity,
+                persistence: universe_domain::scope::PersistenceSemantics::ExplicitInterval,
+                precision: Precision::Exact,
+                alternatives: vec![],
+                basis: universe_domain::scope::EvidenceBasis::AuthorDecision {
+                    note: "side entrance".into(),
+                },
+                established_by: None,
+            }),
+        );
+        let mut records = vec![
+            version(7, Payload::Completeness(declaration.clone())),
+            proposition,
+            assertion,
+        ];
+        assert_eq!(completeness_conflicts(&records).0.len(), 1);
+        let mut observer = declaration.clone();
+        observer.completeness = CompletenessKind::ObserverKnown {
+            observer: EntityIdAlias::from_id(rr(9).record).unwrap(),
+        };
+        records[0] = version(7, Payload::Completeness(observer));
+        assert!(completeness_conflicts(&records).0.is_empty());
+        let mut other = declaration.clone();
+        other.scope.realm = Some(rr(8));
+        records[0] = version(7, Payload::Completeness(other));
+        assert!(completeness_conflicts(&records).0.is_empty());
+        let mut other = declaration;
+        other.scope.context = rr(9);
+        records[0] = version(7, Payload::Completeness(other));
+        assert!(completeness_conflicts(&records).0.is_empty());
+    }
 }

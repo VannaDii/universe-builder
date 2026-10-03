@@ -721,6 +721,20 @@ fn self_ref(e: &Expr) -> &Expr {
     e
 }
 
+impl Expr {
+    pub fn uses_opposing_evidence(&self) -> bool {
+        match self {
+            Self::NoOpposingEvidence { .. } => true,
+            Self::Not { expr } => expr.uses_opposing_evidence(),
+            Self::All { exprs } | Self::Any { exprs } => {
+                exprs.iter().any(Self::uses_opposing_evidence)
+            }
+            Self::Quantify { body, .. } => body.uses_opposing_evidence(),
+            _ => false,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -827,19 +841,5 @@ mod tests {
             }),
         };
         assert!(matches!(bad.analyze(), Err(DomainError::Expression { .. })));
-    }
-}
-
-impl Expr {
-    pub fn uses_opposing_evidence(&self) -> bool {
-        match self {
-            Self::NoOpposingEvidence { .. } => true,
-            Self::Not { expr } => expr.uses_opposing_evidence(),
-            Self::All { exprs } | Self::Any { exprs } => {
-                exprs.iter().any(Self::uses_opposing_evidence)
-            }
-            Self::Quantify { body, .. } => body.uses_opposing_evidence(),
-            _ => false,
-        }
     }
 }

@@ -393,7 +393,7 @@ pub enum Propose {
         context_id: ContextId,
         proposal_reference: ProposalRef,
         expected_selection_generation: u64,
-        body: crate::assessment::SourceAssessmentV1,
+        body: Box<crate::assessment::SourceAssessmentV1>,
         #[schemars(length(min = 1, max = 4096))]
         idempotency_key: String,
     },

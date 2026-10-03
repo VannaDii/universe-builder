@@ -387,7 +387,7 @@ fn frozen_temporal_oracles_and_boundary_variations() {
     assert!(s.pairs[0].definite());
     assert!(!s.complete);
     assert!(
-        matches!(&s.pairs[0].intersection,Intersection::Uncertain { guaranteed:Some(v),.. } if v==&interval(14,18))
+        matches!(&s.pairs[0].intersection,Intersection::Uncertain { guaranteed:Some(v),.. } if v.as_ref()==&interval(14,18))
     );
     for f in ["F25", "F26"] {
         let mut r = base();

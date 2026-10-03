@@ -482,8 +482,11 @@ impl Workflow<'_> {
             return ValidationV3::restricted();
         }
         ValidationV3::Evaluated {
-            execution,
-            submitted_input: SubmittedInput::Query { frame, check_scope },
+            execution: Box::new(execution),
+            submitted_input: Box::new(SubmittedInput::Query {
+                frame: Box::new(frame),
+                check_scope,
+            }),
             assessment: AssessmentState::Absent {},
             final_binding_digest: None,
         }
@@ -530,8 +533,8 @@ impl Workflow<'_> {
             None
         };
         ValidationV3::Evaluated {
-            execution,
-            submitted_input,
+            execution: Box::new(execution),
+            submitted_input: Box::new(submitted_input),
             assessment,
             final_binding_digest,
         }
@@ -550,7 +553,7 @@ impl Workflow<'_> {
                         execution: core, ..
                     } = &mut report
                     {
-                        *core = *execution.clone();
+                        *core = execution.clone();
                     }
                     Some(report)
                 } else {
@@ -585,7 +588,7 @@ impl Workflow<'_> {
                             *assessment = AssessmentState::Unavailable {
                                 reason: UnavailableReason::FailedOrCancelledCheck,
                             };
-                            *submitted_input = validation_binding::record_input(&p);
+                            **submitted_input = validation_binding::record_input(&p);
                         }
                     }
                     Some(report)
@@ -1941,7 +1944,7 @@ impl Workflow<'_> {
                     } => self.attach_assessment(
                         &r,
                         expected_selection_generation,
-                        body,
+                        *body,
                         &idempotency_key,
                     )?,
                     Propose::SelectAssessment {

@@ -32,7 +32,7 @@ pub enum Intersection {
     Uncertain {
         left: Validity,
         right: Validity,
-        guaranteed: Option<Validity>,
+        guaranteed: Option<Box<Validity>>,
     },
     Unresolved,
 }
@@ -403,7 +403,7 @@ fn intersection(a: &Validity, b: &Validity) -> Intersection {
     Intersection::Uncertain {
         left: a.clone(),
         right: b.clone(),
-        guaranteed: exact_intersection(a, b, true),
+        guaranteed: exact_intersection(a, b, true).map(Box::new),
     }
 }
 fn chain(

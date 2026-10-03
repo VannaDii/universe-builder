@@ -258,7 +258,7 @@ impl Fixture {
     let receipt_key=(universe.id.clone(),key);
     if let Some(receipt)=self.receipts.get(&receipt_key) {
      if receipt.fingerprint!=fingerprint{return Err(ProtocolError::IdempotencyKeyReused{message:"different proposal content".into()})}
-     return Ok(Response::Propose(scope.wrap(ProposalOutcome::Proposal(receipt.proposal.clone()))))
+     return Ok(Response::Propose(scope.wrap(ProposalOutcome::Proposal(Box::new(receipt.proposal.clone())))))
     }
     if self.receipts.len()>=256 {return Err(limit())}
     let operation_id=OperationId::parse(&self.allocate("op")).unwrap();
@@ -279,12 +279,12 @@ impl Fixture {
     proposal.digest=hex::encode(Sha256::digest(universe_domain::canonical::canonical_serde(&serde_json::json!({"frame":proposal.base_frame,"world_scope":proposal.world_scope,"version":proposal.version,"operations":proposal.operations,"rationale":proposal.rationale,"submission":proposal.submission,"withdrawn":proposal.withdrawn})).to_bytes()));
     self.proposals.insert((proposal.proposal_id.clone(),proposal.version),(universe.id.clone(),proposal.clone()));
     self.receipts.insert(receipt_key,Receipt{universe:universe.id.clone(),fingerprint,proposal:proposal.clone()});
-    Ok(Response::Propose(scope.wrap(ProposalOutcome::Proposal(proposal))))
+    Ok(Response::Propose(scope.wrap(ProposalOutcome::Proposal(Box::new(proposal)))))
    }
    Request::GetProposal(a)=>{
     if a.view_group.as_ref().is_some_and(|g|!matches!(g,ProposalView::Payload)){return Err(unsupported("fixture proposal view supports the payload field group only"))}
     let p=self.proposals.get(&(a.proposal_id,a.version)).filter(|(u,p)|*u==universe.id&&p.version==a.version).map(|(_,p)|p.clone()).ok_or_else(||ProtocolError::not_found("proposal version"))?;
-    Ok(Response::GetProposal(scope.wrap(ProposalViewResult::Proposal(p))))
+    Ok(Response::GetProposal(scope.wrap(ProposalViewResult::Proposal(Box::new(p)))))
    }
    Request::GetOperation(a)=>{
     let receipt=match a {

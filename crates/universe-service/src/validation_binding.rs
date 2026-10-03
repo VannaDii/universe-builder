@@ -64,8 +64,8 @@ impl ValidationCapture {
             None
         };
         Ok(ValidationV3::Evaluated {
-            execution,
-            submitted_input: self.submitted_input.clone(),
+            execution: Box::new(execution),
+            submitted_input: Box::new(self.submitted_input.clone()),
             assessment: self.assessment.clone(),
             final_binding_digest,
         })

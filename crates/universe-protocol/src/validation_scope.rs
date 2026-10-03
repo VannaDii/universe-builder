@@ -144,7 +144,7 @@ pub enum UnavailableReason {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SubmittedInput {
     Query {
-        frame: Frame,
+        frame: Box<Frame>,
         check_scope: CheckScope,
     },
     RecordCandidate {
@@ -201,8 +201,8 @@ pub enum RestrictedAssessment {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ValidationV3 {
     Evaluated {
-        execution: Validation,
-        submitted_input: SubmittedInput,
+        execution: Box<Validation>,
+        submitted_input: Box<SubmittedInput>,
         assessment: AssessmentState,
         #[serde(deserialize_with = "required_nullable")]
         #[schemars(required, schema_with = "nullable_digest_schema")]

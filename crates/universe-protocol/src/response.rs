@@ -188,7 +188,7 @@ pub enum OpposingIntersection {
     Uncertain {
         left: universe_domain::scope::Validity,
         right: universe_domain::scope::Validity,
-        guaranteed: Option<universe_domain::scope::Validity>,
+        guaranteed: Option<Box<universe_domain::scope::Validity>>,
     },
     Unresolved,
 }
@@ -324,15 +324,15 @@ pub type ValidateResult = Envelope<crate::validation_scope::ValidationV3>;
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
 pub enum ProposalOutcome {
-    Proposal(Proposal),
+    Proposal(Box<Proposal>),
     AssessmentSelection(crate::assessment::AssessmentSelection),
 }
 pub type ProposeResult = Envelope<ProposalOutcome>;
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
 pub enum ProposalViewResult {
-    Proposal(Proposal),
-    Assessment(crate::assessment::AssessmentReviewPage),
+    Proposal(Box<Proposal>),
+    Assessment(Box<crate::assessment::AssessmentReviewPage>),
 }
 pub type GetProposalResult = Envelope<ProposalViewResult>;
 pub type GetImpactResult = Envelope<Impact>;
