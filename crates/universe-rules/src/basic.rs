@@ -726,7 +726,7 @@ fn claim(
                 == Some(true)
             && crate::definitions::matches(
                 &subject.record,
-                &[p.subject.record.clone()],
+                std::slice::from_ref(&p.subject.record),
                 &all_records,
                 Some(ctx.world_scope.as_deref().unwrap_or(&[])),
             ) == Some(true)
@@ -779,7 +779,7 @@ fn claim(
                 } else {
                     &p.subject.record
                 },
-                &[p.subject.record.clone()],
+                std::slice::from_ref(&p.subject.record),
                 &all_records,
                 Some(ctx.world_scope.as_deref().unwrap_or(&[])),
             ) {

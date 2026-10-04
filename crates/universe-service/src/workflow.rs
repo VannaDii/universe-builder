@@ -1791,7 +1791,16 @@ impl Workflow<'_> {
                             })
                             .cloned()
                             .collect();
-                        serde_json::to_value(State{epistemic,derived,chronology,unresolved_assertion_ids,assertions,propositions:proposition_records,completeness,coverage:Coverage::Partial,unsupported_capabilities:vec!["Explicit evidence filtered by the authored time frame; unresolved validities remain visible. Exact event effects and explicit possession powers are evaluated; complex causality and temporal completeness inference remain unavailable; absent evidence remains undefined.".into()]})?
+                        let objects = crate::objects::assemble(
+                            &accessible,
+                            &ids,
+                            &predicates,
+                            frame.as_ref().expect("query frame"),
+                            world_focus.as_ref(),
+                            self.scope.is_some()
+                                || !matches!(ctx.frame.perspective, Perspective::Author),
+                        );
+                        serde_json::to_value(State{objects,epistemic,derived,chronology,unresolved_assertion_ids,assertions,propositions:proposition_records,completeness,coverage:Coverage::Partial,unsupported_capabilities:vec!["Explicit evidence filtered by the authored time frame; unresolved validities remain visible. Exact event effects and explicit possession powers are evaluated; complex causality and temporal completeness inference remain unavailable; absent evidence remains undefined.".into()]})?
                     }
                     _ => {
                         let cache_key = hash(&(
@@ -1829,11 +1838,33 @@ impl Workflow<'_> {
                         let hidden_rule = rules
                             .iter()
                             .any(|id| !accessible.iter().any(|r| r.identity.record_id == *id));
+                        let object_records: Vec<_> = crate::objects::assemble(
+                            &accessible,
+                            &ids,
+                            &[],
+                            &ctx.frame,
+                            world_focus.as_ref(),
+                            self.scope.is_some()
+                                || !matches!(ctx.frame.perspective, Perspective::Author),
+                        )
+                        .into_iter()
+                        .flat_map(|o| {
+                            o.shared_attributes
+                                .into_iter()
+                                .chain(o.instance_facts)
+                                .chain(o.initial_value_candidates)
+                                .chain(o.behavioral_requirements)
+                                .chain(o.rules)
+                                .map(|e| e.record.identity.record_id)
+                                .collect::<Vec<_>>()
+                        })
+                        .collect();
                         let seeds: Vec<_> = rules
                             .iter()
                             .filter(|id| accessible.iter().any(|r| &r.identity.record_id == *id))
                             .cloned()
                             .chain(ids.iter().cloned())
+                            .chain(object_records)
                             .collect();
                         let appearance_records: Vec<_> = accessible
                             .iter()

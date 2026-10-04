@@ -1,0 +1,125 @@
+{
+  "ancestry": [
+    2,
+    1
+  ],
+  "identity": 4,
+  "shared": [
+    [
+      1,
+      10,
+      "support",
+      true,
+      true
+    ],
+    [
+      2,
+      10,
+      "refutation",
+      true,
+      true
+    ],
+    [
+      1,
+      13,
+      "support",
+      true,
+      null
+    ],
+    [
+      1,
+      14,
+      "support",
+      true,
+      null
+    ]
+  ],
+  "instance": [
+    [
+      4,
+      11,
+      "support",
+      7,
+      true
+    ],
+    [
+      4,
+      12,
+      "support",
+      2,
+      true
+    ]
+  ],
+  "initial": [
+    [
+      1,
+      12,
+      "support",
+      6,
+      true
+    ]
+  ],
+  "actions": [
+    20
+  ],
+  "rules": [
+    21
+  ],
+  "conflicts": [
+    [
+      10,
+      false,
+      true
+    ]
+  ],
+  "coverage": "partial",
+  "historical_requirement": true,
+  "current_requirement": false,
+  "expired": {
+    "shared": [
+      [
+        1,
+        13,
+        "support",
+        true,
+        null
+      ]
+    ],
+    "instance": [],
+    "initial": [],
+    "actions": [],
+    "rules": [],
+    "conflicts": []
+  },
+  "scalar_shared": [
+    2,
+    10,
+    "support",
+    false,
+    true
+  ],
+  "scalar_conflicts": [
+    [
+      10,
+      false,
+      true
+    ],
+    [
+      10,
+      false,
+      true
+    ]
+  ],
+  "unclassified": {
+    "shared": [],
+    "instance": [],
+    "initial": [],
+    "actions": [
+      20
+    ],
+    "rules": [
+      21
+    ],
+    "conflicts": []
+  }
+}

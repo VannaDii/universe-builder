@@ -10,6 +10,15 @@ Current native interaction/VoiceOver verification remains paused by the user. LM
 
 ## Implemented scope
 
+October 4 Goal 29: state retrieval now assembles exact object identity and
+ancestry, shared attributes, instance facts, initial-value candidates, behavioral
+requirements, rules, conflicts and relevant unknowns at the pinned frame and
+current permissions. Context briefs include relevant action dependencies.
+Independent actual MCP tables cover history, worlds, represented context,
+perspective, restricted information, competing inherited values, nonmutation
+and restart. See [effective object verification](docs/effective-object-verification.md).
+Initial-value materialization and native effective-object UI remain outside scope.
+
 October 4 Goal 28: factual-snapshot ancestry now governs property subjects,
 relation participants, inherited shared claims and rule relevance. World,
 context and temporal obligations remain explicit; ambiguous/unknown applicability

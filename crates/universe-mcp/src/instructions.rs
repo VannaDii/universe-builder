@@ -5,7 +5,7 @@ const AUTHORING: &str = concat!(
     "author/character/narrator/reader perspective. Use universe_get_context and universe_get_state, follow ",
     "pagination, and preserve unknown or restricted evidence. A proposition is a claimable statement, not an ",
     "established fact: use assertions, polarity, scope and active validity as evidence. The state proposition ",
-    "catalogue can include statements with inactive assertions.\n\n",
+    "catalogue can include statements with inactive assertions. State objects separately return identity and ancestry, shared attributes, instance facts, initial-value candidates, behavioral requirements, rules, exact dependencies, conflicts and unknown applicability. An applicability of null is unresolved, never established. Action requirements enumerate possible owning roles and do not establish action eligibility. No candidate overrides another; initial values never establish current state. Retrieval never advances height or refills ammunition. Object coverage describes evidence assembly, not physical or prose completeness.\n\n",
     "Translate the prose's material continuity claims and consequences into structured proposal operations: ",
     "facts, event effects, possession, timing, knowledge, and disclosures where applicable. Distinguish ",
     "objective narration from dialogue, beliefs, reports, hypotheticals, and metaphor; do not promote an ",

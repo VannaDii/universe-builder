@@ -1,0 +1,55 @@
+{
+  "scope": "Goal 29: effective object retrieval",
+  "base_commit": "57de6febc6d41c2e8b26b0edbeed4136e0a7313a",
+  "date": "2026-10-04",
+  "mcp": {
+    "audited_views": 16,
+    "actual_tool_calls": 72,
+    "publications": 3,
+    "proof_seconds": 10.340348083002027,
+    "report_path": "/tmp/effective-object-proof-final.json",
+    "report_sha256": "d9c252c61844f064d32bb47e3f8566f65b79d9e1925068c2113e1ee9f6916139",
+    "wire_path": "/tmp/effective-object-proof-final.jsonl",
+    "wire_sha256": "9f0c7fb8148186ea75d222132fd8231bc1bf92ba0a293b1ca8343dc8b2a856ae",
+    "audit": "passed",
+    "auditor_controls": 6,
+    "cleanup": "owned engines stopped and disposable installations removed"
+  },
+  "checks": {
+    "workspace_tests": {
+      "command": "cargo test --workspace --locked -- --test-threads=1",
+      "passed": 373,
+      "failed": 0,
+      "ignored": 1,
+      "log_sha256": "c758a736f3726cd170a59a35983403b40a4053e300188621cc66fedc1e22333d"
+    },
+    "strict_workspace_clippy": "passed",
+    "formatting": "passed",
+    "schema_consistency": "passed",
+    "contract_examples": "passed",
+    "focused_retrieval_tests": "passed"
+  },
+  "qualification_notes": [
+    "Concurrent archive RPC deadlines occurred; isolated and complete serial runs passed.",
+    "Preexisting borrowed-slice lint warnings were corrected without semantic changes.",
+    "Scalar conflict is a constrained disposable historical bootstrap, not public admission."
+  ],
+  "working_seconds_through_final_workspace_verification": 1666,
+  "limits": [
+    "No native effective-object UI, initial-value materialization, implicit growth/refill or physics.",
+    "Conditional/realm-dependent applicability and unsupported temporal relationships remain unresolved.",
+    "Action requirements enumerate possible roles without establishing execution eligibility.",
+    "The existing performance workload is intentionally ignored; hosted/native/release qualification is outside scope."
+  ],
+  "artifact_sha256": {
+    "fixtures/effective-object/expected.json": "b06bc786e56dff94b2f6b1dcbe57f49b1d97a7fa925f7269a36f097a0b739d61",
+    "scripts/effective_object_pilot.py": "dc0532831e00636a6c702769eab506a61fe5dbb1272e2eb0aba33c7802384ddb",
+    "scripts/audit_effective_object.py": "e92acd4a551c213696603512cf7a17650705bcba7a992f0ddbeaac0e67d7231b",
+    "scripts/test_effective_object_audit.py": "aa83a4ecb7b62e0999d21a54102f3c5c03d90ef7d693f91b8b65f8938ed464b1",
+    "crates/universe-service/src/objects.rs": "4c6d38f1edc4d6272e5e9f222d91e4ec94367970a1387630679ee3bc73f8b3c3",
+    "target/debug/universe-engine": "8e1132c3b6c4f6501f559b7a73369c55d190422311c30427615a3a54926875ca",
+    "target/debug/universe-mcp": "852f281df75aa380afd650b55b1155c852405c1dbbe1dd546089fd4d5400aca6",
+    "target/debug/universe": "2034e8d7c52840696e4b5d69c1b8a15a2129d73c17d96d624920ef97cfee4864",
+    "target/debug/examples/seed_effective_object_conflict": "a227b527683bc36f5baa8336dd6edd315d4bd3778d9a7ead9b054f055ee48892"
+  }
+}

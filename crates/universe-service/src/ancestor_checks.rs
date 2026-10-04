@@ -83,7 +83,10 @@ fn cedar_ancestry_scope_time_and_revision_are_explicit() {
     let mut rows = fixture();
     let tree = RecordId::parse(&id(1)).unwrap();
     let owner = RecordId::parse(&id(4)).unwrap();
-    assert_eq!(matches(&owner, &[tree.clone()], &rows, None), Some(true));
+    assert_eq!(
+        matches(&owner, std::slice::from_ref(&tree), &rows, None),
+        Some(true)
+    );
     for indexed in [false, true] {
         assert_eq!(claim(&rows, "10", indexed).0.outcome(), Supported);
         assert_eq!(claim(&rows, "19", indexed).0.outcome(), Supported);
@@ -93,7 +96,10 @@ fn cedar_ancestry_scope_time_and_revision_are_explicit() {
     if let Payload::EntityType(t) = &mut rows[1].payload {
         t.parent = Some(RecordId::parse(&id(3)).unwrap());
     }
-    assert_eq!(matches(&owner, &[tree.clone()], &rows, None), Some(false));
+    assert_eq!(
+        matches(&owner, std::slice::from_ref(&tree), &rows, None),
+        Some(false)
+    );
     assert_eq!(claim(&historical, "15", true).0.outcome(), Supported);
     assert_eq!(claim(&rows, "15", true).0.outcome(), NotEstablished);
     if let Payload::EntityType(t) = &mut rows[1].payload {
@@ -149,17 +155,20 @@ fn every_ancestor_has_its_own_world_and_unknown_is_not_universal() {
         .unwrap();
     }
     assert_eq!(
-        matches(&owner, &[tree.clone()], &rows, Some(&[a])),
+        matches(&owner, std::slice::from_ref(&tree), &rows, Some(&[a])),
         Some(true)
     );
     assert_eq!(
-        matches(&owner, &[tree.clone()], &rows, Some(&[b])),
+        matches(&owner, std::slice::from_ref(&tree), &rows, Some(&[b])),
         Some(false)
     );
     if let Payload::EntityType(t) = &mut rows[0].payload {
         t.applicability = universe_domain::scope::Applicability::Unspecified;
     }
-    assert_eq!(matches(&owner, &[tree.clone()], &rows, Some(&[])), None);
+    assert_eq!(
+        matches(&owner, std::slice::from_ref(&tree), &rows, Some(&[])),
+        None
+    );
     if let Payload::EntityType(t) = &mut rows[0].payload {
         t.applicability = universe_domain::scope::Applicability::Worlds { world_ids: vec![] };
     }
@@ -311,4 +320,79 @@ fn possession_grants_cannot_choose_over_a_conflicting_shared_definition() {
         assert_eq!(e.outcome(), Conflicting);
         assert!(e.all_sources().contains(&rows[10].record_version_id));
     }
+}
+
+#[test]
+fn object_retrieval_retains_unresolved_definition_endpoint_and_source() {
+    let mut rows = fixture();
+    if let Payload::EntityType(t) = &mut rows[0].payload {
+        t.parent_resolution = ParentResolution::Ambiguous;
+    }
+    let frame: Frame = serde_json::from_value(json!({"universe":"unv_000000000000000000000001","continuity":"cont_000000000000000000000001","revision":"rev_000000000000000000000001","context":rr(99),"time":{"kind":"at","time":{"kind":"exact","calendar":"cal_000000000000000000000010","value":"15"}},"perspective":"author"})).unwrap();
+    let object = crate::objects::assemble(
+        &rows,
+        &[RecordId::parse(&id(4)).unwrap()],
+        &[],
+        &frame,
+        None,
+        false,
+    )
+    .remove(0);
+    assert!(!object.ancestry_complete);
+    assert_eq!(object.ancestry, vec![rows[1].clone(), rows[0].clone()]);
+    assert_eq!(object.shared_attributes.len(), 1);
+    assert_eq!(object.shared_attributes[0].record, rows[6]);
+    assert_eq!(object.shared_attributes[0].applicability, None);
+    assert!(object.shared_attributes[0]
+        .unknowns
+        .contains(&"definition_ancestry".into()));
+    assert!(matches!(
+        object.coverage,
+        universe_protocol::response::Coverage::Partial
+    ));
+}
+
+#[test]
+fn object_conflicts_respect_multiplicity_time_and_qualified_precision() {
+    let mut rows = fixture();
+    rows.push(v(8,json!({"record_kind":"proposition","subject":rr(4),"predicate":rr(5),"context":rr(99),"value":{"kind":"boolean","value":false},"quantification":"particular"})));
+    let mut a = rows[6].payload.clone();
+    if let Payload::Assertion(a) = &mut a {
+        a.proposition = serde_json::from_value(rr(8)).unwrap();
+        a.attribute_mode = AttributeMode::Instance;
+    }
+    rows.push(v(9, serde_json::to_value(a).unwrap()));
+    let frame: Frame = serde_json::from_value(json!({"universe":"unv_000000000000000000000001","continuity":"cont_000000000000000000000001","revision":"rev_000000000000000000000001","context":rr(99),"time":{"kind":"timeless"},"perspective":"author"})).unwrap();
+    let retrieve = |rows: &[RecordVersion]| {
+        crate::objects::assemble(
+            rows,
+            &[RecordId::parse(&id(4)).unwrap()],
+            &[],
+            &frame,
+            None,
+            false,
+        )
+        .remove(0)
+    };
+    assert_eq!(retrieve(&rows).conflicts.len(), 1);
+    if let Payload::Property(p) = &mut rows[4].payload {
+        p.multiplicity = Multiplicity::Multiple;
+    }
+    assert!(retrieve(&rows).conflicts.is_empty());
+    if let Payload::Property(p) = &mut rows[4].payload {
+        p.multiplicity = Multiplicity::Single;
+    }
+    if let Payload::Assertion(a) = &mut rows[8].payload {
+        a.precision = universe_domain::scope::Precision::Approximate;
+    }
+    let qualified = retrieve(&rows);
+    assert_eq!(qualified.conflicts[0].applicability, None);
+    assert!(matches!(
+        qualified.coverage,
+        universe_protocol::response::Coverage::Partial
+    ));
+    if let Payload::Assertion(a) = &mut rows[8].payload {
+        a.validity = serde_json::from_value(json!({"kind":"calendar_interval","calendar":"cal_000000000000000000000010","start":{"kind":"exact","value":"20"},"end":{"kind":"exact","value":"30"}})).unwrap();
+    }
+    assert!(retrieve(&rows).conflicts.is_empty());
 }

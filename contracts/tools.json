@@ -11530,6 +11530,12 @@
         "State": {
           "type": "object",
           "properties": {
+            "objects": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EffectiveObject"
+              }
+            },
             "derived": {
               "type": "array",
               "items": {
@@ -11592,6 +11598,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "objects",
             "derived",
             "epistemic",
             "unresolved_assertion_ids",
@@ -11602,41 +11609,89 @@
             "unsupported_capabilities"
           ]
         },
-        "DerivedFact": {
+        "EffectiveObject": {
           "type": "object",
           "properties": {
-            "subject": {
-              "$ref": "#/$defs/RecordRef"
+            "identity": {
+              "$ref": "#/$defs/RecordVersion"
             },
-            "predicate": {
-              "$ref": "#/$defs/RecordRef"
-            },
-            "value": {
-              "$ref": "#/$defs/Value"
-            },
-            "evidence": {
+            "ancestry": {
               "type": "array",
               "items": {
-                "$ref": "#/$defs/RecordVersionId"
+                "$ref": "#/$defs/RecordVersion"
               }
             },
-            "rule": {
-              "$ref": "#/$defs/RecordId"
+            "ancestry_complete": {
+              "type": "boolean"
+            },
+            "shared_attributes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ObjectEvidence"
+              }
+            },
+            "instance_facts": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ObjectEvidence"
+              }
+            },
+            "initial_value_candidates": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ObjectEvidence"
+              }
+            },
+            "behavioral_requirements": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ObjectEvidence"
+              }
+            },
+            "rules": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ObjectEvidence"
+              }
+            },
+            "dependencies": {
+              "description": "Exact visible proposition/property dependencies for the evidence above.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordVersion"
+              }
+            },
+            "conflicts": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ObjectConflict"
+              }
+            },
+            "unknowns": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "coverage": {
+              "$ref": "#/$defs/Coverage"
             }
           },
           "additionalProperties": false,
           "required": [
-            "subject",
-            "predicate",
-            "value",
-            "evidence",
-            "rule"
+            "identity",
+            "ancestry",
+            "ancestry_complete",
+            "shared_attributes",
+            "instance_facts",
+            "initial_value_candidates",
+            "behavioral_requirements",
+            "rules",
+            "dependencies",
+            "conflicts",
+            "unknowns",
+            "coverage"
           ]
-        },
-        "RecordVersionId": {
-          "description": "Stable identity of an immutable record version.",
-          "type": "string",
-          "pattern": "^ver_[0-9a-f]{24}$"
         },
         "RecordVersion": {
           "description": "An immutable typed record version (spec §27.1 contract table:\n`record_version_id`, identity, typed\n`payload`, `payload_digest`).\n\nContent is immutable; actor/time/decision attribution is linked through\nthe editorial commit that admitted it (spec §27.1).",
@@ -11663,6 +11718,11 @@
             "payload",
             "payload_digest"
           ]
+        },
+        "RecordVersionId": {
+          "description": "Stable identity of an immutable record version.",
+          "type": "string",
+          "pattern": "^ver_[0-9a-f]{24}$"
         },
         "RecordIdentity": {
           "description": "The identity of a canonical record (spec §27.1 contract table:\n`universe_id`, `record_id`, `record_kind`). Identity and kind are\nimmutable.",
@@ -16194,6 +16254,62 @@
           "description": "SHA-256 digest of the canonical serialized payload and its schema\ndiscriminator (spec §27.8).",
           "type": "string"
         },
+        "ObjectEvidence": {
+          "description": "A visible authored candidate, never a selected or materialized value.",
+          "type": "object",
+          "properties": {
+            "record": {
+              "$ref": "#/$defs/RecordVersion"
+            },
+            "applicability": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "unknowns": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "record",
+            "unknowns"
+          ]
+        },
+        "ObjectConflict": {
+          "type": "object",
+          "properties": {
+            "applicability": {
+              "description": "None means a possible conflict with unresolved applicability.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "predicate": {
+              "$ref": "#/$defs/RecordId"
+            },
+            "assertions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordVersionId"
+              }
+            },
+            "initial_values": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "predicate",
+            "assertions",
+            "initial_values"
+          ]
+        },
         "Coverage": {
           "type": "string",
           "enum": [
@@ -16202,6 +16318,37 @@
             "unsupported",
             "restricted",
             "failed"
+          ]
+        },
+        "DerivedFact": {
+          "type": "object",
+          "properties": {
+            "subject": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "predicate": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "value": {
+              "$ref": "#/$defs/Value"
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordVersionId"
+              }
+            },
+            "rule": {
+              "$ref": "#/$defs/RecordId"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "subject",
+            "predicate",
+            "value",
+            "evidence",
+            "rule"
           ]
         }
       }

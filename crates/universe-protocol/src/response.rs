@@ -129,9 +129,44 @@ pub struct DerivedFact {
     pub evidence: Vec<RecordVersionId>,
     pub rule: RecordId,
 }
+/// A visible authored candidate, never a selected or materialized value.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ObjectEvidence {
+    pub record: RecordVersion,
+    pub applicability: Option<bool>,
+    pub unknowns: Vec<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ObjectConflict {
+    /// None means a possible conflict with unresolved applicability.
+    pub applicability: Option<bool>,
+    pub predicate: RecordId,
+    pub assertions: Vec<RecordVersionId>,
+    pub initial_values: bool,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EffectiveObject {
+    pub identity: RecordVersion,
+    pub ancestry: Vec<RecordVersion>,
+    pub ancestry_complete: bool,
+    pub shared_attributes: Vec<ObjectEvidence>,
+    pub instance_facts: Vec<ObjectEvidence>,
+    pub initial_value_candidates: Vec<ObjectEvidence>,
+    pub behavioral_requirements: Vec<ObjectEvidence>,
+    pub rules: Vec<ObjectEvidence>,
+    /// Exact visible proposition/property dependencies for the evidence above.
+    pub dependencies: Vec<RecordVersion>,
+    pub conflicts: Vec<ObjectConflict>,
+    pub unknowns: Vec<String>,
+    pub coverage: Coverage,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct State {
+    pub objects: Vec<EffectiveObject>,
     pub derived: Vec<DerivedFact>,
     pub epistemic: Vec<RecordVersion>,
     /// Authored clock at the pinned revision, separate from the query's time.

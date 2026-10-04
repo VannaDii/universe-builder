@@ -29,3 +29,5 @@ mod object_rule_capability_checks;
 
 #[cfg(test)]
 mod ancestor_checks;
+
+mod objects;
