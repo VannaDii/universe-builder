@@ -27,7 +27,7 @@ def run(bin_dir, output):
             path.write_text(text)
             source_ops = s.admin('stage-source', NAME, 'Review source', path)['operations']
             entity = {'kind': 'create_entity', 'client_ref': s.rid(1), 'record': {
-                'names': [], 'types': [], 'worldAssociations': [], 'labels': {'en': 'Review subject'}, 'metadata': {}}}
+                'names': [], 'classification': None, 'classificationResolution': 'unclassified', 'worldAssociations': [], 'labels': {'en': 'Review subject'}, 'metadata': {}}}
             p = s.propose(source_ops + [entity], 'review-proposal')
             read_args = {'universe': NAME, 'universe_id': s.uid, 'proposal_id': p['proposal_id'], 'version': p['version'], 'view_group': 'assessment'}
 

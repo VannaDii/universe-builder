@@ -224,7 +224,7 @@ pub(crate) fn put(
     value: &Value,
 ) -> StoreResult<SqlValue> {
     if !fits(name, value, 0)? {
-        return Err(invalid("value does not match closed contract"));
+        return Err(invalid(&format!("value does not match {name} contract")));
     }
     write(c, name, value)
 }

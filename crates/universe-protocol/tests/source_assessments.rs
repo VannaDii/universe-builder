@@ -1,17 +1,18 @@
-//! Cross-language fixtures were frozen before this implementation. Expected
-//! bytes/hashes are not computed with the production serializer under test.
+//! Historical scenarios retain independent current-discriminator fixtures.
+//! Expected bytes/hashes use Python, a handwritten encoder and OpenSSL, never
+//! the production serializer under test.
 use serde_json::{json, Value};
 use universe_domain::canonical::Canonical;
 use universe_protocol::{assessment::*, response::Validation, validation_scope::*};
 fn examples() -> Value {
     serde_json::from_str(include_str!(
-        "../../../docs/decisions/d03-d08/examples.json"
+        "../../../fixtures/source-assessments/relational-examples.json"
     ))
     .unwrap()
 }
 fn proofs() -> Value {
     serde_json::from_str(include_str!(
-        "../../../docs/decisions/d03-d08/proof-results.json"
+        "../../../fixtures/source-assessments/relational-proofs.json"
     ))
     .unwrap()
 }
@@ -244,8 +245,8 @@ fn malformed_unsupported_and_unaccounted_payloads_fail() {
     }
     let text = serde_json::to_string(&original).unwrap();
     let duplicated = text.replacen(
-        "\"kind\":\"source_assessment_v1\"",
-        "\"kind\":\"source_assessment_v1\",\"kind\":\"source_assessment_v1\"",
+        "\"kind\":\"source_assessment\"",
+        "\"kind\":\"source_assessment\",\"kind\":\"source_assessment\"",
         1,
     );
     assert!(SourceAssessmentV1::decode(duplicated.as_bytes()).is_err());
@@ -394,7 +395,7 @@ fn all_semantic_variants_roundtrip_and_unresolved_dispositions_remain_accounted(
 fn assessment_is_rejected_as_a_canonical_domain_operation() {
     let body = examples()["assessment"]["body"].clone();
     for kind in [
-        "source_assessment_v1",
+        "source_assessment",
         "attach_assessment",
         "select_assessment",
     ] {

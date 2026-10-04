@@ -34,6 +34,13 @@ Pistol consumption, reload, temporal endpoints, generated identities and
 retcon/restart histories pass exact accounting checks. Evaluator behavior remains
 unchanged. See [normalized rules/events verification](docs/normalized-rules-events-verification.md).
 
+October 3 workflow checkpoint: frozen proposals/assignments, validations,
+approvals, operations and assessment/selection histories use fixed relational
+rows, with independent MCP success/denial/race/interruption/restart proofs.
+The full goal remains open: raw unsubmitted draft text conflicts with the
+approved typed draft-operation schema, and two integration tests fail pending
+that design/scope decision. See [workflow checkpoint](docs/relational-workflow-verification.md).
+
 | Milestone | Implementation and limits |
 |---|---|
 | 1 · WP01–03 baseline | Build/lint/test automation; typed domain and all 13 closed public tool contracts; generated schemas and valid/invalid fixtures. Unsupported evaluation cannot claim complete coverage. |

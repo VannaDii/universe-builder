@@ -1,0 +1,11 @@
+{
+  "assessment-audit.json": "1ff12ddf63cb8e2dad54718e2e8952c3d165511883c11380ddff3dd733a1508a",
+  "assessment.json.gz": "96d443d55932f29e9a7ab6b0c24f9b94db4c1fccf66566229007dfe3aae59ca0",
+  "publication-audit.json": "a92a271419e9b219ff471ad7b50d0b0b97cde6b66f10a8fa8aaa064b7e4842f6",
+  "publication.json.gz": "2bc684bd8ee9c089a4818f88c9f12ed733be5c7e4ea2a9049300eadd7dbe7670",
+  "race-audit.json": "b5af1f2abef726b4805e60e4509d510ce7dc582e1c9b6cd16d7a23591c931f22",
+  "race.json.gz": "40c155bbdc8000d34a2f24317cfea59a3c3fa04de175105c126146e0e34e07b1",
+  "review-audit.json": "9625827a4fb9806117e315c7e00193330db58c3d906da20674327e233bb450bf",
+  "review.json.gz": "e9987a99e23ee5b35e569e18239c13ef464e715ba85ec58b83fcd85fd782d2ef",
+  "workspace-gate.txt": "988cf60be1f3cbac6c6f46de987cbe7252d98370cf82fcc22603dc57e0fbf643"
+}

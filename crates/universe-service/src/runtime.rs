@@ -1432,7 +1432,7 @@ mod ownership_tests {
                 .map(|c| &c["next"])
                 .find(|r| r["payload"]["record_kind"] == "source_version")
                 .unwrap();
-            let mut body = json!({"kind":"source_assessment_v1","proposal":reference,"base_frame":p["base_frame"],"assessor":{"principal":agent.as_str().replacen("prf_","prn_",1),"method":"human_review","tool":null,"assessed_at":"2026-10-03T00:00:00Z"},"sources":[{"key":"passage","source_version":{"universe":uid,"record":source["identity"]["record_id"],"version":source["record_version_id"]},"blob_digest":source["payload"]["digest"],"byte_size":text.len(),"representation":"exact-utf8-v1","ranges":[{"start":0,"end":text.len()}],"work_edition":null,"passage_id":null}],"dependencies":[],"declared_inventory":[],"inventory_declaration":{"kind":"no_material_claims","exclusions":[],"rationale":"Synthetic material"},"claim_mappings":[],"unresolved":[],"conclusion":"consistent_with_declared_inventory"});
+            let mut body = json!({"kind":"source_assessment","proposal":reference,"base_frame":p["base_frame"],"assessor":{"principal":agent.as_str().replacen("prf_","prn_",1),"method":"human_review","tool":null,"assessed_at":"2026-10-03T00:00:00Z"},"sources":[{"key":"passage","source_version":{"universe":uid,"record":source["identity"]["record_id"],"version":source["record_version_id"]},"blob_digest":source["payload"]["digest"],"byte_size":text.len(),"representation":"exact-utf8-v1","ranges":[{"start":0,"end":text.len()}],"work_edition":null,"passage_id":null}],"dependencies":[],"declared_inventory":[],"inventory_declaration":{"kind":"no_material_claims","exclusions":[],"rationale":"Synthetic material"},"claim_mappings":[],"unresolved":[],"conclusion":"consistent_with_declared_inventory"});
             let attach = |body: Value, generation, key| {
                 tool(
                     "universe_propose",
@@ -1577,7 +1577,7 @@ mod ownership_tests {
                 .map(|c| &c["next"])
                 .find(|r| r["payload"]["record_kind"] == "source_version")
                 .unwrap();
-            let body = json!({"kind":"source_assessment_v1","proposal":reference,"base_frame":p["base_frame"],"assessor":{"principal":agent.as_str().replacen("prf_","prn_",1),"method":"human_review","tool":null,"assessed_at":"2026-10-03T00:00:00Z"},"sources":[{"key":"passage","source_version":{"universe":uid,"record":source["identity"]["record_id"],"version":source["record_version_id"]},"blob_digest":source["payload"]["digest"],"byte_size":text.len(),"representation":"exact-utf8-v1","ranges":[{"start":0,"end":text.len()}],"work_edition":null,"passage_id":null}],"dependencies":[],"declared_inventory":[],"inventory_declaration":{"kind":"no_material_claims","exclusions":[],"rationale":"Synthetic material"},"claim_mappings":[],"unresolved":[],"conclusion":"consistent_with_declared_inventory"});
+            let body = json!({"kind":"source_assessment","proposal":reference,"base_frame":p["base_frame"],"assessor":{"principal":agent.as_str().replacen("prf_","prn_",1),"method":"human_review","tool":null,"assessed_at":"2026-10-03T00:00:00Z"},"sources":[{"key":"passage","source_version":{"universe":uid,"record":source["identity"]["record_id"],"version":source["record_version_id"]},"blob_digest":source["payload"]["digest"],"byte_size":text.len(),"representation":"exact-utf8-v1","ranges":[{"start":0,"end":text.len()}],"work_edition":null,"passage_id":null}],"dependencies":[],"declared_inventory":[],"inventory_declaration":{"kind":"no_material_claims","exclusions":[],"rationale":"Synthetic material"},"claim_mappings":[],"unresolved":[],"conclusion":"consistent_with_declared_inventory"});
             let attach = |body: Value, generation, key| {
                 tool(
                     "universe_propose",
@@ -1633,29 +1633,35 @@ mod ownership_tests {
                     // The worker serializes public selections. A separate fixture
                     // writer exercises the last SQLite comparison after private recheck.
                     let key: String = db.query_row("SELECT key FROM workflow_entries WHERE key LIKE 'assessment-selection:%' ORDER BY key DESC LIMIT 1", [], |r| r.get(0)).unwrap();
-                    let raw: Vec<u8> = db
-                        .query_row(
-                            "SELECT payload FROM workflow_entries WHERE key=?1",
-                            [&key],
-                            |r| r.get(0),
+                    let (proposal_row, selected_row): (i64, Option<i64>) = db.query_row("SELECT s.proposal,s.selected FROM workflow_entries w JOIN r_assessment_selection s ON s.__row_id=w.AssessmentSelection WHERE w.key=?1",[&key],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
+                    let (proposal_id, version, proposal_digest): (String,String,String) = db.query_row("SELECT proposal_id,version,digest FROM r_assessment_selection_proposal WHERE __row_id=?1",[proposal_row],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).unwrap();
+                    let selected = if mutation == "withdrawal" {
+                        Value::Null
+                    } else {
+                        let digest: String = db.query_row("SELECT a.digest FROM r_assessment_selection_selected s JOIN r_assessment_ref a ON a.__row_id=s.v0 WHERE s.__row_id=?1",[selected_row.unwrap()],|r|r.get(0)).unwrap();
+                        json!({"assessment_id":"asm_000000000000000000000002","digest":digest})
+                    };
+                    let selection = json!({"proposal":{"proposal_id":proposal_id,"version":version.parse::<u64>().unwrap(),"digest":proposal_digest},"generation":2,"selected":selected});
+                    db.execute_batch("BEGIN IMMEDIATE").unwrap();
+                    let reference_row = if selected.is_null() {
+                        None
+                    } else {
+                        db.execute("INSERT INTO r_assessment_ref(assessment_id__state,assessment_id,digest__state,digest) VALUES(2,?1,2,?2)",rusqlite::params![selected["assessment_id"].as_str().unwrap(),selected["digest"].as_str().unwrap()]).unwrap();
+                        let row = db.last_insert_rowid();
+                        db.execute(
+                            "INSERT INTO r_assessment_selection_selected(variant,v0) VALUES(0,?1)",
+                            [row],
                         )
                         .unwrap();
-                    let mut selection: Value = serde_json::from_slice(&raw).unwrap();
-                    selection["generation"] = json!(2);
-                    if mutation == "withdrawal" {
-                        selection["selected"] = Value::Null;
-                    } else {
-                        selection["selected"]["assessment_id"] =
-                            json!("asm_000000000000000000000002");
-                    }
+                        Some(db.last_insert_rowid())
+                    };
+                    db.execute("INSERT INTO r_assessment_selection(proposal__state,proposal,generation__state,generation,selected__state,selected) VALUES(2,?1,2,'2',?2,?3)",rusqlite::params![proposal_row,if selected.is_null(){1}else{2},reference_row]).unwrap();
+                    let row = db.last_insert_rowid();
                     let next_key = format!("{}{:020}", &key[..key.len() - 20], 2);
                     let bytes = universe_domain::canonical::canonical_serde(&selection).to_bytes();
                     let digest = hex::encode(sha2::Sha256::digest(&bytes));
-                    db.execute(
-                        "INSERT INTO workflow_entries VALUES(?1,?2,?3)",
-                        rusqlite::params![next_key, bytes, digest],
-                    )
-                    .unwrap();
+                    db.execute("INSERT INTO workflow_entries(key,family,digest,digest_recipe,AssessmentSelection) VALUES(?1,'AssessmentSelection',?2,'workflow-canonical',?3)",rusqlite::params![next_key,digest,row]).unwrap();
+                    db.execute_batch("COMMIT").unwrap();
                 }
                 _ => unreachable!(),
             }
@@ -1811,7 +1817,7 @@ mod ownership_tests {
             let reference =
                 json!({"proposal_id":p["proposal_id"],"version":p["version"],"digest":p["digest"]});
             let author_ctx = runtime.execute(&author_hello,tool("universe_open_context",json!({"universe":"Bindings","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":u["context_id"],"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"}))).unwrap()["result"]["context_id"].clone();
-            let mut body = json!({"kind":"source_assessment_v1","proposal":reference,"base_frame":p["base_frame"],"assessor":{"principal":author.as_str().replacen("prf_","prn_",1),"method":"human_review","tool":null,"assessed_at":"2026-10-03T00:00:00Z"},"sources":[{"key":"passage","source_version":{"universe":uid,"record":source["identity"]["record_id"],"version":source["record_version_id"]},"blob_digest":source["payload"]["digest"],"byte_size":text.len(),"representation":"exact-utf8-v1","ranges":[{"start":0,"end":text.len()}],"work_edition":null,"passage_id":null}],"dependencies":[],"declared_inventory":[],"inventory_declaration":{"kind":"no_material_claims","exclusions":[],"rationale":"Synthetic material"},"claim_mappings":[],"unresolved":[],"conclusion":"consistent_with_declared_inventory"});
+            let mut body = json!({"kind":"source_assessment","proposal":reference,"base_frame":p["base_frame"],"assessor":{"principal":author.as_str().replacen("prf_","prn_",1),"method":"human_review","tool":null,"assessed_at":"2026-10-03T00:00:00Z"},"sources":[{"key":"passage","source_version":{"universe":uid,"record":source["identity"]["record_id"],"version":source["record_version_id"]},"blob_digest":source["payload"]["digest"],"byte_size":text.len(),"representation":"exact-utf8-v1","ranges":[{"start":0,"end":text.len()}],"work_edition":null,"passage_id":null}],"dependencies":[],"declared_inventory":[],"inventory_declaration":{"kind":"no_material_claims","exclusions":[],"rationale":"Synthetic material"},"claim_mappings":[],"unresolved":[],"conclusion":"consistent_with_declared_inventory"});
             runtime.execute(&author_hello,tool("universe_propose",json!({"action":"attach_assessment","universe":"Bindings","context_id":author_ctx,"proposal_reference":reference,"expected_selection_generation":0,"body":body,"idempotency_key":"attach"}))).unwrap();
             // Delegation grants publication bounds, not source review access.
             assert!(runtime.execute(&h,tool("universe_get_proposal",json!({"universe":"Bindings","proposal_id":p["proposal_id"],"version":p["version"],"view_group":"assessment"}))).is_err());

@@ -796,7 +796,7 @@ pub(super) mod tests {
             .find(|r| matches!(r.payload, Payload::SourceVersion(_)))
             .unwrap();
         serde_json::from_value(json!({
-            "kind":"source_assessment_v1","proposal":reference(p),"base_frame":p.proposal.base_frame,
+            "kind":"source_assessment","proposal":reference(p),"base_frame":p.proposal.base_frame,
             "assessor":{"principal":profile.as_str().replacen("prf_","prn_",1),"method":"human_review","tool":null,"assessed_at":"2026-10-03T00:00:00Z"},
             "sources":[{"key":"passage","source_version":{"universe":p.proposal.base_frame.universe,"record":source.identity.record_id,"version":source.record_version_id},"blob_digest":hex::encode(Sha256::digest(text.as_bytes())),"byte_size":text.len(),"representation":"exact-utf8-v1","ranges":[{"start":0,"end":text.len()}],"work_edition":null,"passage_id":null}],
             "dependencies":[],"declared_inventory":[],"inventory_declaration":{"kind":"no_material_claims","exclusions":[],"rationale":"Synthetic source without declared material"},"claim_mappings":[],"unresolved":[],"conclusion":"consistent_with_declared_inventory"
@@ -1452,21 +1452,15 @@ pub(super) mod tests {
         drop(kernel);
         let db = rusqlite::Connection::open(&path).unwrap();
         assert!(db
-            .execute(
-                "DELETE FROM workflow_entries WHERE key=?1",
-                [format!("source:{digest}")]
-            )
+            .execute("DELETE FROM source_content WHERE digest=?1", [&digest])
             .is_err());
         // Deliberate corruption of this disposable fixture; production deletion
         // remains forbidden by both storage API and SQL trigger.
-        db.execute_batch("DROP TRIGGER workflow_entries_no_delete")
+        db.execute_batch("DROP TRIGGER source_content_no_delete")
             .unwrap();
-        db.execute(
-            "DELETE FROM workflow_entries WHERE key=?1",
-            [format!("source:{digest}")],
-        )
-        .unwrap();
-        db.execute_batch("CREATE TRIGGER workflow_entries_no_delete BEFORE DELETE ON workflow_entries BEGIN SELECT RAISE(ABORT, 'immutable workflow entry'); END;").unwrap();
+        db.execute("DELETE FROM source_content WHERE digest=?1", [&digest])
+            .unwrap();
+        db.execute_batch("CREATE TRIGGER source_content_no_delete BEFORE DELETE ON source_content BEGIN SELECT RAISE(ABORT, 'immutable workflow entry'); END;").unwrap();
         drop(db);
         let mut kernel = Kernel::open(&path).unwrap();
         let mut w = workflow(&mut kernel, &profile);

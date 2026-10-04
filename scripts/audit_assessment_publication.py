@@ -4,6 +4,7 @@ Uses only the Python standard library. No producer, service, serializer or hash
 helper imports. Reads raw workflow bytes and all observed canonical tables.
 """
 import argparse
+import gzip
 import hashlib
 import json
 from pathlib import Path
@@ -133,6 +134,6 @@ if __name__ == '__main__':
     parser.add_argument('evidence', type=Path)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
-    result = audit(json.loads(args.evidence.read_text()))
+    result = audit(json.loads(gzip.decompress(args.evidence.read_bytes()) if args.evidence.suffix=='.gz' else args.evidence.read_bytes()))
     args.output.write_text(json.dumps(result, indent=2) + '\n')
     print(json.dumps(result))

@@ -317,14 +317,7 @@ impl LogicalArchive {
                     return Err(invalid("invalid or duplicate image chunk"));
                 }
                 let value = Value::String(data.clone());
-                tx.execute(
-                    "INSERT INTO workflow_entries VALUES(?1,?2,?3)",
-                    params![
-                        media::chunk_key(hash, *index),
-                        canonical_serde(&value).to_bytes(),
-                        digest(&value)
-                    ],
-                )?;
+                crate::workflow_storage::put(&tx, &media::chunk_key(hash, *index), &value)?;
             }
         }
         let mut used_chunks = BTreeSet::new();
@@ -356,13 +349,10 @@ impl LogicalArchive {
                         return Err(invalid("archive changes immutable image import metadata"));
                     }
                 }
-                tx.execute(
-                    "INSERT OR IGNORE INTO workflow_entries VALUES(?1,?2,?3)",
-                    params![
-                        format!("image-asset:{}", record.identity.record_id),
-                        canonical_serde(&value).to_bytes(),
-                        digest(&value)
-                    ],
+                crate::workflow_storage::put(
+                    &tx,
+                    &format!("image-asset:{}", record.identity.record_id),
+                    &value,
                 )?;
             }
         }

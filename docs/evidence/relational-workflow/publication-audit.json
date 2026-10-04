@@ -1,0 +1,49 @@
+{
+  "status": "pass",
+  "oracle": "standard-library independent raw-state and binding calculator",
+  "cases": 33,
+  "bindings": [
+    {
+      "label": "initial-raw-approval",
+      "binding": "7357c0722d55dd7220f23f2534dde31d7b1904ea97e307750a5d2dd7949cb946",
+      "generation": 0
+    },
+    {
+      "label": "assessed-approval",
+      "binding": "15b87b4758117cd4e7431b8a01bf64d7102446394c3aa0b48b1b09d2a3752490",
+      "generation": 1
+    },
+    {
+      "label": "reselected-approval",
+      "binding": "3196528e4399305ac9678e192d89f2241cac330d89bb5e03d36c630d8c940599",
+      "generation": 3
+    },
+    {
+      "label": "final-assessed-approval",
+      "binding": "a3a9a3c253f5e046eacbf3d48d3b01fe849719b9cea89d75b328f92f756d4c2f",
+      "generation": 5
+    },
+    {
+      "label": "assessed-commit",
+      "binding": "a3a9a3c253f5e046eacbf3d48d3b01fe849719b9cea89d75b328f92f756d4c2f",
+      "generation": 5
+    },
+    {
+      "label": "fresh-withdrawn-approval",
+      "binding": "43a284858b14c27d3ec5cec80f708bd156c02f5f2b61ac1e44b2ac140fe844af",
+      "generation": 2
+    },
+    {
+      "label": "fresh-withdrawn-raw-commit",
+      "binding": "43a284858b14c27d3ec5cec80f708bd156c02f5f2b61ac1e44b2ac140fe844af",
+      "generation": 2
+    },
+    {
+      "label": "revocation-approval",
+      "binding": "1655522385d7ecc9aea86d42a294d65a83e093d7c2f4416b89d2303e577cffee",
+      "generation": 0
+    }
+  ],
+  "restart_exact": true,
+  "historical_bytes_exact": true
+}

@@ -48,7 +48,7 @@ def run(bin_dir, output):
             s.start()
             text='Exact café bytes.\n';path=Path(directory)/'source.txt';path.write_text(text)
             staged=s.admin('stage-source',NAME,'Selected validation',path)
-            entity={'kind':'create_entity','client_ref':s.rid(1),'record':{'names':[],'types':[],
+            entity={'kind':'create_entity','client_ref':s.rid(1),'record':{'names':[],'classification':None,'classificationResolution':'unclassified',
                 'worldAssociations':[],'labels':{'en':'Dependency'},'metadata':{}}}
             ops=staged['operations']+[entity];p=s.propose(ops,'candidate')
             viewed=s.call('universe_get_proposal',{'universe':NAME,'proposal_id':p['proposal_id'],'version':p['version']})['result']
@@ -111,9 +111,9 @@ def run(bin_dir, output):
             assert unavailable['assessment']=={'kind':'unavailable','reason':'missing_retained_material'}
             # Missing bytes still fail source verification even with unusable assessment.
             with sqlite3.connect(package) as db:
-                db.execute('DROP TRIGGER workflow_entries_no_delete')
-                db.execute('DELETE FROM workflow_entries WHERE key=?',('source:'+body['sources'][0]['blob_digest'],))
-                db.execute("CREATE TRIGGER workflow_entries_no_delete BEFORE DELETE ON workflow_entries BEGIN SELECT RAISE(ABORT, 'immutable workflow entry'); END")
+                db.execute('DROP TRIGGER source_content_no_delete')
+                db.execute('DELETE FROM source_content WHERE digest=?',(body['sources'][0]['blob_digest'],))
+                db.execute("CREATE TRIGGER source_content_no_delete BEFORE DELETE ON source_content BEGIN SELECT RAISE(ABORT, 'immutable workflow content'); END")
             s.call('universe_validate',{'mode':'proposal','universe':NAME,'context_id':s.ctx,
                 'proposal_reference':s.reference(p),'check_scope':'universe'},error=True)
             report['source_integrity_denial']=True

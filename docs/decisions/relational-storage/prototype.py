@@ -149,7 +149,7 @@ def run():
             if row['name'].startswith('workflow:') and row['model'] not in ['ImportPreview','ArchiveManifest']:
                 db.execute('INSERT INTO workflow_entries (key,family,digest,digest_recipe,'+q(row['model'])+') VALUES (?,?,?,?,?)',(row['name'],row['model'],hashlib.sha256(canonical(row['value'])).hexdigest(),'workflow-canonical',rid))
         content='é🌲 source bytes, not application metadata'.encode()
-        db.execute('INSERT INTO source_content VALUES (?,?,?)',(hashlib.sha256(content).hexdigest(),len(content),content))
+        db.execute('INSERT INTO source_content VALUES (?,?,?,?)',(hashlib.sha256(content).hexdigest(),len(content),content,hashlib.sha256(canonical(content.decode())).hexdigest()))
         oracle=tmp/'extra.json';oracle.write_text(json.dumps(extra,ensure_ascii=False))
         # Fail-closed constraints: required value, invalid discriminator, missing FK.
         rejected=[]

@@ -83,7 +83,7 @@ fn compare_workflow(
 ) -> StoreResult<()> {
     for (prefix, expected_key) in expected {
         let latest: Option<String> = conn.query_row(
-            "SELECT key FROM workflow_entries WHERE substr(key,1,length(?1))=?1 ORDER BY key DESC LIMIT 1",
+            "SELECT key FROM workflow_index WHERE substr(key,1,length(?1))=?1 ORDER BY key DESC LIMIT 1",
             [prefix], |r| r.get(0),
         ).optional()?;
         if &latest != expected_key {
@@ -505,24 +505,9 @@ impl Kernel {
         Ok(records.into_values().collect())
     }
     pub fn workflow_get(&self, key: &str) -> StoreResult<Option<Value>> {
-        let row: Option<(Vec<u8>, String)> = self
-            .conn
-            .query_row(
-                "SELECT payload,digest FROM workflow_entries WHERE key=?1",
-                [key],
-                |r| Ok((r.get(0)?, r.get(1)?)),
-            )
-            .optional()?;
-        row.map(|(bytes, hash)| {
-            let value: Value =
-                serde_json::from_slice(&bytes).map_err(|_| invalid("invalid workflow JSON"))?;
-            if digest(&value) != hash {
-                return Err(invalid("workflow integrity failure"));
-            }
-            Ok(value)
-        })
-        .transpose()
+        crate::workflow_storage::get(&self.conn, key)
     }
+
     /// Publish proposal, request receipt and operation index together.
     pub fn workflow_put(&mut self, entries: &[(String, Value)]) -> StoreResult<()> {
         self.workflow_compare_append(&[], entries)
@@ -539,39 +524,25 @@ impl Kernel {
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         compare_workflow(&tx, expected)?;
         for (key, value) in entries {
-            let bytes = canonical_serde(value).to_bytes();
-            if bytes.len() > 4 * 1_048_576 {
-                return Err(invalid("workflow entry too large"));
-            }
-            let old: Option<String> = tx
-                .query_row(
-                    "SELECT digest FROM workflow_entries WHERE key=?1",
-                    [key],
-                    |r| r.get(0),
-                )
-                .optional()?;
-            let hash = digest(value);
-            if let Some(old) = old {
-                if old != hash {
-                    return Err(invalid("immutable workflow key conflict"));
-                }
-            } else {
-                tx.prepare_cached("INSERT INTO workflow_entries VALUES(?1,?2,?3)")?
-                    .execute(params![key, bytes, hash])?;
-            }
+            crate::workflow_storage::put(&tx, key, value)?;
         }
         tx.commit()?;
         Ok(())
     }
     pub fn workflow_latest_key(&self, prefix: &str) -> StoreResult<Option<String>> {
         Ok(self.conn.query_row(
-            "SELECT key FROM workflow_entries WHERE substr(key,1,length(?1))=?1 ORDER BY key DESC LIMIT 1",
+            "SELECT key FROM workflow_index WHERE substr(key,1,length(?1))=?1 ORDER BY key DESC LIMIT 1",
             [prefix], |r| r.get(0),
         ).optional()?)
     }
     pub fn workflow_keys(&self, prefix: &str) -> StoreResult<Vec<String>> {
-        Ok(self.conn.prepare("SELECT key FROM workflow_entries WHERE substr(key,1,?1)=?2 ORDER BY key LIMIT 10001")?
-            .query_map(params![prefix.len() as i64,prefix], |r| r.get(0))?.collect::<Result<_,_>>()?)
+        Ok(self
+            .conn
+            .prepare(
+                "SELECT key FROM workflow_index WHERE substr(key,1,?1)=?2 ORDER BY key LIMIT 10001",
+            )?
+            .query_map(params![prefix.len() as i64, prefix], |r| r.get(0))?
+            .collect::<Result<_, _>>()?)
     }
     pub fn receipt(&self, input: &CommitInput) -> StoreResult<Option<RevisionId>> {
         let row: Option<(String,String)> = self.conn.query_row(
@@ -856,17 +827,11 @@ fn verify_canonical(c: &Connection, universe: &str) -> StoreResult<()> {
             }
         }
     }
-    let mut workflow = c.prepare("SELECT payload,digest FROM workflow_entries")?;
-    let rows = workflow.query_map([], |r| {
-        Ok((r.get::<_, Vec<u8>>(0)?, r.get::<_, String>(1)?))
-    })?;
-    for row in rows {
-        let (bytes, expected) = row?;
-        let value: Value =
-            serde_json::from_slice(&bytes).map_err(|_| invalid("invalid workflow data"))?;
-        if digest(&value) != expected {
-            return Err(invalid("workflow integrity failure"));
-        }
+    let mut workflow = c.prepare("SELECT key FROM workflow_index")?;
+    let keys = workflow.query_map([], |r| r.get::<_, String>(0))?;
+    for key in keys {
+        crate::workflow_storage::get(c, &key?)?
+            .ok_or_else(|| invalid("missing workflow evidence"))?;
     }
     Ok(())
 }
@@ -1458,7 +1423,7 @@ impl Kernel {
                 .conn
                 .query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get(0))?)
         };
-        let impact = serde_json::json!({"universe_id":self.universe,"heads":self.status()?.heads,"revisions":count("commits")?,"record_versions":count("record_versions")?,"workflow_entries":count("workflow_entries")?,"commit_receipts":count("operation_receipts")?,"scope":"entire registered universe package: all continuities, history, sources, images, drafts, approvals and operation logs","retained":"installation audit records only the universe identity and purge action; external backups, exports, client transcripts and filesystem snapshots remain outside this operation","erasure":"removes owned package files; does not promise forensic erasure"});
+        let impact = serde_json::json!({"universe_id":self.universe,"heads":self.status()?.heads,"revisions":count("commits")?,"record_versions":count("record_versions")?,"workflow_entries":count("workflow_index")?,"commit_receipts":count("operation_receipts")?,"scope":"entire registered universe package: all continuities, history, sources, images, drafts, approvals and operation logs","retained":"installation audit records only the universe identity and purge action; external backups, exports, client transcripts and filesystem snapshots remain outside this operation","erasure":"removes owned package files; does not promise forensic erasure"});
         Ok(serde_json::json!({"digest":digest(&impact),"impact":impact}))
     }
     pub fn prepare_purge(&self, expected: &str) -> StoreResult<()> {
@@ -1479,13 +1444,11 @@ impl Kernel {
         let versions = count("record_versions")?;
         let revisions = count("commits")?;
         let receipts = count("operation_receipts")?;
-        let workflows = count("workflow_entries")?;
+        let workflows = count("workflow_index")?;
         let caches = count("snapshot_membership")?;
-        let sources: i64 = self.conn.query_row(
-            "SELECT count(*) FROM workflow_entries WHERE key LIKE 'source:%'",
-            [],
-            |r| r.get(0),
-        )?;
+        let sources: i64 = self
+            .conn
+            .query_row("SELECT count(*) FROM source_content", [], |r| r.get(0))?;
         if collect {
             // Called on the sole universe worker: publication and backup cannot
             // interleave with collection. No authoritative retention root is removed.

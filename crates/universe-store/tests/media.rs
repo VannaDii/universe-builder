@@ -161,11 +161,11 @@ fn images_survive_source_removal_history_backup_filtered_export_and_clone() {
     // A checksummed workflow table alone cannot hide a missing original chunk.
     let db = Database::open_existing(&path).unwrap();
     let conn = db.connect().unwrap();
-    conn.execute_batch("DROP TRIGGER workflow_entries_no_delete")
+    conn.execute_batch("DROP TRIGGER media_chunk_no_delete")
         .unwrap();
     conn.execute(
-        "DELETE FROM workflow_entries WHERE key=?1",
-        [format!("image-bytes:{}:0", asset.digest)],
+        "DELETE FROM media_chunk WHERE digest=?1 AND ordinal=0",
+        [&asset.digest],
     )
     .unwrap();
     drop(conn);

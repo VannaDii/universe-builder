@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class SourceAssessmentContracts(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.examples = json.loads((ROOT / 'docs/decisions/d03-d08/examples.json').read_text())
+        cls.examples = json.loads((ROOT / 'fixtures/source-assessments/relational-examples.json').read_text())
         cls.schemas = json.loads((ROOT / 'contracts/source-assessments.json').read_text())
         cls.validators = {}
         for name, schema in cls.schemas.items():

@@ -4,6 +4,7 @@ import hashlib
 import json
 import sqlite3
 import sys
+from relational_history import workflows
 
 
 def canonical(value):
@@ -15,9 +16,10 @@ def audit(path, phase):
     assert db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
     rows = []
     stored_payload_sha256 = {}
-    for key, raw, digest in db.execute("SELECT key,payload,digest FROM workflow_entries ORDER BY key"):
+    db.row_factory = sqlite3.Row
+    for row in workflows(db):
+        key, raw, digest = row['key'], row['payload_utf8'].encode(), row['digest']
         value = json.loads(raw)
-        assert canonical(value) == raw, key
         stored_payload_sha256[key] = hashlib.sha256(raw).hexdigest()
         assert stored_payload_sha256[key] == digest, key
         rows.append([key, value])

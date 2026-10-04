@@ -11,11 +11,13 @@ from pathlib import Path
 import sqlite3
 import tempfile
 from pilot_support import NAME, PilotSession
+from relational_history import workflows
 
 
 def snapshot(s):
     path = s.root / 'packages' / (s.uid + '.sqlite')
     with sqlite3.connect(f'file:{path}?mode=ro', uri=True) as db:
+        db.row_factory = sqlite3.Row
         assert db.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
         names = [r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")]
         tables = {}
@@ -23,15 +25,21 @@ def snapshot(s):
             rows = db.execute('SELECT * FROM "' + name + '"').fetchall()
             rows = [[{'hex':v.hex()} if isinstance(v, bytes) else v for v in row] for row in rows]
             tables[name] = sorted(rows, key=lambda r: json.dumps(r, sort_keys=True))
-        workflow = [{'key':k, 'payload_utf8':raw.decode(), 'digest':digest}
-                    for k,raw,digest in db.execute('SELECT key,payload,digest FROM workflow_entries ORDER BY key')]
-        return {'workflow':workflow, 'canonical_tables':{k:v for k,v in tables.items() if k!='workflow_entries'}}
+        workflow = workflows(db)
+        # Typed workflow children are evidence, not canonical facts. Compare
+        # the canonical authority through independent reconstructed versions.
+        from relational_history import versions
+        authority = {k:v for k,v in tables.items() if not k.startswith('r_') and k not in {
+            'workflow_entries','source_content','source_staging','image_staging','media_chunk','continuity_name'}}
+        authority['reconstructed_versions'] = versions(db)
+        return {'workflow':workflow, 'canonical_tables':authority}
+
 
 
 def assessment(s, p, viewed, text):
     source = next(c['next'] for c in viewed['compiled_changes']
                   if c['next'] and c['next']['payload']['record_kind']=='source_version')
-    return {'kind':'source_assessment_v1','proposal':s.reference(p),'base_frame':p['base_frame'],
+    return {'kind':'source_assessment','proposal':s.reference(p),'base_frame':p['base_frame'],
         'assessor':{'principal':s.agent.replace('prf_','prn_',1),'method':'human_review','tool':None,'assessed_at':'2026-10-03T00:00:00Z'},
         'sources':[{'key':'passage','source_version':{'universe':s.uid,'record':source['identity']['record_id'],'version':source['record_version_id']},
                     'blob_digest':hashlib.sha256(text.encode()).hexdigest(),'byte_size':len(text.encode()),'representation':'exact-utf8-v1',
@@ -140,7 +148,7 @@ def run(bin_dir, output):
             setup=s.propose([world]+source_ops,'scope-setup')
             setup_view=s.call('universe_get_proposal',{'universe':NAME,'proposal_id':setup['proposal_id'],'version':setup['version']})['result']
             s.publish(setup,'scope-setup-commit')
-            entity={'kind':'create_entity','client_ref':s.rid(41),'record':{'names':[],'types':[],
+            entity={'kind':'create_entity','client_ref':s.rid(41),'record':{'names':[],'classification':None,'classificationResolution':'unclassified',
                 'worldAssociations':[{'world':world_id,'role':'setting','validity':{'kind':'unspecified'},'qualifiers':{}}],
                 'labels':{'en':'Scope subject'},'metadata':{}}}
             scoped=s.propose([entity],'scope-proposal')

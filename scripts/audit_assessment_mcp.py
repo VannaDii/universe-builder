@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Independent transcript/state oracle; imports no producer or Rust serializer."""
+import gzip
 import hashlib
 import json
 from pathlib import Path
@@ -37,7 +38,7 @@ def entries(snapshot):
 
 
 def run(path):
-    report = json.loads(path.read_text())
+    report = json.loads(gzip.decompress(path.read_bytes()) if path.suffix=='.gz' else path.read_bytes())
     names = {t['name'] for t in report['tools']}
     expected = {'universe_search', 'universe_describe', 'universe_open_context', 'universe_get',
                 'universe_get_state', 'universe_get_context', 'universe_validate', 'universe_propose',

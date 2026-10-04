@@ -53,6 +53,34 @@ fn input(k: &Kernel, r: RecordVersion, prior: Option<u64>, key: &str) -> CommitI
         }],
     }
 }
+fn selection(generation: u64, selected: Option<u64>) -> serde_json::Value {
+    serde_json::json!({"proposal":{"proposal_id":id("prp",1),"version":1,"digest":"a".repeat(64)},
+        "generation":generation,"selected":selected.map(|n|serde_json::json!({"assessment_id":id("asm",n),"digest":"b".repeat(64)}))})
+}
+fn stored_proposal(k: &Kernel) -> serde_json::Value {
+    serde_json::json!({"owner":id("prf",1),"author_origin":true,"changes":[],
+        "footprint":{"worlds":[],"shared":false,"protected":false},
+        "proposal":{"base_frame":{"universe":uid(),"continuity":cont(),"revision":k.head(&cont()).unwrap(),"context":{"universe":uid(),"record":id("rec",1)},"time":{"kind":"timeless"},"perspective":"author"},
+        "proposal_id":id("prp",1),"version":1,"digest":"a".repeat(64),"submission":"submitted","operations":[],
+        "rationale":"fixture","canonical":false,"operation_id":id("op",1),"withdrawn":false}})
+}
+fn insert_selection(c: &rusqlite::Connection, key: &str, generation: u64, selected: Option<u64>) {
+    let body = selection(generation, selected);
+    c.execute("INSERT INTO r_assessment_selection_proposal(proposal_id__state,proposal_id,version__state,version,digest__state,digest) VALUES(2,?1,2,'1',2,?2)",rusqlite::params![id("prp",1),"a".repeat(64)]).unwrap();
+    let proposal_row = c.last_insert_rowid();
+    let selected_row=selected.map(|n| {
+        c.execute("INSERT INTO r_assessment_ref(assessment_id__state,assessment_id,digest__state,digest) VALUES(2,?1,2,?2)",rusqlite::params![id("asm",n),"b".repeat(64)]).unwrap();
+        let reference=c.last_insert_rowid();
+        c.execute("INSERT INTO r_assessment_selection_selected(variant,v0) VALUES(0,?1)",[reference]).unwrap();
+        c.last_insert_rowid()
+    });
+    c.execute("INSERT INTO r_assessment_selection(proposal__state,proposal,generation__state,generation,selected__state,selected) VALUES(2,?1,2,?2,?3,?4)",rusqlite::params![proposal_row,generation.to_string(),if selected.is_some(){2}else{1},selected_row]).unwrap();
+    let row = c.last_insert_rowid();
+    let hash = hex::encode(sha2::Sha256::digest(
+        universe_domain::canonical::canonical_serde(&body).to_bytes(),
+    ));
+    c.execute("INSERT INTO workflow_entries(key,family,digest,digest_recipe,AssessmentSelection) VALUES(?1,'AssessmentSelection',?2,'workflow-canonical',?3)",rusqlite::params![key,hash,row]).unwrap();
+}
 #[test]
 fn restart_history_rebuild_and_retry() {
     let dir = tempfile::tempdir().unwrap();
@@ -132,11 +160,8 @@ fn assessment_publication_compares_selection_and_rolls_back_every_fault() {
         let head = k.head(&cont()).unwrap();
         let prefix = "assessment-selection:proposal:00000000000000000001:";
         let first = format!("{prefix}00000000000000000001");
-        k.workflow_put(&[(
-            first.clone(),
-            serde_json::json!({"selected":"assessment-a"}),
-        )])
-        .unwrap();
+        k.workflow_put(&[(first.clone(), selection(1, Some(1)))])
+            .unwrap();
         let expected = [(prefix.into(), Some(first))];
         let change = input(&k, record(1, 1, "Mara"), None, "assessed");
         assert!(k
@@ -186,17 +211,11 @@ fn assessment_publication_concurrent_replacement_withdrawal_and_aba_reject() {
         let prefix = "assessment-selection:proposal:00000000000000000001:";
         let first = format!("{prefix}00000000000000000001");
         if mutation != "first-selection" {
-            k.workflow_put(&[(
-                first.clone(),
-                serde_json::json!({"selected":"assessment-a"}),
-            )])
-            .unwrap();
+            k.workflow_put(&[(first.clone(), selection(1, Some(1)))])
+                .unwrap();
         }
-        k.workflow_put(&[(
-            "proposal:00000000000000000001".into(),
-            serde_json::json!({"version":1}),
-        )])
-        .unwrap();
+        k.workflow_put(&[("proposal:00000000000000000001".into(), stored_proposal(&k))])
+            .unwrap();
         let expected = [
             (
                 prefix.into(),
@@ -215,14 +234,14 @@ fn assessment_publication_concurrent_replacement_withdrawal_and_aba_reject() {
             let conn = Database::open_existing(&writer_path).unwrap().connect().unwrap();
             let key = if mutation == "proposal" { "proposal:00000000000000000002".into() }
                 else { format!("{prefix}00000000000000000002") };
-            let body = serde_json::json!({"selected":if mutation == "withdrawal" {None} else {Some("assessment-b")}});
-            let hash = hex::encode(sha2::Sha256::digest(universe_domain::canonical::canonical_serde(&body).to_bytes()));
-            conn.execute("INSERT INTO workflow_entries VALUES(?1,?2,?3)", rusqlite::params![key, universe_domain::canonical::canonical_serde(&body).to_bytes(), hash]).unwrap();
-            if mutation == "aba" {
-                let body = serde_json::json!({"selected":"assessment-a"});
-                let hash = hex::encode(sha2::Sha256::digest(universe_domain::canonical::canonical_serde(&body).to_bytes()));
-                conn.execute("INSERT INTO workflow_entries VALUES(?1,?2,?3)", rusqlite::params![format!("{prefix}00000000000000000003"), universe_domain::canonical::canonical_serde(&body).to_bytes(), hash]).unwrap();
+            conn.execute_batch("BEGIN IMMEDIATE").unwrap();
+            if mutation == "proposal" {
+                conn.execute("INSERT INTO workflow_entries(key,family,digest,digest_recipe,StoredProposal) SELECT ?1,family,digest,digest_recipe,StoredProposal FROM workflow_entries WHERE key='proposal:00000000000000000001'",[key]).unwrap();
+            } else {
+                insert_selection(&conn,&key,2,if mutation == "withdrawal" {None}else{Some(2)});
             }
+            if mutation == "aba" { insert_selection(&conn,&format!("{prefix}00000000000000000003"),3,Some(1)); }
+            conn.execute_batch("COMMIT").unwrap();
         }).join().unwrap();
         assert!(k.commit_compared(&change, &expected).is_err(), "{mutation}");
         assert_eq!(k.head(&cont()).unwrap(), head);
@@ -236,11 +255,8 @@ fn assessment_publication_write_transaction_excludes_selection_between_check_and
     let path = dir.path().join("u.db");
     let mut k = create(&path);
     let selection_key = "assessment-selection:proposal:00000000000000000001:00000000000000000001";
-    k.workflow_put(&[(
-        selection_key.into(),
-        serde_json::json!({"selected":"assessment-a"}),
-    )])
-    .unwrap();
+    k.workflow_put(&[(selection_key.into(), selection(1, Some(1)))])
+        .unwrap();
     let expected = [(
         "assessment-selection:proposal:00000000000000000001:".into(),
         Some(selection_key.into()),
@@ -811,12 +827,15 @@ fn interrupted_backups_never_publish_partial_files_or_touch_canon() {
         .unwrap();
     k.workflow_put(&[
         (
-            "source:manuscript".into(),
-            serde_json::json!({"text":"Chapter one — 日本語 👩🏽‍🚀"}),
+            format!(
+                "source:{}",
+                hex::encode(sha2::Sha256::digest("Chapter one — 日本語 👩🏽‍🚀".as_bytes()))
+            ),
+            serde_json::json!("Chapter one — 日本語 👩🏽‍🚀"),
         ),
         (
-            "draft:work".into(),
-            serde_json::json!({"unsaved_to_canon":"Keep this draft"}),
+            "cursor:work".into(),
+            serde_json::json!({"binding":"a".repeat(64),"offset":1}),
         ),
     ])
     .unwrap();
@@ -852,12 +871,21 @@ fn interrupted_backups_never_publish_partial_files_or_touch_canon() {
         k.records(&cont(), &revision).unwrap()
     );
     assert_eq!(
-        restored.workflow_get("source:manuscript").unwrap(),
-        k.workflow_get("source:manuscript").unwrap()
+        restored
+            .workflow_get(&format!(
+                "source:{}",
+                hex::encode(sha2::Sha256::digest("Chapter one — 日本語 👩🏽‍🚀".as_bytes()))
+            ))
+            .unwrap(),
+        k.workflow_get(&format!(
+            "source:{}",
+            hex::encode(sha2::Sha256::digest("Chapter one — 日本語 👩🏽‍🚀".as_bytes()))
+        ))
+        .unwrap()
     );
     assert_eq!(
-        restored.workflow_get("draft:work").unwrap(),
-        k.workflow_get("draft:work").unwrap()
+        restored.workflow_get("cursor:work").unwrap(),
+        k.workflow_get("cursor:work").unwrap()
     );
 }
 
@@ -869,14 +897,17 @@ fn backup_rejects_semantically_corrupt_content_despite_valid_sqlite_pages() {
     k.commit(&input(&k, record(1, 1, "Original"), None, "seed"))
         .unwrap();
     k.workflow_put(&[(
-        "source:text".into(),
-        serde_json::json!({"text":"Original manuscript"}),
+        format!(
+            "source:{}",
+            hex::encode(sha2::Sha256::digest("Original manuscript".as_bytes()))
+        ),
+        serde_json::json!("Original manuscript"),
     )])
     .unwrap();
     let c = rusqlite::Connection::open(&path).unwrap();
     let triggers: Vec<String> = c
         .prepare(
-            "SELECT name FROM sqlite_master WHERE type='trigger' AND tbl_name='workflow_entries'",
+            "SELECT name FROM sqlite_master WHERE type='trigger' AND tbl_name='source_content'",
         )
         .unwrap()
         .query_map([], |r| r.get(0))
@@ -888,7 +919,7 @@ fn backup_rejects_semantically_corrupt_content_despite_valid_sqlite_pages() {
             .unwrap();
     }
     c.execute(
-        "UPDATE workflow_entries SET payload=?1 WHERE key='source:text'",
+        "UPDATE source_content SET utf8_content=?1",
         [b"{}".as_slice()],
     )
     .unwrap();
@@ -1008,4 +1039,93 @@ fn ten_thousand_entities_plus_metadata_survive_import_backup_restore_and_restart
     assert_eq!(k.records(&cont(), &revision).unwrap(), records);
     let (restored, _temporary) = Kernel::stage_restore(&backup, dir.path()).unwrap();
     assert_eq!(restored.records(&cont(), &revision).unwrap(), records);
+}
+
+#[test]
+fn relational_workflow_retries_immutability_failure_atomicity_and_recovery() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("workflow.sqlite");
+    let mut k = create(&path);
+    let key = "assessment-selection:prp_000000000000000000000001:00000000000000000001:00000000000000000001";
+    let body = selection(1, None);
+    k.workflow_put(&[(key.into(), body.clone())]).unwrap();
+    let db = Database::open_existing(&path).unwrap().connect().unwrap();
+    let count = || {
+        db.query_row("SELECT count(*) FROM r_assessment_selection", [], |r| {
+            r.get::<_, i64>(0)
+        })
+        .unwrap()
+    };
+    assert_eq!(count(), 1);
+    k.workflow_put(&[(key.into(), body.clone())]).unwrap();
+    assert_eq!(count(), 1, "retry must not create another body tree");
+    assert!(k
+        .workflow_put(&[(key.into(), selection(1, Some(1)))])
+        .is_err());
+    for table in [
+        "workflow_entries",
+        "r_assessment_selection",
+        "r_assessment_selection_proposal",
+    ] {
+        assert!(db
+            .execute(
+                &format!(
+                    "UPDATE {table} SET {}",
+                    if table == "workflow_entries" {
+                        "digest=digest"
+                    } else {
+                        "__row_id=__row_id"
+                    }
+                ),
+                []
+            )
+            .is_err());
+        assert!(db.execute(&format!("DELETE FROM {table}"), []).is_err());
+    }
+    db.execute_batch("CREATE TRIGGER interrupted_workflow BEFORE INSERT ON workflow_entries WHEN NEW.key='cursor:interrupted' BEGIN SELECT RAISE(ABORT,'injected interruption'); END").unwrap();
+    let next_key = format!("{}{:020}", &key[..key.len() - 20], 2);
+    assert!(k
+        .workflow_put(&[
+            (next_key.clone(), selection(2, Some(1))),
+            (
+                "cursor:interrupted".into(),
+                serde_json::json!({"binding":"test","offset":7})
+            )
+        ])
+        .is_err());
+    assert_eq!(
+        count(),
+        1,
+        "no orphan typed tree after interrupted publication"
+    );
+    assert!(k.workflow_get(&next_key).unwrap().is_none());
+    assert!(k
+        .workflow_put(&[("unknown:opaque".into(), serde_json::json!({"x":1}))])
+        .is_err());
+    assert_eq!(k.workflow_get(key).unwrap(), Some(body.clone()));
+    assert_eq!(
+        db.query_row("SELECT count(*) FROM record_versions", [], |r| r
+            .get::<_, i64>(0))
+            .unwrap(),
+        0
+    );
+    db.execute_batch("DROP TRIGGER interrupted_workflow")
+        .unwrap();
+    drop(k);
+    let mut k = Kernel::open(&path).unwrap();
+    assert_eq!(k.workflow_get(key).unwrap(), Some(body.clone()));
+    k.workflow_put(&[(key.into(), body)]).unwrap();
+    // Remove the actual trigger by its table inventory, then corrupt a typed
+    // scalar without changing the retained hash. Recovery must reject it.
+    let triggers:Vec<String>=db.prepare("SELECT name FROM sqlite_master WHERE type='trigger' AND tbl_name='r_assessment_selection' AND sql LIKE '%UPDATE%'").unwrap().query_map([],|r|r.get(0)).unwrap().collect::<Result<_,_>>().unwrap();
+    for trigger in triggers {
+        db.execute_batch(&format!("DROP TRIGGER \"{trigger}\""))
+            .unwrap();
+    }
+    db.execute("UPDATE r_assessment_selection SET generation='99'", [])
+        .unwrap();
+    assert!(k.workflow_get(key).is_err());
+    assert!(k.workflow_put(&[(key.into(), selection(1, None))]).is_err());
+    drop(k);
+    assert!(Kernel::open(&path).is_err());
 }

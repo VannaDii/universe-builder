@@ -32641,7 +32641,7 @@
         "AssessmentKind": {
           "type": "string",
           "enum": [
-            "source_assessment_v1"
+            "source_assessment"
           ]
         },
         "Sha256Hex": {
@@ -58589,7 +58589,7 @@
         "AssessmentKind": {
           "type": "string",
           "enum": [
-            "source_assessment_v1"
+            "source_assessment"
           ]
         },
         "Assessor": {

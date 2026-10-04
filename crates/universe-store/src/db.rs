@@ -45,6 +45,18 @@ impl Database {
         {
             return Err(StoreError::Migration("package requires explicit conversion to the normative relational model; original preserved".into()));
         }
+        let workflow_columns: Vec<String> = conn
+            .prepare("PRAGMA table_info(workflow_entries)")?
+            .query_map([], |r| r.get(1))?
+            .collect::<Result<_, _>>()?;
+        if workflow_columns.iter().any(|name| name == "payload")
+            || !workflow_columns.iter().any(|name| name == "StoredProposal")
+        {
+            return Err(StoreError::Migration(
+                "package requires explicit relational workflow conversion; original preserved"
+                    .into(),
+            ));
+        }
         Ok(())
     }
     pub(crate) fn policy(conn: &Connection) -> StoreResult<()> {
@@ -82,7 +94,9 @@ impl Database {
         tx.execute_batch(include_str!(
             "../../../docs/decisions/relational-storage/semantic.sql"
         ))?;
-        tx.execute_batch(include_str!("workflow.sql"))?;
+        tx.execute_batch(include_str!(
+            "../../../docs/decisions/relational-storage/workflow.sql"
+        ))?;
         tx.commit()?;
         Ok(())
     }

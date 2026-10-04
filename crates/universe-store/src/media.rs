@@ -76,16 +76,8 @@ pub(super) fn image_bytes_from(c: &Connection, asset: &ImageAsset) -> StoreResul
     validate_image_metadata(asset)?;
     let mut bytes = Vec::with_capacity(asset.byte_size as usize);
     for index in 0..(asset.byte_size as usize).div_ceil(IMAGE_CHUNK) {
-        let (raw, hash): (Vec<u8>, String) = c.query_row(
-            "SELECT payload,digest FROM workflow_entries WHERE key=?1",
-            [chunk_key(&asset.digest, index)],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )?;
-        let value: Value =
-            serde_json::from_slice(&raw).map_err(|_| invalid("invalid image chunk"))?;
-        if digest(&value) != hash {
-            return Err(invalid("image chunk integrity failure"));
-        }
+        let value = crate::workflow_storage::get(c, &chunk_key(&asset.digest, index))?
+            .ok_or_else(|| invalid("missing image chunk"))?;
         let text = value
             .as_str()
             .ok_or_else(|| invalid("invalid image chunk"))?;

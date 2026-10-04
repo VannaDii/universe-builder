@@ -61,7 +61,7 @@ Source: `workflow.rs`, `validation_binding.rs`, `assessments.rs`, `drafts.rs`, `
 | source:{digest} | `source_content` stores actual UTF-8 bytes, length and byte digest; reconstruct the old workflow string transiently to compare its separate workflow digest. |
 | source-version:{record} | `source_staging` key/workflow digest + typed SourceVersion branch (includes discriminator). |
 | image-asset:{record} | `image_staging` key/workflow digest + typed ImageAsset branch. |
-| image-bytes:{digest}:{index} | `media_chunk` ordered actual bytes, size and historical workflow digest; reconstruct lowercase hex transiently for old digest checks. |
+| image-bytes:{digest}:{index} | `media_chunk` ordered actual bytes, size and historical workflow digest; reconstruct the current base64 staging string transiently for its original workflow digest checks. |
 | continuity-name:{id} | `continuity_name` with exact string/key/workflow digest. |
 | logical-import-origin | ImportOrigin(source digest, source/target universe, completeness/omissions). |
 | logical-import-admission | ImportAdmission(preview, digest, target/name/completeness/omissions/imported). It is import evidence, not imported installation permissions. |

@@ -118,7 +118,7 @@ def run(bin_dir, output):
             mcp('fresh-withdrawn-raw-commit','universe_commit',s.commit_args(raw,fresh['execution'],'fresh-raw'),kind='commit')
             s.open()
 
-            entity = {'kind':'create_entity','client_ref':s.rid(90),'record':{'names':[],'types':[],
+            entity = {'kind':'create_entity','client_ref':s.rid(90),'record':{'names':[],'classification':None,'classificationResolution':'unclassified',
                 'worldAssociations':[],'labels':{'en':'Revocation control'},'metadata':{}}}
             denied = s.propose([entity],'revocation-proposal')
             v = validate('revocation-validation',denied)

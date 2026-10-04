@@ -718,9 +718,11 @@ mod tests {
         drop(w);
         drop(kernel);
         let db = rusqlite::Connection::open(&path).unwrap();
+        db.execute_batch("DROP TRIGGER source_content_no_delete")
+            .unwrap();
         db.execute(
-            "DELETE FROM workflow_entries WHERE key=?1",
-            [format!("source:{}", blob.as_str().unwrap())],
+            "DELETE FROM source_content WHERE digest=?1",
+            [blob.as_str().unwrap()],
         )
         .unwrap();
         drop(db);

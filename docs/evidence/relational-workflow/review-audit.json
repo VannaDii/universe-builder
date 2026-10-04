@@ -1,0 +1,45 @@
+{
+  "verdict": "pass",
+  "mcp_cases": 88,
+  "generic_denials": 19,
+  "author_reviews": 2,
+  "reconstructions": {
+    "selected": {
+      "pages": 9,
+      "bytes": 267482,
+      "digest": "fcc1dc8a85e5dd8a994ad97458b7a3f00b1a3ed0cc3f9b8d345ff9a0775aa425"
+    },
+    "historical-after-replacement": {
+      "pages": 9,
+      "bytes": 267482,
+      "digest": "fcc1dc8a85e5dd8a994ad97458b7a3f00b1a3ed0cc3f9b8d345ff9a0775aa425"
+    },
+    "historical-after-withdrawal": {
+      "pages": 9,
+      "bytes": 267482,
+      "digest": "fcc1dc8a85e5dd8a994ad97458b7a3f00b1a3ed0cc3f9b8d345ff9a0775aa425"
+    },
+    "read-only-history": {
+      "pages": 9,
+      "bytes": 267482,
+      "digest": "fcc1dc8a85e5dd8a994ad97458b7a3f00b1a3ed0cc3f9b8d345ff9a0775aa425"
+    },
+    "historical-after-restart": {
+      "pages": 9,
+      "bytes": 267482,
+      "digest": "fcc1dc8a85e5dd8a994ad97458b7a3f00b1a3ed0cc3f9b8d345ff9a0775aa425"
+    },
+    "reselected": {
+      "pages": 9,
+      "bytes": 267482,
+      "digest": "fcc1dc8a85e5dd8a994ad97458b7a3f00b1a3ed0cc3f9b8d345ff9a0775aa425"
+    },
+    "historical-stale-proposal": {
+      "pages": 9,
+      "bytes": 267482,
+      "digest": "fcc1dc8a85e5dd8a994ad97458b7a3f00b1a3ed0cc3f9b8d345ff9a0775aa425"
+    }
+  },
+  "transcript_sha256": "cb957536164b973492bd719a5c235cdac4c2741745848b7879284ed604505456",
+  "digest_checks": "handwritten canonical encoder + Python sorted JSON + OpenSSL SHA-256"
+}

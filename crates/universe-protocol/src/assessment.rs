@@ -35,6 +35,7 @@ macro_rules! canonical_fields {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum AssessmentKind {
+    #[serde(rename = "source_assessment")]
     SourceAssessmentV1,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -975,7 +976,7 @@ macro_rules! canonical_enum {
         }
     }
 }
-canonical_enum!(AssessmentKind, SourceAssessmentV1 => "source_assessment_v1");
+canonical_enum!(AssessmentKind, SourceAssessmentV1 => "source_assessment");
 canonical_enum!(Method, HumanReview => "human_review", ExternalModelReview => "external_model_review");
 canonical_enum!(MaterialKind, Fact => "fact", Action => "action", Prerequisite => "prerequisite", Effect => "effect", Knowledge => "knowledge", Description => "description", Disclosure => "disclosure", UnchangedState => "unchanged_state");
 canonical_enum!(InventoryKind, MaterialInventoryDeclared => "material_inventory_declared", NoMaterialClaims => "no_material_claims");

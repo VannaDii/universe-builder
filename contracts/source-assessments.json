@@ -96,7 +96,7 @@
       "AssessmentKind": {
         "type": "string",
         "enum": [
-          "source_assessment_v1"
+          "source_assessment"
         ]
       },
       "ProposalId": {
@@ -1908,7 +1908,7 @@
       "AssessmentKind": {
         "type": "string",
         "enum": [
-          "source_assessment_v1"
+          "source_assessment"
         ]
       },
       "ProposalId": {

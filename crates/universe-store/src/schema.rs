@@ -9,7 +9,7 @@ pub fn generate_schema() -> StoreResult<String> {
         crate::relational::SQL,
         include_str!("../../../docs/decisions/relational-storage/kernel.sql"),
         include_str!("../../../docs/decisions/relational-storage/semantic.sql"),
-        include_str!("workflow.sql"),
+        include_str!("../../../docs/decisions/relational-storage/workflow.sql"),
     ]
     .join("\n"))
 }
