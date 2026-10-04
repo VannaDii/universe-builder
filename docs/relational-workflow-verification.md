@@ -1,7 +1,7 @@
-# Relational workflow implementation checkpoint
+# Relational workflow verification
 
-October 3, 2026. The goal remains active; this is a verified implementation
-checkpoint, not a complete no-JSON qualification or live-package cutover.
+October 4, 2026. This records the scoped relational workflow implementation.
+Complete no-JSON qualification and live-package cutover remain separate work.
 
 New disposable packages use the approved fixed workflow envelope pointers in
 [workflow.sql](decisions/relational-storage/workflow.sql) and the existing typed
@@ -63,37 +63,40 @@ The updated disposable decision prototype also passes its independent body,
 workflow, backup and semantic reconstruction controls. These prototype results
 are not live-package or installation conversion qualification.
 
-## Remaining decision and gate
+## Draft conversion and final workspace gate
 
-Two service integration tests still fail:
-`drafts_survive_restart_without_canon_and_reject_cross_window_overwrites` and
-`recovered_submitted_draft_revises_its_reserved_ids_and_invalidates_approval`.
-The other 20 workflow integration cases pass. The required
-`cargo run --locked -p xtask -- check` passes formatting and strict Clippy, then
-stops at these two failures in workspace tests; it is not green.
-The retained `workspace-gate.txt` records that result.
+The private draft DTO now carries ordered `Vec<DomainOperation>` values, matching
+its approved relational schema. Autosave decodes the editor's transient operation
+representation before sending the typed request; loading restores the ordered
+array to the editor. The operation byte-size limit is retained. No raw operation
+string is persisted as a fallback. Malformed strings and unknown operation kinds
+reject at the private request boundary. This implements the already approved
+[compatibility policy](decisions/relational-storage/compatibility.md); the earlier
+claim that it required a new design decision was incorrect.
 
-This is an existing contract mismatch exposed by the closed typed writer:
-[DraftContent](../crates/universe-protocol/src/installation.rs) promises to preserve
-invalid/incomplete editor text in `operations: String`; the approved
-[relational contract](decisions/relational-storage/build_schema.py) stores
-`DraftContent.operations` as ordered `DomainOperation` rows. Invalid raw text
-cannot be converted into facts without inventing or dropping content. No raw-body
-fallback or editor behavior change has been introduced to hide that conflict.
-Affected draft conversion is paused pending Vanna's scope/design decision. The
-requested core workflow proofs pass, but the full goal and workspace gate cannot
-be declared complete while this regression remains. The pending scope question
-asks whether to defer draft conversion or include the editor conversion here.
+Both previously failing draft integration cases pass. They verify operation order
+and values, author/continuity isolation, unchanged canon, optimistic concurrency,
+exact lost-response retry, restart recovery and revision of a submitted draft
+with invalidation of its prior approval. Historical invalid/incomplete inputs
+remain subject to the approved read-only conversion policy; existing author
+packages were not converted.
+
+The required `cargo run --locked -p xtask -- check` passes: formatting, strict
+workspace Clippy, 337 tests (zero failures; one existing release-only workload
+test ignored), documentation tests and schema-drift checks. The final output is
+retained in `workspace-gate.txt`. Fresh final-binary publication and race pilots
+also pass their separate independent auditors; their retained transcripts and
+checksums have been refreshed. The scoped workflow goal is complete.
 
 Installation/configuration conversion, remaining canonical-family qualification,
 export conversion and live-package cutover remain excluded from this goal.
-
-Working time for this checkpoint: 26 minutes 21 seconds, measured from
-2026-10-04 04:32:03 UTC to 04:58:24 UTC. The goal is unfinished, so this is not a
-claimed time to completion.
 
 Follow-up audit: all three frozen proposals in the retained publication transcript
 also independently reproduce their candidate digests, rather than merely matching
 the surrounding workflow-envelope hash. Three additional controls alter valid
 operation, assignment or footprint fields and recompute the envelope hash; the
 candidate preimage check still rejects them. No runtime/design change was needed.
+
+Actual active working time to completion: approximately 40 minutes, including
+the earlier 32 minutes 10 seconds and this final conversion/verification pass.
+Time waiting between user turns is excluded.

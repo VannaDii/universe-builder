@@ -34,12 +34,13 @@ Pistol consumption, reload, temporal endpoints, generated identities and
 retcon/restart histories pass exact accounting checks. Evaluator behavior remains
 unchanged. See [normalized rules/events verification](docs/normalized-rules-events-verification.md).
 
-October 3 workflow checkpoint: frozen proposals/assignments, validations,
-approvals, operations and assessment/selection histories use fixed relational
-rows, with independent MCP success/denial/race/interruption/restart proofs.
-The full goal remains open: raw unsubmitted draft text conflicts with the
-approved typed draft-operation schema, and two integration tests fail pending
-that design/scope decision. See [workflow checkpoint](docs/relational-workflow-verification.md).
+October 4 workflow implementation: frozen proposals/assignments, validations,
+approvals, operation receipts and assessment selection history use typed
+relational persistence. Private draft save/load now sends ordered typed
+operations to match the approved schema; both draft recovery integration tests
+pass. The required workspace gate passes all 337 tests, strict Clippy, formatting
+and schema checks. The scoped workflow goal is complete. See
+[workflow verification](docs/relational-workflow-verification.md).
 
 | Milestone | Implementation and limits |
 |---|---|

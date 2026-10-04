@@ -735,7 +735,11 @@ async fn drafts_survive_restart_without_canon_and_reject_cross_window_overwrites
         proposal: None,
         base_revision: serde_json::from_value(alpha["revision"].clone()).unwrap(),
         represented_context: serde_json::from_value(alpha["context_id"].clone()).unwrap(),
-        operations: "[{ unfinished café".into(),
+        operations: serde_json::from_value(json!([
+            entity("Unsubmitted café", "rec_000000000000000000000990"),
+            entity("Second draft operation", "rec_000000000000000000000991"),
+        ]))
+        .unwrap(),
         rationale: "still editing".into(),
     };
     let save = EngineRequest::SaveDraft {
@@ -744,11 +748,19 @@ async fn drafts_survive_restart_without_canon_and_reject_cross_window_overwrites
         expected_version: 0,
         content: content.clone(),
     };
+    // The installation boundary accepts only typed operations, never opaque text.
+    let mut malformed = serde_json::to_value(&save).unwrap();
+    malformed["content"]["operations"] = json!("[{ unfinished café");
+    assert!(serde_json::from_value::<EngineRequest>(malformed.clone()).is_err());
+    malformed["content"]["operations"] = json!([{"kind": "unknown_operation"}]);
+    assert!(serde_json::from_value::<EngineRequest>(malformed).is_err());
+    assert_eq!(client.call(load.clone()).await.unwrap(), Value::Null);
     let first = client.call(save.clone()).await.unwrap();
+    assert_eq!(first["content"], serde_json::to_value(&content).unwrap());
     assert_eq!(first["version"], 1);
     assert_eq!(client.call(save.clone()).await.unwrap(), first); // lost-response retry
     let mut other = content.clone();
-    other.operations = "[]".into();
+    other.operations = vec![];
     assert!(client
         .call(EngineRequest::SaveDraft {
             universe: Selector("Alpha".into()),
@@ -881,7 +893,7 @@ async fn recovered_submitted_draft_revises_its_reserved_ids_and_invalidates_appr
                 proposal: Some(reference(&p)),
                 base_revision: serde_json::from_value(u["revision"].clone()).unwrap(),
                 represented_context: serde_json::from_value(u["context_id"].clone()).unwrap(),
-                operations: serde_json::to_string(&operations).unwrap(),
+                operations: serde_json::from_value(json!(operations)).unwrap(),
                 rationale: "Lantern".into(),
             },
         })
@@ -904,7 +916,8 @@ async fn recovered_submitted_draft_revises_its_reserved_ids_and_invalidates_appr
     let content: DraftContent = serde_json::from_value(saved["content"].clone()).unwrap();
     assert_eq!(content.proposal, Some(reference(&p)));
     let ctx = context(&mut client, &u, "Alpha").await;
-    let mut revised: Vec<Value> = serde_json::from_str(&content.operations).unwrap();
+    let mut revised: Vec<Value> =
+        serde_json::from_value(serde_json::to_value(&content.operations).unwrap()).unwrap();
     revised[0]["record"]["labels"]["en"] = json!("Blue Lantern");
     let next=client.call(tool("universe_propose",json!({"action":"revise","universe":"Alpha","context_id":ctx,"proposal_reference":content.proposal,"operations":revised,"submission":"submitted","rationale":"Edited after restart","idempotency_key":"second-draft"}))).await.unwrap()["result"].clone();
     assert_eq!(next["proposal_id"], p["proposal_id"]);

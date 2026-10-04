@@ -40,10 +40,11 @@ pub fn save(
     expected: u64,
     content: DraftContent,
 ) -> anyhow::Result<SavedDraft> {
-    if content.operations.len() > 128_000 || content.rationale.len() > 16_000 {
+    if serde_json::to_vec(&content.operations)?.len() > 128_000 || content.rationale.len() > 16_000
+    {
         return Err(ProtocolError::invalid_argument(
             "draft",
-            "editor text exceeds draft size limit",
+            "draft content exceeds draft size limit",
         )
         .into());
     }

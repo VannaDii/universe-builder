@@ -67,13 +67,13 @@ pub struct GrantLimits {
     #[serde(default)]
     pub allow_shared: bool,
 }
-/// Unsubmitted editor text. Invalid/incomplete JSON is preserved as text, never canon.
+/// Unsubmitted structured editor operations. Saving a draft never changes canon.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DraftContent {
     pub base_revision: RevisionId,
     pub represented_context: RecordId,
-    pub operations: String,
+    pub operations: Vec<universe_domain::DomainOperation>,
     pub rationale: String,
     /// Resume edits as a new immutable version of the same submission.
     #[serde(default, skip_serializing_if = "Option::is_none")]

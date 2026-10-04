@@ -6,42 +6,42 @@
   "bindings": [
     {
       "label": "initial-raw-approval",
-      "binding": "7357c0722d55dd7220f23f2534dde31d7b1904ea97e307750a5d2dd7949cb946",
+      "binding": "a4cf2e3ee2afa1483ee12dbbcc8697664df7f623a9d7c549f2cd88757c3c5133",
       "generation": 0
     },
     {
       "label": "assessed-approval",
-      "binding": "15b87b4758117cd4e7431b8a01bf64d7102446394c3aa0b48b1b09d2a3752490",
+      "binding": "05bae5d73901f30b566def8e26540c108a993422a1851e07906e306a18b66ac7",
       "generation": 1
     },
     {
       "label": "reselected-approval",
-      "binding": "3196528e4399305ac9678e192d89f2241cac330d89bb5e03d36c630d8c940599",
+      "binding": "03afc1bfd9e4152faee8746414b38c2147a5b224ea61975e463b890425d44b83",
       "generation": 3
     },
     {
       "label": "final-assessed-approval",
-      "binding": "a3a9a3c253f5e046eacbf3d48d3b01fe849719b9cea89d75b328f92f756d4c2f",
+      "binding": "2fe7b69a0afef879160f0ff3983fb698007b8b398a6ab88fc32014f9a4cf9432",
       "generation": 5
     },
     {
       "label": "assessed-commit",
-      "binding": "a3a9a3c253f5e046eacbf3d48d3b01fe849719b9cea89d75b328f92f756d4c2f",
+      "binding": "2fe7b69a0afef879160f0ff3983fb698007b8b398a6ab88fc32014f9a4cf9432",
       "generation": 5
     },
     {
       "label": "fresh-withdrawn-approval",
-      "binding": "43a284858b14c27d3ec5cec80f708bd156c02f5f2b61ac1e44b2ac140fe844af",
+      "binding": "2cd1ae0e03275b0e9784303097afb5113a74790cb2664829b7382cd0407d6c5a",
       "generation": 2
     },
     {
       "label": "fresh-withdrawn-raw-commit",
-      "binding": "43a284858b14c27d3ec5cec80f708bd156c02f5f2b61ac1e44b2ac140fe844af",
+      "binding": "2cd1ae0e03275b0e9784303097afb5113a74790cb2664829b7382cd0407d6c5a",
       "generation": 2
     },
     {
       "label": "revocation-approval",
-      "binding": "1655522385d7ecc9aea86d42a294d65a83e093d7c2f4416b89d2303e577cffee",
+      "binding": "24561afadad7fb7c61838d0dfa14855ee983c6b93880f83e99149f4f045bf106",
       "generation": 0
     }
   ],
