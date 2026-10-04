@@ -1,0 +1,5 @@
+{
+  "basis": "The original Cedar specimen has an inherited Tree growth assertion with Unspecified validity. At a dated frame it remains unresolved even alongside exact instance support. Inheritance preserves both the definite evidence bit and incomplete coverage; negation reverses the bit, not coverage. All original payloads, digests and expected fields remain frozen.",
+  "instance_growth": {"accepted": false, "complete": false, "outcome": "supported"},
+  "instance_growth_negated": {"accepted": false, "complete": false, "outcome": "refuted"}
+}

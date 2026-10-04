@@ -1,0 +1,33 @@
+{
+  "basis": "Tree permits Cedar through its authored parent; Stone is unrelated. Unknown classification, ancestry or world scope cannot authorize use. Shared incompatible values have no override precedence. A correction must recheck the existing event and preserve its original revision across restart.",
+  "admission": {
+    "cedar_property": "legal",
+    "unrelated_property": "illegal",
+    "unclassified_property": "unresolved",
+    "ambiguous_classification": "unresolved",
+    "ambiguous_parent": "unresolved",
+    "cedar_relation": "legal",
+    "unrelated_relation": "illegal",
+    "conflicting_definitions": "illegal",
+    "initial_not_capability": "legal",
+    "world_allowed": "legal",
+    "world_denied": "illegal",
+    "world_unknown": "unresolved",
+    "ancestor_rule": "legal",
+    "explicit_unrelated_rule_operand": "illegal",
+    "unknown_rule": "unresolved",
+    "event_expired": "illegal",
+    "unrelated_event": "illegal",
+    "conflicting_event": "illegal",
+    "inherited_event": "legal",
+    "definition_retcon_revalidates_event": "illegal",
+    "corrected_event_after_restart": "illegal",
+    "ancestor_world_independent": "legal",
+    "property_definition_revalidates_fact": "illegal",
+    "relation_definition_revalidates_participant": "illegal",
+    "initial_event_missing": "illegal",
+    "context_does_not_borrow_definition": "illegal",
+    "universe_wide_cannot_widen_type": "illegal",
+    "indirect_shared_conflict": "illegal"
+  }
+}

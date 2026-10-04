@@ -325,6 +325,11 @@ pub fn evaluate_indexed(
     };
     for frame in &frames {
         for world in &worlds {
+            match universe_rules::definitions::rule_applies(rule, records, world) {
+                Some(false) => continue,
+                None => return unavailable(),
+                Some(true) => {}
+            }
             let r = universe_rules::evaluate_rule(
                 &compiled,
                 &EvaluationContext {

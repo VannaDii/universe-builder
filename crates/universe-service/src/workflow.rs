@@ -13,7 +13,7 @@ use universe_domain::{
 };
 use universe_protocol::{request::*, response::*, ProtocolError, Request};
 use universe_store::kernel::{Assignment, CommitInput, Kernel};
-const EVALUATOR: &str = "finite-policy-v8-cumulative-resources";
+const EVALUATOR: &str = "finite-policy-v9-ancestor-definitions";
 use universe_protocol::validation_scope::*;
 use validation_binding::ValidationCapture;
 pub(crate) fn hash<T: Serialize>(v: &T) -> String {
@@ -1065,6 +1065,7 @@ impl Workflow<'_> {
         }
         cancelled()?;
         let (mut conflicts, mut gaps) = crate::validation::scalar_conflicts(&candidate);
+        gaps.extend(crate::validation::definition_applicability(&candidate)?);
         let (closed, unresolved) = crate::validation::completeness_conflicts(&candidate);
         conflicts.extend(closed);
         gaps.extend(unresolved);
@@ -3121,6 +3122,7 @@ mod job_tests {
         for evaluator in [
             "finite-policy-v5-input-scope",
             "finite-policy-v6-declared-effects",
+            "finite-policy-v8-cumulative-resources",
             EVALUATOR,
         ] {
             let run = ValidationRunId::generate(&mut rand::rng());

@@ -304,6 +304,13 @@ pub fn structural(records: &[RecordVersion]) -> anyhow::Result<()> {
                     ));
                 }
             }
+            Payload::Rule(rule) => {
+                for id in &rule.subject_types {
+                    if !matches!(map.get(id), Some(Payload::EntityType(_))) {
+                        return Err(invalid("rule subject type must resolve to a definition"));
+                    }
+                }
+            }
             Payload::Entity(e) => {
                 for id in e.classification.iter() {
                     if !matches!(map.get(id), Some(Payload::EntityType(_))) {
@@ -366,15 +373,14 @@ pub fn structural(records: &[RecordVersion]) -> anyhow::Result<()> {
                                 "property value does not conform to its definition",
                             ));
                         }
-                        if let Some(Payload::Entity(e)) = map.get(&p.subject.record) {
-                            if !property.subject_types.is_empty()
-                                && !e
-                                    .classification
-                                    .iter()
-                                    .any(|t| property.subject_types.contains(t))
-                            {
-                                return Err(invalid("subject lacks a declared property type"));
-                            }
+                        if universe_rules::definitions::matches(
+                            &p.subject.record,
+                            &property.subject_types,
+                            records,
+                            None,
+                        ) == Some(false)
+                        {
+                            return Err(invalid("subject lacks a declared property type"));
                         }
                     }
                     Some(Payload::Relation(relation)) => {
@@ -389,14 +395,18 @@ pub fn structural(records: &[RecordVersion]) -> anyhow::Result<()> {
                                 .iter()
                                 .find(|d| d.name == role.role)
                                 .ok_or_else(|| invalid("undefined relation role"))?;
-                            let Some(Payload::Entity(e)) = map.get(&role.participant.record) else {
+                            if !matches!(
+                                map.get(&role.participant.record),
+                                Some(Payload::Entity(_))
+                            ) {
                                 return Err(invalid("role participant must be an entity"));
-                            };
-                            if !def.participant_types.is_empty()
-                                && !e
-                                    .classification
-                                    .iter()
-                                    .any(|t| def.participant_types.contains(t))
+                            }
+                            if universe_rules::definitions::matches(
+                                &role.participant.record,
+                                &def.participant_types,
+                                records,
+                                None,
+                            ) == Some(false)
                             {
                                 return Err(invalid("participant lacks a declared role type"));
                             }
@@ -481,7 +491,7 @@ pub fn scalar_conflicts(
         .iter()
         .map(|r| (&r.identity.record_id, &r.payload))
         .collect();
-    type ScalarKey = (RecordId, RecordId, RecordId);
+    type ScalarKey = (RecordId, RecordId, RecordId, u8);
     type ScalarEvidence<'a> = (&'a RecordVersion, &'a Assertion, &'a Proposition);
     let mut groups: BTreeMap<ScalarKey, Vec<ScalarEvidence<'_>>> = BTreeMap::new();
     for r in records {
@@ -503,15 +513,46 @@ pub fn scalar_conflicts(
                     p.subject.record.clone(),
                     p.predicate.record.clone(),
                     a.scope.context.record.clone(),
+                    u8::from(a.attribute_mode == AttributeMode::InitialValue),
                 ))
                 .or_default()
                 .push((r, a, p));
         }
     }
+    // Add shared evidence to each known descendant's comparison group. These
+    // are borrowed source witnesses, not new instance assertions or defaults.
+    let originals = groups.clone();
+    for r in records {
+        if !matches!(r.payload, Payload::Entity(_) | Payload::EntityType(_)) {
+            continue;
+        }
+        let chain = universe_rules::definitions::ancestry(&r.identity.record_id, records);
+        if !chain.complete {
+            continue;
+        }
+        for ((owner, predicate, context, mode), facts) in &originals {
+            if owner == &r.identity.record_id || !chain.types.contains(owner) {
+                continue;
+            }
+            for &(source, assertion, proposition) in facts {
+                if assertion.attribute_mode == AttributeMode::Shared {
+                    groups
+                        .entry((
+                            r.identity.record_id.clone(),
+                            predicate.clone(),
+                            context.clone(),
+                            *mode,
+                        ))
+                        .or_default()
+                        .push((source, assertion, proposition));
+                }
+            }
+        }
+    }
     let mut conflicts = Vec::new();
     let mut gaps = BTreeSet::new();
     let mut pairs_remaining = 1_000_000;
-    for ((_, predicate, _), assertions) in groups {
+    for ((_, predicate, _, _), assertions) in groups {
         for (i, (left, a, p)) in assertions.iter().enumerate() {
             for (right, b, q) in assertions.iter().skip(i + 1) {
                 if pairs_remaining == 0 || conflicts.len() >= 1_000 {
@@ -533,7 +574,23 @@ pub fn scalar_conflicts(
                 {
                     continue;
                 }
-                if matches!((&a.scope.applicability,&b.scope.applicability),(Applicability::Worlds{world_ids:x},Applicability::Worlds{world_ids:y}) if x.iter().all(|w|!y.contains(w)))
+                let scope = |assertion: &Assertion, proposition: &Proposition| {
+                    let mut scope = assertion.scope.applicability.clone();
+                    if assertion.attribute_mode == AttributeMode::Shared {
+                        if let Some(Payload::EntityType(t)) = map.get(&proposition.subject.record) {
+                            scope = intersect_applicability(&scope, &t.applicability);
+                        }
+                    }
+                    scope
+                };
+                let left_scope = scope(a, p);
+                let right_scope = scope(b, q);
+                if matches!(&left_scope, Applicability::Worlds { world_ids } if world_ids.is_empty())
+                    || matches!(&right_scope, Applicability::Worlds { world_ids } if world_ids.is_empty())
+                {
+                    continue;
+                }
+                if matches!((&left_scope,&right_scope),(Applicability::Worlds{world_ids:x},Applicability::Worlds{world_ids:y}) if x.iter().all(|w|!y.contains(w)))
                 {
                     continue;
                 }
@@ -541,11 +598,11 @@ pub fn scalar_conflicts(
                     || b.precision != Precision::Exact
                     || universe_rules::time::overlaps(&a.validity, &b.validity).is_none()
                     || matches!(
-                        a.scope.applicability,
+                        left_scope,
                         Applicability::Unspecified | Applicability::Conditional
                     )
                     || matches!(
-                        b.scope.applicability,
+                        right_scope,
                         Applicability::Unspecified | Applicability::Conditional
                     )
                 {
@@ -1034,5 +1091,82 @@ mod consequence_definition_tests {
             &BTreeMap::new()
         )
         .is_err());
+    }
+}
+
+/// Recheck every existing assertion against the candidate definitions, including
+/// facts not touched by this proposal. Unresolved knowledge stays a coverage gap.
+pub fn definition_applicability(records: &[RecordVersion]) -> anyhow::Result<Vec<String>> {
+    let map: BTreeMap<_, _> = records
+        .iter()
+        .map(|r| (&r.identity.record_id, &r.payload))
+        .collect();
+    let mut gaps = BTreeSet::new();
+    for r in records {
+        let Payload::Assertion(a) = &r.payload else {
+            continue;
+        };
+        let Some(Payload::Proposition(p)) = map.get(&a.proposition.record) else {
+            continue;
+        };
+        let mut checks: Vec<(&RecordId, &[RecordId])> = vec![];
+        match map.get(&p.predicate.record) {
+            Some(Payload::Property(d)) => checks.push((&p.subject.record, &d.subject_types)),
+            Some(Payload::Relation(d)) => {
+                for role in &p.roles {
+                    if let Some(def) = d.roles.iter().find(|x| x.name == role.role) {
+                        checks.push((&role.participant.record, &def.participant_types));
+                    }
+                }
+            }
+            _ => {}
+        }
+        // A shared definition's own jurisdiction is also an obligation.
+        let own = [p.subject.record.clone()];
+        if matches!(map.get(&p.subject.record), Some(Payload::EntityType(_))) {
+            checks.push((&p.subject.record, &own));
+        }
+        for (subject, targets) in checks {
+            let result = universe_rules::definitions::covers(
+                subject,
+                targets,
+                records,
+                &a.scope.applicability,
+            );
+            match result {
+                Some(true) => {}
+                Some(false) => {
+                    return Err(invalid(
+                        "assertion is outside its definition's type/world applicability",
+                    ))
+                }
+                None => {
+                    gaps.insert(format!(
+                        "definition-applicability:{}:{}",
+                        r.identity.record_id, subject
+                    ));
+                }
+            }
+        }
+    }
+    Ok(gaps.into_iter().collect())
+}
+
+fn intersect_applicability(a: &Applicability, b: &Applicability) -> Applicability {
+    match (a, b) {
+        (Applicability::Worlds { world_ids }, _) | (_, Applicability::Worlds { world_ids })
+            if world_ids.is_empty() =>
+        {
+            Applicability::Worlds { world_ids: vec![] }
+        }
+        (Applicability::UniverseWide, other) | (other, Applicability::UniverseWide) => {
+            other.clone()
+        }
+        (Applicability::Worlds { world_ids: a }, Applicability::Worlds { world_ids: b }) => {
+            Applicability::Worlds {
+                world_ids: a.iter().filter(|w| b.contains(w)).cloned().collect(),
+            }
+        }
+        _ => Applicability::Unspecified,
     }
 }

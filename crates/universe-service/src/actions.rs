@@ -144,17 +144,9 @@ pub fn validate(
                 context: None,
             };
             for world in &worlds {
-                charge(if index.has_powers() {
-                    records.len()
-                } else {
-                    index
-                        .claim(
-                            owner,
-                            &format!("{}:{}", property.namespace, property.key),
-                            &event_frame.context,
-                        )
-                        .len()
-                })?;
+                // Inherited claims inspect the exact candidate's definitions
+                // and evidence, so charge that work rather than direct matches.
+                charge(records.len())?;
                 let (evidence, complete) = universe_rules::basic::evaluate(
                     &expression,
                     &universe_rules::EvaluationContext {

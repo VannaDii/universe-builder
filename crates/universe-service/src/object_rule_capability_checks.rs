@@ -1,4 +1,5 @@
-//! Capability characterization only. Known gaps are asserted, never patched here.
+//! Frozen characterization specimens retain original bytes and digests.
+//! Separately authored expectations qualify Goal 28 inherited uncertainty.
 use super::rule_checks::evaluate_indexed;
 use serde_json::Value;
 use universe_domain::{ids::*, records::*, Frame};
@@ -196,6 +197,10 @@ fn cedar_capabilities_keep_original_digests_and_verdicts_after_storage() {
         "../../../fixtures/normalized-foundation/cedar-capabilities.json"
     ))
     .unwrap();
+    let current: Value = serde_json::from_str(include_str!(
+        "../../../fixtures/ancestor-applicability/historical-expectations.json"
+    ))
+    .unwrap();
     let mut original: Vec<RecordVersion> =
         serde_json::from_value(foundation["initial"].clone()).unwrap();
     original
@@ -222,7 +227,10 @@ fn cedar_capabilities_keep_original_digests_and_verdicts_after_storage() {
                 };
                 assert_eq!(
                     serde_json::json!({"accepted":got.accepted,"complete":got.complete,"outcome":outcome}),
-                    query["expected"],
+                    current
+                        .get(query["name"].as_str().unwrap())
+                        .unwrap_or(&query["expected"])
+                        .clone(),
                     "{}",
                     query["name"]
                 );

@@ -10,6 +10,15 @@ Current native interaction/VoiceOver verification remains paused by the user. LM
 
 ## Implemented scope
 
+October 4 Goal 28: factual-snapshot ancestry now governs property subjects,
+relation participants, inherited shared claims and rule relevance. World,
+context and temporal obligations remain explicit; ambiguous/unknown applicability
+and conflicting definitions cannot be silently overridden. Full-candidate
+admission revalidates retained facts/events after definition changes. Actual MCP
+Cedar/world/conflict/correction/restart proofs are documented in
+[ancestor applicability verification](docs/ancestor-applicability-verification.md).
+Initial-value materialization and effective-object UI remain outside this scope.
+
 October 2 G02 qualification: the existing ADR-0006 path passes twenty authored
 action-applicability outcomes, including thirteen illegal rejections, seven
 committed legal controls and earlier incapacity retcon invalidation of two

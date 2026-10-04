@@ -605,28 +605,41 @@ fn claim(
     } else {
         ctx.frame?.context.clone()
     };
+    let frame = ctx.frame?;
+    subject.resolve_namespace(&frame.universe).ok()?;
+    context.resolve_namespace(&frame.universe).ok()?;
     let expected = value.map(|v| operand(v, vars)).transpose_option()?;
     let roles: Option<Vec<_>> = roles
         .iter()
         .map(|(key, op)| Some((key.clone(), reference(operand(op, vars)?)?)))
         .collect();
     let roles = roles?;
-    let indexed = ctx
-        .index
-        .filter(|_| ctx.candidate_changes.is_empty())
-        .map(|i| i.claim(&subject, predicate, &context));
-    let selected: Vec<_> = indexed.unwrap_or_else(|| ctx.base_snapshot.iter().collect());
-    let mut snapshot: BTreeMap<_, _> = selected
-        .into_iter()
+    let mut all: BTreeMap<_, _> = ctx
+        .base_snapshot
+        .iter()
         .map(|r| (&r.identity.record_id, r))
         .collect();
     for (id, next) in &ctx.candidate_changes {
         if let Some(r) = next {
-            snapshot.insert(id, r);
+            all.insert(id, r);
         } else {
-            snapshot.remove(id);
+            all.remove(id);
         }
     }
+    let all_records: Vec<_> = all.values().map(|r| (*r).clone()).collect();
+    let inherits = all
+        .get(&subject.record)
+        .is_some_and(|r| matches!(&r.payload, Payload::Entity(_)));
+    let chain = crate::definitions::ancestry(&subject.record, &all_records);
+    let indexed = ctx
+        .index
+        .filter(|_| ctx.candidate_changes.is_empty() && !inherits)
+        .map(|i| i.claim(&subject, predicate, &context));
+    let selected: Vec<_> = indexed.unwrap_or_else(|| all.values().copied().collect());
+    let snapshot: BTreeMap<_, _> = selected
+        .into_iter()
+        .map(|r| (&r.identity.record_id, r))
+        .collect();
     if snapshot.len() > *budget {
         return None;
     }
@@ -647,7 +660,7 @@ fn claim(
         .values()
         .filter(|r| {
             if let Payload::Proposition(p) = &r.payload {
-                p.subject == subject
+                (p.subject == subject || inherits && chain.types.contains(&p.subject.record))
                     && p.context == context
                     && p.predicate.record == definitions[0]
                     && (!exact_roles || p.roles.len() == roles.len())
@@ -656,11 +669,6 @@ fn claim(
                             .iter()
                             .any(|r| r.role == *key && r.participant == *participant)
                     })
-                    && match (&expected, &p.value) {
-                        (None, _) => true,
-                        (Some(a), Some(b)) => a == b || compare(a, Comparator::Eq, b) == Some(true),
-                        _ => false,
-                    }
             } else {
                 false
             }
@@ -669,6 +677,60 @@ fn claim(
         .collect();
     let mut evidence = Evidence::not_established();
     let mut complete = true;
+    let property = snapshot.values().find_map(|r| match &r.payload {
+        Payload::Property(p) if r.identity.record_id == definitions[0] => Some(p),
+        _ => None,
+    });
+    if let Some(property) = property.filter(|p| !p.subject_types.is_empty()) {
+        match crate::definitions::matches(
+            &subject.record,
+            &property.subject_types,
+            &all_records,
+            Some(ctx.world_scope.as_deref().unwrap_or(&[])),
+        ) {
+            Some(false) => return Some((Evidence::not_established(), true)),
+            None => complete = false,
+            Some(true) => {}
+        }
+    }
+    if inherits && !chain.complete && all.values().any(|r| {
+        let Payload::Assertion(a) = &r.payload else { return false; };
+        a.attribute_mode == universe_domain::records::AttributeMode::Shared
+            && a.scope.context == context
+            && crate::definitions::world_applies(&a.scope.applicability, ctx.world_scope.as_deref().unwrap_or(&[])) != Some(false)
+            && ctx.frame.and_then(|f| crate::events::applies(&a.validity, &f.time, &all_records)) != Some(false)
+            && matches!(all.get(&a.proposition.record).map(|r| &r.payload), Some(Payload::Proposition(p)) if p.context == context && p.predicate.record == definitions[0] && matches!(all.get(&p.subject.record).map(|r| &r.payload), Some(Payload::EntityType(_))))
+    }) { complete = false; }
+    let has_shared = snapshot.values().any(|r| {
+        let Payload::Assertion(a) = &r.payload else {
+            return false;
+        };
+        let Some(prop) = snapshot.get(&a.proposition.record) else {
+            return false;
+        };
+        let Payload::Proposition(p) = &prop.payload else {
+            return false;
+        };
+        a.attribute_mode == universe_domain::records::AttributeMode::Shared
+            && p.subject != subject
+            && propositions.contains(&a.proposition.record)
+            && a.scope.context == context
+            && a.scope.realm.is_none()
+            && crate::definitions::world_applies(
+                &a.scope.applicability,
+                ctx.world_scope.as_deref().unwrap_or(&[]),
+            ) == Some(true)
+            && ctx
+                .frame
+                .and_then(|f| crate::events::applies(&a.validity, &f.time, &all_records))
+                == Some(true)
+            && crate::definitions::matches(
+                &subject.record,
+                &[p.subject.record.clone()],
+                &all_records,
+                Some(ctx.world_scope.as_deref().unwrap_or(&[])),
+            ) == Some(true)
+    });
     for r in snapshot.values() {
         let Payload::Assertion(a) = &r.payload else {
             continue;
@@ -676,33 +738,61 @@ fn claim(
         if !propositions.contains(&a.proposition.record) || a.scope.context != context {
             continue;
         }
-        // A context does not select a realm. Never widen realm evidence into
-        // an objective claim merely because its other fields happen to match.
-        if a.scope.realm.is_some() {
-            complete = false;
+        let Payload::Proposition(p) = &snapshot.get(&a.proposition.record)?.payload else {
             continue;
-        }
-        let applies = match &a.scope.applicability {
-            Applicability::UniverseWide => true,
-            Applicability::Worlds { world_ids } => ctx.world_scope.as_ref().is_some_and(|scope| {
-                world_ids.iter().any(|w| {
-                    scope
-                        .iter()
-                        .any(|r| r.as_str().strip_prefix("rec_") == w.as_str().strip_prefix("wld_"))
-                })
-            }),
-            _ => {
-                complete = false;
-                false
-            }
         };
-        if !applies {
+        let inherited = p.subject != subject;
+        if inherited && a.attribute_mode != universe_domain::records::AttributeMode::Shared {
             continue;
         }
+        let value_matches = match (&expected, &p.value) {
+            (None, _) => true,
+            (Some(a), Some(b)) => a == b || compare(a, Comparator::Eq, b) == Some(true),
+            _ => false,
+        };
+        if !value_matches
+            && !((inherited || inherits && has_shared)
+                && property.is_some_and(|p| {
+                    p.multiplicity == universe_domain::records::Multiplicity::Single
+                }))
+        {
+            continue;
+        }
+        let world = crate::definitions::world_applies(
+            &a.scope.applicability,
+            ctx.world_scope.as_deref().unwrap_or(&[]),
+        );
         let validity = ctx
             .frame
-            .and_then(|f| crate::events::applies(&a.validity, &f.time, ctx.base_snapshot));
-        if validity == Some(false) {
+            .and_then(|f| crate::events::applies(&a.validity, &f.time, &all_records));
+        // Proven disjointness makes uncertainty in another dimension irrelevant.
+        if world == Some(false) || validity == Some(false) {
+            continue;
+        }
+        let definition_subject = all
+            .get(&p.subject.record)
+            .is_some_and(|r| matches!(r.payload, Payload::EntityType(_)));
+        if inherited || definition_subject {
+            match crate::definitions::matches(
+                if inherited {
+                    &subject.record
+                } else {
+                    &p.subject.record
+                },
+                &[p.subject.record.clone()],
+                &all_records,
+                Some(ctx.world_scope.as_deref().unwrap_or(&[])),
+            ) {
+                Some(false) => continue,
+                None => {
+                    complete = false;
+                    continue;
+                }
+                Some(true) => {}
+            }
+        }
+        if world.is_none() || a.scope.realm.is_some() {
+            complete = false;
             continue;
         }
         // All-validities queries cannot collapse temporal evidence into one fact.
@@ -718,10 +808,31 @@ fn claim(
             complete = false;
             continue;
         }
-        let bit = crate::evidence::EvidenceBit::with_source(r.record_version_id.clone());
-        match a.polarity {
-            Polarity::Support => evidence.support = evidence.support.or(bit),
-            Polarity::Refutation => evidence.refutation = evidence.refutation.or(bit),
+        let mut sources = vec![r.record_version_id.clone()];
+        if inherited {
+            sources.push(
+                snapshot
+                    .get(&a.proposition.record)?
+                    .record_version_id
+                    .clone(),
+            );
+            if let Some(owner) = all.get(&subject.record) {
+                sources.push(owner.record_version_id.clone());
+            }
+            sources.extend(
+                chain
+                    .types
+                    .iter()
+                    .filter_map(|id| all.get(id).map(|r| r.record_version_id.clone())),
+            );
+        }
+        let bit = crate::evidence::EvidenceBit::with_sources(sources);
+        match (a.polarity, value_matches) {
+            (Polarity::Support, true) => evidence.support = evidence.support.or(bit),
+            (Polarity::Refutation, true) | (Polarity::Support, false) => {
+                evidence.refutation = evidence.refutation.or(bit)
+            }
+            _ => {}
         }
     }
     // Possession-derived attributes use the same exact owner/time/evidence
@@ -784,12 +895,21 @@ fn claim(
             )
             .ok()?;
             for fact in derived {
-                if fact.subject == subject && expected.as_ref().is_none_or(|v| *v == fact.value) {
-                    for source in fact.evidence {
-                        evidence.support = evidence
-                            .support
-                            .or(crate::evidence::EvidenceBit::with_source(source));
-                    }
+                if fact.subject != subject {
+                    continue;
+                }
+                let value_matches = expected.as_ref().is_none_or(|v| *v == fact.value);
+                let bit = crate::evidence::EvidenceBit::with_sources(fact.evidence);
+                if value_matches {
+                    evidence.support = evidence.support.or(bit);
+                } else if has_shared
+                    && property.is_some_and(|p| {
+                        p.multiplicity == universe_domain::records::Multiplicity::Single
+                    })
+                {
+                    // A scoped indirect grant cannot silently override or be
+                    // discarded in favor of an incompatible shared definition.
+                    evidence.refutation = evidence.refutation.or(bit);
                 }
             }
         }

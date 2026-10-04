@@ -26,3 +26,6 @@ mod rule_checks;
 
 #[cfg(test)]
 mod object_rule_capability_checks;
+
+#[cfg(test)]
+mod ancestor_checks;

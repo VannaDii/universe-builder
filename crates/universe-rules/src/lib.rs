@@ -7,6 +7,7 @@ pub use evaluator::{evaluate_rule, EvaluationContext, EvaluationCoverage, Evalua
 pub use evidence::{Evidence, EvidenceBit, EvidenceOutcome};
 
 pub mod basic;
+pub mod definitions;
 pub mod time;
 
 pub mod events;
