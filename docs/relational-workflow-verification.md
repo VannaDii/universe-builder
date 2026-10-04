@@ -39,7 +39,8 @@ The synthetic [evidence directory](evidence/relational-workflow) contains compre
 actual stdio MCP transcripts, separate audit results and SHA-256 checksums.
 The independent Python relational reader uses the normative catalog but does not
 import or execute the Rust codec. The publication auditor separately reconstructs
-proposal/frame, selection/absence/generation, assessment/source bodies, validation
+the frozen proposal preimage (empty digest, ordered operations, full assignments
+and footprint), proposal/frame, selection/absence/generation, assessment/source bodies, validation
 binding and complete approval hashes. The review auditor uses its handwritten
 canonical encoder and OpenSSL digest checks.
 
@@ -57,7 +58,7 @@ canonical encoder and OpenSSL digest checks.
 Executed checks: 43/43 service library tests, 27/27 kernel tests, 2/2 media tests,
 11/11 protocol assessment tests, six standalone assessment schema tests,
 strict workspace Clippy, formatting, schema-drift checks, three existing independent MCP audits,
-new contention/interruption auditor and its four adversarial mutation controls.
+new contention/interruption auditor and its seven adversarial mutation controls.
 The updated disposable decision prototype also passes its independent body,
 workflow, backup and semantic reconstruction controls. These prototype results
 are not live-package or installation conversion qualification.
@@ -90,3 +91,9 @@ export conversion and live-package cutover remain excluded from this goal.
 Working time for this checkpoint: 26 minutes 21 seconds, measured from
 2026-10-04 04:32:03 UTC to 04:58:24 UTC. The goal is unfinished, so this is not a
 claimed time to completion.
+
+Follow-up audit: all three frozen proposals in the retained publication transcript
+also independently reproduce their candidate digests, rather than merely matching
+the surrounding workflow-envelope hash. Three additional controls alter valid
+operation, assignment or footprint fields and recompute the envelope hash; the
+candidate preimage check still rejects them. No runtime/design change was needed.

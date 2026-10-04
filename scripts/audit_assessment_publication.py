@@ -25,6 +25,11 @@ def rows(snapshot):
         assert canonical(value) == entry['payload_utf8'].encode(), entry['key']
         assert digest(value) == entry['digest'], entry['key']
         found[entry['key']] = value
+        if entry['key'].startswith('proposal:'):
+            proposal = value['proposal']
+            assert entry['key'] == 'proposal:' + proposal['proposal_id'] + ':' + f"{proposal['version']:020d}"
+            preimage = dict(proposal, digest='')
+            assert digest([preimage, value['changes'], value['footprint']]) == proposal['digest'], 'frozen proposal preimage mismatch'
         if entry['key'].startswith('assessment:'):
             assert value['digest'] == digest(value['body'], b'source-assessment:v1:')
     return found
@@ -126,7 +131,7 @@ def audit(evidence):
     assert evidence['historical_assessments_before'] == evidence['historical_assessments_after']
     assert evidence['historical_validation_before'] == evidence['historical_validation_after']
     return {'status':'pass','oracle':'standard-library independent raw-state and binding calculator',
-            'cases':len(evidence['cases']),'bindings':results,'restart_exact':True,'historical_bytes_exact':True}
+            'cases':len(evidence['cases']),'frozen_proposal_preimages':'independently reconstructed','bindings':results,'restart_exact':True,'historical_bytes_exact':True}
 
 
 if __name__ == '__main__':
