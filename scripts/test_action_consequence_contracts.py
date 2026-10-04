@@ -15,6 +15,7 @@ class ActionConsequenceContracts(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.fixtures = json.loads((ROOT/'fixtures/action-consequences/payload-digests.json').read_text())
+        cls.normative = {row['name']:row for row in json.loads((ROOT/'fixtures/normalized-foundation/historical-digests.json').read_text())}
         cls.validators=[]
         for tool in json.loads((ROOT/'contracts/tools.json').read_text()):
             for direction in ['input_schema','output_schema']:
@@ -25,7 +26,9 @@ class ActionConsequenceContracts(unittest.TestCase):
                     cls.validators.append(Draft202012Validator(selected))
         assert cls.validators
     def action(self,index=3):
-        payload=copy.deepcopy(self.fixtures[index]['payload']);del payload['record_kind'];return payload
+        # Schema checks use the already frozen normative oracle. Original input
+        # vectors remain unchanged and retain their separately verified recipe.
+        payload=copy.deepcopy(self.normative[self.fixtures[index]['name']]['payload']);del payload['record_kind'];return payload
     def valid(self,payload):
         return all(v.is_valid(payload) for v in self.validators)
     def test_all_action_examples_match_every_generated_action_schema(self):
@@ -39,6 +42,14 @@ class ActionConsequenceContracts(unittest.TestCase):
             self.assertEqual(hashlib.sha256(preimage).hexdigest(),fixture['digest'])
             openssl=subprocess.run(['openssl','dgst','-sha256'],input=preimage,capture_output=True,check=True).stdout.decode().split()[-1]
             self.assertEqual(openssl,fixture['digest'])
+            normative=self.normative[fixture['name']]
+            self.assertEqual(normative['source_digest'],fixture['digest'])
+            raw=json.dumps(normative['payload'],ensure_ascii=False,sort_keys=True,separators=(',',':'))
+            self.assertEqual(raw,normative['canonical_utf8'])
+            preimage=(normative['payload']['record_kind']+':'+raw).encode()
+            self.assertEqual(hashlib.sha256(preimage).hexdigest(),normative['normative_digest'])
+            openssl=subprocess.run(['openssl','dgst','-sha256'],input=preimage,capture_output=True,check=True).stdout.decode().split()[-1]
+            self.assertEqual(openssl,normative['normative_digest'])
     def test_absent_empty_and_explicit_null(self):
         self.assertTrue(self.valid(self.action(0)))
         self.assertTrue(self.valid(self.action(2)))
