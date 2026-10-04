@@ -1,0 +1,792 @@
+{
+  "records": [
+    {
+      "record_version_id": "ver_000000000000000000000064",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000064",
+        "record_kind": "rule"
+      },
+      "payload": {
+        "record_kind": "rule",
+        "namespace": "cedar",
+        "key": "growth_capability",
+        "labels": {
+          "author_wording": "growth_capability"
+        },
+        "kind": "physical_constraint",
+        "commitPolicy": "always_block",
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "subjectTypes": [
+          "rec_000000000000000000000002"
+        ],
+        "targetPredicates": [
+          "author:grows",
+          "author:height",
+          "author:dangerous_to_climb"
+        ],
+        "expression": {
+          "kind": "all",
+          "exprs": [
+            {
+              "kind": "claim",
+              "subject": {
+                "kind": "record",
+                "ref": {
+                  "universe": "unv_000000000000000000000001",
+                  "record": "rec_000000000000000000000001"
+                }
+              },
+              "predicate": "author:grows",
+              "value": {
+                "kind": "value",
+                "value": {
+                  "kind": "boolean",
+                  "value": true
+                }
+              },
+              "polarity": "support"
+            },
+            {
+              "kind": "any",
+              "exprs": [
+                {
+                  "kind": "lit",
+                  "value": false
+                },
+                {
+                  "kind": "not",
+                  "expr": {
+                    "kind": "lit",
+                    "value": false
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "capabilities": [
+          "basic.v1",
+          "finite.v1"
+        ],
+        "executable": true,
+        "validity": {
+          "kind": "unspecified"
+        }
+      },
+      "payload_digest": "cff82345ce34ce5e151efb3c8d8fc06691f422efc8e20fd1bea14e59c8ed0f91"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000065",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000065",
+        "record_kind": "rule"
+      },
+      "payload": {
+        "record_kind": "rule",
+        "namespace": "cedar",
+        "key": "denied_growth",
+        "labels": {
+          "author_wording": "denied_growth"
+        },
+        "kind": "physical_constraint",
+        "commitPolicy": "always_block",
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "subjectTypes": [
+          "rec_000000000000000000000002"
+        ],
+        "targetPredicates": [
+          "author:grows",
+          "author:height",
+          "author:dangerous_to_climb"
+        ],
+        "expression": {
+          "kind": "not",
+          "expr": {
+            "kind": "claim",
+            "subject": {
+              "kind": "record",
+              "ref": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000001"
+              }
+            },
+            "predicate": "author:grows",
+            "value": {
+              "kind": "value",
+              "value": {
+                "kind": "boolean",
+                "value": true
+              }
+            },
+            "polarity": "support"
+          }
+        },
+        "capabilities": [
+          "basic.v1",
+          "finite.v1"
+        ],
+        "executable": true,
+        "validity": {
+          "kind": "unspecified"
+        }
+      },
+      "payload_digest": "928b83b77d54008d7d6b8861d07ca39dbda44f58471732a4438e4b6bb463fbaa"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000066",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000066",
+        "record_kind": "rule"
+      },
+      "payload": {
+        "record_kind": "rule",
+        "namespace": "cedar",
+        "key": "hazard_scope",
+        "labels": {
+          "author_wording": "hazard_scope"
+        },
+        "kind": "physical_constraint",
+        "commitPolicy": "always_block",
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "subjectTypes": [
+          "rec_000000000000000000000002"
+        ],
+        "targetPredicates": [
+          "author:grows",
+          "author:height",
+          "author:dangerous_to_climb"
+        ],
+        "expression": {
+          "kind": "claim",
+          "subject": {
+            "kind": "record",
+            "ref": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000006"
+            }
+          },
+          "predicate": "author:dangerous_to_climb",
+          "value": {
+            "kind": "value",
+            "value": {
+              "kind": "boolean",
+              "value": true
+            }
+          },
+          "polarity": "support"
+        },
+        "capabilities": [
+          "basic.v1",
+          "finite.v1"
+        ],
+        "executable": true,
+        "validity": {
+          "kind": "unspecified"
+        }
+      },
+      "payload_digest": "f5442801edb5e7e00ea41b9ecc5553e320d60ed0805e864303e54a0bf84d7907"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000067",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000067",
+        "record_kind": "rule"
+      },
+      "payload": {
+        "record_kind": "rule",
+        "namespace": "cedar",
+        "key": "authored_height",
+        "labels": {
+          "author_wording": "authored_height"
+        },
+        "kind": "physical_constraint",
+        "commitPolicy": "always_block",
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "subjectTypes": [
+          "rec_000000000000000000000002"
+        ],
+        "targetPredicates": [
+          "author:grows",
+          "author:height",
+          "author:dangerous_to_climb"
+        ],
+        "expression": {
+          "kind": "claim",
+          "subject": {
+            "kind": "record",
+            "ref": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000006"
+            }
+          },
+          "predicate": "author:height",
+          "value": {
+            "kind": "value",
+            "value": {
+              "kind": "quantity",
+              "value": {
+                "kind": "decimal",
+                "digits": "30.00"
+              },
+              "unit": "unit_00000000000000000000000c"
+            }
+          },
+          "polarity": "support"
+        },
+        "capabilities": [
+          "basic.v1",
+          "finite.v1"
+        ],
+        "executable": true,
+        "validity": {
+          "kind": "unspecified"
+        }
+      },
+      "payload_digest": "4d3ff74d0233abcf55dc33c88ee5a0775451974484fa5899855cc208729dd057"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000068",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000068",
+        "record_kind": "rule"
+      },
+      "payload": {
+        "record_kind": "rule",
+        "namespace": "cedar",
+        "key": "unbound_growth",
+        "labels": {
+          "author_wording": "unbound_growth"
+        },
+        "kind": "physical_constraint",
+        "commitPolicy": "always_block",
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "subjectTypes": [
+          "rec_000000000000000000000002"
+        ],
+        "targetPredicates": [
+          "author:grows",
+          "author:height",
+          "author:dangerous_to_climb"
+        ],
+        "expression": {
+          "kind": "claim",
+          "subject": {
+            "kind": "variable",
+            "name": "tree"
+          },
+          "predicate": "author:grows",
+          "value": {
+            "kind": "value",
+            "value": {
+              "kind": "boolean",
+              "value": true
+            }
+          },
+          "polarity": "support"
+        },
+        "capabilities": [
+          "basic.v1",
+          "finite.v1"
+        ],
+        "executable": true,
+        "validity": {
+          "kind": "unspecified"
+        }
+      },
+      "payload_digest": "310fe518d2e2be669d6d6c1afadf7fdea347c6d3237364a83b4032b079a50a59"
+    },
+    {
+      "record_version_id": "ver_00000000000000000000006e",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_00000000000000000000006e",
+        "record_kind": "action_definition"
+      },
+      "payload": {
+        "record_kind": "action_definition",
+        "namespace": "cedar",
+        "key": "climb",
+        "labels": {
+          "en": "Climb cedar"
+        },
+        "requirements": [
+          {
+            "role": "tree",
+            "predicate": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_00000000000000000000001e"
+            },
+            "value": {
+              "kind": "boolean",
+              "value": false
+            }
+          }
+        ],
+        "consequenceContract": {
+          "kind": "action_consequences",
+          "slots": []
+        },
+        "scope": {
+          "applicability": {
+            "kind": "universe_wide"
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "unspecified"
+        }
+      },
+      "payload_digest": "c336d4b3fd09d6d2f4e5ba338b4a0684012c1a13d66c50fe0fee9ac8b2775162"
+    },
+    {
+      "record_version_id": "ver_00000000000000000000006f",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_00000000000000000000006f",
+        "record_kind": "proposition"
+      },
+      "payload": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000006"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000019"
+        },
+        "value": {
+          "kind": "boolean",
+          "value": true
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "payload_digest": "19fee55836007971135dd0d58da399f1699b46bc5845ce7db4cb5d80d952ca09"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000070",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000070",
+        "record_kind": "assertion"
+      },
+      "payload": {
+        "record_kind": "assertion",
+        "attributeMode": "instance",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000006f"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "universe_wide"
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "calendar_interval",
+          "calendar": "cal_00000000000000000000000d",
+          "start": {
+            "kind": "exact",
+            "value": "0"
+          },
+          "end": {
+            "kind": "unbounded"
+          }
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "author_decision",
+          "note": "Explicit instance capability; no implicit inheritance or growth"
+        }
+      },
+      "payload_digest": "fa2156711ba5b43655c898fbdff34717b1f3f22c7079e88c5d38ae8ddeb2c42c"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000071",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000071",
+        "record_kind": "rule"
+      },
+      "payload": {
+        "record_kind": "rule",
+        "namespace": "cedar",
+        "key": "instance_growth",
+        "labels": {
+          "author_wording": "instance_growth"
+        },
+        "kind": "physical_constraint",
+        "commitPolicy": "always_block",
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "subjectTypes": [
+          "rec_000000000000000000000002"
+        ],
+        "targetPredicates": [
+          "author:grows",
+          "author:height",
+          "author:dangerous_to_climb"
+        ],
+        "expression": {
+          "kind": "claim",
+          "subject": {
+            "kind": "record",
+            "ref": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000006"
+            }
+          },
+          "predicate": "author:grows",
+          "value": {
+            "kind": "value",
+            "value": {
+              "kind": "boolean",
+              "value": true
+            }
+          },
+          "polarity": "support"
+        },
+        "capabilities": [
+          "basic.v1",
+          "finite.v1"
+        ],
+        "executable": true,
+        "validity": {
+          "kind": "unspecified"
+        }
+      },
+      "payload_digest": "9a1563addd77d1f8341d55710f3beefbad22b615a7183e158f02c63f4c9f5bb3"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000072",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000072",
+        "record_kind": "rule"
+      },
+      "payload": {
+        "record_kind": "rule",
+        "namespace": "cedar",
+        "key": "instance_growth_negated",
+        "labels": {
+          "author_wording": "instance_growth_negated"
+        },
+        "kind": "physical_constraint",
+        "commitPolicy": "always_block",
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "subjectTypes": [
+          "rec_000000000000000000000002"
+        ],
+        "targetPredicates": [
+          "author:grows",
+          "author:height",
+          "author:dangerous_to_climb"
+        ],
+        "expression": {
+          "kind": "not",
+          "expr": {
+            "kind": "claim",
+            "subject": {
+              "kind": "record",
+              "ref": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000006"
+              }
+            },
+            "predicate": "author:grows",
+            "value": {
+              "kind": "value",
+              "value": {
+                "kind": "boolean",
+                "value": true
+              }
+            },
+            "polarity": "support"
+          }
+        },
+        "capabilities": [
+          "basic.v1",
+          "finite.v1"
+        ],
+        "executable": true,
+        "validity": {
+          "kind": "unspecified"
+        }
+      },
+      "payload_digest": "817209efb338d914b6e6cdd387419d6b5aacfb87d63ab06a056d04b05fabf3cb"
+    }
+  ],
+  "queries": [
+    {
+      "name": "declared_growth",
+      "rule": "rec_000000000000000000000064",
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000d",
+            "value": "1"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_00000000000000000000000e"
+      ],
+      "expected": {
+        "accepted": false,
+        "complete": false,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "name": "opposite_of_declared_growth",
+      "rule": "rec_000000000000000000000065",
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000d",
+            "value": "1"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_00000000000000000000000e"
+      ],
+      "expected": {
+        "accepted": false,
+        "complete": false,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "name": "empty_world_hazard_unresolved",
+      "rule": "rec_000000000000000000000066",
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000d",
+            "value": "1"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_00000000000000000000000e"
+      ],
+      "expected": {
+        "outcome": "not_established",
+        "accepted": false,
+        "complete": true
+      }
+    },
+    {
+      "name": "unverified_height_at_end",
+      "rule": "rec_000000000000000000000067",
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000d",
+            "value": "1"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_00000000000000000000000e"
+      ],
+      "expected": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "not_established"
+      }
+    },
+    {
+      "name": "growth_does_not_extend_height",
+      "rule": "rec_000000000000000000000067",
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000d",
+            "value": "2"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_00000000000000000000000e"
+      ],
+      "expected": {
+        "outcome": "not_established",
+        "accepted": false,
+        "complete": true
+      }
+    },
+    {
+      "name": "unbound_subject_unresolved",
+      "rule": "rec_000000000000000000000068",
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000d",
+            "value": "1"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_00000000000000000000000e"
+      ],
+      "expected": {
+        "outcome": "not_established",
+        "accepted": false,
+        "complete": false
+      }
+    },
+    {
+      "name": "instance_growth",
+      "rule": "rec_000000000000000000000071",
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000d",
+            "value": "1"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_00000000000000000000000e"
+      ],
+      "expected": {
+        "accepted": true,
+        "complete": true,
+        "outcome": "supported"
+      }
+    },
+    {
+      "name": "instance_growth_negated",
+      "rule": "rec_000000000000000000000072",
+      "frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_00000000000000000000000d",
+            "value": "1"
+          }
+        },
+        "perspective": "author"
+      },
+      "worlds": [
+        "rec_00000000000000000000000e"
+      ],
+      "expected": {
+        "accepted": false,
+        "complete": true,
+        "outcome": "refuted"
+      }
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 import sqlite3
+from relational_history import versions as relational_versions
 import sys
 from audit_g02 import check, digest, wire_calls
 from resource_accounting import materialize, calculate
@@ -28,7 +29,7 @@ def audit(directory):
         workflow={}
         for row in db.execute('SELECT key,payload,digest FROM workflow_entries'):
             v=json.loads(row['payload']); check(digest(v)==row['digest'],'workflow digest differs'); workflow[row['key']]=v
-        versions={r['id']:json.loads(r['payload']) for r in db.execute('SELECT id,payload FROM record_versions')}
+        versions = relational_versions(db)
         def snapshot(rev):
             path=[]
             while rev:
@@ -100,6 +101,9 @@ def audit(directory):
             bound=bind(authored);bound[2]['namespace']=bound[4]['namespace']=bound[12]['namespace']='resource_'+row['id']
             bound[13]['selector']=row['id']+' A';bound[14]['selector']=row['id']+' B'
             for n,payload in enumerate(bound,1):
+                payload.pop('types', None)
+                if 'consequenceContract' in payload:
+                    payload['consequenceContract']['kind']='action_consequences'
                 if payload['record_kind']=='assertion':
                     premise=bound[int(authored[n-1]['proposition']['record'][4:],16)-1]
                     actual=records[rid(n)]['payload']

@@ -15,14 +15,14 @@ from mlx_authoring_smoke import require
 ORACLE=ROOT/'fixtures/resource-transitions/continuation.json'
 
 def exercise(s,r,g):
-    def entity(n,label): return {'kind':'create_entity','client_ref':s.rid(n),'record':{'names':[],'types':[],'worldAssociations':[],'labels':{'en':label},'metadata':{}}}
+    def entity(n,label): return {'kind':'create_entity','client_ref':s.rid(n),'record':{'classificationResolution':'unclassified','names':[],'worldAssociations':[],'labels':{'en':label},'metadata':{}}}
     def prop(n,owner,predicate,value):return {'kind':'define_proposition','client_ref':s.rid(n),'record':{'subject':s.rr(owner),'predicate':s.rr(predicate),'roles':[],'value':value,'quantification':'particular','context':s.scope['context']}}
     def integer(n):return {'kind':'integer','digits':str(n)}
     def premise(n,owner,predicate,value,end):
-        return {'kind':'assert_proposition','client_ref':s.rid(n),'proposition':prop(n,owner,predicate,value)['record'],'assertion':{'proposition':s.rr(n),'polarity':'support','scope':s.scope,'validity':s.interval(0,end),'persistence':'explicit_interval','precision':'exact','basis':{'kind':'author_decision','note':'Established stock/holder'}}}
+        return {'kind':'assert_proposition','client_ref':s.rid(n),'proposition':prop(n,owner,predicate,value)['record'],'assertion':{'attributeMode':'instance','proposition':s.rr(n),'polarity':'support','scope':s.scope,'validity':s.interval(0,end),'persistence':'explicit_interval','precision':'exact','basis':{'kind':'author_decision','note':'Established stock/holder'}}}
     def slot(name,order,role,predicate,change):return {'slot':name,'order':order,'presence':'required','target':{'role':role,'predicate':s.rr(predicate)},'condition':{'kind':'always'},'change':change,'lifetime':{'kind':'until_changed'}}
     def delta(n):return {'kind':'delta','delta':str(n),'minimum':'0','maximum':'12','unit':None}
-    def action(n,key,slots):return {'kind':'define_action','client_ref':s.rid(n),'record':{'namespace':'continuation','key':key,'labels':{},'requirements':[],'consequenceContract':{'kind':'action_consequences_v1','slots':slots},'scope':s.scope,'validity':{'kind':'unspecified'}}}
+    def action(n,key,slots):return {'kind':'define_action','client_ref':s.rid(n),'record':{'namespace':'continuation','key':key,'labels':{},'requirements':[],'consequenceContract':{'kind':'action_consequences','slots':slots},'scope':s.scope,'validity':{'kind':'unspecified'}}}
     def event(n,t,a,effects,shooter=None):
         participants=[{'record':s.rr(1),'role':'gun'},{'record':s.rr(4),'role':'supply'}]
         pre=[]
@@ -48,7 +48,10 @@ def exercise(s,r,g):
         response=s.state([s.rid(n) for n in (1,2,3,4)],t,revision=revision)
         r.setdefault('states',[]).append({'id':key,'response':response});return response
     def narrative(n,kind,payload):return {'kind':'record_narrative_reference','client_ref':s.rid(n),'record':kind,'payload':{'record_kind':kind,**payload}}
-    ops=[entity(n,label) for n,label in [(1,'Gun'),(2,'Holder A'),(3,'Holder B'),(4,'Constrained reserve')]]
+    ops=[entity(n,label) for n,label in [(1,'Pistol'),(2,'Holder A'),(3,'Holder B'),(4,'Constrained reserve')]]
+    for n,key,parent in [(61,'gun',None),(62,'pistol',s.rid(61))]:
+        ops.append({'kind':'define_type','client_ref':s.rid(n),'record':{'namespace':'continuation','key':key,'name':key.title(),'labels':{},'parent':parent,'parentResolution':'root' if parent is None else 'resolved','applicability':{'kind':'universe_wide'},'classificationExecutable':True}})
+    ops[0]['record'].update(classification=s.rid(62),classificationResolution='resolved')
     for n,key,shape in [(10,'rounds',{'kind':'integer'}),(11,'holder',{'kind':'entity_ref','subject_types':[]})]:
         ops.append({'kind':'define_property','client_ref':s.rid(n),'record':{'namespace':'continuation','key':key,'labels':{},'subjectTypes':[],'value':shape,'multiplicity':'single','persistence':'explicit_interval','exclusive':False,'symmetric':False,'transitive':False}})
     ops.append({'kind':'create_world','client_ref':s.rid(60),'record':{'selector':'Overlapping resource world','labels':{},'metadata':{}}})

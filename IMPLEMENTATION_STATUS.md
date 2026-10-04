@@ -24,7 +24,15 @@ kernel. Independent Cedar/Pistol SQL reconstruction, frozen digests, history,
 restart, invalid-reference rollback and process-interruption proofs are covered
 in [normalized foundation verification](docs/normalized-foundation-verification.md).
 Old serialized packages require explicit conversion; none were migrated.
-Workflow/installation conversion and unsupported-family qualification remain open.
+Workflow/installation conversion and unrelated-family qualification remain open.
+
+October 3 rules/actions/events: the existing typed expression, requirement,
+consequence, participant and generated-assertion rows are now qualified through
+independent SQL reconstruction and actual disposable MCP histories. Cedar
+capabilities retain original digests and legal/illegal/unresolved outcomes;
+Pistol consumption, reload, temporal endpoints, generated identities and
+retcon/restart histories pass exact accounting checks. Evaluator behavior remains
+unchanged. See [normalized rules/events verification](docs/normalized-rules-events-verification.md).
 
 | Milestone | Implementation and limits |
 |---|---|

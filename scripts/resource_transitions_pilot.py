@@ -19,7 +19,7 @@ from resource_accounting import materialize
 ORACLE = ROOT / 'fixtures/resource-transitions/expected.json'
 
 def exercise(s, report, oracle):
-    seed=s.propose([{'kind':'create_entity','client_ref':s.rid(99),'record':{'names':[],'types':[],'worldAssociations':[],'labels':{},'metadata':{}}}], 'resource-seed')
+    seed=s.propose([{'kind':'create_entity','client_ref':s.rid(99),'record':{'classificationResolution':'unclassified','names':[],'worldAssociations':[],'labels':{},'metadata':{}}}], 'resource-seed')
     report['seed']=s.publish(seed,'resource-seed-commit'); report['cases']=[]
     for i,case in enumerate(oracle['cases']):
         if not case.get('mcp',True): continue
@@ -39,7 +39,13 @@ def exercise(s, report, oracle):
         rows[13]['selector']=case['id']+' A';rows[14]['selector']=case['id']+' B'
         operations=[]
         for n,row in enumerate(rows,1):
-            body={k:v for k,v in row.items() if k!='record_kind'}
+            body={k:v for k,v in row.items() if k not in ('record_kind', 'types')}
+            if row['record_kind']=='entity':
+                body['classificationResolution']='unclassified'
+            if row['record_kind']=='assertion':
+                body['attributeMode']='instance'
+            if 'consequenceContract' in body:
+                body['consequenceContract']['kind']='action_consequences'
             if row['record_kind']=='assertion':
                 # Reference mutations must select the authored premise as well.
                 original=materialize(oracle,case)[n-1]['proposition']['record']

@@ -1,6 +1,6 @@
 """Small authored G02 vocabulary. Expected outcomes live in a separate oracle.
 
-No source/prose classification, life inference or action consequence contract.
+No source/prose classification or life inference. Effects are explicitly declared.
 """
 from copy import deepcopy
 from pilot_support import NAME
@@ -39,7 +39,7 @@ def exercise(s, report):
             "context": s.scope["context"], "quantification": "particular"}}
     def premise(n, owner, predicate, value, validity=None, polarity="support"):
         return {"kind": "assert_proposition", "client_ref": s.rid(n),
-            "proposition": proposition(n, owner, predicate, value)["record"], "assertion": {
+            "proposition": proposition(n, owner, predicate, value)["record"], "assertion": {"attributeMode": "instance",
                 "proposition": s.rr(n), "polarity": polarity, "scope": s.scope,
                 "validity": validity or s.interval(0), "persistence": "explicit_interval",
                 "precision": "exact", "basis": {"kind": "author_decision", "note": "Synthetic G02 premise"}}}
@@ -66,7 +66,7 @@ def exercise(s, report):
                 "Unknown consciousness", "Missing evidence", "Uncertain refutation",
                 "Self grant attempt", "Immobile carrier")
     ops = [{"kind": "create_entity", "client_ref": s.rid(n), "record": {
-        "names": [], "types": [], "worldAssociations": [], "labels": {"en": label}, "metadata": {}}}
+        "classificationResolution": "unclassified", "names": [], "worldAssociations": [], "labels": {"en": label}, "metadata": {}}}
         for n, label in enumerate(entities, 1)]
     for n, key in ((10, "alive"), (11, "breathing"), (12, "conscious"), (13, "speech"), (14, "mobile"), (15, "location")):
         ops.append({"kind": "define_property", "client_ref": s.rid(n), "record": {
@@ -74,8 +74,16 @@ def exercise(s, report):
             "value": {"kind": "text" if n == 15 else "boolean"}, "multiplicity": "single",
             "persistence": "explicit_interval", "exclusive": True, "symmetric": False, "transitive": False}})
     for n, key, predicates in ((20, "breathing_action", [11]), (21, "inspect", [12]),
-                               (22, "undead_speech", [13]), (23, "carry_body", [12, 14]), (24, "author_transition", [])):
+                               (22, "undead_speech", [13]), (23, "carry_body", [12, 14]), (24, "author_transition", []), (25, "author_incapacity", [])):
+        slots = []
+        if n in (23, 24, 25):
+            slots = [{"slot":"capability","order":0,"presence":"required",
+                      "target":{"role":"patient" if n == 23 else "actor","predicate":s.rr(15 if n == 23 else 12)},
+                      "condition":{"kind":"always"},
+                      "change":{"kind":"set","polarity":"support","value":{"kind":"text","text":"shelter"} if n == 23 else boolean(n == 24)},
+                      "lifetime":{"kind":"until_changed"}}]
         ops.append({"kind": "define_action", "client_ref": s.rid(n), "record": {
+            "consequenceContract":{"kind":"action_consequences","slots":slots},
             "namespace": "g02", "key": key, "labels": {}, "requirements": [
                 {"role": "actor", "predicate": s.rr(p), "value": boolean(True)} for p in predicates],
             "scope": s.scope, "validity": {"kind": "unspecified"}}})
@@ -90,7 +98,7 @@ def exercise(s, report):
             proposition(64, 3, 12, boolean(True)), proposition(65, 3, 12, boolean(False)),
             proposition(66, 3, 15, {"kind": "text", "text": "shelter"})]
     ops += [event(70, 3, 24, 10, effects=[effect(64, 10)]),
-            event(71, 3, 24, 20, effects=[effect(65, 20)]),
+            event(71, 3, 25, 20, effects=[effect(65, 20)]),
             event(72, 3, 24, 30, effects=[effect(64, 30)])]
     report["seed"] = s.publish(s.propose(ops, "g02-seed"), "g02-seed-commit")
     report["cases"] = []

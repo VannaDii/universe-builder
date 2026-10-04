@@ -8,6 +8,7 @@ import hashlib
 import json
 from pathlib import Path
 import sqlite3
+from relational_history import versions as relational_versions
 import sys
 from audit_g02 import check, digest, wire_calls
 
@@ -87,7 +88,7 @@ def audit(directory):
         workflow={}
         for row in db.execute('SELECT key,payload,digest FROM workflow_entries'):
             v=json.loads(row['payload']);check(digest(v)==row['digest'],'workflow digest differs');workflow[row['key']]=v
-        versions={r['id']:json.loads(r['payload']) for r in db.execute('SELECT id,payload FROM record_versions')}
+        versions = relational_versions(db)
         def snapshot(rev):
             path=[]
             while rev:
