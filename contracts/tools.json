@@ -23425,6 +23425,172 @@
                 "expected_version",
                 "replacement"
               ]
+            },
+            {
+              "description": "Minimal definition; absent parent means an authored root, not ambiguity.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "namespace": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "parent": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "applicability": {
+                  "$ref": "#/$defs/Applicability"
+                },
+                "classification_executable": {
+                  "type": "boolean"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "introduce_definition"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "namespace",
+                "key",
+                "name",
+                "applicability",
+                "classification_executable"
+              ]
+            },
+            {
+              "description": "Name and stable identity; classification and world association are explicit.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "name": {
+                  "$ref": "#/$defs/ContextualName"
+                },
+                "classification": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "world_associations": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/WorldAssociation"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "introduce_instance"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "name",
+                "world_associations"
+              ]
+            },
+            {
+              "description": "Creates/reuses the named property and asserts a typed value atomically.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "subject": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "namespace": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "value_shape": {
+                  "$ref": "#/$defs/ValueShape"
+                },
+                "subject_types": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/RecordId"
+                  }
+                },
+                "multiplicity": {
+                  "$ref": "#/$defs/Multiplicity"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "evidence": {
+                  "$ref": "#/$defs/AttributeEvidence"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "add_named_attribute"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "subject",
+                "namespace",
+                "key",
+                "value_shape",
+                "subject_types",
+                "multiplicity",
+                "value",
+                "evidence"
+              ]
+            },
+            {
+              "description": "Knowledge refinement only: never a correction or physical transformation.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "entity_type": {
+                  "$ref": "#/$defs/RecordId"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "refine_classification"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "entity_type"
+              ]
             }
           ]
         },
@@ -30161,6 +30327,49 @@
             "dependencies",
             "capabilities",
             "records"
+          ]
+        },
+        "AttributeEvidence": {
+          "description": "Explicit evidence for an incremental attribute. No event linkage or inferred\ntime, polarity, precision, or source truth is introduced by this convenience.",
+          "type": "object",
+          "properties": {
+            "attributeMode": {
+              "$ref": "#/$defs/AttributeMode"
+            },
+            "polarity": {
+              "$ref": "#/$defs/Polarity"
+            },
+            "scope": {
+              "$ref": "#/$defs/Scope"
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            },
+            "persistence": {
+              "$ref": "#/$defs/PersistenceSemantics"
+            },
+            "precision": {
+              "$ref": "#/$defs/Precision"
+            },
+            "alternatives": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Value"
+              }
+            },
+            "basis": {
+              "$ref": "#/$defs/EvidenceBasis"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "attributeMode",
+            "polarity",
+            "scope",
+            "validity",
+            "persistence",
+            "precision",
+            "basis"
           ]
         }
       }
@@ -35661,6 +35870,172 @@
                 "expected_version",
                 "replacement"
               ]
+            },
+            {
+              "description": "Minimal definition; absent parent means an authored root, not ambiguity.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "namespace": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "parent": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "applicability": {
+                  "$ref": "#/$defs/Applicability"
+                },
+                "classification_executable": {
+                  "type": "boolean"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "introduce_definition"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "namespace",
+                "key",
+                "name",
+                "applicability",
+                "classification_executable"
+              ]
+            },
+            {
+              "description": "Name and stable identity; classification and world association are explicit.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "name": {
+                  "$ref": "#/$defs/ContextualName"
+                },
+                "classification": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "world_associations": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/WorldAssociation"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "introduce_instance"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "name",
+                "world_associations"
+              ]
+            },
+            {
+              "description": "Creates/reuses the named property and asserts a typed value atomically.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "subject": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "namespace": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "value_shape": {
+                  "$ref": "#/$defs/ValueShape"
+                },
+                "subject_types": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/RecordId"
+                  }
+                },
+                "multiplicity": {
+                  "$ref": "#/$defs/Multiplicity"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "evidence": {
+                  "$ref": "#/$defs/AttributeEvidence"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "add_named_attribute"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "subject",
+                "namespace",
+                "key",
+                "value_shape",
+                "subject_types",
+                "multiplicity",
+                "value",
+                "evidence"
+              ]
+            },
+            {
+              "description": "Knowledge refinement only: never a correction or physical transformation.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "entity_type": {
+                  "$ref": "#/$defs/RecordId"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "refine_classification"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "entity_type"
+              ]
             }
           ]
         },
@@ -41608,6 +41983,49 @@
             "records"
           ]
         },
+        "AttributeEvidence": {
+          "description": "Explicit evidence for an incremental attribute. No event linkage or inferred\ntime, polarity, precision, or source truth is introduced by this convenience.",
+          "type": "object",
+          "properties": {
+            "attributeMode": {
+              "$ref": "#/$defs/AttributeMode"
+            },
+            "polarity": {
+              "$ref": "#/$defs/Polarity"
+            },
+            "scope": {
+              "$ref": "#/$defs/Scope"
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            },
+            "persistence": {
+              "$ref": "#/$defs/PersistenceSemantics"
+            },
+            "precision": {
+              "$ref": "#/$defs/Precision"
+            },
+            "alternatives": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Value"
+              }
+            },
+            "basis": {
+              "$ref": "#/$defs/EvidenceBasis"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "attributeMode",
+            "polarity",
+            "scope",
+            "validity",
+            "persistence",
+            "precision",
+            "basis"
+          ]
+        },
         "Submission": {
           "type": "string",
           "enum": [
@@ -43910,6 +44328,172 @@
                 "record",
                 "expected_version",
                 "replacement"
+              ]
+            },
+            {
+              "description": "Minimal definition; absent parent means an authored root, not ambiguity.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "namespace": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "parent": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "applicability": {
+                  "$ref": "#/$defs/Applicability"
+                },
+                "classification_executable": {
+                  "type": "boolean"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "introduce_definition"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "namespace",
+                "key",
+                "name",
+                "applicability",
+                "classification_executable"
+              ]
+            },
+            {
+              "description": "Name and stable identity; classification and world association are explicit.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "name": {
+                  "$ref": "#/$defs/ContextualName"
+                },
+                "classification": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "world_associations": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/WorldAssociation"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "introduce_instance"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "name",
+                "world_associations"
+              ]
+            },
+            {
+              "description": "Creates/reuses the named property and asserts a typed value atomically.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "subject": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "namespace": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "value_shape": {
+                  "$ref": "#/$defs/ValueShape"
+                },
+                "subject_types": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/RecordId"
+                  }
+                },
+                "multiplicity": {
+                  "$ref": "#/$defs/Multiplicity"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "evidence": {
+                  "$ref": "#/$defs/AttributeEvidence"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "add_named_attribute"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "subject",
+                "namespace",
+                "key",
+                "value_shape",
+                "subject_types",
+                "multiplicity",
+                "value",
+                "evidence"
+              ]
+            },
+            {
+              "description": "Knowledge refinement only: never a correction or physical transformation.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "entity_type": {
+                  "$ref": "#/$defs/RecordId"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "refine_classification"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "entity_type"
               ]
             }
           ]
@@ -49852,6 +50436,49 @@
             "dependencies",
             "capabilities",
             "records"
+          ]
+        },
+        "AttributeEvidence": {
+          "description": "Explicit evidence for an incremental attribute. No event linkage or inferred\ntime, polarity, precision, or source truth is introduced by this convenience.",
+          "type": "object",
+          "properties": {
+            "attributeMode": {
+              "$ref": "#/$defs/AttributeMode"
+            },
+            "polarity": {
+              "$ref": "#/$defs/Polarity"
+            },
+            "scope": {
+              "$ref": "#/$defs/Scope"
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            },
+            "persistence": {
+              "$ref": "#/$defs/PersistenceSemantics"
+            },
+            "precision": {
+              "$ref": "#/$defs/Precision"
+            },
+            "alternatives": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Value"
+              }
+            },
+            "basis": {
+              "$ref": "#/$defs/EvidenceBasis"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "attributeMode",
+            "polarity",
+            "scope",
+            "validity",
+            "persistence",
+            "precision",
+            "basis"
           ]
         },
         "CompiledChange": {
@@ -52372,6 +52999,172 @@
                 "expected_version",
                 "replacement"
               ]
+            },
+            {
+              "description": "Minimal definition; absent parent means an authored root, not ambiguity.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "namespace": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "parent": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "applicability": {
+                  "$ref": "#/$defs/Applicability"
+                },
+                "classification_executable": {
+                  "type": "boolean"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "introduce_definition"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "namespace",
+                "key",
+                "name",
+                "applicability",
+                "classification_executable"
+              ]
+            },
+            {
+              "description": "Name and stable identity; classification and world association are explicit.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "name": {
+                  "$ref": "#/$defs/ContextualName"
+                },
+                "classification": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "world_associations": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/WorldAssociation"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "introduce_instance"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "name",
+                "world_associations"
+              ]
+            },
+            {
+              "description": "Creates/reuses the named property and asserts a typed value atomically.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "subject": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "namespace": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "value_shape": {
+                  "$ref": "#/$defs/ValueShape"
+                },
+                "subject_types": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/RecordId"
+                  }
+                },
+                "multiplicity": {
+                  "$ref": "#/$defs/Multiplicity"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "evidence": {
+                  "$ref": "#/$defs/AttributeEvidence"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "add_named_attribute"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "subject",
+                "namespace",
+                "key",
+                "value_shape",
+                "subject_types",
+                "multiplicity",
+                "value",
+                "evidence"
+              ]
+            },
+            {
+              "description": "Knowledge refinement only: never a correction or physical transformation.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "entity_type": {
+                  "$ref": "#/$defs/RecordId"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "refine_classification"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "entity_type"
+              ]
             }
           ]
         },
@@ -58313,6 +59106,49 @@
             "dependencies",
             "capabilities",
             "records"
+          ]
+        },
+        "AttributeEvidence": {
+          "description": "Explicit evidence for an incremental attribute. No event linkage or inferred\ntime, polarity, precision, or source truth is introduced by this convenience.",
+          "type": "object",
+          "properties": {
+            "attributeMode": {
+              "$ref": "#/$defs/AttributeMode"
+            },
+            "polarity": {
+              "$ref": "#/$defs/Polarity"
+            },
+            "scope": {
+              "$ref": "#/$defs/Scope"
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            },
+            "persistence": {
+              "$ref": "#/$defs/PersistenceSemantics"
+            },
+            "precision": {
+              "$ref": "#/$defs/Precision"
+            },
+            "alternatives": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Value"
+              }
+            },
+            "basis": {
+              "$ref": "#/$defs/EvidenceBasis"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "attributeMode",
+            "polarity",
+            "scope",
+            "validity",
+            "persistence",
+            "precision",
+            "basis"
           ]
         },
         "CompiledChange": {
@@ -65479,6 +66315,172 @@
                 "expected_version",
                 "replacement"
               ]
+            },
+            {
+              "description": "Minimal definition; absent parent means an authored root, not ambiguity.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "namespace": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "parent": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "applicability": {
+                  "$ref": "#/$defs/Applicability"
+                },
+                "classification_executable": {
+                  "type": "boolean"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "introduce_definition"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "namespace",
+                "key",
+                "name",
+                "applicability",
+                "classification_executable"
+              ]
+            },
+            {
+              "description": "Name and stable identity; classification and world association are explicit.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "name": {
+                  "$ref": "#/$defs/ContextualName"
+                },
+                "classification": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "world_associations": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/WorldAssociation"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "introduce_instance"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "name",
+                "world_associations"
+              ]
+            },
+            {
+              "description": "Creates/reuses the named property and asserts a typed value atomically.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "subject": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "namespace": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "value_shape": {
+                  "$ref": "#/$defs/ValueShape"
+                },
+                "subject_types": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/RecordId"
+                  }
+                },
+                "multiplicity": {
+                  "$ref": "#/$defs/Multiplicity"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "evidence": {
+                  "$ref": "#/$defs/AttributeEvidence"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "add_named_attribute"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "subject",
+                "namespace",
+                "key",
+                "value_shape",
+                "subject_types",
+                "multiplicity",
+                "value",
+                "evidence"
+              ]
+            },
+            {
+              "description": "Knowledge refinement only: never a correction or physical transformation.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "entity_type": {
+                  "$ref": "#/$defs/RecordId"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "refine_classification"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "entity_type"
+              ]
             }
           ]
         },
@@ -71103,6 +72105,49 @@
             "dependencies",
             "capabilities",
             "records"
+          ]
+        },
+        "AttributeEvidence": {
+          "description": "Explicit evidence for an incremental attribute. No event linkage or inferred\ntime, polarity, precision, or source truth is introduced by this convenience.",
+          "type": "object",
+          "properties": {
+            "attributeMode": {
+              "$ref": "#/$defs/AttributeMode"
+            },
+            "polarity": {
+              "$ref": "#/$defs/Polarity"
+            },
+            "scope": {
+              "$ref": "#/$defs/Scope"
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            },
+            "persistence": {
+              "$ref": "#/$defs/PersistenceSemantics"
+            },
+            "precision": {
+              "$ref": "#/$defs/Precision"
+            },
+            "alternatives": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Value"
+              }
+            },
+            "basis": {
+              "$ref": "#/$defs/EvidenceBasis"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "attributeMode",
+            "polarity",
+            "scope",
+            "validity",
+            "persistence",
+            "precision",
+            "basis"
           ]
         },
         "CompiledChange": {
@@ -74718,6 +75763,172 @@
                 "expected_version",
                 "replacement"
               ]
+            },
+            {
+              "description": "Minimal definition; absent parent means an authored root, not ambiguity.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "namespace": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "parent": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "applicability": {
+                  "$ref": "#/$defs/Applicability"
+                },
+                "classification_executable": {
+                  "type": "boolean"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "introduce_definition"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "namespace",
+                "key",
+                "name",
+                "applicability",
+                "classification_executable"
+              ]
+            },
+            {
+              "description": "Name and stable identity; classification and world association are explicit.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "name": {
+                  "$ref": "#/$defs/ContextualName"
+                },
+                "classification": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "world_associations": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/WorldAssociation"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "introduce_instance"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "name",
+                "world_associations"
+              ]
+            },
+            {
+              "description": "Creates/reuses the named property and asserts a typed value atomically.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "subject": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "namespace": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "value_shape": {
+                  "$ref": "#/$defs/ValueShape"
+                },
+                "subject_types": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/RecordId"
+                  }
+                },
+                "multiplicity": {
+                  "$ref": "#/$defs/Multiplicity"
+                },
+                "value": {
+                  "$ref": "#/$defs/Value"
+                },
+                "evidence": {
+                  "$ref": "#/$defs/AttributeEvidence"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "add_named_attribute"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "subject",
+                "namespace",
+                "key",
+                "value_shape",
+                "subject_types",
+                "multiplicity",
+                "value",
+                "evidence"
+              ]
+            },
+            {
+              "description": "Knowledge refinement only: never a correction or physical transformation.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "entity_type": {
+                  "$ref": "#/$defs/RecordId"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "refine_classification"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "entity_type"
+              ]
             }
           ]
         },
@@ -80342,6 +81553,49 @@
             "dependencies",
             "capabilities",
             "records"
+          ]
+        },
+        "AttributeEvidence": {
+          "description": "Explicit evidence for an incremental attribute. No event linkage or inferred\ntime, polarity, precision, or source truth is introduced by this convenience.",
+          "type": "object",
+          "properties": {
+            "attributeMode": {
+              "$ref": "#/$defs/AttributeMode"
+            },
+            "polarity": {
+              "$ref": "#/$defs/Polarity"
+            },
+            "scope": {
+              "$ref": "#/$defs/Scope"
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            },
+            "persistence": {
+              "$ref": "#/$defs/PersistenceSemantics"
+            },
+            "precision": {
+              "$ref": "#/$defs/Precision"
+            },
+            "alternatives": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Value"
+              }
+            },
+            "basis": {
+              "$ref": "#/$defs/EvidenceBasis"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "attributeMode",
+            "polarity",
+            "scope",
+            "validity",
+            "persistence",
+            "precision",
+            "basis"
           ]
         },
         "CompiledChange": {

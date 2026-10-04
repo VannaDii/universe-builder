@@ -1874,6 +1874,22 @@ canonical_via_serde!(
 // Domain operations (proposal catalog — spec §10.1, §27.9)
 // ---------------------------------------------------------------------------
 
+/// Explicit evidence for an incremental attribute. No event linkage or inferred
+/// time, polarity, precision, or source truth is introduced by this convenience.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AttributeEvidence {
+    pub attribute_mode: AttributeMode,
+    pub polarity: Polarity,
+    pub scope: Scope,
+    pub validity: Validity,
+    pub persistence: PersistenceSemantics,
+    pub precision: Precision,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub alternatives: Vec<Value>,
+    pub basis: EvidenceBasis,
+}
+
 /// The versioned domain operation catalog underlying proposal batches
 /// (spec §27.9). Each operation carries a closed typed payload and, for
 /// replacement, the exact expected prior version.
@@ -2118,6 +2134,41 @@ pub enum DomainOperation {
         expected_version: RecordVersionId,
         replacement: DomainPack,
     },
+    /// Minimal definition; absent parent means an authored root, not ambiguity.
+    IntroduceDefinition {
+        client_ref: String,
+        namespace: String,
+        key: String,
+        name: String,
+        parent: Option<RecordId>,
+        applicability: Applicability,
+        classification_executable: bool,
+    },
+    /// Name and stable identity; classification and world association are explicit.
+    IntroduceInstance {
+        client_ref: String,
+        name: ContextualName,
+        classification: Option<RecordId>,
+        world_associations: Vec<WorldAssociation>,
+    },
+    /// Creates/reuses the named property and asserts a typed value atomically.
+    AddNamedAttribute {
+        client_ref: String,
+        subject: RecordRef,
+        namespace: String,
+        key: String,
+        value_shape: ValueShape,
+        subject_types: Vec<RecordId>,
+        multiplicity: Multiplicity,
+        value: Value,
+        evidence: AttributeEvidence,
+    },
+    /// Knowledge refinement only: never a correction or physical transformation.
+    RefineClassification {
+        record: RecordRef,
+        expected_version: RecordVersionId,
+        entity_type: RecordId,
+    },
 }
 
 impl DomainOperation {
@@ -2126,7 +2177,9 @@ impl DomainOperation {
     pub fn authority(&self) -> OperationAuthority {
         use DomainOperation::*;
         match self {
-            CreateEntity { .. }
+            IntroduceInstance { .. }
+            | RefineClassification { .. }
+            | CreateEntity { .. }
             | CreateAppearance { .. }
             | ReviseAppearance { .. }
             | AddImageAsset { .. }
@@ -2158,7 +2211,9 @@ impl DomainOperation {
             | EndAssertionAt { .. }
             | SupersedeAssertion { .. }
             | RetractAssertion { .. } => OperationAuthority::Historical,
-            DefineItemPower { .. }
+            IntroduceDefinition { .. }
+            | AddNamedAttribute { .. }
+            | DefineItemPower { .. }
             | DefineAction { .. }
             | DefineType { .. }
             | DefineProperty { .. }

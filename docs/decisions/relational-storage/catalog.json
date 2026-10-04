@@ -6876,7 +6876,11 @@
         "DomainOperation_v46",
         "DomainOperation_v47",
         "DomainOperation_v48",
-        "DomainOperation_v49"
+        "DomainOperation_v49",
+        "DomainOperation_v50",
+        "DomainOperation_v51",
+        "DomainOperation_v52",
+        "DomainOperation_v53"
       ]
     },
     "DomainOperation_v0": {
@@ -10258,6 +10262,280 @@
       "table": "r_domain_operation_v49_kind",
       "kind": "string",
       "const": "upgrade_pack"
+    },
+    "DomainOperation_v50": {
+      "table": "r_domain_operation_v50",
+      "kind": "object",
+      "fields": {
+        "client_ref": {
+          "model": "DomainOperation_v50_client_ref",
+          "required": true
+        },
+        "namespace": {
+          "model": "DomainOperation_v50_namespace",
+          "required": true
+        },
+        "key": {
+          "model": "DomainOperation_v50_key",
+          "required": true
+        },
+        "name": {
+          "model": "DomainOperation_v50_name",
+          "required": true
+        },
+        "parent": {
+          "model": "DomainOperation_v50_parent",
+          "required": false
+        },
+        "applicability": {
+          "model": "Applicability",
+          "required": true
+        },
+        "classification_executable": {
+          "model": "DomainOperation_v50_classification_executable",
+          "required": true
+        },
+        "kind": {
+          "model": "DomainOperation_v50_kind",
+          "required": true
+        }
+      }
+    },
+    "DomainOperation_v50_client_ref": {
+      "table": "r_domain_operation_v50_client_ref",
+      "kind": "string"
+    },
+    "DomainOperation_v50_namespace": {
+      "table": "r_domain_operation_v50_namespace",
+      "kind": "string"
+    },
+    "DomainOperation_v50_key": {
+      "table": "r_domain_operation_v50_key",
+      "kind": "string"
+    },
+    "DomainOperation_v50_name": {
+      "table": "r_domain_operation_v50_name",
+      "kind": "string"
+    },
+    "DomainOperation_v50_parent": {
+      "table": "r_domain_operation_v50_parent",
+      "kind": "union",
+      "variants": [
+        "RecordId",
+        "DomainOperation_v50_parent_v1"
+      ]
+    },
+    "DomainOperation_v50_parent_v1": {
+      "table": "r_domain_operation_v50_parent_v1",
+      "kind": "null"
+    },
+    "DomainOperation_v50_classification_executable": {
+      "table": "r_domain_operation_v50_classification_executable",
+      "kind": "boolean"
+    },
+    "DomainOperation_v50_kind": {
+      "table": "r_domain_operation_v50_kind",
+      "kind": "string",
+      "const": "introduce_definition"
+    },
+    "DomainOperation_v51": {
+      "table": "r_domain_operation_v51",
+      "kind": "object",
+      "fields": {
+        "client_ref": {
+          "model": "DomainOperation_v51_client_ref",
+          "required": true
+        },
+        "name": {
+          "model": "ContextualName",
+          "required": true
+        },
+        "classification": {
+          "model": "DomainOperation_v51_classification",
+          "required": false
+        },
+        "world_associations": {
+          "model": "DomainOperation_v51_world_associations",
+          "required": true
+        },
+        "kind": {
+          "model": "DomainOperation_v51_kind",
+          "required": true
+        }
+      }
+    },
+    "DomainOperation_v51_client_ref": {
+      "table": "r_domain_operation_v51_client_ref",
+      "kind": "string"
+    },
+    "DomainOperation_v51_classification": {
+      "table": "r_domain_operation_v51_classification",
+      "kind": "union",
+      "variants": [
+        "RecordId",
+        "DomainOperation_v51_classification_v1"
+      ]
+    },
+    "DomainOperation_v51_classification_v1": {
+      "table": "r_domain_operation_v51_classification_v1",
+      "kind": "null"
+    },
+    "DomainOperation_v51_world_associations": {
+      "table": "r_domain_operation_v51_world_associations",
+      "kind": "array",
+      "item": "WorldAssociation"
+    },
+    "DomainOperation_v51_kind": {
+      "table": "r_domain_operation_v51_kind",
+      "kind": "string",
+      "const": "introduce_instance"
+    },
+    "DomainOperation_v52": {
+      "table": "r_domain_operation_v52",
+      "kind": "object",
+      "fields": {
+        "client_ref": {
+          "model": "DomainOperation_v52_client_ref",
+          "required": true
+        },
+        "subject": {
+          "model": "RecordRef",
+          "required": true
+        },
+        "namespace": {
+          "model": "DomainOperation_v52_namespace",
+          "required": true
+        },
+        "key": {
+          "model": "DomainOperation_v52_key",
+          "required": true
+        },
+        "value_shape": {
+          "model": "ValueShape",
+          "required": true
+        },
+        "subject_types": {
+          "model": "DomainOperation_v52_subject_types",
+          "required": true
+        },
+        "multiplicity": {
+          "model": "Multiplicity",
+          "required": true
+        },
+        "value": {
+          "model": "Value",
+          "required": true
+        },
+        "evidence": {
+          "model": "AttributeEvidence",
+          "required": true
+        },
+        "kind": {
+          "model": "DomainOperation_v52_kind",
+          "required": true
+        }
+      }
+    },
+    "DomainOperation_v52_client_ref": {
+      "table": "r_domain_operation_v52_client_ref",
+      "kind": "string"
+    },
+    "DomainOperation_v52_namespace": {
+      "table": "r_domain_operation_v52_namespace",
+      "kind": "string"
+    },
+    "DomainOperation_v52_key": {
+      "table": "r_domain_operation_v52_key",
+      "kind": "string"
+    },
+    "DomainOperation_v52_subject_types": {
+      "table": "r_domain_operation_v52_subject_types",
+      "kind": "array",
+      "item": "RecordId"
+    },
+    "AttributeEvidence": {
+      "table": "r_attribute_evidence",
+      "kind": "object",
+      "fields": {
+        "attributeMode": {
+          "model": "AttributeMode",
+          "required": true
+        },
+        "polarity": {
+          "model": "Polarity",
+          "required": true
+        },
+        "scope": {
+          "model": "Scope",
+          "required": true
+        },
+        "validity": {
+          "model": "Validity",
+          "required": true
+        },
+        "persistence": {
+          "model": "PersistenceSemantics",
+          "required": true
+        },
+        "precision": {
+          "model": "Precision",
+          "required": true
+        },
+        "alternatives": {
+          "model": "AttributeEvidence_alternatives",
+          "required": false
+        },
+        "basis": {
+          "model": "EvidenceBasis",
+          "required": true
+        }
+      }
+    },
+    "AttributeMode": {
+      "table": "r_attribute_mode",
+      "kind": "string",
+      "enum": [
+        "instance",
+        "shared",
+        "initial_value"
+      ]
+    },
+    "AttributeEvidence_alternatives": {
+      "table": "r_attribute_evidence_alternatives",
+      "kind": "array",
+      "item": "Value"
+    },
+    "DomainOperation_v52_kind": {
+      "table": "r_domain_operation_v52_kind",
+      "kind": "string",
+      "const": "add_named_attribute"
+    },
+    "DomainOperation_v53": {
+      "table": "r_domain_operation_v53",
+      "kind": "object",
+      "fields": {
+        "record": {
+          "model": "RecordRef",
+          "required": true
+        },
+        "expected_version": {
+          "model": "RecordVersionId",
+          "required": true
+        },
+        "entity_type": {
+          "model": "RecordId",
+          "required": true
+        },
+        "kind": {
+          "model": "DomainOperation_v53_kind",
+          "required": true
+        }
+      }
+    },
+    "DomainOperation_v53_kind": {
+      "table": "r_domain_operation_v53_kind",
+      "kind": "string",
+      "const": "refine_classification"
     },
     "StoredContext": {
       "table": "r_stored_context",

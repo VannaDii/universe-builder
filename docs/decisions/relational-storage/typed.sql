@@ -4499,7 +4499,7 @@ CREATE TABLE "r_issue_decision_mode" (
 
 CREATE TABLE "r_domain_operation" (
   __row_id INTEGER PRIMARY KEY,
-  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 49),
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 53),
   v0 INTEGER REFERENCES "r_domain_operation_v0"(__row_id),
   v1 INTEGER REFERENCES "r_domain_operation_v1"(__row_id),
   v2 INTEGER REFERENCES "r_domain_operation_v2"(__row_id),
@@ -4550,6 +4550,10 @@ CREATE TABLE "r_domain_operation" (
   v47 INTEGER REFERENCES "r_domain_operation_v47"(__row_id),
   v48 INTEGER REFERENCES "r_domain_operation_v48"(__row_id),
   v49 INTEGER REFERENCES "r_domain_operation_v49"(__row_id),
+  v50 INTEGER REFERENCES "r_domain_operation_v50"(__row_id),
+  v51 INTEGER REFERENCES "r_domain_operation_v51"(__row_id),
+  v52 INTEGER REFERENCES "r_domain_operation_v52"(__row_id),
+  v53 INTEGER REFERENCES "r_domain_operation_v53"(__row_id),
   CHECK(variant=0 OR v0 IS NULL),
   CHECK(variant!=0 OR v0 IS NOT NULL),
   CHECK(variant=1 OR v1 IS NULL),
@@ -4649,7 +4653,15 @@ CREATE TABLE "r_domain_operation" (
   CHECK(variant=48 OR v48 IS NULL),
   CHECK(variant!=48 OR v48 IS NOT NULL),
   CHECK(variant=49 OR v49 IS NULL),
-  CHECK(variant!=49 OR v49 IS NOT NULL)
+  CHECK(variant!=49 OR v49 IS NOT NULL),
+  CHECK(variant=50 OR v50 IS NULL),
+  CHECK(variant!=50 OR v50 IS NOT NULL),
+  CHECK(variant=51 OR v51 IS NULL),
+  CHECK(variant!=51 OR v51 IS NOT NULL),
+  CHECK(variant=52 OR v52 IS NULL),
+  CHECK(variant!=52 OR v52 IS NOT NULL),
+  CHECK(variant=53 OR v53 IS NULL),
+  CHECK(variant!=53 OR v53 IS NOT NULL)
 ) STRICT;
 
 CREATE TABLE "r_domain_operation_v0" (
@@ -6753,6 +6765,178 @@ CREATE TABLE "r_domain_operation_v49" (
   CHECK(("replacement__state"=2 AND "replacement" IS NOT NULL) OR ("replacement__state" IN (0,1) AND "replacement" IS NULL)),
   CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
   CHECK("kind"='upgrade_pack')
+) STRICT;
+
+CREATE TABLE "r_domain_operation_v50" (
+  __row_id INTEGER PRIMARY KEY,
+  "client_ref__state" INTEGER NOT NULL CHECK("client_ref__state" IN (2)),
+  "client_ref" TEXT,
+  "namespace__state" INTEGER NOT NULL CHECK("namespace__state" IN (2)),
+  "namespace" TEXT,
+  "key__state" INTEGER NOT NULL CHECK("key__state" IN (2)),
+  "key" TEXT,
+  "name__state" INTEGER NOT NULL CHECK("name__state" IN (2)),
+  "name" TEXT,
+  "parent__state" INTEGER NOT NULL CHECK("parent__state" IN (0,1,2)),
+  "parent" INTEGER REFERENCES "r_domain_operation_v50_parent"(__row_id),
+  "applicability__state" INTEGER NOT NULL CHECK("applicability__state" IN (2)),
+  "applicability" INTEGER REFERENCES "r_applicability"(__row_id),
+  "classification_executable__state" INTEGER NOT NULL CHECK("classification_executable__state" IN (2)),
+  "classification_executable" INTEGER,
+  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
+  "kind" TEXT,
+  CHECK(("client_ref__state"=2 AND "client_ref" IS NOT NULL) OR ("client_ref__state" IN (0,1) AND "client_ref" IS NULL)),
+  CHECK(("namespace__state"=2 AND "namespace" IS NOT NULL) OR ("namespace__state" IN (0,1) AND "namespace" IS NULL)),
+  CHECK(("key__state"=2 AND "key" IS NOT NULL) OR ("key__state" IN (0,1) AND "key" IS NULL)),
+  CHECK(("name__state"=2 AND "name" IS NOT NULL) OR ("name__state" IN (0,1) AND "name" IS NULL)),
+  CHECK(("parent__state"=2 AND "parent" IS NOT NULL) OR ("parent__state" IN (0,1) AND "parent" IS NULL)),
+  CHECK(("applicability__state"=2 AND "applicability" IS NOT NULL) OR ("applicability__state" IN (0,1) AND "applicability" IS NULL)),
+  CHECK(("classification_executable__state"=2 AND "classification_executable" IS NOT NULL) OR ("classification_executable__state" IN (0,1) AND "classification_executable" IS NULL)),
+  CHECK("classification_executable" IN (0,1)),
+  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
+  CHECK("kind"='introduce_definition')
+) STRICT;
+
+CREATE TABLE "r_domain_operation_v50_parent" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 TEXT,
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_domain_operation_v51" (
+  __row_id INTEGER PRIMARY KEY,
+  "client_ref__state" INTEGER NOT NULL CHECK("client_ref__state" IN (2)),
+  "client_ref" TEXT,
+  "name__state" INTEGER NOT NULL CHECK("name__state" IN (2)),
+  "name" INTEGER REFERENCES "r_contextual_name"(__row_id),
+  "classification__state" INTEGER NOT NULL CHECK("classification__state" IN (0,1,2)),
+  "classification" INTEGER REFERENCES "r_domain_operation_v51_classification"(__row_id),
+  "world_associations__state" INTEGER NOT NULL CHECK("world_associations__state" IN (2)),
+  "world_associations" INTEGER REFERENCES "r_domain_operation_v51_world_associations"(__row_id),
+  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
+  "kind" TEXT,
+  CHECK(("client_ref__state"=2 AND "client_ref" IS NOT NULL) OR ("client_ref__state" IN (0,1) AND "client_ref" IS NULL)),
+  CHECK(("name__state"=2 AND "name" IS NOT NULL) OR ("name__state" IN (0,1) AND "name" IS NULL)),
+  CHECK(("classification__state"=2 AND "classification" IS NOT NULL) OR ("classification__state" IN (0,1) AND "classification" IS NULL)),
+  CHECK(("world_associations__state"=2 AND "world_associations" IS NOT NULL) OR ("world_associations__state" IN (0,1) AND "world_associations" IS NULL)),
+  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
+  CHECK("kind"='introduce_instance')
+) STRICT;
+
+CREATE TABLE "r_domain_operation_v51_classification" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 TEXT,
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_domain_operation_v51_world_associations" (
+  __row_id INTEGER PRIMARY KEY
+) STRICT;
+
+CREATE TABLE "r_domain_operation_v51_world_associations_items" (owner INTEGER NOT NULL REFERENCES "r_domain_operation_v51_world_associations"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item INTEGER REFERENCES "r_world_association"(__row_id), PRIMARY KEY(owner,ordinal)) STRICT;
+
+CREATE TABLE "r_domain_operation_v52" (
+  __row_id INTEGER PRIMARY KEY,
+  "client_ref__state" INTEGER NOT NULL CHECK("client_ref__state" IN (2)),
+  "client_ref" TEXT,
+  "subject__state" INTEGER NOT NULL CHECK("subject__state" IN (2)),
+  "subject" INTEGER REFERENCES "r_record_ref"(__row_id),
+  "namespace__state" INTEGER NOT NULL CHECK("namespace__state" IN (2)),
+  "namespace" TEXT,
+  "key__state" INTEGER NOT NULL CHECK("key__state" IN (2)),
+  "key" TEXT,
+  "value_shape__state" INTEGER NOT NULL CHECK("value_shape__state" IN (2)),
+  "value_shape" INTEGER REFERENCES "r_value_shape"(__row_id),
+  "subject_types__state" INTEGER NOT NULL CHECK("subject_types__state" IN (2)),
+  "subject_types" INTEGER REFERENCES "r_domain_operation_v52_subject_types"(__row_id),
+  "multiplicity__state" INTEGER NOT NULL CHECK("multiplicity__state" IN (2)),
+  "multiplicity" TEXT,
+  "value__state" INTEGER NOT NULL CHECK("value__state" IN (2)),
+  "value" INTEGER REFERENCES "r_value"(__row_id),
+  "evidence__state" INTEGER NOT NULL CHECK("evidence__state" IN (2)),
+  "evidence" INTEGER REFERENCES "r_attribute_evidence"(__row_id),
+  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
+  "kind" TEXT,
+  CHECK(("client_ref__state"=2 AND "client_ref" IS NOT NULL) OR ("client_ref__state" IN (0,1) AND "client_ref" IS NULL)),
+  CHECK(("subject__state"=2 AND "subject" IS NOT NULL) OR ("subject__state" IN (0,1) AND "subject" IS NULL)),
+  CHECK(("namespace__state"=2 AND "namespace" IS NOT NULL) OR ("namespace__state" IN (0,1) AND "namespace" IS NULL)),
+  CHECK(("key__state"=2 AND "key" IS NOT NULL) OR ("key__state" IN (0,1) AND "key" IS NULL)),
+  CHECK(("value_shape__state"=2 AND "value_shape" IS NOT NULL) OR ("value_shape__state" IN (0,1) AND "value_shape" IS NULL)),
+  CHECK(("subject_types__state"=2 AND "subject_types" IS NOT NULL) OR ("subject_types__state" IN (0,1) AND "subject_types" IS NULL)),
+  CHECK(("multiplicity__state"=2 AND "multiplicity" IS NOT NULL) OR ("multiplicity__state" IN (0,1) AND "multiplicity" IS NULL)),
+  CHECK("multiplicity" IN ('single','multiple')),
+  CHECK(("value__state"=2 AND "value" IS NOT NULL) OR ("value__state" IN (0,1) AND "value" IS NULL)),
+  CHECK(("evidence__state"=2 AND "evidence" IS NOT NULL) OR ("evidence__state" IN (0,1) AND "evidence" IS NULL)),
+  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
+  CHECK("kind"='add_named_attribute')
+) STRICT;
+
+CREATE TABLE "r_domain_operation_v52_subject_types" (
+  __row_id INTEGER PRIMARY KEY
+) STRICT;
+
+CREATE TABLE "r_domain_operation_v52_subject_types_items" (owner INTEGER NOT NULL REFERENCES "r_domain_operation_v52_subject_types"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item TEXT, PRIMARY KEY(owner,ordinal)) STRICT;
+
+CREATE TABLE "r_attribute_evidence" (
+  __row_id INTEGER PRIMARY KEY,
+  "attributeMode__state" INTEGER NOT NULL CHECK("attributeMode__state" IN (2)),
+  "attributeMode" TEXT,
+  "polarity__state" INTEGER NOT NULL CHECK("polarity__state" IN (2)),
+  "polarity" TEXT,
+  "scope__state" INTEGER NOT NULL CHECK("scope__state" IN (2)),
+  "scope" INTEGER REFERENCES "r_scope"(__row_id),
+  "validity__state" INTEGER NOT NULL CHECK("validity__state" IN (2)),
+  "validity" INTEGER REFERENCES "r_validity"(__row_id),
+  "persistence__state" INTEGER NOT NULL CHECK("persistence__state" IN (2)),
+  "persistence" INTEGER REFERENCES "r_persistence_semantics"(__row_id),
+  "precision__state" INTEGER NOT NULL CHECK("precision__state" IN (2)),
+  "precision" TEXT,
+  "alternatives__state" INTEGER NOT NULL CHECK("alternatives__state" IN (0,2)),
+  "alternatives" INTEGER REFERENCES "r_attribute_evidence_alternatives"(__row_id),
+  "basis__state" INTEGER NOT NULL CHECK("basis__state" IN (2)),
+  "basis" INTEGER REFERENCES "r_evidence_basis"(__row_id),
+  CHECK(("attributeMode__state"=2 AND "attributeMode" IS NOT NULL) OR ("attributeMode__state" IN (0,1) AND "attributeMode" IS NULL)),
+  CHECK("attributeMode" IN ('instance','shared','initial_value')),
+  CHECK(("polarity__state"=2 AND "polarity" IS NOT NULL) OR ("polarity__state" IN (0,1) AND "polarity" IS NULL)),
+  CHECK("polarity" IN ('support','refutation')),
+  CHECK(("scope__state"=2 AND "scope" IS NOT NULL) OR ("scope__state" IN (0,1) AND "scope" IS NULL)),
+  CHECK(("validity__state"=2 AND "validity" IS NOT NULL) OR ("validity__state" IN (0,1) AND "validity" IS NULL)),
+  CHECK(("persistence__state"=2 AND "persistence" IS NOT NULL) OR ("persistence__state" IN (0,1) AND "persistence" IS NULL)),
+  CHECK(("precision__state"=2 AND "precision" IS NOT NULL) OR ("precision__state" IN (0,1) AND "precision" IS NULL)),
+  CHECK("precision" IN ('exact','approximate','range','one_of','unresolved')),
+  CHECK(("alternatives__state"=2 AND "alternatives" IS NOT NULL) OR ("alternatives__state" IN (0,1) AND "alternatives" IS NULL)),
+  CHECK(("basis__state"=2 AND "basis" IS NOT NULL) OR ("basis__state" IN (0,1) AND "basis" IS NULL))
+) STRICT;
+
+CREATE TABLE "r_attribute_evidence_alternatives" (
+  __row_id INTEGER PRIMARY KEY
+) STRICT;
+
+CREATE TABLE "r_attribute_evidence_alternatives_items" (owner INTEGER NOT NULL REFERENCES "r_attribute_evidence_alternatives"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item INTEGER REFERENCES "r_value"(__row_id), PRIMARY KEY(owner,ordinal)) STRICT;
+
+CREATE TABLE "r_domain_operation_v53" (
+  __row_id INTEGER PRIMARY KEY,
+  "record__state" INTEGER NOT NULL CHECK("record__state" IN (2)),
+  "record" INTEGER REFERENCES "r_record_ref"(__row_id),
+  "expected_version__state" INTEGER NOT NULL CHECK("expected_version__state" IN (2)),
+  "expected_version" TEXT,
+  "entity_type__state" INTEGER NOT NULL CHECK("entity_type__state" IN (2)),
+  "entity_type" TEXT,
+  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
+  "kind" TEXT,
+  CHECK(("record__state"=2 AND "record" IS NOT NULL) OR ("record__state" IN (0,1) AND "record" IS NULL)),
+  CHECK(("expected_version__state"=2 AND "expected_version" IS NOT NULL) OR ("expected_version__state" IN (0,1) AND "expected_version" IS NULL)),
+  CHECK(("entity_type__state"=2 AND "entity_type" IS NOT NULL) OR ("entity_type__state" IN (0,1) AND "entity_type" IS NULL)),
+  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
+  CHECK("kind"='refine_classification')
 ) STRICT;
 
 CREATE TABLE "r_stored_context" (
@@ -11298,6 +11482,58 @@ CREATE TRIGGER "r_domain_operation_v48_no_delete" BEFORE DELETE ON "r_domain_ope
 CREATE TRIGGER "r_domain_operation_v49_no_update" BEFORE UPDATE ON "r_domain_operation_v49" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_domain_operation_v49_no_delete" BEFORE DELETE ON "r_domain_operation_v49" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v50_no_update" BEFORE UPDATE ON "r_domain_operation_v50" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v50_no_delete" BEFORE DELETE ON "r_domain_operation_v50" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v50_parent_no_update" BEFORE UPDATE ON "r_domain_operation_v50_parent" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v50_parent_no_delete" BEFORE DELETE ON "r_domain_operation_v50_parent" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v51_no_update" BEFORE UPDATE ON "r_domain_operation_v51" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v51_no_delete" BEFORE DELETE ON "r_domain_operation_v51" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v51_classification_no_update" BEFORE UPDATE ON "r_domain_operation_v51_classification" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v51_classification_no_delete" BEFORE DELETE ON "r_domain_operation_v51_classification" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v51_world_associations_no_update" BEFORE UPDATE ON "r_domain_operation_v51_world_associations" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v51_world_associations_no_delete" BEFORE DELETE ON "r_domain_operation_v51_world_associations" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v51_world_associations_items_no_update" BEFORE UPDATE ON "r_domain_operation_v51_world_associations_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v51_world_associations_items_no_delete" BEFORE DELETE ON "r_domain_operation_v51_world_associations_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v52_no_update" BEFORE UPDATE ON "r_domain_operation_v52" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v52_no_delete" BEFORE DELETE ON "r_domain_operation_v52" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v52_subject_types_no_update" BEFORE UPDATE ON "r_domain_operation_v52_subject_types" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v52_subject_types_no_delete" BEFORE DELETE ON "r_domain_operation_v52_subject_types" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v52_subject_types_items_no_update" BEFORE UPDATE ON "r_domain_operation_v52_subject_types_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v52_subject_types_items_no_delete" BEFORE DELETE ON "r_domain_operation_v52_subject_types_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_attribute_evidence_no_update" BEFORE UPDATE ON "r_attribute_evidence" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_attribute_evidence_no_delete" BEFORE DELETE ON "r_attribute_evidence" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_attribute_evidence_alternatives_no_update" BEFORE UPDATE ON "r_attribute_evidence_alternatives" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_attribute_evidence_alternatives_no_delete" BEFORE DELETE ON "r_attribute_evidence_alternatives" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_attribute_evidence_alternatives_items_no_update" BEFORE UPDATE ON "r_attribute_evidence_alternatives_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_attribute_evidence_alternatives_items_no_delete" BEFORE DELETE ON "r_attribute_evidence_alternatives_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v53_no_update" BEFORE UPDATE ON "r_domain_operation_v53" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v53_no_delete" BEFORE DELETE ON "r_domain_operation_v53" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_stored_context_no_update" BEFORE UPDATE ON "r_stored_context" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 

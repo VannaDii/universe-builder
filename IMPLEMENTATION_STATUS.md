@@ -10,6 +10,16 @@ Current native interaction/VoiceOver verification remains paused by the user. LM
 
 ## Implemented scope
 
+October 4 Goal 30: typed incremental definition/instance creation, named typed
+attributes and descendant classification refinement compile into the existing
+canonical fact/evidence proposal workflow. Actual MCP publications, independent
+relational/history readback, exact approval, current-authority denial, atomic
+failure, retry and forced restart are recorded in
+[incremental authoring verification](docs/incremental-authoring-verification.md).
+Stable identity, authored scope/evidence and explicit unknowns are preserved.
+No arbitrary classification-correction convenience, implicit transformation,
+production migration or native authoring UI is introduced.
+
 October 4 Goal 29: state retrieval now assembles exact object identity and
 ancestry, shared attributes, instance facts, initial-value candidates, behavioral
 requirements, rules, conflicts and relevant unknowns at the pinned frame and

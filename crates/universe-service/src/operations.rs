@@ -140,11 +140,209 @@ fn current<'a>(
     }
     Ok(v)
 }
+/// Lower authoring conveniences into the same closed canonical operations used
+/// by all other proposal clients. Allocated IDs are frozen in StoredProposal.
+fn incremental_operations(
+    u: &UniverseId,
+    base: &[RecordVersion],
+    operations: &[DomainOperation],
+) -> anyhow::Result<Vec<DomainOperation>> {
+    use DomainOperation::*;
+    let mut lowered = Vec::new();
+    let mut properties: Vec<(RecordId, PropertyDef)> = base
+        .iter()
+        .filter_map(|r| {
+            if let Payload::Property(p) = &r.payload {
+                Some((r.identity.record_id.clone(), p.clone()))
+            } else {
+                None
+            }
+        })
+        .collect();
+    // Include explicit property creations regardless of operation ordering.
+    for op in operations {
+        if let DefineProperty { client_ref, record } = op {
+            if !operations.iter().any(|op| matches!(op, AddNamedAttribute { namespace, key, .. } if namespace == &record.namespace && key == &record.key)) {
+                continue;
+            }
+            let record_id = RecordId::parse(client_ref).map_err(|_| {
+                invalid("a property referenced by name in this batch requires a rec_ ID")
+            })?;
+            properties.push((record_id, record.clone()));
+        }
+    }
+    // Keep friendly input references unique even when lowering replaces one
+    // with a reserved canonical proposition ID.
+    let mut input_refs = BTreeSet::new();
+    for op in operations {
+        let input = serde_json::to_value(op)?;
+        if let Some(name) = input.get("client_ref").and_then(|v| v.as_str()) {
+            if name.is_empty() || !input_refs.insert(name.to_owned()) {
+                return Err(invalid("duplicate or empty client_ref"));
+            }
+        }
+    }
+    let mut refs = BTreeSet::new();
+    for op in operations {
+        match op {
+            IntroduceDefinition {
+                client_ref,
+                namespace,
+                key,
+                name,
+                parent,
+                applicability,
+                classification_executable,
+            } => {
+                if name.trim().is_empty() {
+                    return Err(invalid("definition name is required"));
+                }
+                lowered.push(DefineType {
+                    client_ref: client_ref.clone(),
+                    record: EntityType {
+                        namespace: namespace.clone(),
+                        key: key.clone(),
+                        name: name.clone(),
+                        labels: BTreeMap::new(),
+                        parent: parent.clone(),
+                        parent_resolution: if parent.is_some() {
+                            ParentResolution::Resolved
+                        } else {
+                            ParentResolution::Root
+                        },
+                        applicability: applicability.clone(),
+                        classification_executable: *classification_executable,
+                    },
+                });
+            }
+            IntroduceInstance {
+                client_ref,
+                name,
+                classification,
+                world_associations,
+            } => {
+                if name.text.trim().is_empty() {
+                    return Err(invalid("instance name is required"));
+                }
+                lowered.push(CreateEntity {
+                    client_ref: client_ref.clone(),
+                    record: Entity {
+                        names: vec![name.clone()],
+                        classification: classification.clone(),
+                        classification_resolution: if classification.is_some() {
+                            ClassificationResolution::Resolved
+                        } else {
+                            ClassificationResolution::Unclassified
+                        },
+                        world_associations: world_associations.clone(),
+                        labels: BTreeMap::new(),
+                        metadata: BTreeMap::new(),
+                    },
+                });
+            }
+            AddNamedAttribute {
+                client_ref,
+                subject,
+                namespace,
+                key,
+                value_shape,
+                subject_types,
+                multiplicity,
+                value,
+                evidence,
+            } => {
+                if matches!(
+                    evidence.basis,
+                    universe_domain::scope::EvidenceBasis::EventEffect { .. }
+                ) {
+                    return Err(invalid(
+                        "physical transformations require the event operation path",
+                    ));
+                }
+                let definition = PropertyDef {
+                    namespace: namespace.clone(),
+                    key: key.clone(),
+                    labels: BTreeMap::new(),
+                    subject_types: subject_types.clone(),
+                    value: value_shape.clone(),
+                    multiplicity: *multiplicity,
+                    unit_dimension: None,
+                    persistence: evidence.persistence,
+                    exclusive: false,
+                    inverse: None,
+                    symmetric: false,
+                    transitive: false,
+                };
+                let matches: Vec<_> = properties
+                    .iter()
+                    .filter(|(_, p)| p.namespace == *namespace && p.key == *key)
+                    .collect();
+                let predicate = match matches.as_slice() {
+                    [] => {
+                        let predicate = RecordId::generate(&mut rand::rng());
+                        lowered.push(DefineProperty {
+                            client_ref: predicate.to_string(),
+                            record: definition.clone(),
+                        });
+                        properties.push((predicate.clone(), definition));
+                        predicate
+                    }
+                    [(id, existing)] => {
+                        let mut expected = definition;
+                        expected.labels = existing.labels.clone();
+                        if existing != &expected {
+                            return Err(invalid("named attribute definition differs; use an explicit definition revision"));
+                        }
+                        (*id).clone()
+                    }
+                    _ => return Err(invalid("named attribute is ambiguous")),
+                };
+                let proposition_id = id(client_ref, &mut refs)?;
+                lowered.push(AssertProposition {
+                    client_ref: proposition_id.to_string(),
+                    proposition: Proposition {
+                        predicate: RecordRef::new(u.clone(), predicate),
+                        subject: subject.clone(),
+                        roles: vec![],
+                        value: Some(value.clone()),
+                        quantification: Quantification::Particular,
+                        context: evidence.scope.context.clone(),
+                    },
+                    assertion: Assertion {
+                        proposition: RecordRef::new(u.clone(), proposition_id),
+                        attribute_mode: evidence.attribute_mode,
+                        polarity: evidence.polarity,
+                        scope: evidence.scope.clone(),
+                        validity: evidence.validity.clone(),
+                        persistence: evidence.persistence,
+                        precision: evidence.precision,
+                        alternatives: evidence.alternatives.clone(),
+                        basis: evidence.basis.clone(),
+                        established_by: None,
+                    },
+                });
+            }
+            RefineClassification {
+                record,
+                expected_version,
+                entity_type,
+            } => lowered.push(AddTypeMembership {
+                record: record.clone(),
+                expected_version: expected_version.clone(),
+                entity_type: entity_type.clone(),
+            }),
+            _ => lowered.push(op.clone()),
+        }
+    }
+    Ok(lowered)
+}
+
 pub fn compile(
     u: &UniverseId,
     base: &[RecordVersion],
     operations: &[DomainOperation],
 ) -> anyhow::Result<Vec<Assignment>> {
+    let operations = incremental_operations(u, base, operations)?;
     let records: BTreeMap<_, _> = base
         .iter()
         .cloned()
@@ -169,7 +367,7 @@ pub fn compile(
         });
         Ok(())
     };
-    for op in operations {
+    for op in &operations {
         use DomainOperation::*;
         match op {
             CreateEntity { client_ref, record } => {
@@ -316,7 +514,40 @@ pub fn compile(
             _ => return Err(unsupported()),
         }
     }
-    for op in operations {
+    let mut ancestry: BTreeMap<_, _> = records
+        .iter()
+        .map(|(id, r)| (id.clone(), r.clone()))
+        .chain(
+            changes
+                .iter()
+                .filter_map(|a| a.next.as_ref().map(|r| (a.record_id.clone(), r.clone()))),
+        )
+        .collect();
+    // Refinement is checked against the candidate definition graph, including
+    // authored revisions/adoptions/tombstones in this batch, not stale ancestry.
+    for op in &operations {
+        match op {
+            DomainOperation::ReviseDefinition {
+                record,
+                expected_version,
+                replacement,
+            } if matches!(replacement.as_ref(), Payload::EntityType(_)) => {
+                let mut candidate = current(&records, u, record, expected_version)?.clone();
+                candidate.payload = *replacement.clone();
+                ancestry.insert(record.record.clone(), candidate);
+            }
+            DomainOperation::AdoptRecordVersion { source, .. }
+                if matches!(source.payload, Payload::EntityType(_)) =>
+            {
+                ancestry.insert(source.identity.record_id.clone(), *source.clone());
+            }
+            DomainOperation::TombstoneRecord { record, .. } => {
+                ancestry.remove(&record.record);
+            }
+            _ => {}
+        }
+    }
+    for op in &operations {
         use DomainOperation::*;
         let (reference, expected, payload) = match op {
             ReviseAppearance {
@@ -423,6 +654,15 @@ pub fn compile(
                 else {
                     return Err(invalid("expected entity"));
                 };
+                if e.classification_resolution == ClassificationResolution::Ambiguous {
+                    return Err(invalid(
+                        "ambiguous classification requires an explicit authored correction",
+                    ));
+                }
+                if !matches!(ancestry.get(entity_type).map(|r| &r.payload), Some(Payload::EntityType(t)) if t.parent_resolution != ParentResolution::Ambiguous)
+                {
+                    return Err(invalid("refinement requires a resolved definition"));
+                }
                 if let Some(prior) = &e.classification {
                     let mut next = Some(entity_type);
                     let mut seen = BTreeSet::new();
@@ -435,7 +675,7 @@ pub fn compile(
                         if !seen.insert(id) {
                             break;
                         }
-                        next = match records.get(id).map(|r| &r.payload) {
+                        next = match ancestry.get(id).map(|r| &r.payload) {
                             Some(Payload::EntityType(t))
                                 if t.parent_resolution != ParentResolution::Ambiguous =>
                             {
@@ -669,7 +909,7 @@ pub fn compile(
             next,
         });
     }
-    for op in operations {
+    for op in &operations {
         if let DomainOperation::AdoptRecordVersion {
             source,
             expected_version,
@@ -698,4 +938,116 @@ pub fn compile(
     }
     crate::events::recompile(u, base, &mut changes)?;
     Ok(changes)
+}
+
+#[cfg(test)]
+mod incremental_tests {
+    use super::*;
+    use serde_json::{json, Value};
+    fn u() -> UniverseId {
+        UniverseId::parse("unv_000000000000000000000001").unwrap()
+    }
+    fn rid(n: usize) -> String {
+        format!("rec_{n:024x}")
+    }
+    fn rr(n: usize) -> Value {
+        json!({"universe":u(),"record":rid(n)})
+    }
+    fn record(n: usize, payload: Value) -> RecordVersion {
+        let payload: Payload = serde_json::from_value(payload).unwrap();
+        RecordVersion::build(
+            RecordVersionId::parse(&format!("ver_{n:024x}")).unwrap(),
+            RecordIdentity::new(u(), RecordId::parse(&rid(n)).unwrap(), payload.kind()),
+            payload,
+        )
+        .unwrap()
+    }
+    fn definition(n: usize, parent: Option<usize>) -> RecordVersion {
+        record(
+            n,
+            json!({"record_kind":"entity_type","namespace":"test","key":format!("type{n}"),"name":format!("Type{n}"),"labels":{},"parent":parent.map(rid),"parentResolution":if parent.is_some(){"resolved"}else{"root"},"applicability":{"kind":"universe_wide"},"classificationExecutable":true}),
+        )
+    }
+    fn fixture() -> Vec<RecordVersion> {
+        vec![
+            definition(1, None),
+            definition(2, Some(1)),
+            definition(3, None),
+            record(
+                4,
+                json!({"record_kind":"entity","names":[],"classification":rid(1),"classificationResolution":"resolved","worldAssociations":[],"labels":{},"metadata":{}}),
+            ),
+        ]
+    }
+    fn refinement() -> Value {
+        json!({"kind":"refine_classification","record":rr(4),"expected_version":format!("ver_{:024x}",4),"entity_type":rid(2)})
+    }
+    fn compile_json(base: &[RecordVersion], ops: Vec<Value>) -> anyhow::Result<Vec<Assignment>> {
+        compile(
+            &u(),
+            base,
+            &ops.into_iter()
+                .map(|op| serde_json::from_value(op).unwrap())
+                .collect::<Vec<_>>(),
+        )
+    }
+    #[test]
+    fn candidate_reparenting_cannot_bypass_descendant_refinement() {
+        let rows = fixture();
+        let mut replacement = serde_json::to_value(&rows[1].payload).unwrap();
+        replacement["parent"] = json!(rid(3));
+        let edit = json!({"kind":"revise_definition","record":rr(2),"expected_version":rows[1].record_version_id,"replacement":replacement});
+        for ops in [vec![edit.clone(), refinement()], vec![refinement(), edit]] {
+            assert!(compile_json(&rows, ops)
+                .unwrap_err()
+                .to_string()
+                .contains("not a descendant refinement"));
+        }
+        assert_eq!(rows, fixture());
+    }
+    #[test]
+    fn ambiguous_instance_requires_correction_even_without_classification() {
+        let mut rows = fixture();
+        if let Payload::Entity(e) = &mut rows[3].payload {
+            e.classification = None;
+            e.classification_resolution = ClassificationResolution::Ambiguous;
+        }
+        assert!(compile_json(&rows, vec![refinement()])
+            .unwrap_err()
+            .to_string()
+            .contains("explicit authored correction"));
+    }
+    #[test]
+    fn tombstoned_target_cannot_be_used_as_refinement() {
+        let rows = fixture();
+        let tombstone = json!({"kind":"tombstone_record","record":rr(2),"expected_version":rows[1].record_version_id,"rationale":"Authored removal"});
+        assert!(compile_json(&rows, vec![refinement(), tombstone])
+            .unwrap_err()
+            .to_string()
+            .contains("resolved definition"));
+    }
+    #[test]
+    fn same_batch_named_attributes_share_one_definition_and_keep_evidence() {
+        let attribute = |n| json!({"kind":"add_named_attribute","client_ref":format!("attribute{n}"),"subject":rr(4),"namespace":"test","key":"hazard","value_shape":{"kind":"text"},"subject_types":[rid(1)],"multiplicity":"multiple","value":{"kind":"text","text":format!("Hazard{n}")},"evidence":{"attributeMode":"instance","polarity":"support","scope":{"context":rr(99),"applicability":{"kind":"universe_wide"}},"validity":{"kind":"unknown"},"persistence":"unspecified","precision":"unresolved","basis":{"kind":"imported_claim"}}});
+        let changes = compile_json(&fixture(), vec![attribute(1), attribute(2)]).unwrap();
+        assert_eq!(changes.len(), 5);
+        assert_eq!(
+            changes
+                .iter()
+                .filter(|c| matches!(c.next.as_ref().unwrap().payload, Payload::Property(_)))
+                .count(),
+            1
+        );
+        for change in &changes {
+            if let Payload::Assertion(a) = &change.next.as_ref().unwrap().payload {
+                assert_eq!(a.validity, universe_domain::scope::Validity::Unknown);
+                assert_eq!(a.precision, universe_domain::scope::Precision::Unresolved);
+                assert_eq!(
+                    a.basis,
+                    universe_domain::scope::EvidenceBasis::ImportedClaim
+                );
+                assert!(a.established_by.is_none());
+            }
+        }
+    }
 }

@@ -36,6 +36,11 @@ jobs:
           python scripts/effective_object_pilot.py --output "$RUNNER_TEMP/effective-object.json"
           python scripts/audit_effective_object.py "$RUNNER_TEMP/effective-object.json"
           python scripts/test_effective_object_audit.py --evidence "$RUNNER_TEMP/effective-object.json" -v
+      - name: Incremental factual authoring and independent canonical audit
+        run: |
+          python scripts/incremental_authoring_pilot.py --output "$RUNNER_TEMP/incremental-authoring.json"
+          python scripts/audit_incremental_authoring.py "$RUNNER_TEMP/incremental-authoring.json"
+          python scripts/test_incremental_authoring_audit.py --evidence "$RUNNER_TEMP/incremental-authoring.json" -v
       - run: python scripts/verify_launcher.py --bin-dir target/debug
       - name: Native and host gates
         run: echo 'Native GUI, VoiceOver, clean-machine, and LM Studio checks require separate evidence; not run by this job.'

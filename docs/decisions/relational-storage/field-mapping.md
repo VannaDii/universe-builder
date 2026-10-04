@@ -784,7 +784,7 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `Payload_v37_scope` | `r_payload_v37_scope` (scalar column) | string |
 | `Payload_v37_rationale` | `r_payload_v37_rationale` (scalar column) | string |
 | `Payload_v37_record_kind` | `r_payload_v37_record_kind` (scalar column) | string |
-| `DomainOperation` | `r_domain_operation` | DomainOperation_v0, DomainOperation_v1, DomainOperation_v2, DomainOperation_v3, DomainOperation_v4, DomainOperation_v5, DomainOperation_v6, DomainOperation_v7, DomainOperation_v8, DomainOperation_v9, DomainOperation_v10, DomainOperation_v11, DomainOperation_v12, DomainOperation_v13, DomainOperation_v14, DomainOperation_v15, DomainOperation_v16, DomainOperation_v17, DomainOperation_v18, DomainOperation_v19, DomainOperation_v20, DomainOperation_v21, DomainOperation_v22, DomainOperation_v23, DomainOperation_v24, DomainOperation_v25, DomainOperation_v26, DomainOperation_v27, DomainOperation_v28, DomainOperation_v29, DomainOperation_v30, DomainOperation_v31, DomainOperation_v32, DomainOperation_v33, DomainOperation_v34, DomainOperation_v35, DomainOperation_v36, DomainOperation_v37, DomainOperation_v38, DomainOperation_v39, DomainOperation_v40, DomainOperation_v41, DomainOperation_v42, DomainOperation_v43, DomainOperation_v44, DomainOperation_v45, DomainOperation_v46, DomainOperation_v47, DomainOperation_v48, DomainOperation_v49 |
+| `DomainOperation` | `r_domain_operation` | DomainOperation_v0, DomainOperation_v1, DomainOperation_v2, DomainOperation_v3, DomainOperation_v4, DomainOperation_v5, DomainOperation_v6, DomainOperation_v7, DomainOperation_v8, DomainOperation_v9, DomainOperation_v10, DomainOperation_v11, DomainOperation_v12, DomainOperation_v13, DomainOperation_v14, DomainOperation_v15, DomainOperation_v16, DomainOperation_v17, DomainOperation_v18, DomainOperation_v19, DomainOperation_v20, DomainOperation_v21, DomainOperation_v22, DomainOperation_v23, DomainOperation_v24, DomainOperation_v25, DomainOperation_v26, DomainOperation_v27, DomainOperation_v28, DomainOperation_v29, DomainOperation_v30, DomainOperation_v31, DomainOperation_v32, DomainOperation_v33, DomainOperation_v34, DomainOperation_v35, DomainOperation_v36, DomainOperation_v37, DomainOperation_v38, DomainOperation_v39, DomainOperation_v40, DomainOperation_v41, DomainOperation_v42, DomainOperation_v43, DomainOperation_v44, DomainOperation_v45, DomainOperation_v46, DomainOperation_v47, DomainOperation_v48, DomainOperation_v49, DomainOperation_v50, DomainOperation_v51, DomainOperation_v52, DomainOperation_v53 |
 | `DomainOperation_v0` | `r_domain_operation_v0` | client_ref → DomainOperation_v0_client_ref, record → Appearance, kind → DomainOperation_v0_kind |
 | `DomainOperation_v0_client_ref` | `r_domain_operation_v0_client_ref` (scalar column) | string |
 | `Appearance` | `r_appearance` | target → AppearanceTarget, label → Appearance_label, physical_description → Appearance_physical_description, atmosphere → Appearance_atmosphere, images → Appearance_images, links → Appearance_links, validity → Validity |
@@ -1142,6 +1142,32 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `DomainOperation_v48_kind` | `r_domain_operation_v48_kind` (scalar column) | string |
 | `DomainOperation_v49` | `r_domain_operation_v49` | record → RecordRef, expected_version → RecordVersionId, replacement → DomainPack, kind → DomainOperation_v49_kind |
 | `DomainOperation_v49_kind` | `r_domain_operation_v49_kind` (scalar column) | string |
+| `DomainOperation_v50` | `r_domain_operation_v50` | client_ref → DomainOperation_v50_client_ref, namespace → DomainOperation_v50_namespace, key → DomainOperation_v50_key, name → DomainOperation_v50_name, parent → DomainOperation_v50_parent, applicability → Applicability, classification_executable → DomainOperation_v50_classification_executable, kind → DomainOperation_v50_kind |
+| `DomainOperation_v50_client_ref` | `r_domain_operation_v50_client_ref` (scalar column) | string |
+| `DomainOperation_v50_namespace` | `r_domain_operation_v50_namespace` (scalar column) | string |
+| `DomainOperation_v50_key` | `r_domain_operation_v50_key` (scalar column) | string |
+| `DomainOperation_v50_name` | `r_domain_operation_v50_name` (scalar column) | string |
+| `DomainOperation_v50_parent` | `r_domain_operation_v50_parent` | RecordId, DomainOperation_v50_parent_v1 |
+| `DomainOperation_v50_parent_v1` | `r_domain_operation_v50_parent_v1` (scalar column) | null |
+| `DomainOperation_v50_classification_executable` | `r_domain_operation_v50_classification_executable` (scalar column) | boolean |
+| `DomainOperation_v50_kind` | `r_domain_operation_v50_kind` (scalar column) | string |
+| `DomainOperation_v51` | `r_domain_operation_v51` | client_ref → DomainOperation_v51_client_ref, name → ContextualName, classification → DomainOperation_v51_classification, world_associations → DomainOperation_v51_world_associations, kind → DomainOperation_v51_kind |
+| `DomainOperation_v51_client_ref` | `r_domain_operation_v51_client_ref` (scalar column) | string |
+| `DomainOperation_v51_classification` | `r_domain_operation_v51_classification` | RecordId, DomainOperation_v51_classification_v1 |
+| `DomainOperation_v51_classification_v1` | `r_domain_operation_v51_classification_v1` (scalar column) | null |
+| `DomainOperation_v51_world_associations` | `r_domain_operation_v51_world_associations` | WorldAssociation |
+| `DomainOperation_v51_kind` | `r_domain_operation_v51_kind` (scalar column) | string |
+| `DomainOperation_v52` | `r_domain_operation_v52` | client_ref → DomainOperation_v52_client_ref, subject → RecordRef, namespace → DomainOperation_v52_namespace, key → DomainOperation_v52_key, value_shape → ValueShape, subject_types → DomainOperation_v52_subject_types, multiplicity → Multiplicity, value → Value, evidence → AttributeEvidence, kind → DomainOperation_v52_kind |
+| `DomainOperation_v52_client_ref` | `r_domain_operation_v52_client_ref` (scalar column) | string |
+| `DomainOperation_v52_namespace` | `r_domain_operation_v52_namespace` (scalar column) | string |
+| `DomainOperation_v52_key` | `r_domain_operation_v52_key` (scalar column) | string |
+| `DomainOperation_v52_subject_types` | `r_domain_operation_v52_subject_types` | RecordId |
+| `AttributeEvidence` | `r_attribute_evidence` | attributeMode → AttributeMode, polarity → Polarity, scope → Scope, validity → Validity, persistence → PersistenceSemantics, precision → Precision, alternatives → AttributeEvidence_alternatives, basis → EvidenceBasis |
+| `AttributeMode` | `r_attribute_mode` (scalar column) | string |
+| `AttributeEvidence_alternatives` | `r_attribute_evidence_alternatives` | Value |
+| `DomainOperation_v52_kind` | `r_domain_operation_v52_kind` (scalar column) | string |
+| `DomainOperation_v53` | `r_domain_operation_v53` | record → RecordRef, expected_version → RecordVersionId, entity_type → RecordId, kind → DomainOperation_v53_kind |
+| `DomainOperation_v53_kind` | `r_domain_operation_v53_kind` (scalar column) | string |
 | `StoredContext` | `r_stored_context` | owner → StoredContext_owner, scope → StoredContext_scope, expires → StoredContext_expires, frame → Frame |
 | `StoredContext_owner` | `r_stored_context_owner` (scalar column) | string |
 | `StoredContext_scope` | `r_stored_context_scope` (scalar column) | string |

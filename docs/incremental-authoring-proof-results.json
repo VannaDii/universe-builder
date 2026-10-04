@@ -1,0 +1,78 @@
+{
+  "goal": 30,
+  "date": "2026-10-04",
+  "operations": [
+    "introduce_definition",
+    "introduce_instance",
+    "add_named_attribute",
+    "refine_classification"
+  ],
+  "proof": {
+    "approved_publications": 5,
+    "independent_canonical_snapshots": 7,
+    "actual_mcp_tool_calls": 89,
+    "atomic_propose_rejections": 6,
+    "invalid_typed_value_validation_and_approval": "rejected; canonical counts unchanged",
+    "current_authority": "revoked edit/protected access denies approved commit",
+    "publication_fault": "commit_changes trigger failure; canonical counts/digests/history unchanged; exact retry after restart succeeds",
+    "retry_restart": "frozen proposal, pending approved publication, committed receipt, current and historical readback verified",
+    "explicit_unknowns": "unclassified instance, unknown name/world/attribute validity and unresolved precision retained; height/unit/growth-condition facts absent",
+    "second_instance": "named hazard property reused; instance-specific observations remain separate",
+    "lifecycle_seconds": 12.415999709046446
+  },
+  "evidence": {
+    "report": "/tmp/incremental-authoring-proof-final.json",
+    "report_sha256": "2fd4c2c07bc69a1f849359c7cefb1c38c0ef4e365d45d927398c21b32af19016",
+    "wire": "/tmp/incremental-authoring-proof-final.jsonl",
+    "wire_sha256": "ceda91086f4873437ad3ca1d6480344f613b9f3a9a386914d7a6aaec542db1c7"
+  },
+  "checks": {
+    "independent_wire_canonical_audit": "passed",
+    "auditor_controls": {
+      "passed": 6,
+      "failed": 0
+    },
+    "focused_rust_compiler_cases": 4,
+    "existing_relational_models": "unchanged; first 50 operation variants preserved; four appended",
+    "mapping_regeneration": "deterministic",
+    "public_contract_examples": "26 schemas; 13 valid examples; 91 invalid examples passed",
+    "assessment_contract_tests": 6,
+    "action_consequence_contract_tests": 5,
+    "serial_workspace_gate": {
+      "command": "RUST_TEST_THREADS=1 cargo run --locked -p xtask -- check",
+      "status": "passed",
+      "passed": 377,
+      "failed": 0,
+      "ignored": 1,
+      "strict_workspace_clippy": "passed",
+      "formatting": "passed",
+      "schema_consistency": "passed",
+      "log": "/tmp/incremental-authoring-workspace-final.log",
+      "log_sha256": "db74733ea48230585be485ff1373f0a9b65b22983350a246782e91acd37405ae"
+    }
+  },
+  "qualification_notes": [
+    "Concurrent archive integration RPC deadline recurred; the unchanged complete serial workspace gate passed. No timeout or acceptance gate was changed.",
+    "A hostile event-effect input is sent directly to prove server compiler denial independently of the existing event/event-side schema constraint."
+  ],
+  "cleanup": "owned disposable engines stopped; installations removed; only local report/wire/log evidence retained",
+  "limitations": [
+    "No production package or installation migration.",
+    "No native UI/VoiceOver, model prose interpretation, hosted CI, host or release qualification.",
+    "No arbitrary classification-correction convenience, implicit state initialization or physical transformation."
+  ],
+  "artifact_sha256": {
+    "scripts/incremental_authoring_pilot.py": "a348280ce936cdb50643402fae6ea535f6d4e2a7419d479e5a4a563623757e05",
+    "scripts/audit_incremental_authoring.py": "43fdfd9da61e9fb62de6d620f9e9bd5611014597cc8c628b0a0d6a13c204fb1b",
+    "scripts/test_incremental_authoring_audit.py": "a439f38616698c0554bb8b7cdb98950e6594631f3f8aea8fb617f5f75d5d4631",
+    "crates/universe-domain/src/records.rs": "6d136d5bb962f8714c98a283a72d49eca3027ed6325e7099519ee76672a65160",
+    "crates/universe-service/src/operations.rs": "22c28808434e21818787b8b9fc444e33b21812c93deb6f10109922fb26917c73",
+    "docs/decisions/relational-storage/catalog.json": "4d13e95add28a3c3b4c2ea1d938f2401d09e15a188f105c1c085e3f53bcb4f07",
+    "docs/decisions/relational-storage/typed.sql": "c96b03224904bb23a7c02c372c63224316decf68f942e66236ccbcccf11725cc",
+    "target/debug/universe-engine": "2dabc98c61b38c587c05ce8095854bdbfdb8838cec638c188773c231b250c429",
+    "target/debug/universe-mcp": "9d65c06b83a519f1377a329b6e4632afc6d95247b53e8665d4f6860831bbd67e",
+    "target/debug/universe": "cfa69be888bdc3600d29ca1e17b19853754daece07da510069df4ea4a0f048e6"
+  },
+  "baseline_commit": "944297fa5044e2cee4df7ee7fe1a63a415a5ce46",
+  "working_seconds_through_final_verification": 1522
+}
