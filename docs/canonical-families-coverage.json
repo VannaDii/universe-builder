@@ -1,0 +1,873 @@
+{
+  "inventory_owner": "crates/universe-domain/src/records.rs::RecordKind",
+  "families": 38,
+  "entries": [
+    {
+      "family": "entity",
+      "typed_body": "r_payload_v0",
+      "prior_proofs": [
+        "docs/normalized-foundation-verification.md",
+        "docs/normalized-rules-events-proof-results.json#mcp_runs/resources,owners,history"
+      ],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [
+        "resources",
+        "owners",
+        "history"
+      ],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "appearance",
+      "typed_body": "r_payload_v1",
+      "prior_proofs": [
+        "crates/universe-store/tests/media.rs"
+      ],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "pinned-editorial-commit",
+        "corrections-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "image_asset",
+      "typed_body": "r_payload_v2",
+      "prior_proofs": [
+        "crates/universe-store/tests/media.rs"
+      ],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "image-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "world",
+      "typed_body": "r_payload_v3",
+      "prior_proofs": [
+        "docs/normalized-foundation-verification.md",
+        "docs/normalized-rules-events-proof-results.json#mcp_runs/resources,history"
+      ],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [
+        "resources",
+        "history"
+      ],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "realm",
+      "typed_body": "r_payload_v4",
+      "prior_proofs": [],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": "No public creation operation. Existing Kernel seeds disposable original; MCP adoption is the qualified public write route."
+    },
+    {
+      "family": "work",
+      "typed_body": "r_payload_v5",
+      "prior_proofs": [
+        "docs/normalized-rules-events-proof-results.json#mcp_runs/history"
+      ],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [
+        "history"
+      ],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "work_version",
+      "typed_body": "r_payload_v6",
+      "prior_proofs": [
+        "docs/normalized-rules-events-proof-results.json#mcp_runs/history"
+      ],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "corrections-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [
+        "history"
+      ],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "scene_ref",
+      "typed_body": "r_payload_v7",
+      "prior_proofs": [
+        "docs/normalized-rules-events-proof-results.json#mcp_runs/history"
+      ],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "pinned-editorial-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [
+        "history"
+      ],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "passage_ref",
+      "typed_body": "r_payload_v8",
+      "prior_proofs": [],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "pinned-editorial-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "saga",
+      "typed_body": "r_payload_v9",
+      "prior_proofs": [],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "corrections-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "entity_type",
+      "typed_body": "r_payload_v10",
+      "prior_proofs": [
+        "docs/normalized-foundation-verification.md",
+        "docs/normalized-rules-events-proof-results.json#mcp_runs/history"
+      ],
+      "goal_25_proof": null,
+      "publications": [],
+      "existing_mcp_runs": [
+        "history"
+      ],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "property",
+      "typed_body": "r_payload_v11",
+      "prior_proofs": [
+        "docs/normalized-foundation-verification.md",
+        "docs/normalized-rules-events-proof-results.json#mcp_runs/resources,owners,history"
+      ],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [
+        "resources",
+        "owners",
+        "history"
+      ],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "relation",
+      "typed_body": "r_payload_v12",
+      "prior_proofs": [],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "unit",
+      "typed_body": "r_payload_v13",
+      "prior_proofs": [
+        "docs/normalized-foundation-verification.md",
+        "docs/normalized-rules-events-proof-results.json#mcp_runs/resources"
+      ],
+      "goal_25_proof": null,
+      "publications": [],
+      "existing_mcp_runs": [
+        "resources"
+      ],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "calendar",
+      "typed_body": "r_payload_v14",
+      "prior_proofs": [
+        "docs/normalized-foundation-verification.md",
+        "docs/normalized-rules-events-proof-results.json#mcp_runs/resources,owners,history"
+      ],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [],
+      "existing_mcp_runs": [
+        "resources",
+        "owners",
+        "history"
+      ],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "value_definition",
+      "typed_body": "r_payload_v15",
+      "prior_proofs": [],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "domain_pack",
+      "typed_body": "r_payload_v16",
+      "prior_proofs": [],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "proposition",
+      "typed_body": "r_payload_v17",
+      "prior_proofs": [
+        "docs/normalized-foundation-verification.md",
+        "docs/normalized-rules-events-proof-results.json#mcp_runs/resources,owners,history"
+      ],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [
+        "resources",
+        "owners",
+        "history"
+      ],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "assertion",
+      "typed_body": "r_payload_v18",
+      "prior_proofs": [
+        "docs/normalized-foundation-verification.md",
+        "docs/normalized-rules-events-proof-results.json#mcp_runs/resources,owners,history"
+      ],
+      "goal_25_proof": null,
+      "publications": [],
+      "existing_mcp_runs": [
+        "resources",
+        "owners",
+        "history"
+      ],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "represented_context",
+      "typed_body": "r_payload_v19",
+      "prior_proofs": [
+        "docs/normalized-foundation-verification.md",
+        "docs/normalized-rules-events-proof-results.json#mcp_runs/resources,owners,history"
+      ],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [],
+      "existing_mcp_runs": [
+        "resources",
+        "owners",
+        "history"
+      ],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "completeness",
+      "typed_body": "r_payload_v20",
+      "prior_proofs": [],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "boundary",
+      "typed_body": "r_payload_v21",
+      "prior_proofs": [],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "rule",
+      "typed_body": "r_payload_v22",
+      "prior_proofs": [],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "exception",
+      "typed_body": "r_payload_v23",
+      "prior_proofs": [],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "pinned-editorial-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "event",
+      "typed_body": "r_payload_v24",
+      "prior_proofs": [
+        "docs/normalized-rules-events-proof-results.json#mcp_runs/resources,owners,history"
+      ],
+      "goal_25_proof": null,
+      "publications": [],
+      "existing_mcp_runs": [
+        "resources",
+        "owners",
+        "history"
+      ],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "item_power",
+      "typed_body": "r_payload_v25",
+      "prior_proofs": [],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "action_definition",
+      "typed_body": "r_payload_v26",
+      "prior_proofs": [
+        "docs/normalized-rules-events-proof-results.json#mcp_runs/resources,owners,history"
+      ],
+      "goal_25_proof": null,
+      "publications": [],
+      "existing_mcp_runs": [
+        "resources",
+        "owners",
+        "history"
+      ],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "epistemic_attitude",
+      "typed_body": "r_payload_v27",
+      "prior_proofs": [],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "observation",
+      "typed_body": "r_payload_v28",
+      "prior_proofs": [],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "communication",
+      "typed_body": "r_payload_v29",
+      "prior_proofs": [],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "memory",
+      "typed_body": "r_payload_v30",
+      "prior_proofs": [],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "secret",
+      "typed_body": "r_payload_v31",
+      "prior_proofs": [],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": "No public creation operation. Existing Kernel seeds disposable original; MCP adoption is the qualified public write route."
+    },
+    {
+      "family": "goal",
+      "typed_body": "r_payload_v32",
+      "prior_proofs": [],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "commitment",
+      "typed_body": "r_payload_v33",
+      "prior_proofs": [],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "source",
+      "typed_body": "r_payload_v34",
+      "prior_proofs": [
+        "docs/normalized-foundation-verification.md"
+      ],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "exact-source-source-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "source_version",
+      "typed_body": "r_payload_v35",
+      "prior_proofs": [
+        "docs/normalized-foundation-verification.md"
+      ],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "exact-source-source-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "anchor",
+      "typed_body": "r_payload_v36",
+      "prior_proofs": [
+        "docs/normalized-foundation-verification.md"
+      ],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "anchor-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    },
+    {
+      "family": "issue_decision",
+      "typed_body": "r_payload_v37",
+      "prior_proofs": [],
+      "goal_25_proof": {
+        "proof": "docs/canonical-families-proof-results.json",
+        "audit": "scripts/audit_canonical_families.py",
+        "snapshots": [
+          "original",
+          "original-restart",
+          "corrected-restart",
+          "final-restart"
+        ]
+      },
+      "publications": [
+        "families-commit",
+        "historical-adoption-commit"
+      ],
+      "existing_mcp_runs": [],
+      "status": "qualified-supported-workflows",
+      "limitation": null
+    }
+  ],
+  "unresolved_limitations": [
+    "Realm/Secret public creation absent; bootstrap uses existing Kernel and public historical adoption.",
+    "Native UI, live-package conversion and broader evaluator semantics are outside this qualification."
+  ],
+  "missing_family_proofs": []
+}

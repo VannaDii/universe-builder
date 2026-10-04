@@ -1,0 +1,614 @@
+{
+  "source_text": "Café é 🌲\r\nExact\tquoted evidence.\n",
+  "excerpt": "é 🌲\r\nExact",
+  "corrected_description": "Silver hair, after the correction. é ≠ é.\r\n🌲",
+  "records": {
+    "actor": {
+      "record_kind": "entity",
+      "names": [],
+      "classification": null,
+      "classificationResolution": "unclassified",
+      "worldAssociations": [],
+      "labels": {
+        "en": "Café é 🌲 — exact\r\ntext"
+      },
+      "metadata": {}
+    },
+    "recipient": {
+      "record_kind": "entity",
+      "names": [],
+      "classification": null,
+      "classificationResolution": "unclassified",
+      "worldAssociations": [],
+      "labels": {
+        "en": "Recipient"
+      },
+      "metadata": {}
+    },
+    "realm": {
+      "record_kind": "realm",
+      "labels": {
+        "en": "Café é 🌲 — exact\r\ntext"
+      },
+      "metadata": {
+        "empty": {
+          "kind": "text",
+          "text": ""
+        }
+      }
+    },
+    "secret": {
+      "record_kind": "secret",
+      "scope": [],
+      "fictionalKnowers": [],
+      "readerDisclosed": false,
+      "concealment": "Fictional secret; application access remains separate.",
+      "validity": {
+        "kind": "unspecified"
+      }
+    },
+    "world": {
+      "record_kind": "world",
+      "selector": "Archive coast",
+      "aliases": [
+        "Côte"
+      ],
+      "labels": {
+        "en": "Café é 🌲 — exact\r\ntext"
+      },
+      "metadata": {}
+    },
+    "property": {
+      "record_kind": "property",
+      "namespace": "families",
+      "key": "message",
+      "labels": {
+        "en": "Café é 🌲 — exact\r\ntext"
+      },
+      "value": {
+        "kind": "text"
+      },
+      "multiplicity": "single",
+      "persistence": "explicit_interval",
+      "exclusive": false,
+      "symmetric": false,
+      "transitive": false
+    },
+    "holder": {
+      "record_kind": "property",
+      "namespace": "families",
+      "key": "holder",
+      "labels": {},
+      "value": {
+        "kind": "entity_ref",
+        "subject_types": []
+      },
+      "multiplicity": "single",
+      "persistence": "explicit_interval",
+      "exclusive": false,
+      "symmetric": false,
+      "transitive": false
+    },
+    "relation": {
+      "record_kind": "relation",
+      "namespace": "families",
+      "key": "correspondent",
+      "labels": {
+        "en": "Café é 🌲 — exact\r\ntext"
+      },
+      "roles": [
+        {
+          "name": "recipient",
+          "participantTypes": [],
+          "multiplicity": "single",
+          "ordered": false
+        }
+      ]
+    },
+    "value": {
+      "record_kind": "value_definition",
+      "namespace": "families",
+      "key": "message_record",
+      "labels": {
+        "en": "Café é 🌲 — exact\r\ntext"
+      },
+      "fields": [
+        {
+          "name": "text",
+          "shape": {
+            "kind": "text"
+          },
+          "required": true,
+          "allowsUnknown": false
+        }
+      ]
+    },
+    "pack": {
+      "record_kind": "domain_pack",
+      "key": "family-evidence",
+      "version": "1.0",
+      "dependencies": {},
+      "capabilities": [],
+      "records": []
+    },
+    "work": {
+      "record_kind": "work",
+      "kind": "novel",
+      "title": "Café editions",
+      "labels": {
+        "en": "Café é 🌲 — exact\r\ntext"
+      },
+      "sourceRefs": [
+        {
+          "universe": "$universe",
+          "record": "$anchor"
+        }
+      ],
+      "versions": [],
+      "worldAssociations": [
+        {
+          "world": "$world_id",
+          "role": "setting",
+          "validity": {
+            "kind": "unspecified"
+          },
+          "qualifiers": {}
+        }
+      ]
+    },
+    "saga": {
+      "record_kind": "saga",
+      "title": "The archive",
+      "labels": {
+        "en": "Café é 🌲 — exact\r\ntext"
+      },
+      "memberships": [
+        {
+          "work": {
+            "universe": "$universe",
+            "record": "$work"
+          },
+          "role": "opening",
+          "order": 0
+        }
+      ]
+    },
+    "work_version": {
+      "record_kind": "work_version",
+      "work": {
+        "universe": "$universe",
+        "record": "$work"
+      },
+      "versionLabel": "edition α",
+      "binding": {
+        "kind": "bound",
+        "continuity": "$continuity",
+        "revision": "$source_revision"
+      }
+    },
+    "scene": {
+      "record_kind": "scene_ref",
+      "workVersion": {
+        "universe": "$universe",
+        "record": "$work_version",
+        "version": "$work_version_version"
+      },
+      "sceneId": "scene α",
+      "disclosedRecords": [
+        {
+          "universe": "$universe",
+          "record": "$belief"
+        }
+      ],
+      "viewpoint": {
+        "universe": "$universe",
+        "record": "$actor"
+      },
+      "narrativePosition": 0,
+      "depictedEvents": [],
+      "narrationFrame": {
+        "universe": "$universe",
+        "record": "$context"
+      },
+      "worldAssociations": []
+    },
+    "passage": {
+      "record_kind": "passage_ref",
+      "workVersion": {
+        "universe": "$universe",
+        "record": "$work_version",
+        "version": "$work_version_version"
+      },
+      "passageId": "passage α",
+      "anchor": {
+        "universe": "$universe",
+        "record": "$anchor"
+      }
+    },
+    "appearance": {
+      "record_kind": "appearance",
+      "target": {
+        "kind": "entry",
+        "entry": {
+          "universe": "$universe",
+          "record": "$actor"
+        }
+      },
+      "label": "Café portrait",
+      "physical_description": "Copper hair. é ≠ é.\r\n🌲",
+      "atmosphere": "Quiet\tair",
+      "images": [
+        {
+          "asset": {
+            "universe": "$universe",
+            "record": "$image"
+          },
+          "caption": "Exact α 🌲",
+          "purpose": "detail"
+        },
+        {
+          "asset": {
+            "universe": "$universe",
+            "record": "$image"
+          },
+          "caption": "Exact α 🌲",
+          "purpose": "inspiration"
+        }
+      ],
+      "links": [
+        {
+          "entry": {
+            "universe": "$universe",
+            "record": "$recipient"
+          },
+          "relationship": "contrasts",
+          "note": "Same world, different appearance"
+        }
+      ],
+      "validity": {
+        "kind": "unspecified"
+      }
+    },
+    "proposition": {
+      "record_kind": "proposition",
+      "predicate": {
+        "universe": "$universe",
+        "record": "$property"
+      },
+      "subject": {
+        "universe": "$universe",
+        "record": "$actor"
+      },
+      "value": {
+        "kind": "text",
+        "text": "The unasserted message 🌲"
+      },
+      "roles": [],
+      "quantification": "particular",
+      "context": {
+        "universe": "$universe",
+        "record": "$context"
+      }
+    },
+    "belief": {
+      "record_kind": "epistemic_attitude",
+      "holder": {
+        "universe": "$universe",
+        "record": "$actor"
+      },
+      "proposition": {
+        "universe": "$universe",
+        "record": "$proposition"
+      },
+      "attitude": "suspects",
+      "certainty": "0.2500",
+      "validity": {
+        "kind": "unspecified"
+      },
+      "basis": {
+        "kind": "source_anchor",
+        "anchor": {
+          "universe": "$universe",
+          "record": "$anchor"
+        },
+        "verified": true
+      }
+    },
+    "observation": {
+      "record_kind": "observation",
+      "observer": {
+        "universe": "$universe",
+        "record": "$actor"
+      },
+      "observed": {
+        "universe": "$universe",
+        "record": "$recipient"
+      },
+      "sensoryAccess": false,
+      "time": {
+        "kind": "exact",
+        "calendar": "$calendar",
+        "value": "12"
+      },
+      "interpretation": {
+        "universe": "$universe",
+        "record": "$proposition"
+      },
+      "basis": {
+        "kind": "source_anchor",
+        "anchor": {
+          "universe": "$universe",
+          "record": "$anchor"
+        },
+        "verified": true
+      }
+    },
+    "communication": {
+      "record_kind": "communication",
+      "sender": {
+        "universe": "$universe",
+        "record": "$actor"
+      },
+      "intendedRecipients": [
+        {
+          "universe": "$universe",
+          "record": "$recipient"
+        },
+        {
+          "universe": "$universe",
+          "record": "$actor"
+        },
+        {
+          "universe": "$universe",
+          "record": "$recipient"
+        }
+      ],
+      "actualRecipients": [
+        {
+          "universe": "$universe",
+          "record": "$recipient"
+        }
+      ],
+      "content": [
+        {
+          "universe": "$universe",
+          "record": "$proposition"
+        },
+        {
+          "universe": "$universe",
+          "record": "$proposition"
+        }
+      ],
+      "channel": "whisper α",
+      "sentAt": {
+        "kind": "exact",
+        "calendar": "$calendar",
+        "value": "12"
+      },
+      "receivedAt": {
+        "kind": "exact",
+        "calendar": "$calendar",
+        "value": "13"
+      },
+      "distorted": true
+    },
+    "memory": {
+      "record_kind": "memory",
+      "holder": {
+        "universe": "$universe",
+        "record": "$actor"
+      },
+      "content": {
+        "universe": "$universe",
+        "record": "$proposition"
+      },
+      "alleged": null,
+      "accessibility": "",
+      "altered": true,
+      "validity": {
+        "kind": "unspecified"
+      }
+    },
+    "goal": {
+      "record_kind": "goal",
+      "actor": {
+        "universe": "$universe",
+        "record": "$actor"
+      },
+      "desired": {
+        "universe": "$universe",
+        "record": "$proposition"
+      },
+      "prerequisites": [],
+      "steps": [
+        {
+          "universe": "$universe",
+          "record": "$communication"
+        },
+        {
+          "universe": "$universe",
+          "record": "$observation"
+        }
+      ],
+      "status": "active",
+      "validity": {
+        "kind": "unspecified"
+      }
+    },
+    "commitment": {
+      "record_kind": "commitment",
+      "parties": [
+        {
+          "record": {
+            "universe": "$universe",
+            "record": "$actor"
+          },
+          "role": "promisor"
+        },
+        {
+          "record": {
+            "universe": "$universe",
+            "record": "$recipient"
+          },
+          "role": "witness"
+        }
+      ],
+      "obligated": {
+        "universe": "$universe",
+        "record": "$proposition"
+      },
+      "conditions": [],
+      "deadline": null,
+      "status": "breached"
+    },
+    "completeness": {
+      "record_kind": "completeness",
+      "subject": {
+        "universe": "$universe",
+        "record": "$actor"
+      },
+      "predicate": "unobserved-property",
+      "members": [],
+      "completeness": "objective_reality",
+      "validity": {
+        "kind": "unspecified"
+      },
+      "scope": {
+        "context": {
+          "universe": "$universe",
+          "record": "$context"
+        },
+        "applicability": {
+          "kind": "universe_wide"
+        }
+      }
+    },
+    "boundary": {
+      "record_kind": "boundary",
+      "key": "family-boundary",
+      "area": {
+        "kind": "record",
+        "universe": "$universe",
+        "record": "$recipient"
+      },
+      "mode": "proposal_required",
+      "validity": {
+        "kind": "unspecified"
+      },
+      "scope": {
+        "context": {
+          "universe": "$universe",
+          "record": "$context"
+        },
+        "applicability": {
+          "kind": "universe_wide"
+        }
+      }
+    },
+    "rule": {
+      "record_kind": "rule",
+      "namespace": "families",
+      "key": "exact-comparison",
+      "labels": {},
+      "kind": "physical_constraint",
+      "commitPolicy": "block_unless_exception",
+      "applicability": {
+        "kind": "universe_wide"
+      },
+      "targetPredicates": [],
+      "expression": {
+        "kind": "compare",
+        "op": "eq",
+        "left": {
+          "kind": "value",
+          "value": {
+            "kind": "text",
+            "text": "α"
+          }
+        },
+        "right": {
+          "kind": "value",
+          "value": {
+            "kind": "text",
+            "text": "α"
+          }
+        }
+      },
+      "capabilities": [],
+      "executable": true,
+      "validity": {
+        "kind": "unspecified"
+      }
+    },
+    "decision": {
+      "record_kind": "issue_decision",
+      "fingerprints": [],
+      "mode": "accept",
+      "scope": "$rule",
+      "rationale": "Explicit authored decision; no suppression inferred.",
+      "principal": "$principal"
+    },
+    "exception": {
+      "record_kind": "exception",
+      "rule": {
+        "universe": "$universe",
+        "record": "$rule"
+      },
+      "scope": {
+        "context": {
+          "universe": "$universe",
+          "record": "$context"
+        },
+        "applicability": {
+          "kind": "universe_wide"
+        }
+      },
+      "validity": {
+        "kind": "unspecified"
+      },
+      "authorizingDecision": {
+        "universe": "$universe",
+        "record": "$decision"
+      },
+      "rationale": "Exact exception α",
+      "ruleVersion": "$rule_version"
+    },
+    "power": {
+      "record_kind": "item_power",
+      "item": {
+        "universe": "$universe",
+        "record": "$actor"
+      },
+      "holderPredicate": {
+        "universe": "$universe",
+        "record": "$holder"
+      },
+      "powerPredicate": {
+        "universe": "$universe",
+        "record": "$property"
+      },
+      "value": {
+        "kind": "text",
+        "text": "Declared only"
+      },
+      "scope": {
+        "context": {
+          "universe": "$universe",
+          "record": "$context"
+        },
+        "applicability": {
+          "kind": "universe_wide"
+        }
+      },
+      "validity": {
+        "kind": "unspecified"
+      }
+    }
+  },
+  "media": {
+    "sha256": "2cbcc016956eaee13316acec2bfe61adde9157aac707d7d236aa47fabb64232a",
+    "width": 384,
+    "height": 384,
+    "original_name": "Original α.png"
+  }
+}

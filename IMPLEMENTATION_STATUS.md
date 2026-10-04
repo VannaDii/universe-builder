@@ -42,6 +42,16 @@ pass. The required workspace gate passes all 337 tests, strict Clippy, formattin
 and schema checks. The scoped workflow goal is complete. See
 [workflow verification](docs/relational-workflow-verification.md).
 
+October 4 canonical-family qualification: all 38 families now have supported
+public workflow and independent relational history/restart evidence, reconciled
+in the [coverage matrix](docs/canonical-families-verification.md). The new MCP
+pilot covers source/media preservation, editorial corrections and pinned editions,
+epistemic/communication records and invalid-reference/access denials. Admission
+now rejects nonexistent edition bindings and wrong-kind editorial edition pins.
+Realm and Secret have no public creation operation; their existing public
+historical adoption route is qualified using disposable Kernel-seeded originals.
+No story semantics or live-package conversion was added.
+
 | Milestone | Implementation and limits |
 |---|---|
 | 1 · WP01–03 baseline | Build/lint/test automation; typed domain and all 13 closed public tool contracts; generated schemas and valid/invalid fixtures. Unsupported evaluation cannot claim complete coverage. |
