@@ -42,7 +42,7 @@ mod tests {
         let u = UniverseId::parse("unv_000000000000000000000001").unwrap();
         let id = RecordId::parse("rec_000000000000000000000001").unwrap();
         let entity: Payload = serde_json::from_value(json!({"record_kind":"entity","names":[],
-            "types":[],"worldAssociations":[],"labels":{},"metadata":{}}))
+            "classification":null,"classificationResolution":"unclassified","worldAssociations":[],"labels":{},"metadata":{}}))
         .unwrap();
         let map = BTreeMap::from([(&id, &entity)]);
         let passage: Payload = serde_json::from_value(json!({"record_kind":"passage_ref",
@@ -57,7 +57,7 @@ mod tests {
         let u = "unv_000000000000000000000001";
         let id = RecordId::parse("rec_000000000000000000000001").unwrap();
         let entity: Payload = serde_json::from_value(json!({"record_kind":"entity","names":[],
-            "types":[],"worldAssociations":[],"labels":{},"metadata":{}}))
+            "classification":null,"classificationResolution":"unclassified","worldAssociations":[],"labels":{},"metadata":{}}))
         .unwrap();
         let map = BTreeMap::from([(&id, &entity)]);
         for verified in [true, false] {

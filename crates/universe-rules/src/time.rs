@@ -274,7 +274,7 @@ mod tests {
         let edge = |n, from, to, clock, polarity: &str, context| {
             vec![
             record(n,serde_json::from_value(json!({"record_kind":"proposition","predicate":rr(10),"subject":rr(from),"value":{"kind":"temporal","temporal":{"kind":"relative","calendar":cal(clock),"relation":"before","target":rr(to)}},"quantification":"particular","context":rr(context)})).unwrap()),
-            record(n+100,serde_json::from_value(json!({"record_kind":"assertion","proposition":rr(n),"polarity":polarity,"scope":{"applicability":{"kind":"universe_wide"},"context":rr(context)},"validity":{"kind":"unspecified"},"persistence":"unspecified","precision":"exact","basis":{"kind":"author_decision","note":"order"}})).unwrap())
+            record(n+100,serde_json::from_value(json!({"record_kind":"assertion","attributeMode":"instance","proposition":rr(n),"polarity":polarity,"scope":{"applicability":{"kind":"universe_wide"},"context":rr(context)},"validity":{"kind":"unspecified"},"persistence":"unspecified","precision":"exact","basis":{"kind":"author_decision","note":"order"}})).unwrap())
         ]
         };
         let mut records = edge(20, 1, 2, 1, "support", 3);

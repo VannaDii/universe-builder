@@ -127,10 +127,6 @@ impl RecordKind {
         }
     }
 
-    pub fn discriminator(&self) -> String {
-        format!("{}:{}", self.as_str(), crate::SCHEMA_VERSION)
-    }
-
     pub fn parse(s: &str) -> DomainResult<Self> {
         Ok(match s {
             "entity" => Self::Entity,
@@ -234,6 +230,7 @@ impl RecordKind {
 #[derive(
     Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, schemars::JsonSchema,
 )]
+#[serde(deny_unknown_fields)]
 pub struct RecordIdentity {
     pub universe_id: UniverseId,
     pub record_id: RecordId,
@@ -257,16 +254,16 @@ impl Canonical for RecordIdentity {
 }
 
 /// An immutable typed record version (spec §27.1 contract table:
-/// `record_version_id`, identity, `payload_schema_version`, typed
+/// `record_version_id`, identity, typed
 /// `payload`, `payload_digest`).
 ///
 /// Content is immutable; actor/time/decision attribution is linked through
 /// the editorial commit that admitted it (spec §27.1).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct RecordVersion {
     pub record_version_id: RecordVersionId,
     pub identity: RecordIdentity,
-    pub payload_schema_version: String,
     pub payload: Payload,
     /// SHA-256 over the canonical payload and its kind discriminator
     /// (spec §27.8).
@@ -291,7 +288,6 @@ impl RecordVersion {
         Ok(Self {
             record_version_id,
             identity,
-            payload_schema_version: payload.schema_version().to_string(),
             payload,
             payload_digest,
         })
@@ -343,8 +339,8 @@ pub struct Realm {
 // Definitions (versioned data — spec §5.5, §27.2)
 // ---------------------------------------------------------------------------
 
-/// An entity type. Multiple types are permitted; inheritance cycles for
-/// executable subtype traversal are rejected at compile time.
+/// A named definition with one nullable parent and explicit resolution.
+/// An ambiguous parent blocks executable ancestry; it is never chosen silently.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct EntityType {
@@ -352,11 +348,39 @@ pub struct EntityType {
     pub namespace: String,
     pub key: String,
     pub labels: BTreeMap<String, String>,
-    /// Optional parent types (stable ids).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub parents: Vec<RecordId>,
+    pub name: String,
+    pub parent: Option<RecordId>,
+    pub parent_resolution: ParentResolution,
+    pub applicability: Applicability,
     /// Whether subtype traversal may be used by executable rules.
     pub classification_executable: bool,
+}
+
+/// Parent knowledge is distinct from the stable identity of a definition.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ParentResolution {
+    Root,
+    Resolved,
+    Ambiguous,
+}
+
+/// Classification knowledge does not create a new instance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ClassificationResolution {
+    Unclassified,
+    Resolved,
+    Ambiguous,
+}
+
+/// Shared and initial-value definitions do not describe a continuing balance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AttributeMode {
+    Instance,
+    Shared,
+    InitialValue,
 }
 
 /// The typed shape of a property value (spec §27.2).
@@ -668,6 +692,7 @@ impl std::hash::Hash for Proposition {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Assertion {
+    pub attribute_mode: AttributeMode,
     pub proposition: RecordRef,
     pub polarity: Polarity,
     pub scope: Scope,
@@ -1572,8 +1597,8 @@ pub struct ContextualName {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Entity {
     pub names: Vec<ContextualName>,
-    /// Type membership (multiple types permitted).
-    pub types: Vec<RecordId>,
+    pub classification: Option<RecordId>,
+    pub classification_resolution: ClassificationResolution,
     /// World associations (separate from location).
     pub world_associations: Vec<WorldAssociation>,
     pub labels: BTreeMap<String, String>,
@@ -2183,33 +2208,6 @@ impl Canonical for OperationAuthority {
     }
 }
 
-impl Payload {
-    /// Only the new expression requires v2. Historical v1 bytes and digests
-    /// remain unchanged and readable by the current host.
-    pub fn schema_version(&self) -> &'static str {
-        let new_expression = match self {
-            Self::Rule(r) => r.expression.uses_opposing_evidence(),
-            Self::Boundary(b) => b.constraints.iter().any(Expr::uses_opposing_evidence),
-            Self::Event(e) => e.preconditions.iter().any(Expr::uses_opposing_evidence),
-            Self::Goal(s) => s.prerequisites.iter().any(Expr::uses_opposing_evidence),
-            Self::Commitment(c) => c.conditions.iter().any(Expr::uses_opposing_evidence),
-            _ => false,
-        };
-        if new_expression {
-            "v2"
-        } else {
-            crate::SCHEMA_VERSION
-        }
-    }
-}
-impl RecordVersion {
-    pub fn supported_schema(&self) -> bool {
-        self.payload_schema_version == self.payload.schema_version()
-            || (self.payload_schema_version == "v2"
-                && self.payload.schema_version() == crate::SCHEMA_VERSION)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2240,7 +2238,8 @@ mod tests {
                 role: None,
                 validity: Validity::Unspecified,
             }],
-            types: vec![],
+            classification: None,
+            classification_resolution: ClassificationResolution::Unclassified,
             world_associations: vec![WorldAssociation {
                 world: w,
                 role: "setting".into(),
@@ -2260,6 +2259,7 @@ mod tests {
     #[test]
     fn assertion_and_proposition_are_distinct_records() {
         let a = Assertion {
+            attribute_mode: AttributeMode::Instance,
             proposition: ref_(2),
             polarity: Polarity::Support,
             scope: Scope {
@@ -2299,6 +2299,7 @@ mod tests {
     #[test]
     fn digest_covers_kind_and_content() {
         let make = |note: &str| Assertion {
+            attribute_mode: AttributeMode::Instance,
             proposition: ref_(2),
             polarity: Polarity::Support,
             scope: Scope {

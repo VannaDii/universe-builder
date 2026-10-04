@@ -63,7 +63,9 @@ fn images_survive_source_removal_history_backup_filtered_export_and_clone() {
             entity.clone(),
             Payload::Entity(Entity {
                 names: vec![],
-                types: vec![],
+                classification: None,
+                classification_resolution:
+                    universe_domain::records::ClassificationResolution::Unclassified,
                 world_associations: vec![],
                 labels: BTreeMap::new(),
                 metadata: BTreeMap::new(),

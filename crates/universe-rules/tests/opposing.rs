@@ -44,7 +44,9 @@ fn base() -> Vec<RecordVersion> {
             n,
             Payload::Entity(Entity {
                 names: vec![],
-                types: vec![],
+                classification: None,
+                classification_resolution:
+                    universe_domain::records::ClassificationResolution::Unclassified,
                 world_associations: vec![],
                 labels: BTreeMap::from([("en".into(), "Door".into())]),
                 metadata: BTreeMap::new(),
@@ -103,6 +105,7 @@ fn base() -> Vec<RecordVersion> {
         records.push(record(
             n,
             Payload::Assertion(Assertion {
+                attribute_mode: universe_domain::records::AttributeMode::Instance,
                 proposition: rr(20),
                 polarity,
                 scope: Scope {

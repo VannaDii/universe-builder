@@ -477,7 +477,10 @@ pub fn operations(key: &str) -> Result<Vec<DomainOperation>, String> {
                 namespace: namespace.clone(),
                 key: label.to_lowercase().replace(' ', "_"),
                 labels: BTreeMap::from([("en".into(), (*label).into())]),
-                parents: vec![],
+                name: (*label).into(),
+                parent: None,
+                parent_resolution: ParentResolution::Root,
+                applicability: crate::scope::Applicability::Unspecified,
                 classification_executable: false,
             },
         });

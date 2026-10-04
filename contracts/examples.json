@@ -82,7 +82,8 @@
           "client_ref": "new_entity",
           "record": {
             "names": [],
-            "types": [],
+            "classification": null,
+            "classificationResolution": "unclassified",
             "worldAssociations": [],
             "labels": {
               "en": "The Lantern House"
@@ -106,7 +107,8 @@
           "client_ref": "new_entity",
           "record": {
             "names": [],
-            "types": [],
+            "classification": null,
+            "classificationResolution": "unclassified",
             "worldAssociations": [],
             "labels": {
               "en": "The Lantern House"

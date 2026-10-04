@@ -276,7 +276,7 @@ mod tests {
     fn assertion(n: usize, proposition: usize, polarity: &str, validity: Json) -> RecordVersion {
         record(
             n,
-            json!({"record_kind":"assertion","proposition":rr(proposition),"polarity":polarity,"scope":scope(),"validity":validity,"persistence":"explicit_interval","precision":"exact","basis":{"kind":"author_decision","note":"Power regression"}}),
+            json!({"record_kind":"assertion","attributeMode":"instance","proposition":rr(proposition),"polarity":polarity,"scope":scope(),"validity":validity,"persistence":"explicit_interval","precision":"exact","basis":{"kind":"author_decision","note":"Power regression"}}),
         )
     }
     fn custody(n: usize, owner: usize) -> RecordVersion {

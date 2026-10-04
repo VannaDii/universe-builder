@@ -1,57 +1,79 @@
 # Normalized foundation verification
 
-October 3, 2026. Implementation in progress. The normative decision is
-[the relational storage package](decisions/relational-storage/README.md).
-Vanna's direction in **Define relational storage decisions** was: “rip it all
-out and replace it with this model” and “Until we release a version everything
-we decide is normative.”
+October 3, 2026. Implemented against the approved
+[relational storage decision](decisions/relational-storage/README.md).
+This is the scoped definitions, instances and temporal facts foundation.
 
-## Typed body codec checkpoint
+## Runtime implementation
 
-`crates/universe-store/src/relational.rs` implements the approved physical
-catalog in Rust. It stores fixed scalar columns, explicit branch pointers,
-ordered collections and named map children. The catalog is embedded software
-metadata; it is not persisted application data. Numeric scalars use decimal
-text; exact authored numeric digit strings remain unchanged. Missing fields
-and explicit null have separate states. Inserts require an existing SQLite
-transaction and never commit independently.
+New packages install the single normative typed, kernel and semantic SQL
+layouts atomically. Record versions point to fixed typed body rows; snapshot
+membership uses child rows. There is no persisted generic record JSON body,
+active payload schema tag, schema-version dispatch or automatic old-package
+conversion. Existing serialized packages are refused before journal or policy
+changes, preserving the original for a separately authorized conversion.
 
-Executed checks:
+The existing kernel writes bodies, history, head, projections and receipts in
+one transaction. Reads reconstruct domain records from typed rows and compare
+the canonical digest with the stored digest; disagreement fails closed.
+Exact digits and units, Unicode, collection order and duplicates, absent/null,
+unknown/unbounded time and empty/universe applicability remain distinct.
 
-- `cargo test -p universe-store --locked`: 54 tests passed, including four new
-  relational codec tests.
-- `cargo fmt --all -- --check` and `git diff --check`: passed.
-- Rust writes 72 frozen body fixtures and 50 frozen Cedar/Pistol factual
-  versions to a disposable database. After closing and reopening SQLite,
-  Rust reconstructs every body and verifies canonical bytes and its frozen
-  normative digest. The separately implemented Python reader reconstructs
-  the same 122 roots directly from SQL and independently computes all hashes.
-- Exact digit strings, uint64 magnitude, Unicode, collection order and
-  duplicates, named structured values, and absent/null distinctions survive.
-- Malformed reference shapes and unknown fields fail before insertion;
-  physical child pointers obey foreign keys. Dropped transactions leave no
-  body or child rows. Immutable-row mutations fail. Readback rejects ordinal
-  gaps and cyclic collection pointers.
+Definitions have one resolved parent or an explicit root/ambiguous state.
+Instances have one resolved classification or an explicit
+unclassified/ambiguous state. Names remain authored labels. Assertions distinguish
+instance, shared and initial-value attributes. The existing classification
+operation refines along an ancestry chain while preserving instance identity;
+unrelated reclassification requires an explicit authored correction.
+Snapshot admission validates definition ancestry, reference identity and kind,
+pinned versions, contexts, scope, evidence anchors and exact typed values.
 
-These are codec proofs. They do not establish kernel publication, continuity
-resolution, domain reference admission, or process-interruption recovery for
-the new format. Existing kernel regression tests still exercise the current
-serialized storage. The private codec is not yet called by runtime storage;
-the build consequently reports dead-code warnings until integration.
+## Independent factual and integrity proofs
 
-## Remaining goal gates
+`fixtures/normalized-foundation/facts.json` specifies 32 initial records and
+five later versions independently of the Rust writer. The disposable package
+contains Tree/Cedar/Western red cedar and Gun/Pistol definitions, three instances,
+30.00 then 31.2500 feet, independent pistol balances (7 then 6, and 3),
+shared and initial-value assertions, rename/refinement history and pinned source
+evidence. Metadata includes false, zero, empty text, a large exact integer,
+rational, decimal range, ordered duplicate Unicode values, references and time.
 
-| Requirement | Current evidence |
-|---|---|
-| Normative definitions/instances/attribute domain contracts | Decision specified; runtime domain alignment pending. |
-| Typed value/reference/scope/time and record body storage | Rust codec and independent disposable SQL reconstruction pass. |
-| Existing kernel transactional reads/writes | Integration pending. |
-| Names, classifications, attributes and evidence | Frozen bodies reconstruct; kernel-owned factual records pending. |
-| Historical identities, selected revision and digests after restart | Frozen body digests pass; package-level history/restart pending. |
-| Invalid references preserve integrity | Shape/physical pointer checks pass; snapshot-aware namespace/kind/version checks pending. |
-| Interrupted publication preserves head, membership and receipts | New-format kernel fault and process-exit tests pending. |
-| Conventional commits and actual working time | Report at checkpoints and completion; full objective remains active. |
+`crates/universe-store/tests/normalized_foundation.rs` checks:
+
+- Publication, pinned fork membership, restart, exact history, receipt retry and
+  all 37 frozen canonical digests. `scripts/verify_normalized_foundation.py`
+  separately reconstructs typed bodies and commit membership directly from
+  read-only SQL, using the independent decision-package reader and Python hashes.
+- Dangling/wrong-kind classifications, cyclic parents, incorrect pinned versions,
+  cross-universe scope, invalid context/proposition/mode and malformed values
+  leave every typed-body and kernel-authority row count unchanged, with no receipt.
+- All six precommit fault points roll back children, history, head and receipts.
+  Abrupt subprocess exit at those six points and after commit proves all-or-none
+  publication after restart, followed by safe idempotent retry.
+
+The codec's separate independent SQL proof covers 72 frozen canonical bodies
+and 50 Cedar/Pistol body versions after restart. It verifies canonical bytes and
+hashes, immutable rows, foreign keys, rollback, ordinal gaps and cyclic pointers.
+
+Original `fixtures/action-consequences/payload-digests.json` remains unchanged.
+Its exact source bytes and old digest recipe are checked as historical evidence.
+`fixtures/normalized-foundation/historical-digests.json` freezes the corresponding
+normative bytes and hashes, including removal of the prerelease consequence tag.
+The old recipe is test-only; no alternative runtime serializer accepts it.
+
+## Executed gates and scope
+
+Passed `cargo run -p xtask -- check`: formatting, workspace Clippy with
+warnings denied, 335 passed tests, zero failures and generated-contract
+freshness. One pre-existing service workload test remains ignored and was not
+qualified by this run. All five normalized-foundation tests and all 26 existing
+kernel tests passed. `git diff --check` passed.
+The existing kernel backup, rollback, process-exit and large-import regressions
+now run against the relational format. Native UI/VoiceOver and live author
+packages were not used for this scoped proof.
 
 Unsupported-family qualification, live migration, workflow/installation
-conversion, and declaring the whole persistence conversion complete remain
-outside this goal.
+conversion and whole-persistence completion remain excluded. Workflow entries
+retain their existing serialized storage. Broader record families represented
+by the codec catalog are not thereby semantically qualified. Logical archives
+remain boundary serialization, outside the full persistence-conversion claim.

@@ -32,7 +32,10 @@ impl DefinitionForm {
         let mut record = json!({"namespace":self.namespace,"key":self.key,"labels":{"en":label}});
         let kind = match self.kind.as_str() {
             "type" => {
-                record["parents"] = json!([]);
+                record["name"] = json!(label);
+                record["parent"] = Value::Null;
+                record["parentResolution"] = json!("root");
+                record["applicability"] = json!({"kind":"unspecified"});
                 record["classificationExecutable"] = json!(false);
                 "define_type"
             }

@@ -18,11 +18,19 @@ wire/state/history audit and restart recovery. No engine defect or design change
 was needed. Focused regressions, documentation and CI now cover this scope;
 see [G02 proof results](docs/g02-action-applicability-verification.md).
 
+October 3 normalized foundation: definitions, instances and temporal facts now
+use the approved fixed typed relational model through the existing transactional
+kernel. Independent Cedar/Pistol SQL reconstruction, frozen digests, history,
+restart, invalid-reference rollback and process-interruption proofs are covered
+in [normalized foundation verification](docs/normalized-foundation-verification.md).
+Old serialized packages require explicit conversion; none were migrated.
+Workflow/installation conversion and unsupported-family qualification remain open.
+
 | Milestone | Implementation and limits |
 |---|---|
 | 1 · WP01–03 baseline | Build/lint/test automation; typed domain and all 13 closed public tool contracts; generated schemas and valid/invalid fixtures. Unsupported evaluation cannot claim complete coverage. |
 | 2 · WP01/03/04 integration | Bounded IPC framing/handshakes, correlation, cancellation/recovery, real MCP stdio adapter and independent client checks. Ad-hoc signed native fixture and prior native author-loop evidence; full accessibility/host acceptance remains open. |
-| 3 · WP05 storage | Immutable canonical snapshots and append-only workflow history; atomic revisions/receipts; durable source and image bytes; reconstruction, migration, fault/crash/full-disk tests. Typed reference validation also runs during historical reads and recovery. Backups verify canonical/workflow digests and reconstruct heads before publication; supported schema upgrades first retain a verified private rollback copy. Admission enforces recovery limits before publishing new history. |
+| 3 · WP05 storage | Typed relational record bodies and membership; append-only workflow history; atomic revisions/receipts; durable source and image bytes; reconstruction, migration, fault/crash/full-disk tests. Typed reference validation also runs during historical reads and recovery. Backups verify canonical/workflow digests and reconstruct heads before publication; old serialized packages are refused unchanged for explicit conversion. Admission enforces recovery limits before publishing new history. |
 | 4 · WP06 ownership | Authenticated installation profiles, current scoped grants, single package writer, coordinated startup and bounded worker capacity. Recovery failures release slots; publication has a short fresh-authority gate. |
 | 5 · WP07–10 authoring/research/recovery | Immutable proposal versions, reserved identities, explicit rebase, exact author approvals, atomic publication/retry; bounded basic rules, temporal validity and finite ordering; revision/grant-bound research and cached dependency briefs; UTF-8 anchors, logical archives/import previews/clones, bounded legacy conversion, verified backups and retention-safe compaction. |
 | 6 · WP11 native author workflow | Typed creation, definitions, qualified claims/relationships, narrative bindings, inspector edits, durable scoped drafts, readable exact review/approval/commit, source/recovery controls, rich searchable selectors and namespace reuse suggestions. Universal optional appearance descriptions, image references, visual relationships and time-bound appearance edits. No raw JSON editor. Current controls are compiled and exercised through pure/UI and engine tests; current packaged native interaction remains pending. |

@@ -181,7 +181,7 @@ impl Form {
             "kind":if self.kind=="relationship"{"record_relation"}else{"assert_proposition"},
             "client_ref":id,
             "proposition":{"predicate":rr(&self.predicate)?,"subject":rr(&self.subject)?,"roles":roles,"value":value,"quantification":"particular","context":frame.context},
-            "assertion":{"proposition":{"universe":frame.universe,"record":id},"polarity":self.polarity,"scope":{"applicability":applicability,"context":frame.context},"validity":validity,"persistence":if ["interval","timer"].contains(&self.validity.as_str()){"explicit_interval"}else if self.validity=="instant"{"instantaneous_observation"}else{"unspecified"},"precision":self.precision,"alternatives":alternatives,"basis":{"kind":"author_decision","note":self.note}}
+            "assertion":{"attributeMode":"instance","proposition":{"universe":frame.universe,"record":id},"polarity":self.polarity,"scope":{"applicability":applicability,"context":frame.context},"validity":validity,"persistence":if ["interval","timer"].contains(&self.validity.as_str()){"explicit_interval"}else if self.validity=="instant"{"instantaneous_observation"}else{"unspecified"},"precision":self.precision,"alternatives":alternatives,"basis":{"kind":"author_decision","note":self.note}}
         });
         serde_json::from_value(op).map_err(|e| e.to_string())
     }

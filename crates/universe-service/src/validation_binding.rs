@@ -650,7 +650,7 @@ mod tests {
         let (initial, _) = setup(&mut kernel, &profile);
         let mut w = workflow(&mut kernel, &profile);
         let mut ops = initial.proposal.operations.clone();
-        ops.push(serde_json::from_value(json!({"kind":"create_entity","client_ref":"dependency","record":{"names":[],"types":[],"worldAssociations":[],"labels":{"en":"Dependency"},"metadata":{}}})).unwrap());
+        ops.push(serde_json::from_value(json!({"kind":"create_entity","client_ref":"dependency","record":{"names":[],"classification":null,"classificationResolution":"unclassified","worldAssociations":[],"labels":{"en":"Dependency"},"metadata":{}}})).unwrap());
         let p = freeze(
             &mut w,
             initial.proposal.base_frame.clone(),

@@ -1312,7 +1312,7 @@ mod ownership_tests {
             request: Box::new(universe_protocol::Request::from_tool(name, args).unwrap()),
         };
         let ctx=runtime.execute(&hello,tool("universe_open_context",json!({"universe":"Alpha","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":u["context_id"],"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"}))).unwrap()["result"]["context_id"].clone();
-        let p=runtime.execute(&hello,tool("universe_propose",json!({"action":"create","universe":"Alpha","context_id":ctx,"operations":[{"kind":"create_entity","client_ref":"new","record":{"names":[],"types":[],"worldAssociations":[],"labels":{"en":"New"},"metadata":{}}}],"submission":"submitted","rationale":"test","idempotency_key":"proposal"}))).unwrap()["result"].clone();
+        let p=runtime.execute(&hello,tool("universe_propose",json!({"action":"create","universe":"Alpha","context_id":ctx,"operations":[{"kind":"create_entity","client_ref":"new","record":{"names":[],"classification":null,"classificationResolution":"unclassified","worldAssociations":[],"labels":{"en":"New"},"metadata":{}}}],"submission":"submitted","rationale":"test","idempotency_key":"proposal"}))).unwrap()["result"].clone();
         let (entered, release) = crate::workflow::pause_evaluation(
             serde_json::from_value(u["universe_id"].clone()).unwrap(),
         );
@@ -1748,7 +1748,7 @@ mod ownership_tests {
             let entity = RecordId::generate(&mut rand::rng());
             let predicate = RecordId::generate(&mut rand::rng());
             let mut ops = staged["operations"].as_array().unwrap().clone();
-            ops.push(json!({"kind":"create_entity","client_ref":entity,"record":{"names":[],"types":[],"worldAssociations":[],"labels":{"en":"Subject"},"metadata":{}}}));
+            ops.push(json!({"kind":"create_entity","client_ref":entity,"record":{"names":[],"classification":null,"classificationResolution":"unclassified","worldAssociations":[],"labels":{"en":"Subject"},"metadata":{}}}));
             ops.push(json!({"kind":"define_property","client_ref":predicate,"record":{"namespace":"proof","key":"flag","labels":{},"subjectTypes":[],"value":{"kind":"boolean"},"multiplicity":"single","persistence":"explicit_interval","exclusive":true,"symmetric":false,"transitive":false}}));
             let setup = runtime.execute(&h,tool("universe_propose",json!({"action":"create","universe":"Bindings","context_id":ctx,"operations":ops,"submission":"submitted","rationale":"Retained source and delegation bounds","idempotency_key":"setup"}))).unwrap()["result"].clone();
             let setup_ref = json!({"proposal_id":setup["proposal_id"],"version":setup["version"],"digest":setup["digest"]});

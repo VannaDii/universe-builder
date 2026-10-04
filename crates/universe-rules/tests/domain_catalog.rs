@@ -38,7 +38,9 @@ fn exercise(case: &Case, adversarial: bool) {
             n + 1,
             Payload::Entity(Entity {
                 names: vec![],
-                types: vec![],
+                classification: None,
+                classification_resolution:
+                    universe_domain::records::ClassificationResolution::Unclassified,
                 world_associations: vec![],
                 labels: BTreeMap::from([("en".into(), (*label).into())]),
                 metadata: BTreeMap::new(),
@@ -89,6 +91,7 @@ fn exercise(case: &Case, adversarial: bool) {
         push(
             700 + index,
             Payload::Assertion(Assertion {
+                attribute_mode: universe_domain::records::AttributeMode::Instance,
                 proposition: rr(p),
                 polarity: Polarity::Support,
                 scope: Scope {
@@ -125,6 +128,7 @@ fn exercise(case: &Case, adversarial: bool) {
         push(
             901,
             Payload::Assertion(Assertion {
+                attribute_mode: universe_domain::records::AttributeMode::Instance,
                 proposition: rr(900),
                 polarity: Polarity::Support,
                 scope: Scope {

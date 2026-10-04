@@ -26,12 +26,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -39,12 +38,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -52,12 +50,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -118,7 +115,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -225,12 +223,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -238,12 +235,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -251,12 +247,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -317,7 +312,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -424,12 +420,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -437,12 +432,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -450,12 +444,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -516,7 +509,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -620,12 +614,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -633,12 +626,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -646,12 +638,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -712,7 +703,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -819,12 +811,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -832,12 +823,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -845,12 +835,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -911,7 +900,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -1043,12 +1033,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -1056,12 +1045,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -1069,12 +1057,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -1135,7 +1122,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -1270,7 +1258,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         }
       ],
@@ -1328,12 +1317,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -1341,12 +1329,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -1354,12 +1341,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -1420,7 +1406,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -1552,12 +1539,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -1565,12 +1551,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -1578,12 +1563,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -1647,7 +1631,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -1757,12 +1742,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -1770,12 +1754,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -1783,12 +1766,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -1852,7 +1834,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -1962,12 +1945,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -1975,12 +1957,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -1988,12 +1969,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -2057,7 +2037,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -2165,12 +2146,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -2178,12 +2158,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -2191,12 +2170,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -2257,7 +2235,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -2365,12 +2344,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -2378,12 +2356,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -2391,12 +2368,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -2457,7 +2433,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -2564,12 +2541,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -2577,12 +2553,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -2590,12 +2565,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -2653,7 +2627,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -2765,12 +2740,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -2778,12 +2752,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -2791,12 +2764,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -2857,7 +2829,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -2964,12 +2937,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -2977,12 +2949,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -2990,12 +2961,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -3125,12 +3095,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -3138,12 +3107,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -3151,12 +3119,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -3217,7 +3184,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -3341,12 +3309,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -3354,12 +3321,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -3367,12 +3333,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -3433,7 +3398,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -3773,12 +3739,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -3786,12 +3751,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -3799,12 +3763,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -3865,7 +3828,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -4205,12 +4169,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -4218,12 +4181,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -4231,12 +4193,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -4297,7 +4258,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -4637,12 +4599,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -4650,12 +4611,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -4663,12 +4623,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -4729,7 +4688,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -5072,7 +5032,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         }
       ],
@@ -5130,12 +5091,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -5143,12 +5103,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -5156,12 +5115,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -5222,7 +5180,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -5328,12 +5287,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -5341,12 +5299,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -5354,12 +5311,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -5420,7 +5376,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -5564,12 +5521,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -5577,12 +5533,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -5590,12 +5545,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -5656,7 +5610,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -5801,12 +5756,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -5814,12 +5768,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -5827,12 +5780,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -5893,7 +5845,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -6037,12 +5990,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -6050,12 +6002,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -6063,12 +6014,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -6129,7 +6079,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {
@@ -6273,12 +6224,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -6286,12 +6236,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000046"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000046",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -6299,12 +6248,11 @@
           "payload": {
             "record_kind": "entity",
             "names": [],
-            "types": [
-              "rec_000000000000000000000047"
-            ],
             "worldAssociations": [],
             "labels": {},
-            "metadata": {}
+            "metadata": {},
+            "classification": "rec_000000000000000000000047",
+            "classificationResolution": "resolved"
           }
         },
         {
@@ -6365,7 +6313,8 @@
             "basis": {
               "kind": "author_decision",
               "note": "Explicit established stock"
-            }
+            },
+            "attributeMode": "instance"
           }
         },
         {

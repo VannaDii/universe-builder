@@ -50,10 +50,6 @@ pub use scope::{
 pub use temporal::{TemporalBound, TemporalExpression, TemporalRelation};
 pub use value::{limits, LocalRef, RecordRef, SpatialExpression, Value, VersionRef};
 
-/// Application domain contract version carried by the canonical digest
-/// discriminator. Bump only with a documented migration (spec §14.5).
-pub const SCHEMA_VERSION: &str = "v1";
-
 /// Application contract version (independent of database and MCP protocol
 /// versions; spec §11.4).
 pub const CONTRACT_VERSION: &str = "1";

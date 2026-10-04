@@ -4,18 +4,20 @@
     {
       "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
-      "metadata": {}
+      "metadata": {},
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
     {
       "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
-      "metadata": {}
+      "metadata": {},
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
     {
       "record_kind": "property",
@@ -59,7 +61,7 @@
       "labels": {},
       "requirements": [],
       "consequenceContract": {
-        "kind": "action_consequences_v1",
+        "kind": "action_consequences",
         "slots": [
           {
             "slot": "debit",
@@ -209,7 +211,8 @@
       "basis": {
         "kind": "author_decision",
         "note": "Independent premise"
-      }
+      },
+      "attributeMode": "instance"
     },
     {
       "record_kind": "proposition",
@@ -234,10 +237,11 @@
     {
       "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
-      "metadata": {}
+      "metadata": {},
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
     {
       "record_kind": "assertion",
@@ -272,7 +276,8 @@
       "basis": {
         "kind": "author_decision",
         "note": "Independent premise"
-      }
+      },
+      "attributeMode": "instance"
     },
     {
       "record_kind": "proposition",
@@ -2546,7 +2551,8 @@
           "basis": {
             "kind": "author_decision",
             "note": "Independent premise"
-          }
+          },
+          "attributeMode": "instance"
         },
         {
           "record_kind": "item_power",

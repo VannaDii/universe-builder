@@ -57,7 +57,6 @@ pub enum FaultPoint {
 pub struct KernelStatus {
     pub universe: UniverseId,
     pub sqlite_version: String,
-    pub schema_version: i64,
     pub journal_mode: String,
     pub synchronous: i64,
     pub foreign_keys: bool,
@@ -190,7 +189,6 @@ impl Kernel {
         Ok(KernelStatus {
             universe: self.universe.clone(),
             sqlite_version: rusqlite::version().into(),
-            schema_version: 2,
             journal_mode: self
                 .conn
                 .query_row("PRAGMA journal_mode", [], |r| r.get(0))?,
@@ -305,10 +303,9 @@ impl Kernel {
                 if v.identity.universe_id != input.universe
                     || v.identity.record_id != change.record_id
                     || v.identity.record_kind != v.payload.kind()
-                    || !v.supported_schema()
                     || !v.verify_digest()
                 {
-                    return Err(invalid("record universe/kind/schema/digest mismatch"));
+                    return Err(invalid("record universe/kind/digest mismatch"));
                 }
                 if let Payload::ImageAsset(asset) = &v.payload {
                     let bytes = media::image_bytes_from(&tx, asset)?;
@@ -319,16 +316,7 @@ impl Kernel {
                     return Err(invalid("record too large"));
                 }
                 tx.prepare_cached("INSERT INTO record_identities VALUES(?1,?2,?3) ON CONFLICT(universe_id,id) DO NOTHING")?.execute(params![uid,rid,v.payload.kind().as_str()])?;
-                tx.prepare_cached("INSERT INTO record_versions VALUES(?1,?2,?3,?4,?5,?6,?7)")?
-                    .execute(params![
-                        uid,
-                        v.record_version_id.as_str(),
-                        rid,
-                        v.payload.kind().as_str(),
-                        v.payload_schema_version,
-                        bytes,
-                        v.payload_digest.as_str()
-                    ])?;
+                insert_version(&tx, v)?;
                 map.insert(rid.into(), v.record_version_id.0.clone());
             } else {
                 if change.expected.is_none() {
@@ -350,6 +338,13 @@ impl Kernel {
 
         hook(FaultPoint::Versions)?;
         validate_candidate(&tx, uid, &map)?;
+        for record in input
+            .changes
+            .iter()
+            .filter_map(|change| change.next.as_ref())
+        {
+            index_definition(&tx, record, &map)?;
+        }
         let revision = new_revision();
         let seq: i64 = tx.query_row(
             "SELECT sequence+1 FROM commits WHERE universe_id=?1 AND id=?2",
@@ -745,12 +740,19 @@ impl Kernel {
         mut hook: impl FnMut(FaultPoint) -> StoreResult<()>,
     ) -> StoreResult<()> {
         let map = self.snapshot(c, r)?;
-        let bytes = canonical_serde(&map).to_bytes();
         let hash = digest(&map);
         let tx = self.conn.transaction()?;
+        tx.execute(
+            "DELETE FROM snapshot_member WHERE universe_id=?1 AND revision_id=?2",
+            params![self.universe.as_str(), r.as_str()],
+        )?;
+        tx.prepare_cached("INSERT OR REPLACE INTO snapshot_membership VALUES(?1,?2,?3)")?
+            .execute(params![self.universe.as_str(), r.as_str(), hash])?;
+        for (record, version) in &map {
+            tx.prepare_cached("INSERT INTO snapshot_member VALUES(?1,?2,?3,?4)")?
+                .execute(params![self.universe.as_str(), r.as_str(), record, version])?;
+        }
         hook(FaultPoint::SnapshotRows)?;
-        tx.prepare_cached("INSERT OR REPLACE INTO snapshot_membership VALUES(?1,?2,?3,?4)")?
-            .execute(params![self.universe.as_str(), r.as_str(), bytes, hash])?;
         hook(FaultPoint::SnapshotPublish)?;
         tx.commit()?;
         Ok(())
@@ -868,23 +870,41 @@ fn verify_canonical(c: &Connection, universe: &str) -> StoreResult<()> {
     }
     Ok(())
 }
+fn insert_version(tx: &rusqlite::Transaction<'_>, record: &RecordVersion) -> StoreResult<()> {
+    let value = serde_json::to_value(&record.payload).map_err(|_| invalid("payload encoding"))?;
+    let row = crate::relational::put(tx, "Payload", &value)?;
+    tx.prepare_cached("INSERT INTO record_versions VALUES(?1,?2,?3,?4,?5,?6)")?
+        .execute(params![
+            record.identity.universe_id.as_str(),
+            record.record_version_id.as_str(),
+            record.identity.record_id.as_str(),
+            record.identity.record_kind.as_str(),
+            row,
+            record.payload_digest.as_str()
+        ])?;
+    Ok(())
+}
 fn load(c: &Connection, u: &str, v: &str) -> StoreResult<RecordVersion> {
-    let (bytes, rid, kind, stored): (Vec<u8>, String, String, String) = c.prepare_cached(
-        "SELECT payload,record_id,kind,digest FROM record_versions WHERE universe_id=?1 AND id=?2")?.query_row(
-        params![u, v],
-        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+    let (row, rid, kind, stored): (i64, String, String, String) = c.prepare_cached(
+        "SELECT payload_row,record_id,kind,digest FROM record_versions WHERE universe_id=?1 AND id=?2")?.query_row(
+        params![u, v], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
     )?;
-    let record: RecordVersion =
-        serde_json::from_slice(&bytes).map_err(|_| invalid("invalid stored payload"))?;
-    if !record.verify_digest()
-        || record.identity.universe_id.as_str() != u
-        || record.record_version_id.as_str() != v
-        || record.identity.record_id.as_str() != rid
-        || record.identity.record_kind != record.payload.kind()
-        || !record.supported_schema()
-        || record.payload.kind().as_str() != kind
-        || record.payload_digest.as_str() != stored
-    {
+    let value = crate::relational::get(c, "Payload", rusqlite::types::Value::Integer(row))?;
+    let payload: Payload =
+        serde_json::from_value(value).map_err(|_| invalid("invalid stored payload"))?;
+    let record = RecordVersion::build(
+        RecordVersionId::parse(v).map_err(|_| invalid("invalid version identity"))?,
+        RecordIdentity::new(
+            UniverseId::parse(u).map_err(|_| invalid("invalid universe identity"))?,
+            RecordId::parse(&rid).map_err(|_| invalid("invalid record identity"))?,
+            RecordKind::parse(&kind).map_err(|_| invalid("invalid kind"))?,
+        ),
+        payload,
+    )
+    .map_err(|_| invalid("stored record kind mismatch"))?;
+    // Comparison is mandatory: never replace historical evidence with a newly
+    // calculated digest and call a mismatching body successful.
+    if record.payload_digest.as_str() != stored {
         return Err(invalid("stored record integrity failure"));
     }
     Ok(record)
@@ -1064,7 +1084,8 @@ fn references(value: &Value, u: &str) -> StoreResult<References> {
             Value::String(s) => {
                 if matches!(
                     key,
-                    "parents"
+                    "parent"
+                        | "classification"
                         | "subjectTypes"
                         | "subject_types"
                         | "participantTypes"
@@ -1132,6 +1153,7 @@ fn validate_records(
     map: &Membership,
     records: &[RecordVersion],
 ) -> StoreResult<()> {
+    validate_foundation(records)?;
     let mut names = BTreeMap::new();
     let kinds: BTreeMap<_, _> = records
         .iter()
@@ -1172,6 +1194,204 @@ fn validate_records(
                 }
             }
         }
+    }
+    Ok(())
+}
+
+/// Definition ancestry and attribute subjects resolve in this exact candidate
+/// membership, including a requested historical revision or fork baseline.
+fn validate_foundation(records: &[RecordVersion]) -> StoreResult<()> {
+    use universe_domain::scope::EvidenceBasis;
+    use universe_domain::value::validate_value;
+    let bodies: BTreeMap<_, _> = records
+        .iter()
+        .map(|r| (&r.identity.record_id, &r.payload))
+        .collect();
+    let has_kind =
+        |id: &RecordId, kind: RecordKind| bodies.get(id).is_some_and(|p| p.kind() == kind);
+    let check_values =
+        |values: &BTreeMap<String, universe_domain::value::Value>| -> StoreResult<()> {
+            for value in values.values() {
+                validate_value(value).map_err(|_| invalid("invalid typed value"))?;
+            }
+            Ok(())
+        };
+    let mut finished = BTreeSet::new();
+    for record in records {
+        match &record.payload {
+            Payload::EntityType(t) => {
+                if (t.parent_resolution == ParentResolution::Resolved) != t.parent.is_some() {
+                    return Err(invalid("parent resolution disagrees with parent identity"));
+                }
+                let mut path = BTreeSet::new();
+                let mut next = Some(&record.identity.record_id);
+                while let Some(id) = next {
+                    if finished.contains(id) {
+                        break;
+                    }
+                    if !path.insert(id) {
+                        return Err(invalid("cyclic definition ancestry"));
+                    }
+                    let Some(Payload::EntityType(definition)) = bodies.get(id).copied() else {
+                        return Err(invalid("parent is not a type in the selected revision"));
+                    };
+                    next = definition.parent.as_ref();
+                }
+                finished.extend(path);
+            }
+            Payload::Entity(e) => {
+                if (e.classification_resolution == ClassificationResolution::Resolved)
+                    != e.classification.is_some()
+                {
+                    return Err(invalid(
+                        "classification resolution disagrees with type identity",
+                    ));
+                }
+                if e.classification
+                    .as_ref()
+                    .is_some_and(|id| !has_kind(id, RecordKind::EntityType))
+                {
+                    return Err(invalid(
+                        "classification is not a type in the selected revision",
+                    ));
+                }
+                check_values(&e.metadata)?;
+                for association in &e.world_associations {
+                    check_values(&association.qualifiers)?;
+                }
+            }
+            Payload::World(w) => check_values(&w.metadata)?,
+            Payload::Realm(r) => check_values(&r.metadata)?,
+            Payload::Proposition(p) => {
+                if !has_kind(&p.context.record, RecordKind::RepresentedContext) {
+                    return Err(invalid("proposition context has wrong kind"));
+                }
+                if !has_kind(&p.subject.record, RecordKind::Entity)
+                    && !has_kind(&p.subject.record, RecordKind::EntityType)
+                {
+                    return Err(invalid("proposition subject has wrong kind"));
+                }
+                if !has_kind(&p.predicate.record, RecordKind::Property)
+                    && !has_kind(&p.predicate.record, RecordKind::Relation)
+                {
+                    return Err(invalid("proposition predicate has wrong kind"));
+                }
+                if let Some(value) = &p.value {
+                    validate_value(value).map_err(|_| invalid("invalid property value"))?;
+                }
+            }
+            Payload::Assertion(a) => {
+                let Some(Payload::Proposition(p)) = bodies.get(&a.proposition.record).copied()
+                else {
+                    return Err(invalid("assertion must reference a proposition"));
+                };
+                let kind = if a.attribute_mode == AttributeMode::Instance {
+                    RecordKind::Entity
+                } else {
+                    RecordKind::EntityType
+                };
+                if !has_kind(&p.subject.record, kind) {
+                    return Err(invalid("attribute mode disagrees with subject kind"));
+                }
+                if !has_kind(&a.scope.context.record, RecordKind::RepresentedContext)
+                    || a.scope
+                        .realm
+                        .as_ref()
+                        .is_some_and(|realm| !has_kind(&realm.record, RecordKind::Realm))
+                {
+                    return Err(invalid("attribute scope has wrong reference kind"));
+                }
+                if let EvidenceBasis::SourceAnchor { anchor, .. } = &a.basis {
+                    if !has_kind(&anchor.record, RecordKind::Anchor) {
+                        return Err(invalid("evidence is not an anchor"));
+                    }
+                }
+                for value in &a.alternatives {
+                    validate_value(value).map_err(|_| invalid("invalid precision alternative"))?;
+                }
+            }
+            _ => (),
+        }
+    }
+    Ok(())
+}
+
+fn index_definition(
+    tx: &rusqlite::Transaction<'_>,
+    record: &RecordVersion,
+    membership: &Membership,
+) -> StoreResult<()> {
+    use universe_domain::scope::Applicability;
+    let u = record.identity.universe_id.as_str();
+    let v = record.record_version_id.as_str();
+    let id = record.identity.record_id.as_str();
+    match &record.payload {
+        Payload::EntityType(t) => {
+            let resolution = match t.parent_resolution {
+                ParentResolution::Root => "root",
+                ParentResolution::Resolved => "resolved",
+                ParentResolution::Ambiguous => "ambiguous",
+            };
+            let applicability = match &t.applicability {
+                Applicability::UniverseWide => "universe",
+                Applicability::Worlds { .. } => "worlds",
+                Applicability::Unspecified => "unspecified",
+                Applicability::Conditional => "conditional",
+            };
+            tx.prepare_cached("INSERT INTO type_definition VALUES(?,?,?,?,?,?,?)")?
+                .execute(params![
+                    u,
+                    v,
+                    id,
+                    t.name,
+                    t.parent.as_ref().map(RecordId::as_str),
+                    resolution,
+                    applicability
+                ])?;
+            if let Applicability::Worlds { world_ids } = &t.applicability {
+                for (ordinal, world) in world_ids.iter().enumerate() {
+                    tx.prepare_cached("INSERT INTO type_world VALUES(?,?,?,?)")?
+                        .execute(params![u, v, ordinal as i64, world_record(world)])?;
+                }
+            }
+        }
+        Payload::Entity(e) => {
+            let resolution = match e.classification_resolution {
+                ClassificationResolution::Resolved => "resolved",
+                ClassificationResolution::Unclassified => "unclassified",
+                ClassificationResolution::Ambiguous => "ambiguous",
+            };
+            tx.prepare_cached("INSERT INTO instance_classification VALUES(?,?,?,?,?)")?
+                .execute(params![
+                    u,
+                    v,
+                    id,
+                    e.classification.as_ref().map(RecordId::as_str),
+                    resolution
+                ])?;
+        }
+        Payload::Assertion(a) if a.attribute_mode != AttributeMode::Instance => {
+            let version = membership
+                .get(a.proposition.record.as_str())
+                .ok_or_else(|| invalid("missing definition proposition"))?;
+            let Payload::Proposition(p) = load(tx, u, version)?.payload else {
+                return Err(invalid("invalid definition proposition"));
+            };
+            let mode = if a.attribute_mode == AttributeMode::Shared {
+                "shared"
+            } else {
+                "initial_value"
+            };
+            tx.prepare_cached("INSERT INTO definition_attribute VALUES(?,?,?,?,?)")?
+                .execute(params![
+                    u,
+                    v,
+                    p.subject.record.as_str(),
+                    p.predicate.record.as_str(),
+                    mode
+                ])?;
+        }
+        _ => (),
     }
     Ok(())
 }
@@ -1269,7 +1489,10 @@ impl Kernel {
         if collect {
             // Called on the sole universe worker: publication and backup cannot
             // interleave with collection. No authoritative retention root is removed.
-            self.conn.execute("DELETE FROM snapshot_membership", [])?;
+            let tx = self.conn.transaction()?;
+            tx.execute("DELETE FROM snapshot_member", [])?;
+            tx.execute("DELETE FROM snapshot_membership", [])?;
+            tx.commit()?;
             self.conn
                 .execute_batch("PRAGMA wal_checkpoint(TRUNCATE); VACUUM;")?;
             self.integrity()?;
@@ -1286,7 +1509,7 @@ mod consequence_reference_tests {
     #[test]
     fn consequence_references_use_existing_indexes_and_namespace_guards() {
         let fixtures: Value = serde_json::from_str(include_str!(
-            "../../../fixtures/action-consequences/payload-digests.json"
+            "../../../fixtures/normalized-foundation/historical-digests.json"
         ))
         .unwrap();
         let u = "unv_000000000000000000000001";

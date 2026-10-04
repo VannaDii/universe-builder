@@ -70,7 +70,7 @@ fn standard_workload_preserves_full_history_and_evaluates_indexed_rules() {
         for entity in 0..10_000 {
             add(
                 100 + entity,
-                json!({"record_kind":"entity","names":[],"types":[],"worldAssociations":[],"labels":{"en":format!("Character {entity}")},"metadata":{}}),
+                json!({"record_kind":"entity","names":[],"classification":null,"classificationResolution":"unclassified","worldAssociations":[],"labels":{"en":format!("Character {entity}")},"metadata":{}}),
             );
             for value in 0..20 {
                 let n = 20_000 + entity * 40 + value * 2;
@@ -80,7 +80,7 @@ fn standard_workload_preserves_full_history_and_evaluates_indexed_rules() {
                 );
                 add(
                     n + 1,
-                    json!({"record_kind":"assertion","proposition":rr(n),"polarity":"support","scope":{"applicability":{"kind":"universe_wide"},"context":rr(1)},"validity":{"kind":"unspecified"},"persistence":"unspecified","precision":"exact","alternatives":[],"basis":{"kind":"author_decision","note":"Authored workload member"}}),
+                    json!({"record_kind":"assertion","attributeMode":"instance","proposition":rr(n),"polarity":"support","scope":{"applicability":{"kind":"universe_wide"},"context":rr(1)},"validity":{"kind":"unspecified"},"persistence":"unspecified","precision":"exact","alternatives":[],"basis":{"kind":"author_decision","note":"Authored workload member"}}),
                 );
             }
         }

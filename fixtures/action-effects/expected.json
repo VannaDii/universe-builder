@@ -4,18 +4,20 @@
     {
       "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
-      "metadata": {}
+      "metadata": {},
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
     {
       "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
-      "metadata": {}
+      "metadata": {},
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
     {
       "record_kind": "property",
@@ -59,7 +61,7 @@
       "labels": {},
       "requirements": [],
       "consequenceContract": {
-        "kind": "action_consequences_v1",
+        "kind": "action_consequences",
         "slots": [
           {
             "slot": "grant",
@@ -212,7 +214,8 @@
       "basis": {
         "kind": "author_decision",
         "note": "Independent premise"
-      }
+      },
+      "attributeMode": "instance"
     }
   ],
   "cases": [
@@ -1579,7 +1582,8 @@
           "basis": {
             "kind": "author_decision",
             "note": "Independent premise"
-          }
+          },
+          "attributeMode": "instance"
         }
       ],
       "changed": [
@@ -1668,7 +1672,8 @@
           "basis": {
             "kind": "author_decision",
             "note": "Independent premise"
-          }
+          },
+          "attributeMode": "instance"
         }
       ],
       "changed": [
@@ -1763,7 +1768,8 @@
           "basis": {
             "kind": "author_decision",
             "note": "Independent premise"
-          }
+          },
+          "attributeMode": "instance"
         }
       ],
       "changed": [

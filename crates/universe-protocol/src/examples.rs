@@ -7,7 +7,7 @@ pub fn proposal_reference() -> Value {
     json!({"proposal_id":id("prp",1),"version":1,"digest":"fixture-digest"})
 }
 pub fn operation() -> Value {
-    json!({"kind":"create_entity","client_ref":"new_entity","record":{"names":[],"types":[],"worldAssociations":[],"labels":{"en":"The Lantern House"},"metadata":{}}})
+    json!({"kind":"create_entity","client_ref":"new_entity","record":{"names":[],"classification":null,"classificationResolution":"unclassified","worldAssociations":[],"labels":{"en":"The Lantern House"},"metadata":{}}})
 }
 pub fn valid() -> Vec<(&'static str, Value)> {
     let u = "The Ashen Cycle";

@@ -1,4 +1,4 @@
-//! The one versioned canonical serializer and digest rules (spec §27.8).
+//! The one normative canonical serializer and digest rules (spec §27.8).
 //!
 //! - Object keys are canonically ordered (sorted); authored Unicode string
 //!   content is preserved without identity-changing normalization.
@@ -474,13 +474,12 @@ impl PayloadDigest {
     }
 }
 
-/// Digest of a record payload with its kind + schema discriminator.
+/// Digest of a record payload under the single normative kind discriminator.
 pub fn payload_digest(
     kind: &crate::records::RecordKind,
     payload: &crate::records::Payload,
 ) -> PayloadDigest {
-    let discriminator = format!("{}:{}", kind.discriminator(), crate::SCHEMA_VERSION);
-    PayloadDigest::compute(&discriminator, &payload.to_canonical())
+    PayloadDigest::compute(kind.as_str(), &payload.to_canonical())
 }
 
 #[cfg(test)]

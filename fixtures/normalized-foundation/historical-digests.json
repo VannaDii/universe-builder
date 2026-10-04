@@ -1,0 +1,363 @@
+[
+  {
+    "name": "historical-action",
+    "source_digest": "dfba7c4a22e33fdddea1b692e180a6d55336ed5ed17c15b0791b69c91d84f1eb",
+    "normative_digest": "eea7028f5fed429e81c451d89097156c635f25b3d0142bcf713a756ec87243b3",
+    "canonical_utf8": "{\"key\":\"walk\",\"labels\":{\"en\":\"Walk café 🌙\"},\"namespace\":\"fixture\",\"record_kind\":\"action_definition\",\"requirements\":[],\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_00000000000000000000000a\",\"universe\":\"unv_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
+    "payload": {
+      "key": "walk",
+      "labels": {
+        "en": "Walk café 🌙"
+      },
+      "namespace": "fixture",
+      "record_kind": "action_definition",
+      "requirements": [],
+      "scope": {
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "context": {
+          "record": "rec_00000000000000000000000a",
+          "universe": "unv_000000000000000000000001"
+        }
+      },
+      "validity": {
+        "kind": "unspecified"
+      }
+    }
+  },
+  {
+    "name": "historical-actionless-event",
+    "source_digest": "092f6b455ca7a8da58f8d29a740ee611acd601d3c504c060f904dbccf95f2e7d",
+    "normative_digest": "a480addb3e859b6da10fb088d3966ed7308824d50f296f1617dc74336a1fe3a0",
+    "canonical_utf8": "{\"effects\":[],\"labels\":{},\"occurrence\":\"occurred\",\"participants\":[{\"record\":{\"record\":\"rec_000000000000000000000001\",\"universe\":\"unv_000000000000000000000001\"},\"role\":\"actor\"}],\"preconditions\":[],\"record_kind\":\"event\",\"time\":{\"calendar\":\"cal_000000000000000000000009\",\"kind\":\"exact\",\"value\":\"11\"},\"worlds\":[]}",
+    "payload": {
+      "effects": [],
+      "labels": {},
+      "occurrence": "occurred",
+      "participants": [
+        {
+          "record": {
+            "record": "rec_000000000000000000000001",
+            "universe": "unv_000000000000000000000001"
+          },
+          "role": "actor"
+        }
+      ],
+      "preconditions": [],
+      "record_kind": "event",
+      "time": {
+        "calendar": "cal_000000000000000000000009",
+        "kind": "exact",
+        "value": "11"
+      },
+      "worlds": []
+    }
+  },
+  {
+    "name": "empty",
+    "source_digest": "f6f1b9c8bd0d95185b2c2f738d649e5b1a9b222dcc3991336e8ad2d5eb07b29e",
+    "normative_digest": "008eebe0df3ad72d14eb9b1ca6f45ebf572c40f741751708e7dc6cde3b368105",
+    "canonical_utf8": "{\"consequenceContract\":{\"kind\":\"action_consequences\",\"slots\":[]},\"key\":\"declared-walk\",\"labels\":{\"en\":\"Walk café 🌙\"},\"namespace\":\"fixture\",\"record_kind\":\"action_definition\",\"requirements\":[],\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_00000000000000000000000a\",\"universe\":\"unv_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
+    "payload": {
+      "consequenceContract": {
+        "kind": "action_consequences",
+        "slots": []
+      },
+      "key": "declared-walk",
+      "labels": {
+        "en": "Walk café 🌙"
+      },
+      "namespace": "fixture",
+      "record_kind": "action_definition",
+      "requirements": [],
+      "scope": {
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "context": {
+          "record": "rec_00000000000000000000000a",
+          "universe": "unv_000000000000000000000001"
+        }
+      },
+      "validity": {
+        "kind": "unspecified"
+      }
+    }
+  },
+  {
+    "name": "fire",
+    "source_digest": "3b7896a851664f31a39b1804791ea5cb178fcd22e9c828669f5a48004964e111",
+    "normative_digest": "0c9b0828bd703f0d21bcb2e50a91f77005741c037b314f4498af140418e0eeaf",
+    "canonical_utf8": "{\"consequenceContract\":{\"kind\":\"action_consequences\",\"slots\":[{\"change\":{\"delta\":\"-1\",\"kind\":\"delta\",\"maximum\":\"12\",\"minimum\":\"0\",\"unit\":null},\"condition\":{\"kind\":\"always\"},\"lifetime\":{\"kind\":\"until_changed\"},\"order\":0,\"presence\":\"required\",\"slot\":\"consume\",\"target\":{\"predicate\":{\"record\":\"rec_000000000000000000000002\",\"universe\":\"unv_000000000000000000000001\"},\"role\":\"gun\"}}]},\"key\":\"fire\",\"labels\":{\"en\":\"Walk café 🌙\"},\"namespace\":\"fixture\",\"record_kind\":\"action_definition\",\"requirements\":[],\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_00000000000000000000000a\",\"universe\":\"unv_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
+    "payload": {
+      "consequenceContract": {
+        "kind": "action_consequences",
+        "slots": [
+          {
+            "change": {
+              "delta": "-1",
+              "kind": "delta",
+              "maximum": "12",
+              "minimum": "0",
+              "unit": null
+            },
+            "condition": {
+              "kind": "always"
+            },
+            "lifetime": {
+              "kind": "until_changed"
+            },
+            "order": 0,
+            "presence": "required",
+            "slot": "consume",
+            "target": {
+              "predicate": {
+                "record": "rec_000000000000000000000002",
+                "universe": "unv_000000000000000000000001"
+              },
+              "role": "gun"
+            }
+          }
+        ]
+      },
+      "key": "fire",
+      "labels": {
+        "en": "Walk café 🌙"
+      },
+      "namespace": "fixture",
+      "record_kind": "action_definition",
+      "requirements": [],
+      "scope": {
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "context": {
+          "record": "rec_00000000000000000000000a",
+          "universe": "unv_000000000000000000000001"
+        }
+      },
+      "validity": {
+        "kind": "unspecified"
+      }
+    }
+  },
+  {
+    "name": "transfer",
+    "source_digest": "85ffb28a56ad7cf99c0b8d2991a544912f6e4be2b9d763ba85155d5cabe90bfd",
+    "normative_digest": "48c8f23b3b91d349693002169df522c809df11c1a11bd61e7ffdaacc07db94e1",
+    "canonical_utf8": "{\"consequenceContract\":{\"kind\":\"action_consequences\",\"slots\":[{\"change\":{\"delta\":\"-2\",\"kind\":\"delta\",\"maximum\":\"12\",\"minimum\":\"0\",\"unit\":\"unit_000000000000000000000007\"},\"condition\":{\"kind\":\"always\"},\"lifetime\":{\"kind\":\"until_changed\"},\"order\":0,\"presence\":\"required\",\"slot\":\"debit\",\"target\":{\"predicate\":{\"record\":\"rec_000000000000000000000002\",\"universe\":\"unv_000000000000000000000001\"},\"role\":\"source\"}},{\"change\":{\"delta\":\"2\",\"kind\":\"delta\",\"maximum\":\"12\",\"minimum\":\"0\",\"unit\":\"unit_000000000000000000000007\"},\"condition\":{\"kind\":\"always\"},\"lifetime\":{\"kind\":\"until_changed\"},\"order\":1,\"presence\":\"required\",\"slot\":\"credit\",\"target\":{\"predicate\":{\"record\":\"rec_000000000000000000000002\",\"universe\":\"unv_000000000000000000000001\"},\"role\":\"recipient\"}}]},\"key\":\"transfer\",\"labels\":{\"en\":\"Walk café 🌙\"},\"namespace\":\"fixture\",\"record_kind\":\"action_definition\",\"requirements\":[],\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_00000000000000000000000a\",\"universe\":\"unv_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
+    "payload": {
+      "consequenceContract": {
+        "kind": "action_consequences",
+        "slots": [
+          {
+            "change": {
+              "delta": "-2",
+              "kind": "delta",
+              "maximum": "12",
+              "minimum": "0",
+              "unit": "unit_000000000000000000000007"
+            },
+            "condition": {
+              "kind": "always"
+            },
+            "lifetime": {
+              "kind": "until_changed"
+            },
+            "order": 0,
+            "presence": "required",
+            "slot": "debit",
+            "target": {
+              "predicate": {
+                "record": "rec_000000000000000000000002",
+                "universe": "unv_000000000000000000000001"
+              },
+              "role": "source"
+            }
+          },
+          {
+            "change": {
+              "delta": "2",
+              "kind": "delta",
+              "maximum": "12",
+              "minimum": "0",
+              "unit": "unit_000000000000000000000007"
+            },
+            "condition": {
+              "kind": "always"
+            },
+            "lifetime": {
+              "kind": "until_changed"
+            },
+            "order": 1,
+            "presence": "required",
+            "slot": "credit",
+            "target": {
+              "predicate": {
+                "record": "rec_000000000000000000000002",
+                "universe": "unv_000000000000000000000001"
+              },
+              "role": "recipient"
+            }
+          }
+        ]
+      },
+      "key": "transfer",
+      "labels": {
+        "en": "Walk café 🌙"
+      },
+      "namespace": "fixture",
+      "record_kind": "action_definition",
+      "requirements": [],
+      "scope": {
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "context": {
+          "record": "rec_00000000000000000000000a",
+          "universe": "unv_000000000000000000000001"
+        }
+      },
+      "validity": {
+        "kind": "unspecified"
+      }
+    }
+  },
+  {
+    "name": "conditional-grant",
+    "source_digest": "e178682316ead7faa3d5d617d8da9749dc69ae80970ac59a10d6ed26575caff5",
+    "normative_digest": "d91f6bf8ff68caf3b6df843c2f740688049e57469fbf9178af671c44b59b9e2c",
+    "canonical_utf8": "{\"consequenceContract\":{\"kind\":\"action_consequences\",\"slots\":[{\"change\":{\"kind\":\"set\",\"polarity\":\"support\",\"value\":{\"kind\":\"boolean\",\"value\":true}},\"condition\":{\"kind\":\"attribute_equals\",\"predicate\":{\"record\":\"rec_000000000000000000000003\",\"universe\":\"unv_000000000000000000000001\"},\"role\":\"caster\",\"value\":{\"kind\":\"boolean\",\"value\":true}},\"lifetime\":{\"count\":\"5\",\"kind\":\"ticks\"},\"order\":3,\"presence\":\"optional\",\"slot\":\"protection\",\"target\":{\"predicate\":{\"record\":\"rec_000000000000000000000002\",\"universe\":\"unv_000000000000000000000001\"},\"role\":\"recipient\"}}]},\"key\":\"grant\",\"labels\":{\"en\":\"Walk café 🌙\"},\"namespace\":\"fixture\",\"record_kind\":\"action_definition\",\"requirements\":[],\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_00000000000000000000000a\",\"universe\":\"unv_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
+    "payload": {
+      "consequenceContract": {
+        "kind": "action_consequences",
+        "slots": [
+          {
+            "change": {
+              "kind": "set",
+              "polarity": "support",
+              "value": {
+                "kind": "boolean",
+                "value": true
+              }
+            },
+            "condition": {
+              "kind": "attribute_equals",
+              "predicate": {
+                "record": "rec_000000000000000000000003",
+                "universe": "unv_000000000000000000000001"
+              },
+              "role": "caster",
+              "value": {
+                "kind": "boolean",
+                "value": true
+              }
+            },
+            "lifetime": {
+              "count": "5",
+              "kind": "ticks"
+            },
+            "order": 3,
+            "presence": "optional",
+            "slot": "protection",
+            "target": {
+              "predicate": {
+                "record": "rec_000000000000000000000002",
+                "universe": "unv_000000000000000000000001"
+              },
+              "role": "recipient"
+            }
+          }
+        ]
+      },
+      "key": "grant",
+      "labels": {
+        "en": "Walk café 🌙"
+      },
+      "namespace": "fixture",
+      "record_kind": "action_definition",
+      "requirements": [],
+      "scope": {
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "context": {
+          "record": "rec_00000000000000000000000a",
+          "universe": "unv_000000000000000000000001"
+        }
+      },
+      "validity": {
+        "kind": "unspecified"
+      }
+    }
+  },
+  {
+    "name": "refutation",
+    "source_digest": "127aaeae48bbb0c64f6fa52dc65be4e39b56b23d43d73386b4c73354d326cbf5",
+    "normative_digest": "48f20b33252aaf106f2bf61cb349342362f49d2795d11302a9f1911b5232db32",
+    "canonical_utf8": "{\"consequenceContract\":{\"kind\":\"action_consequences\",\"slots\":[{\"change\":{\"kind\":\"set\",\"polarity\":\"refutation\",\"value\":{\"kind\":\"boolean\",\"value\":true}},\"condition\":{\"kind\":\"attribute_equals\",\"predicate\":{\"record\":\"rec_000000000000000000000003\",\"universe\":\"unv_000000000000000000000001\"},\"role\":\"caster\",\"value\":{\"kind\":\"boolean\",\"value\":true}},\"lifetime\":{\"count\":\"5\",\"kind\":\"ticks\"},\"order\":3,\"presence\":\"optional\",\"slot\":\"protection\",\"target\":{\"predicate\":{\"record\":\"rec_000000000000000000000002\",\"universe\":\"unv_000000000000000000000001\"},\"role\":\"recipient\"}}]},\"key\":\"refute\",\"labels\":{\"en\":\"Walk café 🌙\"},\"namespace\":\"fixture\",\"record_kind\":\"action_definition\",\"requirements\":[],\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_00000000000000000000000a\",\"universe\":\"unv_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
+    "payload": {
+      "consequenceContract": {
+        "kind": "action_consequences",
+        "slots": [
+          {
+            "change": {
+              "kind": "set",
+              "polarity": "refutation",
+              "value": {
+                "kind": "boolean",
+                "value": true
+              }
+            },
+            "condition": {
+              "kind": "attribute_equals",
+              "predicate": {
+                "record": "rec_000000000000000000000003",
+                "universe": "unv_000000000000000000000001"
+              },
+              "role": "caster",
+              "value": {
+                "kind": "boolean",
+                "value": true
+              }
+            },
+            "lifetime": {
+              "count": "5",
+              "kind": "ticks"
+            },
+            "order": 3,
+            "presence": "optional",
+            "slot": "protection",
+            "target": {
+              "predicate": {
+                "record": "rec_000000000000000000000002",
+                "universe": "unv_000000000000000000000001"
+              },
+              "role": "recipient"
+            }
+          }
+        ]
+      },
+      "key": "refute",
+      "labels": {
+        "en": "Walk café 🌙"
+      },
+      "namespace": "fixture",
+      "record_kind": "action_definition",
+      "requirements": [],
+      "scope": {
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "context": {
+          "record": "rec_00000000000000000000000a",
+          "universe": "unv_000000000000000000000001"
+        }
+      },
+      "validity": {
+        "kind": "unspecified"
+      }
+    }
+  }
+]

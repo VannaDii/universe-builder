@@ -171,7 +171,6 @@ impl LogicalArchive {
         for row in &self.rows {
             if let Row::Record { record } = row {
                 if record.identity.universe_id != self.manifest.universe
-                    || !record.supported_schema()
                     || !record.verify_digest()
                     || !version_ids.insert(record.record_version_id.clone())
                 {
@@ -229,16 +228,7 @@ impl LogicalArchive {
             if bytes.len() > 1_048_576 {
                 return Err(invalid("archive record too large"));
             }
-            tx.prepare_cached("INSERT INTO record_versions VALUES(?1,?2,?3,?4,?5,?6,?7)")?
-                .execute(params![
-                    target.as_str(),
-                    r.record_version_id.as_str(),
-                    r.identity.record_id.as_str(),
-                    r.identity.record_kind.as_str(),
-                    r.payload_schema_version,
-                    bytes,
-                    r.payload_digest.as_str()
-                ])?;
+            insert_version(&tx, r)?;
         }
         for row in &self.rows {
             match row {

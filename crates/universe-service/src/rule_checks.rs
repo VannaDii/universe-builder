@@ -420,7 +420,7 @@ mod tests {
             ),
             v(
                 3,
-                json!({"record_kind":"assertion","proposition":rr(2),"polarity":"support","scope":scope(),"validity":interval(10,20),"persistence":"explicit_interval","precision":"exact","alternatives":[],"basis":{"kind":"author_decision","note":"Explicit period"}}),
+                json!({"record_kind":"assertion","attributeMode":"instance","proposition":rr(2),"polarity":"support","scope":scope(),"validity":interval(10,20),"persistence":"explicit_interval","precision":"exact","alternatives":[],"basis":{"kind":"author_decision","note":"Explicit period"}}),
             ),
             v(
                 4,

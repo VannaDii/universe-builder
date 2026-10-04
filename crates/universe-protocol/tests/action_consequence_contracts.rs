@@ -1,9 +1,15 @@
 use serde_json::{json, Value};
-use universe_domain::{canonical_json, payload_digest, records::Payload};
+use universe_domain::{canonical::PayloadDigest, canonical_json, payload_digest, records::Payload};
 use universe_protocol::wire::decode;
-fn fixtures() -> Vec<Value> {
+fn source_fixtures() -> Vec<Value> {
     serde_json::from_str(include_str!(
         "../../../fixtures/action-consequences/payload-digests.json"
+    ))
+    .unwrap()
+}
+fn fixtures() -> Vec<Value> {
+    serde_json::from_str(include_str!(
+        "../../../fixtures/normalized-foundation/historical-digests.json"
     ))
     .unwrap()
 }
@@ -18,21 +24,50 @@ fn rejects(payload: Value) {
 }
 #[test]
 fn independently_authored_payloads_round_trip_with_frozen_bytes_and_digests() {
+    let normative: Vec<Value> = serde_json::from_str(include_str!(
+        "../../../fixtures/normalized-foundation/historical-digests.json"
+    ))
+    .unwrap();
     for fixture in fixtures() {
+        let expected = normative
+            .iter()
+            .find(|r| r["name"] == fixture["name"])
+            .unwrap();
         let payload: Payload = decode(&serde_json::to_vec(&fixture["payload"]).unwrap()).unwrap();
         assert_eq!(
             String::from_utf8(canonical_json(&payload)).unwrap(),
-            fixture["canonical_utf8"]
+            expected["canonical_utf8"]
         );
         assert_eq!(
             payload_digest(&payload.kind(), &payload).as_str(),
-            fixture["digest"]
+            expected["normative_digest"]
         );
+        // Original published vectors remain unchanged and independently checked.
+        let source = source_fixtures()
+            .into_iter()
+            .find(|r| r["name"] == fixture["name"])
+            .unwrap();
+        assert_eq!(
+            PayloadDigest::compute(
+                &format!("{}:v1:v1", payload.kind().as_str()),
+                &universe_domain::canonical::canonical_json_value(&source["payload"])
+            )
+            .as_str(),
+            source["digest"]
+        );
+        assert_eq!(
+            String::from_utf8(
+                universe_domain::canonical::canonical_json_value(&source["payload"]).to_bytes()
+            )
+            .unwrap(),
+            source["canonical_utf8"]
+        );
+        assert_eq!(expected["source_digest"], source["digest"]);
         let decoded: Payload = decode(&canonical_json(&payload)).unwrap();
         assert_eq!(payload, decoded);
         assert_eq!(
             payload_digest(&decoded.kind(), &decoded).as_str(),
-            fixture["digest"]
+            expected["normative_digest"]
         );
     }
 }
@@ -56,6 +91,7 @@ fn absence_empty_and_null_keep_distinct_meanings() {
 #[test]
 fn unsupported_missing_and_unknown_shapes_fail_closed() {
     for (path, value) in [
+        ("/consequenceContract/kind", json!("action_consequences_v1")),
         ("/consequenceContract/kind", json!("action_consequences_v2")),
         ("/consequenceContract/slots/0/presence", json!("permitted")),
         (

@@ -305,7 +305,7 @@ pub fn structural(records: &[RecordVersion]) -> anyhow::Result<()> {
                 }
             }
             Payload::Entity(e) => {
-                for id in &e.types {
+                for id in e.classification.iter() {
                     if !matches!(map.get(id), Some(Payload::EntityType(_))) {
                         return Err(invalid("entity type target is not an entity type"));
                     }
@@ -341,8 +341,13 @@ pub fn structural(records: &[RecordVersion]) -> anyhow::Result<()> {
                 }
             }
             Payload::Proposition(p) => {
-                if !matches!(map.get(&p.subject.record), Some(Payload::Entity(_))) {
-                    return Err(invalid("proposition subject must be an entity"));
+                if !matches!(
+                    map.get(&p.subject.record),
+                    Some(Payload::Entity(_) | Payload::EntityType(_))
+                ) {
+                    return Err(invalid(
+                        "proposition subject must be an instance or definition",
+                    ));
                 }
                 if !matches!(
                     map.get(&p.context.record),
@@ -363,7 +368,10 @@ pub fn structural(records: &[RecordVersion]) -> anyhow::Result<()> {
                         }
                         if let Some(Payload::Entity(e)) = map.get(&p.subject.record) {
                             if !property.subject_types.is_empty()
-                                && !e.types.iter().any(|t| property.subject_types.contains(t))
+                                && !e
+                                    .classification
+                                    .iter()
+                                    .any(|t| property.subject_types.contains(t))
                             {
                                 return Err(invalid("subject lacks a declared property type"));
                             }
@@ -385,7 +393,10 @@ pub fn structural(records: &[RecordVersion]) -> anyhow::Result<()> {
                                 return Err(invalid("role participant must be an entity"));
                             };
                             if !def.participant_types.is_empty()
-                                && !e.types.iter().any(|t| def.participant_types.contains(t))
+                                && !e
+                                    .classification
+                                    .iter()
+                                    .any(|t| def.participant_types.contains(t))
                             {
                                 return Err(invalid("participant lacks a declared role type"));
                             }
@@ -822,6 +833,7 @@ mod completeness_tests {
         let assertion = version(
             6,
             Payload::Assertion(Assertion {
+                attribute_mode: universe_domain::records::AttributeMode::Instance,
                 proposition: rr(4),
                 polarity: Polarity::Support,
                 scope: scope.clone(),
@@ -867,7 +879,7 @@ mod consequence_definition_tests {
     }
     fn fixtures() -> Vec<Json> {
         serde_json::from_str(include_str!(
-            "../../../fixtures/action-consequences/payload-digests.json"
+            "../../../fixtures/normalized-foundation/historical-digests.json"
         ))
         .unwrap()
     }

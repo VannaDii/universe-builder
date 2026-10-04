@@ -202,7 +202,7 @@ mod tests {
         let rows = vec![
             record(
                 1,
-                json!({"record_kind":"entity","names":[],"types":[],"worldAssociations":[],"labels":{},"metadata":{}}),
+                json!({"record_kind":"entity","names":[],"classification":null,"classificationResolution":"unclassified","worldAssociations":[],"labels":{},"metadata":{}}),
             ),
             record(
                 2,
@@ -214,7 +214,7 @@ mod tests {
             ),
             record(
                 4,
-                json!({"record_kind":"assertion","proposition":rr(3),"polarity":"support","scope":scope,"validity":{"kind":"calendar_interval","calendar":"cal_000000000000000000000009","start":{"kind":"exact","value":"10"},"end":{"kind":"unbounded"}},"persistence":"explicit_interval","precision":"exact","basis":{"kind":"author_decision","note":"Explicit attribute"}}),
+                json!({"record_kind":"assertion","attributeMode":"instance","proposition":rr(3),"polarity":"support","scope":scope,"validity":{"kind":"calendar_interval","calendar":"cal_000000000000000000000009","start":{"kind":"exact","value":"10"},"end":{"kind":"unbounded"}},"persistence":"explicit_interval","precision":"exact","basis":{"kind":"author_decision","note":"Explicit attribute"}}),
             ),
             record(
                 5,
@@ -361,7 +361,7 @@ mod tests {
     #[test]
     fn g02_patient_incapacity_does_not_apply_to_the_capable_actor() {
         let (mut rows, frame) = fixture();
-        rows.push(record(7, json!({"record_kind":"entity","names":[],"types":[],"worldAssociations":[],"labels":{},"metadata":{}})));
+        rows.push(record(7, json!({"record_kind":"entity","names":[],"classification":null,"classificationResolution":"unclassified","worldAssociations":[],"labels":{},"metadata":{}})));
         if let Payload::Event(e) = &mut rows[5].payload {
             e.participants
                 .push(serde_json::from_value(json!({"record":rr(7),"role":"patient"})).unwrap());

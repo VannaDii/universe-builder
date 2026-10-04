@@ -27,7 +27,7 @@ impl<'de> Deserialize<'de> for ConsequenceInteger {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ConsequenceKind {
-    ActionConsequencesV1,
+    ActionConsequences,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]

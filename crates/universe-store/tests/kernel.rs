@@ -24,7 +24,9 @@ fn record(r: u64, v: u64, label: &str) -> RecordVersion {
         ),
         Payload::Entity(Entity {
             names: vec![],
-            types: vec![],
+            classification: None,
+            classification_resolution:
+                universe_domain::records::ClassificationResolution::Unclassified,
             world_associations: vec![],
             labels: BTreeMap::from([("en".into(), label.into())]),
             metadata: BTreeMap::new(),
@@ -275,7 +277,7 @@ fn constraints_reject_identity_mismatch_and_mutation() {
         .execute("UPDATE record_versions SET digest='wrong'", [])
         .is_err());
     assert!(c.execute("DELETE FROM commits", []).is_err());
-    assert!(c.execute("INSERT INTO record_versions SELECT universe_id,'ver_bad',record_id,'world',schema_version,payload,digest FROM record_versions",[]).is_err());
+    assert!(c.execute("INSERT INTO record_versions SELECT universe_id,'ver_bad',record_id,'world',payload_row,digest FROM record_versions",[]).is_err());
     let mut bad = record(2, 2, "foreign");
     bad.identity.universe_id = UniverseId::parse(&id("unv", 2)).unwrap();
     let a = input(&k, bad, None, "bad");
@@ -298,23 +300,18 @@ fn branch_is_pinned_and_tombstones_preserve_history() {
     assert_eq!(k.records(&cont(), &r1).unwrap().len(), 1);
 }
 #[test]
-fn future_version_is_rejected_without_modification() {
+fn serialized_package_is_rejected_without_modification() {
     let d = tempfile::tempdir().unwrap();
     let path = d.path().join("u.db");
-    let db = Database::open(&path).unwrap();
-    db.connect()
-        .unwrap()
-        .execute("UPDATE schema_meta SET value=999", [])
-        .unwrap();
+    let c = rusqlite::Connection::open(&path).unwrap();
+    c.execute_batch("CREATE TABLE schema_meta(key TEXT PRIMARY KEY,value INTEGER); INSERT INTO schema_meta VALUES('schema_version',999);") .unwrap();
+    drop(c);
+    let original = std::fs::read(&path).unwrap();
     assert!(Database::open(&path).is_err());
     assert!(Database::open_existing(&path).is_err());
-    let c = rusqlite::Connection::open(&path).unwrap();
-    assert_eq!(
-        c.query_row("SELECT value FROM schema_meta", [], |r| r.get::<_, i64>(0))
-            .unwrap(),
-        999
-    );
+    assert_eq!(std::fs::read(&path).unwrap(), original);
 }
+
 #[test]
 fn selector_normalization_is_exact_and_non_rebinding() {
     assert_eq!(
@@ -569,10 +566,13 @@ fn sqlite_full_rolls_back_the_entire_transaction() {
         rusqlite::params![uid().as_str(), id("rec", 1)],
     )
     .unwrap();
+    tx.execute("INSERT INTO r_payload_v0_labels DEFAULT VALUES", [])
+        .unwrap();
+    let owner = tx.last_insert_rowid();
     let err = tx
         .execute(
-            "INSERT INTO record_versions VALUES(?1,?2,?3,'entity','1',zeroblob(1048576),'test')",
-            rusqlite::params![uid().as_str(), id("ver", 1), id("rec", 1)],
+            "INSERT INTO r_payload_v0_labels_items VALUES(?1,'capacity-test',?2)",
+            rusqlite::params![owner, "x".repeat(1048576)],
         )
         .unwrap_err();
     assert_eq!(err.sqlite_error_code(), Some(rusqlite::ErrorCode::DiskFull));
@@ -591,7 +591,7 @@ fn sqlite_full_rolls_back_the_entire_transaction() {
 }
 
 #[test]
-fn empty_legacy_scaffold_upgrades_atomically() {
+fn empty_legacy_scaffold_requires_explicit_conversion() {
     let d = tempfile::tempdir().unwrap();
     let path = d.path().join("legacy.db");
     let c = rusqlite::Connection::open(&path).unwrap();
@@ -600,16 +600,9 @@ fn empty_legacy_scaffold_upgrades_atomically() {
     c.execute("INSERT INTO schema_meta VALUES('schema_version',0)", [])
         .unwrap();
     drop(c);
-    let db = Database::open(&path).unwrap();
-    assert_eq!(db.schema_version().unwrap(), 2);
-    assert_eq!(
-        db.connect()
-            .unwrap()
-            .query_row("SELECT count(*) FROM record_versions", [], |r| r
-                .get::<_, i64>(0))
-            .unwrap(),
-        0
-    );
+    let original = std::fs::read(&path).unwrap();
+    assert!(Database::open(&path).is_err());
+    assert_eq!(std::fs::read(&path).unwrap(), original);
 }
 
 #[test]
@@ -721,9 +714,23 @@ fn recovery_rejects_previously_stored_dangling_metadata_references() {
     let d = tempfile::tempdir().unwrap();
     let path = d.path().join("u.db");
     let mut k = create(&path);
-    let revision = k
-        .commit(&input(&k, record(1, 1, "Holder"), None, "one"))
-        .unwrap();
+    let mut original = record(1, 1, "Holder");
+    if let Payload::Entity(e) = &mut original.payload {
+        e.metadata.insert(
+            "text".into(),
+            Value::record(RecordRef::new(
+                uid(),
+                RecordId::parse(&id("rec", 1)).unwrap(),
+            )),
+        );
+    }
+    let original = RecordVersion::build(
+        original.record_version_id,
+        original.identity,
+        original.payload,
+    )
+    .unwrap();
+    let revision = k.commit(&input(&k, original, None, "one")).unwrap();
     let mut damaged = record(1, 1, "Holder");
     if let Payload::Entity(e) = &mut damaged.payload {
         e.metadata.insert(
@@ -739,14 +746,15 @@ fn recovery_rejects_previously_stored_dangling_metadata_references() {
     // Reproduce an invalid payload admitted by the old walker. Coherent bytes
     // and digests alone must not make a dangling reference a valid snapshot.
     let c = Database::open_existing(&path).unwrap().connect().unwrap();
-    c.execute_batch("DROP TRIGGER immutable_record_versions_update")
+    c.execute_batch(
+        "DROP TRIGGER immutable_record_versions_update; DROP TRIGGER r_record_ref_no_update;",
+    )
+    .unwrap();
+    c.execute("UPDATE r_record_ref SET record=?1", [id("rec", 9)])
         .unwrap();
     c.execute(
-        "UPDATE record_versions SET payload=?1,digest=?2",
-        rusqlite::params![
-            universe_domain::canonical::canonical_serde(&damaged).to_bytes(),
-            damaged.payload_digest.as_str()
-        ],
+        "UPDATE record_versions SET digest=?1",
+        [damaged.payload_digest.as_str()],
     )
     .unwrap();
     drop(c);
@@ -755,86 +763,37 @@ fn recovery_rejects_previously_stored_dangling_metadata_references() {
     assert!(Kernel::open(&path).is_err());
 }
 #[test]
-fn schema_one_upgrade_preserves_history_and_installs_immutable_workflow_storage() {
+fn missing_workflow_storage_is_rejected_without_repair() {
     let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("upgrade.sqlite");
+    let path = dir.path().join("damaged.sqlite");
     let mut kernel = create(&path);
-    let revision = kernel
-        .commit(&input(
-            &kernel,
-            record(1, 1, "Before upgrade"),
-            None,
-            "first",
-        ))
+    kernel
+        .commit(&input(&kernel, record(1, 1, "Preserved"), None, "first"))
         .unwrap();
     drop(kernel);
     let connection = rusqlite::Connection::open(&path).unwrap();
-    connection.execute_batch("DROP TABLE workflow_entries; UPDATE schema_meta SET value=1 WHERE key='schema_version';").unwrap();
+    connection
+        .execute_batch("DROP TABLE workflow_entries;")
+        .unwrap();
     drop(connection);
-    let mut kernel = Kernel::open(&path).unwrap();
-    assert_eq!(kernel.status().unwrap().schema_version, 2);
-    let copies: Vec<_> = std::fs::read_dir(dir.path())
-        .unwrap()
-        .filter_map(Result::ok)
-        .filter(|e| {
-            e.file_name()
-                .to_string_lossy()
-                .starts_with(".upgrade.sqlite.before-schema-1-")
-        })
-        .collect();
-    assert_eq!(copies.len(), 1, "upgrade must first retain a rollback copy");
-    let old = rusqlite::Connection::open_with_flags(
-        copies[0].path(),
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .unwrap();
+    assert!(Kernel::open(&path).is_err());
+    let connection = rusqlite::Connection::open(&path).unwrap();
     assert_eq!(
-        old.query_row(
-            "SELECT value FROM schema_meta WHERE key='schema_version'",
-            [],
-            |r| r.get::<_, i64>(0)
-        )
-        .unwrap(),
+        connection
+            .query_row(
+                "SELECT count(*) FROM sqlite_master WHERE name='workflow_entries'",
+                [],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+        0
+    );
+    assert_eq!(
+        connection
+            .query_row("SELECT count(*) FROM record_versions", [], |r| r
+                .get::<_, i64>(0))
+            .unwrap(),
         1
-    );
-    let old_payload: Vec<u8> = old
-        .query_row("SELECT payload FROM record_versions", [], |r| r.get(0))
-        .unwrap();
-    assert_eq!(
-        serde_json::from_slice::<RecordVersion>(&old_payload).unwrap(),
-        record(1, 1, "Before upgrade")
-    );
-    use std::os::unix::fs::PermissionsExt;
-    assert_eq!(
-        std::fs::metadata(copies[0].path())
-            .unwrap()
-            .permissions()
-            .mode()
-            & 0o777,
-        0o600
-    );
-    assert_eq!(kernel.head(&cont()).unwrap(), revision);
-    assert_eq!(
-        kernel.records(&cont(), &revision).unwrap()[0],
-        record(1, 1, "Before upgrade")
-    );
-    kernel
-        .workflow_put(&[(
-            "proposal:test".into(),
-            serde_json::json!({"immutable":true}),
-        )])
-        .unwrap();
-    assert!(kernel
-        .workflow_put(&[(
-            "proposal:test".into(),
-            serde_json::json!({"immutable":false})
-        )])
-        .is_err());
-    drop(kernel);
-    let kernel = Kernel::open(&path).unwrap();
-    assert_eq!(
-        kernel.workflow_get("proposal:test").unwrap(),
-        Some(serde_json::json!({"immutable":true}))
     );
 }
 

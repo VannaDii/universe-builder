@@ -72,7 +72,16 @@ fn validate_entity_type(reg: &DefinitionRegistry, key: &str, t: &EntityType) -> 
             reason: "namespace and key must be non-empty".into(),
         });
     }
-    for parent in &t.parents {
+    if (t.parent_resolution == universe_domain::records::ParentResolution::Resolved)
+        != t.parent.is_some()
+    {
+        return Err(SchemaError::InvalidDefinition {
+            family: "entity_type".into(),
+            record: key.into(),
+            reason: "parent resolution disagrees with parent identity".into(),
+        });
+    }
+    for parent in t.parent.iter() {
         if reg.entity_type(parent).is_none() {
             return Err(SchemaError::MissingReference {
                 from: format!("entity type {key}"),
@@ -123,7 +132,7 @@ fn dfs(
     state.insert(id.to_owned(), 0);
     path.push(id.to_owned());
     if let Some(t) = reg.entity_type(&id) {
-        for parent in &t.parents {
+        for parent in t.parent.iter() {
             dfs(reg, &parent.to_owned(), state, path, found);
             if found.is_some() {
                 break;
@@ -487,11 +496,19 @@ mod tests {
     }
 
     fn entity_type_payload(ns: &str, k: &str, parents: Vec<RecordId>) -> Payload {
+        assert!(parents.len() <= 1, "test definitions use one parent");
         Payload::EntityType(EntityType {
             namespace: ns.into(),
             key: k.into(),
             labels: BTreeMap::new(),
-            parents,
+            name: k.into(),
+            parent: parents.first().cloned(),
+            parent_resolution: if parents.is_empty() {
+                universe_domain::records::ParentResolution::Root
+            } else {
+                universe_domain::records::ParentResolution::Resolved
+            },
+            applicability: universe_domain::scope::Applicability::UniverseWide,
             classification_executable: true,
         })
     }

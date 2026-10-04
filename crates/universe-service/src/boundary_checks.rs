@@ -48,7 +48,7 @@ pub fn evaluate(
             touches |= match &b.area {
                 BoundaryArea::Record(reference) => r.identity.record_id == reference.record,
                 BoundaryArea::Category { entity_type } => {
-                    matches!(&r.payload, Payload::Entity(e) if e.types.contains(entity_type))
+                    matches!(&r.payload, Payload::Entity(e) if e.classification.as_ref() == Some(entity_type))
                 }
                 BoundaryArea::Predicate { predicate, subject } => match &r.payload {
                     Payload::Proposition(p) if subject.as_ref().is_none_or(|s| *s == p.subject) => {
@@ -276,10 +276,10 @@ mod tests {
     fn fixture() -> (Vec<RecordVersion>, Frame) {
         let scope = json!({"applicability":{"kind":"universe_wide"},"context":rr(99)});
         (vec![
-            record(1, json!({"record_kind":"entity","labels":{"en":"Unanswered question"},"names":[],"types":[],"worldAssociations":[],"metadata":{}})),
+            record(1, json!({"record_kind":"entity","labels":{"en":"Unanswered question"},"names":[],"classification":null,"classificationResolution":"unclassified","worldAssociations":[],"metadata":{}})),
             record(2, json!({"record_kind":"property","namespace":"test","key":"answer","labels":{},"value":{"kind":"boolean"},"multiplicity":"single","persistence":"explicit_interval","exclusive":false,"symmetric":false,"transitive":false})),
             record(3, json!({"record_kind":"proposition","subject":rr(1),"predicate":rr(2),"roles":[],"value":{"kind":"boolean","value":true},"context":rr(99),"quantification":"particular"})),
-            record(4, json!({"record_kind":"assertion","proposition":rr(3),"polarity":"support","scope":scope,"validity":interval(12,18),"persistence":"explicit_interval","precision":"exact","alternatives":[],"basis":{"kind":"author_decision","note":"Explicit fact"}})),
+            record(4, json!({"record_kind":"assertion","attributeMode":"instance","proposition":rr(3),"polarity":"support","scope":scope,"validity":interval(12,18),"persistence":"explicit_interval","precision":"exact","alternatives":[],"basis":{"kind":"author_decision","note":"Explicit fact"}})),
             record(5, json!({"record_kind":"boundary","key":"test:question","area":{"kind":"record","universe":"unv_000000000000000000000001","record":id(1)},"mode":"intentionally_unresolved","constraints":[],"scope":scope,"validity":interval(10,20)})),
             record(6, json!({"record_kind":"issue_decision","fingerprints":[],"mode":"accept","scope":id(5),"rationale":"Reviewed exact period","principal":"prn_000000000000000000000001"})),
         ], serde_json::from_value(json!({"universe":"unv_000000000000000000000001","continuity":"cont_000000000000000000000001","revision":"rev_000000000000000000000001","context":rr(99),"time":{"kind":"timeless"},"perspective":"author"})).unwrap())

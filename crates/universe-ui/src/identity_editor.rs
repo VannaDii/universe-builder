@@ -29,7 +29,7 @@ impl Form {
         let (kind, record) = match self.kind.as_str() {
             "entity" => (
                 "create_entity",
-                json!({"names":[],"types":[],"worldAssociations":associations,"labels":{"en":self.name},"metadata":{}}),
+                json!({"names":[],"classification":null,"classificationResolution":"unclassified","worldAssociations":associations,"labels":{"en":self.name},"metadata":{}}),
             ),
             "world" => (
                 "create_world",

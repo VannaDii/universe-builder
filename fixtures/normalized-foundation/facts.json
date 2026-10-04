@@ -1,0 +1,1352 @@
+{
+  "universe": "unv_000000000000000000000001",
+  "continuity": "cont_000000000000000000000001",
+  "principal": "prn_000000000000000000000001",
+  "source_text": "Cedar One is 30.00 feet tall.\n",
+  "initial": [
+    {
+      "record_version_id": "ver_000000000000000000000001",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000001",
+        "record_kind": "entity_type"
+      },
+      "payload": {
+        "record_kind": "entity_type",
+        "namespace": "author",
+        "key": "tree",
+        "labels": {
+          "en": "Tree"
+        },
+        "name": "Tree",
+        "parent": null,
+        "parentResolution": "root",
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "classificationExecutable": true
+      },
+      "payload_digest": "b4854c225c35f1cbcce4144c169630ecf95b813bc0960f9ff2a4f5761a85d687"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000002",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000002",
+        "record_kind": "entity_type"
+      },
+      "payload": {
+        "record_kind": "entity_type",
+        "namespace": "author",
+        "key": "cedar",
+        "labels": {
+          "en": "Cedar"
+        },
+        "name": "Cedar",
+        "parent": "rec_000000000000000000000001",
+        "parentResolution": "resolved",
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "classificationExecutable": true
+      },
+      "payload_digest": "8405d4b0a0994629ce5264eb2580924fb27adb0aa5b3b5a28368a34c43e5105f"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000003",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000003",
+        "record_kind": "entity_type"
+      },
+      "payload": {
+        "record_kind": "entity_type",
+        "namespace": "author",
+        "key": "western_red_cedar",
+        "labels": {
+          "en": "Western red cedar"
+        },
+        "name": "Western red cedar",
+        "parent": "rec_000000000000000000000002",
+        "parentResolution": "resolved",
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "classificationExecutable": true
+      },
+      "payload_digest": "60d363236a189cf2432c9426c9565405b78cb0f1870b10fca343c971ae935117"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000004",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000004",
+        "record_kind": "entity_type"
+      },
+      "payload": {
+        "record_kind": "entity_type",
+        "namespace": "author",
+        "key": "gun",
+        "labels": {
+          "en": "Gun"
+        },
+        "name": "Gun",
+        "parent": null,
+        "parentResolution": "root",
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "classificationExecutable": true
+      },
+      "payload_digest": "e7d3861b90eee8c0b6d97e3fee2015994754aec8d6b2ed2b875a4b200088fc5f"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000005",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000005",
+        "record_kind": "entity_type"
+      },
+      "payload": {
+        "record_kind": "entity_type",
+        "namespace": "author",
+        "key": "pistol",
+        "labels": {
+          "en": "Pistol"
+        },
+        "name": "Pistol",
+        "parent": "rec_000000000000000000000004",
+        "parentResolution": "resolved",
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "classificationExecutable": true
+      },
+      "payload_digest": "ebb4c28a325490bc06591ab240bd170edeb00a91301aa9d42d0fea4bfd4a6fa4"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000006",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000006",
+        "record_kind": "entity"
+      },
+      "payload": {
+        "record_kind": "entity",
+        "names": [
+          {
+            "text": "Cedar One",
+            "language": "en",
+            "community": null,
+            "role": "primary",
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000d",
+              "start": {
+                "kind": "exact",
+                "value": "0"
+              },
+              "end": {
+                "kind": "unknown"
+              }
+            }
+          }
+        ],
+        "classification": "rec_000000000000000000000002",
+        "classificationResolution": "resolved",
+        "worldAssociations": [],
+        "labels": {
+          "en": "Cedar One"
+        },
+        "metadata": {
+          "empty_text": {
+            "kind": "text",
+            "text": ""
+          },
+          "false": {
+            "kind": "boolean",
+            "value": false
+          },
+          "zero": {
+            "kind": "integer",
+            "digits": "0"
+          },
+          "large_integer": {
+            "kind": "integer",
+            "digits": "9007199254740993"
+          },
+          "rational": {
+            "kind": "rational",
+            "numerator": "7",
+            "denominator": "3"
+          },
+          "ordered": {
+            "kind": "sequence",
+            "items": [
+              {
+                "kind": "text",
+                "text": "β"
+              },
+              {
+                "kind": "text",
+                "text": "🌲"
+              },
+              {
+                "kind": "text",
+                "text": "β"
+              }
+            ]
+          },
+          "range": {
+            "kind": "range",
+            "lower": {
+              "kind": "decimal",
+              "digits": "1.00"
+            },
+            "upper": {
+              "kind": "decimal",
+              "digits": "2.000"
+            },
+            "lower_inclusive": true,
+            "upper_inclusive": false
+          },
+          "identity": {
+            "kind": "record_ref",
+            "ref": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000007"
+            }
+          },
+          "proposition": {
+            "kind": "proposition_ref",
+            "ref": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000010"
+            }
+          },
+          "time": {
+            "kind": "temporal",
+            "temporal": {
+              "kind": "interval",
+              "calendar": "cal_00000000000000000000000d",
+              "start": {
+                "kind": "unknown"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            }
+          }
+        }
+      },
+      "payload_digest": "d726fbfd5cb7a852ec7ea28117924fea83596561b802d3d4cf3d2d066dac1757"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000007",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000007",
+        "record_kind": "entity"
+      },
+      "payload": {
+        "record_kind": "entity",
+        "names": [
+          {
+            "text": "Pistol A",
+            "language": "en",
+            "community": null,
+            "role": "primary",
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000d",
+              "start": {
+                "kind": "exact",
+                "value": "0"
+              },
+              "end": {
+                "kind": "unknown"
+              }
+            }
+          }
+        ],
+        "classification": "rec_000000000000000000000005",
+        "classificationResolution": "resolved",
+        "worldAssociations": [],
+        "labels": {
+          "en": "Pistol A"
+        },
+        "metadata": {}
+      },
+      "payload_digest": "acd688ee3cb32b6c99c3352bea9669c0270b677ea77fa1595bdb1a85daf99dc7"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000008",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000008",
+        "record_kind": "entity"
+      },
+      "payload": {
+        "record_kind": "entity",
+        "names": [
+          {
+            "text": "Pistol B",
+            "language": "en",
+            "community": null,
+            "role": "primary",
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000d",
+              "start": {
+                "kind": "exact",
+                "value": "0"
+              },
+              "end": {
+                "kind": "unknown"
+              }
+            }
+          }
+        ],
+        "classification": "rec_000000000000000000000005",
+        "classificationResolution": "resolved",
+        "worldAssociations": [],
+        "labels": {
+          "en": "Pistol B"
+        },
+        "metadata": {}
+      },
+      "payload_digest": "105582223b8472dde68698a8e692b42dc20342c4b34bb89e9ffe8ab7cee80096"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000009",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000009",
+        "record_kind": "property"
+      },
+      "payload": {
+        "record_kind": "property",
+        "namespace": "author",
+        "key": "height",
+        "labels": {
+          "en": "height"
+        },
+        "subjectTypes": [],
+        "value": {
+          "kind": "quantity",
+          "unit": "unit_00000000000000000000000c"
+        },
+        "multiplicity": "single",
+        "unitDimension": "length",
+        "persistence": "explicit_interval",
+        "exclusive": false,
+        "inverse": null,
+        "symmetric": false,
+        "transitive": false
+      },
+      "payload_digest": "b1c1633d6b7c3eee3489dfdfece254c9753836dce6305c839bc597a441574698"
+    },
+    {
+      "record_version_id": "ver_00000000000000000000000a",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_00000000000000000000000a",
+        "record_kind": "property"
+      },
+      "payload": {
+        "record_kind": "property",
+        "namespace": "author",
+        "key": "rounds",
+        "labels": {
+          "en": "rounds"
+        },
+        "subjectTypes": [],
+        "value": {
+          "kind": "integer"
+        },
+        "multiplicity": "single",
+        "unitDimension": null,
+        "persistence": "explicit_interval",
+        "exclusive": false,
+        "inverse": null,
+        "symmetric": false,
+        "transitive": false
+      },
+      "payload_digest": "a587c539152b1380bb655ec2786cf775b3b173dfac272f288fdf6fe4d2761dfa"
+    },
+    {
+      "record_version_id": "ver_00000000000000000000000b",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_00000000000000000000000b",
+        "record_kind": "represented_context"
+      },
+      "payload": {
+        "record_kind": "represented_context",
+        "universe": "unv_000000000000000000000001",
+        "kind": {
+          "kind": "objective"
+        },
+        "labels": {},
+        "chronology": {
+          "calendar": "cal_00000000000000000000000d",
+          "system": {
+            "kind": "fictional",
+            "tick_label": "tick",
+            "ticks_per_month": null
+          },
+          "first_interaction": "0",
+          "current": "2"
+        }
+      },
+      "payload_digest": "463760a317506f1fde9aa122cf15aa03a13b1d10b8f359c2d58783356f34ca6a"
+    },
+    {
+      "record_version_id": "ver_00000000000000000000000c",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_00000000000000000000000c",
+        "record_kind": "unit"
+      },
+      "payload": {
+        "record_kind": "unit",
+        "namespace": "author",
+        "key": "foot",
+        "dimension": "length",
+        "symbol": "ft",
+        "labels": {
+          "en": "foot"
+        },
+        "base": null,
+        "validity": {
+          "kind": "unspecified"
+        }
+      },
+      "payload_digest": "b608b59201ec11acbd04dcb4fce3c68bf4323cb17a9488b99a0afd3a4282c893"
+    },
+    {
+      "record_version_id": "ver_00000000000000000000000d",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_00000000000000000000000d",
+        "record_kind": "calendar"
+      },
+      "payload": {
+        "record_kind": "calendar",
+        "namespace": "author",
+        "key": "story_tick",
+        "labels": {
+          "en": "Story clock"
+        },
+        "epoch": "0",
+        "unitStructure": {
+          "tick": "authored integer coordinate"
+        }
+      },
+      "payload_digest": "64f1139e88aaf0aee513969bd5823be450ec6321896b88dae1ea2ef060d8e158"
+    },
+    {
+      "record_version_id": "ver_00000000000000000000000e",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_00000000000000000000000e",
+        "record_kind": "world"
+      },
+      "payload": {
+        "record_kind": "world",
+        "selector": "World A",
+        "labels": {},
+        "metadata": {}
+      },
+      "payload_digest": "bfadbd815cba064c3f24b8bb8b8321bdaaaa7ed804340b437ec730e38bbd6bd5"
+    },
+    {
+      "record_version_id": "ver_00000000000000000000000f",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_00000000000000000000000f",
+        "record_kind": "world"
+      },
+      "payload": {
+        "record_kind": "world",
+        "selector": "World B",
+        "labels": {},
+        "metadata": {}
+      },
+      "payload_digest": "670f1746a38e23f751073d2956a824fba39deea5cb5d2ff5f839027e5b87d95d"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000010",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000010",
+        "record_kind": "proposition"
+      },
+      "payload": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000006"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000009"
+        },
+        "value": {
+          "kind": "quantity",
+          "value": {
+            "kind": "decimal",
+            "digits": "30.00"
+          },
+          "unit": "unit_00000000000000000000000c"
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "payload_digest": "dcdbdce1270e9cdeec400a89965861f2354bb11aceb1152de9d5715345e56092"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000011",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000011",
+        "record_kind": "assertion"
+      },
+      "payload": {
+        "record_kind": "assertion",
+        "attributeMode": "instance",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000010"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_00000000000000000000000e"
+            ]
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "calendar_interval",
+          "calendar": "cal_00000000000000000000000d",
+          "start": {
+            "kind": "exact",
+            "value": "0"
+          },
+          "end": {
+            "kind": "exact",
+            "value": "1"
+          }
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "source_anchor",
+          "anchor": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000017"
+          },
+          "verified": false
+        }
+      },
+      "payload_digest": "736441e59d918fdf6479a92d947d2e4b09f84ff2a3fd5f33ef0cbd524a704ccd"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000012",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000012",
+        "record_kind": "proposition"
+      },
+      "payload": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000007"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000a"
+        },
+        "value": {
+          "kind": "integer",
+          "digits": "7"
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "payload_digest": "80f5d484ea65ae962bc6ea44cd00baf4d3ba4108b59791e01709488cf9120efd"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000013",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000013",
+        "record_kind": "assertion"
+      },
+      "payload": {
+        "record_kind": "assertion",
+        "attributeMode": "instance",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000012"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_00000000000000000000000e"
+            ]
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "calendar_interval",
+          "calendar": "cal_00000000000000000000000d",
+          "start": {
+            "kind": "exact",
+            "value": "0"
+          },
+          "end": {
+            "kind": "exact",
+            "value": "1"
+          }
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "author_decision",
+          "note": "Explicit authored fact; no simulation"
+        }
+      },
+      "payload_digest": "349148c0826cd5f86d9df572526caaa33bbe9879bbd00f3571c502cc2941cc15"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000014",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000014",
+        "record_kind": "proposition"
+      },
+      "payload": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000008"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000a"
+        },
+        "value": {
+          "kind": "integer",
+          "digits": "3"
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "payload_digest": "c63173117d89ae7af5f398796b8b36803d3cf716107af1efd4f4e81f281c583c"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000018",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000018",
+        "record_kind": "assertion"
+      },
+      "payload": {
+        "record_kind": "assertion",
+        "attributeMode": "instance",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000014"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_00000000000000000000000e"
+            ]
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "calendar_interval",
+          "calendar": "cal_00000000000000000000000d",
+          "start": {
+            "kind": "exact",
+            "value": "0"
+          },
+          "end": {
+            "kind": "unbounded"
+          }
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "author_decision",
+          "note": "Explicit authored fact; no simulation"
+        }
+      },
+      "payload_digest": "3dfab475cd3035a82a897147ebde9904c350eb8dde075174e8360777f215eb5f"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000015",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000015",
+        "record_kind": "source"
+      },
+      "payload": {
+        "record_kind": "source",
+        "label": "Independent authored measurement",
+        "origin": {
+          "originNote": null
+        },
+        "versions": [
+          "rec_000000000000000000000016"
+        ]
+      },
+      "payload_digest": "50812bd76e99aa6e71fef2136a381dfc153b8b4258e1753cbccd57960f541967"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000016",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000016",
+        "record_kind": "source_version"
+      },
+      "payload": {
+        "record_kind": "source_version",
+        "source": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000015"
+        },
+        "digest": "33e2e772c78939f537943e8111aebd6ba53388bf242539f99d4b075f05743de0",
+        "mediaType": "text/plain",
+        "byteSize": 30,
+        "importActor": "prn_000000000000000000000001",
+        "importTime": "2026-10-03T00:00:00Z",
+        "decoding": {
+          "encoding": "UTF-8",
+          "representation": "canonical-text",
+          "byteLength": 30
+        },
+        "origin": {
+          "originNote": null
+        }
+      },
+      "payload_digest": "126e15b96402dc8a20248401d7acf449e0194098af7f1c1136d24f11900fe06a"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000017",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000017",
+        "record_kind": "anchor"
+      },
+      "payload": {
+        "record_kind": "anchor",
+        "sourceVersion": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000016",
+          "version": "ver_000000000000000000000016"
+        },
+        "locator": {
+          "kind": "byte_range",
+          "start": 0,
+          "end": 29
+        },
+        "excerptDigest": "881fe5eb1e26c91370f981088fc81d721d53e7871fb1bc912559c4ae5697bc02",
+        "excerpt": "Cedar One is 30.00 feet tall.",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "payload_digest": "dc6d95ea575a347727863bb0a589d92d0c2cf81f94f724b7af94b483e02a91f4"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000019",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000019",
+        "record_kind": "property"
+      },
+      "payload": {
+        "record_kind": "property",
+        "namespace": "author",
+        "key": "grows",
+        "labels": {
+          "en": "grows"
+        },
+        "subjectTypes": [],
+        "value": {
+          "kind": "boolean"
+        },
+        "multiplicity": "single",
+        "unitDimension": null,
+        "persistence": "explicit_interval",
+        "exclusive": false,
+        "inverse": null,
+        "symmetric": false,
+        "transitive": false
+      },
+      "payload_digest": "f43b582c21faa3b0ce6a7b3fb9c1bd8b569ecf81e1eb89fdf4c47f6cedef6e00"
+    },
+    {
+      "record_version_id": "ver_00000000000000000000001a",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_00000000000000000000001a",
+        "record_kind": "proposition"
+      },
+      "payload": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000001"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000019"
+        },
+        "value": {
+          "kind": "boolean",
+          "value": true
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "payload_digest": "7fa01a1a389357cb22625daa3022c91c3e86e84bb251e5fe87985d55c17a085e"
+    },
+    {
+      "record_version_id": "ver_00000000000000000000001b",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_00000000000000000000001b",
+        "record_kind": "assertion"
+      },
+      "payload": {
+        "record_kind": "assertion",
+        "attributeMode": "shared",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000001a"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "universe_wide"
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "unspecified"
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "author_decision",
+          "note": "Explicit authored fact; no simulation"
+        }
+      },
+      "payload_digest": "349aedbe1b6fc2b5f6441c9bbf46d5f5a6b3f31fd9cbf4f614ae12f488f8697e"
+    },
+    {
+      "record_version_id": "ver_00000000000000000000001c",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_00000000000000000000001c",
+        "record_kind": "proposition"
+      },
+      "payload": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000005"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000a"
+        },
+        "value": {
+          "kind": "integer",
+          "digits": "7"
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "payload_digest": "931149304bdc649aef363a94c5769ab3cf33275be23d36bc30ebd85372e64c55"
+    },
+    {
+      "record_version_id": "ver_00000000000000000000001d",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_00000000000000000000001d",
+        "record_kind": "assertion"
+      },
+      "payload": {
+        "record_kind": "assertion",
+        "attributeMode": "initial_value",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000001c"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "universe_wide"
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "unspecified"
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "author_decision",
+          "note": "Explicit authored fact; no simulation"
+        }
+      },
+      "payload_digest": "4d9a981ce74f974b874562acea085daf102a96fb18663c9790b499985630b2ba"
+    },
+    {
+      "record_version_id": "ver_00000000000000000000001e",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_00000000000000000000001e",
+        "record_kind": "property"
+      },
+      "payload": {
+        "record_kind": "property",
+        "namespace": "author",
+        "key": "dangerous_to_climb",
+        "labels": {
+          "en": "dangerous_to_climb"
+        },
+        "subjectTypes": [],
+        "value": {
+          "kind": "boolean"
+        },
+        "multiplicity": "single",
+        "unitDimension": null,
+        "persistence": "explicit_interval",
+        "exclusive": false,
+        "inverse": null,
+        "symmetric": false,
+        "transitive": false
+      },
+      "payload_digest": "f44280506510c480a7aaca8bd247c358f0dcf1f62ce4908bf202c05a5eeb1a29"
+    },
+    {
+      "record_version_id": "ver_00000000000000000000001f",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_00000000000000000000001f",
+        "record_kind": "proposition"
+      },
+      "payload": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000006"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000001e"
+        },
+        "value": {
+          "kind": "boolean",
+          "value": true
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "payload_digest": "ce545f04871feaac505da882bbe5ce922f1bbe074c896ca25da6ebece707930b"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000020",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000020",
+        "record_kind": "assertion"
+      },
+      "payload": {
+        "record_kind": "assertion",
+        "attributeMode": "instance",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000001f"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "worlds",
+            "world_ids": []
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "calendar_interval",
+          "calendar": "cal_00000000000000000000000d",
+          "start": {
+            "kind": "exact",
+            "value": "0"
+          },
+          "end": {
+            "kind": "unknown"
+          }
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "author_decision",
+          "note": "Explicit authored fact; no simulation"
+        }
+      },
+      "payload_digest": "4bb80bb61b80f7e8dcfb47f2a265c9f5884dae1cdd0759fb40d04771b35a9375"
+    }
+  ],
+  "later": [
+    {
+      "record_version_id": "ver_00000000000000000000006a",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000006",
+        "record_kind": "entity"
+      },
+      "payload": {
+        "record_kind": "entity",
+        "names": [
+          {
+            "text": "Cèdre 🌲",
+            "language": "en",
+            "community": null,
+            "role": "primary",
+            "validity": {
+              "kind": "calendar_interval",
+              "calendar": "cal_00000000000000000000000d",
+              "start": {
+                "kind": "exact",
+                "value": "0"
+              },
+              "end": {
+                "kind": "unknown"
+              }
+            }
+          }
+        ],
+        "classification": "rec_000000000000000000000003",
+        "classificationResolution": "resolved",
+        "worldAssociations": [],
+        "labels": {
+          "en": "Cèdre 🌲"
+        },
+        "metadata": {
+          "empty_text": {
+            "kind": "text",
+            "text": ""
+          },
+          "false": {
+            "kind": "boolean",
+            "value": false
+          },
+          "zero": {
+            "kind": "integer",
+            "digits": "0"
+          },
+          "large_integer": {
+            "kind": "integer",
+            "digits": "9007199254740993"
+          },
+          "rational": {
+            "kind": "rational",
+            "numerator": "7",
+            "denominator": "3"
+          },
+          "ordered": {
+            "kind": "sequence",
+            "items": [
+              {
+                "kind": "text",
+                "text": "β"
+              },
+              {
+                "kind": "text",
+                "text": "🌲"
+              },
+              {
+                "kind": "text",
+                "text": "β"
+              }
+            ]
+          },
+          "range": {
+            "kind": "range",
+            "lower": {
+              "kind": "decimal",
+              "digits": "1.00"
+            },
+            "upper": {
+              "kind": "decimal",
+              "digits": "2.000"
+            },
+            "lower_inclusive": true,
+            "upper_inclusive": false
+          },
+          "identity": {
+            "kind": "record_ref",
+            "ref": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000007"
+            }
+          },
+          "proposition": {
+            "kind": "proposition_ref",
+            "ref": {
+              "universe": "unv_000000000000000000000001",
+              "record": "rec_000000000000000000000010"
+            }
+          },
+          "time": {
+            "kind": "temporal",
+            "temporal": {
+              "kind": "interval",
+              "calendar": "cal_00000000000000000000000d",
+              "start": {
+                "kind": "unknown"
+              },
+              "end": {
+                "kind": "unbounded"
+              }
+            }
+          }
+        }
+      },
+      "payload_digest": "514ad20b1a72e3ee8956a62d4f9c5caf61312ee51c15047c971b64333c111976"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000074",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000010",
+        "record_kind": "proposition"
+      },
+      "payload": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000006"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000009"
+        },
+        "value": {
+          "kind": "quantity",
+          "value": {
+            "kind": "decimal",
+            "digits": "31.2500"
+          },
+          "unit": "unit_00000000000000000000000c"
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "payload_digest": "9b97f9e6f0dc243a89ba0395e8d056d07763a145f701f901f06c4b0d549b5e66"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000075",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000011",
+        "record_kind": "assertion"
+      },
+      "payload": {
+        "record_kind": "assertion",
+        "attributeMode": "instance",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000010"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_00000000000000000000000e"
+            ]
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "calendar_interval",
+          "calendar": "cal_00000000000000000000000d",
+          "start": {
+            "kind": "exact",
+            "value": "1"
+          },
+          "end": {
+            "kind": "exact",
+            "value": "2"
+          }
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "author_decision",
+          "note": "Explicit later measurement"
+        }
+      },
+      "payload_digest": "9c46df7915ea7184e780d82a4d8c5339804169cbfcd55989b6c8564b8ce1134f"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000076",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000012",
+        "record_kind": "proposition"
+      },
+      "payload": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000007"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000a"
+        },
+        "value": {
+          "kind": "integer",
+          "digits": "6"
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "payload_digest": "0af3a3a4c1a24c5e06e7adf06a1eebc431be5ef792c72b7ff104ad62c48d498f"
+    },
+    {
+      "record_version_id": "ver_000000000000000000000077",
+      "identity": {
+        "universe_id": "unv_000000000000000000000001",
+        "record_id": "rec_000000000000000000000013",
+        "record_kind": "assertion"
+      },
+      "payload": {
+        "record_kind": "assertion",
+        "attributeMode": "instance",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000012"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_00000000000000000000000e"
+            ]
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "calendar_interval",
+          "calendar": "cal_00000000000000000000000d",
+          "start": {
+            "kind": "exact",
+            "value": "1"
+          },
+          "end": {
+            "kind": "exact",
+            "value": "2"
+          }
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "author_decision",
+          "note": "Explicit authored fact; no simulation"
+        }
+      },
+      "payload_digest": "40e94835612b75a84b0483063cb0030a6d2bbbcf9ddc72ad7aa27db2c8d6b5f9"
+    }
+  ],
+  "expectations": {
+    "cedar_identity": "rec_000000000000000000000006",
+    "cedar_initial_classification": "rec_000000000000000000000002",
+    "cedar_later_classification": "rec_000000000000000000000003",
+    "initial_height": "30.00",
+    "later_height": "31.2500",
+    "height_unit": "unit_00000000000000000000000c",
+    "pistol_a_rounds": [
+      "7",
+      "6"
+    ],
+    "pistol_b_rounds": [
+      "3",
+      "3"
+    ],
+    "later_name": "Cèdre 🌲",
+    "shared_subject": "rec_000000000000000000000001",
+    "initial_value_subject": "rec_000000000000000000000005",
+    "empty_worlds": [],
+    "unknown_end": "unknown",
+    "unbounded_end": "unbounded"
+  }
+}

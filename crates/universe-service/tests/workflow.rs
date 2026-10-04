@@ -42,7 +42,7 @@ async fn wall_traversal_requires_owning_entity_attributes() {
     let scope = json!({"context":{"universe":u["universe_id"],"record":u["context_id"]},"applicability":{"kind":"universe_wide"}});
     let interval = json!({"kind":"calendar_interval","calendar":cal,"start":{"kind":"exact","value":"10"},"end":{"kind":"exact","value":"20"}});
     let def = |n, key: &str, shape: Value| json!({"kind":"define_property","client_ref":id(n),"record":{"namespace":"phase","key":key,"labels":{},"subjectTypes":[],"value":shape,"multiplicity":"single","persistence":"explicit_interval","exclusive":false,"symmetric":false,"transitive":false}});
-    let grant = |n, subject, predicate, value: Value| json!({"kind":"assert_proposition","client_ref":id(n),"proposition":{"subject":rr(subject),"predicate":rr(predicate),"value":value,"context":scope["context"],"quantification":"particular"},"assertion":{"proposition":rr(n),"polarity":"support","scope":scope,"validity":interval,"persistence":"explicit_interval","precision":"exact","basis":{"kind":"author_decision","note":"Declared power/custody for bounded sci-fi test"}}});
+    let grant = |n, subject, predicate, value: Value| json!({"kind":"assert_proposition","client_ref":id(n),"proposition":{"subject":rr(subject),"predicate":rr(predicate),"value":value,"context":scope["context"],"quantification":"particular"},"assertion":{"attributeMode":"instance","proposition":rr(n),"polarity":"support","scope":scope,"validity":interval,"persistence":"explicit_interval","precision":"exact","basis":{"kind":"author_decision","note":"Declared power/custody for bounded sci-fi test"}}});
     let setup = proposal(&mut c, &ctx, vec![
         entity("Mara", &id(1)), entity("Iven", &id(2)),
         entity("Phase probe", &id(3)), entity("Phase ring", &id(4)),
@@ -197,7 +197,7 @@ fn world(name: &str, id: &str) -> Value {
     json!({"kind":"create_world","client_ref":id,"record":{"selector":name,"labels":{},"metadata":{}}})
 }
 fn entity(name: &str, id: &str) -> Value {
-    json!({"kind":"create_entity","client_ref":id,"record":{"names":[],"types":[],"worldAssociations":[],"labels":{"en":name},"metadata":{}}})
+    json!({"kind":"create_entity","client_ref":id,"record":{"names":[],"classification":null,"classificationResolution":"unclassified","worldAssociations":[],"labels":{"en":name},"metadata":{}}})
 }
 async fn proposal(c: &mut EngineClient, ctx: &Value, ops: Vec<Value>, key: &str) -> Value {
     // Fixture-only vocabulary for preexisting timeline tests. The effect gold
@@ -205,8 +205,7 @@ async fn proposal(c: &mut EngineClient, ctx: &Value, ops: Vec<Value>, key: &str)
     let mut ops = ops;
     for op in &mut ops {
         if op["kind"] == "define_action" && op["record"].get("consequenceContract").is_none() {
-            op["record"]["consequenceContract"] =
-                json!({"kind":"action_consequences_v1","slots":[]});
+            op["record"]["consequenceContract"] = json!({"kind":"action_consequences","slots":[]});
         }
     }
     let mut declarations = Vec::new();
@@ -248,7 +247,7 @@ async fn proposal(c: &mut EngineClient, ctx: &Value, ops: Vec<Value>, key: &str)
             slots.push(json!({"slot":effect["slot"],"order":effect["order"],"presence":"required","target":{"role":role,"predicate":prop["predicate"]},"condition":{"kind":"always"},"change":{"kind":"set","polarity":effect["polarity"],"value":prop["value"]},"lifetime":lifetime}));
         }
         ops[i]["record"]["action"] = json!({"universe":frame["universe"],"record":action});
-        declarations.push(json!({"kind":"define_action","client_ref":action,"record":{"namespace":"fixture","key":action,"labels":{},"requirements":[],"consequenceContract":{"kind":"action_consequences_v1","slots":slots},"scope":{"context":frame["context"],"applicability":{"kind":"universe_wide"}},"validity":{"kind":"unspecified"}}}));
+        declarations.push(json!({"kind":"define_action","client_ref":action,"record":{"namespace":"fixture","key":action,"labels":{},"requirements":[],"consequenceContract":{"kind":"action_consequences","slots":slots},"scope":{"context":frame["context"],"applicability":{"kind":"universe_wide"}},"validity":{"kind":"unspecified"}}}));
     }
     ops.extend(declarations);
     c.call(tool("universe_propose",json!({"action":"create","universe":"Alpha","context_id":ctx,"operations":ops,"submission":"submitted","rationale":"test review","idempotency_key":key}))).await.unwrap()["result"].clone()
@@ -437,7 +436,8 @@ async fn author_agent_review_commit_retry_restart_and_isolation() {
 
     // Invalid dependency in a cross-world batch cannot publish either world.
     let mut bad = entity("bad", "rec_000000000000000000000031");
-    bad["record"]["types"] = json!(["rec_000000000000000000000099"]);
+    bad["record"]["classification"] = json!("rec_000000000000000000000099");
+    bad["record"]["classificationResolution"] = json!("resolved");
     assert!(mcp.call(tool("universe_propose",json!({"action":"create","universe":"Alpha","context_id":current,"operations":[world("Third","rec_000000000000000000000030"),bad],"submission":"submitted","rationale":"invalid dependency","idempotency_key":"bad"}))).await.is_err());
     drop(mcp);
     drop(desktop);
@@ -611,7 +611,7 @@ async fn basic_prerequisite_and_conflicting_evidence_block_admission() {
         })
         .await
         .is_err());
-    let claim = json!({"kind":"assert_proposition","client_ref":proposition,"proposition":{"predicate":record_ref(json!(property)),"subject":record_ref(json!(gate)),"roles":[],"value":{"kind":"boolean","value":true},"quantification":"particular","context":record_ref(u["context_id"].clone())},"assertion":{"proposition":record_ref(json!(proposition)),"polarity":"support","scope":{"applicability":{"kind":"universe_wide"},"context":record_ref(u["context_id"].clone())},"validity":{"kind":"unspecified"},"persistence":"unspecified","precision":"exact","alternatives":[],"basis":{"kind":"author_decision","note":"open gate"}}});
+    let claim = json!({"kind":"assert_proposition","client_ref":proposition,"proposition":{"predicate":record_ref(json!(property)),"subject":record_ref(json!(gate)),"roles":[],"value":{"kind":"boolean","value":true},"quantification":"particular","context":record_ref(u["context_id"].clone())},"assertion":{"attributeMode":"instance","proposition":record_ref(json!(proposition)),"polarity":"support","scope":{"applicability":{"kind":"universe_wide"},"context":record_ref(u["context_id"].clone())},"validity":{"kind":"unspecified"},"persistence":"unspecified","precision":"exact","alternatives":[],"basis":{"kind":"author_decision","note":"open gate"}}});
     let mut supported = base.clone();
     supported.push(claim.clone());
     assert!(desktop.call(tool("universe_propose",json!({"action":"create","universe":"Alpha","context_id":ctx,"operations":supported,"submission":"submitted","rationale":"Must not reassign reserved identities","idempotency_key":"collision"}))).await.is_err());
@@ -1381,7 +1381,7 @@ async fn authored_clock_state_boundaries_end_assertion_and_pinned_history() {
     let entity_id = "rec_000000000000000000000101";
     let prop = "rec_000000000000000000000102";
     let clock = "cal_000000000000000000000103";
-    let claim = |id: &str, text: &str, start: &str, end: &str, polarity: &str| json!({"kind":"assert_proposition","client_ref":id,"proposition":{"subject":rr(entity_id),"predicate":rr(prop),"value":{"kind":"text","text":text},"quantification":"particular","context":rr(u["context_id"].as_str().unwrap())},"assertion":{"proposition":rr(id),"polarity":polarity,"scope":{"applicability":{"kind":"universe_wide"},"context":rr(u["context_id"].as_str().unwrap())},"validity":{"kind":"calendar_interval","calendar":clock,"start":{"kind":"exact","value":start},"end":{"kind":"exact","value":end}},"persistence":"explicit_interval","precision":"exact","basis":{"kind":"author_decision","note":"Authored intervals"}}});
+    let claim = |id: &str, text: &str, start: &str, end: &str, polarity: &str| json!({"kind":"assert_proposition","client_ref":id,"proposition":{"subject":rr(entity_id),"predicate":rr(prop),"value":{"kind":"text","text":text},"quantification":"particular","context":rr(u["context_id"].as_str().unwrap())},"assertion":{"attributeMode":"instance","proposition":rr(id),"polarity":polarity,"scope":{"applicability":{"kind":"universe_wide"},"context":rr(u["context_id"].as_str().unwrap())},"validity":{"kind":"calendar_interval","calendar":clock,"start":{"kind":"exact","value":start},"end":{"kind":"exact","value":end}},"persistence":"explicit_interval","precision":"exact","basis":{"kind":"author_decision","note":"Authored intervals"}}});
     let p=proposal(&mut client,&ctx,vec![entity("Traveler",entity_id),json!({"kind":"define_property","client_ref":prop,"record":{"namespace":"story","key":"light","labels":{},"value":{"kind":"text"},"multiplicity":"single","subjectTypes":[],"persistence":"explicit_interval","exclusive":true,"symmetric":false,"transitive":false}}),json!({"kind":"define_calendar","client_ref":"rec_000000000000000000000103","record":{"namespace":"story","key":"days","labels":{},"unitStructure":{},"conversions":[]}}),claim("rec_000000000000000000000104","lamp","0","10","support"),claim("rec_000000000000000000000105","torch","10","20","support"),claim("rec_000000000000000000000106","torch","10","20","refutation")],"time-seed").await;
     let validation = validate(&mut client, &ctx, &p).await;
     assert_eq!(validation["coverage"], "complete");
@@ -2081,7 +2081,7 @@ async fn exact_rule_exception_allows_reviewed_departure_and_definition_revision_
     let id = |n| format!("rec_{:024x}", 8000 + n);
     let rr = |n| json!({"universe":u["universe_id"],"record":id(n)});
     let scope = json!({"applicability":{"kind":"universe_wide"},"context":{"universe":u["universe_id"],"record":u["context_id"]}});
-    let claim = json!({"kind":"assert_proposition","client_ref":id(3),"proposition":{"subject":rr(1),"predicate":rr(2),"value":{"kind":"boolean","value":true},"quantification":"particular","context":scope["context"]},"assertion":{"proposition":rr(3),"polarity":"support","scope":scope,"validity":{"kind":"unspecified"},"persistence":"unspecified","precision":"exact","basis":{"kind":"author_decision","note":"Initial prerequisite"}}});
+    let claim = json!({"kind":"assert_proposition","client_ref":id(3),"proposition":{"subject":rr(1),"predicate":rr(2),"value":{"kind":"boolean","value":true},"quantification":"particular","context":scope["context"]},"assertion":{"attributeMode":"instance","proposition":rr(3),"polarity":"support","scope":scope,"validity":{"kind":"unspecified"},"persistence":"unspecified","precision":"exact","basis":{"kind":"author_decision","note":"Initial prerequisite"}}});
     let rule = json!({"kind":"define_rule","client_ref":id(4),"record":{"namespace":"gate","key":"requires-charge","labels":{},"kind":"physical_constraint","commitPolicy":"block_unless_exception","applicability":{"kind":"universe_wide"},"targetPredicates":["gate:charged"],"expression":{"kind":"claim","subject":{"kind":"record","ref":rr(1)},"predicate":"gate:charged","value":{"kind":"value","value":{"kind":"boolean","value":true}},"polarity":"support"},"capabilities":["basic.v1"],"executable":true,"validity":{"kind":"unspecified"}}});
     let p=proposal(&mut c,&ctx,vec![entity("Seal",&id(1)),json!({"kind":"define_property","client_ref":id(2),"record":{"namespace":"gate","key":"charged","labels":{},"subjectTypes":[],"value":{"kind":"boolean"},"multiplicity":"single","persistence":"unspecified","exclusive":false,"symmetric":false,"transitive":false}}),claim,rule],"exception-base").await;
     publish_proposal(&mut c, &ctx, &p, "exception-base-commit").await;
@@ -2162,7 +2162,7 @@ async fn silver_gate_s01_to_s10_use_pinned_candidates_and_explicit_story_time() 
     let scope = json!({"context":{"universe":u["universe_id"],"record":u["context_id"]},"applicability":{"kind":"universe_wide"}});
     let interval = |start, end: Option<i32>| json!({"kind":"calendar_interval","calendar":cal,"start":{"kind":"exact","value":format!("{start}")},"end":end.map_or(json!({"kind":"unbounded"}),|n|json!({"kind":"exact","value":n.to_string()}))});
     let def = |n, key: &str, shape: Value, multiple: bool| json!({"kind":"define_property","client_ref":id(n),"record":{"namespace":"silver","key":key,"labels":{},"subjectTypes":[],"value":shape,"multiplicity":if multiple{"multiple"}else{"single"},"persistence":"explicit_interval","exclusive":!multiple,"symmetric":false,"transitive":false}});
-    let claim = |n, subject, predicate, value: Value, start, end| json!({"kind":"assert_proposition","client_ref":id(n),"proposition":{"subject":rr(subject),"predicate":rr(predicate),"value":value,"context":scope["context"],"quantification":"particular"},"assertion":{"proposition":rr(n),"polarity":"support","scope":scope,"validity":interval(start,end),"persistence":"explicit_interval","precision":"exact","basis":{"kind":"author_decision","note":"Silver Gate authored premise"}}});
+    let claim = |n, subject, predicate, value: Value, start, end| json!({"kind":"assert_proposition","client_ref":id(n),"proposition":{"subject":rr(subject),"predicate":rr(predicate),"value":value,"context":scope["context"],"quantification":"particular"},"assertion":{"attributeMode":"instance","proposition":rr(n),"polarity":"support","scope":scope,"validity":interval(start,end),"persistence":"explicit_interval","precision":"exact","basis":{"kind":"author_decision","note":"Silver Gate authored premise"}}});
     let reference_value = |n| json!({"kind":"entity_ref","ref":rr(n)});
     let boolean = |v| json!({"kind":"boolean","value":v});
     let query = |subject, key: &str, value: Value| json!({"kind":"claim","subject":{"kind":"record","ref":rr(subject)},"predicate":format!("silver:{key}"),"value":{"kind":"value","value":value},"polarity":"support"});

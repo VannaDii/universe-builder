@@ -5752,7 +5752,7 @@
           ]
         },
         "RecordVersion": {
-          "description": "An immutable typed record version (spec §27.1 contract table:\n`record_version_id`, identity, `payload_schema_version`, typed\n`payload`, `payload_digest`).\n\nContent is immutable; actor/time/decision attribution is linked through\nthe editorial commit that admitted it (spec §27.1).",
+          "description": "An immutable typed record version (spec §27.1 contract table:\n`record_version_id`, identity, typed\n`payload`, `payload_digest`).\n\nContent is immutable; actor/time/decision attribution is linked through\nthe editorial commit that admitted it (spec §27.1).",
           "type": "object",
           "properties": {
             "record_version_id": {
@@ -5760,9 +5760,6 @@
             },
             "identity": {
               "$ref": "#/$defs/RecordIdentity"
-            },
-            "payload_schema_version": {
-              "type": "string"
             },
             "payload": {
               "$ref": "#/$defs/Payload"
@@ -5772,10 +5769,10 @@
               "$ref": "#/$defs/PayloadDigest"
             }
           },
+          "additionalProperties": false,
           "required": [
             "record_version_id",
             "identity",
-            "payload_schema_version",
             "payload",
             "payload_digest"
           ]
@@ -5799,6 +5796,7 @@
               "$ref": "#/$defs/RecordKind"
             }
           },
+          "additionalProperties": false,
           "required": [
             "universe_id",
             "record_id",
@@ -5862,12 +5860,18 @@
                     "$ref": "#/$defs/ContextualName"
                   }
                 },
-                "types": {
-                  "description": "Type membership (multiple types permitted).",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/RecordId"
-                  }
+                "classification": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "classificationResolution": {
+                  "$ref": "#/$defs/ClassificationResolution"
                 },
                 "worldAssociations": {
                   "description": "World associations (separate from location).",
@@ -5897,7 +5901,7 @@
               "required": [
                 "record_kind",
                 "names",
-                "types",
+                "classificationResolution",
                 "worldAssociations",
                 "labels",
                 "metadata"
@@ -6285,7 +6289,7 @@
               ]
             },
             {
-              "description": "An entity type. Multiple types are permitted; inheritance cycles for\nexecutable subtype traversal are rejected at compile time.",
+              "description": "A named definition with one nullable parent and explicit resolution.\nAn ambiguous parent blocks executable ancestry; it is never chosen silently.",
               "type": "object",
               "properties": {
                 "namespace": {
@@ -6301,12 +6305,24 @@
                     "type": "string"
                   }
                 },
-                "parents": {
-                  "description": "Optional parent types (stable ids).",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/RecordId"
-                  }
+                "name": {
+                  "type": "string"
+                },
+                "parent": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "parentResolution": {
+                  "$ref": "#/$defs/ParentResolution"
+                },
+                "applicability": {
+                  "$ref": "#/$defs/Applicability"
                 },
                 "classificationExecutable": {
                   "description": "Whether subtype traversal may be used by executable rules.",
@@ -6323,6 +6339,9 @@
                 "namespace",
                 "key",
                 "labels",
+                "name",
+                "parentResolution",
+                "applicability",
                 "classificationExecutable"
               ]
             },
@@ -6686,6 +6705,9 @@
               "description": "Support or refutation of a proposition in a stated context, time, and\nscope (spec §5.2, §27.3).\n\nApproval of the assertion does not erase its context, evidence\nlimitations, or opposing assertions.",
               "type": "object",
               "properties": {
+                "attributeMode": {
+                  "$ref": "#/$defs/AttributeMode"
+                },
                 "proposition": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -6733,6 +6755,7 @@
               "additionalProperties": false,
               "required": [
                 "record_kind",
+                "attributeMode",
                 "proposition",
                 "polarity",
                 "scope",
@@ -7852,6 +7875,15 @@
             }
           ]
         },
+        "ClassificationResolution": {
+          "description": "Classification knowledge does not create a new instance.",
+          "type": "string",
+          "enum": [
+            "unclassified",
+            "resolved",
+            "ambiguous"
+          ]
+        },
         "WorldAssociation": {
           "description": "A world association with optional qualifiers (spec §5.7, §36.7):\nchanging associations and changing physical location are separate\noperations.",
           "type": "object",
@@ -8123,6 +8155,83 @@
           "required": [
             "work",
             "role"
+          ]
+        },
+        "ParentResolution": {
+          "description": "Parent knowledge is distinct from the stable identity of a definition.",
+          "type": "string",
+          "enum": [
+            "root",
+            "resolved",
+            "ambiguous"
+          ]
+        },
+        "Applicability": {
+          "description": "Where a fact or rule applies (spec §5.7, §36.5).\n\nUniverse ownership alone establishes no applicability: a world selector\nis not an implicit authorial assertion about a record's home (I26).",
+          "oneOf": [
+            {
+              "description": "Explicitly declared true across the whole universe.",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "universe_wide"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "description": "Applies to the named worlds (zero is degenerate but legal).",
+              "type": "object",
+              "properties": {
+                "world_ids": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/WorldId"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "worlds"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "world_ids"
+              ]
+            },
+            {
+              "description": "Conditional: applicability is itself evaluated (gap if unresolved).",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "conditional"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "description": "The author did not specify. An unspecified scope that matters to\nvalidation yields a gap, not a universal rule (V19).",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "unspecified"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            }
           ]
         },
         "ValueShape": {
@@ -8495,6 +8604,15 @@
             }
           ]
         },
+        "AttributeMode": {
+          "description": "Shared and initial-value definitions do not describe a continuing balance.",
+          "type": "string",
+          "enum": [
+            "instance",
+            "shared",
+            "initial_value"
+          ]
+        },
         "Polarity": {
           "description": "Support or refutation of a proposition (spec §5.2).",
           "type": "string",
@@ -8530,74 +8648,6 @@
           "required": [
             "applicability",
             "context"
-          ]
-        },
-        "Applicability": {
-          "description": "Where a fact or rule applies (spec §5.7, §36.5).\n\nUniverse ownership alone establishes no applicability: a world selector\nis not an implicit authorial assertion about a record's home (I26).",
-          "oneOf": [
-            {
-              "description": "Explicitly declared true across the whole universe.",
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "type": "string",
-                  "const": "universe_wide"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "description": "Applies to the named worlds (zero is degenerate but legal).",
-              "type": "object",
-              "properties": {
-                "world_ids": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/WorldId"
-                  }
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "worlds"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "world_ids"
-              ]
-            },
-            {
-              "description": "Conditional: applicability is itself evaluated (gap if unresolved).",
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "type": "string",
-                  "const": "conditional"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "description": "The author did not specify. An unspecified scope that matters to\nvalidation yields a gap, not a universal rule (V19).",
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "type": "string",
-                  "const": "unspecified"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            }
           ]
         },
         "Precision": {
@@ -9887,7 +9937,7 @@
         "ConsequenceKind": {
           "type": "string",
           "enum": [
-            "action_consequences_v1"
+            "action_consequences"
           ]
         },
         "EffectSlot": {
@@ -11589,7 +11639,7 @@
           "pattern": "^ver_[0-9a-f]{24}$"
         },
         "RecordVersion": {
-          "description": "An immutable typed record version (spec §27.1 contract table:\n`record_version_id`, identity, `payload_schema_version`, typed\n`payload`, `payload_digest`).\n\nContent is immutable; actor/time/decision attribution is linked through\nthe editorial commit that admitted it (spec §27.1).",
+          "description": "An immutable typed record version (spec §27.1 contract table:\n`record_version_id`, identity, typed\n`payload`, `payload_digest`).\n\nContent is immutable; actor/time/decision attribution is linked through\nthe editorial commit that admitted it (spec §27.1).",
           "type": "object",
           "properties": {
             "record_version_id": {
@@ -11597,9 +11647,6 @@
             },
             "identity": {
               "$ref": "#/$defs/RecordIdentity"
-            },
-            "payload_schema_version": {
-              "type": "string"
             },
             "payload": {
               "$ref": "#/$defs/Payload"
@@ -11609,10 +11656,10 @@
               "$ref": "#/$defs/PayloadDigest"
             }
           },
+          "additionalProperties": false,
           "required": [
             "record_version_id",
             "identity",
-            "payload_schema_version",
             "payload",
             "payload_digest"
           ]
@@ -11631,6 +11678,7 @@
               "$ref": "#/$defs/RecordKind"
             }
           },
+          "additionalProperties": false,
           "required": [
             "universe_id",
             "record_id",
@@ -11694,12 +11742,18 @@
                     "$ref": "#/$defs/ContextualName"
                   }
                 },
-                "types": {
-                  "description": "Type membership (multiple types permitted).",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/RecordId"
-                  }
+                "classification": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "classificationResolution": {
+                  "$ref": "#/$defs/ClassificationResolution"
                 },
                 "worldAssociations": {
                   "description": "World associations (separate from location).",
@@ -11729,7 +11783,7 @@
               "required": [
                 "record_kind",
                 "names",
-                "types",
+                "classificationResolution",
                 "worldAssociations",
                 "labels",
                 "metadata"
@@ -12117,7 +12171,7 @@
               ]
             },
             {
-              "description": "An entity type. Multiple types are permitted; inheritance cycles for\nexecutable subtype traversal are rejected at compile time.",
+              "description": "A named definition with one nullable parent and explicit resolution.\nAn ambiguous parent blocks executable ancestry; it is never chosen silently.",
               "type": "object",
               "properties": {
                 "namespace": {
@@ -12133,12 +12187,24 @@
                     "type": "string"
                   }
                 },
-                "parents": {
-                  "description": "Optional parent types (stable ids).",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/RecordId"
-                  }
+                "name": {
+                  "type": "string"
+                },
+                "parent": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "parentResolution": {
+                  "$ref": "#/$defs/ParentResolution"
+                },
+                "applicability": {
+                  "$ref": "#/$defs/Applicability"
                 },
                 "classificationExecutable": {
                   "description": "Whether subtype traversal may be used by executable rules.",
@@ -12155,6 +12221,9 @@
                 "namespace",
                 "key",
                 "labels",
+                "name",
+                "parentResolution",
+                "applicability",
                 "classificationExecutable"
               ]
             },
@@ -12518,6 +12587,9 @@
               "description": "Support or refutation of a proposition in a stated context, time, and\nscope (spec §5.2, §27.3).\n\nApproval of the assertion does not erase its context, evidence\nlimitations, or opposing assertions.",
               "type": "object",
               "properties": {
+                "attributeMode": {
+                  "$ref": "#/$defs/AttributeMode"
+                },
                 "proposition": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -12565,6 +12637,7 @@
               "additionalProperties": false,
               "required": [
                 "record_kind",
+                "attributeMode",
                 "proposition",
                 "polarity",
                 "scope",
@@ -13684,6 +13757,15 @@
             }
           ]
         },
+        "ClassificationResolution": {
+          "description": "Classification knowledge does not create a new instance.",
+          "type": "string",
+          "enum": [
+            "unclassified",
+            "resolved",
+            "ambiguous"
+          ]
+        },
         "WorldAssociation": {
           "description": "A world association with optional qualifiers (spec §5.7, §36.7):\nchanging associations and changing physical location are separate\noperations.",
           "type": "object",
@@ -13955,6 +14037,83 @@
           "required": [
             "work",
             "role"
+          ]
+        },
+        "ParentResolution": {
+          "description": "Parent knowledge is distinct from the stable identity of a definition.",
+          "type": "string",
+          "enum": [
+            "root",
+            "resolved",
+            "ambiguous"
+          ]
+        },
+        "Applicability": {
+          "description": "Where a fact or rule applies (spec §5.7, §36.5).\n\nUniverse ownership alone establishes no applicability: a world selector\nis not an implicit authorial assertion about a record's home (I26).",
+          "oneOf": [
+            {
+              "description": "Explicitly declared true across the whole universe.",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "universe_wide"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "description": "Applies to the named worlds (zero is degenerate but legal).",
+              "type": "object",
+              "properties": {
+                "world_ids": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/WorldId"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "worlds"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "world_ids"
+              ]
+            },
+            {
+              "description": "Conditional: applicability is itself evaluated (gap if unresolved).",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "conditional"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "description": "The author did not specify. An unspecified scope that matters to\nvalidation yields a gap, not a universal rule (V19).",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "unspecified"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            }
           ]
         },
         "ValueShape": {
@@ -14327,6 +14486,15 @@
             }
           ]
         },
+        "AttributeMode": {
+          "description": "Shared and initial-value definitions do not describe a continuing balance.",
+          "type": "string",
+          "enum": [
+            "instance",
+            "shared",
+            "initial_value"
+          ]
+        },
         "Polarity": {
           "description": "Support or refutation of a proposition (spec §5.2).",
           "type": "string",
@@ -14362,74 +14530,6 @@
           "required": [
             "applicability",
             "context"
-          ]
-        },
-        "Applicability": {
-          "description": "Where a fact or rule applies (spec §5.7, §36.5).\n\nUniverse ownership alone establishes no applicability: a world selector\nis not an implicit authorial assertion about a record's home (I26).",
-          "oneOf": [
-            {
-              "description": "Explicitly declared true across the whole universe.",
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "type": "string",
-                  "const": "universe_wide"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "description": "Applies to the named worlds (zero is degenerate but legal).",
-              "type": "object",
-              "properties": {
-                "world_ids": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/WorldId"
-                  }
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "worlds"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "world_ids"
-              ]
-            },
-            {
-              "description": "Conditional: applicability is itself evaluated (gap if unresolved).",
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "type": "string",
-                  "const": "conditional"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "description": "The author did not specify. An unspecified scope that matters to\nvalidation yields a gap, not a universal rule (V19).",
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "type": "string",
-                  "const": "unspecified"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            }
           ]
         },
         "Precision": {
@@ -15719,7 +15819,7 @@
         "ConsequenceKind": {
           "type": "string",
           "enum": [
-            "action_consequences_v1"
+            "action_consequences"
           ]
         },
         "EffectSlot": {
@@ -17261,7 +17361,7 @@
           ]
         },
         "RecordVersion": {
-          "description": "An immutable typed record version (spec §27.1 contract table:\n`record_version_id`, identity, `payload_schema_version`, typed\n`payload`, `payload_digest`).\n\nContent is immutable; actor/time/decision attribution is linked through\nthe editorial commit that admitted it (spec §27.1).",
+          "description": "An immutable typed record version (spec §27.1 contract table:\n`record_version_id`, identity, typed\n`payload`, `payload_digest`).\n\nContent is immutable; actor/time/decision attribution is linked through\nthe editorial commit that admitted it (spec §27.1).",
           "type": "object",
           "properties": {
             "record_version_id": {
@@ -17269,9 +17369,6 @@
             },
             "identity": {
               "$ref": "#/$defs/RecordIdentity"
-            },
-            "payload_schema_version": {
-              "type": "string"
             },
             "payload": {
               "$ref": "#/$defs/Payload"
@@ -17281,10 +17378,10 @@
               "$ref": "#/$defs/PayloadDigest"
             }
           },
+          "additionalProperties": false,
           "required": [
             "record_version_id",
             "identity",
-            "payload_schema_version",
             "payload",
             "payload_digest"
           ]
@@ -17308,6 +17405,7 @@
               "$ref": "#/$defs/RecordKind"
             }
           },
+          "additionalProperties": false,
           "required": [
             "universe_id",
             "record_id",
@@ -17371,12 +17469,18 @@
                     "$ref": "#/$defs/ContextualName"
                   }
                 },
-                "types": {
-                  "description": "Type membership (multiple types permitted).",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/RecordId"
-                  }
+                "classification": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "classificationResolution": {
+                  "$ref": "#/$defs/ClassificationResolution"
                 },
                 "worldAssociations": {
                   "description": "World associations (separate from location).",
@@ -17406,7 +17510,7 @@
               "required": [
                 "record_kind",
                 "names",
-                "types",
+                "classificationResolution",
                 "worldAssociations",
                 "labels",
                 "metadata"
@@ -17794,7 +17898,7 @@
               ]
             },
             {
-              "description": "An entity type. Multiple types are permitted; inheritance cycles for\nexecutable subtype traversal are rejected at compile time.",
+              "description": "A named definition with one nullable parent and explicit resolution.\nAn ambiguous parent blocks executable ancestry; it is never chosen silently.",
               "type": "object",
               "properties": {
                 "namespace": {
@@ -17810,12 +17914,24 @@
                     "type": "string"
                   }
                 },
-                "parents": {
-                  "description": "Optional parent types (stable ids).",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/RecordId"
-                  }
+                "name": {
+                  "type": "string"
+                },
+                "parent": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "parentResolution": {
+                  "$ref": "#/$defs/ParentResolution"
+                },
+                "applicability": {
+                  "$ref": "#/$defs/Applicability"
                 },
                 "classificationExecutable": {
                   "description": "Whether subtype traversal may be used by executable rules.",
@@ -17832,6 +17948,9 @@
                 "namespace",
                 "key",
                 "labels",
+                "name",
+                "parentResolution",
+                "applicability",
                 "classificationExecutable"
               ]
             },
@@ -18195,6 +18314,9 @@
               "description": "Support or refutation of a proposition in a stated context, time, and\nscope (spec §5.2, §27.3).\n\nApproval of the assertion does not erase its context, evidence\nlimitations, or opposing assertions.",
               "type": "object",
               "properties": {
+                "attributeMode": {
+                  "$ref": "#/$defs/AttributeMode"
+                },
                 "proposition": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -18242,6 +18364,7 @@
               "additionalProperties": false,
               "required": [
                 "record_kind",
+                "attributeMode",
                 "proposition",
                 "polarity",
                 "scope",
@@ -19361,6 +19484,15 @@
             }
           ]
         },
+        "ClassificationResolution": {
+          "description": "Classification knowledge does not create a new instance.",
+          "type": "string",
+          "enum": [
+            "unclassified",
+            "resolved",
+            "ambiguous"
+          ]
+        },
         "WorldAssociation": {
           "description": "A world association with optional qualifiers (spec §5.7, §36.7):\nchanging associations and changing physical location are separate\noperations.",
           "type": "object",
@@ -19632,6 +19764,83 @@
           "required": [
             "work",
             "role"
+          ]
+        },
+        "ParentResolution": {
+          "description": "Parent knowledge is distinct from the stable identity of a definition.",
+          "type": "string",
+          "enum": [
+            "root",
+            "resolved",
+            "ambiguous"
+          ]
+        },
+        "Applicability": {
+          "description": "Where a fact or rule applies (spec §5.7, §36.5).\n\nUniverse ownership alone establishes no applicability: a world selector\nis not an implicit authorial assertion about a record's home (I26).",
+          "oneOf": [
+            {
+              "description": "Explicitly declared true across the whole universe.",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "universe_wide"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "description": "Applies to the named worlds (zero is degenerate but legal).",
+              "type": "object",
+              "properties": {
+                "world_ids": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/WorldId"
+                  }
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "worlds"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "world_ids"
+              ]
+            },
+            {
+              "description": "Conditional: applicability is itself evaluated (gap if unresolved).",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "conditional"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "description": "The author did not specify. An unspecified scope that matters to\nvalidation yields a gap, not a universal rule (V19).",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "unspecified"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            }
           ]
         },
         "ValueShape": {
@@ -20004,6 +20213,15 @@
             }
           ]
         },
+        "AttributeMode": {
+          "description": "Shared and initial-value definitions do not describe a continuing balance.",
+          "type": "string",
+          "enum": [
+            "instance",
+            "shared",
+            "initial_value"
+          ]
+        },
         "Polarity": {
           "description": "Support or refutation of a proposition (spec §5.2).",
           "type": "string",
@@ -20039,74 +20257,6 @@
           "required": [
             "applicability",
             "context"
-          ]
-        },
-        "Applicability": {
-          "description": "Where a fact or rule applies (spec §5.7, §36.5).\n\nUniverse ownership alone establishes no applicability: a world selector\nis not an implicit authorial assertion about a record's home (I26).",
-          "oneOf": [
-            {
-              "description": "Explicitly declared true across the whole universe.",
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "type": "string",
-                  "const": "universe_wide"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "description": "Applies to the named worlds (zero is degenerate but legal).",
-              "type": "object",
-              "properties": {
-                "world_ids": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/WorldId"
-                  }
-                },
-                "kind": {
-                  "type": "string",
-                  "const": "worlds"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "kind",
-                "world_ids"
-              ]
-            },
-            {
-              "description": "Conditional: applicability is itself evaluated (gap if unresolved).",
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "type": "string",
-                  "const": "conditional"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "description": "The author did not specify. An unspecified scope that matters to\nvalidation yields a gap, not a universal rule (V19).",
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "type": "string",
-                  "const": "unspecified"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            }
           ]
         },
         "Precision": {
@@ -21396,7 +21546,7 @@
         "ConsequenceKind": {
           "type": "string",
           "enum": [
-            "action_consequences_v1"
+            "action_consequences"
           ]
         },
         "EffectSlot": {
@@ -24218,12 +24368,18 @@
                 "$ref": "#/$defs/ContextualName"
               }
             },
-            "types": {
-              "description": "Type membership (multiple types permitted).",
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/RecordId"
-              }
+            "classification": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "classificationResolution": {
+              "$ref": "#/$defs/ClassificationResolution"
             },
             "worldAssociations": {
               "description": "World associations (separate from location).",
@@ -24248,7 +24404,7 @@
           "additionalProperties": false,
           "required": [
             "names",
-            "types",
+            "classificationResolution",
             "worldAssociations",
             "labels",
             "metadata"
@@ -24287,6 +24443,15 @@
           "required": [
             "text",
             "validity"
+          ]
+        },
+        "ClassificationResolution": {
+          "description": "Classification knowledge does not create a new instance.",
+          "type": "string",
+          "enum": [
+            "unclassified",
+            "resolved",
+            "ambiguous"
           ]
         },
         "WorldAssociation": {
@@ -24658,6 +24823,9 @@
           "description": "Support or refutation of a proposition in a stated context, time, and\nscope (spec §5.2, §27.3).\n\nApproval of the assertion does not erase its context, evidence\nlimitations, or opposing assertions.",
           "type": "object",
           "properties": {
+            "attributeMode": {
+              "$ref": "#/$defs/AttributeMode"
+            },
             "proposition": {
               "$ref": "#/$defs/RecordRef"
             },
@@ -24700,6 +24868,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "attributeMode",
             "proposition",
             "polarity",
             "scope",
@@ -24707,6 +24876,15 @@
             "persistence",
             "precision",
             "basis"
+          ]
+        },
+        "AttributeMode": {
+          "description": "Shared and initial-value definitions do not describe a continuing balance.",
+          "type": "string",
+          "enum": [
+            "instance",
+            "shared",
+            "initial_value"
           ]
         },
         "Polarity": {
@@ -25150,7 +25328,7 @@
         "ConsequenceKind": {
           "type": "string",
           "enum": [
-            "action_consequences_v1"
+            "action_consequences"
           ]
         },
         "EffectSlot": {
@@ -26470,7 +26648,7 @@
           ]
         },
         "EntityType": {
-          "description": "An entity type. Multiple types are permitted; inheritance cycles for\nexecutable subtype traversal are rejected at compile time.",
+          "description": "A named definition with one nullable parent and explicit resolution.\nAn ambiguous parent blocks executable ancestry; it is never chosen silently.",
           "type": "object",
           "properties": {
             "namespace": {
@@ -26486,12 +26664,24 @@
                 "type": "string"
               }
             },
-            "parents": {
-              "description": "Optional parent types (stable ids).",
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/RecordId"
-              }
+            "name": {
+              "type": "string"
+            },
+            "parent": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "parentResolution": {
+              "$ref": "#/$defs/ParentResolution"
+            },
+            "applicability": {
+              "$ref": "#/$defs/Applicability"
             },
             "classificationExecutable": {
               "description": "Whether subtype traversal may be used by executable rules.",
@@ -26503,7 +26693,19 @@
             "namespace",
             "key",
             "labels",
+            "name",
+            "parentResolution",
+            "applicability",
             "classificationExecutable"
+          ]
+        },
+        "ParentResolution": {
+          "description": "Parent knowledge is distinct from the stable identity of a definition.",
+          "type": "string",
+          "enum": [
+            "root",
+            "resolved",
+            "ambiguous"
           ]
         },
         "PropertyDef": {
@@ -27605,12 +27807,18 @@
                     "$ref": "#/$defs/ContextualName"
                   }
                 },
-                "types": {
-                  "description": "Type membership (multiple types permitted).",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/RecordId"
-                  }
+                "classification": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "classificationResolution": {
+                  "$ref": "#/$defs/ClassificationResolution"
                 },
                 "worldAssociations": {
                   "description": "World associations (separate from location).",
@@ -27640,7 +27848,7 @@
               "required": [
                 "record_kind",
                 "names",
-                "types",
+                "classificationResolution",
                 "worldAssociations",
                 "labels",
                 "metadata"
@@ -28028,7 +28236,7 @@
               ]
             },
             {
-              "description": "An entity type. Multiple types are permitted; inheritance cycles for\nexecutable subtype traversal are rejected at compile time.",
+              "description": "A named definition with one nullable parent and explicit resolution.\nAn ambiguous parent blocks executable ancestry; it is never chosen silently.",
               "type": "object",
               "properties": {
                 "namespace": {
@@ -28044,12 +28252,24 @@
                     "type": "string"
                   }
                 },
-                "parents": {
-                  "description": "Optional parent types (stable ids).",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/RecordId"
-                  }
+                "name": {
+                  "type": "string"
+                },
+                "parent": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "parentResolution": {
+                  "$ref": "#/$defs/ParentResolution"
+                },
+                "applicability": {
+                  "$ref": "#/$defs/Applicability"
                 },
                 "classificationExecutable": {
                   "description": "Whether subtype traversal may be used by executable rules.",
@@ -28066,6 +28286,9 @@
                 "namespace",
                 "key",
                 "labels",
+                "name",
+                "parentResolution",
+                "applicability",
                 "classificationExecutable"
               ]
             },
@@ -28429,6 +28652,9 @@
               "description": "Support or refutation of a proposition in a stated context, time, and\nscope (spec §5.2, §27.3).\n\nApproval of the assertion does not erase its context, evidence\nlimitations, or opposing assertions.",
               "type": "object",
               "properties": {
+                "attributeMode": {
+                  "$ref": "#/$defs/AttributeMode"
+                },
                 "proposition": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -28476,6 +28702,7 @@
               "additionalProperties": false,
               "required": [
                 "record_kind",
+                "attributeMode",
                 "proposition",
                 "polarity",
                 "scope",
@@ -29698,7 +29925,7 @@
           ]
         },
         "RecordVersion": {
-          "description": "An immutable typed record version (spec §27.1 contract table:\n`record_version_id`, identity, `payload_schema_version`, typed\n`payload`, `payload_digest`).\n\nContent is immutable; actor/time/decision attribution is linked through\nthe editorial commit that admitted it (spec §27.1).",
+          "description": "An immutable typed record version (spec §27.1 contract table:\n`record_version_id`, identity, typed\n`payload`, `payload_digest`).\n\nContent is immutable; actor/time/decision attribution is linked through\nthe editorial commit that admitted it (spec §27.1).",
           "type": "object",
           "properties": {
             "record_version_id": {
@@ -29706,9 +29933,6 @@
             },
             "identity": {
               "$ref": "#/$defs/RecordIdentity"
-            },
-            "payload_schema_version": {
-              "type": "string"
             },
             "payload": {
               "$ref": "#/$defs/Payload"
@@ -29718,10 +29942,10 @@
               "$ref": "#/$defs/PayloadDigest"
             }
           },
+          "additionalProperties": false,
           "required": [
             "record_version_id",
             "identity",
-            "payload_schema_version",
             "payload",
             "payload_digest"
           ]
@@ -29740,6 +29964,7 @@
               "$ref": "#/$defs/RecordKind"
             }
           },
+          "additionalProperties": false,
           "required": [
             "universe_id",
             "record_id",
@@ -35611,12 +35836,18 @@
                 "$ref": "#/$defs/ContextualName"
               }
             },
-            "types": {
-              "description": "Type membership (multiple types permitted).",
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/RecordId"
-              }
+            "classification": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "classificationResolution": {
+              "$ref": "#/$defs/ClassificationResolution"
             },
             "worldAssociations": {
               "description": "World associations (separate from location).",
@@ -35641,7 +35872,7 @@
           "additionalProperties": false,
           "required": [
             "names",
-            "types",
+            "classificationResolution",
             "worldAssociations",
             "labels",
             "metadata"
@@ -35680,6 +35911,15 @@
           "required": [
             "text",
             "validity"
+          ]
+        },
+        "ClassificationResolution": {
+          "description": "Classification knowledge does not create a new instance.",
+          "type": "string",
+          "enum": [
+            "unclassified",
+            "resolved",
+            "ambiguous"
           ]
         },
         "WorldAssociation": {
@@ -36041,6 +36281,9 @@
           "description": "Support or refutation of a proposition in a stated context, time, and\nscope (spec §5.2, §27.3).\n\nApproval of the assertion does not erase its context, evidence\nlimitations, or opposing assertions.",
           "type": "object",
           "properties": {
+            "attributeMode": {
+              "$ref": "#/$defs/AttributeMode"
+            },
             "proposition": {
               "$ref": "#/$defs/RecordRef"
             },
@@ -36083,6 +36326,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "attributeMode",
             "proposition",
             "polarity",
             "scope",
@@ -36090,6 +36334,15 @@
             "persistence",
             "precision",
             "basis"
+          ]
+        },
+        "AttributeMode": {
+          "description": "Shared and initial-value definitions do not describe a continuing balance.",
+          "type": "string",
+          "enum": [
+            "instance",
+            "shared",
+            "initial_value"
           ]
         },
         "Scope": {
@@ -36525,7 +36778,7 @@
         "ConsequenceKind": {
           "type": "string",
           "enum": [
-            "action_consequences_v1"
+            "action_consequences"
           ]
         },
         "EffectSlot": {
@@ -37845,7 +38098,7 @@
           ]
         },
         "EntityType": {
-          "description": "An entity type. Multiple types are permitted; inheritance cycles for\nexecutable subtype traversal are rejected at compile time.",
+          "description": "A named definition with one nullable parent and explicit resolution.\nAn ambiguous parent blocks executable ancestry; it is never chosen silently.",
           "type": "object",
           "properties": {
             "namespace": {
@@ -37861,12 +38114,24 @@
                 "type": "string"
               }
             },
-            "parents": {
-              "description": "Optional parent types (stable ids).",
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/RecordId"
-              }
+            "name": {
+              "type": "string"
+            },
+            "parent": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "parentResolution": {
+              "$ref": "#/$defs/ParentResolution"
+            },
+            "applicability": {
+              "$ref": "#/$defs/Applicability"
             },
             "classificationExecutable": {
               "description": "Whether subtype traversal may be used by executable rules.",
@@ -37878,7 +38143,19 @@
             "namespace",
             "key",
             "labels",
+            "name",
+            "parentResolution",
+            "applicability",
             "classificationExecutable"
+          ]
+        },
+        "ParentResolution": {
+          "description": "Parent knowledge is distinct from the stable identity of a definition.",
+          "type": "string",
+          "enum": [
+            "root",
+            "resolved",
+            "ambiguous"
           ]
         },
         "PropertyDef": {
@@ -38980,12 +39257,18 @@
                     "$ref": "#/$defs/ContextualName"
                   }
                 },
-                "types": {
-                  "description": "Type membership (multiple types permitted).",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/RecordId"
-                  }
+                "classification": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "classificationResolution": {
+                  "$ref": "#/$defs/ClassificationResolution"
                 },
                 "worldAssociations": {
                   "description": "World associations (separate from location).",
@@ -39015,7 +39298,7 @@
               "required": [
                 "record_kind",
                 "names",
-                "types",
+                "classificationResolution",
                 "worldAssociations",
                 "labels",
                 "metadata"
@@ -39403,7 +39686,7 @@
               ]
             },
             {
-              "description": "An entity type. Multiple types are permitted; inheritance cycles for\nexecutable subtype traversal are rejected at compile time.",
+              "description": "A named definition with one nullable parent and explicit resolution.\nAn ambiguous parent blocks executable ancestry; it is never chosen silently.",
               "type": "object",
               "properties": {
                 "namespace": {
@@ -39419,12 +39702,24 @@
                     "type": "string"
                   }
                 },
-                "parents": {
-                  "description": "Optional parent types (stable ids).",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/RecordId"
-                  }
+                "name": {
+                  "type": "string"
+                },
+                "parent": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "parentResolution": {
+                  "$ref": "#/$defs/ParentResolution"
+                },
+                "applicability": {
+                  "$ref": "#/$defs/Applicability"
                 },
                 "classificationExecutable": {
                   "description": "Whether subtype traversal may be used by executable rules.",
@@ -39441,6 +39736,9 @@
                 "namespace",
                 "key",
                 "labels",
+                "name",
+                "parentResolution",
+                "applicability",
                 "classificationExecutable"
               ]
             },
@@ -39804,6 +40102,9 @@
               "description": "Support or refutation of a proposition in a stated context, time, and\nscope (spec §5.2, §27.3).\n\nApproval of the assertion does not erase its context, evidence\nlimitations, or opposing assertions.",
               "type": "object",
               "properties": {
+                "attributeMode": {
+                  "$ref": "#/$defs/AttributeMode"
+                },
                 "proposition": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -39851,6 +40152,7 @@
               "additionalProperties": false,
               "required": [
                 "record_kind",
+                "attributeMode",
                 "proposition",
                 "polarity",
                 "scope",
@@ -41068,7 +41370,7 @@
           ]
         },
         "RecordVersion": {
-          "description": "An immutable typed record version (spec §27.1 contract table:\n`record_version_id`, identity, `payload_schema_version`, typed\n`payload`, `payload_digest`).\n\nContent is immutable; actor/time/decision attribution is linked through\nthe editorial commit that admitted it (spec §27.1).",
+          "description": "An immutable typed record version (spec §27.1 contract table:\n`record_version_id`, identity, typed\n`payload`, `payload_digest`).\n\nContent is immutable; actor/time/decision attribution is linked through\nthe editorial commit that admitted it (spec §27.1).",
           "type": "object",
           "properties": {
             "record_version_id": {
@@ -41076,9 +41378,6 @@
             },
             "identity": {
               "$ref": "#/$defs/RecordIdentity"
-            },
-            "payload_schema_version": {
-              "type": "string"
             },
             "payload": {
               "$ref": "#/$defs/Payload"
@@ -41088,10 +41387,10 @@
               "$ref": "#/$defs/PayloadDigest"
             }
           },
+          "additionalProperties": false,
           "required": [
             "record_version_id",
             "identity",
-            "payload_schema_version",
             "payload",
             "payload_digest"
           ]
@@ -41110,6 +41409,7 @@
               "$ref": "#/$defs/RecordKind"
             }
           },
+          "additionalProperties": false,
           "required": [
             "universe_id",
             "record_id",
@@ -43791,12 +44091,18 @@
                 "$ref": "#/$defs/ContextualName"
               }
             },
-            "types": {
-              "description": "Type membership (multiple types permitted).",
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/RecordId"
-              }
+            "classification": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "classificationResolution": {
+              "$ref": "#/$defs/ClassificationResolution"
             },
             "worldAssociations": {
               "description": "World associations (separate from location).",
@@ -43821,7 +44127,7 @@
           "additionalProperties": false,
           "required": [
             "names",
-            "types",
+            "classificationResolution",
             "worldAssociations",
             "labels",
             "metadata"
@@ -43860,6 +44166,15 @@
           "required": [
             "text",
             "validity"
+          ]
+        },
+        "ClassificationResolution": {
+          "description": "Classification knowledge does not create a new instance.",
+          "type": "string",
+          "enum": [
+            "unclassified",
+            "resolved",
+            "ambiguous"
           ]
         },
         "WorldAssociation": {
@@ -44221,6 +44536,9 @@
           "description": "Support or refutation of a proposition in a stated context, time, and\nscope (spec §5.2, §27.3).\n\nApproval of the assertion does not erase its context, evidence\nlimitations, or opposing assertions.",
           "type": "object",
           "properties": {
+            "attributeMode": {
+              "$ref": "#/$defs/AttributeMode"
+            },
             "proposition": {
               "$ref": "#/$defs/RecordRef"
             },
@@ -44263,6 +44581,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "attributeMode",
             "proposition",
             "polarity",
             "scope",
@@ -44270,6 +44589,15 @@
             "persistence",
             "precision",
             "basis"
+          ]
+        },
+        "AttributeMode": {
+          "description": "Shared and initial-value definitions do not describe a continuing balance.",
+          "type": "string",
+          "enum": [
+            "instance",
+            "shared",
+            "initial_value"
           ]
         },
         "Polarity": {
@@ -44691,7 +45019,7 @@
         "ConsequenceKind": {
           "type": "string",
           "enum": [
-            "action_consequences_v1"
+            "action_consequences"
           ]
         },
         "EffectSlot": {
@@ -46011,7 +46339,7 @@
           ]
         },
         "EntityType": {
-          "description": "An entity type. Multiple types are permitted; inheritance cycles for\nexecutable subtype traversal are rejected at compile time.",
+          "description": "A named definition with one nullable parent and explicit resolution.\nAn ambiguous parent blocks executable ancestry; it is never chosen silently.",
           "type": "object",
           "properties": {
             "namespace": {
@@ -46027,12 +46355,24 @@
                 "type": "string"
               }
             },
-            "parents": {
-              "description": "Optional parent types (stable ids).",
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/RecordId"
-              }
+            "name": {
+              "type": "string"
+            },
+            "parent": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "parentResolution": {
+              "$ref": "#/$defs/ParentResolution"
+            },
+            "applicability": {
+              "$ref": "#/$defs/Applicability"
             },
             "classificationExecutable": {
               "description": "Whether subtype traversal may be used by executable rules.",
@@ -46044,7 +46384,19 @@
             "namespace",
             "key",
             "labels",
+            "name",
+            "parentResolution",
+            "applicability",
             "classificationExecutable"
+          ]
+        },
+        "ParentResolution": {
+          "description": "Parent knowledge is distinct from the stable identity of a definition.",
+          "type": "string",
+          "enum": [
+            "root",
+            "resolved",
+            "ambiguous"
           ]
         },
         "PropertyDef": {
@@ -47146,12 +47498,18 @@
                     "$ref": "#/$defs/ContextualName"
                   }
                 },
-                "types": {
-                  "description": "Type membership (multiple types permitted).",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/RecordId"
-                  }
+                "classification": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "classificationResolution": {
+                  "$ref": "#/$defs/ClassificationResolution"
                 },
                 "worldAssociations": {
                   "description": "World associations (separate from location).",
@@ -47181,7 +47539,7 @@
               "required": [
                 "record_kind",
                 "names",
-                "types",
+                "classificationResolution",
                 "worldAssociations",
                 "labels",
                 "metadata"
@@ -47569,7 +47927,7 @@
               ]
             },
             {
-              "description": "An entity type. Multiple types are permitted; inheritance cycles for\nexecutable subtype traversal are rejected at compile time.",
+              "description": "A named definition with one nullable parent and explicit resolution.\nAn ambiguous parent blocks executable ancestry; it is never chosen silently.",
               "type": "object",
               "properties": {
                 "namespace": {
@@ -47585,12 +47943,24 @@
                     "type": "string"
                   }
                 },
-                "parents": {
-                  "description": "Optional parent types (stable ids).",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/RecordId"
-                  }
+                "name": {
+                  "type": "string"
+                },
+                "parent": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "parentResolution": {
+                  "$ref": "#/$defs/ParentResolution"
+                },
+                "applicability": {
+                  "$ref": "#/$defs/Applicability"
                 },
                 "classificationExecutable": {
                   "description": "Whether subtype traversal may be used by executable rules.",
@@ -47607,6 +47977,9 @@
                 "namespace",
                 "key",
                 "labels",
+                "name",
+                "parentResolution",
+                "applicability",
                 "classificationExecutable"
               ]
             },
@@ -47970,6 +48343,9 @@
               "description": "Support or refutation of a proposition in a stated context, time, and\nscope (spec §5.2, §27.3).\n\nApproval of the assertion does not erase its context, evidence\nlimitations, or opposing assertions.",
               "type": "object",
               "properties": {
+                "attributeMode": {
+                  "$ref": "#/$defs/AttributeMode"
+                },
                 "proposition": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -48017,6 +48393,7 @@
               "additionalProperties": false,
               "required": [
                 "record_kind",
+                "attributeMode",
                 "proposition",
                 "polarity",
                 "scope",
@@ -49239,7 +49616,7 @@
           ]
         },
         "RecordVersion": {
-          "description": "An immutable typed record version (spec §27.1 contract table:\n`record_version_id`, identity, `payload_schema_version`, typed\n`payload`, `payload_digest`).\n\nContent is immutable; actor/time/decision attribution is linked through\nthe editorial commit that admitted it (spec §27.1).",
+          "description": "An immutable typed record version (spec §27.1 contract table:\n`record_version_id`, identity, typed\n`payload`, `payload_digest`).\n\nContent is immutable; actor/time/decision attribution is linked through\nthe editorial commit that admitted it (spec §27.1).",
           "type": "object",
           "properties": {
             "record_version_id": {
@@ -49247,9 +49624,6 @@
             },
             "identity": {
               "$ref": "#/$defs/RecordIdentity"
-            },
-            "payload_schema_version": {
-              "type": "string"
             },
             "payload": {
               "$ref": "#/$defs/Payload"
@@ -49259,10 +49633,10 @@
               "$ref": "#/$defs/PayloadDigest"
             }
           },
+          "additionalProperties": false,
           "required": [
             "record_version_id",
             "identity",
-            "payload_schema_version",
             "payload",
             "payload_digest"
           ]
@@ -49281,6 +49655,7 @@
               "$ref": "#/$defs/RecordKind"
             }
           },
+          "additionalProperties": false,
           "required": [
             "universe_id",
             "record_id",
@@ -52177,12 +52552,18 @@
                 "$ref": "#/$defs/ContextualName"
               }
             },
-            "types": {
-              "description": "Type membership (multiple types permitted).",
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/RecordId"
-              }
+            "classification": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "classificationResolution": {
+              "$ref": "#/$defs/ClassificationResolution"
             },
             "worldAssociations": {
               "description": "World associations (separate from location).",
@@ -52207,7 +52588,7 @@
           "additionalProperties": false,
           "required": [
             "names",
-            "types",
+            "classificationResolution",
             "worldAssociations",
             "labels",
             "metadata"
@@ -52246,6 +52627,15 @@
           "required": [
             "text",
             "validity"
+          ]
+        },
+        "ClassificationResolution": {
+          "description": "Classification knowledge does not create a new instance.",
+          "type": "string",
+          "enum": [
+            "unclassified",
+            "resolved",
+            "ambiguous"
           ]
         },
         "WorldAssociation": {
@@ -52607,6 +52997,9 @@
           "description": "Support or refutation of a proposition in a stated context, time, and\nscope (spec §5.2, §27.3).\n\nApproval of the assertion does not erase its context, evidence\nlimitations, or opposing assertions.",
           "type": "object",
           "properties": {
+            "attributeMode": {
+              "$ref": "#/$defs/AttributeMode"
+            },
             "proposition": {
               "$ref": "#/$defs/RecordRef"
             },
@@ -52649,6 +53042,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "attributeMode",
             "proposition",
             "polarity",
             "scope",
@@ -52656,6 +53050,15 @@
             "persistence",
             "precision",
             "basis"
+          ]
+        },
+        "AttributeMode": {
+          "description": "Shared and initial-value definitions do not describe a continuing balance.",
+          "type": "string",
+          "enum": [
+            "instance",
+            "shared",
+            "initial_value"
           ]
         },
         "Polarity": {
@@ -53077,7 +53480,7 @@
         "ConsequenceKind": {
           "type": "string",
           "enum": [
-            "action_consequences_v1"
+            "action_consequences"
           ]
         },
         "EffectSlot": {
@@ -54397,7 +54800,7 @@
           ]
         },
         "EntityType": {
-          "description": "An entity type. Multiple types are permitted; inheritance cycles for\nexecutable subtype traversal are rejected at compile time.",
+          "description": "A named definition with one nullable parent and explicit resolution.\nAn ambiguous parent blocks executable ancestry; it is never chosen silently.",
           "type": "object",
           "properties": {
             "namespace": {
@@ -54413,12 +54816,24 @@
                 "type": "string"
               }
             },
-            "parents": {
-              "description": "Optional parent types (stable ids).",
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/RecordId"
-              }
+            "name": {
+              "type": "string"
+            },
+            "parent": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "parentResolution": {
+              "$ref": "#/$defs/ParentResolution"
+            },
+            "applicability": {
+              "$ref": "#/$defs/Applicability"
             },
             "classificationExecutable": {
               "description": "Whether subtype traversal may be used by executable rules.",
@@ -54430,7 +54845,19 @@
             "namespace",
             "key",
             "labels",
+            "name",
+            "parentResolution",
+            "applicability",
             "classificationExecutable"
+          ]
+        },
+        "ParentResolution": {
+          "description": "Parent knowledge is distinct from the stable identity of a definition.",
+          "type": "string",
+          "enum": [
+            "root",
+            "resolved",
+            "ambiguous"
           ]
         },
         "PropertyDef": {
@@ -55532,12 +55959,18 @@
                     "$ref": "#/$defs/ContextualName"
                   }
                 },
-                "types": {
-                  "description": "Type membership (multiple types permitted).",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/RecordId"
-                  }
+                "classification": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "classificationResolution": {
+                  "$ref": "#/$defs/ClassificationResolution"
                 },
                 "worldAssociations": {
                   "description": "World associations (separate from location).",
@@ -55567,7 +56000,7 @@
               "required": [
                 "record_kind",
                 "names",
-                "types",
+                "classificationResolution",
                 "worldAssociations",
                 "labels",
                 "metadata"
@@ -55955,7 +56388,7 @@
               ]
             },
             {
-              "description": "An entity type. Multiple types are permitted; inheritance cycles for\nexecutable subtype traversal are rejected at compile time.",
+              "description": "A named definition with one nullable parent and explicit resolution.\nAn ambiguous parent blocks executable ancestry; it is never chosen silently.",
               "type": "object",
               "properties": {
                 "namespace": {
@@ -55971,12 +56404,24 @@
                     "type": "string"
                   }
                 },
-                "parents": {
-                  "description": "Optional parent types (stable ids).",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/RecordId"
-                  }
+                "name": {
+                  "type": "string"
+                },
+                "parent": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "parentResolution": {
+                  "$ref": "#/$defs/ParentResolution"
+                },
+                "applicability": {
+                  "$ref": "#/$defs/Applicability"
                 },
                 "classificationExecutable": {
                   "description": "Whether subtype traversal may be used by executable rules.",
@@ -55993,6 +56438,9 @@
                 "namespace",
                 "key",
                 "labels",
+                "name",
+                "parentResolution",
+                "applicability",
                 "classificationExecutable"
               ]
             },
@@ -56356,6 +56804,9 @@
               "description": "Support or refutation of a proposition in a stated context, time, and\nscope (spec §5.2, §27.3).\n\nApproval of the assertion does not erase its context, evidence\nlimitations, or opposing assertions.",
               "type": "object",
               "properties": {
+                "attributeMode": {
+                  "$ref": "#/$defs/AttributeMode"
+                },
                 "proposition": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -56403,6 +56854,7 @@
               "additionalProperties": false,
               "required": [
                 "record_kind",
+                "attributeMode",
                 "proposition",
                 "polarity",
                 "scope",
@@ -57625,7 +58077,7 @@
           ]
         },
         "RecordVersion": {
-          "description": "An immutable typed record version (spec §27.1 contract table:\n`record_version_id`, identity, `payload_schema_version`, typed\n`payload`, `payload_digest`).\n\nContent is immutable; actor/time/decision attribution is linked through\nthe editorial commit that admitted it (spec §27.1).",
+          "description": "An immutable typed record version (spec §27.1 contract table:\n`record_version_id`, identity, typed\n`payload`, `payload_digest`).\n\nContent is immutable; actor/time/decision attribution is linked through\nthe editorial commit that admitted it (spec §27.1).",
           "type": "object",
           "properties": {
             "record_version_id": {
@@ -57633,9 +58085,6 @@
             },
             "identity": {
               "$ref": "#/$defs/RecordIdentity"
-            },
-            "payload_schema_version": {
-              "type": "string"
             },
             "payload": {
               "$ref": "#/$defs/Payload"
@@ -57645,10 +58094,10 @@
               "$ref": "#/$defs/PayloadDigest"
             }
           },
+          "additionalProperties": false,
           "required": [
             "record_version_id",
             "identity",
-            "payload_schema_version",
             "payload",
             "payload_digest"
           ]
@@ -57667,6 +58116,7 @@
               "$ref": "#/$defs/RecordKind"
             }
           },
+          "additionalProperties": false,
           "required": [
             "universe_id",
             "record_id",
@@ -65073,12 +65523,18 @@
                 "$ref": "#/$defs/ContextualName"
               }
             },
-            "types": {
-              "description": "Type membership (multiple types permitted).",
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/RecordId"
-              }
+            "classification": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "classificationResolution": {
+              "$ref": "#/$defs/ClassificationResolution"
             },
             "worldAssociations": {
               "description": "World associations (separate from location).",
@@ -65103,7 +65559,7 @@
           "additionalProperties": false,
           "required": [
             "names",
-            "types",
+            "classificationResolution",
             "worldAssociations",
             "labels",
             "metadata"
@@ -65142,6 +65598,15 @@
           "required": [
             "text",
             "validity"
+          ]
+        },
+        "ClassificationResolution": {
+          "description": "Classification knowledge does not create a new instance.",
+          "type": "string",
+          "enum": [
+            "unclassified",
+            "resolved",
+            "ambiguous"
           ]
         },
         "WorldAssociation": {
@@ -65421,6 +65886,9 @@
           "description": "Support or refutation of a proposition in a stated context, time, and\nscope (spec §5.2, §27.3).\n\nApproval of the assertion does not erase its context, evidence\nlimitations, or opposing assertions.",
           "type": "object",
           "properties": {
+            "attributeMode": {
+              "$ref": "#/$defs/AttributeMode"
+            },
             "proposition": {
               "$ref": "#/$defs/RecordRef"
             },
@@ -65463,6 +65931,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "attributeMode",
             "proposition",
             "polarity",
             "scope",
@@ -65470,6 +65939,15 @@
             "persistence",
             "precision",
             "basis"
+          ]
+        },
+        "AttributeMode": {
+          "description": "Shared and initial-value definitions do not describe a continuing balance.",
+          "type": "string",
+          "enum": [
+            "instance",
+            "shared",
+            "initial_value"
           ]
         },
         "Polarity": {
@@ -65796,7 +66274,7 @@
         "ConsequenceKind": {
           "type": "string",
           "enum": [
-            "action_consequences_v1"
+            "action_consequences"
           ]
         },
         "EffectSlot": {
@@ -67116,7 +67594,7 @@
           ]
         },
         "EntityType": {
-          "description": "An entity type. Multiple types are permitted; inheritance cycles for\nexecutable subtype traversal are rejected at compile time.",
+          "description": "A named definition with one nullable parent and explicit resolution.\nAn ambiguous parent blocks executable ancestry; it is never chosen silently.",
           "type": "object",
           "properties": {
             "namespace": {
@@ -67132,12 +67610,24 @@
                 "type": "string"
               }
             },
-            "parents": {
-              "description": "Optional parent types (stable ids).",
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/RecordId"
-              }
+            "name": {
+              "type": "string"
+            },
+            "parent": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "parentResolution": {
+              "$ref": "#/$defs/ParentResolution"
+            },
+            "applicability": {
+              "$ref": "#/$defs/Applicability"
             },
             "classificationExecutable": {
               "description": "Whether subtype traversal may be used by executable rules.",
@@ -67149,7 +67639,19 @@
             "namespace",
             "key",
             "labels",
+            "name",
+            "parentResolution",
+            "applicability",
             "classificationExecutable"
+          ]
+        },
+        "ParentResolution": {
+          "description": "Parent knowledge is distinct from the stable identity of a definition.",
+          "type": "string",
+          "enum": [
+            "root",
+            "resolved",
+            "ambiguous"
           ]
         },
         "PropertyDef": {
@@ -68251,12 +68753,18 @@
                     "$ref": "#/$defs/ContextualName"
                   }
                 },
-                "types": {
-                  "description": "Type membership (multiple types permitted).",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/RecordId"
-                  }
+                "classification": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "classificationResolution": {
+                  "$ref": "#/$defs/ClassificationResolution"
                 },
                 "worldAssociations": {
                   "description": "World associations (separate from location).",
@@ -68286,7 +68794,7 @@
               "required": [
                 "record_kind",
                 "names",
-                "types",
+                "classificationResolution",
                 "worldAssociations",
                 "labels",
                 "metadata"
@@ -68674,7 +69182,7 @@
               ]
             },
             {
-              "description": "An entity type. Multiple types are permitted; inheritance cycles for\nexecutable subtype traversal are rejected at compile time.",
+              "description": "A named definition with one nullable parent and explicit resolution.\nAn ambiguous parent blocks executable ancestry; it is never chosen silently.",
               "type": "object",
               "properties": {
                 "namespace": {
@@ -68690,12 +69198,24 @@
                     "type": "string"
                   }
                 },
-                "parents": {
-                  "description": "Optional parent types (stable ids).",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/RecordId"
-                  }
+                "name": {
+                  "type": "string"
+                },
+                "parent": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "parentResolution": {
+                  "$ref": "#/$defs/ParentResolution"
+                },
+                "applicability": {
+                  "$ref": "#/$defs/Applicability"
                 },
                 "classificationExecutable": {
                   "description": "Whether subtype traversal may be used by executable rules.",
@@ -68712,6 +69232,9 @@
                 "namespace",
                 "key",
                 "labels",
+                "name",
+                "parentResolution",
+                "applicability",
                 "classificationExecutable"
               ]
             },
@@ -69075,6 +69598,9 @@
               "description": "Support or refutation of a proposition in a stated context, time, and\nscope (spec §5.2, §27.3).\n\nApproval of the assertion does not erase its context, evidence\nlimitations, or opposing assertions.",
               "type": "object",
               "properties": {
+                "attributeMode": {
+                  "$ref": "#/$defs/AttributeMode"
+                },
                 "proposition": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -69122,6 +69648,7 @@
               "additionalProperties": false,
               "required": [
                 "record_kind",
+                "attributeMode",
                 "proposition",
                 "polarity",
                 "scope",
@@ -70340,7 +70867,7 @@
           ]
         },
         "RecordVersion": {
-          "description": "An immutable typed record version (spec §27.1 contract table:\n`record_version_id`, identity, `payload_schema_version`, typed\n`payload`, `payload_digest`).\n\nContent is immutable; actor/time/decision attribution is linked through\nthe editorial commit that admitted it (spec §27.1).",
+          "description": "An immutable typed record version (spec §27.1 contract table:\n`record_version_id`, identity, typed\n`payload`, `payload_digest`).\n\nContent is immutable; actor/time/decision attribution is linked through\nthe editorial commit that admitted it (spec §27.1).",
           "type": "object",
           "properties": {
             "record_version_id": {
@@ -70348,9 +70875,6 @@
             },
             "identity": {
               "$ref": "#/$defs/RecordIdentity"
-            },
-            "payload_schema_version": {
-              "type": "string"
             },
             "payload": {
               "$ref": "#/$defs/Payload"
@@ -70360,10 +70884,10 @@
               "$ref": "#/$defs/PayloadDigest"
             }
           },
+          "additionalProperties": false,
           "required": [
             "record_version_id",
             "identity",
-            "payload_schema_version",
             "payload",
             "payload_digest"
           ]
@@ -70382,6 +70906,7 @@
               "$ref": "#/$defs/RecordKind"
             }
           },
+          "additionalProperties": false,
           "required": [
             "universe_id",
             "record_id",
@@ -74237,12 +74762,18 @@
                 "$ref": "#/$defs/ContextualName"
               }
             },
-            "types": {
-              "description": "Type membership (multiple types permitted).",
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/RecordId"
-              }
+            "classification": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "classificationResolution": {
+              "$ref": "#/$defs/ClassificationResolution"
             },
             "worldAssociations": {
               "description": "World associations (separate from location).",
@@ -74267,7 +74798,7 @@
           "additionalProperties": false,
           "required": [
             "names",
-            "types",
+            "classificationResolution",
             "worldAssociations",
             "labels",
             "metadata"
@@ -74306,6 +74837,15 @@
           "required": [
             "text",
             "validity"
+          ]
+        },
+        "ClassificationResolution": {
+          "description": "Classification knowledge does not create a new instance.",
+          "type": "string",
+          "enum": [
+            "unclassified",
+            "resolved",
+            "ambiguous"
           ]
         },
         "WorldAssociation": {
@@ -74585,6 +75125,9 @@
           "description": "Support or refutation of a proposition in a stated context, time, and\nscope (spec §5.2, §27.3).\n\nApproval of the assertion does not erase its context, evidence\nlimitations, or opposing assertions.",
           "type": "object",
           "properties": {
+            "attributeMode": {
+              "$ref": "#/$defs/AttributeMode"
+            },
             "proposition": {
               "$ref": "#/$defs/RecordRef"
             },
@@ -74627,6 +75170,7 @@
           },
           "additionalProperties": false,
           "required": [
+            "attributeMode",
             "proposition",
             "polarity",
             "scope",
@@ -74634,6 +75178,15 @@
             "persistence",
             "precision",
             "basis"
+          ]
+        },
+        "AttributeMode": {
+          "description": "Shared and initial-value definitions do not describe a continuing balance.",
+          "type": "string",
+          "enum": [
+            "instance",
+            "shared",
+            "initial_value"
           ]
         },
         "Polarity": {
@@ -74960,7 +75513,7 @@
         "ConsequenceKind": {
           "type": "string",
           "enum": [
-            "action_consequences_v1"
+            "action_consequences"
           ]
         },
         "EffectSlot": {
@@ -76280,7 +76833,7 @@
           ]
         },
         "EntityType": {
-          "description": "An entity type. Multiple types are permitted; inheritance cycles for\nexecutable subtype traversal are rejected at compile time.",
+          "description": "A named definition with one nullable parent and explicit resolution.\nAn ambiguous parent blocks executable ancestry; it is never chosen silently.",
           "type": "object",
           "properties": {
             "namespace": {
@@ -76296,12 +76849,24 @@
                 "type": "string"
               }
             },
-            "parents": {
-              "description": "Optional parent types (stable ids).",
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/RecordId"
-              }
+            "name": {
+              "type": "string"
+            },
+            "parent": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "parentResolution": {
+              "$ref": "#/$defs/ParentResolution"
+            },
+            "applicability": {
+              "$ref": "#/$defs/Applicability"
             },
             "classificationExecutable": {
               "description": "Whether subtype traversal may be used by executable rules.",
@@ -76313,7 +76878,19 @@
             "namespace",
             "key",
             "labels",
+            "name",
+            "parentResolution",
+            "applicability",
             "classificationExecutable"
+          ]
+        },
+        "ParentResolution": {
+          "description": "Parent knowledge is distinct from the stable identity of a definition.",
+          "type": "string",
+          "enum": [
+            "root",
+            "resolved",
+            "ambiguous"
           ]
         },
         "PropertyDef": {
@@ -77415,12 +77992,18 @@
                     "$ref": "#/$defs/ContextualName"
                   }
                 },
-                "types": {
-                  "description": "Type membership (multiple types permitted).",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/RecordId"
-                  }
+                "classification": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "classificationResolution": {
+                  "$ref": "#/$defs/ClassificationResolution"
                 },
                 "worldAssociations": {
                   "description": "World associations (separate from location).",
@@ -77450,7 +78033,7 @@
               "required": [
                 "record_kind",
                 "names",
-                "types",
+                "classificationResolution",
                 "worldAssociations",
                 "labels",
                 "metadata"
@@ -77838,7 +78421,7 @@
               ]
             },
             {
-              "description": "An entity type. Multiple types are permitted; inheritance cycles for\nexecutable subtype traversal are rejected at compile time.",
+              "description": "A named definition with one nullable parent and explicit resolution.\nAn ambiguous parent blocks executable ancestry; it is never chosen silently.",
               "type": "object",
               "properties": {
                 "namespace": {
@@ -77854,12 +78437,24 @@
                     "type": "string"
                   }
                 },
-                "parents": {
-                  "description": "Optional parent types (stable ids).",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/RecordId"
-                  }
+                "name": {
+                  "type": "string"
+                },
+                "parent": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordId"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "parentResolution": {
+                  "$ref": "#/$defs/ParentResolution"
+                },
+                "applicability": {
+                  "$ref": "#/$defs/Applicability"
                 },
                 "classificationExecutable": {
                   "description": "Whether subtype traversal may be used by executable rules.",
@@ -77876,6 +78471,9 @@
                 "namespace",
                 "key",
                 "labels",
+                "name",
+                "parentResolution",
+                "applicability",
                 "classificationExecutable"
               ]
             },
@@ -78239,6 +78837,9 @@
               "description": "Support or refutation of a proposition in a stated context, time, and\nscope (spec §5.2, §27.3).\n\nApproval of the assertion does not erase its context, evidence\nlimitations, or opposing assertions.",
               "type": "object",
               "properties": {
+                "attributeMode": {
+                  "$ref": "#/$defs/AttributeMode"
+                },
                 "proposition": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -78286,6 +78887,7 @@
               "additionalProperties": false,
               "required": [
                 "record_kind",
+                "attributeMode",
                 "proposition",
                 "polarity",
                 "scope",
@@ -79504,7 +80106,7 @@
           ]
         },
         "RecordVersion": {
-          "description": "An immutable typed record version (spec §27.1 contract table:\n`record_version_id`, identity, `payload_schema_version`, typed\n`payload`, `payload_digest`).\n\nContent is immutable; actor/time/decision attribution is linked through\nthe editorial commit that admitted it (spec §27.1).",
+          "description": "An immutable typed record version (spec §27.1 contract table:\n`record_version_id`, identity, typed\n`payload`, `payload_digest`).\n\nContent is immutable; actor/time/decision attribution is linked through\nthe editorial commit that admitted it (spec §27.1).",
           "type": "object",
           "properties": {
             "record_version_id": {
@@ -79512,9 +80114,6 @@
             },
             "identity": {
               "$ref": "#/$defs/RecordIdentity"
-            },
-            "payload_schema_version": {
-              "type": "string"
             },
             "payload": {
               "$ref": "#/$defs/Payload"
@@ -79524,10 +80123,10 @@
               "$ref": "#/$defs/PayloadDigest"
             }
           },
+          "additionalProperties": false,
           "required": [
             "record_version_id",
             "identity",
-            "payload_schema_version",
             "payload",
             "payload_digest"
           ]
@@ -79546,6 +80145,7 @@
               "$ref": "#/$defs/RecordKind"
             }
           },
+          "additionalProperties": false,
           "required": [
             "universe_id",
             "record_id",

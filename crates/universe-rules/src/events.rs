@@ -212,6 +212,7 @@ pub fn expand(records: &[RecordVersion]) -> Result<BTreeMap<RecordId, Assertion>
             out.insert(
                 id,
                 Assertion {
+                    attribute_mode: universe_domain::records::AttributeMode::Instance,
                     proposition: effect.proposition.clone(),
                     polarity: effect.polarity,
                     scope: effect.scope.clone(),

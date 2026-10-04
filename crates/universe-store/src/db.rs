@@ -1,7 +1,7 @@
 //! SQLite connection policy and atomic schema installation.
 use crate::{StoreError, StoreResult};
 pub use rusqlite::Connection;
-use rusqlite::{OptionalExtension, Transaction as RusqliteTransaction};
+use rusqlite::Transaction as RusqliteTransaction;
 use std::path::{Path, PathBuf};
 /// Writes and physical restore share one bound. SQLite rejects growth before a
 /// transaction can publish a package that our restore path cannot accept.
@@ -28,16 +28,22 @@ impl Database {
         Self::policy(&conn)?;
         Ok(Self { path })
     }
-    fn check_version(conn: &Connection) -> StoreResult<()> {
-        let version: i64 = conn.query_row(
-            "SELECT value FROM schema_meta WHERE key='schema_version'",
-            [],
-            |r| r.get(0),
-        )?;
-        if version != 2 {
-            return Err(StoreError::Migration(format!(
-                "unsupported schema version {version}"
-            )));
+    fn check_schema(conn: &Connection) -> StoreResult<()> {
+        let columns: Vec<String> = conn
+            .prepare("PRAGMA table_info(record_versions)")?
+            .query_map([], |r| r.get(1))?
+            .collect::<Result<_, _>>()?;
+        if columns
+            != [
+                "universe_id",
+                "id",
+                "record_id",
+                "kind",
+                "payload_row",
+                "digest",
+            ]
+        {
+            return Err(StoreError::Migration("package requires explicit conversion to the normative relational model; original preserved".into()));
         }
         Ok(())
     }
@@ -55,175 +61,43 @@ impl Database {
         conn.execute_batch("CREATE VIRTUAL TABLE IF NOT EXISTS temp.fts_probe USING fts5(text); DROP TABLE temp.fts_probe;")?;
         Ok(())
     }
-    fn initialize(conn: &mut Connection, path: &Path) -> StoreResult<()> {
-        // Reject future versions before changing journal mode or schema.
-        let exists: bool = conn.query_row(
-            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='schema_meta')",
-            [],
-            |r| r.get(0),
-        )?;
-        let current = if exists {
-            conn.query_row(
-                "SELECT value FROM schema_meta WHERE key='schema_version'",
-                [],
-                |r| r.get::<_, i64>(0),
-            )
-            .optional()?
-        } else {
-            None
-        };
-        if current.is_some_and(|v| !(0..=2).contains(&v)) {
-            return Err(StoreError::Migration(
-                "unsupported schema version; original preserved".into(),
-            ));
-        }
-        Self::policy(conn)?;
-        if current == Some(2) {
+    fn initialize(conn: &mut Connection, _path: &Path) -> StoreResult<()> {
+        let populated: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%')", [], |r| r.get(0))?;
+        // Inspect before journal/policy changes. Opening an existing package
+        // never converts data or installs an alternate pre-release layout.
+        if populated {
+            Self::check_schema(conn)?;
+            Self::policy(conn)?;
             conn.execute_batch("PRAGMA journal_mode=WAL;")?;
             return Ok(());
         }
-        if current == Some(1) {
-            Self::pre_migration_snapshot(conn, path, 1)?;
-            let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-            tx.execute_batch(include_str!("schema_v2.sql"))?;
-            tx.execute(
-                "UPDATE schema_meta SET value=2 WHERE key='schema_version'",
-                [],
-            )?;
-            tx.commit()?;
-            return Ok(());
-        }
-        // v0 never implemented canon. Do not guess how to convert populated scaffolds.
-        let tables:Vec<String>=conn.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name!='schema_meta'")?.query_map([],|r|r.get(0))?.collect::<Result<_,_>>()?;
-        if current.is_none() && !tables.is_empty() {
-            return Err(StoreError::Migration(
-                "unversioned existing database; original preserved".into(),
-            ));
-        }
-        let virtuals:Vec<String>=conn.prepare("SELECT name FROM sqlite_master WHERE type='table' AND sql LIKE 'CREATE VIRTUAL TABLE%'")?.query_map([],|r|r.get(0))?.collect::<Result<_,_>>()?;
-        if virtuals.iter().any(|v| {
-            !matches!(
-                v.as_str(),
-                "fts_universes" | "fts_entities" | "fts_worlds" | "fts_sources"
-            )
-        }) {
-            return Err(StoreError::Migration(
-                "unknown legacy virtual table; original preserved".into(),
-            ));
-        }
-        for table in &tables {
-            if virtuals.contains(table) {
-                continue;
-            }
-            let quoted = table.replace('"', "\"\"");
-            let count: i64 =
-                conn.query_row(&format!("SELECT count(*) FROM \"{quoted}\""), [], |r| {
-                    r.get(0)
-                })?;
-            let shadow = virtuals.iter().any(|v| {
-                ["data", "idx", "content", "docsize", "config"]
-                    .iter()
-                    .any(|suffix| *table == format!("{v}_{suffix}"))
-            });
-            if count > 0 && !shadow {
-                return Err(StoreError::Migration(
-                    "populated legacy scaffold needs explicit conversion; original preserved"
-                        .into(),
-                ));
-            }
-        }
-        if current == Some(0) {
-            Self::pre_migration_snapshot(conn, path, 0)?;
-        }
+        Self::policy(conn)?;
         conn.execute_batch("PRAGMA journal_mode=WAL;")?;
         let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-        tx.execute_batch("PRAGMA defer_foreign_keys=ON;")?;
-        // Remove virtual tables before their shadow tables.
-        let virtuals:Vec<String>=tx.prepare("SELECT name FROM sqlite_master WHERE type='table' AND sql LIKE 'CREATE VIRTUAL TABLE%'")?.query_map([],|r|r.get(0))?.collect::<Result<_,_>>()?;
-        for table in virtuals.iter().chain(tables.iter()) {
-            tx.execute_batch(&format!(
-                "DROP TABLE IF EXISTS \"{}\"",
-                table.replace('"', "\"\"")
-            ))?;
-        }
-        tx.execute_batch(
-            "CREATE TABLE IF NOT EXISTS schema_meta(key TEXT PRIMARY KEY,value INTEGER NOT NULL);",
-        )?;
-        tx.execute_batch(include_str!("schema_v1.sql"))?;
-        tx.execute_batch(include_str!("schema_v2.sql"))?;
-        tx.execute(
-            "INSERT OR REPLACE INTO schema_meta VALUES('schema_version',2)",
-            [],
-        )?;
+        tx.execute_batch(crate::relational::SQL)?;
+        tx.execute_batch(include_str!(
+            "../../../docs/decisions/relational-storage/kernel.sql"
+        ))?;
+        tx.execute_batch(include_str!(
+            "../../../docs/decisions/relational-storage/semantic.sql"
+        ))?;
+        tx.execute_batch(include_str!("workflow.sql"))?;
         tx.commit()?;
-        Ok(())
-    }
-    /// Retain a verified, private rollback copy before touching a supported old
-    /// schema. Random names preserve earlier copies; failure aborts the upgrade.
-    fn pre_migration_snapshot(conn: &Connection, path: &Path, version: i64) -> StoreResult<()> {
-        let parent = path
-            .parent()
-            .filter(|p| !p.as_os_str().is_empty())
-            .unwrap_or_else(|| Path::new("."));
-        let stem = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("universe");
-        let backup = tempfile::Builder::new()
-            .prefix(&format!(".{stem}.before-schema-{version}-"))
-            .suffix(".sqlite")
-            .tempfile_in(parent)?;
-        let destination = backup
-            .path()
-            .to_str()
-            .ok_or_else(|| StoreError::Migration("backup path must be UTF-8".into()))?;
-        conn.execute("VACUUM INTO ?1", [destination])?;
-        backup.as_file().sync_all()?;
-        let copy =
-            Connection::open_with_flags(backup.path(), rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-        let integrity: String = copy.query_row("PRAGMA integrity_check", [], |r| r.get(0))?;
-        let foreign_keys: i64 =
-            copy.query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |r| {
-                r.get(0)
-            })?;
-        let schema: i64 = copy.query_row(
-            "SELECT value FROM schema_meta WHERE key='schema_version'",
-            [],
-            |r| r.get(0),
-        )?;
-        if integrity != "ok" || foreign_keys != 0 || schema != version {
-            return Err(StoreError::Migration(
-                "pre-migration snapshot verification failed; original schema retained".into(),
-            ));
-        }
-        drop(copy);
-        // The temporary file already has a unique, private path; retaining it
-        // cannot overwrite an older rollback copy.
-        backup.keep().map_err(|e| StoreError::Io(e.error))?;
-        std::fs::File::open(parent)?.sync_all()?;
         Ok(())
     }
     pub fn connect(&self) -> StoreResult<Connection> {
         let c =
             Connection::open_with_flags(&self.path, rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE)?;
-        Self::check_version(&c)?;
+        Self::check_schema(&c)?;
         Self::policy(&c)?;
         Ok(c)
     }
     pub fn path(&self) -> &Path {
         &self.path
     }
-    pub fn schema_version(&self) -> StoreResult<i64> {
-        let c = self.connect()?;
-        Ok(c.query_row(
-            "SELECT value FROM schema_meta WHERE key='schema_version'",
-            [],
-            |r| r.get(0),
-        )?)
-    }
     pub fn apply_migration(&self, sql: &str) -> StoreResult<()> {
         let mut c = self.connect()?;
-        Self::pre_migration_snapshot(&c, &self.path, 2)?;
         let t = c.transaction()?;
         t.execute_batch(sql)?;
         t.commit()?;
@@ -317,9 +191,9 @@ mod tests {
     }
 
     #[test]
-    fn schema_version_is_current_on_new_db() {
+    fn new_database_has_one_normative_body_pointer() {
         let (db, _dir) = temp_db();
-        assert_eq!(db.schema_version().unwrap(), 2);
+        Database::check_schema(&db.connect().unwrap()).unwrap();
     }
 
     #[test]
@@ -403,7 +277,7 @@ mod tests {
     }
 
     #[test]
-    fn failed_snapshot_verification_prevents_schema_upgrade() {
+    fn unrecognized_existing_package_is_refused_unchanged() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("invalid-old.sqlite");
         let conn = Connection::open(&path).unwrap();

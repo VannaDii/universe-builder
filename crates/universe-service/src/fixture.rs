@@ -88,7 +88,9 @@ impl Fixture {
                 n * 10,
                 Payload::Entity(Entity {
                     names: vec![],
-                    types: vec![],
+                    classification: None,
+                    classification_resolution:
+                        universe_domain::records::ClassificationResolution::Unclassified,
                     world_associations: associations.clone(),
                     labels: BTreeMap::from([("en".into(), label.into())]),
                     metadata: BTreeMap::new(),
@@ -116,7 +118,9 @@ impl Fixture {
                 n * 10 + 2,
                 Payload::Entity(Entity {
                     names: vec![],
-                    types: vec![],
+                    classification: None,
+                    classification_resolution:
+                        universe_domain::records::ClassificationResolution::Unclassified,
                     world_associations: vec![],
                     labels: BTreeMap::from([("en".into(), "Unassigned traveler".into())]),
                     metadata: BTreeMap::new(),

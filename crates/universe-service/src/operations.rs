@@ -423,9 +423,33 @@ pub fn compile(
                 else {
                     return Err(invalid("expected entity"));
                 };
-                if !e.types.contains(entity_type) {
-                    e.types.push(entity_type.clone());
+                if let Some(prior) = &e.classification {
+                    let mut next = Some(entity_type);
+                    let mut seen = BTreeSet::new();
+                    let mut refinement = false;
+                    while let Some(id) = next {
+                        if id == prior {
+                            refinement = true;
+                            break;
+                        }
+                        if !seen.insert(id) {
+                            break;
+                        }
+                        next = match records.get(id).map(|r| &r.payload) {
+                            Some(Payload::EntityType(t))
+                                if t.parent_resolution != ParentResolution::Ambiguous =>
+                            {
+                                t.parent.as_ref()
+                            }
+                            _ => None,
+                        };
+                    }
+                    if !refinement {
+                        return Err(invalid("classification change is not a descendant refinement; use an explicit authored correction"));
+                    }
                 }
+                e.classification = Some(entity_type.clone());
+                e.classification_resolution = ClassificationResolution::Resolved;
                 (record, expected_version, Some(Payload::Entity(e)))
             }
             RenameWorldSelector {

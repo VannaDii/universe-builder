@@ -65,7 +65,7 @@ impl Fixture {
         self.add(n,json!({"record_kind":"proposition","subject":rr(80),"predicate":rr(1),"roles":[],"value":{"kind":"entity_ref","ref":rr(target)},"quantification":"particular","context":rr(context)}));
     }
     fn assertion(&mut self, n: usize, p: usize, context: usize, polarity: &str, validity: Value) {
-        self.add(n,json!({"record_kind":"assertion","proposition":rr(p),"polarity":polarity,"scope":scope(context),"validity":validity,"persistence":"explicit_interval","precision":"exact","basis":{"kind":"author_decision","note":"Explicit authored evidence"}}));
+        self.add(n,json!({"record_kind":"assertion","attributeMode":"instance","proposition":rr(p),"polarity":polarity,"scope":scope(context),"validity":validity,"persistence":"explicit_interval","precision":"exact","basis":{"kind":"author_decision","note":"Explicit authored evidence"}}));
     }
     fn closed(&mut self, n: usize, validity: Value) {
         self.add(n,json!({"record_kind":"completeness","subject":rr(80),"predicate":"story:siblings","members":[],"completeness":"objective_reality","validity":validity,"scope":scope(99)}));
