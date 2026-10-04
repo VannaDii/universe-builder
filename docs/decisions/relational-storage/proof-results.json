@@ -1,0 +1,86 @@
+{
+  "workflow_envelope_bindings": 14,
+  "source_content": "digest and bytes exact",
+  "installation_authority_in_package": false,
+  "canonical_round_trips": 72,
+  "closed_union_and_workflow_round_trips": 506,
+  "canonical_families": 38,
+  "integrity": "ok",
+  "foreign_keys": "ok",
+  "application_blob_or_real_columns": [],
+  "reconstruction_digest": "f759ea679692f61ebe8b5bff8b8aad45af194ff2d5124cd9bdd13c0c57275d52",
+  "tables_inspected": 871,
+  "constraint_rejections": [
+    "required",
+    "discriminator",
+    "foreign-key",
+    "immutable-workflow",
+    "immutable-body"
+  ],
+  "backup_reopen": "same independent result",
+  "tampered_value": "independent readback rejected",
+  "interrupted_transaction": "no published rows",
+  "semantic_examples": {
+    "version_round_trips": 50,
+    "historical_membership_replayed": 4,
+    "snapshots": "exact",
+    "receipt": "exact",
+    "reservation": "exact",
+    "cedar": {
+      "identity": "preserved",
+      "ancestry": [
+        "Western red cedar",
+        "Cedar",
+        "Tree"
+      ],
+      "height": "30.00 authored unit reference; absent before t1",
+      "world_b": "inapplicable"
+    },
+    "pistols": {
+      "A": [
+        "7",
+        "6",
+        "0",
+        "2"
+      ],
+      "B": [
+        "3",
+        "3",
+        "3",
+        "3"
+      ],
+      "rename_and_refinement": "no reinitialization",
+      "initial_value_receipts": 1
+    },
+    "legacy": "both memberships retained; executable resolution blocked",
+    "inherited_conflict": "both scoped values retained; no override",
+    "unspecified_scope": "unresolved",
+    "cross_world_fact": "excluded",
+    "typed_projection_agreement": "verified",
+    "v2_header_v1_digest_recipe": "verified",
+    "logical_export": {
+      "typed_archive": "verified",
+      "copied_rows": 828,
+      "history_and_receipts": "preserved",
+      "installation_authority": "absent",
+      "manifest": {
+        "format": "universe-relational-proposal-v3",
+        "universe": "unv_000000000000000000000001",
+        "name": "Cedar and Pistol review",
+        "complete": true,
+        "omitted_records": 0,
+        "includes_history": true,
+        "includes_workflow": true
+      },
+      "sha256": "af66d09152b88e5227ab524522f22eda68d2290d3fa394c3c7c9c28ee39a72d0"
+    }
+  },
+  "installation": {
+    "grant_round_trip": "exact",
+    "null_vs_empty_limits": "distinguished",
+    "authority_sequence": 17,
+    "synthetic_profiles": "preserved",
+    "production_credentials_used": false
+  },
+  "scope": "disposable decision prototypes; no production migration, MCP admission or evaluator qualification"
+}

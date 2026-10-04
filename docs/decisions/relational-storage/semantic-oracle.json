@@ -1,0 +1,1601 @@
+{
+  "versions": [
+    {
+      "version": "ver_000000000000000000000001",
+      "identity": "rec_000000000000000000000001",
+      "kind": "entity_type",
+      "schema": "v3",
+      "value": {
+        "record_kind": "entity_type",
+        "namespace": "author",
+        "key": "Tree",
+        "labels": {
+          "en": "Tree"
+        },
+        "classificationExecutable": true,
+        "name": "Tree",
+        "parent": null,
+        "applicability": {
+          "kind": "universe_wide"
+        }
+      },
+      "digest": "9b2a4abbd530de67e6f614f9f087d4bf906e4a684ac663fcff78bd154d2757b0"
+    },
+    {
+      "version": "ver_000000000000000000000002",
+      "identity": "rec_000000000000000000000002",
+      "kind": "entity_type",
+      "schema": "v3",
+      "value": {
+        "record_kind": "entity_type",
+        "namespace": "author",
+        "key": "Cedar",
+        "labels": {
+          "en": "Cedar"
+        },
+        "classificationExecutable": true,
+        "name": "Cedar",
+        "parent": "rec_000000000000000000000001",
+        "applicability": {
+          "kind": "universe_wide"
+        }
+      },
+      "digest": "13399a2c6529343b81c2dea3112fe33817b45c9602458f8855f92a9482dc0ea6"
+    },
+    {
+      "version": "ver_000000000000000000000003",
+      "identity": "rec_000000000000000000000003",
+      "kind": "entity_type",
+      "schema": "v3",
+      "value": {
+        "record_kind": "entity_type",
+        "namespace": "author",
+        "key": "Western red cedar",
+        "labels": {
+          "en": "Western red cedar"
+        },
+        "classificationExecutable": true,
+        "name": "Western red cedar",
+        "parent": "rec_000000000000000000000002",
+        "applicability": {
+          "kind": "worlds",
+          "world_ids": [
+            "wld_00000000000000000000000c"
+          ]
+        }
+      },
+      "digest": "1db45dc6a3104e1a2b351bf6984f3d64568adca0897383d542b21fe336e24272"
+    },
+    {
+      "version": "ver_000000000000000000000004",
+      "identity": "rec_000000000000000000000004",
+      "kind": "entity_type",
+      "schema": "v3",
+      "value": {
+        "record_kind": "entity_type",
+        "namespace": "author",
+        "key": "Gun",
+        "labels": {
+          "en": "Gun"
+        },
+        "classificationExecutable": true,
+        "name": "Gun",
+        "parent": null,
+        "applicability": {
+          "kind": "universe_wide"
+        }
+      },
+      "digest": "4de976cb3c0d8996585a7c5b1964a97dbff4a306158d66255813592bc130af6a"
+    },
+    {
+      "version": "ver_000000000000000000000005",
+      "identity": "rec_000000000000000000000005",
+      "kind": "entity_type",
+      "schema": "v3",
+      "value": {
+        "record_kind": "entity_type",
+        "namespace": "author",
+        "key": "Pistol",
+        "labels": {
+          "en": "Pistol"
+        },
+        "classificationExecutable": true,
+        "name": "Pistol",
+        "parent": "rec_000000000000000000000004",
+        "applicability": {
+          "kind": "universe_wide"
+        }
+      },
+      "digest": "0e4e47e8cd794bc60da7fcf5f0ad9da0c4a761563eb289ee501d9454a047eb2c"
+    },
+    {
+      "version": "ver_000000000000000000000006",
+      "identity": "rec_000000000000000000000006",
+      "kind": "entity_type",
+      "schema": "v3",
+      "value": {
+        "record_kind": "entity_type",
+        "namespace": "author",
+        "key": "Revolver",
+        "labels": {
+          "en": "Revolver"
+        },
+        "classificationExecutable": true,
+        "name": "Revolver",
+        "parent": "rec_000000000000000000000004",
+        "applicability": {
+          "kind": "universe_wide"
+        }
+      },
+      "digest": "39ad01a00259757ed3291f8a661244302170f86d28ca8cd89583d3c4cd685d60"
+    },
+    {
+      "version": "ver_000000000000000000000007",
+      "identity": "rec_000000000000000000000007",
+      "kind": "entity_type",
+      "schema": "v3",
+      "value": {
+        "record_kind": "entity_type",
+        "namespace": "author",
+        "key": "Service pistol",
+        "labels": {
+          "en": "Service pistol"
+        },
+        "classificationExecutable": true,
+        "name": "Service pistol",
+        "parent": "rec_000000000000000000000005",
+        "applicability": {
+          "kind": "universe_wide"
+        }
+      },
+      "digest": "22987d15c3efb36eb5b17ab23275d390e16861bf59331aca24e90b0b502d223c"
+    },
+    {
+      "version": "ver_000000000000000000000008",
+      "identity": "rec_000000000000000000000008",
+      "kind": "entity",
+      "schema": "v3",
+      "value": {
+        "record_kind": "entity",
+        "names": [
+          {
+            "text": "Cedar One",
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        ],
+        "worldAssociations": [],
+        "labels": {
+          "en": "Cedar One"
+        },
+        "metadata": {},
+        "classification": "rec_000000000000000000000001"
+      },
+      "digest": "f801d180e428225f97eade27eb281e97596662917aa67b48bc5039b4b4582dc7"
+    },
+    {
+      "version": "ver_000000000000000000000009",
+      "identity": "rec_000000000000000000000009",
+      "kind": "entity",
+      "schema": "v3",
+      "value": {
+        "record_kind": "entity",
+        "names": [
+          {
+            "text": "Pistol A",
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        ],
+        "worldAssociations": [],
+        "labels": {
+          "en": "Pistol A"
+        },
+        "metadata": {},
+        "classification": "rec_000000000000000000000005"
+      },
+      "digest": "c35d2d23bd6ea208e89d9a9e3b2eb28d1382145e8e597a9259ad5bb692d4ba2e"
+    },
+    {
+      "version": "ver_00000000000000000000000a",
+      "identity": "rec_00000000000000000000000a",
+      "kind": "entity",
+      "schema": "v3",
+      "value": {
+        "record_kind": "entity",
+        "names": [
+          {
+            "text": "Pistol B",
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        ],
+        "worldAssociations": [],
+        "labels": {
+          "en": "Pistol B"
+        },
+        "metadata": {},
+        "classification": "rec_000000000000000000000005"
+      },
+      "digest": "a91614642a67ca70841d4f4ef3036a9ab86e862101f8a87bb6215d6d58fd5036"
+    },
+    {
+      "version": "ver_00000000000000000000000b",
+      "identity": "rec_000000000000000000000016",
+      "kind": "entity",
+      "schema": "v3",
+      "value": {
+        "record_kind": "entity",
+        "names": [
+          {
+            "text": "Person",
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        ],
+        "worldAssociations": [],
+        "labels": {
+          "en": "Person"
+        },
+        "metadata": {},
+        "classification": null
+      },
+      "digest": "b82971970881bd22defbe19335046253980a662db7568c24f378a669c0672fc1"
+    },
+    {
+      "version": "ver_00000000000000000000000c",
+      "identity": "rec_000000000000000000000008",
+      "kind": "entity",
+      "schema": "v3",
+      "value": {
+        "record_kind": "entity",
+        "names": [
+          {
+            "text": "Cedar One",
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        ],
+        "worldAssociations": [],
+        "labels": {
+          "en": "Cedar One"
+        },
+        "metadata": {},
+        "classification": "rec_000000000000000000000003"
+      },
+      "digest": "50a4731938c4013dd034b035547ad9949d2009ffda55584f3ed0ad7a77c32cae"
+    },
+    {
+      "version": "ver_00000000000000000000000d",
+      "identity": "rec_000000000000000000000009",
+      "kind": "entity",
+      "schema": "v3",
+      "value": {
+        "record_kind": "entity",
+        "names": [
+          {
+            "text": "Renamed pistol",
+            "validity": {
+              "kind": "unspecified"
+            }
+          }
+        ],
+        "worldAssociations": [],
+        "labels": {
+          "en": "Renamed pistol"
+        },
+        "metadata": {},
+        "classification": "rec_000000000000000000000007"
+      },
+      "digest": "f750893c96ec46be1f88aebc90985feef3295e89305c27a647db4d0583bfa17a"
+    },
+    {
+      "version": "ver_00000000000000000000000e",
+      "identity": "rec_000000000000000000000017",
+      "kind": "entity",
+      "schema": "v1",
+      "value": {
+        "names": [],
+        "types": [
+          "rec_000000000000000000000001",
+          "rec_000000000000000000000004"
+        ],
+        "worldAssociations": [],
+        "labels": {},
+        "metadata": {},
+        "record_kind": "entity"
+      },
+      "digest": "fab65e88287a4b23653e5577b16e88e0944f3a3ad564cea0a6133364be8cdf95"
+    },
+    {
+      "version": "ver_00000000000000000000000f",
+      "identity": "rec_00000000000000000000001c",
+      "kind": "proposition",
+      "schema": "v1",
+      "value": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000001"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000e"
+        },
+        "value": {
+          "kind": "boolean",
+          "value": true
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "digest": "b66ceed51833e33e7951a21585381204808f652e98e7d70172c2c6b4f68d3cbe"
+    },
+    {
+      "version": "ver_000000000000000000000010",
+      "identity": "rec_00000000000000000000001d",
+      "kind": "assertion",
+      "schema": "v3",
+      "value": {
+        "record_kind": "assertion",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000001c"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_00000000000000000000000c"
+            ]
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "calendar_interval",
+          "calendar": "cal_00000000000000000000001a",
+          "start": {
+            "kind": "exact",
+            "value": "0"
+          },
+          "end": {
+            "kind": "unbounded"
+          }
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "author_decision",
+          "note": "Explicit example fact"
+        },
+        "attributeMode": "shared"
+      },
+      "digest": "30e4469b3394f5f424564c823c9ca5bb88469e0afc8a729efa09389c4cdc78bc"
+    },
+    {
+      "version": "ver_000000000000000000000011",
+      "identity": "rec_00000000000000000000001e",
+      "kind": "proposition",
+      "schema": "v1",
+      "value": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000002"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000e"
+        },
+        "value": {
+          "kind": "boolean",
+          "value": false
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "digest": "90a99d5e162a17c0dda51b9637f38091ba8d9583a340cc2add0bd9b29ac43e41"
+    },
+    {
+      "version": "ver_000000000000000000000012",
+      "identity": "rec_00000000000000000000001f",
+      "kind": "assertion",
+      "schema": "v3",
+      "value": {
+        "record_kind": "assertion",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000001e"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_00000000000000000000000c"
+            ]
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "calendar_interval",
+          "calendar": "cal_00000000000000000000001a",
+          "start": {
+            "kind": "exact",
+            "value": "2"
+          },
+          "end": {
+            "kind": "unbounded"
+          }
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "author_decision",
+          "note": "Explicit example fact"
+        },
+        "attributeMode": "shared"
+      },
+      "digest": "06205392b45e6072784aecab41e0433d3acef792bb587d5fb4452ece73e83f76"
+    },
+    {
+      "version": "ver_000000000000000000000013",
+      "identity": "rec_000000000000000000000020",
+      "kind": "proposition",
+      "schema": "v1",
+      "value": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000001"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000f"
+        },
+        "value": {
+          "kind": "boolean",
+          "value": false
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "digest": "6101bc39d257d9df73ee8849fbcb23050f356491b300794c2408201d4de3ea55"
+    },
+    {
+      "version": "ver_000000000000000000000014",
+      "identity": "rec_000000000000000000000021",
+      "kind": "assertion",
+      "schema": "v3",
+      "value": {
+        "record_kind": "assertion",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000020"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "unspecified"
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "calendar_interval",
+          "calendar": "cal_00000000000000000000001a",
+          "start": {
+            "kind": "exact",
+            "value": "2"
+          },
+          "end": {
+            "kind": "unbounded"
+          }
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "author_decision",
+          "note": "Explicit example fact"
+        },
+        "attributeMode": "shared"
+      },
+      "digest": "f1b29b5e9e0b85043887f534dd0f084e2fd085ce5081f25b18ae247af0076a14"
+    },
+    {
+      "version": "ver_000000000000000000000015",
+      "identity": "rec_000000000000000000000022",
+      "kind": "proposition",
+      "schema": "v1",
+      "value": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000008"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000f"
+        },
+        "value": {
+          "kind": "boolean",
+          "value": true
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "digest": "a580b66636bed76c71f8cee704295074da4e1feb5e95ad1471da1e28b79d48f4"
+    },
+    {
+      "version": "ver_000000000000000000000016",
+      "identity": "rec_000000000000000000000023",
+      "kind": "assertion",
+      "schema": "v3",
+      "value": {
+        "record_kind": "assertion",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000022"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_00000000000000000000000c"
+            ]
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "calendar_interval",
+          "calendar": "cal_00000000000000000000001a",
+          "start": {
+            "kind": "exact",
+            "value": "0"
+          },
+          "end": {
+            "kind": "unbounded"
+          }
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "author_decision",
+          "note": "Explicit example fact"
+        },
+        "attributeMode": "instance"
+      },
+      "digest": "a4765bd347c707433b2a91bcd21d395ab45ab8d6291346863dbf04d0a340fd5f"
+    },
+    {
+      "version": "ver_000000000000000000000017",
+      "identity": "rec_000000000000000000000024",
+      "kind": "proposition",
+      "schema": "v1",
+      "value": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000008"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000010"
+        },
+        "value": {
+          "kind": "quantity",
+          "value": {
+            "kind": "decimal",
+            "digits": "30.00"
+          },
+          "unit": "unit_000000000000000000000019"
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "digest": "f8262d031822d5cf9695b44fb5f19a30917a062a271951a1b0582635e4c91c4f"
+    },
+    {
+      "version": "ver_000000000000000000000018",
+      "identity": "rec_000000000000000000000025",
+      "kind": "assertion",
+      "schema": "v3",
+      "value": {
+        "record_kind": "assertion",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000024"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_00000000000000000000000c"
+            ]
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "calendar_interval",
+          "calendar": "cal_00000000000000000000001a",
+          "start": {
+            "kind": "exact",
+            "value": "1"
+          },
+          "end": {
+            "kind": "unbounded"
+          }
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "author_decision",
+          "note": "Explicit example fact"
+        },
+        "attributeMode": "instance"
+      },
+      "digest": "e99b6820cccfad9980467d8e6e60b1ad218ca04536926963a7fee5d6559b49aa"
+    },
+    {
+      "version": "ver_000000000000000000000019",
+      "identity": "rec_000000000000000000000026",
+      "kind": "proposition",
+      "schema": "v1",
+      "value": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000009"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000011"
+        },
+        "value": {
+          "kind": "integer",
+          "digits": "7"
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "digest": "da288359e8928e0b1d9f13090fd2f6a41b7c701462d134cb6b6962ed1487883d"
+    },
+    {
+      "version": "ver_00000000000000000000001a",
+      "identity": "rec_000000000000000000000027",
+      "kind": "assertion",
+      "schema": "v3",
+      "value": {
+        "record_kind": "assertion",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000026"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_00000000000000000000000c"
+            ]
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "calendar_interval",
+          "calendar": "cal_00000000000000000000001a",
+          "start": {
+            "kind": "exact",
+            "value": "0"
+          },
+          "end": {
+            "kind": "exact",
+            "value": "1"
+          }
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "author_decision",
+          "note": "Explicit example fact"
+        },
+        "attributeMode": "instance"
+      },
+      "digest": "efab35dcdddd5ba82754237837c411966e32187b87c2f93b39b4324b722c12e6"
+    },
+    {
+      "version": "ver_00000000000000000000001b",
+      "identity": "rec_000000000000000000000028",
+      "kind": "proposition",
+      "schema": "v1",
+      "value": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000009"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000011"
+        },
+        "value": {
+          "kind": "integer",
+          "digits": "6"
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "digest": "4e4ab860090be0a5f52da85c1597cd28d115cdbfb0ae4daaf64d9d15816ae4d7"
+    },
+    {
+      "version": "ver_00000000000000000000001c",
+      "identity": "rec_000000000000000000000029",
+      "kind": "assertion",
+      "schema": "v3",
+      "value": {
+        "record_kind": "assertion",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000028"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_00000000000000000000000c"
+            ]
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "calendar_interval",
+          "calendar": "cal_00000000000000000000001a",
+          "start": {
+            "kind": "exact",
+            "value": "1"
+          },
+          "end": {
+            "kind": "exact",
+            "value": "2"
+          }
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "author_decision",
+          "note": "Explicit example fact"
+        },
+        "attributeMode": "instance"
+      },
+      "digest": "341fd6ba74b8a6d48aaeb06d92cc96ebb7fa85a7a912e72a7218b80be6480368"
+    },
+    {
+      "version": "ver_00000000000000000000001d",
+      "identity": "rec_00000000000000000000002a",
+      "kind": "proposition",
+      "schema": "v1",
+      "value": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000009"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000011"
+        },
+        "value": {
+          "kind": "integer",
+          "digits": "0"
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "digest": "1d24fcde4ac7515b36cd997298e541c296cfbc1f1cccc4437357ffcc92be6953"
+    },
+    {
+      "version": "ver_00000000000000000000001e",
+      "identity": "rec_00000000000000000000002b",
+      "kind": "assertion",
+      "schema": "v3",
+      "value": {
+        "record_kind": "assertion",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000002a"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_00000000000000000000000c"
+            ]
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "calendar_interval",
+          "calendar": "cal_00000000000000000000001a",
+          "start": {
+            "kind": "exact",
+            "value": "2"
+          },
+          "end": {
+            "kind": "exact",
+            "value": "3"
+          }
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "author_decision",
+          "note": "Explicit example fact"
+        },
+        "attributeMode": "instance"
+      },
+      "digest": "68383b08cb13a429e2622ca459230532107244231a95384a5f5a8a44b41a170e"
+    },
+    {
+      "version": "ver_00000000000000000000001f",
+      "identity": "rec_00000000000000000000002c",
+      "kind": "proposition",
+      "schema": "v1",
+      "value": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000009"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000011"
+        },
+        "value": {
+          "kind": "integer",
+          "digits": "2"
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "digest": "4f7409e34bce1fdb5b49d0c119e4893627ce01103c1d57b655e535ebd744d461"
+    },
+    {
+      "version": "ver_000000000000000000000020",
+      "identity": "rec_00000000000000000000002d",
+      "kind": "assertion",
+      "schema": "v3",
+      "value": {
+        "record_kind": "assertion",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000002c"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_00000000000000000000000c"
+            ]
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "calendar_interval",
+          "calendar": "cal_00000000000000000000001a",
+          "start": {
+            "kind": "exact",
+            "value": "3"
+          },
+          "end": {
+            "kind": "unbounded"
+          }
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "author_decision",
+          "note": "Explicit example fact"
+        },
+        "attributeMode": "instance"
+      },
+      "digest": "75071cb1fee189b64c56d29ceec20e89c392da5301eb474fe9d6ee46dc1e9a26"
+    },
+    {
+      "version": "ver_000000000000000000000021",
+      "identity": "rec_00000000000000000000002e",
+      "kind": "proposition",
+      "schema": "v1",
+      "value": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000a"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000011"
+        },
+        "value": {
+          "kind": "integer",
+          "digits": "3"
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "digest": "e5f990f72f4a5b78cbf60395184e396e5fe5980fd1342d2409436d1f44e76fee"
+    },
+    {
+      "version": "ver_000000000000000000000022",
+      "identity": "rec_00000000000000000000002f",
+      "kind": "assertion",
+      "schema": "v3",
+      "value": {
+        "record_kind": "assertion",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000002e"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_00000000000000000000000c"
+            ]
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "calendar_interval",
+          "calendar": "cal_00000000000000000000001a",
+          "start": {
+            "kind": "exact",
+            "value": "0"
+          },
+          "end": {
+            "kind": "unbounded"
+          }
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "author_decision",
+          "note": "Explicit example fact"
+        },
+        "attributeMode": "instance"
+      },
+      "digest": "a9bfd9a27541ba0105540f90d2d8d0927d69db08633f27a37058a1c8baccc51a"
+    },
+    {
+      "version": "ver_000000000000000000000023",
+      "identity": "rec_000000000000000000000030",
+      "kind": "proposition",
+      "schema": "v1",
+      "value": {
+        "record_kind": "proposition",
+        "subject": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000004"
+        },
+        "predicate": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000011"
+        },
+        "value": {
+          "kind": "integer",
+          "digits": "7"
+        },
+        "quantification": "particular",
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000b"
+        }
+      },
+      "digest": "9905ae8aaead7509479143b564633c9ce0366890174dec6256ee193ed81802af"
+    },
+    {
+      "version": "ver_000000000000000000000024",
+      "identity": "rec_000000000000000000000031",
+      "kind": "assertion",
+      "schema": "v3",
+      "value": {
+        "record_kind": "assertion",
+        "proposition": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_000000000000000000000030"
+        },
+        "polarity": "support",
+        "scope": {
+          "applicability": {
+            "kind": "worlds",
+            "world_ids": [
+              "wld_00000000000000000000000c"
+            ]
+          },
+          "context": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_00000000000000000000000b"
+          }
+        },
+        "validity": {
+          "kind": "calendar_interval",
+          "calendar": "cal_00000000000000000000001a",
+          "start": {
+            "kind": "exact",
+            "value": "0"
+          },
+          "end": {
+            "kind": "unbounded"
+          }
+        },
+        "persistence": "explicit_interval",
+        "precision": "exact",
+        "basis": {
+          "kind": "author_decision",
+          "note": "Explicit example fact"
+        },
+        "attributeMode": "initial_value"
+      },
+      "digest": "ed38160222f21bf57c282ecab5c76816356ecff95b30605b198aa3ba3c1485f1"
+    },
+    {
+      "version": "ver_000000000000000000000025",
+      "identity": "rec_00000000000000000000000c",
+      "kind": "world",
+      "schema": "v1",
+      "value": {
+        "selector": "é🌲 sample",
+        "record_kind": "world"
+      },
+      "digest": "4c7ea59b0315a182df6992d6d8610cc35fd7758c73b4fde43ff39d84d895bc2e"
+    },
+    {
+      "version": "ver_000000000000000000000026",
+      "identity": "rec_00000000000000000000000d",
+      "kind": "world",
+      "schema": "v1",
+      "value": {
+        "selector": "é🌲 sample",
+        "record_kind": "world"
+      },
+      "digest": "4c7ea59b0315a182df6992d6d8610cc35fd7758c73b4fde43ff39d84d895bc2e"
+    },
+    {
+      "version": "ver_000000000000000000000027",
+      "identity": "rec_00000000000000000000000b",
+      "kind": "represented_context",
+      "schema": "v1",
+      "value": {
+        "universe": "unv_000000000000000000000001",
+        "kind": {
+          "kind": "objective"
+        },
+        "labels": {},
+        "record_kind": "represented_context",
+        "chronology": {
+          "calendar": "cal_00000000000000000000001a",
+          "system": {
+            "kind": "fictional",
+            "tick_label": "tick",
+            "ticks_per_month": null
+          },
+          "first_interaction": "0",
+          "current": "3"
+        }
+      },
+      "digest": "fba573e90d49a1f0dbf93455843c366af67468fbf9e1a90df52dc88204d38e72"
+    },
+    {
+      "version": "ver_000000000000000000000028",
+      "identity": "rec_00000000000000000000000e",
+      "kind": "property",
+      "schema": "v1",
+      "value": {
+        "namespace": "é🌲 sample",
+        "key": "grows",
+        "labels": {},
+        "value": {
+          "kind": "boolean"
+        },
+        "multiplicity": "single",
+        "persistence": "explicit_interval",
+        "exclusive": true,
+        "symmetric": true,
+        "transitive": true,
+        "record_kind": "property"
+      },
+      "digest": "116b334bbfb9152af30f666e8acdd454a8f33b11276efad1643f9281f65590d6"
+    },
+    {
+      "version": "ver_000000000000000000000029",
+      "identity": "rec_00000000000000000000000f",
+      "kind": "property",
+      "schema": "v1",
+      "value": {
+        "namespace": "é🌲 sample",
+        "key": "hazard",
+        "labels": {},
+        "value": {
+          "kind": "boolean"
+        },
+        "multiplicity": "single",
+        "persistence": "explicit_interval",
+        "exclusive": true,
+        "symmetric": true,
+        "transitive": true,
+        "record_kind": "property"
+      },
+      "digest": "bbce10f49783d4aae3848448b11b4f354d944a06c0f7d5601f0851aca0643086"
+    },
+    {
+      "version": "ver_00000000000000000000002a",
+      "identity": "rec_000000000000000000000010",
+      "kind": "property",
+      "schema": "v1",
+      "value": {
+        "namespace": "é🌲 sample",
+        "key": "height",
+        "labels": {},
+        "value": {
+          "kind": "quantity",
+          "unit": "unit_000000000000000000000019"
+        },
+        "multiplicity": "single",
+        "persistence": "explicit_interval",
+        "exclusive": true,
+        "symmetric": true,
+        "transitive": true,
+        "record_kind": "property"
+      },
+      "digest": "268fa1df64a3a452dee59896df0144e6fc6a02e94885a4c5e5a1719533e1eef8"
+    },
+    {
+      "version": "ver_00000000000000000000002b",
+      "identity": "rec_000000000000000000000011",
+      "kind": "property",
+      "schema": "v1",
+      "value": {
+        "namespace": "é🌲 sample",
+        "key": "rounds",
+        "labels": {},
+        "value": {
+          "kind": "integer"
+        },
+        "multiplicity": "single",
+        "persistence": "explicit_interval",
+        "exclusive": true,
+        "symmetric": true,
+        "transitive": true,
+        "record_kind": "property"
+      },
+      "digest": "50c26d30e6bb94d9a70ce031b4ba4d5b0be1abc699b2263652cd0fe13d25a124"
+    },
+    {
+      "version": "ver_00000000000000000000002c",
+      "identity": "rec_000000000000000000000015",
+      "kind": "property",
+      "schema": "v1",
+      "value": {
+        "namespace": "é🌲 sample",
+        "key": "holder",
+        "labels": {},
+        "value": {
+          "kind": "entity_ref",
+          "subject_types": []
+        },
+        "multiplicity": "single",
+        "persistence": "explicit_interval",
+        "exclusive": true,
+        "symmetric": true,
+        "transitive": true,
+        "record_kind": "property"
+      },
+      "digest": "b3605d6ac233c65daf4c4abe7a8317bcd6ee83dba9ed5a0b20d6ff3159b6ec21"
+    },
+    {
+      "version": "ver_00000000000000000000002d",
+      "identity": "rec_000000000000000000000012",
+      "kind": "event",
+      "schema": "v1",
+      "value": {
+        "occurrence": "occurred",
+        "time": {
+          "kind": "exact",
+          "calendar": "cal_00000000000000000000001a",
+          "value": "0"
+        },
+        "participants": [],
+        "labels": {},
+        "record_kind": "event"
+      },
+      "digest": "ebd2936d55daa993093bfcb1c45388295466aca71c10c471049ce59c6da495e4"
+    },
+    {
+      "version": "ver_00000000000000000000002e",
+      "identity": "rec_000000000000000000000013",
+      "kind": "event",
+      "schema": "v1",
+      "value": {
+        "occurrence": "occurred",
+        "time": {
+          "kind": "exact",
+          "calendar": "cal_00000000000000000000001a",
+          "value": "1"
+        },
+        "participants": [],
+        "labels": {},
+        "record_kind": "event"
+      },
+      "digest": "31ddcbb270dfed8208314b97ed1fd4206b1df7a829ee8a27fbf03b044bb49b20"
+    },
+    {
+      "version": "ver_00000000000000000000002f",
+      "identity": "rec_000000000000000000000014",
+      "kind": "event",
+      "schema": "v1",
+      "value": {
+        "occurrence": "occurred",
+        "time": {
+          "kind": "exact",
+          "calendar": "cal_00000000000000000000001a",
+          "value": "3"
+        },
+        "participants": [],
+        "labels": {},
+        "record_kind": "event"
+      },
+      "digest": "96088889237423065a9b856bfdde420aa2064e5d5d5f4ce78b9c345e7311fde4"
+    },
+    {
+      "version": "ver_000000000000000000000030",
+      "identity": "rec_000000000000000000000019",
+      "kind": "unit",
+      "schema": "v1",
+      "value": {
+        "namespace": "é🌲 sample",
+        "key": "foot",
+        "dimension": "length",
+        "symbol": "ft",
+        "labels": {},
+        "validity": {
+          "kind": "unspecified"
+        },
+        "record_kind": "unit"
+      },
+      "digest": "388f6dfc32dd0e11d6083f5fdf22e45f0ea9be034ce8f3f5b3ac6228d7b033b6"
+    },
+    {
+      "version": "ver_000000000000000000000031",
+      "identity": "rec_00000000000000000000001a",
+      "kind": "calendar",
+      "schema": "v1",
+      "value": {
+        "namespace": "é🌲 sample",
+        "key": "Story clock",
+        "labels": {},
+        "unitStructure": {
+          "tick": "authored integer tick"
+        },
+        "record_kind": "calendar",
+        "epoch": "0"
+      },
+      "digest": "87e381b70c527f779e2566bf1a0202c38b3b17ca1a6ecbc063f3880a75d8f4e6"
+    },
+    {
+      "version": "ver_000000000000000000000032",
+      "identity": "rec_00000000000000000000001b",
+      "kind": "rule",
+      "schema": "v2",
+      "value": {
+        "namespace": "é🌲 sample",
+        "key": "é🌲 sample",
+        "labels": {},
+        "kind": "structural_invariant",
+        "commitPolicy": "always_block",
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "targetPredicates": [],
+        "expression": {
+          "subject": {
+            "name": "é🌲 sample",
+            "kind": "variable"
+          },
+          "predicate": "é🌲 sample",
+          "context": {
+            "name": "é🌲 sample",
+            "kind": "variable"
+          },
+          "kind": "no_opposing_evidence"
+        },
+        "capabilities": [],
+        "executable": true,
+        "validity": {
+          "kind": "unspecified"
+        },
+        "record_kind": "rule"
+      },
+      "digest": "5e606539acc7b41ee023fda90ee8aacc7ecee73f5c5257fb70d8c19748f371f0"
+    }
+  ],
+  "names": {
+    "Tree": "rec_000000000000000000000001",
+    "Cedar": "rec_000000000000000000000002",
+    "Western red cedar": "rec_000000000000000000000003",
+    "Gun": "rec_000000000000000000000004",
+    "Pistol": "rec_000000000000000000000005",
+    "Revolver": "rec_000000000000000000000006",
+    "Service pistol": "rec_000000000000000000000007",
+    "Cedar One": "rec_000000000000000000000008",
+    "Pistol A": "rec_000000000000000000000009",
+    "Pistol B": "rec_00000000000000000000000a",
+    "Objective": "rec_00000000000000000000000b",
+    "World A": "rec_00000000000000000000000c",
+    "World B": "rec_00000000000000000000000d",
+    "grows": "rec_00000000000000000000000e",
+    "hazard": "rec_00000000000000000000000f",
+    "height": "rec_000000000000000000000010",
+    "rounds": "rec_000000000000000000000011",
+    "start A": "rec_000000000000000000000012",
+    "shot A": "rec_000000000000000000000013",
+    "refill A": "rec_000000000000000000000014",
+    "holder": "rec_000000000000000000000015",
+    "Person": "rec_000000000000000000000016",
+    "Ambiguous": "rec_000000000000000000000017",
+    "Conflicting Cedar": "rec_000000000000000000000018",
+    "foot": "rec_000000000000000000000019",
+    "Story clock": "rec_00000000000000000000001a",
+    "opposition policy": "rec_00000000000000000000001b",
+    "prop-101": "rec_00000000000000000000001c",
+    "assert-101": "rec_00000000000000000000001d",
+    "prop-102": "rec_00000000000000000000001e",
+    "assert-102": "rec_00000000000000000000001f",
+    "prop-103": "rec_000000000000000000000020",
+    "assert-103": "rec_000000000000000000000021",
+    "prop-104": "rec_000000000000000000000022",
+    "assert-104": "rec_000000000000000000000023",
+    "prop-105": "rec_000000000000000000000024",
+    "assert-105": "rec_000000000000000000000025",
+    "prop-106": "rec_000000000000000000000026",
+    "assert-106": "rec_000000000000000000000027",
+    "prop-107": "rec_000000000000000000000028",
+    "assert-107": "rec_000000000000000000000029",
+    "prop-108": "rec_00000000000000000000002a",
+    "assert-108": "rec_00000000000000000000002b",
+    "prop-109": "rec_00000000000000000000002c",
+    "assert-109": "rec_00000000000000000000002d",
+    "prop-110": "rec_00000000000000000000002e",
+    "assert-110": "rec_00000000000000000000002f",
+    "prop-111": "rec_000000000000000000000030",
+    "assert-111": "rec_000000000000000000000031"
+  },
+  "facts": [
+    {
+      "subject": "Tree",
+      "predicate": "grows",
+      "assertion": "ver_000000000000000000000010",
+      "proposition": "ver_00000000000000000000000f"
+    },
+    {
+      "subject": "Cedar",
+      "predicate": "grows",
+      "assertion": "ver_000000000000000000000012",
+      "proposition": "ver_000000000000000000000011"
+    },
+    {
+      "subject": "Tree",
+      "predicate": "hazard",
+      "assertion": "ver_000000000000000000000014",
+      "proposition": "ver_000000000000000000000013"
+    },
+    {
+      "subject": "Cedar One",
+      "predicate": "hazard",
+      "assertion": "ver_000000000000000000000016",
+      "proposition": "ver_000000000000000000000015"
+    },
+    {
+      "subject": "Cedar One",
+      "predicate": "height",
+      "assertion": "ver_000000000000000000000018",
+      "proposition": "ver_000000000000000000000017"
+    },
+    {
+      "subject": "Pistol A",
+      "predicate": "rounds",
+      "assertion": "ver_00000000000000000000001a",
+      "proposition": "ver_000000000000000000000019"
+    },
+    {
+      "subject": "Pistol A",
+      "predicate": "rounds",
+      "assertion": "ver_00000000000000000000001c",
+      "proposition": "ver_00000000000000000000001b"
+    },
+    {
+      "subject": "Pistol A",
+      "predicate": "rounds",
+      "assertion": "ver_00000000000000000000001e",
+      "proposition": "ver_00000000000000000000001d"
+    },
+    {
+      "subject": "Pistol A",
+      "predicate": "rounds",
+      "assertion": "ver_000000000000000000000020",
+      "proposition": "ver_00000000000000000000001f"
+    },
+    {
+      "subject": "Pistol B",
+      "predicate": "rounds",
+      "assertion": "ver_000000000000000000000022",
+      "proposition": "ver_000000000000000000000021"
+    },
+    {
+      "subject": "Gun",
+      "predicate": "rounds",
+      "assertion": "ver_000000000000000000000024",
+      "proposition": "ver_000000000000000000000023"
+    }
+  ],
+  "membership": {
+    "rec_000000000000000000000001": "ver_000000000000000000000001",
+    "rec_000000000000000000000002": "ver_000000000000000000000002",
+    "rec_000000000000000000000003": "ver_000000000000000000000003",
+    "rec_000000000000000000000004": "ver_000000000000000000000004",
+    "rec_000000000000000000000005": "ver_000000000000000000000005",
+    "rec_000000000000000000000006": "ver_000000000000000000000006",
+    "rec_000000000000000000000007": "ver_000000000000000000000007",
+    "rec_000000000000000000000008": "ver_00000000000000000000000c",
+    "rec_000000000000000000000009": "ver_00000000000000000000000d",
+    "rec_00000000000000000000000a": "ver_00000000000000000000000a",
+    "rec_000000000000000000000016": "ver_00000000000000000000000b",
+    "rec_000000000000000000000017": "ver_00000000000000000000000e",
+    "rec_00000000000000000000001c": "ver_00000000000000000000000f",
+    "rec_00000000000000000000001d": "ver_000000000000000000000010",
+    "rec_00000000000000000000001e": "ver_000000000000000000000011",
+    "rec_00000000000000000000001f": "ver_000000000000000000000012",
+    "rec_000000000000000000000020": "ver_000000000000000000000013",
+    "rec_000000000000000000000021": "ver_000000000000000000000014",
+    "rec_000000000000000000000022": "ver_000000000000000000000015",
+    "rec_000000000000000000000023": "ver_000000000000000000000016",
+    "rec_000000000000000000000024": "ver_000000000000000000000017",
+    "rec_000000000000000000000025": "ver_000000000000000000000018",
+    "rec_000000000000000000000026": "ver_000000000000000000000019",
+    "rec_000000000000000000000027": "ver_00000000000000000000001a",
+    "rec_000000000000000000000028": "ver_00000000000000000000001b",
+    "rec_000000000000000000000029": "ver_00000000000000000000001c",
+    "rec_00000000000000000000002a": "ver_00000000000000000000001d",
+    "rec_00000000000000000000002b": "ver_00000000000000000000001e",
+    "rec_00000000000000000000002c": "ver_00000000000000000000001f",
+    "rec_00000000000000000000002d": "ver_000000000000000000000020",
+    "rec_00000000000000000000002e": "ver_000000000000000000000021",
+    "rec_00000000000000000000002f": "ver_000000000000000000000022",
+    "rec_000000000000000000000030": "ver_000000000000000000000023",
+    "rec_000000000000000000000031": "ver_000000000000000000000024",
+    "rec_00000000000000000000000c": "ver_000000000000000000000025",
+    "rec_00000000000000000000000d": "ver_000000000000000000000026",
+    "rec_00000000000000000000000b": "ver_000000000000000000000027",
+    "rec_00000000000000000000000e": "ver_000000000000000000000028",
+    "rec_00000000000000000000000f": "ver_000000000000000000000029",
+    "rec_000000000000000000000010": "ver_00000000000000000000002a",
+    "rec_000000000000000000000011": "ver_00000000000000000000002b",
+    "rec_000000000000000000000015": "ver_00000000000000000000002c",
+    "rec_000000000000000000000012": "ver_00000000000000000000002d",
+    "rec_000000000000000000000013": "ver_00000000000000000000002e",
+    "rec_000000000000000000000014": "ver_00000000000000000000002f",
+    "rec_000000000000000000000019": "ver_000000000000000000000030",
+    "rec_00000000000000000000001a": "ver_000000000000000000000031",
+    "rec_00000000000000000000001b": "ver_000000000000000000000032"
+  },
+  "universe": "unv_000000000000000000000001",
+  "continuity": "cont_000000000000000000000001",
+  "revisions": [
+    "rev_000000000000000000000001",
+    "rev_000000000000000000000002",
+    "rev_000000000000000000000003",
+    "rev_000000000000000000000004"
+  ],
+  "expected": {
+    "cedar_ancestry": [
+      "Western red cedar",
+      "Cedar",
+      "Tree"
+    ],
+    "cedar_grows": true,
+    "cedar_hazard": true,
+    "cedar_height_digits": "30.00",
+    "pistol_a_rounds": [
+      "7",
+      "6",
+      "0",
+      "2"
+    ],
+    "pistol_b_rounds": [
+      "3",
+      "3",
+      "3",
+      "3"
+    ],
+    "pistol_a_ancestry": [
+      "Service pistol",
+      "Pistol",
+      "Gun"
+    ],
+    "legacy_status": "legacy_ambiguous",
+    "world_b_definition": "inapplicable",
+    "unknown_before_height": true,
+    "initial_value_is_current_state": false,
+    "inherited_conflict_at_t2": true,
+    "unspecified_applicability_at_t2": "unresolved"
+  }
+}
