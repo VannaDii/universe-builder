@@ -1129,3 +1129,166 @@ fn relational_workflow_retries_immutability_failure_atomicity_and_recovery() {
     drop(k);
     assert!(Kernel::open(&path).is_err());
 }
+
+#[test]
+fn editorial_bindings_reject_missing_or_wrong_continuity_and_preserve_history() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("editorial.sqlite");
+    let mut k = create(&path);
+    let make = |r, v, payload: Payload| {
+        RecordVersion::build(
+            RecordVersionId::parse(&id("ver", v)).unwrap(),
+            RecordIdentity::new(
+                uid(),
+                RecordId::parse(&id("rec", r)).unwrap(),
+                payload.kind(),
+            ),
+            payload,
+        )
+        .unwrap()
+    };
+    let work = make(
+        1,
+        1,
+        Payload::Work(Work {
+            kind: WorkKind::Novel,
+            title: "Exact editions".into(),
+            labels: BTreeMap::new(),
+            source_refs: vec![],
+            versions: vec![],
+            world_associations: vec![],
+        }),
+    );
+    k.commit(&input(&k, work, None, "work")).unwrap();
+    let revision = k.head(&cont()).unwrap();
+    let bound = WorkBinding::Bound {
+        continuity: cont(),
+        revision: revision.clone(),
+    };
+    let edition = |binding| {
+        make(
+            2,
+            2,
+            Payload::WorkVersion(WorkVersion {
+                work: universe_domain::RecordRef::new(
+                    uid(),
+                    RecordId::parse(&id("rec", 1)).unwrap(),
+                ),
+                version_label: "α".into(),
+                binding,
+            }),
+        )
+    };
+    let counts = || {
+        let c = Database::open_existing(&path).unwrap().connect().unwrap();
+        let mut tables = vec![
+            "record_versions".to_owned(),
+            "commits".into(),
+            "operation_receipts".into(),
+        ];
+        tables.extend(
+            c.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name GLOB 'r_*'")
+                .unwrap()
+                .query_map([], |row| row.get::<_, String>(0))
+                .unwrap()
+                .map(Result::unwrap),
+        );
+        tables
+            .into_iter()
+            .map(|t| {
+                c.query_row(&format!("SELECT count(*) FROM {t}"), [], |r| {
+                    r.get::<_, i64>(0)
+                })
+                .unwrap()
+            })
+            .collect::<Vec<_>>()
+    };
+    let before = counts();
+    let bad = [
+        WorkBinding::Bound {
+            continuity: cont(),
+            revision: RevisionId::parse(&id("rev", 999)).unwrap(),
+        },
+        WorkBinding::Bound {
+            continuity: ContinuityId::parse(&id("cont", 999)).unwrap(),
+            revision: revision.clone(),
+        },
+        WorkBinding::Segments {
+            segments: vec![
+                WorkSegment {
+                    segment: "good".into(),
+                    continuity: cont(),
+                    revision: revision.clone(),
+                },
+                WorkSegment {
+                    segment: "bad".into(),
+                    continuity: cont(),
+                    revision: RevisionId::parse(&id("rev", 999)).unwrap(),
+                },
+            ],
+        },
+    ];
+    for (n, binding) in bad.into_iter().enumerate() {
+        let candidate = input(&k, edition(binding), None, &format!("invalid-{n}"));
+        assert!(k.preview(&candidate).is_err());
+        assert!(k.commit(&candidate).is_err());
+        assert_eq!(k.head(&cont()).unwrap(), revision);
+        assert_eq!(counts(), before);
+    }
+    let first = k
+        .commit(&input(&k, edition(bound), None, "edition"))
+        .unwrap();
+    let unbound = make(
+        2,
+        3,
+        Payload::WorkVersion(WorkVersion {
+            work: universe_domain::RecordRef::new(uid(), RecordId::parse(&id("rec", 1)).unwrap()),
+            version_label: "β".into(),
+            binding: WorkBinding::Unbound,
+        }),
+    );
+    k.commit(&input(&k, unbound, Some(2), "unbound")).unwrap();
+    // A pin to the earlier edition remains legal after its current replacement.
+    let pin = universe_domain::VersionRef {
+        universe: Some(uid()),
+        record: RecordId::parse(&id("rec", 2)).unwrap(),
+        version: RecordVersionId::parse(&id("ver", 2)).unwrap(),
+    };
+    let passage = make(
+        3,
+        4,
+        Payload::PassageRef(PassageRef {
+            work_version: pin,
+            passage_id: "opening".into(),
+            anchor: None,
+        }),
+    );
+    let head = k.commit(&input(&k, passage, None, "passage")).unwrap();
+    // Matching identity/version alone cannot turn a Work into a WorkVersion.
+    let wrong = make(
+        4,
+        5,
+        Payload::SceneRef(SceneRef {
+            work_version: universe_domain::VersionRef {
+                universe: Some(uid()),
+                record: RecordId::parse(&id("rec", 1)).unwrap(),
+                version: RecordVersionId::parse(&id("ver", 1)).unwrap(),
+            },
+            scene_id: "wrong kind".into(),
+            disclosed_records: vec![],
+            viewpoint: None,
+            narrative_position: None,
+            depicted_events: vec![],
+            narration_frame: None,
+            world_associations: vec![],
+        }),
+    );
+    let before = counts();
+    assert!(k.commit(&input(&k, wrong, None, "wrong-kind")).is_err());
+    assert_eq!(counts(), before);
+    drop(k);
+    let reopened = Kernel::open(&path).unwrap();
+    assert_eq!(reopened.head(&cont()).unwrap(), head);
+    assert!(reopened.records(&cont(),&first).unwrap().iter().any(|r|matches!(&r.payload,Payload::WorkVersion(w) if matches!(w.binding,WorkBinding::Bound{..}))));
+    assert!(reopened.records(&cont(),&head).unwrap().iter().any(|r|matches!(&r.payload,Payload::PassageRef(p) if p.work_version.version.as_str()==id("ver",2))));
+}

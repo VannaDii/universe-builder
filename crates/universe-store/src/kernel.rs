@@ -1126,6 +1126,45 @@ fn validate_records(
         .collect();
     for r in records {
         let rid = r.identity.record_id.as_str();
+        if let Payload::WorkVersion(work) = &r.payload {
+            let check_binding = |continuity: &ContinuityId, revision: &RevisionId| {
+                let exists = c.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM commits WHERE universe_id=?1 AND continuity_id=?2 AND id=?3)",
+                    params![u, continuity.as_str(), revision.as_str()],
+                    |row| row.get::<_, bool>(0),
+                )?;
+                if !exists {
+                    return Err(invalid(
+                        "work binding must name an existing revision in its continuity",
+                    ));
+                }
+                Ok(())
+            };
+            match &work.binding {
+                WorkBinding::Bound {
+                    continuity,
+                    revision,
+                } => check_binding(continuity, revision)?,
+                WorkBinding::Segments { segments } => {
+                    for segment in segments {
+                        check_binding(&segment.continuity, &segment.revision)?;
+                    }
+                }
+                WorkBinding::Unbound => (),
+            }
+        }
+        let edition = match &r.payload {
+            Payload::SceneRef(scene) => Some(&scene.work_version),
+            Payload::PassageRef(passage) => Some(&passage.work_version),
+            _ => None,
+        };
+        if let Some(edition) = edition {
+            if load(c, u, edition.version.as_str())?.payload.kind() != RecordKind::WorkVersion {
+                return Err(invalid(
+                    "editorial edition reference must pin a work version",
+                ));
+            }
+        }
         let refs = references(
             &serde_json::to_value(&r.payload).map_err(|_| invalid("payload encoding"))?,
             u,
