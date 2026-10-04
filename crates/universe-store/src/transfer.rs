@@ -12,7 +12,7 @@ fn invalid(s: &str) -> StoreError {
 fn quote(s: &str) -> String {
     format!("\"{}\"", s.replace('"', "\"\""))
 }
-fn schema(c: &Connection) -> StoreResult<Vec<(String, String, String, String)>> {
+pub(crate) fn schema(c: &Connection) -> StoreResult<Vec<(String, String, String, String)>> {
     Ok(c.prepare("SELECT type,name,tbl_name,coalesce(sql,'') FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name")?
         .query_map([], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?)))?.collect::<Result<_,_>>()?)
 }

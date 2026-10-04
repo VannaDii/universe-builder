@@ -3,6 +3,7 @@
 pub mod fixture;
 pub mod ipc;
 
+pub mod conversion;
 pub mod registry;
 pub mod runtime;
 

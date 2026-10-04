@@ -267,3 +267,15 @@ retcon preserves old editions and all retry receipts through restart. The prior
 39-case MCP regression also passes under `finite-policy-v8-cumulative-resources`.
 Reusable world-rule enforcement and prose qualification remain excluded.
 See [cumulative verification](docs/cumulative-resource-verification.md).
+
+## Explicit operator conversion (October 4, 2026)
+
+Goal 27 adds offline package, installation and credential conversion into private
+normative targets with independent whole-data audits and atomic no-clobber
+publication. IDs, histories, receipt tuples, authority, credentials and original
+digest provenance remain preserved; ambiguous classifications retain ordered
+candidates. Disposable CLI, retry, fault and process-termination proofs are recorded
+in [operator conversion readiness](docs/operator-conversion-readiness.md). Unknown
+layouts, unrecoverable drafts, invalid ancestry and incomplete installation recovery
+block publication with originals retained. No live author data or installation
+cutover was performed.

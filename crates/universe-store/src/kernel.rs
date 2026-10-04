@@ -16,6 +16,8 @@ mod archive;
 pub use archive::{convert_legacy, ArchiveManifest, LogicalArchive, MAX_ARCHIVE_BYTES};
 #[path = "media.rs"]
 mod media;
+#[path = "operator_conversion.rs"]
+pub mod operator_conversion;
 pub use media::{validate_image_metadata, MAX_IMAGE_BYTES};
 pub type Membership = BTreeMap<String, String>;
 // Includes propositions and evidence, not just discoverable entities.
@@ -830,6 +832,22 @@ impl Kernel {
     }
 }
 fn verify_canonical(c: &Connection, universe: &str) -> StoreResult<()> {
+    let imported: Vec<(String, String, String)> = c
+        .prepare("SELECT key,source_digest,normalized_digest FROM import_workflow_digest")?
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+        .collect::<Result<_, _>>()?;
+    for (key, source, normalized) in imported {
+        let value = crate::workflow_storage::evidence(c, &key)?
+            .ok_or_else(|| invalid("missing converted workflow provenance target"))?;
+        if digest(&value) != normalized
+            || source.len() != 64
+            || !source
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        {
+            return Err(invalid("converted workflow digest provenance mismatch"));
+        }
+    }
     let provenance:Vec<(String,String,String)>=c.prepare("SELECT p.source_digest,p.normalized_digest,v.digest FROM import_record_digest p JOIN record_versions v ON v.universe_id=p.universe_id AND v.id=p.version_id")?.query_map([],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?)))?.collect::<Result<_,_>>()?;
     for (source, normalized, current) in provenance {
         if normalized != current

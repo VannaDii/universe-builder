@@ -427,7 +427,11 @@ impl Registry {
             .worlds
             .map(|v| v.into_iter().collect()))
     }
-    fn read_grant(&self, profile: &ProfileId, universe: &UniverseId) -> anyhow::Result<GrantSpec> {
+    pub(crate) fn read_grant(
+        &self,
+        profile: &ProfileId,
+        universe: &UniverseId,
+    ) -> anyhow::Result<GrantSpec> {
         let (ws, propose, edit, protected, es, ps, cs, expiry, delegated_commit, allow_shared) = self.db.query_row(
             "SELECT worlds_state,propose,edit,protected,entities_state,predicates_state,continuities_state,expires_at,delegated_commit,allow_shared FROM grants WHERE profile=?1 AND universe=?2",
             params![profile.as_str(),universe.as_str()], |r| Ok((r.get::<_,String>(0)?,r.get::<_,bool>(1)?,r.get::<_,bool>(2)?,r.get::<_,bool>(3)?,r.get::<_,String>(4)?,r.get::<_,String>(5)?,r.get::<_,String>(6)?,r.get::<_,Option<String>>(7)?,r.get::<_,bool>(8)?,r.get::<_,bool>(9)?)))

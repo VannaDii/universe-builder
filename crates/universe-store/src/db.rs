@@ -57,7 +57,7 @@ impl Database {
                     .into(),
             ));
         }
-        let boundary:bool=conn.query_row("SELECT count(*)=3 FROM sqlite_master WHERE name IN ('historical_workflow','historical_receipt','active_workflow_index')",[],|r|r.get(0))?;
+        let boundary:bool=conn.query_row("SELECT count(*)=4 FROM sqlite_master WHERE name IN ('historical_workflow','historical_receipt','active_workflow_index','import_workflow_digest')",[],|r|r.get(0))?;
         if !boundary {
             return Err(StoreError::Migration("package requires explicit historical-authority boundary conversion; original preserved".into()));
         }

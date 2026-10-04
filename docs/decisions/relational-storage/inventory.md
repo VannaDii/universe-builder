@@ -108,3 +108,11 @@ Schema v0 has these additional/older families. They must be inventoried even tho
 | operation_receipts, idempotency_keys | Recognized receipt header in the single model and recognized result union; preserve principal/kind/key/digest/status/timestamps, nullable result and explicit key tombstone. Unsupported result encoding blocks. No retry key reuse. |
 
 There is no parallel scaffold-era retention schema. These are retired input families mapped into the single normative model when their meaning is known. Unknown bodies or unmatched scalar evidence block conversion; retain originals rather than infer provenance or silently drop data.
+
+## Operator conversion provenance
+
+`import_workflow_digest` binds each recognized original workflow key and digest to
+its normalized workflow digest, including draft operation normalization. It stores
+no serialized body. Ordinary package integrity verifies its target and digest.
+Explicit conversion, supported input layouts, refusals and publication recovery are
+documented in [the operator procedure](../../operator-conversion-procedure.md).
