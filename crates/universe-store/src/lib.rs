@@ -13,6 +13,7 @@ mod db;
 mod error;
 mod migrations;
 mod projections;
+mod relational;
 
 pub use blob::{BlobStore, BlobStoreError};
 pub use db::{Connection, Database, Txn};
