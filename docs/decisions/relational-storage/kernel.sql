@@ -1,16 +1,13 @@
--- PROPOSED: existing kernel identities and constraints retained, payload/cache authority replaced.
+-- NORMATIVE: one replacement kernel schema; factual revision history remains.
 -- Durable kernel. Each database contains exactly one universe.
-CREATE TABLE schema_meta(key TEXT PRIMARY KEY,value INTEGER NOT NULL) STRICT;
-INSERT INTO schema_meta VALUES ('schema_version',3);
 CREATE TABLE universes(id TEXT PRIMARY KEY, singleton INTEGER NOT NULL DEFAULT 1 UNIQUE CHECK(singleton=1), name TEXT NOT NULL);
 CREATE TABLE record_identities(universe_id TEXT NOT NULL REFERENCES universes(id), id TEXT NOT NULL, kind TEXT NOT NULL, PRIMARY KEY(universe_id,id), UNIQUE(universe_id,id,kind));
-CREATE TABLE record_versions(universe_id TEXT NOT NULL, id TEXT NOT NULL, record_id TEXT NOT NULL, kind TEXT NOT NULL, schema_version TEXT NOT NULL, storage_layout TEXT NOT NULL CHECK(storage_layout IN ('legacy','type_v3','instance_v3','attribute_v3')),
- payload_row INTEGER REFERENCES r_payload(__row_id),
- type_row INTEGER REFERENCES r_type_definition_v3(__row_id), instance_row INTEGER REFERENCES r_instance_v3(__row_id), attribute_row INTEGER REFERENCES r_attribute_assertion_v3(__row_id), digest TEXT NOT NULL, CHECK((storage_layout='legacy' AND payload_row IS NOT NULL AND type_row IS NULL AND instance_row IS NULL AND attribute_row IS NULL)
- OR (storage_layout='type_v3' AND payload_row IS NULL AND type_row IS NOT NULL AND instance_row IS NULL AND attribute_row IS NULL AND kind='entity_type' AND schema_version='v3')
- OR (storage_layout='instance_v3' AND payload_row IS NULL AND type_row IS NULL AND instance_row IS NOT NULL AND attribute_row IS NULL AND kind='entity' AND schema_version='v3')
- OR (storage_layout='attribute_v3' AND payload_row IS NULL AND type_row IS NULL AND instance_row IS NULL AND attribute_row IS NOT NULL AND kind='assertion' AND schema_version='v3')),
+CREATE TABLE record_versions(universe_id TEXT NOT NULL, id TEXT NOT NULL, record_id TEXT NOT NULL, kind TEXT NOT NULL,
+ payload_row INTEGER NOT NULL REFERENCES r_payload(__row_id), digest TEXT NOT NULL,
  PRIMARY KEY(universe_id,id), UNIQUE(universe_id,id,record_id), FOREIGN KEY(universe_id,record_id,kind) REFERENCES record_identities(universe_id,id,kind));
+-- Original hashes are import provenance, never a second active body or serializer.
+CREATE TABLE import_record_digest(universe_id TEXT NOT NULL, version_id TEXT NOT NULL, source_digest TEXT NOT NULL, normalized_digest TEXT NOT NULL,
+ PRIMARY KEY(universe_id,version_id), FOREIGN KEY(universe_id,version_id) REFERENCES record_versions(universe_id,id));
 CREATE TABLE continuities(universe_id TEXT NOT NULL REFERENCES universes(id), id TEXT NOT NULL, head_commit TEXT NOT NULL, baseline_commit TEXT, PRIMARY KEY(universe_id,id), FOREIGN KEY(universe_id,head_commit,id) REFERENCES commits(universe_id,id,continuity_id) DEFERRABLE INITIALLY DEFERRED, FOREIGN KEY(universe_id,baseline_commit) REFERENCES commits(universe_id,id));
 CREATE TABLE commits(universe_id TEXT NOT NULL, id TEXT NOT NULL, continuity_id TEXT NOT NULL, parent_id TEXT, sequence INTEGER NOT NULL CHECK(sequence>=0), principal TEXT NOT NULL, decision TEXT NOT NULL, reason TEXT NOT NULL, digest TEXT NOT NULL, PRIMARY KEY(universe_id,id), UNIQUE(universe_id,continuity_id,sequence), UNIQUE(universe_id,id,continuity_id), FOREIGN KEY(universe_id,continuity_id) REFERENCES continuities(universe_id,id) DEFERRABLE INITIALLY DEFERRED, FOREIGN KEY(universe_id,parent_id,continuity_id) REFERENCES commits(universe_id,id,continuity_id));
 CREATE TABLE commit_changes(universe_id TEXT NOT NULL, revision_id TEXT NOT NULL, record_id TEXT NOT NULL, prior_version TEXT, version_id TEXT, PRIMARY KEY(universe_id,revision_id,record_id), FOREIGN KEY(universe_id,revision_id) REFERENCES commits(universe_id,id), FOREIGN KEY(universe_id,record_id) REFERENCES record_identities(universe_id,id), FOREIGN KEY(universe_id,prior_version,record_id) REFERENCES record_versions(universe_id,id,record_id), FOREIGN KEY(universe_id,version_id,record_id) REFERENCES record_versions(universe_id,id,record_id));
@@ -49,3 +46,6 @@ CREATE TRIGGER immutable_universe_delete BEFORE DELETE ON universes BEGIN SELECT
 CREATE TABLE snapshot_member (universe_id TEXT NOT NULL, revision_id TEXT NOT NULL, record_id TEXT NOT NULL, version_id TEXT NOT NULL,
  PRIMARY KEY(universe_id,revision_id,record_id), FOREIGN KEY(universe_id,revision_id) REFERENCES snapshot_membership(universe_id,revision_id),
  FOREIGN KEY(universe_id,version_id,record_id) REFERENCES record_versions(universe_id,id,record_id)) STRICT;
+
+CREATE TRIGGER immutable_import_digest_update BEFORE UPDATE ON import_record_digest BEGIN SELECT RAISE(ABORT,'immutable import provenance'); END;
+CREATE TRIGGER immutable_import_digest_delete BEFORE DELETE ON import_record_digest BEGIN SELECT RAISE(ABORT,'immutable import provenance'); END;

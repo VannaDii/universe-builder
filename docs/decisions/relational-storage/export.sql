@@ -2,7 +2,7 @@
 CREATE TABLE archive_integrity (
  singleton INTEGER PRIMARY KEY CHECK(singleton=1),
  manifest_row INTEGER NOT NULL REFERENCES r_archive_manifest(__row_id),
- checksum_recipe TEXT NOT NULL CHECK(checksum_recipe='typed-row-stream-v1'),
+ checksum_recipe TEXT NOT NULL CHECK(checksum_recipe='typed-row-stream'),
  sha256 TEXT NOT NULL,
  row_count INTEGER NOT NULL CHECK(row_count>=0),
  authority_state TEXT NOT NULL CHECK(authority_state='historical_evidence_only')

@@ -50,10 +50,11 @@
     "worlds"
   ],
   "source_table_omissions": [],
-  "package_ddl": "all six batches installed",
+  "package_ddl": "all five batches installed",
   "installation_ddl": "installed separately",
   "credential_ddl": "installed separately; no real credential",
   "no_application_payload_blobs": true,
+  "single_normative_model": "verified; no parallel routes or prerelease version fields",
   "source_sha256": {
     "contracts/examples.json": "a30049c655db1763ecd75880801440ea13ea9336a930f30d2839a1dad4de0873",
     "contracts/source-assessments.json": "6ef97865f0e91473bd08b3ab17d33e2807bd21f53c707d9ade830c5e98442fa4",

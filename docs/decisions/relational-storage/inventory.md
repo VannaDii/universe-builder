@@ -8,7 +8,7 @@ Every `Payload` discriminator has a fixed branch row in `typed.sql`, linked from
 
 | Group | Persisted families | Typed destination |
 |---|---|---|
-| Identity/topology | entity, entity_type, world, realm, represented_context | Matching closed Payload branch; v3 type/instance bodies use new routes. Names, labels, metadata, memberships/parents and world associations are ordered/named child rows. |
+| Identity/topology | entity, entity_type, world, realm, represented_context | One closed Payload route. Types have one nullable parent; instances have one nullable classification and explicit resolution state. Ambiguous source vectors become ordered classification evidence, not an alternate body. Names, labels, metadata and world associations retain typed child rows. |
 | Definitions | property, relation, unit, calendar, value_definition, domain_pack | Closed branch plus shared ValueShape, Multiplicity, RoleDef, conversions/fields/dependencies/pack-record child rows. Preserve namespace/key, labels, dimensions, base references, scale, conversions and executable flags. |
 | Facts/policy | proposition, assertion, completeness, boundary, rule, exception | Proposition roles/value/quantification/context; assertions' exact polarity/scope/time/basis; explicit Expr nodes and ordered operands; rule policies/capabilities, exceptions and accepted findings. New definition attributes add mode; provenance stays on assertions. |
 | Occurrences/behavior | event, item_power, action_definition | Closed branch plus ordered participants/preconditions/effects, owner-bound AttributeRequirement, ConsequenceContract, EffectSlot/Target/Condition/Change/Lifetime rows. Preserve slots/order/presence, occurrence identity, sequence, expansion version and exact value changes. |
@@ -24,10 +24,10 @@ Source: `crates/universe-store/src/schema_v1.sql`, `schema_v2.sql`, `db.rs`, `ke
 
 | Legacy/current location | New representation / exact transformation |
 |---|---|
-| schema_meta | Fixed numeric format metadata; retain schema-version identity, set new *physical* version only on explicit verified conversion. No JSON. |
+| schema_meta | Retired source metadata; no schema-version table in the normative target. Source format identifies an input decoder only. |
 | universes | Retain id/singleton/name. |
 | record_identities | Retain universe/id/kind tuple and immutability. |
-| record_versions.payload | Strict decode supported original body; write typed branch/children; retain id/record/universe/kind/schema/digest. Header routes to exactly one old or v3 typed body. |
+| record_versions.payload | Decode recognized source body and normalize to the single typed Payload branch. Preserve factual IDs/kind/history; original digest provenance is separate from the normalized digest. No old/new route or schema tag. |
 | continuities | Retain head, pinned baseline and IDs. Circular commit/head references remain deferred in the same transaction. |
 | commits | Retain continuity, parent, sequence, principal, decision, reason, digest. No reauthoring. |
 | commit_changes | Retain record, prior and next version including tombstone nulls; replay per continuity and compare each head. |
@@ -50,10 +50,10 @@ Source: `workflow.rs`, `validation_binding.rs`, `assessments.rs`, `drafts.rs`, `
 | proposal:{id}:{version:020} | StoredProposal → Proposal (base Frame, world scope, version/digest/submission/operations/rationale/canonical/operation/withdrawn), owner/author_origin, ordered Assignment changes and Footprint. Frozen IDs/expected/next bodies and full generated effects remain unchanged. |
 | reserved-record:{record} | ReservedRecord(proposal_id); retain reservation and key. |
 | validation:{run} | Checked → Validation/findings/opposing chains/coverage/unsupported capabilities, admissible, optional report and capture. Capture binds selection, assessment state, submitted input, head, latest proposal key, authority digest/sequence. Preserve missing versus null legacy defaults. |
-| operation:{id}, request:{principal}:{kind}:{hash(key)}, job:{id}:running, job:{id}:terminal | StoredOperation with **internal OperationStatus**, optional CommitInput, owner, request digest, footprint/capture. Public OperationStatusV3 is a presentation wrapper and must not replace the persisted internal status. Preserve all queued/running/terminal/interrupted/cancelled states and embedded receipts. |
+| operation:{id}, request:{principal}:{kind}:{hash(key)}, job:{id}:running, job:{id}:terminal | StoredOperation with **internal OperationStatus**, optional CommitInput, owner, request digest, footprint/capture. Public OperationStatusReport is a presentation wrapper and must not replace the persisted internal status. Preserve all queued/running/terminal/interrupted/cancelled states and embedded receipts. |
 | cancel:{id} | Cancellation(owner if historically present, cancelled); retain cancellation boundary. |
 | approval:{author}:{proposal_digest}:{run} | ApprovalEvidence(author, exact ProposalRef, Checked digest, evaluator). It remains historical package evidence; current installation authority and fresh binding checks are still required. |
-| assessment:{assessment_id} | AssessmentEnvelope/id/digest/attached_by plus complete SourceAssessmentV1 assessor, material/source ranges, dependencies, inventory, claim mappings, candidates, unresolved dispositions and declarations. |
+| assessment:{assessment_id} | AssessmentEnvelope/id/digest/attached_by plus complete SourceAssessment assessor, material/source ranges, dependencies, inventory, claim mappings, candidates, unresolved dispositions and declarations. |
 | assessment-selection:{proposal}:{version:020}:{generation:020} | AssessmentSelection with exact proposal, selected reference or explicit absence, generation, selector. Preserve every generation and CAS order. |
 | assessment-receipt:{principal}:{request_hash} | AssessmentReceipt(request digest, exact selection, optional envelope); no reconstructed selection may point to a different proposal/body. |
 | cursor:{id} | Cursor(binding hash, offset); persisted offset binds frame, principal/query and scope hash. Never reuse after current visibility fails. |
@@ -80,31 +80,31 @@ Source: `registry.rs`, `imports.rs`, `installation.rs` in protocol/client, and r
 | aliases | Preserve normalized selector keys and universe reservation. |
 | grants.worlds | Explicit all/listed state and ordered grant_worlds rows. Null and empty list stay distinct. |
 | grant_limits | Fold boolean/expiry/limit-state columns into grants; ordered entities/predicates/continuities child rows. Missing limits use the source's exact defaults; retain current delegation/shared/protected semantics. |
-| purge_pending | Preserve pending universe/path/device/inode; do not purge merely by opening a proposed migration target. |
+| purge_pending | Preserve pending universe/path/device/inode; do not purge merely by opening a normative migration target. |
 | audit | Preserve actor/action/target and original monotonic sequence; this fences current grant ABA. |
-| profiles/{profile}.json | Separate 0600 per-profile credential.sqlite: format_version INTEGER, profile_id TEXT PRIMARY KEY, credential TEXT NOT NULL. Credential/hash stay identical; private installation only. Both client and service profile readers change together after approval. Synthetic proof uses no real secrets. |
+| profiles/{profile}.json | Separate 0600 per-profile credential.sqlite: profile_id TEXT PRIMARY KEY, credential TEXT NOT NULL. Credential/hash stay identical; private installation only. Both client and service profile readers change together at implementation cutover. Synthetic proof uses no real secrets. |
 | imports/{operation}.preview | ImportPreview typed installation row retains owner/source checksum/target/source/name/completeness/omissions/count, plus derived exact preview digest and staged path. |
 | imports/{operation}.jsonl | Read-only legacy input; decode to fresh typed archive staging. Store original checksum, not its bytes as application metadata. Unknown/inconsistent content blocks. |
 | private sockets, engine lock/PID markers, runtime in-flight tasks | OS/in-memory transport coordination; not exported domain data. Recover durable operation/job rows rather than persisting a new task serializer. |
 
 ## Backups, exports, auxiliary storage and legacy v0
 
-Physical backups copy the complete typed package, including content bytes and workflow/receipts. There is no separate current backup manifest file: kernel backup verifies the SQLite copy itself. Proposed archive manifests use fixed ArchiveManifest fields, typed tables and an explicit whole-export checksum; imports retain the original checksum. Logical v1 JSONL families `manifest`, `record`, `continuity`, `commit`, `change`, `reservation`, `text`, `image_chunk`, `checksum` map respectively to typed manifest/header, canonical version rows, kernel history, source_content/media_chunk and export integrity metadata. Old v1 excludes workflow and receipts; never claim their reconstruction from it.
+Physical backups copy the complete typed package, including content bytes and workflow/receipts. There is no separate current backup manifest file: kernel backup verifies the SQLite copy itself. Normative archive manifests use fixed ArchiveManifest fields, typed tables and an explicit whole-export checksum; imports retain the original checksum. Logical v1 JSONL families `manifest`, `record`, `continuity`, `commit`, `change`, `reservation`, `text`, `image_chunk`, `checksum` map respectively to typed manifest/header, canonical version rows, kernel history, source_content/media_chunk and export integrity metadata. Old v1 excludes workflow and receipts; never claim their reconstruction from it.
 
 The generic `BlobStore` uses digest-named source/media files with filesystem bytes and no JSON metadata; the service kernel embeds its source/media staging in workflow storage today. Retain verified referenced content bytes; do not add a blob payload store for application metadata. Package maintenance/purge summaries are transient responses, not durable document families. Release manifests/contracts/fixtures/build logs are software artifacts and test evidence, not author application data; the decision package's JSON oracles are similarly test inputs/results and are not copied into prototype authority tables.
 
 Schema v0 has these additional/older families. They must be inventoried even though the current converter rejects nonempty ambiguous side tables:
 
-| v0 tables | Typed proposed destination and compatibility gate |
+| v0 tables | Typed normative destination and compatibility gate |
 |---|---|
-| schema_meta, universes, record_identities, record_versions | Kernel headers + original typed canonical bodies; unsupported scaffold bodies block. Preserve historical extra description/created_at/format_version as named typed legacy header columns in the conversion target, not JSON metadata. |
+| schema_meta, universes, record_identities, record_versions | Single-model kernel headers and canonical bodies; unsupported scaffold bodies block conversion. Retain needed original scalar evidence in explicitly mapped provenance fields; retired software format tags are input metadata only. |
 | worlds, world_name_reservations | Typed world canonical rows plus original scalar selector/reservation headers; no unreviewed identity remap. |
 | commits, commit_changes, continuities, head_membership | Original typed historical ledger, including scalar timestamps/actions/legacy IDs; preserve baselines or block if not reconstructable. Do not use the existing legacy converter's generated replacement revision IDs for an identity-preserving conversion. |
 | assertion_index, participant_index, time_index, fts_universes, fts_entities, fts_worlds, fts_sources | Rebuildable indexes only after verifying that no unique authored facts live solely in an index. Otherwise report the missing authority and block. |
 | source_versions, anchors, blob_refs | Source/SourceVersion/Anchor typed canonical structures and preserved scalar legacy row IDs/timestamps/reference/digests; provenance insufficient to identify a canonical source blocks rather than invents it. |
-| changesets, changeset_versions | Typed legacy proposal headers (id, universe, continuity, base revision, author, rationale, status, timestamps) + ordered DomainOperation/Assignment bodies; unknown old payload schema blocks. |
+| changesets, changeset_versions | Recognized proposal headers in the single model (id, universe, continuity, base revision, author, rationale, status, timestamps) + ordered DomainOperation/Assignment bodies; unknown old payload schema blocks. |
 | approvals | Typed historical approval (id, changeset, version, digest, author, scope, granted/expires/revoked) + recognized exact proposal binding; never activates installation authority. |
 | validation_runs, findings, dependencies | Typed validation headers, Finding outcomes/coverage and typed evidence references/derivations; unknown evidence encoding blocks. Preserve original IDs, rule/affected IDs and dependency links. |
-| operation_receipts, idempotency_keys | Typed legacy receipt header and recognized result union; preserve principal/kind/key/digest/status/timestamps, nullable result and explicit key tombstone. Unsupported result encoding blocks. No retry key reuse. |
+| operation_receipts, idempotency_keys | Recognized receipt header in the single model and recognized result union; preserve principal/kind/key/digest/status/timestamps, nullable result and explicit key tombstone. Unsupported result encoding blocks. No retry key reuse. |
 
-The exact v0 scalar-column DDL is in `legacy-v0.sql`, including pointers replacing its four serialized columns. This is a proposed quarantine-compatible typed schema for understood data, not permission to infer missing provenance. Its body pointer families require the stated format gates. Originals remain readable and retained when a target cannot be verified completely.
+There is no parallel scaffold-era retention schema. These are retired input families mapped into the single normative model when their meaning is known. Unknown bodies or unmatched scalar evidence block conversion; retain originals rather than infer provenance or silently drop data.

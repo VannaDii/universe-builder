@@ -3,13 +3,13 @@
   "source_content": "digest and bytes exact",
   "installation_authority_in_package": false,
   "canonical_round_trips": 72,
-  "closed_union_and_workflow_round_trips": 506,
+  "closed_union_and_workflow_round_trips": 508,
   "canonical_families": 38,
   "integrity": "ok",
   "foreign_keys": "ok",
   "application_blob_or_real_columns": [],
-  "reconstruction_digest": "f759ea679692f61ebe8b5bff8b8aad45af194ff2d5124cd9bdd13c0c57275d52",
-  "tables_inspected": 871,
+  "reconstruction_digest": "fdb5cce3d5f7be0b77c3566bfcce180b6633941d39bc350a9d97fe165751e369",
+  "tables_inspected": 849,
   "constraint_rejections": [
     "required",
     "discriminator",
@@ -52,19 +52,20 @@
       "rename_and_refinement": "no reinitialization",
       "initial_value_receipts": 1
     },
-    "legacy": "both memberships retained; executable resolution blocked",
+    "ambiguity": "both memberships retained; executable resolution blocked",
     "inherited_conflict": "both scoped values retained; no override",
     "unspecified_scope": "unresolved",
     "cross_world_fact": "excluded",
     "typed_projection_agreement": "verified",
-    "v2_header_v1_digest_recipe": "verified",
+    "single_unversioned_body_route": "verified",
+    "original_digest_provenance": "verified separately from normalized body",
     "logical_export": {
       "typed_archive": "verified",
-      "copied_rows": 828,
+      "copied_rows": 849,
       "history_and_receipts": "preserved",
       "installation_authority": "absent",
       "manifest": {
-        "format": "universe-relational-proposal-v3",
+        "format": "universe-relational",
         "universe": "unv_000000000000000000000001",
         "name": "Cedar and Pistol review",
         "complete": true,
@@ -72,7 +73,7 @@
         "includes_history": true,
         "includes_workflow": true
       },
-      "sha256": "af66d09152b88e5227ab524522f22eda68d2290d3fa394c3c7c9c28ee39a72d0"
+      "sha256": "0a5d24f420febe3caa66f573742688a686fb08cefc6dd74d80210a15723c9208"
     }
   },
   "installation": {

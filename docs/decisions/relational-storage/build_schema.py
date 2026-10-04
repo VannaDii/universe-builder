@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate explicit, closed relational DDL for the review package; no production writes.
+"""Generate explicit, closed relational DDL for the normative unreleased model; no production writes.
 JSON files here describe contracts/proofs, never prototype application storage.
 """
 import hashlib
@@ -35,7 +35,7 @@ def contracts():
             for child in value: collect(child)
     for file in sorted((ROOT / 'contracts').glob('*.json')):
         collect(json.loads(file.read_text()))
-    live = json.loads((HERE / 'domain-contracts.json').read_text())
+    live = json.loads((HERE / 'source-contracts.json').read_text())
     for name, schema in live.items():
         defs.update(schema.get('$defs', {}))
         defs[name] = {k:v for k,v in schema.items() if k not in ('$defs', '$schema')}
@@ -62,19 +62,40 @@ def contracts():
         'ImportPreview': obj(id=ref('OperationId'), owner=S, source_digest=S, target=ref('UniverseId'), source=ref('UniverseId'), name=S, complete=B, omitted_records=I, records=I),
         'ArchiveManifest': obj(format=S, universe=ref('UniverseId'), name=S, complete=B, omitted_records=I, includes_history=B, includes_workflow=B),
     })
-    # Proposed v3 contracts: explicit additions, not a rewrite of historical v1/v2.
-    type_fields = dict(defs['EntityType']['properties'])
-    type_fields.pop('parents')
-    type_fields.update(name=S, parent=nullable(ref('RecordId')), applicability=ref('Applicability'))
-    defs['TypeDefinitionV3'] = obj(**type_fields)
-    instance_fields = dict(defs['Entity']['properties'])
-    instance_fields.pop('types')
-    instance_fields.update(classification=nullable(ref('RecordId')))
-    defs['InstanceV3'] = obj(**instance_fields)
-    assertion_fields = dict(defs['Assertion']['properties'])
-    assertion_fields.update(attributeMode={'type':'string','enum':['instance','shared','initial_value']})
-    defs['AttributeAssertionV3'] = obj(**assertion_fields)
-    defs['AttributeAssertionV3']['required'] = defs['Assertion']['required'] + ['attributeMode']
+    # Unreleased decisions replace the canonical model in place.
+    def replace_model(schema):
+        if isinstance(schema, list): return [replace_model(x) for x in schema]
+        if not isinstance(schema, dict): return schema
+        schema = {k:replace_model(v) for k,v in schema.items()}
+        fields = schema.get('properties', {})
+        required = schema.get('required', [])
+        if {'namespace','key','labels','classificationExecutable'} <= fields.keys():
+            fields.pop('parents', None)
+            fields.update(name=S, parent=nullable(ref('RecordId')), parentResolution={'type':'string','enum':['root','resolved','ambiguous']}, applicability=ref('Applicability'))
+            schema['required'] = [k for k in required if k!='parents'] + ['name','parent','parentResolution','applicability']
+        if {'names','types','worldAssociations','metadata'} <= fields.keys():
+            fields.pop('types')
+            fields.update(classification=nullable(ref('RecordId')), classificationResolution={'type':'string','enum':['unclassified','resolved','ambiguous']})
+            schema['required'] = [k for k in required if k!='types'] + ['classification','classificationResolution']
+        if {'proposition','polarity','scope','validity','basis'} <= fields.keys():
+            fields['attributeMode']={'type':'string','enum':['instance','shared','initial_value']}
+            schema['required'] = required + ['attributeMode']
+        if 'payload_schema_version' in fields:
+            fields.pop('payload_schema_version')
+            schema['required'] = [k for k in required if k!='payload_schema_version']
+        return schema
+    defs = replace_model(defs)
+    # Remove superseded pre-release suffixes from the normative contract names/tags.
+    aliases={'ValidationV3':'ValidationReport','OperationStatusV3':'OperationStatusReport',
+             'SourceAssessmentV1':'SourceAssessment','SourceValidationBinding':'SourceValidationBinding'}
+    def rename(value):
+        if isinstance(value,dict): return {aliases.get(k,k):rename(v) for k,v in value.items()}
+        if isinstance(value,list): return [rename(v) for v in value]
+        if isinstance(value,str):
+            if value.startswith('#/$defs/'):return '#/$defs/'+aliases.get(value.rsplit('/',1)[1],value.rsplit('/',1)[1])
+            return re.sub(r'_v[0-9]+$', '', value)
+        return value
+    defs=rename(defs)
     # Serde defaults/omissions of private structs: retention needs all three states.
     for name, keys in {'Checked':['report','capture'], 'StoredOperation':['validation_capture'],
                        'ValidationCapture':['authority_sequence'], 'DraftContent':['proposal'],
@@ -123,7 +144,7 @@ class Compiler:
         return name
     def scalar(self, name): return self.models[name]['kind'] in ('string','integer','number','boolean','null')
     def ddl(self):
-        statements = ['-- PROPOSED ONLY. Explicit typed rows, not a production migration.','PRAGMA foreign_keys=ON;']
+        statements = ['-- NORMATIVE UNRELEASED MODEL. One relational schema; not a production migration.','PRAGMA foreign_keys=ON;']
         for name,d in self.models.items():
             if self.scalar(name): continue
             table = d['table']; cols = ['__row_id INTEGER PRIMARY KEY']
@@ -166,19 +187,19 @@ def sql_literal(v):
     if isinstance(v,(int,float)): return str(v)
     return "'"+str(v).replace("'","''")+"'"
 
-ROOTS = ['TypeDefinitionV3','InstanceV3','AttributeAssertionV3','Payload','DomainOperation','RecordVersion','StoredContext','StoredProposal','Checked','StoredOperation',
+ROOTS = ['Payload','DomainOperation','RecordVersion','StoredContext','StoredProposal','Checked','StoredOperation',
          'ApprovalEvidence','AssessmentEnvelope','AssessmentSelection','AssessmentReceipt','Cursor','Cancellation',
          'ReservedRecord','SavedDraft','ImportOrigin','ImportAdmission','ImportPreview','ArchiveManifest',
-         'SourceValidationBindingV1']
+         'SourceValidationBinding']
 
 def build():
     c=Compiler(contracts())
     # This contract is currently inline in assessment.rs, not a named public schema.
-    c.defs['SourceValidationBindingV1'] = obj(kind=ref('ValidationBindingKind'), proposal=ref('ProposalRef'), base_frame=ref('Frame'), selection=ref('AssessmentSelection'), submitted_input=ref('SubmittedInput'), assessment_state=ref('AssessmentState'), execution_result_digest=S, evaluator_version=S)
+    c.defs['SourceValidationBinding'] = obj(kind=ref('ValidationBindingKind'), proposal=ref('ProposalRef'), base_frame=ref('Frame'), selection=ref('AssessmentSelection'), submitted_input=ref('SubmittedInput'), assessment_state=ref('AssessmentState'), execution_result_digest=S, evaluator_version=S)
     for root in ROOTS:c.model(ref(root),root)
     (HERE/'typed.sql').write_text(c.ddl())
     (HERE/'catalog.json').write_text(json.dumps({'roots':ROOTS,'models':c.models},ensure_ascii=False,indent=2)+'\n')
-    lines=['# Exact field mapping','', 'Generated from current domain schemas and checked-in public contracts. Private envelopes are explicitly specified in `build_schema.py`; DraftContent.operations deliberately proposes typed operations instead of legacy raw editor JSON, whose conversion can be blocked (see compatibility.md). `__state`: 0 absent, 1 explicit null, 2 value. Collections use child rows; an empty collection still has a header. Numeric wire tokens use decimal TEXT, never SQLite REAL.','', '| Contract | Table / scalar domain | Fields or links |','|---|---|---|']
+    lines=['# Exact field mapping','', 'Generated from current domain schemas and checked-in public contracts. The replacement model is normative before release. Private envelopes are explicitly specified in `build_schema.py`; DraftContent.operations uses typed operations. Superseded editor formats are one-time input concerns (see compatibility.md). `__state`: 0 absent, 1 explicit null, 2 value. Collections use child rows; an empty collection still has a header. Numeric wire tokens use decimal TEXT, never SQLite REAL.','', '| Contract | Table / scalar domain | Fields or links |','|---|---|---|']
     for name,d in c.models.items():
         desc=', '.join(f'{k} → {f["model"]}' for k,f in d.get('fields',{}).items()) or ', '.join(d.get('variants',[])) or d.get('item','') or d['kind']
         lines.append(f'| `{name}` | `{d["table"]}`' + (' (scalar column)' if c.scalar(name) else '') + f' | {desc} |')

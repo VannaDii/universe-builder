@@ -2,21 +2,20 @@
   {
     "name": "family:entity",
     "value": {
-      "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
-      "metadata": {}
+      "metadata": {},
+      "record_kind": "entity",
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{},\"names\":[],\"record_kind\":\"entity\",\"types\":[],\"worldAssociations\":[]}",
-    "digest": "6f6f7d5e3b12f7cba4e8cecfe24c26d4283e7be3812f6fbca42e081c958b6f6e",
-    "discriminator": "entity:v1:v1"
+    "canonical": "{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{},\"names\":[],\"record_kind\":\"entity\",\"worldAssociations\":[]}",
+    "digest": "17dce8a027601dbb4fc70c114a04e0164d08b1301fc1d7e3420104c332a4d130"
   },
   {
     "name": "family:appearance",
     "value": {
-      "record_kind": "appearance",
       "target": {
         "kind": "universe"
       },
@@ -27,240 +26,220 @@
       "links": [],
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "appearance"
     },
     "canonical": "{\"atmosphere\":\"é🌲 sample\",\"images\":[],\"label\":\"é🌲 sample\",\"links\":[],\"physical_description\":\"é🌲 sample\",\"record_kind\":\"appearance\",\"target\":{\"kind\":\"universe\"},\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "dd2c70d33a110dcf609b77a76a5cf1597e7a02e34a09728c4201233ec3a1267d",
-    "discriminator": "appearance:v1:v1"
+    "digest": "8ff80ce5c9f3865e45d6440c6927dc5280971bc394acd1e056498ca667939488"
   },
   {
     "name": "family:image_asset",
     "value": {
-      "record_kind": "image_asset",
       "digest": "é🌲 sample",
       "media_type": "é🌲 sample",
       "byte_size": 1,
       "width": 1,
       "height": 1,
-      "original_name": "é🌲 sample"
+      "original_name": "é🌲 sample",
+      "record_kind": "image_asset"
     },
     "canonical": "{\"byte_size\":1,\"digest\":\"é🌲 sample\",\"height\":1,\"media_type\":\"é🌲 sample\",\"original_name\":\"é🌲 sample\",\"record_kind\":\"image_asset\",\"width\":1}",
-    "digest": "89093172ec18324631d185b96866180e6ba23c88a4024d6a757636da9499bd5e",
-    "discriminator": "image_asset:v1:v1"
+    "digest": "9f2d0a57789f52c14fb37b125a9e9ac748abba64d0fcad39a214c371c0f6bdb9"
   },
   {
     "name": "family:world",
     "value": {
-      "record_kind": "world",
       "selector": "é🌲 sample",
-      "labels": {},
-      "metadata": {}
+      "record_kind": "world"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{},\"record_kind\":\"world\",\"selector\":\"é🌲 sample\"}",
-    "digest": "f5592b347fa09bd4660c9c8efcc16d0d6f68bafa6a5cbd217d71eefccf79d3be",
-    "discriminator": "world:v1:v1"
+    "canonical": "{\"record_kind\":\"world\",\"selector\":\"é🌲 sample\"}",
+    "digest": "b9ca41966d9ed71e4a2515378a602cf741ceca7f017f7d0da88142ee919778bb"
   },
   {
     "name": "family:realm",
     "value": {
-      "record_kind": "realm",
       "labels": {},
-      "metadata": {}
+      "metadata": {},
+      "record_kind": "realm"
     },
     "canonical": "{\"labels\":{},\"metadata\":{},\"record_kind\":\"realm\"}",
-    "digest": "ea49f110839b0bd69ee04c2f5dcb6e7d8451628c9f5ea7d5809133e5c8a82f34",
-    "discriminator": "realm:v1:v1"
+    "digest": "8faeac7cbc51fcea8ffd88d7af0ebe6e8c35d4c29fd16c06cde5d99886bbed36"
   },
   {
     "name": "family:work",
     "value": {
-      "record_kind": "work",
       "kind": "novel",
       "title": "é🌲 sample",
       "labels": {},
       "sourceRefs": [],
       "versions": [],
-      "worldAssociations": []
+      "worldAssociations": [],
+      "record_kind": "work"
     },
     "canonical": "{\"kind\":\"novel\",\"labels\":{},\"record_kind\":\"work\",\"sourceRefs\":[],\"title\":\"é🌲 sample\",\"versions\":[],\"worldAssociations\":[]}",
-    "digest": "92590dd5c84d3c46a35a93588f8b63baec4a179d17ebdfd32ad32489ff4a7e8c",
-    "discriminator": "work:v1:v1"
+    "digest": "68504067ea064ba4c7e7320476db4919960f42d4b87a4f2fdfa358bdf60efb54"
   },
   {
     "name": "family:work_version",
     "value": {
-      "record_kind": "work_version",
       "work": {
         "record": "rec_000000000000000000000001"
       },
       "versionLabel": "é🌲 sample",
       "binding": {
-        "kind": "bound",
         "continuity": "cont_000000000000000000000001",
-        "revision": "rev_000000000000000000000001"
-      }
+        "revision": "rev_000000000000000000000001",
+        "kind": "bound"
+      },
+      "record_kind": "work_version"
     },
     "canonical": "{\"binding\":{\"continuity\":\"cont_000000000000000000000001\",\"kind\":\"bound\",\"revision\":\"rev_000000000000000000000001\"},\"record_kind\":\"work_version\",\"versionLabel\":\"é🌲 sample\",\"work\":{\"record\":\"rec_000000000000000000000001\"}}",
-    "digest": "beb62d2636f57693f6a5dd4db3fd9a978fc9ef65356bf378ff65caa04a56551e",
-    "discriminator": "work_version:v1:v1"
+    "digest": "1dd813cea164191c7ea9473829dfe60ef8d1e7b69397074f486ad1668f26b842"
   },
   {
     "name": "family:scene_ref",
     "value": {
-      "record_kind": "scene_ref",
       "workVersion": {
         "record": "rec_000000000000000000000001",
         "version": "ver_000000000000000000000001"
       },
       "sceneId": "é🌲 sample",
-      "viewpoint": null,
-      "narrativePosition": null,
       "depictedEvents": [],
-      "narrationFrame": null,
-      "worldAssociations": []
+      "worldAssociations": [],
+      "record_kind": "scene_ref"
     },
-    "canonical": "{\"depictedEvents\":[],\"narrationFrame\":null,\"narrativePosition\":null,\"record_kind\":\"scene_ref\",\"sceneId\":\"é🌲 sample\",\"viewpoint\":null,\"workVersion\":{\"record\":\"rec_000000000000000000000001\",\"version\":\"ver_000000000000000000000001\"},\"worldAssociations\":[]}",
-    "digest": "ce4caed2e12b7f0a48e6c9433be1747a7a62569be714524f428125ed52db20e7",
-    "discriminator": "scene_ref:v1:v1"
+    "canonical": "{\"depictedEvents\":[],\"record_kind\":\"scene_ref\",\"sceneId\":\"é🌲 sample\",\"workVersion\":{\"record\":\"rec_000000000000000000000001\",\"version\":\"ver_000000000000000000000001\"},\"worldAssociations\":[]}",
+    "digest": "41d30ba1f6ad835206c963cbc87198f061a57e145426575cd4965b542a4137c2"
   },
   {
     "name": "family:passage_ref",
     "value": {
-      "record_kind": "passage_ref",
       "workVersion": {
         "record": "rec_000000000000000000000001",
         "version": "ver_000000000000000000000001"
       },
       "passageId": "é🌲 sample",
-      "anchor": null
+      "record_kind": "passage_ref"
     },
-    "canonical": "{\"anchor\":null,\"passageId\":\"é🌲 sample\",\"record_kind\":\"passage_ref\",\"workVersion\":{\"record\":\"rec_000000000000000000000001\",\"version\":\"ver_000000000000000000000001\"}}",
-    "digest": "d84b7d2c28ed79ec2ec7900c7e1ddff00e08751ce3bf1d83ee40daf0dc9bf675",
-    "discriminator": "passage_ref:v1:v1"
+    "canonical": "{\"passageId\":\"é🌲 sample\",\"record_kind\":\"passage_ref\",\"workVersion\":{\"record\":\"rec_000000000000000000000001\",\"version\":\"ver_000000000000000000000001\"}}",
+    "digest": "8c832b01eda1dfa0a1f5bace2d61eff4bb61032859668ddd4af7ce90602f8619"
   },
   {
     "name": "family:saga",
     "value": {
-      "record_kind": "saga",
       "title": "é🌲 sample",
       "labels": {},
-      "memberships": []
+      "memberships": [],
+      "record_kind": "saga"
     },
     "canonical": "{\"labels\":{},\"memberships\":[],\"record_kind\":\"saga\",\"title\":\"é🌲 sample\"}",
-    "digest": "0074b96b2175ff29f23059fc083678f7b47feb80717e858b3c1c48939f689027",
-    "discriminator": "saga:v1:v1"
+    "digest": "c7aea8d9ccf0e16d1bfcbc71fba18d2b2cc0c34b8e3fc2a2cb77f51ab0cebeea"
   },
   {
     "name": "family:entity_type",
     "value": {
-      "record_kind": "entity_type",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
-      "classificationExecutable": true
+      "classificationExecutable": true,
+      "record_kind": "entity_type",
+      "name": "é🌲 sample",
+      "parent": null,
+      "parentResolution": "root",
+      "applicability": {
+        "kind": "universe_wide"
+      }
     },
-    "canonical": "{\"classificationExecutable\":true,\"key\":\"é🌲 sample\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"entity_type\"}",
-    "digest": "5910f772a5799cdb33ba520d78444e25de65d27905e6fff5c516696b7879fcea",
-    "discriminator": "entity_type:v1:v1"
+    "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"classificationExecutable\":true,\"key\":\"é🌲 sample\",\"labels\":{},\"name\":\"é🌲 sample\",\"namespace\":\"é🌲 sample\",\"parent\":null,\"parentResolution\":\"root\",\"record_kind\":\"entity_type\"}",
+    "digest": "a292fb1cb2375a099b1311a02c07dcfc5b2acf8f3429c6cc86a88123d091a74b"
   },
   {
     "name": "family:property",
     "value": {
-      "record_kind": "property",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
-      "subjectTypes": [],
       "value": {
         "kind": "text"
       },
       "multiplicity": "single",
-      "unitDimension": null,
       "persistence": "explicit_interval",
       "exclusive": true,
-      "inverse": null,
       "symmetric": true,
-      "transitive": true
+      "transitive": true,
+      "record_kind": "property"
     },
-    "canonical": "{\"exclusive\":true,\"inverse\":null,\"key\":\"é🌲 sample\",\"labels\":{},\"multiplicity\":\"single\",\"namespace\":\"é🌲 sample\",\"persistence\":\"explicit_interval\",\"record_kind\":\"property\",\"subjectTypes\":[],\"symmetric\":true,\"transitive\":true,\"unitDimension\":null,\"value\":{\"kind\":\"text\"}}",
-    "digest": "2db7b39ab0d084e13ce3a457247918f51a31b8d1cc362950b50a9473b32ceef3",
-    "discriminator": "property:v1:v1"
+    "canonical": "{\"exclusive\":true,\"key\":\"é🌲 sample\",\"labels\":{},\"multiplicity\":\"single\",\"namespace\":\"é🌲 sample\",\"persistence\":\"explicit_interval\",\"record_kind\":\"property\",\"symmetric\":true,\"transitive\":true,\"value\":{\"kind\":\"text\"}}",
+    "digest": "1f793b400ecc3f84238a37f850ced807c50f249e9f4ee366f1297723d81e039b"
   },
   {
     "name": "family:relation",
     "value": {
-      "record_kind": "relation",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
-      "roles": []
+      "roles": [],
+      "record_kind": "relation"
     },
     "canonical": "{\"key\":\"é🌲 sample\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"relation\",\"roles\":[]}",
-    "digest": "c2da7dde3100cc313c48e8fc891f0ad3b20ff3eb516d57eda28557fe3402e3bc",
-    "discriminator": "relation:v1:v1"
+    "digest": "c2456f1338bdc6de624a855b2a40fff69ed6d4c0e44bb63de7b7c12af42c4a74"
   },
   {
     "name": "family:unit",
     "value": {
-      "record_kind": "unit",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "dimension": "é🌲 sample",
       "symbol": "é🌲 sample",
       "labels": {},
-      "base": null,
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "unit"
     },
-    "canonical": "{\"base\":null,\"dimension\":\"é🌲 sample\",\"key\":\"é🌲 sample\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"unit\",\"symbol\":\"é🌲 sample\",\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "3feafe46abe5a8f656422bb674ca8a18ec69a49c22cb04259ea1ee635bc77adb",
-    "discriminator": "unit:v1:v1"
+    "canonical": "{\"dimension\":\"é🌲 sample\",\"key\":\"é🌲 sample\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"unit\",\"symbol\":\"é🌲 sample\",\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "66a3fa6990ec41fc63ef37cbfdc3ed574acb4476e4f8abb89453a32bda4d938d"
   },
   {
     "name": "family:calendar",
     "value": {
-      "record_kind": "calendar",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
-      "unitStructure": {}
+      "unitStructure": {},
+      "record_kind": "calendar"
     },
     "canonical": "{\"key\":\"é🌲 sample\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"calendar\",\"unitStructure\":{}}",
-    "digest": "d06e6fc64cd004c03d1c59f85ca042e3a263e46986eff5a94b563e8331afb395",
-    "discriminator": "calendar:v1:v1"
+    "digest": "93a388a13c3f8f7b038f07d453a8eebe9c6df6f72c1fec4ce7a968054fc8e146"
   },
   {
     "name": "family:value_definition",
     "value": {
-      "record_kind": "value_definition",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
-      "fields": []
+      "fields": [],
+      "record_kind": "value_definition"
     },
     "canonical": "{\"fields\":[],\"key\":\"é🌲 sample\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"value_definition\"}",
-    "digest": "ecf5a7fc3823bc6bc63fff2e0ad4cb84470130878c5541ebadf88e5ff594b5dc",
-    "discriminator": "value_definition:v1:v1"
+    "digest": "df199a62f40a9306f26ad8e72f70d80447f2a5c003c760ca0ee168d7871ad057"
   },
   {
     "name": "family:domain_pack",
     "value": {
-      "record_kind": "domain_pack",
       "key": "é🌲 sample",
       "version": "é🌲 sample",
       "dependencies": {},
       "capabilities": [],
-      "records": []
+      "records": [],
+      "record_kind": "domain_pack"
     },
     "canonical": "{\"capabilities\":[],\"dependencies\":{},\"key\":\"é🌲 sample\",\"record_kind\":\"domain_pack\",\"records\":[],\"version\":\"é🌲 sample\"}",
-    "digest": "87daa15c410b2377b05dcb5054bcc41da5f3b7ce46c5e1dd8a6437b9ed812bda",
-    "discriminator": "domain_pack:v1:v1"
+    "digest": "2ad66ba7981746f555ac01cce3e863be98bd894fdf5e2ede1cbbde672ae3a4a6"
   },
   {
     "name": "family:proposition",
     "value": {
-      "record_kind": "proposition",
       "predicate": {
         "record": "rec_000000000000000000000001"
       },
@@ -270,16 +249,15 @@
       "quantification": "particular",
       "context": {
         "record": "rec_000000000000000000000001"
-      }
+      },
+      "record_kind": "proposition"
     },
     "canonical": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"predicate\":{\"record\":\"rec_000000000000000000000001\"},\"quantification\":\"particular\",\"record_kind\":\"proposition\",\"subject\":{\"record\":\"rec_000000000000000000000001\"}}",
-    "digest": "a12e2dcc913d1115d7e8dde651f9db95a02de67f655930e76af05ab5fa42b938",
-    "discriminator": "proposition:v1:v1"
+    "digest": "3de9b48e3517f12088510dfb5f9e8eed95c978e45117fe4df5b5ddbc541666e6"
   },
   {
     "name": "family:assertion",
     "value": {
-      "record_kind": "assertion",
       "proposition": {
         "record": "rec_000000000000000000000001"
       },
@@ -298,32 +276,31 @@
       "persistence": "explicit_interval",
       "precision": "exact",
       "basis": {
-        "kind": "author_decision",
-        "note": "é🌲 sample"
-      }
+        "note": "é🌲 sample",
+        "kind": "author_decision"
+      },
+      "record_kind": "assertion",
+      "attributeMode": "instance"
     },
-    "canonical": "{\"basis\":{\"kind\":\"author_decision\",\"note\":\"é🌲 sample\"},\"persistence\":\"explicit_interval\",\"polarity\":\"support\",\"precision\":\"exact\",\"proposition\":{\"record\":\"rec_000000000000000000000001\"},\"record_kind\":\"assertion\",\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "f543398dae635c14cc08110fe8547aff8718defb07f77fd373769f39334043b1",
-    "discriminator": "assertion:v1:v1"
+    "canonical": "{\"attributeMode\":\"instance\",\"basis\":{\"kind\":\"author_decision\",\"note\":\"é🌲 sample\"},\"persistence\":\"explicit_interval\",\"polarity\":\"support\",\"precision\":\"exact\",\"proposition\":{\"record\":\"rec_000000000000000000000001\"},\"record_kind\":\"assertion\",\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "854f4038bb72b11dd4f96e358b05924c4b879b8cb9827307dc8738497ccfa113"
   },
   {
     "name": "family:represented_context",
     "value": {
-      "record_kind": "represented_context",
       "universe": "unv_000000000000000000000001",
       "kind": {
         "kind": "objective"
       },
-      "labels": {}
+      "labels": {},
+      "record_kind": "represented_context"
     },
     "canonical": "{\"kind\":{\"kind\":\"objective\"},\"labels\":{},\"record_kind\":\"represented_context\",\"universe\":\"unv_000000000000000000000001\"}",
-    "digest": "a7091a1159b31f4277f346ec6e437aba107cc65130080013930bc1e231a0d574",
-    "discriminator": "represented_context:v1:v1"
+    "digest": "72453515587b258e9bfd4c02b1a0dcc230207e2defc85c5d7b17a894cf40ed67"
   },
   {
     "name": "family:completeness",
     "value": {
-      "record_kind": "completeness",
       "subject": {
         "record": "rec_000000000000000000000001"
       },
@@ -340,20 +317,19 @@
         "context": {
           "record": "rec_000000000000000000000001"
         }
-      }
+      },
+      "record_kind": "completeness"
     },
     "canonical": "{\"completeness\":\"objective_reality\",\"members\":[],\"predicate\":\"é🌲 sample\",\"record_kind\":\"completeness\",\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_000000000000000000000001\"}},\"subject\":{\"record\":\"rec_000000000000000000000001\"},\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "718bcde4fe5c20b1a6cd32f0fc845106fff133c4dab20ff3795d9e622126221f",
-    "discriminator": "completeness:v1:v1"
+    "digest": "28619b88abb440666e3c46fb565143ec174be31b50247c78a0e83c056eef8c8d"
   },
   {
     "name": "family:boundary",
     "value": {
-      "record_kind": "boundary",
       "key": "é🌲 sample",
       "area": {
-        "kind": "record",
-        "record": "rec_000000000000000000000001"
+        "record": "rec_000000000000000000000001",
+        "kind": "record"
       },
       "mode": "fixed",
       "validity": {
@@ -366,16 +342,15 @@
         "context": {
           "record": "rec_000000000000000000000001"
         }
-      }
+      },
+      "record_kind": "boundary"
     },
     "canonical": "{\"area\":{\"kind\":\"record\",\"record\":\"rec_000000000000000000000001\"},\"key\":\"é🌲 sample\",\"mode\":\"fixed\",\"record_kind\":\"boundary\",\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "c19ca4dc53c65b9fce1d2de9c3cf60fe49541b7c7808d61192487ad3626dea51",
-    "discriminator": "boundary:v1:v1"
+    "digest": "5b78401927506af6efe3f81458c0a1ef00a45f03abc42ab6254222ae9d9e9496"
   },
   {
     "name": "family:rule",
     "value": {
-      "record_kind": "rule",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
@@ -386,31 +361,30 @@
       },
       "targetPredicates": [],
       "expression": {
-        "kind": "no_opposing_evidence",
         "subject": {
-          "kind": "variable",
-          "name": "é🌲 sample"
+          "name": "é🌲 sample",
+          "kind": "variable"
         },
         "predicate": "é🌲 sample",
         "context": {
-          "kind": "variable",
-          "name": "é🌲 sample"
-        }
+          "name": "é🌲 sample",
+          "kind": "variable"
+        },
+        "kind": "no_opposing_evidence"
       },
       "capabilities": [],
       "executable": true,
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "rule"
     },
     "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"capabilities\":[],\"commitPolicy\":\"always_block\",\"executable\":true,\"expression\":{\"context\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"kind\":\"no_opposing_evidence\",\"predicate\":\"é🌲 sample\",\"subject\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"}},\"key\":\"é🌲 sample\",\"kind\":\"structural_invariant\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"rule\",\"targetPredicates\":[],\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "5e606539acc7b41ee023fda90ee8aacc7ecee73f5c5257fb70d8c19748f371f0",
-    "discriminator": "rule:v1:v1"
+    "digest": "7799b11db224d7e60d432aa7ecdd34517390d1aa710e223720e3ff9d74597a5a"
   },
   {
     "name": "family:exception",
     "value": {
-      "record_kind": "exception",
       "rule": {
         "record": "rec_000000000000000000000001"
       },
@@ -428,36 +402,31 @@
       "authorizingDecision": {
         "record": "rec_000000000000000000000001"
       },
-      "rationale": "é🌲 sample"
+      "rationale": "é🌲 sample",
+      "record_kind": "exception"
     },
     "canonical": "{\"authorizingDecision\":{\"record\":\"rec_000000000000000000000001\"},\"rationale\":\"é🌲 sample\",\"record_kind\":\"exception\",\"rule\":{\"record\":\"rec_000000000000000000000001\"},\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "cd1e848795ecf50faa58bf5bd80fe341e7145c5708d7e02e53eb1d2d4243ab6b",
-    "discriminator": "exception:v1:v1"
+    "digest": "70d5aad1f1cd359c15b07e5cd43da0758597a52f2274599534ebb026636ac69d"
   },
   {
     "name": "family:event",
     "value": {
-      "record_kind": "event",
       "occurrence": "occurred",
-      "worlds": [],
       "time": {
-        "kind": "exact",
         "calendar": "cal_000000000000000000000001",
-        "value": "é🌲 sample"
+        "value": "é🌲 sample",
+        "kind": "exact"
       },
       "participants": [],
-      "preconditions": [],
-      "effects": [],
-      "labels": {}
+      "labels": {},
+      "record_kind": "event"
     },
-    "canonical": "{\"effects\":[],\"labels\":{},\"occurrence\":\"occurred\",\"participants\":[],\"preconditions\":[],\"record_kind\":\"event\",\"time\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"é🌲 sample\"},\"worlds\":[]}",
-    "digest": "b385d2b7258c1381b3c31a7deaa6a8383a991c197b40a9aef15f19fea590c9e7",
-    "discriminator": "event:v1:v1"
+    "canonical": "{\"labels\":{},\"occurrence\":\"occurred\",\"participants\":[],\"record_kind\":\"event\",\"time\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"é🌲 sample\"}}",
+    "digest": "b65ca8a83d65ad7abe39b693958fafd009503ad9777e054e7427c94aa106dc3c"
   },
   {
     "name": "family:item_power",
     "value": {
-      "record_kind": "item_power",
       "item": {
         "record": "rec_000000000000000000000001"
       },
@@ -468,8 +437,8 @@
         "record": "rec_000000000000000000000001"
       },
       "value": {
-        "kind": "text",
-        "text": "é🌲 sample"
+        "text": "é🌲 sample",
+        "kind": "text"
       },
       "scope": {
         "applicability": {
@@ -481,16 +450,15 @@
       },
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "item_power"
     },
     "canonical": "{\"holderPredicate\":{\"record\":\"rec_000000000000000000000001\"},\"item\":{\"record\":\"rec_000000000000000000000001\"},\"powerPredicate\":{\"record\":\"rec_000000000000000000000001\"},\"record_kind\":\"item_power\",\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"},\"value\":{\"kind\":\"text\",\"text\":\"é🌲 sample\"}}",
-    "digest": "d6c2f0d400aa6b15721f079cbc96d95a634e8726a62ec7905815dc28f57b41c7",
-    "discriminator": "item_power:v1:v1"
+    "digest": "dea8d8773867df1633141180b751bd7b92df40e667106eb434bcff04ebb56889"
   },
   {
     "name": "family:action_definition",
     "value": {
-      "record_kind": "action_definition",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
@@ -505,16 +473,15 @@
       },
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "action_definition"
     },
     "canonical": "{\"key\":\"é🌲 sample\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"action_definition\",\"requirements\":[],\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "17f23344264455b3b3e671b3a9d532cd52087a2d429ffc03305a96e82a39cecf",
-    "discriminator": "action_definition:v1:v1"
+    "digest": "98713793c092239e53d608e5d847f26815d8bfafb98df8696c79271c0d71a8b3"
   },
   {
     "name": "family:epistemic_attitude",
     "value": {
-      "record_kind": "epistemic_attitude",
       "holder": {
         "record": "rec_000000000000000000000001"
       },
@@ -522,23 +489,21 @@
         "record": "rec_000000000000000000000001"
       },
       "attitude": "believes",
-      "certainty": null,
       "validity": {
         "kind": "unspecified"
       },
       "basis": {
-        "kind": "author_decision",
-        "note": "é🌲 sample"
-      }
+        "note": "é🌲 sample",
+        "kind": "author_decision"
+      },
+      "record_kind": "epistemic_attitude"
     },
-    "canonical": "{\"attitude\":\"believes\",\"basis\":{\"kind\":\"author_decision\",\"note\":\"é🌲 sample\"},\"certainty\":null,\"holder\":{\"record\":\"rec_000000000000000000000001\"},\"proposition\":{\"record\":\"rec_000000000000000000000001\"},\"record_kind\":\"epistemic_attitude\",\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "af502be994f326f560d84dd0391cfd4aeae87d7ce64696a1efe6d35d74907835",
-    "discriminator": "epistemic_attitude:v1:v1"
+    "canonical": "{\"attitude\":\"believes\",\"basis\":{\"kind\":\"author_decision\",\"note\":\"é🌲 sample\"},\"holder\":{\"record\":\"rec_000000000000000000000001\"},\"proposition\":{\"record\":\"rec_000000000000000000000001\"},\"record_kind\":\"epistemic_attitude\",\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "0f047f9f38304261e264ba6caabf4c0f136bf80fca1f31923b26b5722570e2d2"
   },
   {
     "name": "family:observation",
     "value": {
-      "record_kind": "observation",
       "observer": {
         "record": "rec_000000000000000000000001"
       },
@@ -547,133 +512,117 @@
       },
       "sensoryAccess": true,
       "time": {
-        "kind": "exact",
         "calendar": "cal_000000000000000000000001",
-        "value": "é🌲 sample"
+        "value": "é🌲 sample",
+        "kind": "exact"
       },
-      "interpretation": null,
       "basis": {
-        "kind": "author_decision",
-        "note": "é🌲 sample"
-      }
+        "note": "é🌲 sample",
+        "kind": "author_decision"
+      },
+      "record_kind": "observation"
     },
-    "canonical": "{\"basis\":{\"kind\":\"author_decision\",\"note\":\"é🌲 sample\"},\"interpretation\":null,\"observed\":{\"record\":\"rec_000000000000000000000001\"},\"observer\":{\"record\":\"rec_000000000000000000000001\"},\"record_kind\":\"observation\",\"sensoryAccess\":true,\"time\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"é🌲 sample\"}}",
-    "digest": "ff417b2c9cf96a04cec915d5b2979b84aaed132db368d19ba2bc610cc69e64a5",
-    "discriminator": "observation:v1:v1"
+    "canonical": "{\"basis\":{\"kind\":\"author_decision\",\"note\":\"é🌲 sample\"},\"observed\":{\"record\":\"rec_000000000000000000000001\"},\"observer\":{\"record\":\"rec_000000000000000000000001\"},\"record_kind\":\"observation\",\"sensoryAccess\":true,\"time\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"é🌲 sample\"}}",
+    "digest": "cbfc7621b2320b547a4f3e2452b43a5747fde9e2f58152f740ada60c4b59c76b"
   },
   {
     "name": "family:communication",
     "value": {
-      "record_kind": "communication",
       "sender": {
         "record": "rec_000000000000000000000001"
       },
       "intendedRecipients": [],
       "actualRecipients": [],
       "content": [],
-      "channel": null,
       "sentAt": {
-        "kind": "exact",
         "calendar": "cal_000000000000000000000001",
-        "value": "é🌲 sample"
+        "value": "é🌲 sample",
+        "kind": "exact"
       },
-      "receivedAt": null,
-      "distorted": true
+      "distorted": true,
+      "record_kind": "communication"
     },
-    "canonical": "{\"actualRecipients\":[],\"channel\":null,\"content\":[],\"distorted\":true,\"intendedRecipients\":[],\"receivedAt\":null,\"record_kind\":\"communication\",\"sender\":{\"record\":\"rec_000000000000000000000001\"},\"sentAt\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"é🌲 sample\"}}",
-    "digest": "36e8583465df8fcc7984c11db388b567ed040bf717475f50591dd79f3abac9ff",
-    "discriminator": "communication:v1:v1"
+    "canonical": "{\"actualRecipients\":[],\"content\":[],\"distorted\":true,\"intendedRecipients\":[],\"record_kind\":\"communication\",\"sender\":{\"record\":\"rec_000000000000000000000001\"},\"sentAt\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"é🌲 sample\"}}",
+    "digest": "d7d2ea4341fc5c728449f2324e0f633322031556b0352d0eb2cb35b80e606127"
   },
   {
     "name": "family:memory",
     "value": {
-      "record_kind": "memory",
       "holder": {
         "record": "rec_000000000000000000000001"
       },
       "content": {
         "record": "rec_000000000000000000000001"
       },
-      "alleged": null,
       "accessibility": "é🌲 sample",
       "altered": true,
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "memory"
     },
-    "canonical": "{\"accessibility\":\"é🌲 sample\",\"alleged\":null,\"altered\":true,\"content\":{\"record\":\"rec_000000000000000000000001\"},\"holder\":{\"record\":\"rec_000000000000000000000001\"},\"record_kind\":\"memory\",\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "5f4fda51ee810e8569b864cb44ecd3e796ac6b2e995ed587c862ce8b3690d0ac",
-    "discriminator": "memory:v1:v1"
+    "canonical": "{\"accessibility\":\"é🌲 sample\",\"altered\":true,\"content\":{\"record\":\"rec_000000000000000000000001\"},\"holder\":{\"record\":\"rec_000000000000000000000001\"},\"record_kind\":\"memory\",\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "d028ffb5609cdd89dd8d3e7861fb10349dca38a9a13f9ca4d8fa5faa30faa064"
   },
   {
     "name": "family:secret",
     "value": {
-      "record_kind": "secret",
       "scope": [],
       "fictionalKnowers": [],
       "readerDisclosed": true,
-      "concealment": null,
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "secret"
     },
-    "canonical": "{\"concealment\":null,\"fictionalKnowers\":[],\"readerDisclosed\":true,\"record_kind\":\"secret\",\"scope\":[],\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "33854c740e30444b69cc5718cc6dad8976f80affaa2e135adcb891fd54580819",
-    "discriminator": "secret:v1:v1"
+    "canonical": "{\"fictionalKnowers\":[],\"readerDisclosed\":true,\"record_kind\":\"secret\",\"scope\":[],\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "5bbec9153b4fc0a017ccf3685b7288ff54d9300345dfeda8ac74ea85c4308b11"
   },
   {
     "name": "family:goal",
     "value": {
-      "record_kind": "goal",
       "actor": {
         "record": "rec_000000000000000000000001"
       },
-      "desired": null,
       "prerequisites": [],
       "steps": [],
       "status": "active",
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "goal"
     },
-    "canonical": "{\"actor\":{\"record\":\"rec_000000000000000000000001\"},\"desired\":null,\"prerequisites\":[],\"record_kind\":\"goal\",\"status\":\"active\",\"steps\":[],\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "a488f9720d90939beb8a80c952019b88b9ee3e047dba738c1d85731f0e6071d6",
-    "discriminator": "goal:v1:v1"
+    "canonical": "{\"actor\":{\"record\":\"rec_000000000000000000000001\"},\"prerequisites\":[],\"record_kind\":\"goal\",\"status\":\"active\",\"steps\":[],\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "94217f851d69089dd904fe124f4128107691463db22696f081c1cb0590736573"
   },
   {
     "name": "family:commitment",
     "value": {
-      "record_kind": "commitment",
       "parties": [],
       "obligated": {
         "record": "rec_000000000000000000000001"
       },
       "conditions": [],
-      "deadline": null,
-      "status": "unfulfilled"
+      "status": "unfulfilled",
+      "record_kind": "commitment"
     },
-    "canonical": "{\"conditions\":[],\"deadline\":null,\"obligated\":{\"record\":\"rec_000000000000000000000001\"},\"parties\":[],\"record_kind\":\"commitment\",\"status\":\"unfulfilled\"}",
-    "digest": "c1993dd67383af5841a353deedae2f3846fad7b2962f4b70cd304348c03238d7",
-    "discriminator": "commitment:v1:v1"
+    "canonical": "{\"conditions\":[],\"obligated\":{\"record\":\"rec_000000000000000000000001\"},\"parties\":[],\"record_kind\":\"commitment\",\"status\":\"unfulfilled\"}",
+    "digest": "27d153d9c513f9a1c25c5798c0f07cbf23a1bfe4352045cb90fdc7313e7f3bbe"
   },
   {
     "name": "family:source",
     "value": {
-      "record_kind": "source",
       "label": "é🌲 sample",
-      "origin": {
-        "originNote": null
-      },
-      "versions": []
+      "origin": {},
+      "versions": [],
+      "record_kind": "source"
     },
-    "canonical": "{\"label\":\"é🌲 sample\",\"origin\":{\"originNote\":null},\"record_kind\":\"source\",\"versions\":[]}",
-    "digest": "46dce6922eab354bce8170d422f55185bc3bf4703b0d42da21089711adf0f6a1",
-    "discriminator": "source:v1:v1"
+    "canonical": "{\"label\":\"é🌲 sample\",\"origin\":{},\"record_kind\":\"source\",\"versions\":[]}",
+    "digest": "d96e0034ed23af8620703f0f1e3c5e36d85512fcae34531b3a81a51559d4d052"
   },
   {
     "name": "family:source_version",
     "value": {
-      "record_kind": "source_version",
       "source": {
         "record": "rec_000000000000000000000001"
       },
@@ -687,388 +636,382 @@
         "representation": "é🌲 sample",
         "byteLength": 1
       },
-      "origin": {
-        "originNote": null
-      }
+      "origin": {},
+      "record_kind": "source_version"
     },
-    "canonical": "{\"byteSize\":1,\"decoding\":{\"byteLength\":1,\"encoding\":\"é🌲 sample\",\"representation\":\"é🌲 sample\"},\"digest\":\"é🌲 sample\",\"importActor\":\"prn_000000000000000000000001\",\"importTime\":\"é🌲 sample\",\"mediaType\":\"é🌲 sample\",\"origin\":{\"originNote\":null},\"record_kind\":\"source_version\",\"source\":{\"record\":\"rec_000000000000000000000001\"}}",
-    "digest": "01a9af9933b88729ccc1008a1048e31221ef67bd3269746fba4a7c12fc49a359",
-    "discriminator": "source_version:v1:v1"
+    "canonical": "{\"byteSize\":1,\"decoding\":{\"byteLength\":1,\"encoding\":\"é🌲 sample\",\"representation\":\"é🌲 sample\"},\"digest\":\"é🌲 sample\",\"importActor\":\"prn_000000000000000000000001\",\"importTime\":\"é🌲 sample\",\"mediaType\":\"é🌲 sample\",\"origin\":{},\"record_kind\":\"source_version\",\"source\":{\"record\":\"rec_000000000000000000000001\"}}",
+    "digest": "66c3d4e1db936e0ff872c8e63d6ee8f9aa1d29ed88c2e6b6f96d5a39e9c0da26"
   },
   {
     "name": "family:anchor",
     "value": {
-      "record_kind": "anchor",
       "sourceVersion": {
         "record": "rec_000000000000000000000001",
         "version": "ver_000000000000000000000001"
       },
       "locator": {
-        "kind": "byte_range",
         "start": 1,
-        "end": 1
+        "end": 1,
+        "kind": "byte_range"
       },
       "excerptDigest": "é🌲 sample",
       "excerpt": "é🌲 sample",
-      "context": null
+      "record_kind": "anchor"
     },
-    "canonical": "{\"context\":null,\"excerpt\":\"é🌲 sample\",\"excerptDigest\":\"é🌲 sample\",\"locator\":{\"end\":1,\"kind\":\"byte_range\",\"start\":1},\"record_kind\":\"anchor\",\"sourceVersion\":{\"record\":\"rec_000000000000000000000001\",\"version\":\"ver_000000000000000000000001\"}}",
-    "digest": "d885b3724519251db5b71e412cdbf690c34ce31aed6207eb4d96a2426b33b03c",
-    "discriminator": "anchor:v1:v1"
+    "canonical": "{\"excerpt\":\"é🌲 sample\",\"excerptDigest\":\"é🌲 sample\",\"locator\":{\"end\":1,\"kind\":\"byte_range\",\"start\":1},\"record_kind\":\"anchor\",\"sourceVersion\":{\"record\":\"rec_000000000000000000000001\",\"version\":\"ver_000000000000000000000001\"}}",
+    "digest": "e69c1e1789c6ee28937c2769d1d11b9d67cfdafc9aae5aa8e37145b644666552"
   },
   {
     "name": "family:issue_decision",
     "value": {
-      "record_kind": "issue_decision",
       "fingerprints": [],
       "mode": "accept",
       "scope": "é🌲 sample",
       "rationale": "é🌲 sample",
-      "principal": "prn_000000000000000000000001"
+      "principal": "prn_000000000000000000000001",
+      "record_kind": "issue_decision"
     },
     "canonical": "{\"fingerprints\":[],\"mode\":\"accept\",\"principal\":\"prn_000000000000000000000001\",\"rationale\":\"é🌲 sample\",\"record_kind\":\"issue_decision\",\"scope\":\"é🌲 sample\"}",
-    "digest": "ebbe1233141436a61bdcd65dc7a8fc43c94fcd22918cd359f7f1564268a3ec6b",
-    "discriminator": "issue_decision:v1:v1"
+    "digest": "27f7c75ab4de2c7d06c9a33753cdf88fa9d9aef0f8df25478a3fb96978d7cab2"
   },
   {
     "name": "value:0",
     "value": {
-      "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
       "metadata": {
         "specimen": {
-          "kind": "text",
-          "text": "é🌲 sample"
+          "text": "é🌲 sample",
+          "kind": "text"
         }
-      }
+      },
+      "record_kind": "entity",
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{\"specimen\":{\"kind\":\"text\",\"text\":\"é🌲 sample\"}},\"names\":[],\"record_kind\":\"entity\",\"types\":[],\"worldAssociations\":[]}",
-    "digest": "42bb970090aef98bbb8a471c8ab8cfbb75038dd2a62138c1a85da8dd4ce07991",
-    "discriminator": "entity:v1:v1"
+    "canonical": "{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{\"specimen\":{\"kind\":\"text\",\"text\":\"é🌲 sample\"}},\"names\":[],\"record_kind\":\"entity\",\"worldAssociations\":[]}",
+    "digest": "b662530ae3666bc9e6cc45a70fbdf3a9f9d61db8b6aa64e8113364841a879600"
   },
   {
     "name": "value:1",
     "value": {
-      "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
       "metadata": {
         "specimen": {
-          "kind": "boolean",
-          "value": true
+          "value": true,
+          "kind": "boolean"
         }
-      }
+      },
+      "record_kind": "entity",
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{\"specimen\":{\"kind\":\"boolean\",\"value\":true}},\"names\":[],\"record_kind\":\"entity\",\"types\":[],\"worldAssociations\":[]}",
-    "digest": "183b06cd1d64022fffdbd1c38ebca022c2761eb1d93e3cfd771ea0ef800727cd",
-    "discriminator": "entity:v1:v1"
+    "canonical": "{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{\"specimen\":{\"kind\":\"boolean\",\"value\":true}},\"names\":[],\"record_kind\":\"entity\",\"worldAssociations\":[]}",
+    "digest": "4093f72b70b59340984ac2541efd59184d5cc56e6a169ab7c1a6e0c77c9a8a2d"
   },
   {
     "name": "value:2",
     "value": {
-      "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
       "metadata": {
         "specimen": {
-          "kind": "integer",
-          "digits": "1"
+          "digits": "1",
+          "kind": "integer"
         }
-      }
+      },
+      "record_kind": "entity",
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{\"specimen\":{\"digits\":\"1\",\"kind\":\"integer\"}},\"names\":[],\"record_kind\":\"entity\",\"types\":[],\"worldAssociations\":[]}",
-    "digest": "ed2956111277f5a21e5fe0876e9830b08c6667961f5fcccc6d613ac1374e6813",
-    "discriminator": "entity:v1:v1"
+    "canonical": "{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{\"specimen\":{\"digits\":\"1\",\"kind\":\"integer\"}},\"names\":[],\"record_kind\":\"entity\",\"worldAssociations\":[]}",
+    "digest": "6cb40d48f84dcbed07881cb3e9a44296d4079ea083442df4b6716dc6893876fc"
   },
   {
     "name": "value:3",
     "value": {
-      "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
       "metadata": {
         "specimen": {
-          "kind": "decimal",
-          "digits": "1"
+          "digits": "1",
+          "kind": "decimal"
         }
-      }
+      },
+      "record_kind": "entity",
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{\"specimen\":{\"digits\":\"1\",\"kind\":\"decimal\"}},\"names\":[],\"record_kind\":\"entity\",\"types\":[],\"worldAssociations\":[]}",
-    "digest": "15305d7e86ffb2bce240d0afc4951b0f9c826d8d0c81b42b6525680cd26707a4",
-    "discriminator": "entity:v1:v1"
+    "canonical": "{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{\"specimen\":{\"digits\":\"1\",\"kind\":\"decimal\"}},\"names\":[],\"record_kind\":\"entity\",\"worldAssociations\":[]}",
+    "digest": "de1521b9e6ce33dc6f9a227a2a79bd9ef32556fa693884613575ea93fd9e087d"
   },
   {
     "name": "value:4",
     "value": {
-      "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
       "metadata": {
         "specimen": {
-          "kind": "rational",
           "numerator": "1",
-          "denominator": "1"
+          "denominator": "1",
+          "kind": "rational"
         }
-      }
+      },
+      "record_kind": "entity",
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{\"specimen\":{\"denominator\":\"1\",\"kind\":\"rational\",\"numerator\":\"1\"}},\"names\":[],\"record_kind\":\"entity\",\"types\":[],\"worldAssociations\":[]}",
-    "digest": "f49cf7910acd83d8e3e99aa8f74f36c9f4f8fb5f6b040bd4d5fd88ee17f7127f",
-    "discriminator": "entity:v1:v1"
+    "canonical": "{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{\"specimen\":{\"denominator\":\"1\",\"kind\":\"rational\",\"numerator\":\"1\"}},\"names\":[],\"record_kind\":\"entity\",\"worldAssociations\":[]}",
+    "digest": "0ed4d2319abef2c7d26bf30772f8c112dd24f9930431b17b20cac1eb2610fc46"
   },
   {
     "name": "value:5",
     "value": {
-      "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
       "metadata": {
         "specimen": {
-          "kind": "quantity",
           "value": {
-            "kind": "text",
-            "text": "é🌲 sample"
+            "text": "é🌲 sample",
+            "kind": "text"
           },
-          "unit": "unit_000000000000000000000001"
+          "unit": "unit_000000000000000000000001",
+          "kind": "quantity"
         }
-      }
+      },
+      "record_kind": "entity",
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{\"specimen\":{\"kind\":\"quantity\",\"unit\":\"unit_000000000000000000000001\",\"value\":{\"kind\":\"text\",\"text\":\"é🌲 sample\"}}},\"names\":[],\"record_kind\":\"entity\",\"types\":[],\"worldAssociations\":[]}",
-    "digest": "29fd9fa78234dd54a4216954c3ee2666739674831a4e54bda3b41d7e9fc0b372",
-    "discriminator": "entity:v1:v1"
+    "canonical": "{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{\"specimen\":{\"kind\":\"quantity\",\"unit\":\"unit_000000000000000000000001\",\"value\":{\"kind\":\"text\",\"text\":\"é🌲 sample\"}}},\"names\":[],\"record_kind\":\"entity\",\"worldAssociations\":[]}",
+    "digest": "00cb256fdcc015f4a991c950a573878c6a16787167fa7a0720773a75d40719ec"
   },
   {
     "name": "value:6",
     "value": {
-      "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
       "metadata": {
         "specimen": {
-          "kind": "range",
           "lower": {
-            "kind": "text",
-            "text": "é🌲 sample"
+            "text": "é🌲 sample",
+            "kind": "text"
           },
           "upper": {
-            "kind": "text",
-            "text": "é🌲 sample"
+            "text": "é🌲 sample",
+            "kind": "text"
           },
           "lower_inclusive": true,
-          "upper_inclusive": true
+          "upper_inclusive": true,
+          "kind": "range"
         }
-      }
+      },
+      "record_kind": "entity",
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{\"specimen\":{\"kind\":\"range\",\"lower\":{\"kind\":\"text\",\"text\":\"é🌲 sample\"},\"lower_inclusive\":true,\"upper\":{\"kind\":\"text\",\"text\":\"é🌲 sample\"},\"upper_inclusive\":true}},\"names\":[],\"record_kind\":\"entity\",\"types\":[],\"worldAssociations\":[]}",
-    "digest": "9345c1f48b393180d1f3971bcc494baeca435518595c799cd8f3d40e61b6b37d",
-    "discriminator": "entity:v1:v1"
+    "canonical": "{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{\"specimen\":{\"kind\":\"range\",\"lower\":{\"kind\":\"text\",\"text\":\"é🌲 sample\"},\"lower_inclusive\":true,\"upper\":{\"kind\":\"text\",\"text\":\"é🌲 sample\"},\"upper_inclusive\":true}},\"names\":[],\"record_kind\":\"entity\",\"worldAssociations\":[]}",
+    "digest": "bb0bf9de15abdccdb0f869eb00f462767f264525e182cb26465b35553347a88c"
   },
   {
     "name": "value:7",
     "value": {
-      "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
       "metadata": {
         "specimen": {
-          "kind": "entity_ref",
           "ref": {
             "record": "rec_000000000000000000000001"
-          }
+          },
+          "kind": "entity_ref"
         }
-      }
+      },
+      "record_kind": "entity",
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{\"specimen\":{\"kind\":\"entity_ref\",\"ref\":{\"record\":\"rec_000000000000000000000001\"}}},\"names\":[],\"record_kind\":\"entity\",\"types\":[],\"worldAssociations\":[]}",
-    "digest": "36633fb2f859efccf004753fbdc1013b23625f27224332f930a4ed24d97eef17",
-    "discriminator": "entity:v1:v1"
+    "canonical": "{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{\"specimen\":{\"kind\":\"entity_ref\",\"ref\":{\"record\":\"rec_000000000000000000000001\"}}},\"names\":[],\"record_kind\":\"entity\",\"worldAssociations\":[]}",
+    "digest": "c69986d28e07565580c95a0a715fc13dbb90722a25bd028b9d3b2adb103c17d4"
   },
   {
     "name": "value:8",
     "value": {
-      "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
       "metadata": {
         "specimen": {
-          "kind": "record_ref",
           "ref": {
             "record": "rec_000000000000000000000001"
-          }
+          },
+          "kind": "record_ref"
         }
-      }
+      },
+      "record_kind": "entity",
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{\"specimen\":{\"kind\":\"record_ref\",\"ref\":{\"record\":\"rec_000000000000000000000001\"}}},\"names\":[],\"record_kind\":\"entity\",\"types\":[],\"worldAssociations\":[]}",
-    "digest": "a1369b236b6122384a2213fbed140c8e0145295f60893790ad74479f0ffb4d27",
-    "discriminator": "entity:v1:v1"
+    "canonical": "{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{\"specimen\":{\"kind\":\"record_ref\",\"ref\":{\"record\":\"rec_000000000000000000000001\"}}},\"names\":[],\"record_kind\":\"entity\",\"worldAssociations\":[]}",
+    "digest": "ca21dcc50248d301986546fb589fb0b1fcbb3d8d7e2bde4b3a5cb165082d20cb"
   },
   {
     "name": "value:9",
     "value": {
-      "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
       "metadata": {
         "specimen": {
-          "kind": "proposition_ref",
           "ref": {
             "record": "rec_000000000000000000000001"
-          }
+          },
+          "kind": "proposition_ref"
         }
-      }
+      },
+      "record_kind": "entity",
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{\"specimen\":{\"kind\":\"proposition_ref\",\"ref\":{\"record\":\"rec_000000000000000000000001\"}}},\"names\":[],\"record_kind\":\"entity\",\"types\":[],\"worldAssociations\":[]}",
-    "digest": "2ac35580f2dcfe450ab23a41fe158a901c093fe3d7fe967852e0b281df54103d",
-    "discriminator": "entity:v1:v1"
+    "canonical": "{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{\"specimen\":{\"kind\":\"proposition_ref\",\"ref\":{\"record\":\"rec_000000000000000000000001\"}}},\"names\":[],\"record_kind\":\"entity\",\"worldAssociations\":[]}",
+    "digest": "05a93897e6ca4deb3abc100723a9c365c4d730fbd23b29eaf8e6a9f6f27efa9f"
   },
   {
     "name": "value:10",
     "value": {
-      "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
       "metadata": {
         "specimen": {
-          "kind": "temporal",
           "temporal": {
-            "kind": "exact",
             "calendar": "cal_000000000000000000000001",
-            "value": "é🌲 sample"
-          }
+            "value": "é🌲 sample",
+            "kind": "exact"
+          },
+          "kind": "temporal"
         }
-      }
+      },
+      "record_kind": "entity",
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{\"specimen\":{\"kind\":\"temporal\",\"temporal\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"é🌲 sample\"}}},\"names\":[],\"record_kind\":\"entity\",\"types\":[],\"worldAssociations\":[]}",
-    "digest": "bfde9980b9a12554bdb078030f4e1dacc437b04be704573756fdbbc779800a4f",
-    "discriminator": "entity:v1:v1"
+    "canonical": "{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{\"specimen\":{\"kind\":\"temporal\",\"temporal\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"é🌲 sample\"}}},\"names\":[],\"record_kind\":\"entity\",\"worldAssociations\":[]}",
+    "digest": "eec8c3fd592563f385bf99eee77d716dfdb7392c1bf6b263d123440f851ad1da"
   },
   {
     "name": "value:11",
     "value": {
-      "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
       "metadata": {
         "specimen": {
-          "kind": "spatial",
           "spatial": {
-            "kind": "contained_in",
             "target": {
               "record": "rec_000000000000000000000001"
-            }
-          }
+            },
+            "kind": "contained_in"
+          },
+          "kind": "spatial"
         }
-      }
+      },
+      "record_kind": "entity",
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{\"specimen\":{\"kind\":\"spatial\",\"spatial\":{\"kind\":\"contained_in\",\"target\":{\"record\":\"rec_000000000000000000000001\"}}}},\"names\":[],\"record_kind\":\"entity\",\"types\":[],\"worldAssociations\":[]}",
-    "digest": "7fbbaa48f8bc599594d3bf89336ef08d9886856a20b4b5cd0303205cab4c8f5c",
-    "discriminator": "entity:v1:v1"
+    "canonical": "{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{\"specimen\":{\"kind\":\"spatial\",\"spatial\":{\"kind\":\"contained_in\",\"target\":{\"record\":\"rec_000000000000000000000001\"}}}},\"names\":[],\"record_kind\":\"entity\",\"worldAssociations\":[]}",
+    "digest": "dc42525483efdb25413b9a6af3c806d7b1c4aac947938261d3adae24f328756e"
   },
   {
     "name": "value:12",
     "value": {
-      "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
       "metadata": {
         "specimen": {
-          "kind": "enum",
           "definition": "vdef_000000000000000000000001",
-          "key": "é🌲 sample"
+          "key": "é🌲 sample",
+          "kind": "enum"
         }
-      }
+      },
+      "record_kind": "entity",
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{\"specimen\":{\"definition\":\"vdef_000000000000000000000001\",\"key\":\"é🌲 sample\",\"kind\":\"enum\"}},\"names\":[],\"record_kind\":\"entity\",\"types\":[],\"worldAssociations\":[]}",
-    "digest": "18ff5180779274cdc0d18a9f5356f3b23689bf3df1bfce76a2b2b17a27832ae1",
-    "discriminator": "entity:v1:v1"
+    "canonical": "{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{\"specimen\":{\"definition\":\"vdef_000000000000000000000001\",\"key\":\"é🌲 sample\",\"kind\":\"enum\"}},\"names\":[],\"record_kind\":\"entity\",\"worldAssociations\":[]}",
+    "digest": "d2a112023efe1a376338076f4fce117c84fbf27c34c872eff494128a209dc85d"
   },
   {
     "name": "value:13",
     "value": {
-      "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
       "metadata": {
         "specimen": {
-          "kind": "sequence",
-          "items": []
+          "items": [],
+          "kind": "sequence"
         }
-      }
+      },
+      "record_kind": "entity",
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{\"specimen\":{\"items\":[],\"kind\":\"sequence\"}},\"names\":[],\"record_kind\":\"entity\",\"types\":[],\"worldAssociations\":[]}",
-    "digest": "3e3c0f42c8d9b99d862c26a543a715e6170bbffbcea6a51ab811d333b6db27a4",
-    "discriminator": "entity:v1:v1"
+    "canonical": "{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{\"specimen\":{\"items\":[],\"kind\":\"sequence\"}},\"names\":[],\"record_kind\":\"entity\",\"worldAssociations\":[]}",
+    "digest": "6d4f98413b6a4cfa786611676e2f4f1958792912c80156df4dea04e9eca2774b"
   },
   {
     "name": "value:14",
     "value": {
-      "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
       "metadata": {
         "specimen": {
-          "kind": "set",
-          "items": []
+          "items": [],
+          "kind": "set"
         }
-      }
+      },
+      "record_kind": "entity",
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{\"specimen\":{\"items\":[],\"kind\":\"set\"}},\"names\":[],\"record_kind\":\"entity\",\"types\":[],\"worldAssociations\":[]}",
-    "digest": "c4e70ed32e43fadc5d428d2c0067e175c3b74f1f31dde1357fbb2509f99cdd91",
-    "discriminator": "entity:v1:v1"
+    "canonical": "{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{\"specimen\":{\"items\":[],\"kind\":\"set\"}},\"names\":[],\"record_kind\":\"entity\",\"worldAssociations\":[]}",
+    "digest": "275f7a6bfbb9ffe6a557ba9761f226422ef58c2f41ef26e839fe564a3b778d6b"
   },
   {
     "name": "value:15",
     "value": {
-      "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
       "metadata": {
         "specimen": {
-          "kind": "structured",
           "definition": "vdef_000000000000000000000001",
-          "fields": {}
+          "fields": {},
+          "kind": "structured"
         }
-      }
+      },
+      "record_kind": "entity",
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{\"specimen\":{\"definition\":\"vdef_000000000000000000000001\",\"fields\":{},\"kind\":\"structured\"}},\"names\":[],\"record_kind\":\"entity\",\"types\":[],\"worldAssociations\":[]}",
-    "digest": "7a25282ab39db8b26fc4461cf38518c45c169ff32a3f1eaa1719652519d08ddd",
-    "discriminator": "entity:v1:v1"
+    "canonical": "{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{\"specimen\":{\"definition\":\"vdef_000000000000000000000001\",\"fields\":{},\"kind\":\"structured\"}},\"names\":[],\"record_kind\":\"entity\",\"worldAssociations\":[]}",
+    "digest": "68bd3b04ef898cdf53632bc47c43b8bc5bd8e0f08dffa0da73b1abcf5641b5d6"
   },
   {
     "name": "expression:0",
     "value": {
-      "record_kind": "rule",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
@@ -1079,31 +1022,30 @@
       },
       "targetPredicates": [],
       "expression": {
-        "kind": "no_opposing_evidence",
         "subject": {
-          "kind": "variable",
-          "name": "é🌲 sample"
+          "name": "é🌲 sample",
+          "kind": "variable"
         },
         "predicate": "é🌲 sample",
         "context": {
-          "kind": "variable",
-          "name": "é🌲 sample"
-        }
+          "name": "é🌲 sample",
+          "kind": "variable"
+        },
+        "kind": "no_opposing_evidence"
       },
       "capabilities": [],
       "executable": true,
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "rule"
     },
     "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"capabilities\":[],\"commitPolicy\":\"always_block\",\"executable\":true,\"expression\":{\"context\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"kind\":\"no_opposing_evidence\",\"predicate\":\"é🌲 sample\",\"subject\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"}},\"key\":\"é🌲 sample\",\"kind\":\"structural_invariant\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"rule\",\"targetPredicates\":[],\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "5e606539acc7b41ee023fda90ee8aacc7ecee73f5c5257fb70d8c19748f371f0",
-    "discriminator": "rule:v1:v1"
+    "digest": "7799b11db224d7e60d432aa7ecdd34517390d1aa710e223720e3ff9d74597a5a"
   },
   {
     "name": "expression:1",
     "value": {
-      "record_kind": "rule",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
@@ -1114,29 +1056,28 @@
       },
       "targetPredicates": [],
       "expression": {
-        "kind": "attitude",
         "holder": {
           "record": "rec_000000000000000000000001"
         },
         "proposition": {
           "record": "rec_000000000000000000000001"
         },
-        "attitude": "believes"
+        "attitude": "believes",
+        "kind": "attitude"
       },
       "capabilities": [],
       "executable": true,
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "rule"
     },
     "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"capabilities\":[],\"commitPolicy\":\"always_block\",\"executable\":true,\"expression\":{\"attitude\":\"believes\",\"holder\":{\"record\":\"rec_000000000000000000000001\"},\"kind\":\"attitude\",\"proposition\":{\"record\":\"rec_000000000000000000000001\"}},\"key\":\"é🌲 sample\",\"kind\":\"structural_invariant\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"rule\",\"targetPredicates\":[],\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "241ce1cc9610372c4761941a0517653411b0e339ac4e2beec7b2bbcaa29f9da2",
-    "discriminator": "rule:v1:v1"
+    "digest": "e69b2fdbec6418eed47c1ee9647151dcc8846af34af3d7aba24b41684213262a"
   },
   {
     "name": "expression:2",
     "value": {
-      "record_kind": "rule",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
@@ -1147,23 +1088,22 @@
       },
       "targetPredicates": [],
       "expression": {
-        "kind": "lit",
-        "value": true
+        "value": true,
+        "kind": "lit"
       },
       "capabilities": [],
       "executable": true,
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "rule"
     },
     "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"capabilities\":[],\"commitPolicy\":\"always_block\",\"executable\":true,\"expression\":{\"kind\":\"lit\",\"value\":true},\"key\":\"é🌲 sample\",\"kind\":\"structural_invariant\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"rule\",\"targetPredicates\":[],\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "4dccd98713009060c8629940771f8e6054599c16f7ad4d7152302f531b1f8be1",
-    "discriminator": "rule:v1:v1"
+    "digest": "ba73dc8ee8243ac5ac73d067d1733916dbd662c30f5aba1e68b06160674750d9"
   },
   {
     "name": "expression:3",
     "value": {
-      "record_kind": "rule",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
@@ -1174,34 +1114,33 @@
       },
       "targetPredicates": [],
       "expression": {
-        "kind": "not",
         "expr": {
-          "kind": "no_opposing_evidence",
           "subject": {
-            "kind": "variable",
-            "name": "é🌲 sample"
+            "name": "é🌲 sample",
+            "kind": "variable"
           },
           "predicate": "é🌲 sample",
           "context": {
-            "kind": "variable",
-            "name": "é🌲 sample"
-          }
-        }
+            "name": "é🌲 sample",
+            "kind": "variable"
+          },
+          "kind": "no_opposing_evidence"
+        },
+        "kind": "not"
       },
       "capabilities": [],
       "executable": true,
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "rule"
     },
     "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"capabilities\":[],\"commitPolicy\":\"always_block\",\"executable\":true,\"expression\":{\"expr\":{\"context\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"kind\":\"no_opposing_evidence\",\"predicate\":\"é🌲 sample\",\"subject\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"}},\"kind\":\"not\"},\"key\":\"é🌲 sample\",\"kind\":\"structural_invariant\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"rule\",\"targetPredicates\":[],\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "c97cbc706a2606d97c5b7f204ca9b8825213ce1a7541c10c5edef1286143f4bf",
-    "discriminator": "rule:v1:v1"
+    "digest": "28774e145c2e28c21f5ba6e62e98c5c29e52fbb5c0a4113741e5a60683879722"
   },
   {
     "name": "expression:4",
     "value": {
-      "record_kind": "rule",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
@@ -1212,23 +1151,22 @@
       },
       "targetPredicates": [],
       "expression": {
-        "kind": "all",
-        "exprs": []
+        "exprs": [],
+        "kind": "all"
       },
       "capabilities": [],
       "executable": true,
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "rule"
     },
     "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"capabilities\":[],\"commitPolicy\":\"always_block\",\"executable\":true,\"expression\":{\"exprs\":[],\"kind\":\"all\"},\"key\":\"é🌲 sample\",\"kind\":\"structural_invariant\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"rule\",\"targetPredicates\":[],\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "bcd7edb4803cbc324633443d24a634b05138c91704e771e26d89bbf1bded5993",
-    "discriminator": "rule:v1:v1"
+    "digest": "7e770542f5aff45ddf5798eb40131edbe888263cb65398946ee75be1da18eebe"
   },
   {
     "name": "expression:5",
     "value": {
-      "record_kind": "rule",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
@@ -1239,23 +1177,22 @@
       },
       "targetPredicates": [],
       "expression": {
-        "kind": "any",
-        "exprs": []
+        "exprs": [],
+        "kind": "any"
       },
       "capabilities": [],
       "executable": true,
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "rule"
     },
     "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"capabilities\":[],\"commitPolicy\":\"always_block\",\"executable\":true,\"expression\":{\"exprs\":[],\"kind\":\"any\"},\"key\":\"é🌲 sample\",\"kind\":\"structural_invariant\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"rule\",\"targetPredicates\":[],\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "9028b672c7188179bdb87ac7856e2132af0f3c32d972bf3eec49b0596c7fbb5a",
-    "discriminator": "rule:v1:v1"
+    "digest": "9db33c6498dc6e0289fadd73d3c31965fb15fb5e32e166622a066d199e795d94"
   },
   {
     "name": "expression:6",
     "value": {
-      "record_kind": "rule",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
@@ -1266,28 +1203,27 @@
       },
       "targetPredicates": [],
       "expression": {
-        "kind": "claim",
         "subject": {
-          "kind": "variable",
-          "name": "é🌲 sample"
+          "name": "é🌲 sample",
+          "kind": "variable"
         },
         "predicate": "é🌲 sample",
-        "polarity": "support"
+        "polarity": "support",
+        "kind": "claim"
       },
       "capabilities": [],
       "executable": true,
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "rule"
     },
     "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"capabilities\":[],\"commitPolicy\":\"always_block\",\"executable\":true,\"expression\":{\"kind\":\"claim\",\"polarity\":\"support\",\"predicate\":\"é🌲 sample\",\"subject\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"}},\"key\":\"é🌲 sample\",\"kind\":\"structural_invariant\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"rule\",\"targetPredicates\":[],\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "3239f8e7b0553962e730bba8d1d1b497bd520479102f04ff74708cafbb1eb82a",
-    "discriminator": "rule:v1:v1"
+    "digest": "098ce4b2177bc63d80d316dde635b714adb3c675b17b4a4631104cc986ef5c89"
   },
   {
     "name": "expression:7",
     "value": {
-      "record_kind": "rule",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
@@ -1298,27 +1234,26 @@
       },
       "targetPredicates": [],
       "expression": {
-        "kind": "negated_claim",
         "subject": {
-          "kind": "variable",
-          "name": "é🌲 sample"
+          "name": "é🌲 sample",
+          "kind": "variable"
         },
-        "predicate": "é🌲 sample"
+        "predicate": "é🌲 sample",
+        "kind": "negated_claim"
       },
       "capabilities": [],
       "executable": true,
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "rule"
     },
     "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"capabilities\":[],\"commitPolicy\":\"always_block\",\"executable\":true,\"expression\":{\"kind\":\"negated_claim\",\"predicate\":\"é🌲 sample\",\"subject\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"}},\"key\":\"é🌲 sample\",\"kind\":\"structural_invariant\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"rule\",\"targetPredicates\":[],\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "2fe582055eb38fff14966498951927b6f2d2b04c23c337735afef5d8c3d0a34e",
-    "discriminator": "rule:v1:v1"
+    "digest": "81c1c333b9cfcd930b68b40f130c95b073e52320fde73e7e3722fc06d5f597a5"
   },
   {
     "name": "expression:8",
     "value": {
-      "record_kind": "rule",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
@@ -1329,31 +1264,30 @@
       },
       "targetPredicates": [],
       "expression": {
-        "kind": "compare",
         "left": {
-          "kind": "variable",
-          "name": "é🌲 sample"
+          "name": "é🌲 sample",
+          "kind": "variable"
         },
         "op": "eq",
         "right": {
-          "kind": "variable",
-          "name": "é🌲 sample"
-        }
+          "name": "é🌲 sample",
+          "kind": "variable"
+        },
+        "kind": "compare"
       },
       "capabilities": [],
       "executable": true,
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "rule"
     },
     "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"capabilities\":[],\"commitPolicy\":\"always_block\",\"executable\":true,\"expression\":{\"kind\":\"compare\",\"left\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"op\":\"eq\",\"right\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"}},\"key\":\"é🌲 sample\",\"kind\":\"structural_invariant\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"rule\",\"targetPredicates\":[],\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "ad57daab6483e2a87a5f3cef70c5b9bb7d9a3059a38f619c0c78b8f5f016af5e",
-    "discriminator": "rule:v1:v1"
+    "digest": "cc3e70bedc8e7b2bdafcf9d2ef89c2d20c3270f31d74b9a440a7da08ddf0baea"
   },
   {
     "name": "expression:9",
     "value": {
-      "record_kind": "rule",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
@@ -1364,31 +1298,30 @@
       },
       "targetPredicates": [],
       "expression": {
-        "kind": "temporal",
         "left": {
-          "kind": "variable",
-          "name": "é🌲 sample"
+          "name": "é🌲 sample",
+          "kind": "variable"
         },
         "relation": "before",
         "right": {
-          "kind": "variable",
-          "name": "é🌲 sample"
-        }
+          "name": "é🌲 sample",
+          "kind": "variable"
+        },
+        "kind": "temporal"
       },
       "capabilities": [],
       "executable": true,
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "rule"
     },
     "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"capabilities\":[],\"commitPolicy\":\"always_block\",\"executable\":true,\"expression\":{\"kind\":\"temporal\",\"left\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"relation\":\"before\",\"right\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"}},\"key\":\"é🌲 sample\",\"kind\":\"structural_invariant\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"rule\",\"targetPredicates\":[],\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "059e5308de0df4ec057b4a1a679469a4989205e4531eda42846ea02f8172123b",
-    "discriminator": "rule:v1:v1"
+    "digest": "fca8f036bf22c060a10736dcea39e53207210322e486751540386dfd9878b5c8"
   },
   {
     "name": "expression:10",
     "value": {
-      "record_kind": "rule",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
@@ -1399,31 +1332,29 @@
       },
       "targetPredicates": [],
       "expression": {
-        "kind": "membership",
         "element": {
-          "kind": "variable",
-          "name": "é🌲 sample"
+          "name": "é🌲 sample",
+          "kind": "variable"
         },
         "collection": {
-          "kind": "variable",
-          "name": "é🌲 sample"
+          "name": "é🌲 sample",
+          "kind": "variable"
         },
-        "complete": null
+        "kind": "membership"
       },
       "capabilities": [],
       "executable": true,
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "rule"
     },
-    "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"capabilities\":[],\"commitPolicy\":\"always_block\",\"executable\":true,\"expression\":{\"collection\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"complete\":null,\"element\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"kind\":\"membership\"},\"key\":\"é🌲 sample\",\"kind\":\"structural_invariant\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"rule\",\"targetPredicates\":[],\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "b8b433807384b51248fcf8c4ef212b1a4d0ac7797d3e7cc1ae4e14c1896dfd30",
-    "discriminator": "rule:v1:v1"
+    "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"capabilities\":[],\"commitPolicy\":\"always_block\",\"executable\":true,\"expression\":{\"collection\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"element\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"kind\":\"membership\"},\"key\":\"é🌲 sample\",\"kind\":\"structural_invariant\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"rule\",\"targetPredicates\":[],\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "d14f63edf9a09e7b613f4155fab5bb0ef4205ddcaac19ae6fcbe00a899ae3716"
   },
   {
     "name": "expression:11",
     "value": {
-      "record_kind": "rule",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
@@ -1434,32 +1365,30 @@
       },
       "targetPredicates": [],
       "expression": {
-        "kind": "cardinality",
         "collection": {
-          "kind": "variable",
-          "name": "é🌲 sample"
+          "name": "é🌲 sample",
+          "kind": "variable"
         },
         "op": "eq",
         "count": {
-          "kind": "text",
-          "text": "é🌲 sample"
+          "text": "é🌲 sample",
+          "kind": "text"
         },
-        "complete": null
+        "kind": "cardinality"
       },
       "capabilities": [],
       "executable": true,
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "rule"
     },
-    "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"capabilities\":[],\"commitPolicy\":\"always_block\",\"executable\":true,\"expression\":{\"collection\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"complete\":null,\"count\":{\"kind\":\"text\",\"text\":\"é🌲 sample\"},\"kind\":\"cardinality\",\"op\":\"eq\"},\"key\":\"é🌲 sample\",\"kind\":\"structural_invariant\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"rule\",\"targetPredicates\":[],\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "a073a6c49705c35417e429387b3d173b8056feb1a09451c65973a76c28278833",
-    "discriminator": "rule:v1:v1"
+    "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"capabilities\":[],\"commitPolicy\":\"always_block\",\"executable\":true,\"expression\":{\"collection\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"count\":{\"kind\":\"text\",\"text\":\"é🌲 sample\"},\"kind\":\"cardinality\",\"op\":\"eq\"},\"key\":\"é🌲 sample\",\"kind\":\"structural_invariant\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"rule\",\"targetPredicates\":[],\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "74c09c1029a10ba7c3e6f0207d426cec7804dc4ddd68bd09870bc1427e6dc0b9"
   },
   {
     "name": "expression:12",
     "value": {
-      "record_kind": "rule",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
@@ -1470,27 +1399,26 @@
       },
       "targetPredicates": [],
       "expression": {
-        "kind": "existence",
         "subject": {
-          "kind": "variable",
-          "name": "é🌲 sample"
+          "name": "é🌲 sample",
+          "kind": "variable"
         },
-        "predicate": "é🌲 sample"
+        "predicate": "é🌲 sample",
+        "kind": "existence"
       },
       "capabilities": [],
       "executable": true,
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "rule"
     },
     "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"capabilities\":[],\"commitPolicy\":\"always_block\",\"executable\":true,\"expression\":{\"kind\":\"existence\",\"predicate\":\"é🌲 sample\",\"subject\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"}},\"key\":\"é🌲 sample\",\"kind\":\"structural_invariant\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"rule\",\"targetPredicates\":[],\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "ed08e429898647b89ebb0bff84870ffa2a0eaaac37b628ed6f89ff012d07ae85",
-    "discriminator": "rule:v1:v1"
+    "digest": "18c2864367b34600d5464645d54a1773c1080c20b21647d1a4ef835ca21e80ba"
   },
   {
     "name": "expression:13",
     "value": {
-      "record_kind": "rule",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
@@ -1501,41 +1429,40 @@
       },
       "targetPredicates": [],
       "expression": {
-        "kind": "quantify",
         "variable": "é🌲 sample",
         "over": {
-          "kind": "variable",
-          "name": "é🌲 sample"
+          "name": "é🌲 sample",
+          "kind": "variable"
         },
         "complete": true,
         "quantifier": "for_all",
         "body": {
-          "kind": "no_opposing_evidence",
           "subject": {
-            "kind": "variable",
-            "name": "é🌲 sample"
+            "name": "é🌲 sample",
+            "kind": "variable"
           },
           "predicate": "é🌲 sample",
           "context": {
-            "kind": "variable",
-            "name": "é🌲 sample"
-          }
-        }
+            "name": "é🌲 sample",
+            "kind": "variable"
+          },
+          "kind": "no_opposing_evidence"
+        },
+        "kind": "quantify"
       },
       "capabilities": [],
       "executable": true,
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "rule"
     },
     "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"capabilities\":[],\"commitPolicy\":\"always_block\",\"executable\":true,\"expression\":{\"body\":{\"context\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"kind\":\"no_opposing_evidence\",\"predicate\":\"é🌲 sample\",\"subject\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"}},\"complete\":true,\"kind\":\"quantify\",\"over\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"quantifier\":\"for_all\",\"variable\":\"é🌲 sample\"},\"key\":\"é🌲 sample\",\"kind\":\"structural_invariant\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"rule\",\"targetPredicates\":[],\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "2909bb17d5b95223fcfc5f5ec4d92d2f1262c93b1a7305c4182fbca473f1489e",
-    "discriminator": "rule:v1:v1"
+    "digest": "f80654411c0616aa87b4bd4d694b51e26651e55fbb94959cf4a8ea480d5ab4c7"
   },
   {
     "name": "expression:14",
     "value": {
-      "record_kind": "rule",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
@@ -1546,68 +1473,64 @@
       },
       "targetPredicates": [],
       "expression": {
-        "kind": "role_holds",
         "subject": {
-          "kind": "variable",
-          "name": "é🌲 sample"
+          "name": "é🌲 sample",
+          "kind": "variable"
         },
         "predicate": "é🌲 sample",
         "role": "é🌲 sample",
         "participant": {
-          "kind": "variable",
-          "name": "é🌲 sample"
-        }
+          "name": "é🌲 sample",
+          "kind": "variable"
+        },
+        "kind": "role_holds"
       },
       "capabilities": [],
       "executable": true,
       "validity": {
         "kind": "unspecified"
-      }
+      },
+      "record_kind": "rule"
     },
     "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"capabilities\":[],\"commitPolicy\":\"always_block\",\"executable\":true,\"expression\":{\"kind\":\"role_holds\",\"participant\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"predicate\":\"é🌲 sample\",\"role\":\"é🌲 sample\",\"subject\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"}},\"key\":\"é🌲 sample\",\"kind\":\"structural_invariant\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"rule\",\"targetPredicates\":[],\"validity\":{\"kind\":\"unspecified\"}}",
-    "digest": "ea84cff4971a3a960189db27bc5bd3fd1a5896c22825b902caed977f290fcf26",
-    "discriminator": "rule:v1:v1"
+    "digest": "53bcc02c4e8f62642397276f7295956025a08a517ad76bcfeaa1e3288c70e14a"
   },
   {
-    "name": "legacy:multiple-parents",
+    "name": "classification:ambiguous-parent",
     "value": {
-      "record_kind": "entity_type",
       "namespace": "é🌲 sample",
       "key": "é🌲 sample",
       "labels": {},
-      "parents": [
-        "rec_000000000000000000000002",
-        "rec_000000000000000000000003"
-      ],
-      "classificationExecutable": true
+      "classificationExecutable": true,
+      "record_kind": "entity_type",
+      "name": "é🌲 sample",
+      "parent": null,
+      "parentResolution": "ambiguous",
+      "applicability": {
+        "kind": "universe_wide"
+      }
     },
-    "canonical": "{\"classificationExecutable\":true,\"key\":\"é🌲 sample\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"parents\":[\"rec_000000000000000000000002\",\"rec_000000000000000000000003\"],\"record_kind\":\"entity_type\"}",
-    "digest": "fbe70e88337f5f5ab6d3c570c91649e000f59446f16951430d77ada07a0b04b2",
-    "discriminator": "entity_type:v1:v1"
+    "canonical": "{\"applicability\":{\"kind\":\"universe_wide\"},\"classificationExecutable\":true,\"key\":\"é🌲 sample\",\"labels\":{},\"name\":\"é🌲 sample\",\"namespace\":\"é🌲 sample\",\"parent\":null,\"parentResolution\":\"ambiguous\",\"record_kind\":\"entity_type\"}",
+    "digest": "f53243ea514b6b733fdf3744b2aa96edcda991bca67582fc36ab419e74f67199"
   },
   {
-    "name": "legacy:multiple-memberships",
+    "name": "classification:ambiguous-membership",
     "value": {
-      "record_kind": "entity",
       "names": [],
-      "types": [
-        "rec_000000000000000000000002",
-        "rec_000000000000000000000003"
-      ],
       "worldAssociations": [],
       "labels": {},
-      "metadata": {}
+      "metadata": {},
+      "record_kind": "entity",
+      "classification": null,
+      "classificationResolution": "ambiguous"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{},\"names\":[],\"record_kind\":\"entity\",\"types\":[\"rec_000000000000000000000002\",\"rec_000000000000000000000003\"],\"worldAssociations\":[]}",
-    "digest": "44ff3671a58cb1e2f45fc1d8d6448c9fda45427bf509e54bc5a7da4fe691eb15",
-    "discriminator": "entity:v1:v1"
+    "canonical": "{\"classification\":null,\"classificationResolution\":\"ambiguous\",\"labels\":{},\"metadata\":{},\"names\":[],\"record_kind\":\"entity\",\"worldAssociations\":[]}",
+    "digest": "e0ce14eeaafecde81e0773f667598f91de0768d002a4fdb32c0a6eea3467a751"
   },
   {
     "name": "exact:digits-unicode-order",
     "value": {
-      "record_kind": "entity",
       "names": [],
-      "types": [],
       "worldAssociations": [],
       "labels": {},
       "metadata": {
@@ -1637,10 +1560,12 @@
             }
           ]
         }
-      }
+      },
+      "record_kind": "entity",
+      "classification": null,
+      "classificationResolution": "unclassified"
     },
-    "canonical": "{\"labels\":{},\"metadata\":{\"decimal\":{\"digits\":\"30.00\",\"kind\":\"decimal\"},\"integer\":{\"digits\":\"9007199254740993\",\"kind\":\"integer\"},\"rational\":{\"denominator\":\"3\",\"kind\":\"rational\",\"numerator\":\"7\"},\"sequence\":{\"items\":[{\"kind\":\"text\",\"text\":\"b\"},{\"kind\":\"text\",\"text\":\"a\"}],\"kind\":\"sequence\"}},\"names\":[],\"record_kind\":\"entity\",\"types\":[],\"worldAssociations\":[]}",
-    "digest": "6772242423d48166f2dab0efa175dec3c3ed704a75c3c87c85c6d5d30664e198",
-    "discriminator": "entity:v1:v1"
+    "canonical": "{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{\"decimal\":{\"digits\":\"30.00\",\"kind\":\"decimal\"},\"integer\":{\"digits\":\"9007199254740993\",\"kind\":\"integer\"},\"rational\":{\"denominator\":\"3\",\"kind\":\"rational\",\"numerator\":\"7\"},\"sequence\":{\"items\":[{\"kind\":\"text\",\"text\":\"b\"},{\"kind\":\"text\",\"text\":\"a\"}],\"kind\":\"sequence\"}},\"names\":[],\"record_kind\":\"entity\",\"worldAssociations\":[]}",
+    "digest": "3063f316cf278b0573720a425b529639d8f076611a180969130a78b4c4171842"
   }
 ]

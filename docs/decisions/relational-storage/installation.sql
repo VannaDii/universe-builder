@@ -16,5 +16,5 @@ CREATE TABLE purge_pending(universe TEXT PRIMARY KEY, path TEXT NOT NULL, device
 CREATE TABLE audit(sequence INTEGER PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL, target TEXT NOT NULL) STRICT;
 CREATE TABLE import_preview(id TEXT PRIMARY KEY, owner TEXT NOT NULL REFERENCES profiles(id), source_digest TEXT NOT NULL, target TEXT NOT NULL, source TEXT NOT NULL, name TEXT NOT NULL, complete INTEGER NOT NULL CHECK(complete IN(0,1)), omitted_records INTEGER NOT NULL, records INTEGER NOT NULL, preview_digest TEXT NOT NULL, staged_path TEXT NOT NULL) STRICT;
 -- A separate protected per-profile credential.sqlite (0600, directory 0700):
--- credential(format_version INTEGER, profile_id TEXT PK, credential TEXT NOT NULL).
+-- credential(profile_id TEXT PK, credential TEXT NOT NULL).
 -- Preserve credential and hash exactly; never include them in exports/proof output.

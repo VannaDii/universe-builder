@@ -1,8 +1,8 @@
 # Factual universe realignment plan
 
-October 3, 2026. Proposed replacement roadmap, based on Vanna's clarification in **Design reusable object rules** and source review at `f3dbf05`.
+October 3, 2026. Normative unreleased replacement roadmap, based on Vanna's clarification in **Design reusable object rules** and source review at `f3dbf05`.
 
-This replaces the unstarted Goals 20–21 and the remaining execution sequence in the [continuity-gap remediation plan](continuity-gap-remediation-plan.md). Completed work and its evidence remain valid within their recorded scope. This plan does not approve a physical schema, migrate packages, remove existing capabilities, or approve the earlier two-operand recommendation.
+This replaces the unstarted Goals 20–21 and the remaining execution sequence in the [continuity-gap remediation plan](continuity-gap-remediation-plan.md). Completed work and its evidence remain valid within their recorded scope. Vanna has directed replacement with one normative model and no parallel prerelease schema/contract versions. The concrete mapping is in [the relational package](decisions/relational-storage/README.md). Production migration remains a separate operator action; the earlier two-operand recommendation is superseded.
 
 ## Product boundary
 
@@ -49,13 +49,13 @@ Implementation anchors: [types](../crates/universe-domain/src/records.rs), [stru
 
 Keep stable IDs, represented contexts, explicit worlds and clocks, proposition/evidence distinctions, historical revisions, branches, opposing-evidence reporting, owner-bound requirements, generated effects, exact resource accounting, protected rules, current grants, frozen proposals, validation bindings, author approval/delegation, atomic publication and idempotent receipts.
 
-Keep sources, appearances and existing work/assessment records recoverable. Do not delete history because it is outside the primary writer-facing flow. Existing tests remain regression evidence; do not weaken them to accommodate a replacement design. An intentional semantic change needs separately specified new expectations and historical compatibility.
+Keep sources, appearances and existing work/assessment records recoverable. Do not delete history because it is outside the primary writer-facing flow. Existing tests remain regression evidence; do not weaken them to accommodate a replacement design. An intentional semantic change needs independently specified expectations and preservation of authored factual evidence. Earlier prerelease design contracts are not compatibility obligations.
 
 Do not replace the transactional kernel, introduce another AI inside the MCP, add a separate state ledger, or implement a background simulator. Prefer the existing thirteen public tools with simpler typed operations/views where sufficient.
 
 ## Execution order
 
-### A. Agree the relational storage and definition-resolution design
+### A. Specify the normative relational storage and definition-resolution model
 
 First produce a concrete schema and complete mapping of persisted application data. Use a small semantic core, with additional rows only where existing requirements demand them:
 
@@ -70,13 +70,13 @@ Show the exact handling of every currently supported family before declaring the
 
 The proposal must resolve legacy multiple-parent/multiple-membership data explicitly; never pick a parent or discard a classification silently. It must specify definition applicability, subtype refinement and conflicts without inventing override precedence. Existing authored packages and old backups are migration inputs to preserve, not files to delete under the no-JSON requirement.
 
-Review the material tradeoffs before implementation: normalized persistence requires more mapping code and a verified format transition; single-parent semantics require explicit legacy handling. This is the architecture decision gate. The author's product direction is established; the physical mapping and migration are not yet approved.
+The replacement policy is decided: revise the single normative schema in place until release. Do not retain old/new body routes, alternate active serializers or prerelease contract-version tags. Keep factual revisions and evidence. The concrete package demonstrates this policy; implementation and operator migration are separate work.
 
 ### B. Implement normalized canonical storage in bounded vertical slices
 
-After the design decision, deliver shared typed value/reference/scope/time storage and a complete Tree/instance/fact round trip first. Then move supported canonical record families in coherent groups, including rules, actions, events, source/appearance/work records and their references.
+Deliver shared typed value/reference/scope/time storage and a complete Tree/instance/fact round trip first. Then move supported canonical record families in coherent groups, including rules, actions, events, source/appearance/work records and their references.
 
-Each slice writes a disposable new-format package, reads it back into existing domain types and verifies identities, values, provenance and historical digests independently. Do not advertise the new format as complete while unsupported families still require opaque payloads. Keep the working evaluator and generated-assertion identity recipe unless an explicitly reviewed change is necessary.
+Each slice writes a disposable new-format package, reads it back into the normative domain types and verifies identities, values, provenance and historical digests independently. Do not advertise the new format as complete while unsupported families still require opaque payloads. Keep the working evaluator and generated-assertion identity recipe unless an explicitly reviewed change is necessary.
 
 ### C. Complete workflow and installation persistence
 
@@ -86,7 +86,7 @@ Prove exact retry and restart behavior, current permission checks, stale proposa
 
 ### D. Migrate and cut over safely
 
-Use read-only legacy inputs and a separate new-format target. Decode legacy data, populate relational rows, reconstruct canonical representations in memory, and compare all retained identities, versions, digests, branch memberships, receipts and workflow bindings. Preserve supported historical serialization distinctions so old digests can be reconstructed without storing JSON preimages.
+Use read-only legacy inputs and a private target containing the single normative schema. Normalize recognized source data, preserve identities/factual revisions/receipts/authority, verify original digests before conversion, and retain original digest provenance separately when normalized bodies change bytes. Do not keep old active serialization contracts to reconstruct old layouts forever.
 
 Do not rehash mismatches into success. If exact historical reconstruction is impossible for a family, bring that specific incompatibility and proposed handling to Vanna before conversion.
 
@@ -160,4 +160,4 @@ The corrected completion criteria are:
 
 Size execution goals around 45–75 minutes of observed working time, with meaningful implementation plus proofs in one goal. Keep a necessary design decision separate; split large storage/migration work by coherent supported families after the schema inventory establishes its size. Do not fill an hour with extra abstractions or duplicate tests. Every execution goal ends with all its work conventionally committed and reports commit hashes, evidence, limitations and actual working time. Do not claim a revised total goal count before this mapping is scoped.
 
-The next goal is the complete relational storage/definition-resolution decision package in A. Subsequent goals follow the approved mapping, rather than implementing the superseded two-operand proposal or extending the old manuscript-centered roadmap.
+The concrete package in A is complete with disposable proofs; it follows the normative replacement decision. Subsequent implementation work replaces the existing application paths with that single model. Production migration and evaluator extensions were excluded from the package goal.

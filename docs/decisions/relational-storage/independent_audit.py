@@ -65,8 +65,8 @@ def audit(path,canonical_oracle,extra_oracle):
             oracle=expected[root['name']]
             assert actual==oracle['value'],root['name']
             raw=encoded(actual);assert raw.decode()==oracle['canonical']
-            # Current recipe contains v1 twice, even for a payload requiring v2.
-            prefix=(actual['record_kind']+':v1:v1:').encode()
+            # One normative canonical recipe, with no schema-version prefix.
+            prefix=(actual['record_kind']+':').encode()
             digest=hashlib.sha256(prefix+raw).hexdigest()
             assert digest==oracle['digest']==root['expected_digest']
         else:

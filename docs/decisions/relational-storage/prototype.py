@@ -101,11 +101,11 @@ def fixtures(c):
     for i,s in enumerate(defs['Expr']['oneOf']):
         r=copy.deepcopy(rule);r['expression']=sample(s,defs);digits(r)
         rows.append({'name':'expression:'+str(i),'value':r})
-    # Historical present/absent collection distinction. Current serde removes empty parents.
+    # Ambiguity is evidence in the same model, not a second classification format.
     ty=copy.deepcopy(next(x['value'] for x in rows if x['value']['record_kind']=='entity_type'))
-    ty['parents']=['rec_'+'0'*23+'2','rec_'+'0'*23+'3']
-    rows.append({'name':'legacy:multiple-parents','value':ty})
-    e=copy.deepcopy(template);e['types']=ty['parents'][:];rows.append({'name':'legacy:multiple-memberships','value':e})
+    ty['parent']=None;ty['parentResolution']='ambiguous'
+    rows.append({'name':'classification:ambiguous-parent','value':ty})
+    e=copy.deepcopy(template);e['classification']=None;e['classificationResolution']='ambiguous';rows.append({'name':'classification:ambiguous-membership','value':e})
     e=copy.deepcopy(template)
     e['metadata']={'decimal':{'kind':'decimal','digits':'30.00'},'integer':{'kind':'integer','digits':'9007199254740993'},'rational':{'kind':'rational','numerator':'7','denominator':'3'},'sequence':{'kind':'sequence','items':[{'kind':'text','text':'b'},{'kind':'text','text':'a'}]}}
     rows.append({'name':'exact:digits-unicode-order','value':e})
@@ -147,7 +147,7 @@ def run():
             rid=writer.put(row['model'],row['value'])
             db.execute('INSERT INTO proof_roots VALUES (?,?,?,?)',(row['name'],row['model'],rid,hashlib.sha256(canonical(row['value'])).hexdigest()))
             if row['name'].startswith('workflow:') and row['model'] not in ['ImportPreview','ArchiveManifest']:
-                db.execute('INSERT INTO workflow_entries (key,family,digest,digest_recipe,'+q(row['model'])+') VALUES (?,?,?,?,?)',(row['name'],row['model'],hashlib.sha256(canonical(row['value'])).hexdigest(),'workflow-canonical-v1',rid))
+                db.execute('INSERT INTO workflow_entries (key,family,digest,digest_recipe,'+q(row['model'])+') VALUES (?,?,?,?,?)',(row['name'],row['model'],hashlib.sha256(canonical(row['value'])).hexdigest(),'workflow-canonical',rid))
         content='é🌲 source bytes, not application metadata'.encode()
         db.execute('INSERT INTO source_content VALUES (?,?,?)',(hashlib.sha256(content).hexdigest(),len(content),content))
         oracle=tmp/'extra.json';oracle.write_text(json.dumps(extra,ensure_ascii=False))
@@ -222,36 +222,40 @@ def semantic_examples(tmp):
     db.execute('INSERT INTO continuities VALUES (?,?,?,NULL)',(universe,cont,revisions[-1]))
     for i,rev in enumerate(revisions):
         db.execute('INSERT INTO commits VALUES (?,?,?,?,?,?,?,?,?)',(universe,rev,cont,revisions[i-1] if i else None,i,'review-author','explicit authored example','storage proof',hashlib.sha256(('authored example '+str(i)).encode()).hexdigest()))
-    seq=0;membership={};versions={};expected_versions=[]
+    seq=0;membership={};versions={};expected_versions=[];import_evidence=[]
     def record(name,kind,model,value,revision=0):
         nonlocal seq
-        seq+=1;ver='ver_'+format(seq,'024x');rid=w.put(model,value)
-        layout={'TypeDefinitionV3':'type_v3','InstanceV3':'instance_v3','AttributeAssertionV3':'attribute_v3'}.get(model,'legacy')
-        schema=('v2' if kind=='rule' and value.get('expression',{}).get('kind')=='no_opposing_evidence' else 'v1') if layout=='legacy' else 'v3'
-        digest_version='v1' if layout=='legacy' else 'v3'
-        body=value if model=='Payload' else {'record_kind':kind,**value}
-        digest=hashlib.sha256((kind+':'+digest_version+':'+digest_version+':').encode()+canonical(body)).hexdigest()
-        pointers=[rid if layout==l else None for l in ['legacy','type_v3','instance_v3','attribute_v3']]
-        db.execute('INSERT INTO record_versions VALUES (?,?,?,?,?,?,?,?,?,?,?)',(universe,ver,ids[name],kind,schema,layout,*pointers,digest))
+        seq+=1;ver='ver_'+format(seq,'024x')
+        body=value if 'record_kind' in value else {'record_kind':kind,**value}
+        rid=w.put('Payload',body)
+        digest=hashlib.sha256((kind+':').encode()+canonical(body)).hexdigest()
+        db.execute('INSERT INTO record_versions VALUES (?,?,?,?,?,?)',(universe,ver,ids[name],kind,rid,digest))
+        if name=='Ambiguous':
+            original={k:v for k,v in body.items() if k not in ('classification','classificationResolution')}
+            original['types']=[ids['Tree'],ids['Gun']]
+            source_digest=hashlib.sha256((kind+':v1:v1:').encode()+canonical(original)).hexdigest()
+            db.execute('INSERT INTO import_record_digest VALUES (?,?,?,?)',(universe,ver,source_digest,digest))
+            import_evidence.append({'version':ver,'source_body':original,'source_digest':source_digest,'normalized_digest':digest})
+
         prior=membership.get(ids[name]);membership[ids[name]]=ver;versions[name]=ver
         db.execute('INSERT INTO commit_changes VALUES (?,?,?,?,?)',(universe,revisions[revision],ids[name],prior,ver))
-        expected_versions.append({'version':ver,'identity':ids[name],'kind':kind,'schema':schema,'value':body,'digest':digest})
+        expected_versions.append({'version':ver,'identity':ids[name],'kind':kind,'value':body,'digest':digest})
         return ver
     for name,parent,scope in [('Tree',None,'universe'),('Cedar','Tree','universe'),('Western red cedar','Cedar','worlds'),('Gun',None,'universe'),('Pistol','Gun','universe'),('Revolver','Gun','universe'),('Service pistol','Pistol','universe')]:
-        value={'namespace':'author','key':name,'labels':{'en':name},'classificationExecutable':True,'name':name,'parent':ids[parent] if parent else None,'applicability':{'kind':'universe_wide' if scope=='universe' else scope,**({'world_ids':['wld_'+format(names.index('World A')+1,'024x')]} if scope=='worlds' else {})}}
-        ver=record(name,'entity_type','TypeDefinitionV3',value)
-        db.execute('INSERT INTO type_definition VALUES (?,?,?,?,?,?)',(universe,ver,ids[name],name,ids[parent] if parent else None,scope))
+        value={'namespace':'author','key':name,'labels':{'en':name},'classificationExecutable':True,'name':name,'parent':ids[parent] if parent else None,'parentResolution':'resolved' if parent else 'root','applicability':{'kind':'universe_wide' if scope=='universe' else scope,**({'world_ids':['wld_'+format(names.index('World A')+1,'024x')]} if scope=='worlds' else {})}}
+        ver=record(name,'entity_type','Payload',value)
+        db.execute('INSERT INTO type_definition VALUES (?,?,?,?,?,?,?)',(universe,ver,ids[name],name,ids[parent] if parent else None,'resolved' if parent else 'root',scope))
         if scope=='worlds':db.execute('INSERT INTO type_world VALUES (?,?,0,?)',(universe,ver,ids['World A']))
     def instance(name,classification,revision=0,label=None):
-        value={'names':[{'text':label or name,'validity':{'kind':'unspecified'}}], 'worldAssociations':[], 'labels':{'en':label or name}, 'metadata':{},'classification':ids[classification] if classification else None}
-        ver=record(name,'entity','InstanceV3',value,revision)
+        value={'names':[{'text':label or name,'validity':{'kind':'unspecified'}}], 'worldAssociations':[], 'labels':{'en':label or name}, 'metadata':{},'classification':ids[classification] if classification else None,'classificationResolution':'resolved' if classification else 'unclassified'}
+        ver=record(name,'entity','Payload',value,revision)
         db.execute('INSERT INTO instance_classification VALUES (?,?,?,?,?)',(universe,ver,ids[name],ids[classification] if classification else None,'resolved' if classification else 'unclassified'))
     instance('Cedar One','Tree');instance('Pistol A','Pistol');instance('Pistol B','Pistol');instance('Person',None)
     instance('Cedar One','Western red cedar',1);instance('Pistol A','Service pistol',2,'Renamed pistol')
-    legacy=sample(defs['Entity'],defs);legacy['types']=[ids['Tree'],ids['Gun']];legacy['record_kind']='entity'
+    legacy=sample(defs['Entity'],defs);legacy.update(classification=None,classificationResolution='ambiguous',record_kind='entity')
     ver=record('Ambiguous','entity','Payload',legacy)
-    db.execute('INSERT INTO instance_classification VALUES (?,?,?,NULL,?)',(universe,ver,ids['Ambiguous'],'legacy_ambiguous'))
-    for i,t in enumerate(['Tree','Gun']):db.execute('INSERT INTO legacy_classification VALUES (?,?,?,?,?)',(universe,ver,'membership',i,ids[t]))
+    db.execute('INSERT INTO instance_classification VALUES (?,?,?,NULL,?)',(universe,ver,ids['Ambiguous'],'ambiguous'))
+    for i,t in enumerate(['Tree','Gun']):db.execute('INSERT INTO classification_evidence VALUES (?,?,?,?,?)',(universe,ver,'membership',i,ids[t]))
     # Facts are real typed proposition/assertion bodies, with separate identities and versions.
     fact_seq=100
     fact_index=[]
@@ -266,7 +270,7 @@ def semantic_examples(tmp):
         assertion={'proposition':rr(pname),'polarity':polarity,'scope':{'applicability':{'kind':'worlds','world_ids':['wld_'+format(names.index(world)+1,'024x')]} if world else {'kind':'unspecified'},'context':rr(context)},
             'validity':{'kind':'calendar_interval','calendar':'cal_'+ids['Story clock'].split('_')[1],'start':{'kind':'exact','value':str(at)},'end':{'kind':'exact','value':str(until)} if until is not None else {'kind':'unbounded'}},
             'persistence':'explicit_interval','precision':'exact','basis':{'kind':'author_decision','note':'Explicit example fact'},'attributeMode':mode}
-        av=record(aname,'assertion','AttributeAssertionV3',assertion,revision)
+        av=record(aname,'assertion','Payload',assertion,revision)
         if mode!='instance':db.execute('INSERT INTO definition_attribute VALUES (?,?,?,?,?)',(universe,av,ids[subject],ids[predicate],mode))
         fact_index.append({'subject':subject,'predicate':predicate,'assertion':av,'proposition':pv})
         return av
@@ -304,7 +308,8 @@ def semantic_examples(tmp):
     oracle={'versions':expected_versions,'names':ids,'facts':fact_index,'membership':membership,'universe':universe,'continuity':cont,'revisions':revisions,
         'expected':{'cedar_ancestry':['Western red cedar','Cedar','Tree'],'cedar_grows':True,'cedar_hazard':True,'cedar_height_digits':'30.00',
             'pistol_a_rounds':['7','6','0','2'],'pistol_b_rounds':['3','3','3','3'],'pistol_a_ancestry':['Service pistol','Pistol','Gun'],
-            'legacy_status':'legacy_ambiguous','world_b_definition':'inapplicable','unknown_before_height':True,'initial_value_is_current_state':False,'inherited_conflict_at_t2':True,'unspecified_applicability_at_t2':'unresolved'}}
+            'ambiguity_status':'ambiguous','world_b_definition':'inapplicable','unknown_before_height':True,'initial_value_is_current_state':False,'inherited_conflict_at_t2':True,'unspecified_applicability_at_t2':'unresolved'}}
+    oracle['import_evidence']=import_evidence
     (HERE/'semantic-oracle.json').write_text(json.dumps(oracle,ensure_ascii=False,indent=2)+'\n')
     audited=subprocess.run(['python3',str(HERE/'verify_examples.py'),str(path),str(HERE/'semantic-oracle.json')],capture_output=True,text=True)
     if audited.returncode:raise RuntimeError(audited.stderr)
@@ -330,7 +335,7 @@ def logical_export(tmp,source_path,oracle,c):
     archive=tmp/'export.sqlite';source=sqlite3.connect(source_path);target=sqlite3.connect(archive)
     for file in ['typed.sql','kernel.sql','semantic.sql','workflow.sql','export.sql']:
         target.executescript((HERE/file).read_text())
-    target.execute('DELETE FROM schema_meta');target.execute('DELETE FROM projection_state');target.execute('BEGIN') if not target.in_transaction else None
+    target.execute('DELETE FROM projection_state');target.execute('BEGIN') if not target.in_transaction else None
     target.execute('PRAGMA defer_foreign_keys=ON')
     allowed=[r[0] for r in source.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name") if not r[0].startswith(('sqlite_','search_index'))]
     for table in allowed:
@@ -352,9 +357,9 @@ def logical_export(tmp,source_path,oracle,c):
                 else:cells.append(['text',value])
             entries.append([table,columns,cells])
     digest=hashlib.sha256(json.dumps(entries,ensure_ascii=False,separators=(',',':')).encode()).hexdigest()
-    manifest={'format':'universe-relational-proposal-v3','universe':oracle['universe'],'name':'Cedar and Pistol review','complete':True,'omitted_records':0,'includes_history':True,'includes_workflow':True}
+    manifest={'format':'universe-relational','universe':oracle['universe'],'name':'Cedar and Pistol review','complete':True,'omitted_records':0,'includes_history':True,'includes_workflow':True}
     row=Writer(target,c.models).put('ArchiveManifest',manifest)
-    target.execute('INSERT INTO archive_integrity VALUES (1,?,?,?,?,?)',(row,'typed-row-stream-v1',digest,len(entries),'historical_evidence_only'))
+    target.execute('INSERT INTO archive_integrity VALUES (1,?,?,?,?,?)',(row,'typed-row-stream',digest,len(entries),'historical_evidence_only'))
     target.commit();target.close();source.close()
     result=subprocess.run(['python3',str(HERE/'verify_export.py'),str(archive)],capture_output=True,text=True,check=True)
     readback=subprocess.run(['python3',str(HERE/'verify_examples.py'),str(archive),str(HERE/'semantic-oracle.json')],capture_output=True,text=True,check=True)

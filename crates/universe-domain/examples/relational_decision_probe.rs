@@ -1,13 +1,14 @@
-//! Decision-package probe only; does not open or migrate application storage.
+//! Normative-model canonical byte probe only; no application storage access.
 use std::{env, fs};
 use universe_domain::{
-    canonical::Canonical,
+    canonical::{canonical_serde, PayloadDigest},
     records::{DomainOperation, Payload},
 };
 
 fn main() {
     let args: Vec<_> = env::args().collect();
     if args.len() == 1 {
+        // Source inventory only. The decision compiler replaces superseded shapes.
         println!(
             "{}",
             serde_json::json!({
@@ -19,14 +20,16 @@ fn main() {
     }
     let rows: Vec<serde_json::Value> =
         serde_json::from_slice(&fs::read(&args[1]).unwrap()).unwrap();
-    let mut results = Vec::new();
-    for row in rows {
-        let payload: Payload = serde_json::from_value(row["value"].clone()).unwrap();
-        let bytes = payload.to_canonical().to_bytes();
-        let digest = universe_domain::canonical::payload_digest(&payload.kind(), &payload);
-        results.push(serde_json::json!({"name": row["name"], "value": serde_json::to_value(&payload).unwrap(),
-            "canonical": String::from_utf8(bytes).unwrap(), "digest": digest,
-            "discriminator": format!("{}:{}", payload.kind().discriminator(), universe_domain::SCHEMA_VERSION)}));
-    }
+    let results: Vec<_> = rows
+        .into_iter()
+        .map(|row| {
+            let value = &row["value"];
+            let kind = value["record_kind"].as_str().unwrap();
+            let canonical = canonical_serde(value);
+            let digest = PayloadDigest::compute(kind, &canonical);
+            serde_json::json!({"name":row["name"], "value":value,
+            "canonical":String::from_utf8(canonical.to_bytes()).unwrap(), "digest":digest})
+        })
+        .collect();
     println!("{}", serde_json::to_string(&results).unwrap());
 }

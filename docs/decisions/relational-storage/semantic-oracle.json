@@ -4,7 +4,6 @@
       "version": "ver_000000000000000000000001",
       "identity": "rec_000000000000000000000001",
       "kind": "entity_type",
-      "schema": "v3",
       "value": {
         "record_kind": "entity_type",
         "namespace": "author",
@@ -15,17 +14,17 @@
         "classificationExecutable": true,
         "name": "Tree",
         "parent": null,
+        "parentResolution": "root",
         "applicability": {
           "kind": "universe_wide"
         }
       },
-      "digest": "9b2a4abbd530de67e6f614f9f087d4bf906e4a684ac663fcff78bd154d2757b0"
+      "digest": "e4e90b4c572aa669ed780ede24f332cb64fa031233c406b527c2ab6282158813"
     },
     {
       "version": "ver_000000000000000000000002",
       "identity": "rec_000000000000000000000002",
       "kind": "entity_type",
-      "schema": "v3",
       "value": {
         "record_kind": "entity_type",
         "namespace": "author",
@@ -36,17 +35,17 @@
         "classificationExecutable": true,
         "name": "Cedar",
         "parent": "rec_000000000000000000000001",
+        "parentResolution": "resolved",
         "applicability": {
           "kind": "universe_wide"
         }
       },
-      "digest": "13399a2c6529343b81c2dea3112fe33817b45c9602458f8855f92a9482dc0ea6"
+      "digest": "78a5b10ceb8f2186840c5900a00df285ab44681fc052208a3527dff849e24edd"
     },
     {
       "version": "ver_000000000000000000000003",
       "identity": "rec_000000000000000000000003",
       "kind": "entity_type",
-      "schema": "v3",
       "value": {
         "record_kind": "entity_type",
         "namespace": "author",
@@ -57,6 +56,7 @@
         "classificationExecutable": true,
         "name": "Western red cedar",
         "parent": "rec_000000000000000000000002",
+        "parentResolution": "resolved",
         "applicability": {
           "kind": "worlds",
           "world_ids": [
@@ -64,13 +64,12 @@
           ]
         }
       },
-      "digest": "1db45dc6a3104e1a2b351bf6984f3d64568adca0897383d542b21fe336e24272"
+      "digest": "5b9b1e6f8c8723182336e39d0fdd85133ab00b0cd98f178efa524658db570665"
     },
     {
       "version": "ver_000000000000000000000004",
       "identity": "rec_000000000000000000000004",
       "kind": "entity_type",
-      "schema": "v3",
       "value": {
         "record_kind": "entity_type",
         "namespace": "author",
@@ -81,17 +80,17 @@
         "classificationExecutable": true,
         "name": "Gun",
         "parent": null,
+        "parentResolution": "root",
         "applicability": {
           "kind": "universe_wide"
         }
       },
-      "digest": "4de976cb3c0d8996585a7c5b1964a97dbff4a306158d66255813592bc130af6a"
+      "digest": "02ebe8d1aa1d4f8ad9060d9b9aa0b32b476a3deadb167a84a2b5247d20c9e470"
     },
     {
       "version": "ver_000000000000000000000005",
       "identity": "rec_000000000000000000000005",
       "kind": "entity_type",
-      "schema": "v3",
       "value": {
         "record_kind": "entity_type",
         "namespace": "author",
@@ -102,17 +101,17 @@
         "classificationExecutable": true,
         "name": "Pistol",
         "parent": "rec_000000000000000000000004",
+        "parentResolution": "resolved",
         "applicability": {
           "kind": "universe_wide"
         }
       },
-      "digest": "0e4e47e8cd794bc60da7fcf5f0ad9da0c4a761563eb289ee501d9454a047eb2c"
+      "digest": "3313b95c2b7518be6a96e12b6a1885a89974520ad450c8ca77f527cc6f17bfa3"
     },
     {
       "version": "ver_000000000000000000000006",
       "identity": "rec_000000000000000000000006",
       "kind": "entity_type",
-      "schema": "v3",
       "value": {
         "record_kind": "entity_type",
         "namespace": "author",
@@ -123,17 +122,17 @@
         "classificationExecutable": true,
         "name": "Revolver",
         "parent": "rec_000000000000000000000004",
+        "parentResolution": "resolved",
         "applicability": {
           "kind": "universe_wide"
         }
       },
-      "digest": "39ad01a00259757ed3291f8a661244302170f86d28ca8cd89583d3c4cd685d60"
+      "digest": "8a09db9299a6c347ed8c2f63fe716a128b717fd830779097344164fc58eb875c"
     },
     {
       "version": "ver_000000000000000000000007",
       "identity": "rec_000000000000000000000007",
       "kind": "entity_type",
-      "schema": "v3",
       "value": {
         "record_kind": "entity_type",
         "namespace": "author",
@@ -144,17 +143,17 @@
         "classificationExecutable": true,
         "name": "Service pistol",
         "parent": "rec_000000000000000000000005",
+        "parentResolution": "resolved",
         "applicability": {
           "kind": "universe_wide"
         }
       },
-      "digest": "22987d15c3efb36eb5b17ab23275d390e16861bf59331aca24e90b0b502d223c"
+      "digest": "f508d4bc0dbe15ae5818c15c8aa884f4729365dccb185acfcae2d4e75c8e5003"
     },
     {
       "version": "ver_000000000000000000000008",
       "identity": "rec_000000000000000000000008",
       "kind": "entity",
-      "schema": "v3",
       "value": {
         "record_kind": "entity",
         "names": [
@@ -170,15 +169,15 @@
           "en": "Cedar One"
         },
         "metadata": {},
-        "classification": "rec_000000000000000000000001"
+        "classification": "rec_000000000000000000000001",
+        "classificationResolution": "resolved"
       },
-      "digest": "f801d180e428225f97eade27eb281e97596662917aa67b48bc5039b4b4582dc7"
+      "digest": "ca2c1a78438dafdb7dfa8a4fb80a0aed80bdce268ed524fdd50af0d48974982d"
     },
     {
       "version": "ver_000000000000000000000009",
       "identity": "rec_000000000000000000000009",
       "kind": "entity",
-      "schema": "v3",
       "value": {
         "record_kind": "entity",
         "names": [
@@ -194,15 +193,15 @@
           "en": "Pistol A"
         },
         "metadata": {},
-        "classification": "rec_000000000000000000000005"
+        "classification": "rec_000000000000000000000005",
+        "classificationResolution": "resolved"
       },
-      "digest": "c35d2d23bd6ea208e89d9a9e3b2eb28d1382145e8e597a9259ad5bb692d4ba2e"
+      "digest": "438ec051018d2c3c46dffb5741926ae54c17ff4ac6f2bed32354c724a1e788ed"
     },
     {
       "version": "ver_00000000000000000000000a",
       "identity": "rec_00000000000000000000000a",
       "kind": "entity",
-      "schema": "v3",
       "value": {
         "record_kind": "entity",
         "names": [
@@ -218,15 +217,15 @@
           "en": "Pistol B"
         },
         "metadata": {},
-        "classification": "rec_000000000000000000000005"
+        "classification": "rec_000000000000000000000005",
+        "classificationResolution": "resolved"
       },
-      "digest": "a91614642a67ca70841d4f4ef3036a9ab86e862101f8a87bb6215d6d58fd5036"
+      "digest": "3fbe38ea5c26dbddbb8face3e38b6eefc023af10eba3d06a9b2c9940356a5498"
     },
     {
       "version": "ver_00000000000000000000000b",
       "identity": "rec_000000000000000000000016",
       "kind": "entity",
-      "schema": "v3",
       "value": {
         "record_kind": "entity",
         "names": [
@@ -242,15 +241,15 @@
           "en": "Person"
         },
         "metadata": {},
-        "classification": null
+        "classification": null,
+        "classificationResolution": "unclassified"
       },
-      "digest": "b82971970881bd22defbe19335046253980a662db7568c24f378a669c0672fc1"
+      "digest": "c36ab694d2ebe3825399b35463f31c981309af5241cf94b944c30e6e8af12e0a"
     },
     {
       "version": "ver_00000000000000000000000c",
       "identity": "rec_000000000000000000000008",
       "kind": "entity",
-      "schema": "v3",
       "value": {
         "record_kind": "entity",
         "names": [
@@ -266,15 +265,15 @@
           "en": "Cedar One"
         },
         "metadata": {},
-        "classification": "rec_000000000000000000000003"
+        "classification": "rec_000000000000000000000003",
+        "classificationResolution": "resolved"
       },
-      "digest": "50a4731938c4013dd034b035547ad9949d2009ffda55584f3ed0ad7a77c32cae"
+      "digest": "b46405364b020f26ba79ae185190786788ac7155985915de183ac67d20094bb3"
     },
     {
       "version": "ver_00000000000000000000000d",
       "identity": "rec_000000000000000000000009",
       "kind": "entity",
-      "schema": "v3",
       "value": {
         "record_kind": "entity",
         "names": [
@@ -290,33 +289,30 @@
           "en": "Renamed pistol"
         },
         "metadata": {},
-        "classification": "rec_000000000000000000000007"
+        "classification": "rec_000000000000000000000007",
+        "classificationResolution": "resolved"
       },
-      "digest": "f750893c96ec46be1f88aebc90985feef3295e89305c27a647db4d0583bfa17a"
+      "digest": "5d8a22f651ce31e928ecebaafa6b6154f0f9e98b1b51129badb881ed75845da6"
     },
     {
       "version": "ver_00000000000000000000000e",
       "identity": "rec_000000000000000000000017",
       "kind": "entity",
-      "schema": "v1",
       "value": {
         "names": [],
-        "types": [
-          "rec_000000000000000000000001",
-          "rec_000000000000000000000004"
-        ],
         "worldAssociations": [],
         "labels": {},
         "metadata": {},
+        "classification": null,
+        "classificationResolution": "ambiguous",
         "record_kind": "entity"
       },
-      "digest": "fab65e88287a4b23653e5577b16e88e0944f3a3ad564cea0a6133364be8cdf95"
+      "digest": "e0ce14eeaafecde81e0773f667598f91de0768d002a4fdb32c0a6eea3467a751"
     },
     {
       "version": "ver_00000000000000000000000f",
       "identity": "rec_00000000000000000000001c",
       "kind": "proposition",
-      "schema": "v1",
       "value": {
         "record_kind": "proposition",
         "subject": {
@@ -337,13 +333,12 @@
           "record": "rec_00000000000000000000000b"
         }
       },
-      "digest": "b66ceed51833e33e7951a21585381204808f652e98e7d70172c2c6b4f68d3cbe"
+      "digest": "b580b3f479c3b13f623b6f241369b29e36bae61cbe036b9e7101bd49bb2dccd0"
     },
     {
       "version": "ver_000000000000000000000010",
       "identity": "rec_00000000000000000000001d",
       "kind": "assertion",
-      "schema": "v3",
       "value": {
         "record_kind": "assertion",
         "proposition": {
@@ -382,13 +377,12 @@
         },
         "attributeMode": "shared"
       },
-      "digest": "30e4469b3394f5f424564c823c9ca5bb88469e0afc8a729efa09389c4cdc78bc"
+      "digest": "4f9962be875d97b16eaf88a3014a54d2890c5eb3281297e5b28c534b750303b3"
     },
     {
       "version": "ver_000000000000000000000011",
       "identity": "rec_00000000000000000000001e",
       "kind": "proposition",
-      "schema": "v1",
       "value": {
         "record_kind": "proposition",
         "subject": {
@@ -409,13 +403,12 @@
           "record": "rec_00000000000000000000000b"
         }
       },
-      "digest": "90a99d5e162a17c0dda51b9637f38091ba8d9583a340cc2add0bd9b29ac43e41"
+      "digest": "d7bb2dd1be0d1f91b742603d903a0b8a14f01fdb24f9bb53ed18c2794cc94fd3"
     },
     {
       "version": "ver_000000000000000000000012",
       "identity": "rec_00000000000000000000001f",
       "kind": "assertion",
-      "schema": "v3",
       "value": {
         "record_kind": "assertion",
         "proposition": {
@@ -454,13 +447,12 @@
         },
         "attributeMode": "shared"
       },
-      "digest": "06205392b45e6072784aecab41e0433d3acef792bb587d5fb4452ece73e83f76"
+      "digest": "d943e84e786d2845507c1afae0ed67e7ff1433e3b268ac0c2dbb1009dfcaf693"
     },
     {
       "version": "ver_000000000000000000000013",
       "identity": "rec_000000000000000000000020",
       "kind": "proposition",
-      "schema": "v1",
       "value": {
         "record_kind": "proposition",
         "subject": {
@@ -481,13 +473,12 @@
           "record": "rec_00000000000000000000000b"
         }
       },
-      "digest": "6101bc39d257d9df73ee8849fbcb23050f356491b300794c2408201d4de3ea55"
+      "digest": "6925a13f5da756f57c154e21b2695f16f4717a6409c74b9e5584a4803597f93f"
     },
     {
       "version": "ver_000000000000000000000014",
       "identity": "rec_000000000000000000000021",
       "kind": "assertion",
-      "schema": "v3",
       "value": {
         "record_kind": "assertion",
         "proposition": {
@@ -523,13 +514,12 @@
         },
         "attributeMode": "shared"
       },
-      "digest": "f1b29b5e9e0b85043887f534dd0f084e2fd085ce5081f25b18ae247af0076a14"
+      "digest": "8773ba41c716e5c8ebd71687deb00cf08eea07169c90add3c58c7a449c7254ee"
     },
     {
       "version": "ver_000000000000000000000015",
       "identity": "rec_000000000000000000000022",
       "kind": "proposition",
-      "schema": "v1",
       "value": {
         "record_kind": "proposition",
         "subject": {
@@ -550,13 +540,12 @@
           "record": "rec_00000000000000000000000b"
         }
       },
-      "digest": "a580b66636bed76c71f8cee704295074da4e1feb5e95ad1471da1e28b79d48f4"
+      "digest": "fdbdbb3c3bb7bbc8b134749a1bf3b5d453cac1009f0fc622ee4f9027a3f51b2d"
     },
     {
       "version": "ver_000000000000000000000016",
       "identity": "rec_000000000000000000000023",
       "kind": "assertion",
-      "schema": "v3",
       "value": {
         "record_kind": "assertion",
         "proposition": {
@@ -595,13 +584,12 @@
         },
         "attributeMode": "instance"
       },
-      "digest": "a4765bd347c707433b2a91bcd21d395ab45ab8d6291346863dbf04d0a340fd5f"
+      "digest": "94465c1c39d9d4f716ad08ac558a032d0acd9ec6e7d5533a8bf85703abfb548a"
     },
     {
       "version": "ver_000000000000000000000017",
       "identity": "rec_000000000000000000000024",
       "kind": "proposition",
-      "schema": "v1",
       "value": {
         "record_kind": "proposition",
         "subject": {
@@ -626,13 +614,12 @@
           "record": "rec_00000000000000000000000b"
         }
       },
-      "digest": "f8262d031822d5cf9695b44fb5f19a30917a062a271951a1b0582635e4c91c4f"
+      "digest": "c4304dfecb39594f379933b6210a6e3093b8ed91af583621d8b4ea9e9d096905"
     },
     {
       "version": "ver_000000000000000000000018",
       "identity": "rec_000000000000000000000025",
       "kind": "assertion",
-      "schema": "v3",
       "value": {
         "record_kind": "assertion",
         "proposition": {
@@ -671,13 +658,12 @@
         },
         "attributeMode": "instance"
       },
-      "digest": "e99b6820cccfad9980467d8e6e60b1ad218ca04536926963a7fee5d6559b49aa"
+      "digest": "5ee378d39e221056ba37bc5809e65b06163c8604be9112d4cd30c70652eecd6e"
     },
     {
       "version": "ver_000000000000000000000019",
       "identity": "rec_000000000000000000000026",
       "kind": "proposition",
-      "schema": "v1",
       "value": {
         "record_kind": "proposition",
         "subject": {
@@ -698,13 +684,12 @@
           "record": "rec_00000000000000000000000b"
         }
       },
-      "digest": "da288359e8928e0b1d9f13090fd2f6a41b7c701462d134cb6b6962ed1487883d"
+      "digest": "75e432474c290530ecc0686332b06a92a80588d1555a5547003424f5c51e3983"
     },
     {
       "version": "ver_00000000000000000000001a",
       "identity": "rec_000000000000000000000027",
       "kind": "assertion",
-      "schema": "v3",
       "value": {
         "record_kind": "assertion",
         "proposition": {
@@ -744,13 +729,12 @@
         },
         "attributeMode": "instance"
       },
-      "digest": "efab35dcdddd5ba82754237837c411966e32187b87c2f93b39b4324b722c12e6"
+      "digest": "5370b5200577ea43335e895917d5f0af395da93e3db7cbfdba1f59e5760bc664"
     },
     {
       "version": "ver_00000000000000000000001b",
       "identity": "rec_000000000000000000000028",
       "kind": "proposition",
-      "schema": "v1",
       "value": {
         "record_kind": "proposition",
         "subject": {
@@ -771,13 +755,12 @@
           "record": "rec_00000000000000000000000b"
         }
       },
-      "digest": "4e4ab860090be0a5f52da85c1597cd28d115cdbfb0ae4daaf64d9d15816ae4d7"
+      "digest": "089f33b068901978d84c45c74108ec98879989934bef4cb43defc217e6ebef35"
     },
     {
       "version": "ver_00000000000000000000001c",
       "identity": "rec_000000000000000000000029",
       "kind": "assertion",
-      "schema": "v3",
       "value": {
         "record_kind": "assertion",
         "proposition": {
@@ -817,13 +800,12 @@
         },
         "attributeMode": "instance"
       },
-      "digest": "341fd6ba74b8a6d48aaeb06d92cc96ebb7fa85a7a912e72a7218b80be6480368"
+      "digest": "716b1280ea73b1ea870dd97e57c44489b05a1be1601ba9b3ae7c1a25265102ae"
     },
     {
       "version": "ver_00000000000000000000001d",
       "identity": "rec_00000000000000000000002a",
       "kind": "proposition",
-      "schema": "v1",
       "value": {
         "record_kind": "proposition",
         "subject": {
@@ -844,13 +826,12 @@
           "record": "rec_00000000000000000000000b"
         }
       },
-      "digest": "1d24fcde4ac7515b36cd997298e541c296cfbc1f1cccc4437357ffcc92be6953"
+      "digest": "a02d4c32f261d4d3a6a3beec93748695dc0caa48928c9978669da9fd74c00b34"
     },
     {
       "version": "ver_00000000000000000000001e",
       "identity": "rec_00000000000000000000002b",
       "kind": "assertion",
-      "schema": "v3",
       "value": {
         "record_kind": "assertion",
         "proposition": {
@@ -890,13 +871,12 @@
         },
         "attributeMode": "instance"
       },
-      "digest": "68383b08cb13a429e2622ca459230532107244231a95384a5f5a8a44b41a170e"
+      "digest": "3bd508cc5b578da0c5e0eaed8de9ad7a29585f570715db18c31b7ff5a37b2cb0"
     },
     {
       "version": "ver_00000000000000000000001f",
       "identity": "rec_00000000000000000000002c",
       "kind": "proposition",
-      "schema": "v1",
       "value": {
         "record_kind": "proposition",
         "subject": {
@@ -917,13 +897,12 @@
           "record": "rec_00000000000000000000000b"
         }
       },
-      "digest": "4f7409e34bce1fdb5b49d0c119e4893627ce01103c1d57b655e535ebd744d461"
+      "digest": "b2efcf90f9b2fed07e95f323d5be5dc4b0d8356d42e6fc7d159130de490beeff"
     },
     {
       "version": "ver_000000000000000000000020",
       "identity": "rec_00000000000000000000002d",
       "kind": "assertion",
-      "schema": "v3",
       "value": {
         "record_kind": "assertion",
         "proposition": {
@@ -962,13 +941,12 @@
         },
         "attributeMode": "instance"
       },
-      "digest": "75071cb1fee189b64c56d29ceec20e89c392da5301eb474fe9d6ee46dc1e9a26"
+      "digest": "84497fc9be31f08a39d8a3dc19d15f630c258a3b19d44e3c029d2d160fed91b6"
     },
     {
       "version": "ver_000000000000000000000021",
       "identity": "rec_00000000000000000000002e",
       "kind": "proposition",
-      "schema": "v1",
       "value": {
         "record_kind": "proposition",
         "subject": {
@@ -989,13 +967,12 @@
           "record": "rec_00000000000000000000000b"
         }
       },
-      "digest": "e5f990f72f4a5b78cbf60395184e396e5fe5980fd1342d2409436d1f44e76fee"
+      "digest": "4fb9eacfbd8310490dacb4527bba420893f3d0c8d1d858ad48f82c4c85d7a1f2"
     },
     {
       "version": "ver_000000000000000000000022",
       "identity": "rec_00000000000000000000002f",
       "kind": "assertion",
-      "schema": "v3",
       "value": {
         "record_kind": "assertion",
         "proposition": {
@@ -1034,13 +1011,12 @@
         },
         "attributeMode": "instance"
       },
-      "digest": "a9bfd9a27541ba0105540f90d2d8d0927d69db08633f27a37058a1c8baccc51a"
+      "digest": "cea99098e14438ee1b10376786c4f1fa6a6e39a275fe77f7faa9e632a8f9e9be"
     },
     {
       "version": "ver_000000000000000000000023",
       "identity": "rec_000000000000000000000030",
       "kind": "proposition",
-      "schema": "v1",
       "value": {
         "record_kind": "proposition",
         "subject": {
@@ -1061,13 +1037,12 @@
           "record": "rec_00000000000000000000000b"
         }
       },
-      "digest": "9905ae8aaead7509479143b564633c9ce0366890174dec6256ee193ed81802af"
+      "digest": "c7fb5eb20f4d29b21987774175617d9fb009aa6fe5506321a153f88c803d69ff"
     },
     {
       "version": "ver_000000000000000000000024",
       "identity": "rec_000000000000000000000031",
       "kind": "assertion",
-      "schema": "v3",
       "value": {
         "record_kind": "assertion",
         "proposition": {
@@ -1106,35 +1081,32 @@
         },
         "attributeMode": "initial_value"
       },
-      "digest": "ed38160222f21bf57c282ecab5c76816356ecff95b30605b198aa3ba3c1485f1"
+      "digest": "bc44e5b24b35fd4492f9f66eff8fa6ee13040279bc0d9768f6bc142b9d32c1ae"
     },
     {
       "version": "ver_000000000000000000000025",
       "identity": "rec_00000000000000000000000c",
       "kind": "world",
-      "schema": "v1",
       "value": {
         "selector": "é🌲 sample",
         "record_kind": "world"
       },
-      "digest": "4c7ea59b0315a182df6992d6d8610cc35fd7758c73b4fde43ff39d84d895bc2e"
+      "digest": "b9ca41966d9ed71e4a2515378a602cf741ceca7f017f7d0da88142ee919778bb"
     },
     {
       "version": "ver_000000000000000000000026",
       "identity": "rec_00000000000000000000000d",
       "kind": "world",
-      "schema": "v1",
       "value": {
         "selector": "é🌲 sample",
         "record_kind": "world"
       },
-      "digest": "4c7ea59b0315a182df6992d6d8610cc35fd7758c73b4fde43ff39d84d895bc2e"
+      "digest": "b9ca41966d9ed71e4a2515378a602cf741ceca7f017f7d0da88142ee919778bb"
     },
     {
       "version": "ver_000000000000000000000027",
       "identity": "rec_00000000000000000000000b",
       "kind": "represented_context",
-      "schema": "v1",
       "value": {
         "universe": "unv_000000000000000000000001",
         "kind": {
@@ -1153,13 +1125,12 @@
           "current": "3"
         }
       },
-      "digest": "fba573e90d49a1f0dbf93455843c366af67468fbf9e1a90df52dc88204d38e72"
+      "digest": "f83b296054ed0a5c781b29ef46c9770b018a7c4c2d99d8325ac9e06ccaac8e92"
     },
     {
       "version": "ver_000000000000000000000028",
       "identity": "rec_00000000000000000000000e",
       "kind": "property",
-      "schema": "v1",
       "value": {
         "namespace": "é🌲 sample",
         "key": "grows",
@@ -1174,13 +1145,12 @@
         "transitive": true,
         "record_kind": "property"
       },
-      "digest": "116b334bbfb9152af30f666e8acdd454a8f33b11276efad1643f9281f65590d6"
+      "digest": "77e5e9b46c8caf6680d1fb21bf6005e332b4a653bdb70677b9b473da2b581ab9"
     },
     {
       "version": "ver_000000000000000000000029",
       "identity": "rec_00000000000000000000000f",
       "kind": "property",
-      "schema": "v1",
       "value": {
         "namespace": "é🌲 sample",
         "key": "hazard",
@@ -1195,13 +1165,12 @@
         "transitive": true,
         "record_kind": "property"
       },
-      "digest": "bbce10f49783d4aae3848448b11b4f354d944a06c0f7d5601f0851aca0643086"
+      "digest": "871a2273f20325710d9cc7883e66fc438a60509c81c7f47163963d416582fabc"
     },
     {
       "version": "ver_00000000000000000000002a",
       "identity": "rec_000000000000000000000010",
       "kind": "property",
-      "schema": "v1",
       "value": {
         "namespace": "é🌲 sample",
         "key": "height",
@@ -1217,13 +1186,12 @@
         "transitive": true,
         "record_kind": "property"
       },
-      "digest": "268fa1df64a3a452dee59896df0144e6fc6a02e94885a4c5e5a1719533e1eef8"
+      "digest": "1f1b09bef12edd5bdce8dcb01cd67f17dff23a2e4b9c581a1286ea2debb1e03e"
     },
     {
       "version": "ver_00000000000000000000002b",
       "identity": "rec_000000000000000000000011",
       "kind": "property",
-      "schema": "v1",
       "value": {
         "namespace": "é🌲 sample",
         "key": "rounds",
@@ -1238,13 +1206,12 @@
         "transitive": true,
         "record_kind": "property"
       },
-      "digest": "50c26d30e6bb94d9a70ce031b4ba4d5b0be1abc699b2263652cd0fe13d25a124"
+      "digest": "b9558562f36732080c338b35cb03a1bda9e46c3b868743ce911c130da5b0c985"
     },
     {
       "version": "ver_00000000000000000000002c",
       "identity": "rec_000000000000000000000015",
       "kind": "property",
-      "schema": "v1",
       "value": {
         "namespace": "é🌲 sample",
         "key": "holder",
@@ -1260,13 +1227,12 @@
         "transitive": true,
         "record_kind": "property"
       },
-      "digest": "b3605d6ac233c65daf4c4abe7a8317bcd6ee83dba9ed5a0b20d6ff3159b6ec21"
+      "digest": "cdfdc69386f7e718420a1c3df19a1583c6b901791b254afa10e5a88a769f5089"
     },
     {
       "version": "ver_00000000000000000000002d",
       "identity": "rec_000000000000000000000012",
       "kind": "event",
-      "schema": "v1",
       "value": {
         "occurrence": "occurred",
         "time": {
@@ -1278,13 +1244,12 @@
         "labels": {},
         "record_kind": "event"
       },
-      "digest": "ebd2936d55daa993093bfcb1c45388295466aca71c10c471049ce59c6da495e4"
+      "digest": "b4dbf0934da178e9e84285951845d74cd5e6f4a6138072f8366d96d3ab6ded66"
     },
     {
       "version": "ver_00000000000000000000002e",
       "identity": "rec_000000000000000000000013",
       "kind": "event",
-      "schema": "v1",
       "value": {
         "occurrence": "occurred",
         "time": {
@@ -1296,13 +1261,12 @@
         "labels": {},
         "record_kind": "event"
       },
-      "digest": "31ddcbb270dfed8208314b97ed1fd4206b1df7a829ee8a27fbf03b044bb49b20"
+      "digest": "9c36b063a9fedf89f9c40a72fc13398101512b6f9969bb0299b9e75274563426"
     },
     {
       "version": "ver_00000000000000000000002f",
       "identity": "rec_000000000000000000000014",
       "kind": "event",
-      "schema": "v1",
       "value": {
         "occurrence": "occurred",
         "time": {
@@ -1314,13 +1278,12 @@
         "labels": {},
         "record_kind": "event"
       },
-      "digest": "96088889237423065a9b856bfdde420aa2064e5d5d5f4ce78b9c345e7311fde4"
+      "digest": "642523416f681daf86a26de8bbcc84521b91ab4d7ccbf277930cf9c9528f56e2"
     },
     {
       "version": "ver_000000000000000000000030",
       "identity": "rec_000000000000000000000019",
       "kind": "unit",
-      "schema": "v1",
       "value": {
         "namespace": "é🌲 sample",
         "key": "foot",
@@ -1332,13 +1295,12 @@
         },
         "record_kind": "unit"
       },
-      "digest": "388f6dfc32dd0e11d6083f5fdf22e45f0ea9be034ce8f3f5b3ac6228d7b033b6"
+      "digest": "887691a664d1ebef9ccf1216be66e4ba5b942eecb8d9916acaf3f4c25f4a30ad"
     },
     {
       "version": "ver_000000000000000000000031",
       "identity": "rec_00000000000000000000001a",
       "kind": "calendar",
-      "schema": "v1",
       "value": {
         "namespace": "é🌲 sample",
         "key": "Story clock",
@@ -1349,13 +1311,12 @@
         "record_kind": "calendar",
         "epoch": "0"
       },
-      "digest": "87e381b70c527f779e2566bf1a0202c38b3b17ca1a6ecbc063f3880a75d8f4e6"
+      "digest": "7984d2308a5e3eda984639a38c7a7309d2b202915769494168dbfe03a0ecd079"
     },
     {
       "version": "ver_000000000000000000000032",
       "identity": "rec_00000000000000000000001b",
       "kind": "rule",
-      "schema": "v2",
       "value": {
         "namespace": "é🌲 sample",
         "key": "é🌲 sample",
@@ -1385,7 +1346,7 @@
         },
         "record_kind": "rule"
       },
-      "digest": "5e606539acc7b41ee023fda90ee8aacc7ecee73f5c5257fb70d8c19748f371f0"
+      "digest": "7799b11db224d7e60d432aa7ecdd34517390d1aa710e223720e3ff9d74597a5a"
     }
   ],
   "names": {
@@ -1591,11 +1552,29 @@
       "Pistol",
       "Gun"
     ],
-    "legacy_status": "legacy_ambiguous",
+    "ambiguity_status": "ambiguous",
     "world_b_definition": "inapplicable",
     "unknown_before_height": true,
     "initial_value_is_current_state": false,
     "inherited_conflict_at_t2": true,
     "unspecified_applicability_at_t2": "unresolved"
-  }
+  },
+  "import_evidence": [
+    {
+      "version": "ver_00000000000000000000000e",
+      "source_body": {
+        "names": [],
+        "worldAssociations": [],
+        "labels": {},
+        "metadata": {},
+        "record_kind": "entity",
+        "types": [
+          "rec_000000000000000000000001",
+          "rec_000000000000000000000004"
+        ]
+      },
+      "source_digest": "fab65e88287a4b23653e5577b16e88e0944f3a3ad564cea0a6133364be8cdf95",
+      "normalized_digest": "e0ce14eeaafecde81e0773f667598f91de0768d002a4fdb32c0a6eea3467a751"
+    }
+  ]
 }

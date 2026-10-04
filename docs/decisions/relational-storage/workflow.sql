@@ -3,7 +3,7 @@ CREATE TABLE workflow_entries (
  key TEXT PRIMARY KEY,
  family TEXT NOT NULL CHECK(family IN ('StoredContext','StoredProposal','Checked','StoredOperation','ApprovalEvidence','AssessmentEnvelope','AssessmentSelection','AssessmentReceipt','Cursor','Cancellation','ReservedRecord','SavedDraft','ImportOrigin','ImportAdmission')),
  digest TEXT NOT NULL,
- digest_recipe TEXT NOT NULL CHECK(digest_recipe IN ('workflow-canonical-v1')),
+ digest_recipe TEXT NOT NULL CHECK(digest_recipe IN ('workflow-canonical')),
  "StoredContext" INTEGER REFERENCES "r_stored_context"(__row_id),
  "StoredProposal" INTEGER REFERENCES "r_stored_proposal"(__row_id),
  "Checked" INTEGER REFERENCES "r_checked"(__row_id),
