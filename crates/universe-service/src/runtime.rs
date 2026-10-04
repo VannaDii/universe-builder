@@ -1189,14 +1189,11 @@ mod ownership_tests {
         let root = d.path().join("installation");
         let author = initialize(&root).unwrap();
         let runtime = Arc::new(runtime(&root));
-        let profile: ProfileFile = serde_json::from_slice(
-            &std::fs::read(root.join("profiles").join(format!("{author}.json"))).unwrap(),
-        )
-        .unwrap();
+        let profile = Credential::new(universe_store::credentials::read(&root, &author).unwrap());
         let hello = EngineHello {
             protocol_version: PROTOCOL_VERSION.into(),
             profile_id: author,
-            credential: profile.credential,
+            credential: profile,
             client_name: "test".into(),
         };
         runtime
@@ -1284,14 +1281,11 @@ mod ownership_tests {
         let root = dir.path().join("installation");
         let author = initialize(&root).unwrap();
         let runtime = Arc::new(runtime(&root));
-        let profile: ProfileFile = serde_json::from_slice(
-            &std::fs::read(root.join("profiles").join(format!("{author}.json"))).unwrap(),
-        )
-        .unwrap();
+        let profile = Credential::new(universe_store::credentials::read(&root, &author).unwrap());
         let hello = EngineHello {
             protocol_version: PROTOCOL_VERSION.into(),
             profile_id: author,
-            credential: profile.credential,
+            credential: profile,
             client_name: "test".into(),
         };
         let u = runtime
@@ -1359,14 +1353,12 @@ mod ownership_tests {
             let author = initialize(&root).unwrap();
             let runtime = Arc::new(runtime(&root));
             let hello = |id: ProfileId| {
-                let profile: ProfileFile = serde_json::from_slice(
-                    &std::fs::read(root.join("profiles").join(format!("{id}.json"))).unwrap(),
-                )
-                .unwrap();
+                let profile =
+                    Credential::new(universe_store::credentials::read(&root, &id).unwrap());
                 EngineHello {
                     protocol_version: PROTOCOL_VERSION.into(),
                     profile_id: id,
-                    credential: profile.credential,
+                    credential: profile,
                     client_name: "binding-test".into(),
                 }
             };
@@ -1504,14 +1496,12 @@ mod ownership_tests {
             let author = initialize(&root).unwrap();
             let runtime = Arc::new(runtime(&root));
             let hello = |id: ProfileId| {
-                let profile: ProfileFile = serde_json::from_slice(
-                    &std::fs::read(root.join("profiles").join(format!("{id}.json"))).unwrap(),
-                )
-                .unwrap();
+                let profile =
+                    Credential::new(universe_store::credentials::read(&root, &id).unwrap());
                 EngineHello {
                     protocol_version: PROTOCOL_VERSION.into(),
                     profile_id: id,
-                    credential: profile.credential,
+                    credential: profile,
                     client_name: "binding-test".into(),
                 }
             };
@@ -1689,14 +1679,12 @@ mod ownership_tests {
             let author = initialize(&root).unwrap();
             let runtime = Arc::new(runtime(&root));
             let hello = |id: ProfileId| {
-                let profile: ProfileFile = serde_json::from_slice(
-                    &std::fs::read(root.join("profiles").join(format!("{id}.json"))).unwrap(),
-                )
-                .unwrap();
+                let profile =
+                    Credential::new(universe_store::credentials::read(&root, &id).unwrap());
                 EngineHello {
                     protocol_version: PROTOCOL_VERSION.into(),
                     profile_id: id,
-                    credential: profile.credential,
+                    credential: profile,
                     client_name: "binding-test".into(),
                 }
             };
@@ -1839,9 +1827,9 @@ mod ownership_tests {
                     let mut expired = delegated.limits.clone();
                     expired.expires_at = Some(1);
                     db.execute(
-                        "UPDATE grant_limits SET limits=?1 WHERE profile=?2 AND universe=?3",
+                        "UPDATE grants SET expires_at=?1 WHERE profile=?2 AND universe=?3",
                         rusqlite::params![
-                            serde_json::to_string(&expired).unwrap(),
+                            expired.expires_at.unwrap().to_string(),
                             agent.as_str(),
                             uid.as_str()
                         ],
@@ -1958,18 +1946,11 @@ mod ownership_tests {
         let root = d.path().join("installation");
         let author = initialize(&root).unwrap();
         let runtime = Arc::new(runtime(&root));
-        let profile: ProfileFile = serde_json::from_slice(
-            &std::fs::read(
-                root.join("profiles")
-                    .join(format!("{}.json", author.as_str())),
-            )
-            .unwrap(),
-        )
-        .unwrap();
+        let profile = Credential::new(universe_store::credentials::read(&root, &author).unwrap());
         let hello = EngineHello {
             protocol_version: PROTOCOL_VERSION.into(),
             profile_id: author,
-            credential: profile.credential,
+            credential: profile,
             client_name: "test".into(),
         };
         for n in 0..31 {

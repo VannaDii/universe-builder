@@ -1,7 +1,6 @@
 //! Authenticated persistent-engine client shared by desktop, MCP, and CLI.
 use futures::{SinkExt, StreamExt};
 use std::{
-    io::Read,
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -9,7 +8,7 @@ use tokio::net::UnixStream;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use universe_domain::ids::ProfileId;
 use universe_protocol::{installation::*, wire::decode, MAX_FRAME_BYTES, PROTOCOL_VERSION};
-use universe_store::ownership::{private_dir, protected_file, FileLock};
+use universe_store::ownership::{private_dir, FileLock};
 pub struct EngineClient {
     io: Framed<UnixStream, LengthDelimitedCodec>,
     pub welcome: EngineWelcome,
@@ -23,18 +22,7 @@ impl EngineClient {
         client_name: &str,
     ) -> anyhow::Result<Self> {
         let root = private_dir(root)?;
-        let profiles = private_dir(&root.join("profiles"))?;
-        let path = profiles.join(format!("{}.json", profile.as_str()));
-        let mut file = protected_file(&path, false)?;
-        anyhow::ensure!(file.metadata()?.len() <= 4096, "profile file too large");
-        let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes)?;
-        let loaded: ProfileFile =
-            decode(&bytes).map_err(|_| anyhow::anyhow!("invalid protected profile"))?;
-        anyhow::ensure!(
-            loaded.format_version == 1 && loaded.profile_id == *profile,
-            "profile identity mismatch"
-        );
+        let credential = Credential::new(universe_store::credentials::read(&root, profile)?);
         use std::os::unix::fs::FileTypeExt;
         let endpoint = root.join("engine.sock");
         anyhow::ensure!(
@@ -57,8 +45,8 @@ impl EngineClient {
         );
         let hello = EngineHello {
             protocol_version: PROTOCOL_VERSION.into(),
-            profile_id: loaded.profile_id,
-            credential: loaded.credential,
+            profile_id: profile.clone(),
+            credential,
             client_name: client_name.into(),
         };
         tokio::time::timeout(

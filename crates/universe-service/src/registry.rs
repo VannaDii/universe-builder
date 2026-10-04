@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeSet,
-    io::Write,
     path::{Path, PathBuf},
 };
 use universe_domain::ids::*;
@@ -34,20 +33,24 @@ impl Registry {
         protected_file(&db_path, true)?;
         let db = rusqlite::Connection::open(db_path)?;
         db.busy_timeout(std::time::Duration::from_secs(2))?;
-        let version: i64 = db.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        anyhow::ensure!(
-            (0..=2).contains(&version),
-            "unsupported installation schema version"
-        );
-        db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON; BEGIN IMMEDIATE;
-        CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS profiles(id TEXT PRIMARY KEY,hash TEXT NOT NULL,author INTEGER NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);
-        CREATE TABLE IF NOT EXISTS catalog(id TEXT PRIMARY KEY,name TEXT NOT NULL,path TEXT NOT NULL UNIQUE,device TEXT NOT NULL,inode TEXT NOT NULL,UNIQUE(device,inode));
-        CREATE TABLE IF NOT EXISTS aliases(key TEXT PRIMARY KEY,universe TEXT NOT NULL REFERENCES catalog(id));
-        CREATE TABLE IF NOT EXISTS grants(profile TEXT NOT NULL REFERENCES profiles(id),universe TEXT NOT NULL REFERENCES catalog(id),worlds TEXT,propose INTEGER NOT NULL,edit INTEGER NOT NULL,protected INTEGER NOT NULL,PRIMARY KEY(profile,universe));
-        CREATE TABLE IF NOT EXISTS grant_limits(profile TEXT NOT NULL,universe TEXT NOT NULL,limits TEXT NOT NULL,PRIMARY KEY(profile,universe),FOREIGN KEY(profile,universe) REFERENCES grants(profile,universe));
-        CREATE TABLE IF NOT EXISTS purge_pending(universe TEXT PRIMARY KEY,path TEXT NOT NULL,device TEXT NOT NULL,inode TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS audit(sequence INTEGER PRIMARY KEY,actor TEXT NOT NULL,action TEXT NOT NULL,target TEXT NOT NULL);")?;
+        let initialized: bool = db.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table')",
+            [],
+            |r| r.get(0),
+        )?;
+        if initialized {
+            let relational: bool = db.query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('grants') WHERE name='worlds_state')", [], |r| r.get(0))?;
+            anyhow::ensure!(
+                relational,
+                "legacy installation requires explicit conversion (Goal 27)"
+            );
+        }
+        db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON; BEGIN IMMEDIATE;")?;
+        if !initialized {
+            db.execute_batch(include_str!(
+                "../../../docs/decisions/relational-storage/installation.sql"
+            ))?;
+        }
         let version: Option<String> = db
             .query_row(
                 "SELECT value FROM settings WHERE key='normalization'",
@@ -65,7 +68,7 @@ impl Registry {
             "INSERT OR IGNORE INTO settings VALUES('normalization',?1)",
             [universe_store::selector::NORMALIZATION_VERSION],
         )?;
-        db.execute_batch("PRAGMA user_version=2; COMMIT;")?;
+        db.execute_batch("COMMIT;")?;
         let mut registry = Self { db, root };
         registry.finish_purges()?;
         Ok(registry)
@@ -85,29 +88,11 @@ impl Registry {
         let id = ProfileId::generate(&mut rand::rng());
         let bytes: [u8; 32] = rand::random();
         let credential = hex::encode(bytes);
-        let config = ProfileFile {
-            format_version: 1,
-            profile_id: id.clone(),
-            credential: Credential::new(credential.clone()),
-        };
-        let path = self
-            .root
-            .join("profiles")
-            .join(format!("{}.json", id.as_str()));
-        // Write the credential before publishing its hash. An interrupted write
-        // cannot create a usable enrolled identity with an unknown credential.
-        use std::os::unix::fs::OpenOptionsExt;
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(&path)?;
-        file.write_all(&serde_json::to_vec(&config)?)?;
-        file.sync_all()?;
-        std::fs::File::open(path.parent().unwrap())?.sync_all()?;
+        // Persist the exact private credential before publishing its hash.
+        universe_store::credentials::write(&self.root, &id, &credential)?;
         let tx = self.db.transaction()?;
         tx.execute(
-            "INSERT INTO profiles(id,hash,author) VALUES(?1,?2,?3)",
+            "INSERT INTO profiles(id,hash,author,revoked) VALUES(?1,?2,?3,0)",
             params![
                 id.as_str(),
                 hex::encode(Sha256::digest(credential.as_bytes())),
@@ -199,20 +184,15 @@ impl Registry {
         Self::require_author(p)?;
         let profiles=self.db.prepare("SELECT id,author,revoked FROM profiles ORDER BY id")?.query_map([],|r|Ok(serde_json::json!({"profile_id":r.get::<_,String>(0)?,"author":r.get::<_,bool>(1)?,"revoked":r.get::<_,bool>(2)?})))?.collect::<Result<Vec<_>,_>>()?;
         let mut grants = Vec::new();
-        let rows=self.db.prepare("SELECT g.profile,g.universe,g.worlds,g.propose,g.edit,g.protected,l.limits FROM grants g LEFT JOIN grant_limits l ON g.profile=l.profile AND g.universe=l.universe ORDER BY g.profile,g.universe")?.query_map([],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,Option<String>>(2)?,r.get::<_,bool>(3)?,r.get::<_,bool>(4)?,r.get::<_,bool>(5)?,r.get::<_,Option<String>>(6)?)))?.collect::<Result<Vec<_>,_>>()?;
-        for (profile, universe, worlds, propose, edit, protected, limits) in rows {
-            grants.push(GrantSpec {
-                profile_id: ProfileId::parse(&profile)?,
-                universe_id: UniverseId::parse(&universe)?,
-                worlds: worlds.map(|v| serde_json::from_str(&v)).transpose()?,
-                propose,
-                edit,
-                protected,
-                limits: limits
-                    .map(|v| serde_json::from_str(&v))
-                    .transpose()?
-                    .unwrap_or_default(),
-            });
+        let pairs = self
+            .db
+            .prepare("SELECT profile,universe FROM grants ORDER BY profile,universe")?
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
+            .collect::<Result<Vec<_>, _>>()?;
+        for (profile, universe) in pairs {
+            grants.push(
+                self.read_grant(&ProfileId::parse(&profile)?, &UniverseId::parse(&universe)?)?,
+            );
         }
         Ok(serde_json::json!({"profiles":profiles,"grants":grants}))
     }
@@ -224,10 +204,17 @@ impl Registry {
     ) -> anyhow::Result<()> {
         Self::require_author(p)?;
         let tx = self.db.transaction()?;
-        tx.execute(
-            "DELETE FROM grant_limits WHERE profile=?1 AND universe=?2",
-            params![profile.as_str(), universe.as_str()],
-        )?;
+        for table in [
+            "grant_worlds",
+            "grant_entities",
+            "grant_predicates",
+            "grant_continuities",
+        ] {
+            tx.execute(
+                &format!("DELETE FROM {table} WHERE profile=?1 AND universe=?2"),
+                params![profile.as_str(), universe.as_str()],
+            )?;
+        }
         tx.execute(
             "DELETE FROM grants WHERE profile=?1 AND universe=?2",
             params![profile.as_str(), universe.as_str()],
@@ -246,7 +233,17 @@ impl Registry {
             "INSERT INTO purge_pending SELECT id,path,device,inode FROM catalog WHERE id=?1",
             [u.as_str()],
         )?;
-        tx.execute("DELETE FROM grant_limits WHERE universe=?1", [u.as_str()])?;
+        for table in [
+            "grant_worlds",
+            "grant_entities",
+            "grant_predicates",
+            "grant_continuities",
+        ] {
+            tx.execute(
+                &format!("DELETE FROM {table} WHERE universe=?1"),
+                [u.as_str()],
+            )?;
+        }
         tx.execute("DELETE FROM grants WHERE universe=?1", [u.as_str()])?;
         tx.execute("DELETE FROM aliases WHERE universe=?1", [u.as_str()])?;
         tx.execute("DELETE FROM catalog WHERE id=?1", [u.as_str()])?;
@@ -330,14 +327,56 @@ impl Registry {
             limits.expires_at.is_none_or(|t| t > epoch()),
             "grant expiry must be in the future"
         );
-        let worlds = grant
-            .worlds
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()?;
+        let state = |listed: bool| if listed { "listed" } else { "all" };
         let tx = self.db.transaction()?;
-        tx.execute("INSERT INTO grants VALUES(?1,?2,?3,?4,?5,?6) ON CONFLICT(profile,universe) DO UPDATE SET worlds=excluded.worlds,propose=excluded.propose,edit=excluded.edit,protected=excluded.protected",params![grant.profile_id.as_str(),grant.universe_id.as_str(),worlds,grant.propose,grant.edit,grant.protected])?;
-        tx.execute("INSERT INTO grant_limits VALUES(?1,?2,?3) ON CONFLICT(profile,universe) DO UPDATE SET limits=excluded.limits",params![grant.profile_id.as_str(),grant.universe_id.as_str(),serde_json::to_string(limits)?])?;
+        tx.execute("INSERT INTO grants VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12) ON CONFLICT(profile,universe) DO UPDATE SET worlds_state=excluded.worlds_state,propose=excluded.propose,edit=excluded.edit,protected=excluded.protected,entities_state=excluded.entities_state,predicates_state=excluded.predicates_state,continuities_state=excluded.continuities_state,expires_at=excluded.expires_at,delegated_commit=excluded.delegated_commit,allow_shared=excluded.allow_shared",
+            params![grant.profile_id.as_str(),grant.universe_id.as_str(),state(grant.worlds.is_some()),grant.propose,grant.edit,grant.protected,state(limits.entities.is_some()),state(limits.predicates.is_some()),state(limits.continuities.is_some()),limits.expires_at.map(|t| t.to_string()),limits.delegated_commit,limits.allow_shared])?;
+        for (table, values) in [
+            (
+                "grant_worlds",
+                grant
+                    .worlds
+                    .as_ref()
+                    .map(|v| v.iter().map(ToString::to_string).collect::<Vec<_>>()),
+            ),
+            (
+                "grant_entities",
+                limits
+                    .entities
+                    .as_ref()
+                    .map(|v| v.iter().map(ToString::to_string).collect()),
+            ),
+            (
+                "grant_predicates",
+                limits
+                    .predicates
+                    .as_ref()
+                    .map(|v| v.iter().map(ToString::to_string).collect()),
+            ),
+            (
+                "grant_continuities",
+                limits
+                    .continuities
+                    .as_ref()
+                    .map(|v| v.iter().map(ToString::to_string).collect()),
+            ),
+        ] {
+            tx.execute(
+                &format!("DELETE FROM {table} WHERE profile=?1 AND universe=?2"),
+                params![grant.profile_id.as_str(), grant.universe_id.as_str()],
+            )?;
+            for (ordinal, value) in values.unwrap_or_default().iter().enumerate() {
+                tx.execute(
+                    &format!("INSERT INTO {table} VALUES(?1,?2,?3,?4)"),
+                    params![
+                        grant.profile_id.as_str(),
+                        grant.universe_id.as_str(),
+                        ordinal as i64,
+                        value
+                    ],
+                )?;
+            }
+        }
         tx.execute(
             "INSERT INTO audit(actor,action,target) VALUES(?1,'grant',?2)",
             params![p.id.as_str(), grant.profile_id.as_str()],
@@ -356,18 +395,7 @@ impl Registry {
         if p.author {
             return Ok(GrantLimits::default());
         }
-        let raw: Option<String> = self
-            .db
-            .query_row(
-                "SELECT limits FROM grant_limits WHERE profile=?1 AND universe=?2",
-                params![p.id.as_str(), u.as_str()],
-                |r| r.get(0),
-            )
-            .optional()?;
-        let limits: GrantLimits = raw
-            .map(|s| serde_json::from_str(&s))
-            .transpose()?
-            .unwrap_or_default();
+        let limits = self.read_grant(&p.id, u)?.limits;
         if limits.expires_at.is_some_and(|t| t <= epoch()) {
             return Err(denied());
         }
@@ -390,18 +418,51 @@ impl Registry {
             return Ok(None);
         }
         self.limits(p, u)?;
-        let worlds: Option<String> = self
-            .db
-            .query_row(
-                "SELECT worlds FROM grants WHERE profile=?1 AND universe=?2",
-                params![p.id.as_str(), u.as_str()],
-                |r| r.get(0),
-            )
-            .optional()?
-            .ok_or_else(denied)?;
-        worlds
-            .map(|v| serde_json::from_str(&v).map_err(Into::into))
-            .transpose()
+        Ok(self
+            .read_grant(&p.id, u)?
+            .worlds
+            .map(|v| v.into_iter().collect()))
+    }
+    fn read_grant(&self, profile: &ProfileId, universe: &UniverseId) -> anyhow::Result<GrantSpec> {
+        let (ws, propose, edit, protected, es, ps, cs, expiry, delegated_commit, allow_shared) = self.db.query_row(
+            "SELECT worlds_state,propose,edit,protected,entities_state,predicates_state,continuities_state,expires_at,delegated_commit,allow_shared FROM grants WHERE profile=?1 AND universe=?2",
+            params![profile.as_str(),universe.as_str()], |r| Ok((r.get::<_,String>(0)?,r.get::<_,bool>(1)?,r.get::<_,bool>(2)?,r.get::<_,bool>(3)?,r.get::<_,String>(4)?,r.get::<_,String>(5)?,r.get::<_,String>(6)?,r.get::<_,Option<String>>(7)?,r.get::<_,bool>(8)?,r.get::<_,bool>(9)?)))
+            .optional()?.ok_or_else(denied)?;
+        let children = |state: &str,
+                        table: &str,
+                        column: &str|
+         -> anyhow::Result<Option<Vec<String>>> {
+            match state {
+                "all" => Ok(None),
+                "listed" => Ok(Some(self.db.prepare(&format!("SELECT {column} FROM {table} WHERE profile=?1 AND universe=?2 ORDER BY ordinal"))?
+                    .query_map(params![profile.as_str(),universe.as_str()], |r| r.get(0))?.collect::<Result<Vec<_>,_>>()?)),
+                _ => Err(denied()),
+            }
+        };
+        Ok(GrantSpec {
+            profile_id: profile.clone(),
+            universe_id: universe.clone(),
+            propose,
+            edit,
+            protected,
+            worlds: children(&ws, "grant_worlds", "world")?
+                .map(|v| v.iter().map(|s| WorldId::parse(s)).collect())
+                .transpose()?,
+            limits: GrantLimits {
+                entities: children(&es, "grant_entities", "entity")?
+                    .map(|v| v.iter().map(|s| RecordId::parse(s)).collect())
+                    .transpose()?,
+                predicates: children(&ps, "grant_predicates", "predicate")?
+                    .map(|v| v.iter().map(|s| RecordId::parse(s)).collect())
+                    .transpose()?,
+                continuities: children(&cs, "grant_continuities", "continuity")?
+                    .map(|v| v.iter().map(|s| ContinuityId::parse(s)).collect())
+                    .transpose()?,
+                expires_at: expiry.map(|s| s.parse()).transpose()?,
+                delegated_commit,
+                allow_shared,
+            },
+        })
     }
     pub fn write_permissions(
         &self,

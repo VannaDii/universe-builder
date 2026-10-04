@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import sqlite3
 import socket
 import struct
 import subprocess
@@ -55,7 +56,7 @@ def run(bin_dir):
             admin('grant', agent, uid, '--propose', '--edit')
             context_args = {'universe': 'The Ashen Cycle', 'continuity_id': universe['continuity_id'], 'revision': {'kind': 'head'}, 'represented_context': universe['context_id'], 'temporal_query': {'kind': 'timeless'}, 'temporal_systems': [], 'perspective': 'author'}
             context = client.call('universe_open_context', context_args)['result']['context_id']
-            proposal_args = {'action': 'create', 'universe': 'The Ashen Cycle', 'context_id': context, 'operations': [{'kind': 'create_entity', 'client_ref': 'mara', 'record': {'names': [], 'types': [], 'worldAssociations': [], 'labels': {'en': 'Mara'}, 'metadata': {}}}], 'submission': 'submitted', 'rationale': 'Independent author and agent loop', 'idempotency_key': 'propose-mara'}
+            proposal_args = {'action': 'create', 'universe': 'The Ashen Cycle', 'context_id': context, 'operations': [{'kind': 'create_entity', 'client_ref': 'mara', 'record': {'names': [], 'classification': None, 'classificationResolution': 'unclassified', 'worldAssociations': [], 'labels': {'en': 'Mara'}, 'metadata': {}}}], 'submission': 'submitted', 'rationale': 'Independent author and agent loop', 'idempotency_key': 'propose-mara'}
             proposal = client.call('universe_propose', proposal_args)['result']
             assert client.call('universe_propose', proposal_args)['result'] == proposal
             reference = {key: proposal[key] for key in ('proposal_id', 'version', 'digest')}
@@ -90,7 +91,8 @@ def run(bin_dir):
             storage = doctor['packages'][0]['storage']
             assert storage['foreign_keys'] is True and storage['journal_mode'] == 'wal' and storage['synchronous'] == 2
             # Incompatible and forged hello metadata fail before request dispatch.
-            profile = json.loads((root / 'profiles' / f'{agent}.json').read_text())
+            with sqlite3.connect(f"file:{root / 'profiles' / f'{agent}.sqlite'}?mode=ro", uri=True) as credentials:
+                profile = {'credential': credentials.execute('SELECT credential FROM credential WHERE profile_id=?', (agent,)).fetchone()[0]}
             for extra in [{'protocol_version': '999'}, {'author': True}]:
                 hello = {'protocol_version': '1', 'profile_id': agent, 'credential': profile['credential'], 'client_name': 'author', **extra}
                 payload = json.dumps(hello).encode()

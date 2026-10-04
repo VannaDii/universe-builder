@@ -19,13 +19,6 @@ impl std::fmt::Debug for Credential {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct ProfileFile {
-    pub format_version: u32,
-    pub profile_id: ProfileId,
-    pub credential: Credential,
-}
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct EngineHello {
     pub protocol_version: String,
     pub profile_id: ProfileId,

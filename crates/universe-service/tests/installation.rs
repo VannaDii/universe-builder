@@ -183,19 +183,12 @@ fn world_grants_do_not_expand_to_shared_or_protected_writes() {
     let author = runtime::initialize(&root).unwrap();
     let mut registry = Registry::open(&root).unwrap();
     // Test credentials are read by test code, never printed or written to output.
-    let profile: ProfileFile = serde_json::from_slice(
-        &std::fs::read(
-            root.join("profiles")
-                .join(format!("{}.json", author.as_str())),
-        )
-        .unwrap(),
-    )
-    .unwrap();
+    let profile = Credential::new(universe_store::credentials::read(&root, &author).unwrap());
     let p = registry
         .authenticate(&EngineHello {
             protocol_version: universe_protocol::PROTOCOL_VERSION.into(),
             profile_id: author,
-            credential: profile.credential,
+            credential: profile,
             client_name: "test".into(),
         })
         .unwrap();
@@ -248,5 +241,254 @@ fn world_grants_do_not_expand_to_shared_or_protected_writes() {
     assert!(registry
         .authorize_write(&ap, &u, &other, false, false, true)
         .is_err());
+    // Listed with zero children must stay empty, never become unrestricted.
+    let db = rusqlite::Connection::open(root.join("installation.sqlite")).unwrap();
+    db.execute("DELETE FROM grant_worlds", []).unwrap();
+    db.execute("UPDATE grants SET entities_state='listed',predicates_state='listed',continuities_state='listed'", []).unwrap();
+    assert_eq!(registry.scope(&ap, &u).unwrap(), Some(BTreeSet::new()));
+    let limits = registry.limits(&ap, &u).unwrap();
+    assert_eq!(limits.entities, Some(vec![]));
+    assert_eq!(limits.predicates, Some(vec![]));
+    assert_eq!(limits.continuities, Some(vec![]));
+    assert!(registry
+        .authorize_write(&ap, &u, &worlds, false, false, true)
+        .is_err());
+    // Replacing listed boundaries with all removes their child rows atomically.
+    registry
+        .grant(
+            &p,
+            &GrantSpec {
+                profile_id: ap.id.clone(),
+                universe_id: u.clone(),
+                worlds: None,
+                propose: false,
+                edit: false,
+                protected: false,
+                limits: GrantLimits::default(),
+            },
+        )
+        .unwrap();
+    assert_eq!(registry.scope(&ap, &u).unwrap(), None);
+    assert_eq!(registry.limits(&ap, &u).unwrap(), GrantLimits::default());
+    assert!(registry
+        .authorize_write(&ap, &u, &worlds, false, false, false)
+        .is_err());
+    registry.withdraw_grant(&p, &ap.id, &u).unwrap();
+    assert!(registry.scope(&ap, &u).is_err());
+    assert!(registry.limits(&ap, &u).is_err());
+    registry.begin_purge(&p, &u).unwrap();
     drop(kernel);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn relational_grants_credentials_restart_and_independent_inspection() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("installation");
+    let author = runtime::initialize(&root).unwrap();
+    let secret = universe_store::credentials::read(&root, &author).unwrap();
+    let stop = CancellationToken::new();
+    let r = root.clone();
+    let s = stop.clone();
+    let server = tokio::spawn(async move { runtime::serve(&r, s).await });
+    let mut admin = connect(&root, &author, "qualification").await;
+    let u = admin
+        .call(EngineRequest::CreateUniverse {
+            name: "Relational".into(),
+            start: universe_domain::chronology::UniverseStart::Fictional {
+                calendar_name: "Clock".into(),
+                initial_tick: "0".into(),
+                tick_label: "ticks".into(),
+                ticks_per_month: None,
+            },
+        })
+        .await
+        .unwrap();
+    let uid: UniverseId = serde_json::from_value(u["universe_id"].clone()).unwrap();
+    let agent: ProfileId = serde_json::from_value(
+        admin.call(EngineRequest::Enroll).await.unwrap()["profile_id"].clone(),
+    )
+    .unwrap();
+    let agent_secret = universe_store::credentials::read(&root, &agent).unwrap();
+    let mut client = connect(&root, &agent, "qualification").await;
+    assert!(client.call(describe("Relational")).await.is_err());
+    let a = RecordId::generate(&mut rand::rng());
+    let b = RecordId::generate(&mut rand::rng());
+    let grant = GrantSpec {
+        profile_id: agent.clone(),
+        universe_id: uid.clone(),
+        worlds: Some(vec![WorldId::generate(&mut rand::rng())]),
+        propose: true,
+        edit: true,
+        protected: false,
+        limits: GrantLimits {
+            entities: Some(vec![b.clone(), a.clone(), b]),
+            predicates: Some(vec![a]),
+            continuities: Some(vec![
+                serde_json::from_value(u["continuity_id"].clone()).unwrap()
+            ]),
+            expires_at: Some(
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+                    + 3600,
+            ),
+            delegated_commit: true,
+            allow_shared: true,
+        },
+    };
+    admin
+        .call(EngineRequest::Grant {
+            grant: grant.clone(),
+        })
+        .await
+        .unwrap();
+    assert!(client.call(describe("Relational")).await.is_ok());
+    // Real client requests enforce each relational write boundary independently.
+    for (index, limits) in [
+        GrantLimits {
+            entities: Some(vec![RecordId::generate(&mut rand::rng())]),
+            ..Default::default()
+        },
+        GrantLimits {
+            predicates: Some(vec![RecordId::generate(&mut rand::rng())]),
+            ..Default::default()
+        },
+        GrantLimits {
+            continuities: Some(vec![ContinuityId::generate(&mut rand::rng())]),
+            ..Default::default()
+        },
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let restricted = GrantSpec {
+            worlds: None,
+            limits,
+            ..grant.clone()
+        };
+        admin
+            .call(EngineRequest::Grant { grant: restricted })
+            .await
+            .unwrap();
+        let context = client.call(EngineRequest::Tool { request: Box::new(serde_json::from_value(json!({
+            "tool":"universe_open_context", "args":{
+                "universe":"Relational", "continuity_id":u["continuity_id"], "revision":{"kind":"head"},
+                "represented_context":u["context_id"], "temporal_query":{"kind":"timeless"}, "temporal_systems":[], "perspective":"author"
+            }
+        })).unwrap()) }).await.unwrap()["result"]["context_id"].clone();
+        let proposal = EngineRequest::Tool { request: Box::new(serde_json::from_value(json!({
+            "tool":"universe_propose", "args":{
+                "action":"create", "universe":"Relational", "context_id":context,
+                "operations":[{"kind":"create_entity", "client_ref":"outside", "record":{
+                    "names":[], "classification":null, "classificationResolution":"unclassified", "worldAssociations":[], "labels":{"en":"Outside boundary"}, "metadata":{}
+                }}], "submission":"submitted", "rationale":"Negative scope control", "idempotency_key":format!("restricted-{index}")
+            }
+        })).unwrap()) };
+        assert!(client.call(proposal).await.is_err());
+    }
+    admin
+        .call(EngineRequest::Grant {
+            grant: grant.clone(),
+        })
+        .await
+        .unwrap();
+    let report_before = admin.call(EngineRequest::Profiles).await.unwrap();
+    assert_eq!(report_before["grants"], json!([grant]));
+    let archive = dir.path().join("universe.jsonl");
+    admin
+        .call(EngineRequest::ExportLogical {
+            universe: universe_protocol::request::Selector("Relational".into()),
+            destination: archive.clone(),
+            record_ids: vec![],
+        })
+        .await
+        .unwrap();
+    drop(admin);
+    drop(client);
+    stop.cancel();
+    server.await.unwrap().unwrap();
+    let stop = CancellationToken::new();
+    let r = root.clone();
+    let s = stop.clone();
+    let server = tokio::spawn(async move { runtime::serve(&r, s).await });
+    let mut admin = connect(&root, &author, "restart").await;
+    let mut client = connect(&root, &agent, "restart").await;
+    assert!(secret == universe_store::credentials::read(&root, &author).unwrap());
+    assert!(agent_secret == universe_store::credentials::read(&root, &agent).unwrap());
+    assert_eq!(
+        admin.call(EngineRequest::Profiles).await.unwrap(),
+        report_before
+    );
+    assert!(client.call(describe("Relational")).await.is_ok());
+    let reports = json!({"grant":grant,"profiles":report_before,"doctor":admin.call(EngineRequest::Doctor).await.unwrap(),"status":admin.call(EngineRequest::Status).await.unwrap()});
+    let report = dir.path().join("report.json");
+    // The independent inspector reads authority expectations without any secrets.
+    let mut witness = serde_json::to_value(&grant).unwrap();
+    witness["reports"] = reports;
+    std::fs::write(&report, serde_json::to_vec(&witness).unwrap()).unwrap();
+    let inspection = std::process::Command::new("python3")
+        .arg(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../scripts/verify_installation_relational.py"
+        ))
+        .args([root.as_os_str(), report.as_os_str(), archive.as_os_str()])
+        .output()
+        .unwrap();
+    assert!(
+        inspection.status.success(),
+        "{}",
+        String::from_utf8_lossy(&inspection.stderr)
+    );
+    // Expiration invalidates an already authenticated connection.
+    let db = rusqlite::Connection::open(root.join("installation.sqlite")).unwrap();
+    db.execute(
+        "UPDATE grants SET expires_at='1' WHERE profile=?1",
+        [agent.as_str()],
+    )
+    .unwrap();
+    assert!(client.call(describe("Relational")).await.is_err());
+    admin.call(EngineRequest::Grant { grant }).await.unwrap();
+    admin
+        .call(EngineRequest::Revoke {
+            profile_id: agent.clone(),
+        })
+        .await
+        .unwrap();
+    assert!(client.call(describe("Relational")).await.is_err());
+    assert!(EngineClient::connect(&root, &agent, "revoked")
+        .await
+        .is_err());
+    drop(db);
+    drop(client);
+    drop(admin);
+    stop.cancel();
+    server.await.unwrap().unwrap();
+    // Revocation survives restart independently of the unchanged private credential.
+    let registry = Registry::open(&root).unwrap();
+    assert!(registry
+        .authenticate(&EngineHello {
+            protocol_version: universe_protocol::PROTOCOL_VERSION.into(),
+            profile_id: agent,
+            credential: Credential::new(agent_secret),
+            client_name: "revoked-after-restart".into(),
+        })
+        .is_err());
+}
+
+#[test]
+fn legacy_installation_is_rejected_without_conversion() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = universe_store::ownership::private_dir(&dir.path().join("installation")).unwrap();
+    let path = root.join("installation.sqlite");
+    universe_store::ownership::protected_file(&path, true).unwrap();
+    let db = rusqlite::Connection::open(&path).unwrap();
+    db.execute_batch(
+        "CREATE TABLE grants(profile TEXT, universe TEXT, worlds TEXT); PRAGMA user_version=2;",
+    )
+    .unwrap();
+    drop(db);
+    let before = std::fs::read(&path).unwrap();
+    assert!(Registry::open(&root).is_err());
+    assert_eq!(before, std::fs::read(&path).unwrap());
 }
