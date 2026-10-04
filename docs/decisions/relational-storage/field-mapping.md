@@ -1465,13 +1465,14 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `ImportAdmission_complete` | `r_import_admission_complete` (scalar column) | boolean |
 | `ImportAdmission_omitted_records` | `r_import_admission_omitted_records` (scalar column) | integer |
 | `ImportAdmission_imported` | `r_import_admission_imported` (scalar column) | boolean |
-| `ImportPreview` | `r_import_preview` | id → OperationId, owner → ImportPreview_owner, source_digest → ImportPreview_source_digest, target → UniverseId, source → UniverseId, name → ImportPreview_name, complete → ImportPreview_complete, omitted_records → ImportPreview_omitted_records, records → ImportPreview_records |
+| `ImportPreview` | `r_import_preview` | id → OperationId, owner → ImportPreview_owner, source_digest → ImportPreview_source_digest, target → UniverseId, source → UniverseId, name → ImportPreview_name, complete → ImportPreview_complete, omitted_records → ImportPreview_omitted_records, records → ImportPreview_records, includes_workflow → ImportPreview_includes_workflow |
 | `ImportPreview_owner` | `r_import_preview_owner` (scalar column) | string |
 | `ImportPreview_source_digest` | `r_import_preview_source_digest` (scalar column) | string |
 | `ImportPreview_name` | `r_import_preview_name` (scalar column) | string |
 | `ImportPreview_complete` | `r_import_preview_complete` (scalar column) | boolean |
 | `ImportPreview_omitted_records` | `r_import_preview_omitted_records` (scalar column) | integer |
 | `ImportPreview_records` | `r_import_preview_records` (scalar column) | integer |
+| `ImportPreview_includes_workflow` | `r_import_preview_includes_workflow` (scalar column) | boolean |
 | `ArchiveManifest` | `r_archive_manifest` | format → ArchiveManifest_format, universe → UniverseId, name → ArchiveManifest_name, complete → ArchiveManifest_complete, omitted_records → ArchiveManifest_omitted_records, includes_history → ArchiveManifest_includes_history, includes_workflow → ArchiveManifest_includes_workflow |
 | `ArchiveManifest_format` | `r_archive_manifest_format` (scalar column) | string |
 | `ArchiveManifest_name` | `r_archive_manifest_name` (scalar column) | string |

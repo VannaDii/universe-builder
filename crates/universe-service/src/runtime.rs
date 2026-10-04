@@ -665,6 +665,7 @@ impl Runtime {
                 universe,
                 destination,
                 record_ids,
+                complete_history,
             } => {
                 let registry = self.registry.lock().unwrap();
                 let current = registry.authenticate(h)?;
@@ -676,9 +677,11 @@ impl Runtime {
                 self.worker(&u.universe_id, &u.path)?.run(move |kernel| {
                     let registry = gate.lock().unwrap();
                     Registry::require_author(&registry.authenticate(&hello)?)?;
-                    Ok(serde_json::to_value(
-                        kernel.export_logical(&destination, &record_ids)?,
-                    )?)
+                    Ok(serde_json::to_value(kernel.export_relational(
+                        &destination,
+                        &record_ids,
+                        complete_history,
+                    )?)?)
                 })?
             }
             EngineRequest::PreviewImport { source, name, mode } => {
@@ -707,12 +710,15 @@ impl Runtime {
                     .find(|e| e.universe_id == preview.target)
                 {
                     drop(registry);
-                    let stored = self
-                        .worker(&existing.universe_id, &existing.path)?
-                        .run(|k| {
-                            Ok(k.workflow_get("logical-import-admission")?
+                    let stored =
+                        self.worker(&existing.universe_id, &existing.path)?
+                            .run(move |k| {
+                                Ok(k.workflow_get(&format!(
+                                    "logical-import-admission:{}",
+                                    preview.id
+                                ))?
                                 .unwrap_or(Value::Null))
-                        })?;
+                            })?;
                     if stored != receipt {
                         return Err(ProtocolError::PolicyDenied {
                             message: "existing universe belongs to another import; choose a clone"
@@ -736,7 +742,8 @@ impl Runtime {
                         .root
                         .join("packages")
                         .join(format!("{}.sqlite", preview.target));
-                    if !destination.exists() {
+                    let created_package = !destination.exists();
+                    if created_package {
                         let archive = universe_store::kernel::LogicalArchive::read(
                             &preview.archive_path(&registry.root),
                         )?;
@@ -749,18 +756,38 @@ impl Runtime {
                             &preview.name,
                         )?;
                         staged.workflow_put(&[(
-                            "logical-import-admission".into(),
+                            format!("logical-import-admission:{}", preview.id),
                             receipt.clone(),
                         )])?;
                         staged.backup(&destination)?;
                         drop(staged);
                         drop(temporary);
                     }
-                    let kernel = Kernel::open(&destination)?;
-                    if kernel.workflow_get("logical-import-admission")? != Some(receipt.clone()) {
-                        return Err(ProtocolError::ApprovalStale.into());
-                    }
-                    registry.register(&current, &preview.target, &preview.name, &destination)?;
+                    let publication = (|| -> anyhow::Result<Kernel> {
+                        let kernel = Kernel::open(&destination)?;
+                        if kernel
+                            .workflow_get(&format!("logical-import-admission:{}", preview.id))?
+                            != Some(receipt.clone())
+                        {
+                            return Err(ProtocolError::ApprovalStale.into());
+                        }
+                        registry.register(
+                            &current,
+                            &preview.target,
+                            &preview.name,
+                            &destination,
+                        )?;
+                        Ok(kernel)
+                    })();
+                    let kernel = match publication {
+                        Ok(kernel) => kernel,
+                        Err(error) => {
+                            if created_package {
+                                remove_unregistered_package(&destination)?;
+                            }
+                            return Err(error);
+                        }
+                    };
                     let worker = Arc::new(Worker::start(kernel, capacity));
                     self.workers
                         .lock()
@@ -779,11 +806,27 @@ impl Runtime {
                 let current = registry.authenticate(h)?;
                 Registry::require_author(&current)?;
                 let destination = registry.root.join("packages").join(format!("{id}.sqlite"));
+                if !registry.import_conflicts(&id, &name)?.is_empty() {
+                    return Err(ProtocolError::NameUnavailable {
+                        message: "restore identity or name is reserved".into(),
+                    }
+                    .into());
+                }
                 source_kernel.backup(&destination)?;
                 drop(source_kernel);
                 drop(staging);
-                let kernel = Kernel::open(&destination)?;
-                registry.register(&current, &id, &name, &destination)?;
+                let publication = (|| -> anyhow::Result<Kernel> {
+                    let kernel = Kernel::open(&destination)?;
+                    registry.register(&current, &id, &name, &destination)?;
+                    Ok(kernel)
+                })();
+                let kernel = match publication {
+                    Ok(kernel) => kernel,
+                    Err(error) => {
+                        remove_unregistered_package(&destination)?;
+                        return Err(error);
+                    }
+                };
                 self.workers.lock().unwrap().insert(
                     id.clone(),
                     Arc::new(Mutex::new(Some(Arc::new(Worker::start(kernel, capacity))))),
@@ -1162,6 +1205,27 @@ async fn connection(
             })?;
         }
         tokio::time::timeout(Duration::from_secs(5), io.send(encoded.into())).await??;
+    }
+    Ok(())
+}
+
+// Only called under the installation lock for a file published by this attempt
+// whose registration transaction failed. Existing packages are never removed.
+fn remove_unregistered_package(path: &std::path::Path) -> anyhow::Result<()> {
+    for owned in [
+        path.to_path_buf(),
+        std::path::PathBuf::from(format!("{}-wal", path.display())),
+        std::path::PathBuf::from(format!("{}-shm", path.display())),
+        path.with_extension("writer.lock"),
+    ] {
+        match std::fs::remove_file(owned) {
+            Ok(()) => (),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
+            Err(error) => return Err(error.into()),
+        }
+    }
+    if let Some(parent) = path.parent() {
+        std::fs::File::open(parent)?.sync_all()?;
     }
     Ok(())
 }

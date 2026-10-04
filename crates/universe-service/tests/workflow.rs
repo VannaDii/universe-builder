@@ -1184,9 +1184,10 @@ async fn logical_archives_preview_clone_history_sources_and_filtered_dependencie
         "archive-anchor",
     )
     .await;
-    let whole = dir.path().join("whole.jsonl");
+    let whole = dir.path().join("whole.sqlite");
     let exported = client
         .call(EngineRequest::ExportLogical {
+            complete_history: false,
             universe: Selector("Alpha".into()),
             destination: whole.clone(),
             record_ids: vec![],
@@ -1213,9 +1214,10 @@ async fn logical_archives_preview_clone_history_sources_and_filtered_dependencie
     let maintenance = maintenance.unwrap();
     assert_eq!(maintenance["retained_source_assets"], 1);
     assert_eq!(maintenance["source_assets_collected"], 0);
-    let second = dir.path().join("after-maintenance.jsonl");
+    let second = dir.path().join("after-maintenance.sqlite");
     client
         .call(EngineRequest::ExportLogical {
+            complete_history: false,
             universe: Selector("Alpha".into()),
             destination: second.clone(),
             record_ids: vec![],
@@ -1226,17 +1228,106 @@ async fn logical_archives_preview_clone_history_sources_and_filtered_dependencie
         std::fs::read(&whole).unwrap(),
         std::fs::read(second).unwrap()
     );
+    let full = dir.path().join("complete-history.sqlite");
+    let full_manifest = client
+        .call(EngineRequest::ExportLogical {
+            universe: Selector("Alpha".into()),
+            destination: full.clone(),
+            record_ids: vec![],
+            complete_history: true,
+        })
+        .await
+        .unwrap();
+    assert_eq!(full_manifest["includes_workflow"], true);
+    assert!(client
+        .call(EngineRequest::ExportLogical {
+            universe: Selector("Alpha".into()),
+            destination: dir.path().join("invalid-filter.sqlite"),
+            record_ids: vec![RecordId::parse(anchor_id).unwrap()],
+            complete_history: true
+        })
+        .await
+        .is_err());
+    let inspection = std::process::Command::new("python3")
+        .arg(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../scripts/inspect_relational_archive.py"
+        ))
+        .args([&full, &backup_path])
+        .output()
+        .unwrap();
+    assert!(
+        inspection.status.success(),
+        "{}",
+        String::from_utf8_lossy(&inspection.stderr)
+    );
+    println!("{}", String::from_utf8_lossy(&inspection.stdout));
     let backed = universe_store::kernel::Kernel::open(&backup_path).unwrap();
     assert_eq!(
         backed.universe().as_str(),
         u["universe_id"].as_str().unwrap()
     );
+    let historical_keys = backed.workflow_keys("").unwrap();
+    let historical_values: Vec<_> = historical_keys
+        .iter()
+        .map(|key| {
+            (
+                key.clone(),
+                backed.workflow_evidence_get(key).unwrap().unwrap(),
+            )
+        })
+        .collect();
+    let proposal_key = historical_keys
+        .iter()
+        .find(|key| key.starts_with("proposal:"))
+        .unwrap();
+    let old_proposal =
+        backed.workflow_evidence_get(proposal_key).unwrap().unwrap()["proposal"].clone();
+    let old_validation = historical_values
+        .iter()
+        .find(|(key, value)| {
+            key.starts_with("validation:") && value["proposal_digest"] == old_proposal["digest"]
+        })
+        .unwrap()
+        .1["validation"]["run_id"]
+        .clone();
+    // Exact original identities and evidence survive same-universe restoration and restart.
+    let archive = universe_store::kernel::LogicalArchive::read(&full).unwrap();
+    let (restored, guard) = archive
+        .stage(dir.path(), backed.universe().clone(), "Restored history")
+        .unwrap();
+    for (key, value) in &historical_values {
+        assert_eq!(
+            restored.workflow_evidence_get(key).unwrap().as_ref(),
+            Some(value)
+        );
+        if key.starts_with("approval:")
+            || key.starts_with("operation:")
+            || key.starts_with("request:")
+        {
+            assert!(restored.workflow_get(key).unwrap().is_none());
+        }
+    }
+    assert!(restored.workflow_keys("approval:").unwrap().is_empty());
+    let restored_path = guard.path().join("package.sqlite");
+    drop(restored);
+    let restarted = universe_store::kernel::Kernel::open(&restored_path).unwrap();
+    for (key, value) in &historical_values {
+        assert_eq!(
+            restarted.workflow_evidence_get(key).unwrap().as_ref(),
+            Some(value)
+        );
+    }
+    drop(restarted);
+    drop(guard);
+    drop(archive);
     drop(backed);
     drop(backup_client);
     drop(maintenance_client);
 
     assert!(client
         .call(EngineRequest::ExportLogical {
+            complete_history: false,
             universe: Selector("Alpha".into()),
             destination: whole.clone(),
             record_ids: vec![]
@@ -1300,9 +1391,10 @@ async fn logical_archives_preview_clone_history_sources_and_filtered_dependencie
     );
     let historical=client.call(tool("universe_open_context",json!({"universe":"Clone","continuity_id":u["continuity_id"],"revision":{"kind":"exact","revision_id":source_receipt["revision"]},"represented_context":u["context_id"],"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"}))).await.unwrap();
     assert!(client.call(tool("universe_get",json!({"universe":"Clone","context_id":historical["result"]["context_id"],"record_ids":[anchor_id],"field_groups":["payload"]}))).await.is_err());
-    let partial = dir.path().join("partial.jsonl");
+    let partial = dir.path().join("partial.sqlite");
     let manifest = client
         .call(EngineRequest::ExportLogical {
+            complete_history: false,
             universe: Selector("Alpha".into()),
             destination: partial.clone(),
             record_ids: vec![RecordId::parse(anchor_id).unwrap()],
@@ -1338,23 +1430,23 @@ async fn logical_archives_preview_clone_history_sources_and_filtered_dependencie
     assert!(client.call(tool("universe_get",json!({"universe":"Partial","context_id":partial_ctx,"record_ids":[source_id,anchor_id],"field_groups":["payload"]}))).await.is_ok());
     assert!(client.call(tool("universe_get",json!({"universe":"Partial","context_id":partial_ctx,"record_ids":["rec_0000000000000000000000ab"],"field_groups":["payload"]}))).await.is_err());
     // Even an internally consistent checksum cannot hide a missing source asset.
-    let original = std::fs::read_to_string(&whole).unwrap();
-    let rows: Vec<Value> = original
-        .lines()
-        .map(|l| serde_json::from_str(l).unwrap())
-        .filter(|r: &Value| r["entry"] != "text" && r["entry"] != "checksum")
-        .collect();
-    let mut malformed = rows
-        .iter()
-        .map(|r| serde_json::to_string(r).unwrap() + "\n")
-        .collect::<String>();
-    let digest = hex::encode(Sha256::digest(malformed.as_bytes()));
-    malformed.push_str(
-        &(serde_json::to_string(&json!({"entry":"checksum","sha256":digest,"rows":rows.len()}))
-            .unwrap()
-            + "\n"),
+    let damaged = rusqlite::Connection::open(&whole).unwrap();
+    damaged.execute_batch("DROP TRIGGER source_content_no_delete; DELETE FROM source_content; CREATE TRIGGER source_content_no_delete BEFORE DELETE ON source_content BEGIN SELECT RAISE(ABORT,'immutable workflow content'); END;").unwrap();
+    drop(damaged);
+    let rehash = std::process::Command::new("python3")
+        .arg(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../scripts/relational_archive_test_fixture.py"
+        ))
+        .arg("rehash")
+        .arg(&whole)
+        .output()
+        .unwrap();
+    assert!(
+        rehash.status.success(),
+        "{}",
+        String::from_utf8_lossy(&rehash.stderr)
     );
-    std::fs::write(&whole, malformed).unwrap();
     assert!(client
         .call(EngineRequest::PreviewImport {
             source: whole,
@@ -1363,6 +1455,115 @@ async fn logical_archives_preview_clone_history_sources_and_filtered_dependencie
         })
         .await
         .is_err());
+    let full_preview = client
+        .call(EngineRequest::PreviewImport {
+            source: full.clone(),
+            name: "History clone".into(),
+            mode: ImportMode::Clone,
+        })
+        .await
+        .unwrap();
+    assert_eq!(full_preview["includes_workflow"], true);
+    assert!(full_preview["workflow_and_approvals"]
+        .as_str()
+        .unwrap()
+        .contains("historical evidence"));
+    let full_accept = EngineRequest::AcceptImport {
+        preview_id: serde_json::from_value(full_preview["preview_id"].clone()).unwrap(),
+        digest: full_preview["digest"].as_str().unwrap().into(),
+    };
+    let target_path = root.join("packages").join(format!(
+        "{}.sqlite",
+        full_preview["target_universe"].as_str().unwrap()
+    ));
+    let staged_path = root.join("imports").join(format!(
+        "{}.sqlite",
+        full_preview["preview_id"].as_str().unwrap()
+    ));
+    let staged_bytes = std::fs::read(&staged_path).unwrap();
+    let catalog_before = client.call(EngineRequest::Status).await.unwrap()["universes"].clone();
+    let installation = rusqlite::Connection::open(root.join("installation.sqlite")).unwrap();
+    let damaged = rusqlite::Connection::open(&staged_path).unwrap();
+    damaged
+        .execute("UPDATE archive_integrity SET sha256=?1", ["0".repeat(64)])
+        .unwrap();
+    drop(damaged);
+    assert!(client.call(full_accept.clone()).await.is_err());
+    assert!(!target_path.exists());
+    assert_eq!(
+        client.call(EngineRequest::Status).await.unwrap()["universes"].clone(),
+        catalog_before
+    );
+    std::fs::write(&staged_path, &staged_bytes).unwrap();
+    // Registration failure occurs after the verified package was published.
+    // The failed attempt removes only its own unregistered package.
+    installation.execute_batch("CREATE TRIGGER fail_import_register BEFORE INSERT ON catalog BEGIN SELECT RAISE(ABORT,'registration interruption'); END;").unwrap();
+    assert!(client.call(full_accept.clone()).await.is_err());
+    assert!(!target_path.exists());
+    assert!(!target_path.with_extension("writer.lock").exists());
+    assert_eq!(
+        client.call(EngineRequest::Status).await.unwrap()["universes"].clone(),
+        catalog_before
+    );
+    assert_eq!(std::fs::read(&staged_path).unwrap(), staged_bytes);
+    installation
+        .execute_batch("DROP TRIGGER fail_import_register")
+        .unwrap();
+    drop(installation);
+    client.call(full_accept.clone()).await.unwrap();
+    client.call(full_accept).await.unwrap();
+    assert!(client
+        .call(EngineRequest::Review {
+            universe: Selector("History clone".into()),
+            proposal_reference: reference(&old_proposal)
+        })
+        .await
+        .is_ok());
+    let stale_commit = tool(
+        "universe_commit",
+        json!({"universe":"History clone","proposal_reference":reference(&old_proposal),"expected_base_revision":old_proposal["base_frame"]["revision"],"validation_run":old_validation,"idempotency_key":"imported-approval-must-not-authorize"}),
+    );
+    let rejection = client.call(stale_commit.clone()).await.unwrap_err();
+    assert!(rejection.to_string().contains("approve"), "{rejection}");
+    // Import preview state lives only in the typed installation table.
+    let installation = rusqlite::Connection::open(root.join("installation.sqlite")).unwrap();
+    assert!(
+        installation
+            .query_row(
+                "SELECT count(*) FROM import_preview WHERE includes_workflow=1",
+                [],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap()
+            > 0
+    );
+    assert!(!std::fs::read_dir(root.join("imports")).unwrap().any(|r| r
+        .unwrap()
+        .path()
+        .extension()
+        .is_some_and(|s| s == "preview" || s == "jsonl")));
+    drop(installation);
+    drop(client);
+    stop.cancel();
+    server.await.unwrap().unwrap();
+    let stop = CancellationToken::new();
+    let (r, s) = (root.clone(), stop.clone());
+    let server = tokio::spawn(async move { runtime::serve(&r, s).await });
+    let mut client = connect(&root, &author).await;
+    let history_ctx = context(&mut client, &u, "History clone").await;
+    let recovered=client.call(tool("universe_get",json!({"universe":"History clone","context_id":history_ctx,"record_ids":[anchor_id],"field_groups":["payload"]}))).await.unwrap();
+    assert_eq!(
+        recovered["result"]["records"][0]["payload"]["excerpt"],
+        "café"
+    );
+    assert!(client
+        .call(EngineRequest::Review {
+            universe: Selector("History clone".into()),
+            proposal_reference: reference(&old_proposal)
+        })
+        .await
+        .is_ok());
+    assert!(client.call(stale_commit).await.is_err());
     drop(client);
     stop.cancel();
     server.await.unwrap().unwrap();

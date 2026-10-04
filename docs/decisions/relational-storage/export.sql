@@ -5,8 +5,13 @@ CREATE TABLE archive_integrity (
  checksum_recipe TEXT NOT NULL CHECK(checksum_recipe='typed-row-stream'),
  sha256 TEXT NOT NULL,
  row_count INTEGER NOT NULL CHECK(row_count>=0),
- authority_state TEXT NOT NULL CHECK(authority_state='historical_evidence_only')
+ authority_state TEXT NOT NULL CHECK(authority_state='historical_evidence_only'),
+ manifest_sha256 TEXT NOT NULL
 ) STRICT;
 -- Stream includes named tables/columns/typed cells in PK order, excluding archive_integrity
 -- and r_archive_manifest. Any content byte cell is hex-encoded transiently for hashing.
 -- This checksum does not claim byte equality with a legacy JSONL checksum.
+-- manifest_sha256 binds canonical transient ArchiveManifest bytes separately.
+-- The review/import digest is SHA-256 of the UTF-8 string:
+-- typed-row-stream:<sha256>:manifest:<manifest_sha256>
+-- This binds inclusion/omission declarations as well as every copied typed row.

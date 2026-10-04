@@ -1,3 +1,4 @@
+use sha2::Digest;
 use std::collections::BTreeMap;
 use universe_domain::{ids::*, records::*, scope::Validity, value::RecordRef};
 use universe_store::{kernel::*, Database};
@@ -106,50 +107,131 @@ fn images_survive_source_removal_history_backup_filtered_export_and_clone() {
         )),
     }];
     let head = k.commit(&input).unwrap();
+    let extra_source = "Uncommitted source — café 🌕
+";
+    let extra_hash = hex::encode(sha2::Sha256::digest(extra_source.as_bytes()));
+    k.workflow_put(&[(
+        format!("source:{extra_hash}"),
+        serde_json::Value::String(extra_source.into()),
+    )])
+    .unwrap();
+    let extra_image = dir.path().join("draft.png");
+    image::RgbImage::new(2, 2).save(&extra_image).unwrap();
+    let extra_bytes = std::fs::read(&extra_image).unwrap();
+    let (_, extra_asset) = k.stage_image(&extra_image).unwrap();
+    std::fs::remove_file(extra_image).unwrap();
     let backup = dir.path().join("backup.sqlite");
     k.backup(&backup).unwrap();
-    let archive = dir.path().join("images.jsonl");
-    k.export_logical(&archive, &[entity]).unwrap();
+    let archive = dir.path().join("images.sqlite");
+    k.export_logical(&archive, std::slice::from_ref(&entity))
+        .unwrap();
+    let full = dir.path().join("complete-history.sqlite");
+    k.export_relational(&full, &[], true).unwrap();
+    let inspect = std::process::Command::new("python3")
+        .arg(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../scripts/inspect_relational_archive.py"
+        ))
+        .args([&full, &backup])
+        .output()
+        .unwrap();
+    assert!(
+        inspect.status.success(),
+        "{}",
+        String::from_utf8_lossy(&inspect.stderr)
+    );
+    let full_archive = LogicalArchive::read(&full).unwrap();
+    for target in [u.clone(), UniverseId::generate(&mut rand::rng())] {
+        let (restored, guard) = full_archive
+            .stage(dir.path(), target, "Complete media")
+            .unwrap();
+        assert_eq!(restored.image_bytes(&asset).unwrap(), bytes);
+        assert_eq!(restored.image_bytes(&extra_asset).unwrap(), extra_bytes);
+        assert_eq!(
+            restored
+                .workflow_evidence_get(&format!("source:{extra_hash}"))
+                .unwrap(),
+            Some(serde_json::Value::String(extra_source.into()))
+        );
+        let path = guard.path().join("package.sqlite");
+        drop(restored);
+        let restarted = Kernel::open(&path).unwrap();
+        assert_eq!(restarted.image_bytes(&extra_asset).unwrap(), extra_bytes);
+        assert_eq!(restarted.image_bytes(&asset).unwrap(), bytes);
+    }
     // Recompute the archive checksum after removing a chunk: semantic validation
     // must still reject the archive, rather than trusting a valid envelope hash.
-    use sha2::{Digest, Sha256};
-    let mut damaged = Vec::new();
-    let mut rows = 0usize;
-    let mut removed = false;
-    for line in std::fs::read_to_string(&archive).unwrap().lines() {
-        let row: serde_json::Value = serde_json::from_str(line).unwrap();
-        if row["entry"] == "checksum" {
-            continue;
-        }
-        if row["entry"] == "image_chunk" && !removed {
-            removed = true;
-            continue;
-        }
-        damaged.extend_from_slice(line.as_bytes());
-        damaged.push(b'\n');
-        rows += 1;
-    }
-    assert!(removed);
-    let hash = hex::encode(Sha256::digest(&damaged));
-    damaged.extend(
-        serde_json::to_vec(&serde_json::json!({"entry":"checksum","sha256":hash,"rows":rows}))
-            .unwrap(),
+    let broken = dir.path().join("broken.sqlite");
+    std::fs::copy(&archive, &broken).unwrap();
+    let damaged = rusqlite::Connection::open(&broken).unwrap();
+    damaged.execute_batch("DROP TRIGGER media_chunk_no_delete; DELETE FROM media_chunk WHERE ordinal=0; CREATE TRIGGER media_chunk_no_delete BEFORE DELETE ON media_chunk BEGIN SELECT RAISE(ABORT,'immutable workflow content'); END;").unwrap();
+    drop(damaged);
+    let hash = std::process::Command::new("python3")
+        .arg(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../scripts/relational_archive_test_fixture.py"
+        ))
+        .arg("rehash")
+        .arg(&broken)
+        .output()
+        .unwrap();
+    assert!(
+        hash.status.success(),
+        "{}",
+        String::from_utf8_lossy(&hash.stderr)
     );
-    damaged.push(b'\n');
-    let broken = dir.path().join("broken.jsonl");
-    use std::os::unix::fs::PermissionsExt;
-    std::fs::write(&broken, damaged).unwrap();
-    std::fs::set_permissions(&broken, std::fs::Permissions::from_mode(0o600)).unwrap();
-    assert!(LogicalArchive::read(&broken)
-        .unwrap()
-        .stage(dir.path(), UniverseId::generate(&mut rand::rng()), "Broken")
-        .is_err());
+    assert!(LogicalArchive::read(&broken).is_err());
+    // A correctly rehashed typed body with a dangling semantic reference still fails.
+    let dangling = dir.path().join("dangling.sqlite");
+    std::fs::copy(&archive, &dangling).unwrap();
+    let damaged = rusqlite::Connection::open(&dangling).unwrap();
+    let trigger: String = damaged
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE name='r_record_ref_no_update'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    damaged
+        .execute_batch("DROP TRIGGER r_record_ref_no_update")
+        .unwrap();
+    assert!(
+        damaged
+            .execute(
+                "UPDATE r_record_ref SET record='rec_ffffffffffffffffffffffff' WHERE record=?1",
+                [entity.as_str()]
+            )
+            .unwrap()
+            > 0
+    );
+    damaged.execute_batch(&trigger).unwrap();
+    drop(damaged);
+    let rewrite = std::process::Command::new("python3")
+        .arg(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../scripts/relational_archive_test_fixture.py"
+        ))
+        .arg("redigest")
+        .arg(&dangling)
+        .output()
+        .unwrap();
+    assert!(
+        rewrite.status.success(),
+        "{}",
+        String::from_utf8_lossy(&rewrite.stderr)
+    );
+    assert!(LogicalArchive::read(&dangling).is_err());
     let clone = UniverseId::generate(&mut rand::rng());
     let (recovered, _guard) = LogicalArchive::read(&archive)
         .unwrap()
         .stage(dir.path(), clone.clone(), "Clone")
         .unwrap();
     assert_eq!(recovered.image_bytes(&asset).unwrap(), bytes);
+    assert!(recovered
+        .workflow_get(&format!("source:{extra_hash}"))
+        .unwrap()
+        .is_none());
+    assert!(recovered.image_bytes(&extra_asset).is_err());
     assert!(recovered.records(&c,&first).unwrap().iter().any(|r|matches!(&r.payload,Payload::Appearance(a) if a.physical_description=="Patinated brass; three cobalt dials")));
     let restored = Kernel::open(&backup).unwrap();
     assert_eq!(restored.head(&c).unwrap(), head);

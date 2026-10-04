@@ -52,6 +52,8 @@ pub enum FaultPoint {
     SnapshotPublish,
     BackupCopied,
     BackupVerified,
+    RestoreRows,
+    RestoreVerified,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KernelStatus {
@@ -83,7 +85,7 @@ fn compare_workflow(
 ) -> StoreResult<()> {
     for (prefix, expected_key) in expected {
         let latest: Option<String> = conn.query_row(
-            "SELECT key FROM workflow_index WHERE substr(key,1,length(?1))=?1 ORDER BY key DESC LIMIT 1",
+            "SELECT key FROM active_workflow_index WHERE substr(key,1,length(?1))=?1 ORDER BY key DESC LIMIT 1",
             [prefix], |r| r.get(0),
         ).optional()?;
         if &latest != expected_key {
@@ -265,7 +267,7 @@ impl Kernel {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let old:Option<(String,String)>=tx.query_row("SELECT payload_digest,revision_id FROM operation_receipts WHERE universe_id=?1 AND principal=?2 AND operation_kind='commit' AND idempotency_key=?3",params![uid,input.principal.as_str(),input.idempotency_key],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
+        let old:Option<(String,String)>=tx.query_row("SELECT payload_digest,revision_id FROM operation_receipts WHERE universe_id=?1 AND principal=?2 AND operation_kind='commit' AND idempotency_key=?3 AND NOT EXISTS(SELECT 1 FROM historical_receipt h WHERE h.universe_id=operation_receipts.universe_id AND h.principal=operation_receipts.principal AND h.operation_kind=operation_receipts.operation_kind AND h.idempotency_key=operation_receipts.idempotency_key)",params![uid,input.principal.as_str(),input.idempotency_key],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
         if let Some((prior, revision)) = old {
             if prior != hash {
                 return Err(invalid("idempotency key reused"));
@@ -504,6 +506,10 @@ impl Kernel {
         }
         Ok(records.into_values().collect())
     }
+    /// Explicit read of immutable historical evidence; never used for authority admission.
+    pub fn workflow_evidence_get(&self, key: &str) -> StoreResult<Option<Value>> {
+        crate::workflow_storage::evidence(&self.conn, key)
+    }
     pub fn workflow_get(&self, key: &str) -> StoreResult<Option<Value>> {
         crate::workflow_storage::get(&self.conn, key)
     }
@@ -531,7 +537,7 @@ impl Kernel {
     }
     pub fn workflow_latest_key(&self, prefix: &str) -> StoreResult<Option<String>> {
         Ok(self.conn.query_row(
-            "SELECT key FROM workflow_index WHERE substr(key,1,length(?1))=?1 ORDER BY key DESC LIMIT 1",
+            "SELECT key FROM active_workflow_index WHERE substr(key,1,length(?1))=?1 ORDER BY key DESC LIMIT 1",
             [prefix], |r| r.get(0),
         ).optional()?)
     }
@@ -539,14 +545,14 @@ impl Kernel {
         Ok(self
             .conn
             .prepare(
-                "SELECT key FROM workflow_index WHERE substr(key,1,?1)=?2 ORDER BY key LIMIT 10001",
+                "SELECT key FROM active_workflow_index WHERE substr(key,1,?1)=?2 ORDER BY key LIMIT 10001",
             )?
             .query_map(params![prefix.len() as i64, prefix], |r| r.get(0))?
             .collect::<Result<_, _>>()?)
     }
     pub fn receipt(&self, input: &CommitInput) -> StoreResult<Option<RevisionId>> {
         let row: Option<(String,String)> = self.conn.query_row(
-            "SELECT payload_digest,revision_id FROM operation_receipts WHERE universe_id=?1 AND principal=?2 AND operation_kind='commit' AND idempotency_key=?3",
+            "SELECT payload_digest,revision_id FROM operation_receipts WHERE universe_id=?1 AND principal=?2 AND operation_kind='commit' AND idempotency_key=?3 AND NOT EXISTS(SELECT 1 FROM historical_receipt h WHERE h.universe_id=operation_receipts.universe_id AND h.principal=operation_receipts.principal AND h.operation_kind=operation_receipts.operation_kind AND h.idempotency_key=operation_receipts.idempotency_key)",
             params![self.universe.as_str(),input.principal.as_str(),input.idempotency_key], |r| Ok((r.get(0)?,r.get(1)?))).optional()?;
         row.map(|(hash, id)| {
             if hash != digest(input) {
@@ -559,7 +565,14 @@ impl Kernel {
     /// Consistent SQLite snapshot, verified before atomic, no-clobber publication.
     /// Source text and workflow evidence live in the same transactional package.
     pub fn stage_restore(source: &Path, scratch: &Path) -> StoreResult<(Self, tempfile::TempDir)> {
-        let mut input = crate::ownership::protected_file(source, false)?;
+        Self::stage_restore_with_hook(source, scratch, |_| Ok(()))
+    }
+    pub fn stage_restore_with_hook(
+        source: &Path,
+        scratch: &Path,
+        mut hook: impl FnMut(FaultPoint) -> StoreResult<()>,
+    ) -> StoreResult<(Self, tempfile::TempDir)> {
+        let input = crate::ownership::protected_file(source, false)?;
         if input.metadata()?.len() > MAX_RESTORE_BYTES {
             return Err(invalid("restore package exceeds 8 GiB limit"));
         }
@@ -567,16 +580,16 @@ impl Kernel {
             .prefix(".restore-")
             .tempdir_in(scratch)?;
         let path = temporary.path().join("package.sqlite");
-        use std::os::unix::fs::OpenOptionsExt;
-        let mut output = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(&path)?;
-        std::io::copy(&mut input, &mut output)?;
-        output.sync_all()?;
-        drop(output);
-        Ok((Self::open(&path)?, temporary))
+        crate::ownership::protected_file(&path, true)?;
+        crate::transfer::trusted_copy(source, &path, false, || hook(FaultPoint::RestoreRows))?;
+        let c = Database::open_existing(&path)?.connect()?;
+        archive::mark_historical(&c)?;
+        drop(c);
+        let kernel = Self::open(&path)?;
+        verify_content_links(&kernel.conn)?;
+        verify_history(&kernel.conn, kernel.universe.as_str())?;
+        hook(FaultPoint::RestoreVerified)?;
+        Ok((kernel, temporary))
     }
     pub fn backup(&self, destination: &Path) -> StoreResult<()> {
         self.backup_with_hook(destination, |_| Ok(()))
@@ -622,6 +635,7 @@ impl Kernel {
         // Verify canonical data, workflow/source bytes and historical chains in
         // the actual copy before publishing a backup as successful.
         verify_canonical(&copy, self.universe.as_str())?;
+        verify_content_links(&copy)?;
         let heads: Vec<(String, String)> = copy
             .prepare("SELECT id,head_commit FROM continuities")?
             .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
@@ -641,6 +655,7 @@ impl Kernel {
                 validate_candidate(&copy, self.universe.as_str(), &map)?;
             }
         }
+        verify_history(&copy, self.universe.as_str())?;
         hook(FaultPoint::BackupVerified)?;
         drop(copy);
         temporary
@@ -815,6 +830,17 @@ impl Kernel {
     }
 }
 fn verify_canonical(c: &Connection, universe: &str) -> StoreResult<()> {
+    let provenance:Vec<(String,String,String)>=c.prepare("SELECT p.source_digest,p.normalized_digest,v.digest FROM import_record_digest p JOIN record_versions v ON v.universe_id=p.universe_id AND v.id=p.version_id")?.query_map([],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?)))?.collect::<Result<_,_>>()?;
+    for (source, normalized, current) in provenance {
+        if normalized != current
+            || source.len() != 64
+            || !source
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        {
+            return Err(invalid("import digest provenance mismatch"));
+        }
+    }
     let mut records = c.prepare("SELECT id FROM record_versions")?;
     let ids = records.query_map([], |r| r.get::<_, String>(0))?;
     let mut images = BTreeSet::new();
@@ -828,10 +854,109 @@ fn verify_canonical(c: &Connection, universe: &str) -> StoreResult<()> {
         }
     }
     let mut workflow = c.prepare("SELECT key FROM workflow_index")?;
-    let keys = workflow.query_map([], |r| r.get::<_, String>(0))?;
-    for key in keys {
-        crate::workflow_storage::get(c, &key?)?
+    for key in workflow.query_map([], |r| r.get::<_, String>(0))? {
+        crate::workflow_storage::evidence(c, &key?)?
             .ok_or_else(|| invalid("missing workflow evidence"))?;
+    }
+    Ok(())
+}
+// Complete transfer must reject lost staged content. Normal startup retains the
+// existing missing-material reporting path for author repair.
+pub(super) fn verify_content_links(c: &Connection) -> StoreResult<()> {
+    let universe: String = c.query_row("SELECT id FROM universes", [], |r| r.get(0))?;
+    let ids: Vec<String> = c
+        .prepare("SELECT id FROM record_versions")?
+        .query_map([], |r| r.get(0))?
+        .collect::<Result<_, _>>()?;
+    for id in ids {
+        let record = load(c, &universe, &id)?;
+        verify_content_payload(c, &universe, &record.payload)?;
+        if let Payload::World(world) = &record.payload {
+            for name in std::iter::once(&world.selector).chain(world.aliases.iter()) {
+                let reserved:Option<String>=c.query_row("SELECT record_id FROM world_name_reservations WHERE universe_id=?1 AND name=?2",params![universe,selector_key(name)?],|r|r.get(0)).optional()?;
+                if reserved.as_deref() != Some(record.identity.record_id.as_str()) {
+                    return Err(invalid("archive omits a historical world name reservation"));
+                }
+            }
+        }
+    }
+    let keys:Vec<String>=c.prepare("SELECT key FROM workflow_index WHERE key LIKE 'image-asset:%' OR key LIKE 'source-version:%'")?.query_map([],|r|r.get(0))?.collect::<Result<_,_>>()?;
+    for key in keys {
+        let value = crate::workflow_storage::evidence(c, &key)?
+            .ok_or_else(|| invalid("missing staged content metadata"))?;
+        let payload: Payload = serde_json::from_value(value)
+            .map_err(|_| invalid("invalid staged content metadata"))?;
+        if !matches!(payload, Payload::ImageAsset(_) | Payload::SourceVersion(_)) {
+            return Err(invalid("wrong staged content family"));
+        }
+        verify_content_payload(c, &universe, &payload)?;
+    }
+    Ok(())
+}
+fn verify_content_payload(c: &Connection, universe: &str, payload: &Payload) -> StoreResult<()> {
+    let source_text = |source: &SourceVersion| -> StoreResult<String> {
+        let text = crate::workflow_storage::evidence(c, &format!("source:{}", source.digest))?
+            .and_then(|v| v.as_str().map(str::to_owned))
+            .ok_or_else(|| invalid("missing retained source bytes"))?;
+        if text.len() as u64 != source.byte_size
+            || source.decoding.byte_length != source.byte_size
+            || source.decoding.encoding != "UTF-8"
+            || source.decoding.representation != "exact-utf8-v1"
+        {
+            return Err(invalid("source decoding mismatch"));
+        }
+        Ok(text)
+    };
+    match payload {
+        Payload::ImageAsset(asset) => {
+            media::validate_image_metadata(asset)?;
+            let bytes = media::image_bytes_from(c, asset)?;
+            media::validate_image_bytes(asset, &bytes)?;
+        }
+        Payload::SourceVersion(source) => {
+            source_text(source)?;
+        }
+        Payload::Anchor(anchor) => {
+            let record = load(c, universe, anchor.source_version.version.as_str())?;
+            if record.identity.record_id != anchor.source_version.record {
+                return Err(invalid("archive anchor source identity mismatch"));
+            }
+            let Payload::SourceVersion(source) = record.payload else {
+                return Err(invalid("archive anchor source kind"));
+            };
+            let text = source_text(&source)?;
+            let AnchorLocator::ByteRange { start, end } = anchor.locator else {
+                return Err(invalid("archive anchor locator unsupported"));
+            };
+            let excerpt = text
+                .get(start as usize..end as usize)
+                .ok_or_else(|| invalid("archive anchor UTF-8 boundaries"))?;
+            if excerpt != anchor.excerpt
+                || hex::encode(Sha256::digest(excerpt.as_bytes())) != anchor.excerpt_digest
+            {
+                return Err(invalid("archive anchor excerpt mismatch"));
+            }
+        }
+        _ => (),
+    }
+    Ok(())
+}
+fn verify_history(c: &Connection, universe: &str) -> StoreResult<()> {
+    let revisions: Vec<(String, String)> = c
+        .prepare("SELECT id,continuity_id FROM commits ORDER BY id")?
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+        .collect::<Result<_, _>>()?;
+    let mut work = 0usize;
+    let mut validated = BTreeSet::new();
+    for (revision, continuity) in revisions {
+        let map = resolve(c, universe, &continuity, &revision, &mut BTreeSet::new())?;
+        work += map.len() + 1;
+        if work > 10_000_000 {
+            return Err(invalid("historical restoration validation budget exceeded"));
+        }
+        if validated.insert(digest(&map)) {
+            validate_candidate(c, universe, &map)?;
+        }
     }
     Ok(())
 }

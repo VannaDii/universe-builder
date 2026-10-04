@@ -59,7 +59,7 @@ def contracts():
         'SavedDraft': obj(version=I, content=ref('DraftContent')),
         'ImportOrigin': obj(digest=S, source_universe=ref('UniverseId'), target_universe=ref('UniverseId'), complete=B, omitted_records=I),
         'ImportAdmission': obj(preview_id=ref('OperationId'), digest=S, universe_id=ref('UniverseId'), name=S, complete=B, omitted_records=I, imported=B),
-        'ImportPreview': obj(id=ref('OperationId'), owner=S, source_digest=S, target=ref('UniverseId'), source=ref('UniverseId'), name=S, complete=B, omitted_records=I, records=I),
+        'ImportPreview': obj(id=ref('OperationId'), owner=S, source_digest=S, target=ref('UniverseId'), source=ref('UniverseId'), name=S, complete=B, omitted_records=I, records=I, includes_workflow=B),
         'ArchiveManifest': obj(format=S, universe=ref('UniverseId'), name=S, complete=B, omitted_records=I, includes_history=B, includes_workflow=B),
     })
     # Unreleased decisions replace the canonical model in place.

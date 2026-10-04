@@ -60,3 +60,15 @@ CREATE TRIGGER image_staging_no_update BEFORE UPDATE ON image_staging BEGIN SELE
 CREATE TRIGGER image_staging_no_delete BEFORE DELETE ON image_staging BEGIN SELECT RAISE(ABORT,'immutable workflow content'); END;
 CREATE TRIGGER continuity_name_no_update BEFORE UPDATE ON continuity_name BEGIN SELECT RAISE(ABORT,'immutable workflow content'); END;
 CREATE TRIGGER continuity_name_no_delete BEFORE DELETE ON continuity_name BEGIN SELECT RAISE(ABORT,'immutable workflow content'); END;
+
+-- Imported workflows retain their original evidence and digest bindings.
+-- Approvals, operations, contexts and cursors are excluded from active lookups;
+-- proposals remain reviewable under the owning installation's current authority.
+CREATE TABLE historical_workflow(key TEXT PRIMARY KEY REFERENCES workflow_entries(key)) STRICT;
+CREATE TRIGGER historical_workflow_no_update BEFORE UPDATE ON historical_workflow BEGIN SELECT RAISE(ABORT,'immutable historical boundary'); END;
+CREATE TRIGGER historical_workflow_no_delete BEFORE DELETE ON historical_workflow BEGIN SELECT RAISE(ABORT,'immutable historical boundary'); END;
+CREATE TABLE historical_receipt(universe_id TEXT NOT NULL, principal TEXT NOT NULL, operation_kind TEXT NOT NULL, idempotency_key TEXT NOT NULL,
+ PRIMARY KEY(universe_id,principal,operation_kind,idempotency_key), FOREIGN KEY(universe_id,principal,operation_kind,idempotency_key) REFERENCES operation_receipts(universe_id,principal,operation_kind,idempotency_key)) STRICT;
+CREATE TRIGGER historical_receipt_no_update BEFORE UPDATE ON historical_receipt BEGIN SELECT RAISE(ABORT,'immutable historical boundary'); END;
+CREATE TRIGGER historical_receipt_no_delete BEFORE DELETE ON historical_receipt BEGIN SELECT RAISE(ABORT,'immutable historical boundary'); END;
+CREATE VIEW active_workflow_index AS SELECT key,digest FROM workflow_index WHERE key NOT IN (SELECT h.key FROM historical_workflow h JOIN workflow_entries e ON e.key=h.key WHERE e.family IN ('ApprovalEvidence','StoredOperation','StoredContext','Cursor'));

@@ -14,6 +14,7 @@ mod error;
 mod projections;
 mod relational;
 mod schema;
+mod transfer;
 
 pub use blob::{BlobStore, BlobStoreError};
 pub use db::{Connection, Database, Txn};

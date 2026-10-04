@@ -98,6 +98,8 @@ enum Command {
         destination: std::path::PathBuf,
         #[arg(long)]
         record: Vec<String>,
+        #[arg(long)]
+        complete_history: bool,
     },
     PreviewImport {
         source: std::path::PathBuf,
@@ -265,9 +267,11 @@ async fn main() -> anyhow::Result<()> {
             universe,
             destination,
             record,
+            complete_history,
         } => EngineRequest::ExportLogical {
             universe: universe_protocol::request::Selector(universe),
             destination,
+            complete_history,
             record_ids: record
                 .iter()
                 .map(|s| RecordId::parse(s))

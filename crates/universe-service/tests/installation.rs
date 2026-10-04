@@ -395,9 +395,10 @@ async fn relational_grants_credentials_restart_and_independent_inspection() {
         .unwrap();
     let report_before = admin.call(EngineRequest::Profiles).await.unwrap();
     assert_eq!(report_before["grants"], json!([grant]));
-    let archive = dir.path().join("universe.jsonl");
+    let archive = dir.path().join("universe.sqlite");
     admin
         .call(EngineRequest::ExportLogical {
+            complete_history: false,
             universe: universe_protocol::request::Selector("Relational".into()),
             destination: archive.clone(),
             record_ids: vec![],

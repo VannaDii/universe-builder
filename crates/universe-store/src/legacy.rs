@@ -55,9 +55,7 @@ pub fn convert_legacy(source: &Path, destination: &Path, scratch: &Path) -> Stor
         includes_history: true,
         includes_workflow: false,
     };
-    let mut rows = vec![Row::Manifest {
-        manifest: manifest.clone(),
-    }];
+    let mut rows = Vec::new();
     let mut records = BTreeMap::new();
     let mut stmt=tx.prepare("SELECT id,record_id,universe_id,kind,payload,digest FROM record_versions ORDER BY id LIMIT 100001")?;
     let mut query = stmt.query([])?;
@@ -308,6 +306,7 @@ pub fn convert_legacy(source: &Path, destination: &Path, scratch: &Path) -> Stor
     let archive = LogicalArchive {
         manifest,
         rows,
+        package: None,
         digest: digest(&(&continuities, &revisions)),
     };
     // Full typed snapshot and historical validation before publishing an archive.
@@ -363,7 +362,7 @@ mod tests {
         .unwrap();
         drop(db);
         let before = std::fs::read(&source).unwrap();
-        let archive = d.path().join("converted.jsonl");
+        let archive = d.path().join("converted.sqlite");
         let report = convert_legacy(&source, &archive, d.path()).unwrap();
         assert_eq!(std::fs::read(&source).unwrap(), before);
         assert_eq!(report["canonical"], false);
@@ -382,7 +381,7 @@ mod tests {
         let db = Connection::open(&source).unwrap();
         db.execute("INSERT INTO source_versions VALUES('sv_old',?1,'missing source','digest','text/plain','then')",[u]).unwrap();
         drop(db);
-        let rejected = d.path().join("rejected.jsonl");
+        let rejected = d.path().join("rejected.sqlite");
         assert!(convert_legacy(&source, &rejected, d.path()).is_err());
         assert!(!rejected.exists());
     }

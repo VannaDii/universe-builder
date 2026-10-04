@@ -52,7 +52,11 @@ pub(crate) fn put(tx: &rusqlite::Transaction<'_>, key: &str, value: &Value) -> S
     let hash = digest(value);
     // Reconstruct and verify even an identical retry; a corrupt body cannot be
     // accepted just because the envelope retained the requested digest.
-    if let Some(old) = get(tx, key)? {
+    if let Some(old) = evidence(tx, key)? {
+        let historical_approval:bool=tx.query_row("SELECT EXISTS(SELECT 1 FROM historical_workflow WHERE key=?1) AND EXISTS(SELECT 1 FROM workflow_entries WHERE key=?1 AND family='ApprovalEvidence')",[key],|r|r.get(0))?;
+        if historical_approval {
+            return Err(invalid("imported approval requires a fresh validation run"));
+        }
         if old != *value {
             return Err(invalid("immutable workflow key conflict"));
         }
@@ -120,6 +124,18 @@ pub(crate) fn put(tx: &rusqlite::Transaction<'_>, key: &str, value: &Value) -> S
 }
 
 pub(crate) fn get(c: &Connection, key: &str) -> StoreResult<Option<Value>> {
+    let historical: bool = c.query_row(
+        "SELECT EXISTS(SELECT 1 FROM historical_workflow h JOIN workflow_entries e ON e.key=h.key WHERE h.key=?1 AND e.family IN ('ApprovalEvidence','StoredOperation','StoredContext','Cursor'))",
+        [key],
+        |r| r.get(0),
+    )?;
+    if historical {
+        return Ok(None);
+    }
+    evidence(c, key)
+}
+
+pub(crate) fn evidence(c: &Connection, key: &str) -> StoreResult<Option<Value>> {
     let expected: Option<String> = c
         .query_row(
             "SELECT digest FROM workflow_index WHERE key=?1",

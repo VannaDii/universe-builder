@@ -45,6 +45,10 @@ impl Registry {
                 "legacy installation requires explicit conversion (Goal 27)"
             );
         }
+        if initialized {
+            let preview_relational:bool=db.query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('import_preview') WHERE name='includes_workflow')",[],|r|r.get(0))?;
+            anyhow::ensure!(preview_relational,"installation requires explicit relational archive-preview conversion; original preserved");
+        }
         db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON; BEGIN IMMEDIATE;")?;
         if !initialized {
             db.execute_batch(include_str!(

@@ -14,7 +14,7 @@ use universe_store::kernel::{Kernel, LogicalArchive};
 fn standard_workload_preserves_full_history_and_evaluates_indexed_rules() {
     let start = Instant::now();
     let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("standard.jsonl");
+    let path = directory.path().join("standard.fixture");
     let mut output = BufWriter::new(
         std::fs::OpenOptions::new()
             .write(true)
@@ -106,7 +106,22 @@ fn standard_workload_preserves_full_history_and_evaluates_indexed_rules() {
         std::fs::metadata(&path).unwrap().len()
     );
     let t = Instant::now();
-    let archive = LogicalArchive::read(&path).unwrap();
+    let relational = directory.path().join("fixture.sqlite");
+    let seeded = std::process::Command::new("python3")
+        .arg(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../scripts/relational_archive_test_fixture.py"
+        ))
+        .arg("seed")
+        .args([&path, &relational])
+        .output()
+        .unwrap();
+    assert!(
+        seeded.status.success(),
+        "{}",
+        String::from_utf8_lossy(&seeded.stderr)
+    );
+    let archive = LogicalArchive::read(&relational).unwrap();
     let (mut kernel, staging) = archive
         .stage(directory.path(), u.clone(), "Standard workload")
         .unwrap();

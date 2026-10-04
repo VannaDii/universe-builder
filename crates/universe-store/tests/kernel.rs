@@ -313,7 +313,46 @@ fn branch_is_pinned_and_tombstones_preserve_history() {
     let r2 = k.commit(&a).unwrap();
     assert!(k.records(&cont(), &r2).unwrap().is_empty());
     assert_eq!(k.records(&branch, &fork).unwrap().len(), 1);
-    assert_eq!(k.records(&cont(), &r1).unwrap().len(), 1);
+    assert_eq!(k.records(&cont(), &r1).unwrap().len(), 1); // Both archive modes retain the pinned baseline and the tombstone revision.
+    let version = record(1, 1, "Mara");
+    let c = Database::open_existing(&path).unwrap().connect().unwrap();
+    c.execute(
+        "INSERT INTO import_record_digest VALUES(?1,?2,?3,?4)",
+        rusqlite::params![
+            uid().as_str(),
+            version.record_version_id.as_str(),
+            "a".repeat(64),
+            version.payload_digest.as_str()
+        ],
+    )
+    .unwrap();
+    drop(c);
+    for full in [false, true] {
+        let archive = d.path().join(format!("history-{full}.sqlite"));
+        k.export_relational(&archive, &[], full).unwrap();
+        let logical = LogicalArchive::read(&archive).unwrap();
+        for target in [uid(), UniverseId::generate(&mut rand::rng())] {
+            let (restored, guard) = logical
+                .stage(d.path(), target.clone(), "Restored branch")
+                .unwrap();
+            assert!(restored.records(&cont(), &r2).unwrap().is_empty());
+            assert_eq!(restored.records(&branch, &fork).unwrap().len(), 1);
+            assert_eq!(restored.records(&cont(), &r1).unwrap().len(), 1);
+            let db = Database::open_existing(guard.path().join("package.sqlite"))
+                .unwrap()
+                .connect()
+                .unwrap();
+            let provenance:(String,String)=db.query_row("SELECT source_digest,normalized_digest FROM import_record_digest WHERE universe_id=?1",[target.as_str()],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
+            assert_eq!(
+                provenance,
+                ("a".repeat(64), version.payload_digest.as_str().to_owned())
+            );
+            drop(db);
+            drop(restored);
+            let restarted = Kernel::open(&guard.path().join("package.sqlite")).unwrap();
+            assert_eq!(restarted.records(&branch, &fork).unwrap().len(), 1);
+        }
+    }
 }
 #[test]
 fn serialized_package_is_rejected_without_modification() {
@@ -884,7 +923,7 @@ fn interrupted_backups_never_publish_partial_files_or_touch_canon() {
         .unwrap()
     );
     assert_eq!(
-        restored.workflow_get("cursor:work").unwrap(),
+        restored.workflow_evidence_get("cursor:work").unwrap(),
         k.workflow_get("cursor:work").unwrap()
     );
 }
@@ -977,7 +1016,7 @@ fn ten_thousand_entities_plus_metadata_survive_import_backup_restore_and_restart
     use std::io::Write;
     use std::os::unix::fs::OpenOptionsExt;
     let dir = tempfile::tempdir().unwrap();
-    let archive_path = dir.path().join("large.jsonl");
+    let archive_path = dir.path().join("large.fixture");
     let mut file = std::fs::OpenOptions::new()
         .create_new(true)
         .write(true)
@@ -1018,7 +1057,22 @@ fn ten_thousand_entities_plus_metadata_survive_import_backup_restore_and_restart
     writeln!(file, "{checksum}").unwrap();
     file.sync_all().unwrap();
     drop(file);
-    let archive = LogicalArchive::read(&archive_path).unwrap();
+    let relational = dir.path().join("fixture.sqlite");
+    let seeded = std::process::Command::new("python3")
+        .arg(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../scripts/relational_archive_test_fixture.py"
+        ))
+        .arg("seed")
+        .args([&archive_path, &relational])
+        .output()
+        .unwrap();
+    assert!(
+        seeded.status.success(),
+        "{}",
+        String::from_utf8_lossy(&seeded.stderr)
+    );
+    let archive = LogicalArchive::read(&relational).unwrap();
     let (k, staging) = archive.stage(dir.path(), uid(), "Large novel").unwrap();
     let records = k.records(&cont(), &revision).unwrap();
     assert_eq!(records.len(), 10_050);
@@ -1291,4 +1345,148 @@ fn editorial_bindings_reject_missing_or_wrong_continuity_and_preserve_history() 
     assert_eq!(reopened.head(&cont()).unwrap(), head);
     assert!(reopened.records(&cont(),&first).unwrap().iter().any(|r|matches!(&r.payload,Payload::WorkVersion(w) if matches!(w.binding,WorkBinding::Bound{..}))));
     assert!(reopened.records(&cont(),&head).unwrap().iter().any(|r|matches!(&r.payload,Payload::PassageRef(p) if p.work_version.version.as_str()==id("ver",2))));
+}
+
+#[test]
+fn trusted_restoration_rejects_hostile_schema_and_rolls_back_interruptions() {
+    let dir = tempfile::tempdir().unwrap();
+    let source = dir.path().join("source.sqlite");
+    let mut k = create(&source);
+    let first = input(&k, record(1, 1, "First edition"), None, "first");
+    let old = k.commit(&first).unwrap();
+    let next = input(&k, record(1, 2, "Second edition"), Some(1), "second");
+    let head = k.commit(&next).unwrap();
+    let backup = dir.path().join("backup.sqlite");
+    k.backup(&backup).unwrap();
+    let original = std::fs::read(&backup).unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let destination = scratch.path().join("existing.sqlite");
+    let destination_kernel = create(&destination);
+    drop(destination_kernel);
+    let unchanged = std::fs::read(&destination).unwrap();
+    for failure in [FaultPoint::RestoreRows, FaultPoint::RestoreVerified] {
+        assert!(
+            Kernel::stage_restore_with_hook(&backup, scratch.path(), |point| if point == failure {
+                Err(StoreError::StorageFailure("interrupted restoration".into()))
+            } else {
+                Ok(())
+            })
+            .is_err()
+        );
+        assert_eq!(std::fs::read(&backup).unwrap(), original);
+        assert_eq!(std::fs::read(&destination).unwrap(), unchanged);
+        assert!(!std::fs::read_dir(scratch.path()).unwrap().any(|r| r
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with(".restore-")));
+    }
+    let hostile = dir.path().join("hostile.sqlite");
+    std::fs::copy(&backup, &hostile).unwrap();
+    let c = rusqlite::Connection::open(&hostile).unwrap();
+    c.execute_batch("CREATE TRIGGER archive_hostile AFTER INSERT ON universes BEGIN DELETE FROM record_versions; END;").unwrap();
+    drop(c);
+    let hostile_original = std::fs::read(&hostile).unwrap();
+    assert!(Kernel::stage_restore(&hostile, scratch.path()).is_err());
+    assert_eq!(std::fs::read(&hostile).unwrap(), hostile_original);
+    assert_eq!(std::fs::read(&destination).unwrap(), unchanged);
+    let (restored, guard) = Kernel::stage_restore(&backup, scratch.path()).unwrap();
+    assert_eq!(
+        restored.records(&cont(), &old).unwrap(),
+        k.records(&cont(), &old).unwrap()
+    );
+    assert_eq!(
+        restored.records(&cont(), &head).unwrap(),
+        k.records(&cont(), &head).unwrap()
+    );
+    assert!(restored.receipt(&first).unwrap().is_none());
+    let path = guard.path().join("package.sqlite");
+    drop(restored);
+    let restarted = Kernel::open(&path).unwrap();
+    assert_eq!(restarted.head(&cont()).unwrap(), head);
+    assert!(restarted.receipt(&first).unwrap().is_none());
+}
+
+#[test]
+fn restore_crash_child() {
+    let Some(source) = std::env::var_os("UNIVERSE_RESTORE_CRASH_SOURCE") else {
+        return;
+    };
+    let scratch = std::env::var_os("UNIVERSE_RESTORE_CRASH_SCRATCH").unwrap();
+    Kernel::stage_restore_with_hook(Path::new(&source), Path::new(&scratch), |point| {
+        if point == FaultPoint::RestoreRows {
+            std::process::exit(91);
+        }
+        Ok(())
+    })
+    .unwrap();
+    panic!("fault did not execute");
+}
+
+#[test]
+fn abrupt_restore_exit_preserves_destination_and_retry_recovers() {
+    let dir = tempfile::tempdir().unwrap();
+    let source = dir.path().join("source.sqlite");
+    let mut k = create(&source);
+    let head = k
+        .commit(&input(&k, record(1, 1, "Recover"), None, "recover"))
+        .unwrap();
+    let backup = dir.path().join("backup.sqlite");
+    k.backup(&backup).unwrap();
+    let before = std::fs::read(&backup).unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let destination = scratch.path().join("published.sqlite");
+    std::fs::write(&destination, b"existing destination").unwrap();
+    let result = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "restore_crash_child", "--nocapture"])
+        .env("UNIVERSE_RESTORE_CRASH_SOURCE", &backup)
+        .env("UNIVERSE_RESTORE_CRASH_SCRATCH", scratch.path())
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(91));
+    assert_eq!(std::fs::read(&backup).unwrap(), before);
+    assert_eq!(
+        std::fs::read(&destination).unwrap(),
+        b"existing destination"
+    );
+    let (restored, _guard) = Kernel::stage_restore(&backup, scratch.path()).unwrap();
+    assert_eq!(restored.head(&cont()).unwrap(), head);
+    assert_eq!(
+        restored.records(&cont(), &head).unwrap(),
+        k.records(&cont(), &head).unwrap()
+    );
+}
+
+#[test]
+fn archive_checksum_manifest_and_schema_tampering_preserve_destination() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("source.sqlite");
+    let mut k = create(&path);
+    k.commit(&input(&k, record(1, 1, "Archive"), None, "archive"))
+        .unwrap();
+    let archive = dir.path().join("archive.sqlite");
+    k.export_logical(&archive, &[]).unwrap();
+    let original = std::fs::read(&archive).unwrap();
+    let destination = dir.path().join("destination.sqlite");
+    let target = create(&destination);
+    drop(target);
+    let unchanged = std::fs::read(&destination).unwrap();
+    for (name,sql) in [
+        ("checksum","UPDATE archive_integrity SET sha256=printf('%064d',0)"),
+        ("manifest","DROP TRIGGER r_archive_manifest_no_update; UPDATE r_archive_manifest SET includes_workflow=1; CREATE TRIGGER \"r_archive_manifest_no_update\" BEFORE UPDATE ON \"r_archive_manifest\" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;"),
+        ("schema","CREATE VIEW hostile_view AS SELECT load_extension('/untrusted')"),
+        ("reference","PRAGMA foreign_keys=OFF; DROP TRIGGER immutable_commit_changes_update; UPDATE commit_changes SET version_id='ver_ffffffffffffffffffffffff'; CREATE TRIGGER immutable_commit_changes_update BEFORE UPDATE ON commit_changes BEGIN SELECT RAISE(ABORT,'immutable canon history'); END;"),
+    ] {
+        let damaged=dir.path().join(format!("{name}.sqlite"));std::fs::copy(&archive,&damaged).unwrap();
+        let c=rusqlite::Connection::open(&damaged).unwrap();c.execute_batch(sql).unwrap();drop(c);
+        if name=="reference" {
+            let rehash=std::process::Command::new("python3").arg(concat!(env!("CARGO_MANIFEST_DIR"),"/../../scripts/relational_archive_test_fixture.py")).arg("rehash").arg(&damaged).output().unwrap();
+            assert!(rehash.status.success(),"{}",String::from_utf8_lossy(&rehash.stderr));
+        }
+        let damaged_before=std::fs::read(&damaged).unwrap();
+        assert!(LogicalArchive::read(&damaged).is_err(),"accepted {name}");
+        assert_eq!(std::fs::read(&damaged).unwrap(),damaged_before);
+        assert_eq!(std::fs::read(&destination).unwrap(),unchanged);
+        assert_eq!(std::fs::read(&archive).unwrap(),original);
+    }
 }

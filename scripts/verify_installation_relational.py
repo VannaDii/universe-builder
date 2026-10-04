@@ -50,10 +50,10 @@ for path in (root / 'profiles').iterdir():
     assert installation.execute('SELECT hash FROM profiles WHERE id=?', (profile,)).fetchone() == (digest,)
     secrets.extend([secret.encode(), digest.encode()])
 
-entries = [json.loads(line) for line in archive.read_text().splitlines()]
-assert entries[0]['entry'] == 'manifest'
-assert entries[0]['manifest']['includes_workflow'] is False
-assert {row['entry'] for row in entries} <= {'manifest','record','continuity','commit','change','reservation','text','image_chunk','checksum'}
+export = open_readonly(archive)
+assert export.execute('SELECT includes_workflow FROM r_archive_manifest WHERE __row_id=(SELECT manifest_row FROM archive_integrity)').fetchone() == (0,)
+assert export.execute('SELECT count(*) FROM workflow_entries').fetchone() == (0,)
+assert export.execute('SELECT count(*) FROM operation_receipts').fetchone() == (0,)
 for path in root.glob('packages/*.sqlite'):
     package = sqlite3.connect(f'file:{path}?mode=ro', uri=True)
     assert not set(name for name, _ in schema(package)) & {'credential','profiles','grants','grant_worlds','grant_entities','grant_predicates','grant_continuities','catalog','audit'}

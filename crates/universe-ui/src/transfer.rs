@@ -8,6 +8,7 @@ use universe_protocol::{
 #[component]
 pub fn Transfer(root: String, profile: String, universe: String) -> Element {
     let mut destination = use_signal(String::new);
+    let mut history = use_signal(|| false);
     let mut selected_ids = use_signal(String::new);
     let mut source = use_signal(String::new);
     let mut legacy_source = use_signal(String::new);
@@ -20,10 +21,11 @@ pub fn Transfer(root: String, profile: String, universe: String) -> Element {
     let mut status = use_signal(String::new);
     rsx! { details {
         summary { "Logical export and reviewed import" }
-        p { "Exports include immutable history and referenced source text. They exclude profile credentials, proposals and approvals. A filtered export includes dependencies and declares omissions; it must be imported as a named clone." }
+        p { "Exports preserve factual history and exact source and image content. Canon-only exports omit workflows; complete-history exports preserve them as historical evidence with inactive approvals and delegations. A filtered export includes dependencies and declares omissions; it must be imported as a named clone." }
         label{r#for:"logical-destination","New export file path"}input{id:"logical-destination",disabled:busy(),value:destination,oninput:move|e|destination.set(e.value())}
+        label{input{r#type:"checkbox",checked:history(),disabled:busy(),onchange:move|e|history.set(e.checked())}"Include complete workflow history"}
         label{r#for:"logical-selection","Optional record IDs to export, separated by commas"}input{id:"logical-selection",disabled:busy(),value:selected_ids,oninput:move|e|selected_ids.set(e.value())}
-        button{disabled:busy()||destination().trim().is_empty(),onclick:{let(root,profile,universe)=(root.clone(),profile.clone(),universe.clone());move|_|{busy.set(true);let(r,p,u,path,ids)=(root.clone(),profile.clone(),universe.clone(),destination(),selected_ids());spawn(async move{let result=async{let record_ids=if ids.trim().is_empty(){vec![]}else{ids.split(',').map(|s|RecordId::parse(s.trim()).map_err(|e|e.to_string())).collect::<Result<_,_>>()?};super::author::send(r,p,EngineRequest::ExportLogical{universe:Selector(u),destination:path.into(),record_ids}).await}.await;match result{Ok(v)=>status.set(if v["complete"]==true{"Complete logical archive exported. Keep whole-package backups for workflow recovery.".into()}else{format!("Filtered archive exported; {} records omitted. Referenced dependencies are included.",v["omitted_records"])}),Err(e)=>status.set(e)}busy.set(false);});}},"Export logical archive"}
+        button{disabled:busy()||destination().trim().is_empty(),onclick:{let(root,profile,universe)=(root.clone(),profile.clone(),universe.clone());move|_|{busy.set(true);let(r,p,u,path,ids,complete_history)=(root.clone(),profile.clone(),universe.clone(),destination(),selected_ids(),history());spawn(async move{let result=async{let record_ids=if ids.trim().is_empty(){vec![]}else{ids.split(',').map(|s|RecordId::parse(s.trim()).map_err(|e|e.to_string())).collect::<Result<_,_>>()?};super::author::send(r,p,EngineRequest::ExportLogical{universe:Selector(u),destination:path.into(),record_ids,complete_history}).await}.await;match result{Ok(v)=>status.set(if v["complete"]==true{if v["includes_workflow"]==true {"Complete-history relational archive exported.".into()} else {"Canon-only relational archive exported; workflows omitted.".into()}}else{format!("Filtered archive exported; {} records omitted. Referenced dependencies are included.",v["omitted_records"])}),Err(e)=>status.set(e)}busy.set(false);});}},"Export logical archive"}
         hr{}
         label{r#for:"logical-source","Logical archive file path"}input{id:"logical-source",disabled:busy(),value:source,oninput:move|e|{source.set(e.value());preview.set(Value::Null);}}
         label{r#for:"import-name","Imported universe name"}input{id:"import-name",disabled:busy(),value:name,oninput:move|e|{name.set(e.value());preview.set(Value::Null);}}

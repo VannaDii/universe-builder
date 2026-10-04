@@ -13351,6 +13351,10 @@
         "records": {
           "model": "ImportPreview_records",
           "required": true
+        },
+        "includes_workflow": {
+          "model": "ImportPreview_includes_workflow",
+          "required": true
         }
       }
     },
@@ -13379,6 +13383,10 @@
       "table": "r_import_preview_records",
       "kind": "integer",
       "minimum": 0
+    },
+    "ImportPreview_includes_workflow": {
+      "table": "r_import_preview_includes_workflow",
+      "kind": "boolean"
     },
     "ArchiveManifest": {
       "table": "r_archive_manifest",

@@ -174,6 +174,8 @@ pub enum EngineRequest {
         universe: crate::request::Selector,
         destination: std::path::PathBuf,
         record_ids: Vec<RecordId>,
+        #[serde(default)]
+        complete_history: bool,
     },
     PreviewImport {
         source: std::path::PathBuf,

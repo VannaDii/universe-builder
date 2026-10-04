@@ -8702,6 +8702,8 @@ CREATE TABLE "r_import_preview" (
   "omitted_records" TEXT,
   "records__state" INTEGER NOT NULL CHECK("records__state" IN (2)),
   "records" TEXT,
+  "includes_workflow__state" INTEGER NOT NULL CHECK("includes_workflow__state" IN (2)),
+  "includes_workflow" INTEGER,
   CHECK(("id__state"=2 AND "id" IS NOT NULL) OR ("id__state" IN (0,1) AND "id" IS NULL)),
   CHECK(("owner__state"=2 AND "owner" IS NOT NULL) OR ("owner__state" IN (0,1) AND "owner" IS NULL)),
   CHECK(("source_digest__state"=2 AND "source_digest" IS NOT NULL) OR ("source_digest__state" IN (0,1) AND "source_digest" IS NULL)),
@@ -8711,7 +8713,9 @@ CREATE TABLE "r_import_preview" (
   CHECK(("complete__state"=2 AND "complete" IS NOT NULL) OR ("complete__state" IN (0,1) AND "complete" IS NULL)),
   CHECK("complete" IN (0,1)),
   CHECK(("omitted_records__state"=2 AND "omitted_records" IS NOT NULL) OR ("omitted_records__state" IN (0,1) AND "omitted_records" IS NULL)),
-  CHECK(("records__state"=2 AND "records" IS NOT NULL) OR ("records__state" IN (0,1) AND "records" IS NULL))
+  CHECK(("records__state"=2 AND "records" IS NOT NULL) OR ("records__state" IN (0,1) AND "records" IS NULL)),
+  CHECK(("includes_workflow__state"=2 AND "includes_workflow" IS NOT NULL) OR ("includes_workflow__state" IN (0,1) AND "includes_workflow" IS NULL)),
+  CHECK("includes_workflow" IN (0,1))
 ) STRICT;
 
 CREATE TABLE "r_archive_manifest" (

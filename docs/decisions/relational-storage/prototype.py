@@ -359,7 +359,7 @@ def logical_export(tmp,source_path,oracle,c):
     digest=hashlib.sha256(json.dumps(entries,ensure_ascii=False,separators=(',',':')).encode()).hexdigest()
     manifest={'format':'universe-relational','universe':oracle['universe'],'name':'Cedar and Pistol review','complete':True,'omitted_records':0,'includes_history':True,'includes_workflow':True}
     row=Writer(target,c.models).put('ArchiveManifest',manifest)
-    target.execute('INSERT INTO archive_integrity VALUES (1,?,?,?,?,?)',(row,'typed-row-stream',digest,len(entries),'historical_evidence_only'))
+    target.execute('INSERT INTO archive_integrity VALUES (1,?,?,?,?,?,?)',(row,'typed-row-stream',digest,len(entries),'historical_evidence_only',hashlib.sha256(canonical(manifest)).hexdigest()))
     target.commit();target.close();source.close()
     result=subprocess.run(['python3',str(HERE/'verify_export.py'),str(archive)],capture_output=True,text=True,check=True)
     readback=subprocess.run(['python3',str(HERE/'verify_examples.py'),str(archive),str(HERE/'semantic-oracle.json')],capture_output=True,text=True,check=True)

@@ -1,6 +1,6 @@
-//! Bounded, path-free logical JSONL. Editorial history is data, never installation authority.
+//! Bounded relational archives. Editorial history is evidence, never installation authority.
 use super::*;
-use std::io::{Read, Write};
+use std::io::Read;
 pub const MAX_ARCHIVE_BYTES: usize = 512 * 1_048_576;
 const MAX_BYTES: usize = MAX_ARCHIVE_BYTES;
 const MAX_ROWS: usize = 2_000_000;
@@ -16,12 +16,8 @@ pub struct ArchiveManifest {
     pub includes_history: bool,
     pub includes_workflow: bool,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "entry", rename_all = "snake_case", deny_unknown_fields)]
+#[derive(Debug, Clone)]
 enum Row {
-    Manifest {
-        manifest: ArchiveManifest,
-    },
     Record {
         record: Box<RecordVersion>,
     },
@@ -60,72 +56,97 @@ enum Row {
         index: usize,
         data: String,
     },
-    Checksum {
-        sha256: String,
-        rows: usize,
-    },
 }
 pub struct LogicalArchive {
     pub manifest: ArchiveManifest,
     rows: Vec<Row>,
     pub digest: String,
+    package: Option<tempfile::TempDir>,
 }
 impl LogicalArchive {
-    /// Only flat typed JSONL is accepted: no archive member names, SQL, or paths.
+    /// Copy into the trusted schema before any domain reader opens the input.
     pub fn read(path: &Path) -> StoreResult<Self> {
-        let file = crate::ownership::protected_file(path, false)?;
-        let mut bytes = Vec::new();
-        file.take((MAX_BYTES + 1) as u64).read_to_end(&mut bytes)?;
-        if bytes.len() > MAX_BYTES {
+        let input = crate::ownership::protected_file(path, false)?;
+        if input.metadata()?.len() > MAX_BYTES as u64 {
             return Err(invalid("logical archive exceeds 512 MiB"));
         }
-        let mut rows = Vec::new();
-        let mut hasher = Sha256::new();
-        let mut checksum = None;
-        for line in bytes.split_inclusive(|b| *b == b'\n') {
-            if checksum.is_some() || line.len() > 2 * 1_048_576 || rows.len() > MAX_ROWS {
-                return Err(invalid("archive framing or row budget exceeded"));
-            }
-            let row: Row =
-                serde_json::from_slice(line).map_err(|_| invalid("invalid typed archive row"))?;
-            if let Row::Checksum {
-                sha256,
-                rows: count,
-            } = row
-            {
-                if count != rows.len() || sha256 != hex::encode(hasher.clone().finalize()) {
-                    return Err(invalid("archive checksum mismatch"));
-                }
-                checksum = Some(sha256);
-            } else {
-                hasher.update(line);
-                rows.push(row);
-            }
+        let temporary = tempfile::Builder::new()
+            .prefix("relational-archive-")
+            .tempdir()?;
+        let snapshot = temporary.path().join("input.sqlite");
+        let mut output = crate::ownership::protected_file(&snapshot, true)?;
+        let copied = std::io::copy(&mut input.take((MAX_BYTES + 1) as u64), &mut output)?;
+        if copied > MAX_BYTES as u64 {
+            return Err(invalid("logical archive exceeds 512 MiB"));
         }
-        let digest = checksum.ok_or_else(|| invalid("archive checksum missing"))?;
-        let Some(Row::Manifest { manifest }) = rows.first() else {
-            return Err(invalid("archive manifest must be first"));
-        };
-        if manifest.format != "universe-logical-v1"
-            || !manifest.includes_history
-            || manifest.includes_workflow
-            || manifest.complete != (manifest.omitted_records == 0)
+        output.sync_all()?;
+        drop(output);
+        let safe = temporary.path().join("package.sqlite");
+        crate::ownership::protected_file(&safe, true)?;
+        crate::transfer::trusted_copy(&snapshot, &safe, true, || Ok(()))?;
+        let c = Database::open_existing(&safe)?.connect()?;
+        let (row,recipe,digest,count,authority,manifest_hash):(i64,String,String,i64,String,String)=c.query_row("SELECT manifest_row,checksum_recipe,sha256,row_count,authority_state,manifest_sha256 FROM archive_integrity WHERE singleton=1",[],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?)))?;
+        let (actual, rows) = crate::transfer::checksum(&c)?;
+        if recipe != "typed-row-stream"
+            || digest != actual
+            || count != rows as i64
+            || authority != "historical_evidence_only"
         {
-            return Err(invalid("unsupported or inconsistent archive manifest"));
+            return Err(invalid("archive checksum mismatch"));
+        }
+        let manifest: ArchiveManifest = serde_json::from_value(crate::relational::get(
+            &c,
+            "ArchiveManifest",
+            rusqlite::types::Value::Integer(row),
+        )?)
+        .map_err(|_| invalid("invalid archive manifest"))?;
+        if digest_manifest(&manifest) != manifest_hash {
+            return Err(invalid("archive manifest checksum mismatch"));
+        }
+        let manifest_rows: i64 =
+            c.query_row("SELECT count(*) FROM r_archive_manifest", [], |r| r.get(0))?;
+        if manifest_rows != 1 {
+            return Err(invalid("archive must have exactly one manifest"));
+        }
+        if manifest.format != "universe-relational"
+            || !manifest.includes_history
+            || manifest.complete != (manifest.omitted_records == 0)
+            || (manifest.includes_workflow && !manifest.complete)
+        {
+            return Err(invalid("inconsistent relational archive manifest"));
         }
         selector_key(&manifest.name)?;
-        if rows
-            .iter()
-            .skip(1)
-            .any(|r| matches!(r, Row::Manifest { .. }))
-        {
-            return Err(invalid("duplicate archive manifest"));
+        if !manifest.includes_workflow {
+            for table in [
+                "workflow_entries",
+                "operation_receipts",
+                "historical_workflow",
+                "historical_receipt",
+            ] {
+                let count: i64 =
+                    c.query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get(0))?;
+                if count != 0 {
+                    return Err(invalid("canon-only archive contains workflow evidence"));
+                }
+            }
         }
-        Ok(Self {
-            manifest: manifest.clone(),
-            rows,
-            digest,
-        })
+        drop(c);
+        let kernel = Kernel::open(&safe)?;
+        verify_content_links(&kernel.conn)?;
+        if kernel.universe() != &manifest.universe {
+            return Err(invalid("archive universe mismatch"));
+        }
+        let mut archive = kernel.collect_archive(&[])?;
+        archive.manifest = manifest;
+        archive.digest = hex::encode(Sha256::digest(
+            format!("typed-row-stream:{digest}:manifest:{manifest_hash}").as_bytes(),
+        ));
+        // All history and exact content validate in the trusted copy; no second
+        // reconstruction into another package is needed merely to read it.
+        verify_history(&kernel.conn, kernel.universe.as_str())?;
+        drop(kernel);
+        archive.package = Some(temporary);
+        Ok(archive)
     }
     pub fn record_count(&self) -> usize {
         self.rows
@@ -152,6 +173,32 @@ impl LogicalArchive {
             return Err(invalid(
                 "filtered archives require an explicitly named clone",
             ));
+        }
+        if target == self.manifest.universe && self.manifest.includes_workflow {
+            if let Some(package) = &self.package {
+                let temporary = tempfile::Builder::new()
+                    .prefix(".logical-import-")
+                    .tempdir_in(scratch)?;
+                let path = temporary.path().join("package.sqlite");
+                crate::ownership::protected_file(&path, true)?;
+                let db = Database::open(&path)?;
+                let mut output = db.connect()?;
+                let input =
+                    Database::open_existing(package.path().join("package.sqlite"))?.connect()?;
+                crate::transfer::copy_rows(&input, &mut output, || Ok(()))?;
+                output.execute("UPDATE universes SET name=?1", [name])?;
+                mark_historical(&output)?;
+                let tx = output.transaction()?;
+                crate::workflow_storage::put(
+                    &tx,
+                    &format!("logical-import-origin:{}", self.digest),
+                    &serde_json::json!({"digest":self.digest,"source_universe":self.manifest.universe,"target_universe":target,"complete":self.manifest.complete,"omitted_records":self.manifest.omitted_records}),
+                )?;
+                tx.commit()?;
+                drop(output);
+                let kernel = Kernel::open(&path)?;
+                return Ok((kernel, temporary));
+            }
         }
         let temporary = tempfile::Builder::new()
             .prefix(".logical-import-")
@@ -444,8 +491,95 @@ impl LogicalArchive {
         for (id, text) in texts {
             staged.insert(format!("source:{id}"), Value::String(text));
         }
-        staged.insert("logical-import-origin".into(),serde_json::json!({"digest":self.digest,"source_universe":self.manifest.universe,"target_universe":target,"complete":self.manifest.complete,"omitted_records":self.manifest.omitted_records}));
+        if !self.digest.is_empty() {
+            staged.insert(format!("logical-import-origin:{}",self.digest),serde_json::json!({"digest":self.digest,"source_universe":self.manifest.universe,"target_universe":target,"complete":self.manifest.complete,"omitted_records":self.manifest.omitted_records}));
+        }
+        if self.manifest.includes_workflow && self.package.is_some() {
+            // Preserve original staging receipt bodies/bindings, including uncommitted assets.
+            staged.retain(|key, _| {
+                !key.starts_with("source-version:") && !key.starts_with("image-asset:")
+            });
+        }
         kernel.workflow_put(&staged.into_iter().collect::<Vec<_>>())?;
+        if let Some(package) = &self.package {
+            let input =
+                Database::open_existing(package.path().join("package.sqlite"))?.connect()?;
+            let tx = kernel.conn.transaction()?;
+            if self.manifest.includes_workflow {
+                let keys: Vec<String> = input
+                    .prepare("SELECT key FROM workflow_index ORDER BY key")?
+                    .query_map([], |r| r.get(0))?
+                    .collect::<Result<_, _>>()?;
+                for key in keys {
+                    // Preserve original universe references and digest bindings in historical evidence.
+                    let value = crate::workflow_storage::evidence(&input, &key)?
+                        .ok_or_else(|| invalid("missing historical workflow"))?;
+                    if key.starts_with("continuity-name:") {
+                        continue;
+                    }
+                    crate::workflow_storage::put(&tx, &key, &value)?;
+                    tx.execute("INSERT INTO historical_workflow SELECT key FROM workflow_entries WHERE key=?1",[key])?;
+                }
+                let mut stmt=input.prepare("SELECT principal,operation_kind,idempotency_key,payload_digest,revision_id FROM operation_receipts")?;
+                let mut query = stmt.query([])?;
+                while let Some(r) = query.next()? {
+                    let values = (0..5)
+                        .map(|i| r.get::<_, String>(i))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    tx.execute(
+                        "INSERT INTO operation_receipts VALUES(?1,?2,?3,?4,?5,?6)",
+                        params![
+                            target.as_str(),
+                            values[0],
+                            values[1],
+                            values[2],
+                            values[3],
+                            values[4]
+                        ],
+                    )?;
+                }
+                tx.execute("INSERT INTO historical_receipt SELECT universe_id,principal,operation_kind,idempotency_key FROM operation_receipts",[])?;
+            }
+            let names: Vec<(String, String, String, String)> = input
+                .prepare("SELECT continuity_id,key,name,workflow_digest FROM continuity_name")?
+                .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?
+                .collect::<Result<_, _>>()?;
+            for (id, key, name, hash) in names {
+                tx.execute(
+                    "INSERT INTO continuity_name VALUES(?1,?2,?3,?4)",
+                    params![id, key, name, hash],
+                )?;
+            }
+            // Record original digest bindings on remapping without claiming they bind changed bodies.
+            for r in &self.rows {
+                if let Row::Record { record } = r {
+                    let mapped = records
+                        .iter()
+                        .find(|v| v.record_version_id == record.record_version_id)
+                        .ok_or_else(|| invalid("missing mapped record"))?;
+                    let original: Option<String> = input
+                        .query_row(
+                            "SELECT source_digest FROM import_record_digest WHERE version_id=?1",
+                            [record.record_version_id.as_str()],
+                            |r| r.get(0),
+                        )
+                        .optional()?;
+                    if original.is_some() || mapped.payload_digest != record.payload_digest {
+                        tx.execute(
+                            "INSERT INTO import_record_digest VALUES(?1,?2,?3,?4)",
+                            params![
+                                target.as_str(),
+                                record.record_version_id.as_str(),
+                                original
+                                    .unwrap_or_else(|| record.payload_digest.as_str().to_owned()),
+                                mapped.payload_digest.as_str()
+                            ],
+                        )?;
+                    }
+                }
+            }
+            tx.commit()?;
+        }
         kernel.integrity()?;
         Ok((kernel, temporary))
     }
@@ -475,11 +609,7 @@ fn remap_references(value: &mut Value, source: &UniverseId, target: &UniverseId)
     }
 }
 impl Kernel {
-    pub fn export_logical(
-        &self,
-        destination: &Path,
-        requested: &[RecordId],
-    ) -> StoreResult<ArchiveManifest> {
+    fn collect_archive(&self, requested: &[RecordId]) -> StoreResult<LogicalArchive> {
         let ids: Vec<String> = self
             .conn
             .prepare("SELECT id FROM record_versions ORDER BY id")?
@@ -549,7 +679,7 @@ impl Kernel {
             }
         }
         let manifest = ArchiveManifest {
-            format: "universe-logical-v1".into(),
+            format: "universe-relational".into(),
             universe: self.universe.clone(),
             name: self
                 .conn
@@ -559,9 +689,7 @@ impl Kernel {
             includes_history: true,
             includes_workflow: false,
         };
-        let mut rows = vec![Row::Manifest {
-            manifest: manifest.clone(),
-        }];
+        let mut rows = Vec::new();
         let mut texts = BTreeSet::new();
         let mut images = BTreeMap::new();
         for r in records
@@ -674,33 +802,122 @@ impl Kernel {
         if rows.len() > MAX_ROWS {
             return Err(invalid("archive row budget exceeded"));
         }
+        Ok(LogicalArchive {
+            manifest,
+            rows,
+            digest: String::new(),
+            package: None,
+        })
+    }
+    pub fn export_logical(
+        &self,
+        destination: &Path,
+        requested: &[RecordId],
+    ) -> StoreResult<ArchiveManifest> {
+        self.export_relational(destination, requested, false)
+    }
+    pub fn export_relational(
+        &self,
+        destination: &Path,
+        requested: &[RecordId],
+        complete_history: bool,
+    ) -> StoreResult<ArchiveManifest> {
+        if complete_history && !requested.is_empty() {
+            return Err(invalid("complete-history export requires all records"));
+        }
         let parent = destination
             .parent()
             .ok_or_else(|| invalid("export parent required"))?;
-        let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
-        let mut hasher = Sha256::new();
-        let mut total = 0;
-        for row in &rows {
-            let mut bytes = serde_json::to_vec(row).map_err(|_| invalid("archive row encoding"))?;
-            bytes.push(b'\n');
-            total += bytes.len();
-            if total > MAX_BYTES - 1024 {
-                return Err(invalid("archive byte budget exceeded"));
-            }
-            hasher.update(&bytes);
-            temporary.write_all(&bytes)?;
-        }
-        let trailer = Row::Checksum {
-            sha256: hex::encode(hasher.finalize()),
-            rows: rows.len(),
+        let directory = tempfile::Builder::new()
+            .prefix(".relational-export-")
+            .tempdir_in(parent)?;
+        // Pin all canonical and workflow reads to one consistent SQLite snapshot.
+        let snapshot = directory.path().join("snapshot.sqlite");
+        self.backup(&snapshot)?;
+        let source = Kernel::open(&snapshot)?;
+        let mut logical = source.collect_archive(requested)?;
+        let manifest = ArchiveManifest {
+            includes_workflow: complete_history,
+            ..logical.manifest.clone()
         };
-        temporary
-            .write_all(&serde_json::to_vec(&trailer).map_err(|_| invalid("checksum encoding"))?)?;
-        temporary.write_all(b"\n")?;
-        temporary.as_file().sync_all()?;
-        // Read our own serialized representation before publishing a no-clobber file.
-        LogicalArchive::read(temporary.path())?;
-        temporary
+        let path = directory.path().join("export.sqlite");
+        let guard;
+        if complete_history {
+            crate::ownership::protected_file(&path, true)?;
+            let db = Database::open(&path)?;
+            let mut target = db.connect()?;
+            crate::transfer::copy_rows(&source.conn, &mut target, || Ok(()))?;
+            guard = None;
+        } else {
+            // Internal rows are transient typed values; no JSONL is persisted.
+            logical.digest = String::new();
+            logical.manifest.complete = true;
+            let (staged, temporary) =
+                logical.stage(directory.path(), manifest.universe.clone(), &manifest.name)?;
+            drop(staged);
+            let db = Database::open_existing(temporary.path().join("package.sqlite"))?;
+            let c = db.connect()?;
+            // Preserve existing digest provenance for the included factual versions.
+            let tx = c.unchecked_transaction()?;
+            let mut stmt=source.conn.prepare("SELECT universe_id,version_id,source_digest,normalized_digest FROM import_record_digest")?;
+            let mut rows = stmt.query([])?;
+            while let Some(r) = rows.next()? {
+                let values = (0..4)
+                    .map(|i| r.get::<_, String>(i))
+                    .collect::<Result<Vec<_>, _>>()?;
+                let included: bool = tx.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM record_versions WHERE id=?1)",
+                    [&values[1]],
+                    |r| r.get(0),
+                )?;
+                if included {
+                    tx.execute(
+                        "INSERT INTO import_record_digest VALUES(?1,?2,?3,?4)",
+                        params![values[0], values[1], values[2], values[3]],
+                    )?;
+                }
+            }
+            let names: Vec<(String, String, String, String)> = source
+                .conn
+                .prepare("SELECT continuity_id,key,name,workflow_digest FROM continuity_name")?
+                .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?
+                .collect::<Result<_, _>>()?;
+            for (id, key, name, hash) in names {
+                tx.execute(
+                    "INSERT INTO continuity_name VALUES(?1,?2,?3,?4)",
+                    params![id, key, name, hash],
+                )?;
+            }
+            tx.commit()?;
+            c.execute_batch("PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE;")?;
+            drop(c);
+            std::fs::rename(db.path(), &path)?;
+            guard = Some(temporary);
+        }
+        let db = Database::open_existing(&path)?;
+        let mut c = db.connect()?;
+        c.execute_batch(crate::transfer::EXPORT_SQL)?;
+        let tx = c.transaction()?;
+        let manifest_row = crate::relational::put(
+            &tx,
+            "ArchiveManifest",
+            &serde_json::to_value(&manifest).map_err(|_| invalid("manifest encoding"))?,
+        )?;
+        let (checksum, count) = crate::transfer::checksum(&tx)?;
+        tx.execute("INSERT INTO archive_integrity VALUES(1,?1,'typed-row-stream',?2,?3,'historical_evidence_only',?4)",params![manifest_row,checksum,count as i64,digest_manifest(&manifest)])?;
+        tx.commit()?;
+        c.execute_batch("PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE;")?;
+        drop(c);
+        drop(source);
+        drop(guard);
+        if std::fs::metadata(&path)?.len() > MAX_BYTES as u64 {
+            return Err(invalid("archive byte budget exceeded"));
+        }
+        LogicalArchive::read(&path)?;
+        let mut publication = tempfile::NamedTempFile::new_in(parent)?;
+        std::io::copy(&mut std::fs::File::open(&path)?, &mut publication)?;
+        publication.as_file().sync_all()?;
+        publication
             .persist_noclobber(destination)
             .map_err(|e| StoreError::Io(e.error))?;
         std::fs::File::open(parent)?.sync_all()?;
@@ -711,3 +928,16 @@ impl Kernel {
 #[path = "legacy.rs"]
 mod legacy;
 pub use legacy::convert_legacy;
+
+pub(super) fn mark_historical(c: &Connection) -> StoreResult<()> {
+    c.execute(
+        "INSERT OR IGNORE INTO historical_workflow SELECT key FROM workflow_entries",
+        [],
+    )?;
+    c.execute("INSERT OR IGNORE INTO historical_receipt SELECT universe_id,principal,operation_kind,idempotency_key FROM operation_receipts",[])?;
+    Ok(())
+}
+
+fn digest_manifest(manifest: &ArchiveManifest) -> String {
+    hex::encode(Sha256::digest(canonical_serde(manifest).to_bytes()))
+}
