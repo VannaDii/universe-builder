@@ -285,7 +285,7 @@ def semantic_examples(tmp):
     fact('Pistol A','rounds',{'kind':'integer','digits':'2'},'instance',at=3,revision=3)
     fact('Pistol B','rounds',{'kind':'integer','digits':'3'},'instance')
     initial=fact('Gun','rounds',{'kind':'integer','digits':'7'},'initial_value')
-    db.execute('INSERT INTO initialization_receipt VALUES (?,?,?,?,?,?,?)',(universe,ids['Pistol A'],ids['start A'],ids['rounds'],versions['Gun'],initial,revisions[0]))
+    db.execute('INSERT INTO initialization_receipt VALUES (?,?,?,?,?,?,?,?)',(universe,ids['Pistol A'],ids['start A'],ids['rounds'],versions['Gun'],initial,revisions[0],revisions[0]))
     for label in ['World A','World B','Objective','grows','hazard','height','rounds','holder','start A','shot A','refill A','foot','Story clock','opposition policy']:
         # These references need real version bodies for an integrity/closure audit.
         kind=db.execute('SELECT kind FROM record_identities WHERE id=?',(ids[label],)).fetchone()[0]

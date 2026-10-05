@@ -2316,12 +2316,13 @@ CREATE TABLE "r_payload_v18_alternatives_items" (owner INTEGER NOT NULL REFERENC
 
 CREATE TABLE "r_evidence_basis" (
   __row_id INTEGER PRIMARY KEY,
-  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 4),
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 5),
   v0 INTEGER REFERENCES "r_evidence_basis_v0"(__row_id),
   v1 INTEGER REFERENCES "r_evidence_basis_v1"(__row_id),
   v2 INTEGER REFERENCES "r_evidence_basis_v2"(__row_id),
   v3 INTEGER REFERENCES "r_evidence_basis_v3"(__row_id),
   v4 INTEGER REFERENCES "r_evidence_basis_v4"(__row_id),
+  v5 INTEGER REFERENCES "r_evidence_basis_v5"(__row_id),
   CHECK(variant=0 OR v0 IS NULL),
   CHECK(variant!=0 OR v0 IS NOT NULL),
   CHECK(variant=1 OR v1 IS NULL),
@@ -2331,7 +2332,9 @@ CREATE TABLE "r_evidence_basis" (
   CHECK(variant=3 OR v3 IS NULL),
   CHECK(variant!=3 OR v3 IS NOT NULL),
   CHECK(variant=4 OR v4 IS NULL),
-  CHECK(variant!=4 OR v4 IS NOT NULL)
+  CHECK(variant!=4 OR v4 IS NOT NULL),
+  CHECK(variant=5 OR v5 IS NULL),
+  CHECK(variant!=5 OR v5 IS NOT NULL)
 ) STRICT;
 
 CREATE TABLE "r_evidence_basis_v0" (
@@ -2410,6 +2413,23 @@ CREATE TABLE "r_evidence_basis_v4_evaluator" (
   CHECK(variant=0 OR v0 IS NULL),
   CHECK(variant!=0 OR v0 IS NOT NULL),
   CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_evidence_basis_v5" (
+  __row_id INTEGER PRIMARY KEY,
+  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
+  "kind" TEXT,
+  "start__state" INTEGER NOT NULL CHECK("start__state" IN (2)),
+  "start" INTEGER REFERENCES "r_version_ref"(__row_id),
+  "definition__state" INTEGER NOT NULL CHECK("definition__state" IN (2)),
+  "definition" INTEGER REFERENCES "r_version_ref"(__row_id),
+  "source_revision__state" INTEGER NOT NULL CHECK("source_revision__state" IN (2)),
+  "source_revision" TEXT,
+  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
+  CHECK("kind"='instance_initialization'),
+  CHECK(("start__state"=2 AND "start" IS NOT NULL) OR ("start__state" IN (0,1) AND "start" IS NULL)),
+  CHECK(("definition__state"=2 AND "definition" IS NOT NULL) OR ("definition__state" IN (0,1) AND "definition" IS NULL)),
+  CHECK(("source_revision__state"=2 AND "source_revision" IS NOT NULL) OR ("source_revision__state" IN (0,1) AND "source_revision" IS NULL))
 ) STRICT;
 
 CREATE TABLE "r_payload_v18_established_by" (
@@ -9882,6 +9902,10 @@ CREATE TRIGGER "r_evidence_basis_v4_chain_items_no_delete" BEFORE DELETE ON "r_e
 CREATE TRIGGER "r_evidence_basis_v4_evaluator_no_update" BEFORE UPDATE ON "r_evidence_basis_v4_evaluator" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_evidence_basis_v4_evaluator_no_delete" BEFORE DELETE ON "r_evidence_basis_v4_evaluator" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_evidence_basis_v5_no_update" BEFORE UPDATE ON "r_evidence_basis_v5" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_evidence_basis_v5_no_delete" BEFORE DELETE ON "r_evidence_basis_v5" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_payload_v18_established_by_no_update" BEFORE UPDATE ON "r_payload_v18_established_by" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 

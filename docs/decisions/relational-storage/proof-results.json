@@ -3,13 +3,13 @@
   "source_content": "digest and bytes exact",
   "installation_authority_in_package": false,
   "canonical_round_trips": 72,
-  "closed_union_and_workflow_round_trips": 508,
+  "closed_union_and_workflow_round_trips": 517,
   "canonical_families": 38,
   "integrity": "ok",
   "foreign_keys": "ok",
   "application_blob_or_real_columns": [],
-  "reconstruction_digest": "fdb5cce3d5f7be0b77c3566bfcce180b6633941d39bc350a9d97fe165751e369",
-  "tables_inspected": 849,
+  "reconstruction_digest": "65d48aed7eaeb76ca18fc41e4ac520b12541bbbeb95f5d210bc7194017c39699",
+  "tables_inspected": 866,
   "constraint_rejections": [
     "required",
     "discriminator",
@@ -73,7 +73,7 @@
         "includes_history": true,
         "includes_workflow": true
       },
-      "sha256": "0a5d24f420febe3caa66f573742688a686fb08cefc6dd74d80210a15723c9208"
+      "sha256": "c4f34e851e5ddc1b1d0b7edeeaaa0dccda1398f0bab0847a1e33c54eacc09d30"
     }
   },
   "installation": {

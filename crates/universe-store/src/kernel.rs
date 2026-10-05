@@ -19,6 +19,9 @@ mod media;
 #[path = "operator_conversion.rs"]
 pub mod operator_conversion;
 pub use media::{validate_image_metadata, MAX_IMAGE_BYTES};
+#[path = "initialization.rs"]
+mod initialization;
+pub use initialization::InitializationReceipt;
 pub type Membership = BTreeMap<String, String>;
 // Includes propositions and evidence, not just discoverable entities.
 const MAX_RECORDS: usize = 500_000;
@@ -295,6 +298,7 @@ impl Kernel {
             &head,
             &mut BTreeSet::new(),
         )?;
+        let base = map.clone();
         let mut changed = BTreeSet::new();
         for change in &input.changes {
             let rid = change.record_id.as_str();
@@ -349,6 +353,7 @@ impl Kernel {
         {
             index_definition(&tx, record, &map)?;
         }
+        let initialization = initialization::pending(&tx, input, &base, &map)?;
         let revision = new_revision();
         let seq: i64 = tx.query_row(
             "SELECT sequence+1 FROM commits WHERE universe_id=?1 AND id=?2",
@@ -398,6 +403,10 @@ impl Kernel {
                     tx.prepare_cached("INSERT INTO world_name_reservations VALUES(?1,?2,?3,?4) ON CONFLICT DO NOTHING")?.execute(params![uid,key,change.record_id.as_str(),revision.as_str()])?;
                 }
             }
+        }
+        for mut receipt in initialization {
+            receipt.revision = revision.clone();
+            initialization::insert(&tx, uid, &receipt)?;
         }
         hook(FaultPoint::Changes)?;
         tx.prepare_cached("UPDATE continuities SET head_commit=?3 WHERE universe_id=?1 AND id=?2")?
@@ -828,6 +837,7 @@ impl Kernel {
             return Err(invalid("foreign key integrity failure"));
         }
         verify_canonical(&self.conn, self.universe.as_str())?;
+        initialization::verify(&self.conn, self.universe.as_str())?;
         Ok(())
     }
 }

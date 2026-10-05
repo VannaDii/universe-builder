@@ -8,7 +8,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::canonical::{Canonical, CanonicalValue};
-use crate::ids::WorldId;
+use crate::ids::{RevisionId, WorldId};
 use crate::temporal::{TemporalBound, TemporalExpression};
 use crate::value::{RecordRef, VersionRef};
 
@@ -207,6 +207,12 @@ pub enum EvidenceBasis {
     },
     /// Established by an admitted occurred event effect.
     EventEffect { event: RecordRef, slot: String },
+    /// Explicit reviewed instance start, with immutable source evidence.
+    InstanceInitialization {
+        start: VersionRef,
+        definition: VersionRef,
+        source_revision: RevisionId,
+    },
     /// Imported from source material; mapping accepted, truth not.
     ImportedClaim,
     /// Derived by a named derivation chain (spec §9.4: every inference has
@@ -242,6 +248,22 @@ impl Canonical for EvidenceBasis {
                 ("kind".into(), CanonicalValue::Str("event_effect".into())),
                 ("event".into(), event.to_canonical()),
                 ("slot".into(), CanonicalValue::Str(slot.clone())),
+            ]),
+            InstanceInitialization {
+                start,
+                definition,
+                source_revision,
+            } => CanonicalValue::obj(vec![
+                (
+                    "kind".into(),
+                    CanonicalValue::Str("instance_initialization".into()),
+                ),
+                ("start".into(), start.to_canonical()),
+                ("definition".into(), definition.to_canonical()),
+                (
+                    "source_revision".into(),
+                    CanonicalValue::Str(source_revision.to_string()),
+                ),
             ]),
             ImportedClaim => CanonicalValue::obj(vec![(
                 "kind".into(),

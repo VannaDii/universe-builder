@@ -8728,6 +8728,32 @@
               ]
             },
             {
+              "description": "Explicit reviewed instance start, with immutable source evidence.",
+              "type": "object",
+              "properties": {
+                "start": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "definition": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "source_revision": {
+                  "$ref": "#/$defs/RevisionId"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "instance_initialization"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "start",
+                "definition",
+                "source_revision"
+              ]
+            },
+            {
               "description": "Imported from source material; mapping accepted, truth not.",
               "type": "object",
               "properties": {
@@ -14670,6 +14696,32 @@
               ]
             },
             {
+              "description": "Explicit reviewed instance start, with immutable source evidence.",
+              "type": "object",
+              "properties": {
+                "start": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "definition": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "source_revision": {
+                  "$ref": "#/$defs/RevisionId"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "instance_initialization"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "start",
+                "definition",
+                "source_revision"
+              ]
+            },
+            {
               "description": "Imported from source material; mapping accepted, truth not.",
               "type": "object",
               "properties": {
@@ -20484,6 +20536,32 @@
               ]
             },
             {
+              "description": "Explicit reviewed instance start, with immutable source evidence.",
+              "type": "object",
+              "properties": {
+                "start": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "definition": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "source_revision": {
+                  "$ref": "#/$defs/RevisionId"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "instance_initialization"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "start",
+                "definition",
+                "source_revision"
+              ]
+            },
+            {
               "description": "Imported from source material; mapping accepted, truth not.",
               "type": "object",
               "properties": {
@@ -25422,6 +25500,32 @@
                   "event"
                 ]
               }
+            },
+            {
+              "description": "Explicit reviewed instance start, with immutable source evidence.",
+              "type": "object",
+              "properties": {
+                "start": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "definition": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "source_revision": {
+                  "$ref": "#/$defs/RevisionId"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "instance_initialization"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "start",
+                "definition",
+                "source_revision"
+              ]
             },
             {
               "description": "Imported from source material; mapping accepted, truth not.",
@@ -37083,6 +37187,32 @@
               }
             },
             {
+              "description": "Explicit reviewed instance start, with immutable source evidence.",
+              "type": "object",
+              "properties": {
+                "start": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "definition": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "source_revision": {
+                  "$ref": "#/$defs/RevisionId"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "instance_initialization"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "start",
+                "definition",
+                "source_revision"
+              ]
+            },
+            {
               "description": "Imported from source material; mapping accepted, truth not.",
               "type": "object",
               "properties": {
@@ -45541,6 +45671,32 @@
                 "kind",
                 "event",
                 "slot"
+              ]
+            },
+            {
+              "description": "Explicit reviewed instance start, with immutable source evidence.",
+              "type": "object",
+              "properties": {
+                "start": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "definition": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "source_revision": {
+                  "$ref": "#/$defs/RevisionId"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "instance_initialization"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "start",
+                "definition",
+                "source_revision"
               ]
             },
             {
@@ -54211,6 +54367,32 @@
                 "kind",
                 "event",
                 "slot"
+              ]
+            },
+            {
+              "description": "Explicit reviewed instance start, with immutable source evidence.",
+              "type": "object",
+              "properties": {
+                "start": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "definition": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "source_revision": {
+                  "$ref": "#/$defs/RevisionId"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "instance_initialization"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "start",
+                "definition",
+                "source_revision"
               ]
             },
             {
@@ -67244,6 +67426,32 @@
               ]
             },
             {
+              "description": "Explicit reviewed instance start, with immutable source evidence.",
+              "type": "object",
+              "properties": {
+                "start": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "definition": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "source_revision": {
+                  "$ref": "#/$defs/RevisionId"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "instance_initialization"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "start",
+                "definition",
+                "source_revision"
+              ]
+            },
+            {
               "description": "Imported from source material; mapping accepted, truth not.",
               "type": "object",
               "properties": {
@@ -76689,6 +76897,32 @@
                 "kind",
                 "event",
                 "slot"
+              ]
+            },
+            {
+              "description": "Explicit reviewed instance start, with immutable source evidence.",
+              "type": "object",
+              "properties": {
+                "start": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "definition": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "source_revision": {
+                  "$ref": "#/$defs/RevisionId"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "instance_initialization"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "start",
+                "definition",
+                "source_revision"
               ]
             },
             {

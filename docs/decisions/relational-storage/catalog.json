@@ -3475,7 +3475,8 @@
         "EvidenceBasis_v1",
         "EvidenceBasis_v2",
         "EvidenceBasis_v3",
-        "EvidenceBasis_v4"
+        "EvidenceBasis_v4",
+        "EvidenceBasis_v5"
       ]
     },
     "EvidenceBasis_v0": {
@@ -3613,6 +3614,33 @@
       "table": "r_evidence_basis_v4_kind",
       "kind": "string",
       "const": "derivation"
+    },
+    "EvidenceBasis_v5": {
+      "table": "r_evidence_basis_v5",
+      "kind": "object",
+      "fields": {
+        "kind": {
+          "model": "EvidenceBasis_v5_kind",
+          "required": true
+        },
+        "start": {
+          "model": "VersionRef",
+          "required": true
+        },
+        "definition": {
+          "model": "VersionRef",
+          "required": true
+        },
+        "source_revision": {
+          "model": "RevisionId",
+          "required": true
+        }
+      }
+    },
+    "EvidenceBasis_v5_kind": {
+      "table": "r_evidence_basis_v5_kind",
+      "kind": "string",
+      "const": "instance_initialization"
     },
     "Payload_v18_establishedBy": {
       "table": "r_payload_v18_established_by",

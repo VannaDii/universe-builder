@@ -406,7 +406,7 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `Scope_realm_v1` | `r_scope_realm_v1` (scalar column) | null |
 | `Precision` | `r_precision` (scalar column) | string |
 | `Payload_v18_alternatives` | `r_payload_v18_alternatives` | Value |
-| `EvidenceBasis` | `r_evidence_basis` | EvidenceBasis_v0, EvidenceBasis_v1, EvidenceBasis_v2, EvidenceBasis_v3, EvidenceBasis_v4 |
+| `EvidenceBasis` | `r_evidence_basis` | EvidenceBasis_v0, EvidenceBasis_v1, EvidenceBasis_v2, EvidenceBasis_v3, EvidenceBasis_v4, EvidenceBasis_v5 |
 | `EvidenceBasis_v0` | `r_evidence_basis_v0` | note → EvidenceBasis_v0_note, kind → EvidenceBasis_v0_kind |
 | `EvidenceBasis_v0_note` | `r_evidence_basis_v0_note` (scalar column) | string |
 | `EvidenceBasis_v0_kind` | `r_evidence_basis_v0_kind` (scalar column) | string |
@@ -424,6 +424,8 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `EvidenceBasis_v4_evaluator_v0` | `r_evidence_basis_v4_evaluator_v0` (scalar column) | string |
 | `EvidenceBasis_v4_evaluator_v1` | `r_evidence_basis_v4_evaluator_v1` (scalar column) | null |
 | `EvidenceBasis_v4_kind` | `r_evidence_basis_v4_kind` (scalar column) | string |
+| `EvidenceBasis_v5` | `r_evidence_basis_v5` | kind → EvidenceBasis_v5_kind, start → VersionRef, definition → VersionRef, source_revision → RevisionId |
+| `EvidenceBasis_v5_kind` | `r_evidence_basis_v5_kind` (scalar column) | string |
 | `Payload_v18_establishedBy` | `r_payload_v18_established_by` | EventEffectRef, Payload_v18_establishedBy_v1 |
 | `EventEffectRef` | `r_event_effect_ref` | event → RecordRef, slot → EventEffectRef_slot |
 | `EventEffectRef_slot` | `r_event_effect_ref_slot` (scalar column) | string |

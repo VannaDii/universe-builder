@@ -41,12 +41,13 @@ CREATE TABLE definition_attribute (
 -- Separate initialization evidence prevents start/refinement/rename from becoming a refill.
 CREATE TABLE initialization_receipt (
  universe_id TEXT NOT NULL, instance_id TEXT NOT NULL, start_event_id TEXT NOT NULL, predicate_id TEXT NOT NULL,
- initial_definition_version TEXT NOT NULL, assertion_version TEXT NOT NULL, revision_id TEXT NOT NULL,
+ initial_definition_version TEXT NOT NULL, assertion_version TEXT NOT NULL, revision_id TEXT NOT NULL, source_revision TEXT NOT NULL,
  PRIMARY KEY(universe_id,instance_id,start_event_id,predicate_id),
  FOREIGN KEY(universe_id,instance_id) REFERENCES record_identities(universe_id,id),
  FOREIGN KEY(universe_id,start_event_id) REFERENCES record_identities(universe_id,id),
  FOREIGN KEY(universe_id,predicate_id) REFERENCES record_identities(universe_id,id),
  FOREIGN KEY(universe_id,initial_definition_version) REFERENCES record_versions(universe_id,id),
  FOREIGN KEY(universe_id,assertion_version) REFERENCES record_versions(universe_id,id),
- FOREIGN KEY(universe_id,revision_id) REFERENCES commits(universe_id,id)
+ FOREIGN KEY(universe_id,revision_id) REFERENCES commits(universe_id,id),
+ FOREIGN KEY(universe_id,source_revision) REFERENCES commits(universe_id,id)
 ) STRICT;

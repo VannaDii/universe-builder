@@ -42,6 +42,7 @@ enum Row {
         prior: Option<RecordVersionId>,
         next: Option<RecordVersionId>,
     },
+    Initialization(InitializationReceipt),
     Reservation {
         name: String,
         record: RecordId,
@@ -325,6 +326,9 @@ impl LogicalArchive {
                             prior.as_ref().map(|v| v.as_str()),
                             next.as_ref().map(|v| v.as_str())
                         ])?;
+                }
+                Row::Initialization(receipt) => {
+                    initialization::insert(&tx, target.as_str(), receipt)?;
                 }
                 Row::Reservation {
                     name,
@@ -655,7 +659,24 @@ impl Kernel {
                 .map(|r| r.identity.record_id.clone()),
         );
         let mut attachments = BTreeMap::<RecordId, Vec<RecordId>>::new();
+        let initialization_receipts = self.initialization_receipts()?;
         for r in &records {
+            if let Payload::Assertion(a) = &r.payload {
+                if matches!(
+                    a.basis,
+                    universe_domain::scope::EvidenceBasis::InstanceInitialization { .. }
+                ) {
+                    for receipt in initialization_receipts
+                        .iter()
+                        .filter(|receipt| receipt.assertion == r.record_version_id)
+                    {
+                        attachments
+                            .entry(receipt.instance.clone())
+                            .or_default()
+                            .push(r.identity.record_id.clone());
+                    }
+                }
+            }
             if let Payload::Appearance(a) = &r.payload {
                 match &a.target {
                     AppearanceTarget::Universe => pending.push(r.identity.record_id.clone()),
@@ -760,6 +781,11 @@ impl Kernel {
                     .map(|s| RecordVersionId::parse(&s).map_err(|_| invalid("next version")))
                     .transpose()?,
             });
+        }
+        for receipt in self.initialization_receipts()? {
+            if included.contains(&receipt.instance) {
+                rows.push(Row::Initialization(receipt));
+            }
         }
         let mut stmt = self.conn.prepare(
             "SELECT name,record_id,first_revision FROM world_name_reservations ORDER BY name",

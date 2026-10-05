@@ -101,6 +101,11 @@ def contracts():
                        'ValidationCapture':['authority_sequence'], 'DraftContent':['proposal'],
                        'Cancellation':['owner'], 'OperationStatusInternal':['validation','failure']}.items():
         defs[name]['required'] = [k for k in defs[name]['required'] if k not in keys]
+    # Initialization provenance is an additional closed evidence branch. Existing
+    # branch ordinals and canonical families retain their exact representation.
+    defs['EvidenceBasis']['oneOf'].append(obj(
+        kind={'type':'string','const':'instance_initialization'},
+        start=ref('VersionRef'), definition=ref('VersionRef'), source_revision=ref('RevisionId')))
     return defs
 
 
