@@ -750,7 +750,7 @@ pub(super) mod tests {
         ops: Vec<DomainOperation>,
         previous: Option<&StoredProposal>,
     ) -> StoredProposal {
-        let changes = operations::compile(w.kernel.universe(), &[], &ops).unwrap();
+        let changes = operations::compile(w.kernel.universe(), &frame.revision, &[], &ops).unwrap();
         let footprint = operations::footprint(&[], &changes);
         let mut p = StoredProposal {
             owner: w.principal.id.clone(),

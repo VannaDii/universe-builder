@@ -7,6 +7,7 @@ pub mod conversion;
 pub mod registry;
 pub mod runtime;
 
+mod initialization;
 mod operations;
 mod workflow;
 

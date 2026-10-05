@@ -21,7 +21,7 @@ pub mod operator_conversion;
 pub use media::{validate_image_metadata, MAX_IMAGE_BYTES};
 #[path = "initialization.rs"]
 mod initialization;
-pub use initialization::InitializationReceipt;
+pub use universe_domain::records::InitializationReceipt;
 pub type Membership = BTreeMap<String, String>;
 // Includes propositions and evidence, not just discoverable entities.
 const MAX_RECORDS: usize = 500_000;

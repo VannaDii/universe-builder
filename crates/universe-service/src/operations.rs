@@ -259,6 +259,14 @@ fn incremental_operations(
                         "physical transformations require the event operation path",
                     ));
                 }
+                if matches!(
+                    evidence.basis,
+                    universe_domain::scope::EvidenceBasis::InstanceInitialization { .. }
+                ) {
+                    return Err(invalid(
+                        "initialization evidence requires initialize_instance",
+                    ));
+                }
                 let definition = PropertyDef {
                     namespace: namespace.clone(),
                     key: key.clone(),
@@ -339,6 +347,7 @@ fn incremental_operations(
 
 pub fn compile(
     u: &UniverseId,
+    revision: &RevisionId,
     base: &[RecordVersion],
     operations: &[DomainOperation],
 ) -> anyhow::Result<Vec<Assignment>> {
@@ -439,6 +448,14 @@ pub fn compile(
                 proposition,
                 assertion,
             } => {
+                if matches!(
+                    assertion.basis,
+                    universe_domain::scope::EvidenceBasis::InstanceInitialization { .. }
+                ) {
+                    return Err(invalid(
+                        "initialization evidence requires initialize_instance",
+                    ));
+                }
                 // Caller reserves the proposition identity in client_ref so the
                 // typed assertion can refer to it before either record exists.
                 let reserved = RecordId::parse(client_ref)
@@ -494,7 +511,8 @@ pub fn compile(
             InstallPack { client_ref, record } => {
                 create(client_ref, Payload::DomainPack(record.clone()))?
             }
-            ReviseAppearance { .. }
+            InitializeInstance { .. }
+            | ReviseAppearance { .. }
             | ReviseDefinition { .. }
             | AdoptRecordVersion { .. }
             | ReviseEvent { .. }
@@ -936,6 +954,7 @@ pub fn compile(
             });
         }
     }
+    crate::initialization::compile(u, revision, base, &operations, &mut changes)?;
     crate::events::recompile(u, base, &mut changes)?;
     Ok(changes)
 }
@@ -985,6 +1004,7 @@ mod incremental_tests {
     fn compile_json(base: &[RecordVersion], ops: Vec<Value>) -> anyhow::Result<Vec<Assignment>> {
         compile(
             &u(),
+            &RevisionId::parse("rev_000000000000000000000001").unwrap(),
             base,
             &ops.into_iter()
                 .map(|op| serde_json::from_value(op).unwrap())

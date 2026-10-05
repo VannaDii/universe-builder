@@ -1,68 +1,108 @@
-# Goal 31: reviewed instance initialization
+# Goal 31: reviewed once-only instance initialization
 
-October 4, 2026. **In progress.** The first implementation slice supplies durable
-publication evidence. It does not yet qualify the full writer-facing workflow.
+October 4, 2026. The explicit `initialize_instance` operation names the instance,
+its occurred start, an approved initial-value assertion version, and the scope and
+interval beginning at that start. Compilation freezes a separate proposition and
+instance assertion before review. Definition evidence alone never supplies current
+stock. No retrieval, mention, scene, name, classification, holder association,
+definition edit or process restart invokes initialization.
 
-An instance assertion can carry `instance_initialization` evidence, pinning the
-start event version, initial-value assertion version and source snapshot revision.
-The existing relational initialization receipt additionally binds the instance,
-property, generated assertion version and admitting revision. The receipt is
-written in the same kernel transaction as canonical versions, changes, head and
-ordinary commit receipt. Proposal preview rolls all of these back.
+The compiler evaluates the full resolved classification ancestry and every
+applicable initial-value candidate for the property, context, requested worlds and
+start time. The explicitly selected source must be applicable and unchanged from
+the review base. Agreeing supported values can coexist with explicit source
+provenance; differing supported values, opposed evidence and unresolved candidate
+applicability/value/precision require authored resolution. Candidate records remain
+available; initialization never chooses a winner or discards evidence.
 
-The kernel requires an occurred start with an exact authored clock coordinate and
-the instance as a participant. The generated interval begins at that coordinate.
-It requires a supported, exact initial-value assertion at the review base and a
-matching instance proposition/value/context/scope. The source assertion and its
-proposition cannot change in the same proposal. A resolved explicit classification
-chain must contain the definition subject. Existing instance evidence requires
-resolution rather than bootstrap. Prior receipts prevent another initialization
-of the same instance/property, including after retraction. The receipt guards the
-universe-owned identity; it is not a scene-local or continuity-local balance.
+Reviewed publication creates an `instance_initialization` basis pinning start
+and definition versions and the source snapshot revision. A relational receipt
+binds instance, start, property, definition version, source revision, generated
+assertion version and admitting revision. It shares the canonical transaction
+with versions, changes, head and ordinary commit receipt. Preview rolls these
+back. The universe-owned instance/property guard prevents another initialization,
+even after retraction or expiration of current stock. Missing current evidence is
+not permission to bootstrap again.
 
-Corrections remain ordinary reviewed factual edits. Changing a proposition or
-retaining the initialization basis on a revised assertion does not write another
-receipt. Immutable historical versions and original receipts remain available.
-Provenance cannot be attached to an existing unrelated assertion as a correction.
-Startup compares receipt rows with original initialization admissions in immutable
-commit history and rejects missing or altered bindings.
+Historical correction remains an explicit reviewed edit. Revising or restoring
+the original assertion identity retains its original receipt; corrected stock and
+downstream event effects do not rewrite the admission. Startup verifies receipt
+bindings against immutable original admissions. Complete and filtered logical
+archives retain receipt history and the initialization assertion dependencies.
+The single unreleased relational schema changes in place; existing installations
+are not automatically converted.
 
-Logical archives retain receipt rows, including canon-only exports. Filtered
-exports of an initialized instance include its historical initializing assertion
-and the assertion's provenance dependencies; cloning cannot discard the guard.
-This changes the single unreleased relational schema in place. No automatic
-conversion of an existing installation is introduced.
+`universe_get_state` objects report `initialization_receipts` separately from facts
+and candidates. Receipt history follows the queried revision's commit ancestry,
+including baseline ancestry, and its property/context/world filters. It does not
+filter original admission by story time or claim a current balance. Unrestricted
+author views report complete initialization history; restricted authority and
+non-author perspectives withhold it and report restricted coverage.
 
-Executed storage proof:
+The actual disposable MCP installation uses exact proposal, completed validation,
+private author review, explicit approval and exact commit/retry. The independent
+handwritten audit reconstructs typed canonical rows, verifies received immutable
+record digests, and checks literal balances and provenance without importing the
+production initializer or evaluator. Its proofs include:
+
+- Pistol A starts at 7 and consumes to 6 then 5. Pistol B independently starts at
+  3 after an approved definition edit, while A stays consumed. A later definition
+  edit to 9 changes neither existing pistol.
+- Rename, descendant classification refinement, holder transfer, an unasserted
+  mention and a scene preserve stock and the two original receipts.
+- Proposal replay across restart and exact commit retries reuse frozen outcomes.
+  Restart preserves stock and receipts; same-start/later-start/stale-source
+  initialization attempts publish nothing.
+- Reviewed historical correction changes A's initial evidence to 8 and its
+  downstream balances to 7 then 6. The old revision still returns 7, 6 and 5;
+  original receipts remain unchanged.
+- A third pistol retains competing exact and unresolved definitions, with no
+  stock or receipt. Rejected starts leave canonical and workflow counts unchanged.
+  After explicit author withdrawal of the competitor, an injected midpublication
+  failure leaves head, canonical readback and receipts unchanged. The exact
+  request succeeds once after restart. Its later missing balance cannot refill;
+  the earlier conflicting revision never gains its future receipt.
+- Storage tests cover all six publication fault points, all application-table
+  counts, startup tampering/missing receipts, restoration, pinned history and
+  complete/filtered archive recovery. Compiler tests cover agreeing/conflicting/
+  opposed/unknown candidates, exact start boundaries, source jurisdiction,
+  same-batch source changes and raw evidence bypass rejection.
+- Coherent forged canonical and received-wire records are rehashed before audit
+  controls. Refill, shared-to-instance promotion, replaced provenance, erased
+  scope, resolved-unknown forgery, rewritten history, receipt misbinding, future
+  receipt leakage and partial publication must all fail the independent oracle.
+
+Reproduce the scoped proof after building the three binaries:
 
 ```sh
-cargo test --locked -p universe-store --test initialization -- --nocapture
+cargo build --locked -p universe-engine -p universe-cli -p universe-mcp
+uv run --with jsonschema==4.25.1 python scripts/instance_initialization_pilot.py --output /tmp/instance-initialization-proof/actual.json
+python3 scripts/audit_instance_initialization.py /tmp/instance-initialization-proof/actual.json
+python3 scripts/test_instance_initialization_audit.py --evidence /tmp/instance-initialization-proof/actual.json -v
+RUST_TEST_THREADS=1 cargo run --locked -p xtask -- check
+uv run --with jsonschema==4.25.1 python scripts/validate_contracts.py
+python3 docs/decisions/relational-storage/prototype.py
 ```
 
-Five tests prove separate instance receipts, exact commit retry, restart,
-proposition correction with original historical readback, assertion retraction,
-duplicate initialization, a value inconsistent with the definition, preview
-rollback, all six publication fault points, startup receipt tamper/missing-row
-detection, and complete/filtered logical archive recovery. Fault tests compare
-row counts in every application table before and after failure. Each fault also
-restarts and publishes the original exact request once.
+CI executes the MCP proof and independent oracle controls. The proof result
+summary records evidence and binary digests, executed check results and scope.
+Raw local evidence includes MCP wire frames, author CLI outcomes, canonical
+snapshots and SQL receipts; the owned engine and temporary installation are
+removed when the pilot ends.
 
-Additional executed checks:
+Limitations: starts require exact authored clock coordinates, resolved executable
+ancestry, property predicates, explicit supported values and world/universe
+jurisdiction. Realm-based or unresolved jurisdiction requires resolution. This
+is a synthetic structured-authoring fixture with actual MCP and private review,
+not external-model prose qualification, native GUI/VoiceOver, production
+conversion, deployment or release evidence. Overall state coverage remains
+partial for existing unsupported inference capabilities; complete initialization
+history covers durable admissions only.
 
-- `RUST_TEST_THREADS=1 cargo run --locked -p xtask -- check`: 382 passing tests,
-  zero failures, one existing ignored workload, formatting, strict workspace
-  Clippy and generated-schema consistency.
-- `uv run --with jsonschema==4.25.1 python scripts/validate_contracts.py`:
-  26 schemas, 13 valid examples and 91 invalid examples pass.
-- `python3 docs/decisions/relational-storage/prototype.py`: the independent
-  typed reconstruction, semantic examples, archive and installation probes pass;
-  866 tables inspected and 517 closed-union/workflow round trips. These remain
-  disposable schema prototypes, separate from actual MCP qualification.
-
-Remaining Goal 31 work includes the explicit authoring operation, complete scoped
-candidate selection and unresolved/conflicting-candidate preservation, historical
-adoption semantics, receipt retrieval through the public workflow, and actual MCP
-pistol proofs with resource consumption, mention/scene/rename/refinement/holder/
-definition-edit controls, private review, failed publication and independent
-relational/wire auditing. These storage tests are not evidence of those outcomes.
-The goal remains active until the complete scope passes and all work is committed.
+Executed final checks: 390 passing workspace tests, zero failures and one existing
+ignored workload; formatting, strict Clippy and schema consistency pass. The MCP
+oracle covers 15 canonical snapshots, 21 state checks, 62 delivered immutable
+versions, 18 reviewed publications, three receipts and six rejected starts.
+All ten oracle tests pass, including nine forged-evidence controls. Contracts pass
+26 schemas, 13 valid and 91 invalid examples. The independent relational prototype
+passes with 867 tables and 518 closed-union/workflow round trips.

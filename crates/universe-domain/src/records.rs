@@ -2163,6 +2163,16 @@ pub enum DomainOperation {
         value: Value,
         evidence: AttributeEvidence,
     },
+    /// Apply an approved initial-value definition once at this authored start.
+    /// The chosen source is explicit; conflicting or unresolved sources block it.
+    InitializeInstance {
+        client_ref: String,
+        instance: RecordRef,
+        start: RecordRef,
+        definition: VersionRef,
+        scope: Scope,
+        validity: Validity,
+    },
     /// Knowledge refinement only: never a correction or physical transformation.
     RefineClassification {
         record: RecordRef,
@@ -2177,7 +2187,8 @@ impl DomainOperation {
     pub fn authority(&self) -> OperationAuthority {
         use DomainOperation::*;
         match self {
-            IntroduceInstance { .. }
+            InitializeInstance { .. }
+            | IntroduceInstance { .. }
             | RefineClassification { .. }
             | CreateEntity { .. }
             | CreateAppearance { .. }
@@ -2514,4 +2525,17 @@ mod tests {
             assert_eq!(fields.iter().filter(|(k, _)| k == "record_kind").count(), 1);
         }
     }
+}
+
+/// Immutable admission evidence; corrections do not issue another receipt.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct InitializationReceipt {
+    pub instance: RecordId,
+    pub start: RecordId,
+    pub property: RecordId,
+    pub definition: RecordVersionId,
+    pub assertion: RecordVersionId,
+    pub revision: RevisionId,
+    pub source_revision: RevisionId,
 }

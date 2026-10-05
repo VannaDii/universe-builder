@@ -41,6 +41,11 @@ jobs:
           python scripts/incremental_authoring_pilot.py --output "$RUNNER_TEMP/incremental-authoring.json"
           python scripts/audit_incremental_authoring.py "$RUNNER_TEMP/incremental-authoring.json"
           python scripts/test_incremental_authoring_audit.py --evidence "$RUNNER_TEMP/incremental-authoring.json" -v
+      - name: Reviewed once-only initialization and independent receipt audit
+        run: |
+          python scripts/instance_initialization_pilot.py --output "$RUNNER_TEMP/instance-initialization.json"
+          python scripts/audit_instance_initialization.py "$RUNNER_TEMP/instance-initialization.json"
+          python scripts/test_instance_initialization_audit.py --evidence "$RUNNER_TEMP/instance-initialization.json" -v
       - run: python scripts/verify_launcher.py --bin-dir target/debug
       - name: Native and host gates
         run: echo 'Native GUI, VoiceOver, clean-machine, and LM Studio checks require separate evidence; not run by this job.'

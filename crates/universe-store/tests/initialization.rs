@@ -306,3 +306,40 @@ fn complete_and_filtered_archives_preserve_once_only_evidence() {
         restored.integrity().unwrap();
     }
 }
+
+#[test]
+fn explicit_historical_restoration_retains_original_receipt_and_pinned_history() {
+    let d = tempfile::tempdir().unwrap();
+    let path = d.path().join("u.sqlite");
+    let mut k = create(&path);
+    let before = k.head(&cont()).unwrap();
+    let first = initial(&k, 7, 10, "a");
+    let revision = k.commit(&first).unwrap();
+    let receipts = k.initialization_receipts().unwrap();
+    assert!(k
+        .initialization_receipts_at(&cont(), &before)
+        .unwrap()
+        .is_empty());
+    assert_eq!(
+        k.initialization_receipts_at(&cont(), &revision).unwrap(),
+        receipts
+    );
+    let original = first.changes[2].next.as_ref().unwrap().clone();
+    let mut retract = input(&k, vec![original.clone()], "retract");
+    retract.changes[0].next = None;
+    k.commit(&retract).unwrap();
+    let restored = RecordVersion::build(
+        RecordVersionId::parse(&id("ver", 99)).unwrap(),
+        original.identity.clone(),
+        original.payload.clone(),
+    )
+    .unwrap();
+    k.commit(&input(&k, vec![restored], "reviewed-restore"))
+        .unwrap();
+    assert_eq!(k.initialization_receipts().unwrap(), receipts);
+    k.integrity().unwrap();
+    drop(k);
+    let mut k = Kernel::open(&path).unwrap();
+    assert_eq!(k.initialization_receipts().unwrap(), receipts);
+    assert!(k.commit(&initial(&k, 7, 40, "refill")).is_err());
+}

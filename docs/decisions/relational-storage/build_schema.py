@@ -106,6 +106,10 @@ def contracts():
     defs['EvidenceBasis']['oneOf'].append(obj(
         kind={'type':'string','const':'instance_initialization'},
         start=ref('VersionRef'), definition=ref('VersionRef'), source_revision=ref('RevisionId')))
+    defs['DomainOperation']['oneOf'].append(obj(
+        kind={'type':'string','const':'initialize_instance'}, client_ref=S,
+        instance=ref('RecordRef'), start=ref('RecordRef'), definition=ref('VersionRef'),
+        scope=ref('Scope'), validity=ref('Validity')))
     return defs
 
 

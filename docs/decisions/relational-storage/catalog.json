@@ -6908,7 +6908,8 @@
         "DomainOperation_v50",
         "DomainOperation_v51",
         "DomainOperation_v52",
-        "DomainOperation_v53"
+        "DomainOperation_v53",
+        "DomainOperation_v54"
       ]
     },
     "DomainOperation_v0": {
@@ -10564,6 +10565,49 @@
       "table": "r_domain_operation_v53_kind",
       "kind": "string",
       "const": "refine_classification"
+    },
+    "DomainOperation_v54": {
+      "table": "r_domain_operation_v54",
+      "kind": "object",
+      "fields": {
+        "kind": {
+          "model": "DomainOperation_v54_kind",
+          "required": true
+        },
+        "client_ref": {
+          "model": "DomainOperation_v54_client_ref",
+          "required": true
+        },
+        "instance": {
+          "model": "RecordRef",
+          "required": true
+        },
+        "start": {
+          "model": "RecordRef",
+          "required": true
+        },
+        "definition": {
+          "model": "VersionRef",
+          "required": true
+        },
+        "scope": {
+          "model": "Scope",
+          "required": true
+        },
+        "validity": {
+          "model": "Validity",
+          "required": true
+        }
+      }
+    },
+    "DomainOperation_v54_kind": {
+      "table": "r_domain_operation_v54_kind",
+      "kind": "string",
+      "const": "initialize_instance"
+    },
+    "DomainOperation_v54_client_ref": {
+      "table": "r_domain_operation_v54_client_ref",
+      "kind": "string"
     },
     "StoredContext": {
       "table": "r_stored_context",

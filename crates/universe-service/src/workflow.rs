@@ -13,7 +13,7 @@ use universe_domain::{
 };
 use universe_protocol::{request::*, response::*, ProtocolError, Request};
 use universe_store::kernel::{Assignment, CommitInput, Kernel};
-const EVALUATOR: &str = "finite-policy-v9-ancestor-definitions";
+const EVALUATOR: &str = "finite-policy-v10-instance-initialization";
 use universe_protocol::validation_scope::*;
 use validation_binding::ValidationCapture;
 pub(crate) fn hash<T: Serialize>(v: &T) -> String {
@@ -1791,7 +1791,7 @@ impl Workflow<'_> {
                             })
                             .cloned()
                             .collect();
-                        let objects = crate::objects::assemble(
+                        let mut objects = crate::objects::assemble(
                             &accessible,
                             &ids,
                             &predicates,
@@ -1800,6 +1800,49 @@ impl Workflow<'_> {
                             self.scope.is_some()
                                 || !matches!(ctx.frame.perspective, Perspective::Author),
                         );
+                        if self.scope.is_none()
+                            && matches!(ctx.frame.perspective, Perspective::Author)
+                        {
+                            let receipts = self.kernel.initialization_receipts_at(
+                                &ctx.frame.continuity,
+                                &ctx.frame.revision,
+                            )?;
+                            for object in &mut objects {
+                                object.initialization_history_coverage = Coverage::Complete;
+                                for receipt in receipts.iter().filter(|r| {
+                                    r.instance == object.identity.identity.record_id
+                                        && (predicates.is_empty()
+                                            || predicates.contains(&r.property))
+                                }) {
+                                    let original =
+                                        self.kernel.record_version(&receipt.assertion)?;
+                                    let Payload::Assertion(a) = original.payload else {
+                                        continue;
+                                    };
+                                    if a.scope.context != ctx.frame.context {
+                                        continue;
+                                    }
+                                    if let Some(world) = &world_focus {
+                                        let record_world = RecordId::parse(
+                                            &world.as_str().replacen("wld_", "rec_", 1),
+                                        )
+                                        .expect("world record");
+                                        if universe_rules::definitions::world_applies(
+                                            &a.scope.applicability,
+                                            &[record_world],
+                                        ) != Some(true)
+                                        {
+                                            continue;
+                                        }
+                                    }
+                                    object.initialization_receipts.push(receipt.clone());
+                                }
+                            }
+                        } else {
+                            for object in &mut objects {
+                                object.initialization_history_coverage = Coverage::Restricted;
+                            }
+                        }
                         serde_json::to_value(State{objects,epistemic,derived,chronology,unresolved_assertion_ids,assertions,propositions:proposition_records,completeness,coverage:Coverage::Partial,unsupported_capabilities:vec!["Explicit evidence filtered by the authored time frame; unresolved validities remain visible. Exact event effects and explicit possession powers are evaluated; complex causality and temporal completeness inference remain unavailable; absent evidence remains undefined.".into()]})?
                     }
                     _ => {
@@ -2047,8 +2090,12 @@ impl Workflow<'_> {
                     };
                     let mut p = if matches!(action, "create" | "revise") {
                         let operations: Vec<DomainOperation> = field(args, "operations")?;
-                        let changes =
-                            operations::compile(self.kernel.universe(), &base, &operations)?;
+                        let changes = operations::compile(
+                            self.kernel.universe(),
+                            &ctx.frame.revision,
+                            &base,
+                            &operations,
+                        )?;
                         let footprint = operations::footprint(&base, &changes);
                         let id = previous
                             .as_ref()
@@ -2262,7 +2309,12 @@ impl Workflow<'_> {
                         .kernel
                         .records(&ctx.frame.continuity, &ctx.frame.revision)?;
                     let operations: Vec<DomainOperation> = field(args, "operations")?;
-                    let changes = operations::compile(self.kernel.universe(), &base, &operations)?;
+                    let changes = operations::compile(
+                        self.kernel.universe(),
+                        &ctx.frame.revision,
+                        &base,
+                        &operations,
+                    )?;
                     let footprint = operations::footprint(&base, &changes);
                     world_focus = self.focus(args, &base)?;
                     if world_focus.as_ref().is_some_and(|w| {
@@ -3154,6 +3206,7 @@ mod job_tests {
             "finite-policy-v5-input-scope",
             "finite-policy-v6-declared-effects",
             "finite-policy-v8-cumulative-resources",
+            "finite-policy-v9-ancestor-definitions",
             EVALUATOR,
         ] {
             let run = ValidationRunId::generate(&mut rand::rng());

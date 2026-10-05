@@ -4519,7 +4519,7 @@ CREATE TABLE "r_issue_decision_mode" (
 
 CREATE TABLE "r_domain_operation" (
   __row_id INTEGER PRIMARY KEY,
-  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 53),
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 54),
   v0 INTEGER REFERENCES "r_domain_operation_v0"(__row_id),
   v1 INTEGER REFERENCES "r_domain_operation_v1"(__row_id),
   v2 INTEGER REFERENCES "r_domain_operation_v2"(__row_id),
@@ -4574,6 +4574,7 @@ CREATE TABLE "r_domain_operation" (
   v51 INTEGER REFERENCES "r_domain_operation_v51"(__row_id),
   v52 INTEGER REFERENCES "r_domain_operation_v52"(__row_id),
   v53 INTEGER REFERENCES "r_domain_operation_v53"(__row_id),
+  v54 INTEGER REFERENCES "r_domain_operation_v54"(__row_id),
   CHECK(variant=0 OR v0 IS NULL),
   CHECK(variant!=0 OR v0 IS NOT NULL),
   CHECK(variant=1 OR v1 IS NULL),
@@ -4681,7 +4682,9 @@ CREATE TABLE "r_domain_operation" (
   CHECK(variant=52 OR v52 IS NULL),
   CHECK(variant!=52 OR v52 IS NOT NULL),
   CHECK(variant=53 OR v53 IS NULL),
-  CHECK(variant!=53 OR v53 IS NOT NULL)
+  CHECK(variant!=53 OR v53 IS NOT NULL),
+  CHECK(variant=54 OR v54 IS NULL),
+  CHECK(variant!=54 OR v54 IS NOT NULL)
 ) STRICT;
 
 CREATE TABLE "r_domain_operation_v0" (
@@ -6957,6 +6960,32 @@ CREATE TABLE "r_domain_operation_v53" (
   CHECK(("entity_type__state"=2 AND "entity_type" IS NOT NULL) OR ("entity_type__state" IN (0,1) AND "entity_type" IS NULL)),
   CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
   CHECK("kind"='refine_classification')
+) STRICT;
+
+CREATE TABLE "r_domain_operation_v54" (
+  __row_id INTEGER PRIMARY KEY,
+  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
+  "kind" TEXT,
+  "client_ref__state" INTEGER NOT NULL CHECK("client_ref__state" IN (2)),
+  "client_ref" TEXT,
+  "instance__state" INTEGER NOT NULL CHECK("instance__state" IN (2)),
+  "instance" INTEGER REFERENCES "r_record_ref"(__row_id),
+  "start__state" INTEGER NOT NULL CHECK("start__state" IN (2)),
+  "start" INTEGER REFERENCES "r_record_ref"(__row_id),
+  "definition__state" INTEGER NOT NULL CHECK("definition__state" IN (2)),
+  "definition" INTEGER REFERENCES "r_version_ref"(__row_id),
+  "scope__state" INTEGER NOT NULL CHECK("scope__state" IN (2)),
+  "scope" INTEGER REFERENCES "r_scope"(__row_id),
+  "validity__state" INTEGER NOT NULL CHECK("validity__state" IN (2)),
+  "validity" INTEGER REFERENCES "r_validity"(__row_id),
+  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
+  CHECK("kind"='initialize_instance'),
+  CHECK(("client_ref__state"=2 AND "client_ref" IS NOT NULL) OR ("client_ref__state" IN (0,1) AND "client_ref" IS NULL)),
+  CHECK(("instance__state"=2 AND "instance" IS NOT NULL) OR ("instance__state" IN (0,1) AND "instance" IS NULL)),
+  CHECK(("start__state"=2 AND "start" IS NOT NULL) OR ("start__state" IN (0,1) AND "start" IS NULL)),
+  CHECK(("definition__state"=2 AND "definition" IS NOT NULL) OR ("definition__state" IN (0,1) AND "definition" IS NULL)),
+  CHECK(("scope__state"=2 AND "scope" IS NOT NULL) OR ("scope__state" IN (0,1) AND "scope" IS NULL)),
+  CHECK(("validity__state"=2 AND "validity" IS NOT NULL) OR ("validity__state" IN (0,1) AND "validity" IS NULL))
 ) STRICT;
 
 CREATE TABLE "r_stored_context" (
@@ -11558,6 +11587,10 @@ CREATE TRIGGER "r_attribute_evidence_alternatives_items_no_delete" BEFORE DELETE
 CREATE TRIGGER "r_domain_operation_v53_no_update" BEFORE UPDATE ON "r_domain_operation_v53" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_domain_operation_v53_no_delete" BEFORE DELETE ON "r_domain_operation_v53" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v54_no_update" BEFORE UPDATE ON "r_domain_operation_v54" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v54_no_delete" BEFORE DELETE ON "r_domain_operation_v54" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_stored_context_no_update" BEFORE UPDATE ON "r_stored_context" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 

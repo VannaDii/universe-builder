@@ -155,6 +155,8 @@ pub struct EffectiveObject {
     pub shared_attributes: Vec<ObjectEvidence>,
     pub instance_facts: Vec<ObjectEvidence>,
     pub initial_value_candidates: Vec<ObjectEvidence>,
+    pub initialization_receipts: Vec<universe_domain::records::InitializationReceipt>,
+    pub initialization_history_coverage: Coverage,
     pub behavioral_requirements: Vec<ObjectEvidence>,
     pub rules: Vec<ObjectEvidence>,
     /// Exact visible proposition/property dependencies for the evidence above.

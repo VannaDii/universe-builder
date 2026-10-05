@@ -94,6 +94,8 @@ pub fn assemble(
                 shared_attributes: vec![],
                 instance_facts: vec![],
                 initial_value_candidates: vec![],
+                initialization_receipts: vec![],
+                initialization_history_coverage: Coverage::Partial,
                 behavioral_requirements: vec![],
                 rules: vec![],
                 dependencies: vec![],

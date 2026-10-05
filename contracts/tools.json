@@ -11668,6 +11668,15 @@
                 "$ref": "#/$defs/ObjectEvidence"
               }
             },
+            "initialization_receipts": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/InitializationReceipt"
+              }
+            },
+            "initialization_history_coverage": {
+              "$ref": "#/$defs/Coverage"
+            },
             "behavioral_requirements": {
               "type": "array",
               "items": {
@@ -11711,6 +11720,8 @@
             "shared_attributes",
             "instance_facts",
             "initial_value_candidates",
+            "initialization_receipts",
+            "initialization_history_coverage",
             "behavioral_requirements",
             "rules",
             "dependencies",
@@ -16332,6 +16343,53 @@
             "unknowns"
           ]
         },
+        "InitializationReceipt": {
+          "description": "Immutable admission evidence; corrections do not issue another receipt.",
+          "type": "object",
+          "properties": {
+            "instance": {
+              "$ref": "#/$defs/RecordId"
+            },
+            "start": {
+              "$ref": "#/$defs/RecordId"
+            },
+            "property": {
+              "$ref": "#/$defs/RecordId"
+            },
+            "definition": {
+              "$ref": "#/$defs/RecordVersionId"
+            },
+            "assertion": {
+              "$ref": "#/$defs/RecordVersionId"
+            },
+            "revision": {
+              "$ref": "#/$defs/RevisionId"
+            },
+            "source_revision": {
+              "$ref": "#/$defs/RevisionId"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "instance",
+            "start",
+            "property",
+            "definition",
+            "assertion",
+            "revision",
+            "source_revision"
+          ]
+        },
+        "Coverage": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "partial",
+            "unsupported",
+            "restricted",
+            "failed"
+          ]
+        },
         "ObjectConflict": {
           "type": "object",
           "properties": {
@@ -16360,16 +16418,6 @@
             "predicate",
             "assertions",
             "initial_values"
-          ]
-        },
-        "Coverage": {
-          "type": "string",
-          "enum": [
-            "complete",
-            "partial",
-            "unsupported",
-            "restricted",
-            "failed"
           ]
         },
         "DerivedFact": {
@@ -23642,6 +23690,44 @@
                 "multiplicity",
                 "value",
                 "evidence"
+              ]
+            },
+            {
+              "description": "Apply an approved initial-value definition once at this authored start.\nThe chosen source is explicit; conflicting or unresolved sources block it.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "instance": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "start": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "definition": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "scope": {
+                  "$ref": "#/$defs/Scope"
+                },
+                "validity": {
+                  "$ref": "#/$defs/Validity"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "initialize_instance"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "instance",
+                "start",
+                "definition",
+                "scope",
+                "validity"
               ]
             },
             {
@@ -36116,6 +36202,44 @@
               ]
             },
             {
+              "description": "Apply an approved initial-value definition once at this authored start.\nThe chosen source is explicit; conflicting or unresolved sources block it.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "instance": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "start": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "definition": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "scope": {
+                  "$ref": "#/$defs/Scope"
+                },
+                "validity": {
+                  "$ref": "#/$defs/Validity"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "initialize_instance"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "instance",
+                "start",
+                "definition",
+                "scope",
+                "validity"
+              ]
+            },
+            {
               "description": "Knowledge refinement only: never a correction or physical transformation.",
               "type": "object",
               "properties": {
@@ -44598,6 +44722,44 @@
                 "multiplicity",
                 "value",
                 "evidence"
+              ]
+            },
+            {
+              "description": "Apply an approved initial-value definition once at this authored start.\nThe chosen source is explicit; conflicting or unresolved sources block it.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "instance": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "start": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "definition": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "scope": {
+                  "$ref": "#/$defs/Scope"
+                },
+                "validity": {
+                  "$ref": "#/$defs/Validity"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "initialize_instance"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "instance",
+                "start",
+                "definition",
+                "scope",
+                "validity"
               ]
             },
             {
@@ -53294,6 +53456,44 @@
                 "multiplicity",
                 "value",
                 "evidence"
+              ]
+            },
+            {
+              "description": "Apply an approved initial-value definition once at this authored start.\nThe chosen source is explicit; conflicting or unresolved sources block it.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "instance": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "start": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "definition": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "scope": {
+                  "$ref": "#/$defs/Scope"
+                },
+                "validity": {
+                  "$ref": "#/$defs/Validity"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "initialize_instance"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "instance",
+                "start",
+                "definition",
+                "scope",
+                "validity"
               ]
             },
             {
@@ -66639,6 +66839,44 @@
               ]
             },
             {
+              "description": "Apply an approved initial-value definition once at this authored start.\nThe chosen source is explicit; conflicting or unresolved sources block it.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "instance": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "start": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "definition": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "scope": {
+                  "$ref": "#/$defs/Scope"
+                },
+                "validity": {
+                  "$ref": "#/$defs/Validity"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "initialize_instance"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "instance",
+                "start",
+                "definition",
+                "scope",
+                "validity"
+              ]
+            },
+            {
               "description": "Knowledge refinement only: never a correction or physical transformation.",
               "type": "object",
               "properties": {
@@ -76110,6 +76348,44 @@
                 "multiplicity",
                 "value",
                 "evidence"
+              ]
+            },
+            {
+              "description": "Apply an approved initial-value definition once at this authored start.\nThe chosen source is explicit; conflicting or unresolved sources block it.",
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "instance": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "start": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "definition": {
+                  "$ref": "#/$defs/VersionRef"
+                },
+                "scope": {
+                  "$ref": "#/$defs/Scope"
+                },
+                "validity": {
+                  "$ref": "#/$defs/Validity"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "initialize_instance"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "instance",
+                "start",
+                "definition",
+                "scope",
+                "validity"
               ]
             },
             {
