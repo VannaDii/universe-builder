@@ -158,7 +158,19 @@ pub fn validate(
                     },
                 );
                 if !complete || evidence.outcome() != universe_rules::EvidenceOutcome::Supported {
-                    return Err(invalid("event.action.requirements", "owning entity's required attribute is missing, muted, conflicting, expired or unsupported before the event"));
+                    return Err(invalid(
+                        "event.action.requirements",
+                        &format!(
+                            "required attribute {}:{} for role {} on entity {} in event {} is not established before the event (outcome: {:?}, complete: {}); evidence may be missing, muted, conflicting, expired or unsupported",
+                            property.namespace,
+                            property.key,
+                            requirement.role,
+                            owner.record,
+                            record.identity.record_id,
+                            evidence.outcome(),
+                            complete,
+                        ),
+                    ));
                 }
             }
         }
@@ -262,7 +274,12 @@ mod tests {
         if let Payload::Assertion(a) = &mut unknown[3].payload {
             a.validity = Validity::Unknown;
         }
-        assert!(validate(&unknown, &changed(), &frame).is_err());
+        let error = validate(&unknown, &changed(), &frame)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("required attribute test:charged"), "{error}");
+        assert!(error.contains(&format!("on entity {}", id(1))), "{error}");
+        assert!(error.contains(&format!("in event {}", id(6))), "{error}");
         let mut alternatives = rows.clone();
         if let Payload::Assertion(a) = &mut alternatives[3].payload {
             a.alternatives = vec![universe_domain::value::Value::bool_(false)];
