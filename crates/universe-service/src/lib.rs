@@ -19,6 +19,7 @@ mod validation;
 mod actions;
 mod consequences;
 mod events;
+mod resources;
 
 mod powers;
 

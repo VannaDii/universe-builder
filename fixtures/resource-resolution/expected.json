@@ -1,0 +1,242 @@
+{
+  "capability": "resources.accounting.v1",
+  "policy": 20,
+  "property": 10,
+  "owners": [
+    4,
+    6,
+    7,
+    8,
+    9
+  ],
+  "queries": {
+    "baseline": [
+      "baseline",
+      "4",
+      [
+        0,
+        3,
+        1,
+        1,
+        2
+      ],
+      null
+    ],
+    "accepted-two": [
+      "accepted-two",
+      "6",
+      [
+        0,
+        null,
+        null,
+        null,
+        2
+      ],
+      100
+    ],
+    "accepted-three": [
+      "accepted-three",
+      "6",
+      [
+        0,
+        null,
+        null,
+        null,
+        3
+      ],
+      101
+    ],
+    "accounted": [
+      "accounted",
+      "6",
+      [
+        0,
+        2,
+        2,
+        null,
+        3
+      ],
+      101
+    ],
+    "corrected-before": [
+      "corrected",
+      "4",
+      [
+        0,
+        3,
+        1,
+        2,
+        1
+      ],
+      null
+    ],
+    "corrected-after": [
+      "corrected",
+      "6",
+      [
+        0,
+        2,
+        2,
+        2,
+        3
+      ],
+      101
+    ],
+    "reloaded": [
+      "reloaded",
+      "10",
+      [
+        2,
+        2,
+        2,
+        2,
+        1
+      ],
+      null
+    ],
+    "final": [
+      "final",
+      "13",
+      [
+        0,
+        2,
+        2,
+        2,
+        1
+      ],
+      null
+    ],
+    "historical": [
+      "historical",
+      "6",
+      [
+        0,
+        null,
+        null,
+        null,
+        2
+      ],
+      100
+    ],
+    "restart": [
+      "restart",
+      "13",
+      [
+        0,
+        2,
+        2,
+        2,
+        1
+      ],
+      null
+    ],
+    "restart-historical": [
+      "historical",
+      "6",
+      [
+        0,
+        null,
+        null,
+        null,
+        2
+      ],
+      100
+    ]
+  },
+  "publications": [
+    "baseline",
+    "accepted-two",
+    "accepted-three",
+    "accounted-replenishment",
+    "valid-correction",
+    "reload-accepted-stock",
+    "shot-11",
+    "shot-12"
+  ],
+  "blocked": [
+    "unresolved",
+    "changed-claim",
+    "uncorrected-evidence"
+  ],
+  "acceptances": {
+    "100": [
+      91,
+      2
+    ],
+    "101": [
+      92,
+      3
+    ]
+  },
+  "accounted_event": {
+    "event": 72,
+    "time": "5",
+    "action": 30,
+    "post": [
+      [
+        7,
+        71,
+        2
+      ],
+      [
+        6,
+        61,
+        2
+      ]
+    ],
+    "deltas": [
+      "1",
+      "-1"
+    ]
+  },
+  "reload": {
+    "event": 42,
+    "time": "10",
+    "action": 31,
+    "post": [
+      [
+        4,
+        41,
+        2
+      ],
+      [
+        9,
+        93,
+        1
+      ]
+    ],
+    "deltas": [
+      "2",
+      "-2"
+    ]
+  },
+  "shots": [
+    [
+      44,
+      43,
+      "11",
+      1
+    ],
+    [
+      46,
+      45,
+      "12",
+      0
+    ]
+  ],
+  "correction": {
+    "original": 80,
+    "replacement": 82,
+    "later": 81,
+    "corrected_value": 2
+  },
+  "arrival": {
+    "prior": 95,
+    "start": "5",
+    "end": "10",
+    "owner": 9,
+    "event": null,
+    "original": 90,
+    "original_value": 2
+  }
+}

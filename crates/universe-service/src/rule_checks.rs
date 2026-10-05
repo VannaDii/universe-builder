@@ -349,6 +349,7 @@ pub fn evaluate_indexed(
                             | "scalar.v1"
                             | "finite.v1"
                             | "opposing_evidence.v1"
+                            | "resources.accounting.v1"
                     )
                 });
             let waiver_contexts: Option<Vec<_>> = if operands.is_empty() {

@@ -332,3 +332,19 @@ resource enforcement on author-controlled factual assertions. Goal 33 remains
 active pending a decision on the proposed opt-in resource policy and typed
 observation/correction provenance. No semantic extension has been implemented.
 See [Pistol workflow evidence](docs/pistol-workflow-verification.md).
+
+## Resource resolution after author decision (October 5, 2026)
+
+Revised Goal 33 implements opt-in accounting using existing Rule capabilities,
+IssueDecision creative acceptance, factual corrections and event/publication
+machinery. No schema or migration was added. Ordinary approval cannot admit an
+unexplained stock change; exact author acceptance retains the count as canon and
+its arrival as unexplained. A changed claim requires fresh acceptance.
+Actual MCP and independent typed-history audits verify eight publications,
+three unresolved candidates, exact acceptance/authority/receipt controls,
+accounted replenishment, coherent correction, accepted-balance reload and shots,
+overdraw rejection, historical delivery and two restarts. Fourteen independent
+audit controls and the original Pistol proof with eleven controls pass.
+Workspace gates pass 395 Rust tests with one ignored; contracts pass 26 schemas,
+13 valid and 91 invalid fixtures. Native, hosted and release limits remain.
+See [resource resolution evidence](docs/resource-resolution-verification.md).

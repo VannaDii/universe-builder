@@ -13,7 +13,7 @@ use universe_domain::{
 };
 use universe_protocol::{request::*, response::*, ProtocolError, Request};
 use universe_store::kernel::{Assignment, CommitInput, Kernel};
-const EVALUATOR: &str = "finite-policy-v10-instance-initialization";
+const EVALUATOR: &str = "finite-policy-v11-resource-resolution";
 use universe_protocol::validation_scope::*;
 use validation_binding::ValidationCapture;
 pub(crate) fn hash<T: Serialize>(v: &T) -> String {
@@ -957,6 +957,18 @@ impl Workflow<'_> {
             &p.proposal.base_frame,
         )?;
         let mut admissible = true;
+        for gap in crate::resources::assess(&candidate, &p.proposal.base_frame)? {
+            if gap.acceptance.is_none() {
+                admissible = false;
+            }
+            findings.push(Finding {
+                fingerprint: gap.fingerprint,
+                rule_id: gap.rule,
+                outcome: EvidenceOutcome::NotEstablished,
+                evidence: gap.evidence,
+                coverage: Coverage::Complete,
+            });
+        }
         let worlds = if p.footprint.shared {
             candidate
                 .iter()
@@ -1081,6 +1093,9 @@ impl Workflow<'_> {
             coverage: Coverage::Complete,
         }));
         for finding in &mut findings {
+            if !finding.fingerprint.as_str().is_empty() {
+                continue;
+            }
             finding.fingerprint = FindingFingerprint(hash(&(
                 &p.proposal.base_frame,
                 &p.proposal.digest,
@@ -1496,6 +1511,7 @@ impl Workflow<'_> {
                     Capability{id:"perspective.views.v1".into(),status:CapabilityStatus::Implemented,limitation:"Character and narrator views require matching represented contexts. Reader views require an exact scene and explicit disclosures in its bound work edition. No automatic knowledge inference.".into()},
                     Capability{id:"history.v1".into(),status:CapabilityStatus::Implemented,limitation:"Typed summaries, evidence and pinned record history; history is limited to 100 changes per record and unrestricted author-perspective reads. Native restoration produces a reviewed compensating revision.".into()},
                     Capability{id:"knowledge.inference".into(),status:CapabilityStatus::Unsupported,limitation:"Automatic perception, understanding, nested attitude inference and memory decay require explicit author records.".into()},
+                    Capability{id:"resources.accounting.v1".into(),status:CapabilityStatus::Partial,limitation:"Author-configured single integer/exact-unit stock continuity. Unexplained changes require exact author issue acceptance; accepted quantities remain canon with unexplained arrival. Exact named-calendar objective evidence only.".into()},
                     Capability{id:"scoped.exceptions.v1".into(),status:CapabilityStatus::Partial,limitation:"Exact rule or boundary version with author acceptance and scope containment. Named-clock periods are partitioned at evidence and exception boundaries; original findings remain visible. Independent clocks and realm-dependent constraint inference remain unresolved.".into()},
                     Capability{id:"completeness.v1".into(),status:CapabilityStatus::Partial,limitation:"Exact objective membership and matching scope only; observer-known sets never close reality.".into()},
                     Capability{id:"impact.jobs.v1".into(),status:CapabilityStatus::Implemented,limitation:"Conservative full-universe dependency closure, durable queued validation, bound cursors and explicit work limits; no incremental result cache.".into()},

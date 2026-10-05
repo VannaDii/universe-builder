@@ -58,6 +58,7 @@ pub fn assemble(
         .collect();
     let by_id: BTreeMap<_, _> = records.iter().map(|r| (&r.identity.record_id, r)).collect();
     let get = |id: &RecordId| by_id.get(id).copied();
+    let resource_gaps = crate::resources::assess(records, frame);
     let mut pairs_remaining = 1_000_000usize;
     ids.iter()
         .filter_map(|id| {
@@ -170,6 +171,16 @@ pub fn assemble(
                             ));
                         }
                         let mut row = evidence(r, checks);
+                        match &resource_gaps {
+                            Ok(gaps) => for gap in gaps.iter().filter(|g| g.assertion == r.identity.record_id) {
+                                row.unknowns.push(format!("resource_arrival_unexplained:{}",gap.fingerprint.as_str()));
+                                object.unknowns.push("resource_arrival_unexplained".into());
+                                dependencies.insert(gap.rule.clone());
+                                dependencies.insert(gap.proposition.clone());
+                                if let Some(decision) = &gap.acceptance { dependencies.insert(decision.clone()); }
+                            },
+                            Err(_) => row.unknowns.push("resource_accounting_unresolved".into()),
+                        }
                         if a.precision != Precision::Exact || !a.alternatives.is_empty() {
                             row.unknowns.push("assertion_value_or_precision_unresolved".into());
                         }
