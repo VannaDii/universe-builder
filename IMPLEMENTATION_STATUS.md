@@ -307,3 +307,14 @@ in [operator conversion readiness](docs/operator-conversion-readiness.md). Unkno
 layouts, unrecoverable drafts, invalid ancestry and incomplete installation recovery
 block publication with originals retained. No live author data or installation
 cutover was performed.
+
+## Complete Cedar qualification (October 4, 2026)
+
+Goal 32 exercises minimal Tree authoring, explicit existence/location/time,
+shared growth capability, an instance hazard, stable Cedar refinement, authored
+height change, historical correction and downstream impact through actual MCP.
+Independent expected tables and typed SQLite history reconstruction verify ten
+approved publications, nine snapshots, 14 state queries, six rejected candidates
+and two forced restarts. Missing growth requirements now identify the exact
+predicate/owner/event; no admission semantics or physics were changed.
+See [Cedar workflow proof](docs/cedar-workflow-verification.md) for checks and limits.

@@ -3,6 +3,7 @@
 No service/compiler code or cached membership projection is used for readback.
 """
 import argparse
+from contextlib import closing
 import hashlib
 import json
 from pathlib import Path
@@ -14,7 +15,7 @@ from independent_audit import reader, encoded
 
 
 def canonical_snapshot(package, revision):
-    with sqlite3.connect('file:'+str(package)+'?mode=ro',uri=True) as db:
+    with closing(sqlite3.connect('file:'+str(package)+'?mode=ro',uri=True)) as db:
         db.row_factory=sqlite3.Row
         assert db.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
         assert not db.execute('PRAGMA foreign_key_check').fetchall()

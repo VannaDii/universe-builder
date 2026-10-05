@@ -47,5 +47,10 @@ jobs:
           python scripts/audit_instance_initialization.py "$RUNNER_TEMP/instance-initialization.json"
           python scripts/test_instance_initialization_audit.py --evidence "$RUNNER_TEMP/instance-initialization.json" -v
       - run: python scripts/verify_launcher.py --bin-dir target/debug
+      - name: Complete Cedar workflow and independent expected-table audit
+        run: |
+          python scripts/cedar_workflow_pilot.py --output "$RUNNER_TEMP/cedar-workflow.json"
+          python scripts/audit_cedar_workflow.py "$RUNNER_TEMP/cedar-workflow.json"
+          python scripts/test_cedar_workflow_audit.py --evidence "$RUNNER_TEMP/cedar-workflow.json" -v
       - name: Native and host gates
         run: echo 'Native GUI, VoiceOver, clean-machine, and LM Studio checks require separate evidence; not run by this job.'

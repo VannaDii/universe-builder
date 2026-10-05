@@ -1,0 +1,163 @@
+{
+  "definition": {
+    "namespace": "cedar_workflow",
+    "key": "tree",
+    "name": "Tree"
+  },
+  "instance": {
+    "name": "North tree",
+    "location": "North bank of the grove",
+    "exists_from": "0"
+  },
+  "shared": {
+    "grows": true
+  },
+  "instance_only": {
+    "climbing_hazard": "Broken upper branch"
+  },
+  "growth_requirements": [
+    "grows",
+    "adequate_water",
+    "growing_season"
+  ],
+  "states": {
+    "minimal": {
+      "classification": "Tree",
+      "height": null
+    },
+    "cedar": {
+      "classification": "Cedar",
+      "height": null
+    },
+    "before_existence": {
+      "classification": "Cedar",
+      "height": null,
+      "existence_established": false
+    },
+    "before_change": {
+      "classification": "Cedar",
+      "height": "30"
+    },
+    "after_change": {
+      "classification": "Cedar",
+      "height": "31"
+    },
+    "far_future": {
+      "classification": "Cedar",
+      "height": "31"
+    },
+    "corrected_before": {
+      "classification": "Cedar",
+      "height": "29"
+    },
+    "corrected_after": {
+      "classification": "Cedar",
+      "height": "30"
+    },
+    "historical_before": {
+      "classification": "Cedar",
+      "height": "30"
+    },
+    "historical_after": {
+      "classification": "Cedar",
+      "height": "31"
+    },
+    "restart_before": {
+      "classification": "Cedar",
+      "height": "29"
+    },
+    "restart_after": {
+      "classification": "Cedar",
+      "height": "30"
+    },
+    "restart_historical": {
+      "classification": "Cedar",
+      "height": "31"
+    },
+    "unresolved": {
+      "classification": "Cedar",
+      "height": "30"
+    }
+  },
+  "admission": {
+    "conflicting_shared_growth": "conflicting",
+    "conflicting_height": "conflicting",
+    "missing_water": "missing",
+    "missing_season": "missing",
+    "unresolved_water": "unresolved",
+    "partial_height_correction": "conflicting"
+  },
+  "change": {
+    "time": "10",
+    "delta": "1",
+    "unit_key": "foot",
+    "dimension": "length"
+  },
+  "correction": {
+    "earlier_height": "29",
+    "downstream_height": "30",
+    "affected_event": 51
+  },
+  "unknown_water": {
+    "validity": "unknown",
+    "precision": "unresolved"
+  },
+  "queries": {
+    "minimal": [
+      "minimal",
+      "5"
+    ],
+    "cedar": [
+      "cedar",
+      "5"
+    ],
+    "before_existence": [
+      "cedar",
+      "-1"
+    ],
+    "before_change": [
+      "changed",
+      "5"
+    ],
+    "after_change": [
+      "changed",
+      "15"
+    ],
+    "far_future": [
+      "changed",
+      "1000"
+    ],
+    "corrected_before": [
+      "corrected",
+      "5"
+    ],
+    "corrected_after": [
+      "corrected",
+      "15"
+    ],
+    "historical_before": [
+      "changed",
+      "5"
+    ],
+    "historical_after": [
+      "changed",
+      "15"
+    ],
+    "restart_before": [
+      "restart",
+      "5"
+    ],
+    "restart_after": [
+      "restart",
+      "15"
+    ],
+    "restart_historical": [
+      "changed",
+      "15"
+    ],
+    "unresolved": [
+      "unresolved",
+      "15"
+    ]
+  }
+}
