@@ -143,6 +143,27 @@ not semantic enforcement that does not yet exist. The package still needs a
 separate independent auditor for probe outputs and correction/restart
 qualification before the complete goal can close.
 
+The retained nine-case report was independently checked with
+[`scripts/audit_factual_constraints.py`](../../scripts/audit_factual_constraints.py).
+It checks the fixed case inventory and classifications, full/no-finding
+validation, successful admission, revision movement, authority-count movement,
+and public validate/commit calls in the raw MCP transcript. It also mutates an
+admission flag and verifies that the auditor rejects the forged report. The
+auditor is intentionally a structural evidence check: it does not independently
+recompute engine semantics. Re-run with:
+
+```sh
+python3 scripts/audit_factual_constraints.py \
+  docs/evidence/goal34-public-probe-2026-10-05-r4
+```
+
+This does not complete the requested correction/history/restart cases for the
+three factual families. Existing correction and restart qualifications in
+other domain workflows demonstrate general revision machinery, but are not
+substitutes for retesting affected knowledge, communication chronology and
+cross-instance cardinality findings against the same retained evidence.
+That case-specific proof remains outstanding; K1–K3 remain decision proposals.
+
 ## Original continuity scenarios
 
 | Scenario family | Supported behavior or remaining gap |
