@@ -52,6 +52,10 @@ These are recommendations for decision, not implementation instructions.
   belief; (4) unknown truth or uninterpreted/distorted content stays unresolved;
   (5) author-established omniscience is admitted only where that policy is
   authored.
+- **Authoring tradeoff:** authors choose direct establishment or justified
+  acquisition and provide interpretation/receipt evidence where required.
+  This adds work for inferential knowledge while retaining direct assertions
+  where the author intends them.
 
 ### K2 — Channel chronology policy
 
@@ -78,6 +82,9 @@ These are recommendations for decision, not implementation instructions.
   same reversed order under an explicit reverse-time rule passes; (4) an
   unreceived message cannot establish knowledge; (5) two unmapped calendars
   remain unresolved.
+- **Authoring tradeoff:** authors define rules only for channels where order
+  matters and record clock mappings for cross-calendar comparisons. This keeps
+  exceptions genre-controlled while requiring more explicit timeline data.
 
 ### K3 — Scoped relation cardinality
 
@@ -102,6 +109,9 @@ These are recommendations for decision, not implementation instructions.
   successors violate max-one; (2) sequential successors pass; (3) repeated
   evidence for one participant counts once; (4) multiple spouses pass under an
   authored max-two rule; (5) unknown overlap remains unresolved.
+- **Authoring tradeoff:** authors choose participant key, scope, validity and
+  completeness where minimum counts depend on absence. This is more setup than
+  local role multiplicity, in exchange for defensible global bounds.
 
 ## Probe work and status
 
@@ -138,31 +148,38 @@ removed `create_entity` operation; it is retained separately under
 `docs/evidence/goal34-baseline-2026-10-05/` and is not counted as a probe pass.
 
 The focused reproducer uses current incremental `introduce_instance` and keeps
-the historical `create_entity` pilot untouched. It tests admission separation,
-not semantic enforcement that does not yet exist. The package still needs a
-separate independent auditor for probe outputs and correction/restart
-qualification before the complete goal can close.
+the historical `create_entity` pilot untouched. The fresh extended run at
+`docs/evidence/goal34-public-probe-2026-10-05-r10/` repeats all nine cases, then
+publishes one correction for each family: replace `Knows` with `believes`,
+replace a reversed communication with a forward send/receipt, and remove the
+extra relation assertion. These prove record correction mechanics, not K1–K3
+semantic enforcement. Old knowledge, communication and relation assertion
+records were retrieved at their pinned pre-correction revisions before and
+after a service restart. The corrected head was checked for replacements and
+removal; relation correction targets the generated assertion record, distinct
+from its proposition record.
 
-The retained nine-case report was independently checked with
+The extended report was independently checked with
 [`scripts/audit_factual_constraints.py`](../../scripts/audit_factual_constraints.py).
 It checks the fixed case inventory and classifications, full/no-finding
 validation, successful admission, revision movement, authority-count movement,
-and public validate/commit calls in the raw MCP transcript. It also mutates an
-admission flag and verifies that the auditor rejects the forged report. The
-auditor is intentionally a structural evidence check: it does not independently
-recompute engine semantics. Re-run with:
+and public validate/commit calls in the raw MCP transcript. It checks all three
+correction commits, stable historical identity/version/payload/digest across
+restart, and corrected-head records. It mutates an admission flag and
+historical payload and verifies rejection. The auditor is a structural
+consistency check: it does not independently recompute engine semantics.
+Re-run with:
 
 ```sh
 python3 scripts/audit_factual_constraints.py \
-  docs/evidence/goal34-public-probe-2026-10-05-r4
+  docs/evidence/goal34-public-probe-2026-10-05-r10
 ```
 
-This does not complete the requested correction/history/restart cases for the
-three factual families. Existing correction and restart qualifications in
-other domain workflows demonstrate general revision machinery, but are not
-substitutes for retesting affected knowledge, communication chronology and
-cross-instance cardinality findings against the same retained evidence.
-That case-specific proof remains outstanding; K1–K3 remain decision proposals.
+The nine initial cases all validate and commit without findings under current
+behavior. “Illegal-if” and “unresolved” remain challenge labels contingent on
+the proposed authored policies; clean admissions do not establish existing
+engine defects. K1–K3 remain decision proposals and no semantic changes were
+implemented.
 
 ## Original continuity scenarios
 
