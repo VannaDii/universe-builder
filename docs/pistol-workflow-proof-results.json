@@ -1,0 +1,104 @@
+{
+  "goal": 33,
+  "status": "existing_semantics_qualified; semantic_decision_pending",
+  "date_local": "2026-10-05",
+  "baseline_commit": "2863db01da38e4dc6361c499db609ecacd07a377",
+  "proof_commit": "The following conventional test(workflow) commit contains this summary; its hash is reported in the response.",
+  "mcp": {
+    "status": "passed",
+    "states": 15,
+    "snapshots": 12,
+    "publications": 16,
+    "admission_controls": 12,
+    "versions": 100,
+    "initialization_receipts": 5,
+    "calls": 436,
+    "gap": "reviewed non-event reserve increase admitted",
+    "driver_seconds": 33.52139750000788,
+    "forced_restarts": 1,
+    "expected_sha256": "a042348238445b8bca26395abc837bde7fc9239a0aaa922119b04d21d933fa16"
+  },
+  "gates": {
+    "build": {
+      "command": "cargo build --locked -p universe-engine -p universe-cli -p universe-mcp",
+      "exit_code": 0
+    },
+    "workspace": {
+      "command": "RUST_TEST_THREADS=1 cargo run --locked -p xtask -- check",
+      "exit_code": 0,
+      "passed": 390,
+      "failed": 0,
+      "ignored": 1,
+      "includes": [
+        "formatting",
+        "strict workspace all-target Clippy",
+        "workspace tests",
+        "schema consistency"
+      ],
+      "log": "/tmp/pistol-workflow-check.log",
+      "log_sha256": "fac70c1321fde62e1ba86dfeea97dffc3a518a8ebaa1d3c7161f456f6d48eaa4"
+    },
+    "public_contracts": {
+      "command": "uv run --with jsonschema==4.25.1 python scripts/validate_contracts.py",
+      "exit_code": 0,
+      "schemas": 26,
+      "valid_examples": 13,
+      "invalid_examples": 91
+    },
+    "independent_accounting_audit": {
+      "exit_code": 0
+    },
+    "audit_falsification": {
+      "exit_code": 0,
+      "tests": 11,
+      "authentic_controls": 1,
+      "forgeries_rejected": 10
+    }
+  },
+  "working_time": {
+    "started_utc": "2026-10-05T16:42:06+00:00",
+    "measured_through_utc": "2026-10-05T17:00:48.757734+00:00",
+    "actual_wall_seconds_including_required_gate_waits": 1122.757734,
+    "scope": "This Goal 33 turn through proof recording; final commit and response add a small amount of time."
+  },
+  "binary_identity": {
+    "universe": {
+      "sha256": "3352c881ae63a105be497aea1e9930a32c57651e84ffddd838ecb7088f2977da",
+      "bytes": 37629176
+    },
+    "universe-engine": {
+      "sha256": "6ed4e25692a47eaf6da7b22e76dee15da98ac0915af749ba74ea8a2b07076291",
+      "bytes": 56031392
+    },
+    "universe-mcp": {
+      "sha256": "8647bfbe0e26f81fffc74b9ee907f2371e24cb818a19c635c4044eb17eb796c5",
+      "bytes": 45499280
+    }
+  },
+  "proof_artifacts": {
+    "/tmp/pistol-workflow-proof/actual.json": "146f1fc31fcea5114b358fe24fabf00d8b949847af28dff7301899a282598450",
+    "/tmp/pistol-workflow-proof/actual.jsonl": "1b219fa5259a4609f4dfafae8b9f9383eb6d75148e89c2b92aa8b9e937ad708a",
+    "/tmp/pistol-workflow-proof/actual.sqlite": "bf6b4f533dd0293060922840d54a30055ff81ec3e88327150a395b21d59e5919"
+  },
+  "scoped_files_sha256": {
+    ".github/workflows/check.yml": "90092bea90b358e1106ff5a17e145716d3c719962adfed1a4eb22d12db8fa9ef",
+    "IMPLEMENTATION_STATUS.md": "d442f91025d4fe85a367c31f236ed7ba58a49b45df68f45cdfe9dc0dcba18fbe",
+    "docs/pistol-workflow-verification.md": "25126e6870e4574327c3554cd9baad877bc8c167594ad30d635c88d66b73d9b6",
+    "fixtures/pistol-workflow/expected.json": "a042348238445b8bca26395abc837bde7fc9239a0aaa922119b04d21d933fa16",
+    "scripts/pistol_workflow_pilot.py": "4184c3f2ace4556c5c580e7b7c541d910d22beb30a15243f4331a2c43af115f6",
+    "scripts/audit_pistol_workflow.py": "d4c0325cc8059674cc8349dcfe58a6c25aa44726fa7c0ad7a10f39272d5afc41",
+    "scripts/test_pistol_workflow_audit.py": "fc739baaf3a7d119eed47ab8473348cf8b4ec626cbce136a10107a7a66cbe7c5"
+  },
+  "operator_decision": {
+    "status": "pending",
+    "recommendation": "Opt-in resource policy and typed observation/correction provenance; transitions require declared events.",
+    "alternative": "Retain trusted-author factual edits and document the enforcement limit.",
+    "implemented": false
+  },
+  "limits": [
+    "Non-event factual reserve history increase admitted after complete validation, review, approval and commit.",
+    "Same-value direct observation admitted; conflicting direct refill denied.",
+    "No production semantic change, hosted CI run, native UI, deployment or release claim.",
+    "Repeat initialization denied with generic STORAGE_FAILURE diagnostic."
+  ]
+}

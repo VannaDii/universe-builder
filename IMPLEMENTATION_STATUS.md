@@ -318,3 +318,17 @@ approved publications, nine snapshots, 14 state queries, six rejected candidates
 and two forced restarts. Missing growth requirements now identify the exact
 predicate/owner/event; no admission semantics or physics were changed.
 See [Cedar workflow proof](docs/cedar-workflow-verification.md) for checks and limits.
+
+## Complete Pistol admission evidence (October 5, 2026)
+
+Goal 33's sustained MCP proof combines inherited definitions, reviewed starts,
+independent stock, firing through exhaustion, transfer, constrained replenishment,
+a matching instance, subtype/world differences, historical correction and restart.
+The independent accounting audit verifies sixteen publications, twelve admission
+controls, fifteen queries, twelve typed snapshots and five initialization receipts.
+A matching direct observation commits; a conflicting direct refill rejects.
+A coherent non-event reserve-history increase also commits, exposing the limit of
+resource enforcement on author-controlled factual assertions. Goal 33 remains
+active pending a decision on the proposed opt-in resource policy and typed
+observation/correction provenance. No semantic extension has been implemented.
+See [Pistol workflow evidence](docs/pistol-workflow-verification.md).

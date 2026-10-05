@@ -52,5 +52,10 @@ jobs:
           python scripts/cedar_workflow_pilot.py --output "$RUNNER_TEMP/cedar-workflow.json"
           python scripts/audit_cedar_workflow.py "$RUNNER_TEMP/cedar-workflow.json"
           python scripts/test_cedar_workflow_audit.py --evidence "$RUNNER_TEMP/cedar-workflow.json" -v
+      - name: Complete Pistol admission and independent accounting audit
+        run: |
+          python scripts/pistol_workflow_pilot.py --output "$RUNNER_TEMP/pistol-workflow.json"
+          python scripts/audit_pistol_workflow.py "$RUNNER_TEMP/pistol-workflow.json"
+          python scripts/test_pistol_workflow_audit.py --evidence "$RUNNER_TEMP/pistol-workflow.json" -v
       - name: Native and host gates
         run: echo 'Native GUI, VoiceOver, clean-machine, and LM Studio checks require separate evidence; not run by this job.'
