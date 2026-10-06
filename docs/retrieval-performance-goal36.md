@@ -23,8 +23,11 @@ Context and impact projections compare serialized complete outputs against the
 previous full-scan implementations. The restricted context case also compares
 outputs with the restricted-evidence marker enabled. Ancestor, applicable-rule,
 and temporal measurements compare exact tri-state results and ancestry content.
-Snapshot isolation is exercised with distinct historical/current record slices
-whose same subject has different ancestry; the index is constructed per slice.
+Snapshot isolation is exercised against kernel-loaded revisions: a two-commit
+ancestry change followed by 64 unrelated commits, for 66 commits total. The
+historical and latest snapshots are retrieved independently, then indexed
+assembly is compared to the full scan at each pinned revision. This revision
+test uses a small record set; it is not a production revision-graph benchmark.
 
 The context workload models overlapping time intervals, a large current record
 snapshot, restricted visibility, and unrelated retained definitions. It does

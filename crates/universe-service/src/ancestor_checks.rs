@@ -119,6 +119,161 @@ fn cedar_ancestry_scope_time_and_revision_are_explicit() {
     assert_eq!(matches(&owner, &[tree], &rows, None), None);
     assert!(!claim(&rows, "15", true).1);
 }
+
+#[test]
+fn indexed_retrieval_stays_pinned_to_store_historical_revisions() {
+    use universe_store::kernel::{Assignment, CommitInput, Kernel};
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("history.sqlite");
+    let universe = UniverseId::parse("unv_000000000000000000000001").unwrap();
+    let continuity = ContinuityId::parse("cont_000000000000000000000001").unwrap();
+    let principal = PrincipalId::parse("prn_000000000000000000000001").unwrap();
+    let mut rows = fixture();
+    rows.push(v(
+        16,
+        json!({"record_kind":"calendar","namespace":"proof","key":"days","labels":{},"unitStructure":{}}),
+    ));
+    rows.push(v(
+        99,
+        json!({"record_kind":"represented_context","universe":"unv_000000000000000000000001","kind":{"kind":"objective"},"labels":{}}),
+    ));
+    for record in &rows {
+        for dependency in universe_store::kernel::record_dependencies(record).unwrap() {
+            assert!(
+                rows.iter()
+                    .any(|candidate| candidate.identity.record_id == dependency),
+                "{} references absent {}",
+                record.identity.record_id,
+                dependency
+            );
+        }
+    }
+    let mut kernel = Kernel::create(
+        &path,
+        universe.clone(),
+        "Retrieval history",
+        continuity.clone(),
+        &principal,
+    )
+    .unwrap();
+    let head = kernel.head(&continuity).unwrap();
+    let first = kernel
+        .commit(&CommitInput {
+            universe: universe.clone(),
+            continuity: continuity.clone(),
+            expected_head: head,
+            principal: principal.clone(),
+            decision: "history seed".into(),
+            reason: "retrieval parity".into(),
+            idempotency_key: "history-seed".into(),
+            changes: rows
+                .iter()
+                .map(|record| Assignment {
+                    record_id: record.identity.record_id.clone(),
+                    expected: None,
+                    next: Some(record.clone()),
+                })
+                .collect(),
+        })
+        .unwrap();
+    let previous = rows
+        .iter()
+        .find(|record| record.identity.record_id.as_str() == id(2))
+        .unwrap();
+    let mut changed_payload = previous.payload.clone();
+    if let Payload::EntityType(entity_type) = &mut changed_payload {
+        entity_type.parent = Some(RecordId::parse(&id(3)).unwrap());
+    }
+    let replacement = RecordVersion::build(
+        RecordVersionId::parse("ver_000000000000000000000384").unwrap(),
+        previous.identity.clone(),
+        changed_payload,
+    )
+    .unwrap();
+    let second = kernel
+        .commit(&CommitInput {
+            universe: universe.clone(),
+            continuity: continuity.clone(),
+            expected_head: first.clone(),
+            principal: principal.clone(),
+            decision: "retcon ancestry".into(),
+            reason: "historical retrieval proof".into(),
+            idempotency_key: "history-change".into(),
+            changes: vec![Assignment {
+                record_id: previous.identity.record_id.clone(),
+                expected: Some(previous.record_version_id.clone()),
+                next: Some(replacement),
+            }],
+        })
+        .unwrap();
+    let mut last = second.clone();
+    for offset in 0..64usize {
+        let record = v(
+            1_000 + offset,
+            json!({"record_kind":"property","namespace":"history","key":format!("revision-{offset}"),"labels":{},"value":{"kind":"boolean"},"multiplicity":"multiple","persistence":"unspecified","exclusive":false,"symmetric":false,"transitive":false}),
+        );
+        last = kernel
+            .commit(&CommitInput {
+                universe: universe.clone(),
+                continuity: continuity.clone(),
+                expected_head: last,
+                principal: principal.clone(),
+                decision: "append unrelated history".into(),
+                reason: "exercise pinned retrieval".into(),
+                idempotency_key: format!("history-{offset}"),
+                changes: vec![Assignment {
+                    record_id: record.identity.record_id.clone(),
+                    expected: None,
+                    next: Some(record),
+                }],
+            })
+            .unwrap();
+    }
+    let old = kernel.records(&continuity, &first).unwrap();
+    let current = kernel.records(&continuity, &second).unwrap();
+    let latest = kernel.records(&continuity, &last).unwrap();
+    let tree = RecordId::parse(&id(1)).unwrap();
+    let owner = RecordId::parse(&id(4)).unwrap();
+    assert_eq!(
+        universe_rules::definitions::RecordIndex::new(&old).matches(
+            &owner,
+            std::slice::from_ref(&tree),
+            None
+        ),
+        Some(true)
+    );
+    assert_eq!(
+        universe_rules::definitions::RecordIndex::new(&current).matches(
+            &owner,
+            std::slice::from_ref(&tree),
+            None
+        ),
+        Some(false)
+    );
+    for (revision, snapshot) in [(&first, &old), (&second, &current), (&last, &latest)] {
+        let frame: Frame = serde_json::from_value(json!({"universe":"unv_000000000000000000000001","continuity":"cont_000000000000000000000001","revision":revision,"context":rr(99),"time":{"kind":"at","time":{"kind":"exact","calendar":"cal_000000000000000000000010","value":"15"}},"perspective":"author"})).unwrap();
+        let indexed = crate::objects::assemble(
+            snapshot,
+            std::slice::from_ref(&owner),
+            &[],
+            &frame,
+            None,
+            false,
+        );
+        let reference = crate::objects::assemble_reference(
+            snapshot,
+            std::slice::from_ref(&owner),
+            &[],
+            &frame,
+            None,
+            false,
+        );
+        assert_eq!(
+            serde_json::to_value(indexed).unwrap(),
+            serde_json::to_value(reference).unwrap()
+        );
+    }
+}
 #[test]
 fn inherited_conflicts_have_no_subtype_or_instance_precedence() {
     use universe_rules::EvidenceOutcome::*;
