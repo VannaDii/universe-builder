@@ -8,7 +8,7 @@ from pathlib import Path
 import sqlite3
 import tempfile
 import time
-from canonical_families_pilot import FamilySession, authority_counts, records, restart
+from canonical_families_pilot import FamilySession, authority_counts, private, records, restart
 from continuity_gap_pilot import RecordedMCP, build_identity
 from audit_incremental_authoring import canonical_snapshot
 from pilot_support import NAME
@@ -26,6 +26,23 @@ class AuthorSession(FamilySession):
         receipt=self.call('universe_commit',args)['result'];assert self.call('universe_commit',args)['result']==receipt
         self.report.setdefault('publications',[]).append({'key':key,'review':review,'validation':v,'approval':approval,'receipt':receipt,'commit_arguments':args,'without_approval':denied})
         self.open();return receipt
+    def publish_interrupted(self,p,key):
+        """Discard the caller's commit result, restart, and recover by key."""
+        v=self.validate(p);assert v['coverage']=='complete'
+        review=self.admin('review',NAME,p['proposal_id'],p['version'],p['digest'])
+        args=self.commit_args(p,v,key)
+        denied=self.call('universe_commit',args,error=True)
+        approval=json.loads(self.approval(p,v).stdout)
+        delivered=self.call('universe_commit',args)['result']
+        # Simulate interruption between the transport response and writer state
+        # update: the successful response is intentionally discarded here.
+        del delivered
+        restart(self,self.report)
+        recovered=self.call('universe_get_operation',{'lookup':'key','universe':NAME,'operation_kind':'commit','idempotency_key':key})['result']
+        assert recovered['state']=='succeeded',recovered
+        receipt=recovered['receipt']
+        self.report.setdefault('publications',[]).append({'key':key,'review':review,'validation':v,'approval':approval,'receipt':receipt,'commit_arguments':args,'without_approval':denied,'response_discarded':True,'recovered_operation':recovered})
+        self.open();return receipt
 
 def run(output,bin_dir):
     start=time.monotonic();output.parent.mkdir(parents=True,exist_ok=True)
@@ -37,6 +54,12 @@ def run(output,bin_dir):
             try:
                 s.start();r['author_profile']=s.author;r['installation']=s.u;r['initialization_instructions']=s.instructions;package=s.root/'packages'/(s.uid+'.sqlite')
                 val=lambda n:{'kind':'integer','digits':str(n)}
+                def introduce_definition(n,key,name,parent=None):
+                    return {'kind':'introduce_definition','client_ref':s.rid(n),'namespace':'resolution','key':key,'name':name,'parent':s.rid(parent) if parent else None,'applicability':{'kind':'universe_wide'},'classification_executable':True}
+                def introduce_instance(n,name,classification=None,world_ids=()):
+                    return {'kind':'introduce_instance','client_ref':s.rid(n),'name':{'text':name,'validity':{'kind':'unknown'}},'classification':s.rid(classification) if classification else None,'world_associations':[{'world':world,'role':'setting','validity':{'kind':'unknown'},'qualifiers':{}} for world in world_ids]}
+                def named_attribute(n,subject,key,shape,value,mode,scope=None):
+                    return {'kind':'add_named_attribute','client_ref':s.rid(n),'subject':s.rr(subject),'namespace':'resolution','key':key,'value_shape':{'kind':shape},'subject_types':[s.rid(110)],'multiplicity':'single','value':value,'evidence':{'attributeMode':mode,'polarity':'support','scope':scope or s.scope,'validity':s.interval(0,20),'persistence':'explicit_interval','precision':'exact','basis':{'kind':'author_decision','note':'Explicit author-authored kit fact'}}}
                 def prop(n,owner,value):return {'kind':'define_proposition','client_ref':s.rid(n),'record':{'subject':s.rr(owner),'predicate':s.rr(10),'value':val(value),'quantification':'particular','context':s.scope['context']}}
                 def claim(n,owner,value,t,end):return {'kind':'assert_proposition','client_ref':s.rid(n),'proposition':prop(n,owner,value)['record'],'assertion':{'attributeMode':'instance','proposition':s.rr(n),'polarity':'support','scope':s.scope,'validity':s.interval(t,end),'persistence':'explicit_interval','precision':'exact','basis':{'kind':'author_decision','note':'Exact factual stock claim; arrival is not supplied'}}}
                 def assertion(n):return next(row for row in canonical_snapshot(package,s.open()['frame']['revision'])['records'].values() if row['payload']['record_kind']=='assertion' and row['payload']['proposition']['record']==s.rid(n))
@@ -57,11 +80,46 @@ def run(output,bin_dir):
                     return f[0]['fingerprint']
                 def delta(n):return {'kind':'delta','delta':str(n),'minimum':'0','maximum':'5','unit':None}
                 def action(n,key,changes):return {'kind':'define_action','client_ref':s.rid(n),'record':{'namespace':'resolution','key':key,'labels':{},'requirements':[],'scope':s.scope,'validity':s.interval(0),'consequenceContract':{'kind':'action_consequences','slots':[{'slot':name,'order':i,'presence':'required','target':{'role':role,'predicate':s.rr(10)},'condition':{'kind':'always'},'change':delta(d),'lifetime':{'kind':'until_changed'}} for i,(name,role,d) in enumerate(changes)]}}}
-                def event(n,t,a,participants,effects):return {'kind':'record_event','client_ref':s.rid(n),'record':{'occurrence':'occurred','time':s.instant(t),'participants':[{'record':s.rr(owner),'role':role} for role,owner in participants],'action':s.rr(a),'effects':[{'slot':name,'order':i,'proposition':s.rr(p),'polarity':'support','scope':s.scope,'validity':s.interval(t)} for i,(name,p) in enumerate(effects)],'preconditions':[],'labels':{}}}
-                def publish(ops,key):return s.publish(s.propose(ops,key),key+'-commit')
-                ops=[{'kind':'introduce_instance','client_ref':s.rid(n),'name':{'text':name,'validity':s.interval(0)},'classification':None,'world_associations':[]} for n,name in [(4,'Pistol'),(6,'Supply'),(7,'Accounted reserve'),(8,'Correction reserve'),(9,'Unexplained reserve')]]
-                ops += [{'kind':'define_property','client_ref':s.rid(10),'record':{'namespace':'resolution','key':'rounds','labels':{},'subjectTypes':[],'value':{'kind':'integer'},'multiplicity':'single','persistence':'explicit_interval','exclusive':False,'symmetric':False,'transitive':False}}, {'kind':'define_rule','client_ref':s.rid(20),'record':{'namespace':'resolution','key':'require_accounted_stock','labels':{},'kind':'physical_constraint','commitPolicy':'block_unless_exception','applicability':{'kind':'universe_wide'},'targetPredicates':['resolution:rounds'],'expression':{'kind':'lit','value':True},'capabilities':['resources.accounting.v1'],'executable':True,'validity':{'kind':'unspecified'}}},claim(40,4,0,0,10),claim(60,6,3,0,5),claim(70,7,1,0,5),claim(80,8,1,0,5),claim(90,9,2,0,10),action(30,'replenish',[('arrive','reserve',1),('supply','supply',-1)]),action(31,'reload_two',[('load','gun',2),('reserve','reserve',-2)]),action(32,'shoot',[('shot','gun',-1)])]
-                publish(ops,'baseline');snapshot('baseline');state('baseline',4)
+                def event(n,t,a,participants,effects,world_ids=()):return {'kind':'record_event','client_ref':s.rid(n),'record':{'occurrence':'occurred','time':s.instant(t),'worlds':list(world_ids),'participants':[{'record':s.rr(owner),'role':role} for role,owner in participants],'action':s.rr(a),'effects':[{'slot':name,'order':i,'proposition':s.rr(p),'polarity':'support','scope':s.scope,'validity':s.interval(t)} for i,(name,p) in enumerate(effects)],'preconditions':[],'labels':{}}}
+                def publish(ops,key,interrupt_response=False):
+                    proposal=s.propose(ops,key)
+                    return (s.publish_interrupted(proposal,key+'-commit') if interrupt_response else s.publish(proposal,key+'-commit'))
+                ops=[{'kind':'create_world','client_ref':s.rid(170),'record':{'selector':'North','labels':{},'metadata':{}}},{'kind':'create_world','client_ref':s.rid(171),'record':{'selector':'South','labels':{},'metadata':{}}}]
+                north=s.rid(170).replace('rec_','wld_');south=s.rid(171).replace('rec_','wld_')
+                north_scope={'context':s.scope['context'],'applicability':{'kind':'worlds','world_ids':[north]}}
+                south_scope={'context':s.scope['context'],'applicability':{'kind':'worlds','world_ids':[south]}}
+                ops += [introduce_instance(n,name) for n,name in [(4,'Pistol'),(6,'Supply'),(7,'Accounted reserve'),(8,'Correction reserve'),(9,'Unexplained reserve')]]
+                ops += [introduce_definition(110,'kit','Field kit'),introduce_instance(111,'Field kit A',110,[north]),named_attribute(112,110,'starting_units','integer',val(4),'initial_value',north_scope),named_attribute(113,110,'regional_note','text',{'kind':'text','text':'South-only source'},'shared',south_scope)]
+                ops += [{'kind':'define_property','client_ref':s.rid(10),'record':{'namespace':'resolution','key':'rounds','labels':{},'subjectTypes':[],'value':{'kind':'integer'},'multiplicity':'single','persistence':'explicit_interval','exclusive':False,'symmetric':False,'transitive':False}}, {'kind':'define_rule','client_ref':s.rid(20),'record':{'namespace':'resolution','key':'require_accounted_stock','labels':{},'kind':'physical_constraint','commitPolicy':'block_unless_exception','applicability':north_scope['applicability'],'targetPredicates':['resolution:rounds'],'expression':{'kind':'lit','value':True},'capabilities':['resources.accounting.v1'],'executable':True,'validity':{'kind':'unspecified'}}},claim(40,4,0,0,10),claim(60,6,3,0,5),claim(70,7,1,0,5),claim(80,8,1,0,5),claim(90,9,2,0,10),action(30,'replenish',[('arrive','reserve',1),('supply','supply',-1)]),action(31,'reload_two',[('load','gun',2),('reserve','reserve',-2)]),action(32,'shoot',[('shot','gun',-1)]),action(33,'start',[])]
+                publish(ops,'baseline');baseline_revision=snapshot('baseline')['revision'];state('baseline',4)
+                source=assertion(112)
+                before_init=s.open(day=0)
+                kit_state_args={'universe':NAME,'context_id':before_init['context_id'],'entity_ids':[s.rid(111)],'predicate_filters':[],'world':'North','world_id':north}
+                r['factual_workflow']={'pre_initialization_context':before_init['context_id'],'definition_source':source,'before_initialization':s.call('universe_get_state',kit_state_args)}
+                assert r['factual_workflow']['before_initialization']['result']['objects'][0]['initial_value_candidates']
+                assert not r['factual_workflow']['before_initialization']['result']['objects'][0]['instance_facts']
+                start_event=event(120,1,33,[('instance',111)],[],[north])
+                initialize={'kind':'initialize_instance','client_ref':s.rid(121),'instance':s.rr(111),'start':s.rr(120),'definition':{'universe':s.uid,'record':source['identity']['record_id'],'version':source['record_version_id']},'scope':north_scope,'validity':s.interval(1,10)}
+                publish([start_event,initialize],'reviewed-kit-start',interrupt_response=True)
+                snapshot('kit-initialized')
+                after_init=s.open(day=1)
+                r['factual_workflow']['after_initialization']=s.call('universe_get_state',{**kit_state_args,'context_id':after_init['context_id']})
+                kit=r['factual_workflow']['after_initialization']['result']['objects'][0]
+                assert kit['initialization_receipts'] and kit['instance_facts'] and kit['initial_value_candidates']
+                stale=s.call('universe_get_state',kit_state_args)
+                assert stale['frame']['revision']==baseline_revision and not stale['result']['objects'][0]['initialization_receipts']
+                r['factual_workflow']['stale_context_state']=stale
+                restricted_client=RecordedMCP(bin_dir/'universe-mcp',installation=s.root,profile=s.agent,wire=wire)
+                private(s,{'method':'grant','grant':{'profile_id':s.agent,'universe_id':s.uid,'worlds':[north],'propose':True,'edit':True,'protected':True,'limits':{}}})
+                restricted_context=restricted_client.call('universe_open_context',{'universe':NAME,'continuity_id':s.u['continuity_id'],'revision':{'kind':'head'},'represented_context':s.u['context_id'],'temporal_query':{'kind':'at','time':s.instant(0)},'temporal_systems':[],'perspective':'author'})['result']['context_id']
+                restricted_args={'universe':NAME,'context_id':restricted_context,'entity_ids':[s.rid(111)],'predicate_filters':[],'world':'North','world_id':north}
+                restricted=restricted_client.call('universe_get_state',restricted_args)
+                r['mcp'].append({'tool':'universe_get_state','arguments':restricted_args,'expected_error':False,'result':restricted,'profile':s.agent})
+                restricted_client.close()
+                r['factual_workflow']['restricted_state']=restricted
+                assert restricted['result']['objects'][0]['coverage']=='restricted'
+                assert not any(x['predicate']=='resolution:regional_note' and x['applicability'] is True for x in restricted['result']['objects'][0]['shared_attributes'])
+                s.admin('grant',s.agent,s.uid,'--propose','--edit','--protected');s.open()
                 earlier=assertion(90);earlier_body=deepcopy(earlier['payload']);earlier_body.pop('record_kind');earlier_body['proposition']=s.rr(95);earlier_body['validity']=s.interval(0,5)
                 stock=[prop(95,9,1),{'kind':'supersede_assertion','record':s.rr(earlier['identity']['record_id']),'expected_version':earlier['record_version_id'],'replacement':earlier_body,'rationale':'Correct earlier stock to one and split its interval at five'},claim(91,9,2,5,10)];p=s.propose(stock,'unexplained-increase');fp=blocked(p,'unresolved')
                 # An enrolled client cannot mint creative authority, even when it
@@ -105,7 +163,9 @@ def run(output,bin_dir):
                 r['recovered_operations'] = []
                 for publication in r['publications']:
                     commit_key = publication['commit_arguments']['idempotency_key']
-                    recovered = s.call('universe_get_operation', {'lookup':'key','universe':NAME,'operation_kind':'commit','idempotency_key':commit_key})['result']
+                    recovered = publication.get('recovered_operation')
+                    if recovered is None:
+                        recovered = s.call('universe_get_operation', {'lookup':'key','universe':NAME,'operation_kind':'commit','idempotency_key':commit_key})['result']
                     assert recovered['state'] == 'succeeded', recovered
                     assert recovered['receipt'] == publication['receipt'], recovered
                     r['recovered_operations'].append({'idempotency_key':commit_key,'result':recovered})

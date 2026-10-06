@@ -39,8 +39,50 @@ def audit(path,check_database=True):
         assert len(matches)==1,(n,'expected one asserted stock record');return matches[0]
     def fingerprint(canon,post):
         a=claim(canon,post)['payload'];prior=claim(canon,e['arrival']['prior'])['payload']
-        return hashlib.sha256(encoded([e['capability'],RID(e['policy']),canon[RID(e['policy'])]['payload'],RID(e['property']),canon[RID(e['property'])]['payload'],RID(post),strip(a),strip(canon[RID(post)]['payload']),None,[[strip(prior),strip(canon[RID(e['arrival']['prior'])]['payload'])]]])).hexdigest()
+        world=RID(e['factual_workflow']['restricted_world']).replace('rec_','wld_')
+        return hashlib.sha256(encoded([e['capability'],RID(e['policy']),canon[RID(e['policy'])]['payload'],RID(e['property']),canon[RID(e['property'])]['payload'],RID(post),strip(a),strip(canon[RID(post)]['payload']),world,[[strip(prior),strip(canon[RID(e['arrival']['prior'])]['payload'])]]])).hexdigest()
     author=next(c['stdout'].strip() for c in r['author_cli'] if c['arguments']==['init'] and c['returncode']==0)
+    wf=e['factual_workflow'];actual=r['factual_workflow'];base=rows('baseline');initialized=rows('kit-initialized')
+    assert all(actual[k] in received for k in ('before_initialization','after_initialization','stale_context_state','restricted_state'))
+    before_obj=actual['before_initialization']['result']['objects'][0]
+    after_obj=actual['after_initialization']['result']['objects'][0]
+    assert before_obj['identity']==base[RID(wf['instance'])] and not before_obj['instance_facts'] and not before_obj['initialization_receipts']
+    assert 'instance_state_not_established' in before_obj['unknowns']
+    candidate=claim(base,wf['initial_attribute']);candidate_prop=base[candidate['payload']['proposition']['record']]['payload']
+    assert candidate['payload']['attributeMode']=='initial_value' and int(candidate_prop['value']['digits'])==wf['units']
+    assert candidate_prop['subject']['record']==RID(wf['definition']) and before_obj['initial_value_candidates'][0]['record']==candidate
+    assert after_obj['identity']==initialized[RID(wf['instance'])] and len(after_obj['initialization_receipts'])==1 and len(after_obj['instance_facts'])==1
+    assert 'instance_state_not_established' not in after_obj['unknowns']
+    assert after_obj['instance_facts'][0]['applicability'] is True
+    init=after_obj['instance_facts'][0]['record'];basis=init['payload']['basis']
+    assert init in delivered and init==initialized[init['identity']['record_id']]
+    init_prop=initialized[init['payload']['proposition']['record']]['payload']
+    assert int(init_prop['value']['digits'])==wf['units'] and init_prop['subject']['record']==RID(wf['instance'])
+    assert basis['kind']=='instance_initialization' and basis['start']['record']==RID(wf['start_event']) and basis['definition']['version']==candidate['record_version_id']
+    start=initialized[RID(wf['start_event'])]['payload'];north=RID(wf['restricted_world']).replace('rec_','wld_')
+    assert start['occurrence']=='occurred' and start['worlds']==[north] and start['time']['value']=='1'
+    assert start['participants']==[{'record':{'universe':r['installation']['universe_id'],'record':RID(wf['instance'])},'role':'instance'}]
+    assert actual['before_initialization']['frame']['revision']==actual['stale_context_state']['frame']['revision']==r['snapshots']['baseline']['canonical']['revision']
+    assert actual['stale_context_state']['result']==actual['before_initialization']['result']
+    assert actual['after_initialization']['frame']['revision']==r['snapshots']['kit-initialized']['canonical']['revision']
+    restricted=actual['restricted_state'];restricted_obj=restricted['result']['objects'][0]
+    assert restricted['authorization_scope']=='world-scoped grant' and restricted['world_focus']==north and restricted_obj['coverage']=='restricted'
+    assert {'current_permissions_or_perspective_limit_evidence','instance_state_not_established'}<={*restricted_obj['unknowns']}
+    restricted_call=next(x for x in r['mcp'] if x['tool']=='universe_get_state' and x.get('profile') and x['profile']!=author)
+    assert restricted_call['profile']==r['private'][0]['request']['grant']['profile_id']
+    regional=claim(initialized,wf['regional_attribute']);regional_scope=regional['payload']['scope']['applicability']
+    assert regional_scope['world_ids']==[RID(wf['hidden_world']).replace('rec_','wld_')]
+    assert not any(x['record']['identity']['record_id']==regional['identity']['record_id'] for x in restricted_obj['shared_attributes'])
+    seed=next(x['arguments'] for x in r['mcp'] if x['tool']=='universe_propose' and x['arguments'].get('idempotency_key')=='baseline')
+    assert {'introduce_definition','introduce_instance','add_named_attribute'}<={op['kind'] for op in seed['operations']}
+    receipt=after_obj['initialization_receipts'][0]
+    assert receipt['start']==RID(wf['start_event']) and receipt['definition']==candidate['record_version_id']
+    assert receipt['assertion']==init['record_version_id'] and receipt['revision']==r['snapshots']['kit-initialized']['canonical']['revision']
+    assert receipt['source_revision']==r['snapshots']['baseline']['canonical']['revision']
+    if check_database:
+        with closing(sqlite3.connect(path.with_suffix('.sqlite'))) as db:
+            stored=db.execute('SELECT universe_id,instance_id,start_event_id,predicate_id,initial_definition_version,assertion_version,revision_id,source_revision FROM initialization_receipt WHERE instance_id=?',(RID(wf['instance']),)).fetchone()
+        assert stored==(r['installation']['universe_id'],RID(wf['instance']),RID(wf['start_event']),receipt['property'],candidate['record_version_id'],init['record_version_id'],receipt['revision'],receipt['source_revision'])
     assert set(r['states'])==set(e['queries'])
     for label,(snapshot,t,balances,acceptance) in e['queries'].items():
         env=r['states'][label];assert env in received and env['delivery']['complete'] and env['world_focus'] is None
@@ -102,7 +144,7 @@ def audit(path,check_database=True):
     unresolved=r['cases']['unresolved'];changed=r['cases']['changed-claim']
     assert any(f['fingerprint']==fingerprint(old,91) and f['outcome']=='not_established' for f in unresolved['validation']['findings'])
     assert any(f['fingerprint']==fingerprint(final,92) and f['outcome']=='not_established' for f in changed['validation']['findings'])
-    assert unresolved['head']==r['snapshots']['baseline']['canonical']['revision']
+    assert unresolved['head']==r['snapshots']['kit-initialized']['canonical']['revision']
     assert changed['head']==r['snapshots']['accepted-two']['canonical']['revision']
     assert r['cases']['uncorrected-evidence']['head']==r['snapshots']['accounted']['canonical']['revision']
     assert r['restart_denied'] in received and r['restart_denied']['code']=='APPROVAL_STALE' and r['restart_ordinary_approval_returncode']!=0
@@ -111,8 +153,10 @@ def audit(path,check_database=True):
     assert len(r['recovered_operations'])==len(r['publications'])
     recovered_calls=[call for call in r['mcp'] if call['tool']=='universe_get_operation' and call['arguments'].get('operation_kind')=='commit']
     assert len(recovered_calls)==len(r['publications'])
-    for publication,recovered,call in zip(r['publications'],r['recovered_operations'],recovered_calls):
+    calls_by_key={call['arguments']['idempotency_key']:call for call in recovered_calls}
+    for publication,recovered in zip(r['publications'],r['recovered_operations']):
         key=publication['commit_arguments']['idempotency_key']
+        call=calls_by_key[key]
         assert recovered['idempotency_key']==key==call['arguments']['idempotency_key']
         assert recovered['result']==call['result']['result'] and recovered['result']['state']=='succeeded'
         assert recovered['result']['receipt']==publication['receipt']
@@ -149,8 +193,8 @@ def audit(path,check_database=True):
             for p in r['publications']:assert db.execute('SELECT revision_id FROM operation_receipts WHERE idempotency_key=?',(p['key'],)).fetchall()==[(p['receipt']['revision'],)]
             for recovered in r['recovered_operations']:
                 assert db.execute('SELECT revision_id FROM operation_receipts WHERE operation_kind=? AND idempotency_key=?',('commit',recovered['idempotency_key'])).fetchall()==[(recovered['result']['receipt']['revision'],)]
-    assert len(r['restart_instances'])==2 and all(x['before']!=x['after'] for x in r['restart_instances'])
-    return {'status':'passed','calls':len(r['mcp']),'publications':len(r['publications']),'snapshots':len(r['snapshots']),'states':len(r['states']),'blocked_candidates':len(r['cases']),'versions':len(versions),'acceptances':2,'forced_restarts':2,'acceptance_fingerprints':'reconstructed independently from exact claim, policy and predecessor contents'}
+    assert len(r['restart_instances'])>=3 and all(x['before']!=x['after'] for x in r['restart_instances'])
+    return {'status':'passed','calls':len(r['mcp']),'publications':len(r['publications']),'snapshots':len(r['snapshots']),'states':len(r['states']),'blocked_candidates':len(r['cases']),'versions':len(versions),'acceptances':2,'initializations':1,'restricted_state_views':1,'interrupted_receipt_recovered':True,'forced_restarts':len(r['restart_instances']),'acceptance_fingerprints':'reconstructed independently from exact claim, policy and predecessor contents'}
 
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('evidence',type=Path);a=p.parse_args();print(json.dumps(audit(a.evidence),sort_keys=True))

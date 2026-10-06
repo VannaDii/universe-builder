@@ -77,5 +77,14 @@ class AuditControls(unittest.TestCase):
     def test_recovered_operation_receipt_forged(self):
         def mutate(report,wire):report['recovered_operations'][0]['result']['receipt']['revision']='rev_'+'0'*24
         self.forge(tree_mutation=mutate)
+    def test_stale_context_claimed_as_fresh(self):
+        def mutate(report,wire):report['factual_workflow']['stale_context_state']['frame']['revision']=report['snapshots']['kit-initialized']['canonical']['revision']
+        self.forge(tree_mutation=mutate)
+    def test_restricted_evidence_claimed_complete(self):
+        def mutate(report,wire):report['factual_workflow']['restricted_state']['result']['objects'][0]['coverage']='complete'
+        self.forge(tree_mutation=mutate)
+    def test_initialization_receipt_source_forged(self):
+        def mutate(report,wire):report['factual_workflow']['after_initialization']['result']['objects'][0]['initialization_receipts'][0]['definition']='ver_'+'0'*24
+        self.forge(tree_mutation=mutate)
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--evidence',type=Path,required=True);a,rest=p.parse_known_args();EVIDENCE=a.evidence;unittest.main(argv=['test_resource_resolution_audit.py',*rest])

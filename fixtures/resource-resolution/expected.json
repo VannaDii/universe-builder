@@ -145,6 +145,7 @@
   },
   "publications": [
     "baseline",
+    "reviewed-kit-start",
     "accepted-two",
     "accepted-three",
     "accounted-replenishment",
@@ -238,5 +239,17 @@
     "event": null,
     "original": 90,
     "original_value": 2
+  },
+  "factual_workflow": {
+    "definition": 110,
+    "instance": 111,
+    "initial_attribute": 112,
+    "regional_attribute": 113,
+    "initialization_assertion": 121,
+    "start_event": 120,
+    "units": 4,
+    "restricted_world": 170,
+    "hidden_world": 171,
+    "restricted_predicate": "resolution:regional_note"
   }
 }
