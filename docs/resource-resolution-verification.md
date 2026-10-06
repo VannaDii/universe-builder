@@ -94,19 +94,47 @@ the author's canonical evidence; explicit acceptance deliberately permits an
 unexplained balance. Native UI, VoiceOver, hosted CI, distribution and deployment
 qualification are outside this proof. No release is claimed.
 
-## External-writer receipt recovery qualification — October 5, 2026
+## Goal 35 external-writer workflow — October 6, 2026
 
-The Goal 35 rerun extends the same real-MCP workflow: after two engine restarts,
-the writer looks up all eight successful commits with `universe_get_operation`,
-using each original commit idempotency key. Each returned operation is
-`succeeded` and carries the exact publication receipt. The independent audit
-matches these responses to the captured MCP wire and the corresponding typed
-SQLite `operation_receipts` rows. A forged recovered revision fails the audit.
-The rerun made 220 MCP calls and all 15 audit controls passed. This exercises
-durable receipt recovery after restart; the transport did not lose a live commit
-response, so it does not establish network-level dropped-response behavior.
+The same persistent author installation now runs the factual workflow from
+incremental setup through continued canon. It creates a definition and instance
+with `introduce_definition` and `introduce_instance`, adds a scoped initial-value
+candidate with `add_named_attribute`, and retrieves the object before
+initialization. A reviewed occurred start publishes its instance fact and durable
+receipt. The writer deliberately reads the old pinned context after publication
+and sees the earlier candidate-only state, then reads the new head and sees the
+initialized value.
 
-Reproduce the updated run and its independent controls with:
+The run also reads through an actual world-limited agent grant. Its effective
+object marks coverage `restricted` and carries the permissions-limit unknown;
+the independent audit confirms that the hidden source remains in canonical
+history. The resource rule is scoped to North so the two-world fixture preserves
+one exact accounting finding. Ordinary approval and commit are rejected while
+clarification remains unresolved. The author accepts the exact finding
+fingerprint and `resource:<predicate record ID>` scope. A changed balance then
+requires another decision, demonstrating that the first acceptance is content
+specific.
+
+For receipt recovery, the driver discards its local return value after the MCP
+client receives the successful reviewed-start response, restarts the engine, and
+queries `universe_get_operation` with the original commit idempotency key. The
+recovered operation is `succeeded`; its receipt matches the delivered wire, the
+canonical revision, and the typed SQLite initialization and commit receipt rows.
+This simulates interruption at the writer's local response-processing boundary;
+it does not simulate a network packet loss.
+
+The current run made 268 MCP calls, published nine revisions, captured ten
+canonical snapshots and 15 effective-state responses (11 accounting views plus
+four initialization and access views), delivered 65 immutable versions, and
+forced three engine restarts. The independent audit recomputes every resource
+acceptance fingerprint from typed canonical content. All 18 audit controls
+passed, including the authentic report and 17 coherent forgeries covering
+resource decisions, history, restart recovery, initialization receipts, stale
+context and restricted coverage. The report includes the exact initialization
+instructions and verifies that the writer received the MCP guidance. The run is
+scripted protocol evidence; it does not measure a model's prose interpretation.
+
+Reproduce the integrated run and its independent controls with:
 
 ```sh
 uv run --with jsonschema==4.25.1 python scripts/resource_resolution_pilot.py --output /tmp/goal35-resource-resolution.json

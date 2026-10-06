@@ -138,14 +138,15 @@ revision and retrieve the affected object again before writing dependent prose.
 Stale context or validation requires fresh retrieval, validation, and approval
 as applicable.
 
-The [resource-resolution verification](resource-resolution-verification.md)
-records the real-MCP author clarification, rejection, exact scoped acceptance,
-historical state, restart recovery, and independent audit controls. The
+The [Goal 35 resource-resolution verification](resource-resolution-verification.md#goal-35-external-writer-workflow--october-6-2026)
+records one real-MCP run from incremental facts and reviewed initialization
+through restricted retrieval, unresolved clarification, exact scoped acceptance,
+restart recovery, and fresh canon. The existing
 [effective-object](effective-object-verification.md) and
-[instance-initialization](instance-initialization-verification.md)
-verifications record restricted retrieval and reviewed once-only starts. These
-are scripted protocol proofs; they do not establish that a model will correctly
-interpret arbitrary prose or follow the advertised instructions.
+[instance-initialization](instance-initialization-verification.md) proofs remain
+additional focused audits. All are scripted protocol evidence; they do not
+establish that a model will correctly interpret arbitrary prose or follow the
+advertised instructions.
 
 ## Prose and evidence
 

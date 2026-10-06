@@ -348,3 +348,18 @@ audit controls and the original Pistol proof with eleven controls pass.
 Workspace gates pass 395 Rust tests with one ignored; contracts pass 26 schemas,
 13 valid and 91 invalid fixtures. Native, hosted and release limits remain.
 See [resource resolution evidence](docs/resource-resolution-verification.md).
+
+## External writer factual workflow (October 6, 2026)
+
+Goal 35 now runs incremental definition/instance authoring, an initial-value
+unknown, reviewed initialization, pinned stale-context retrieval, a world-limited
+reader, unresolved resource clarification, exact creative acceptance, authorized
+publication, interrupted-response recovery, and continuation from fresh canon in
+one disposable author installation. Actual MCP calls and the independent typed
+history audit cover nine revisions, ten snapshots, 15 effective-state responses,
+and 18 authentic/forgery controls. The caller deliberately discards one successful
+commit return before restart and receipt recovery; network packet loss is not
+simulated. Scripted protocol evidence does not qualify a model's prose
+interpretation. Native UI, host integration, and release qualification remain on
+their existing separate review paths. See the
+[external-writer workflow evidence](docs/resource-resolution-verification.md#goal-35-external-writer-workflow--october-6-2026).
