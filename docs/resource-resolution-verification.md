@@ -93,3 +93,26 @@ or distinguish intent behind a first baseline observation. Corrections operate o
 the author's canonical evidence; explicit acceptance deliberately permits an
 unexplained balance. Native UI, VoiceOver, hosted CI, distribution and deployment
 qualification are outside this proof. No release is claimed.
+
+## External-writer receipt recovery qualification — October 5, 2026
+
+The Goal 35 rerun extends the same real-MCP workflow: after two engine restarts,
+the writer looks up all eight successful commits with `universe_get_operation`,
+using each original commit idempotency key. Each returned operation is
+`succeeded` and carries the exact publication receipt. The independent audit
+matches these responses to the captured MCP wire and the corresponding typed
+SQLite `operation_receipts` rows. A forged recovered revision fails the audit.
+The rerun made 220 MCP calls and all 15 audit controls passed. This exercises
+durable receipt recovery after restart; the transport did not lose a live commit
+response, so it does not establish network-level dropped-response behavior.
+
+Reproduce the updated run and its independent controls with:
+
+```sh
+uv run --with jsonschema==4.25.1 python scripts/resource_resolution_pilot.py --output /tmp/goal35-resource-resolution.json
+uv run --with jsonschema==4.25.1 python scripts/audit_resource_resolution.py /tmp/goal35-resource-resolution.json
+uv run --with jsonschema==4.25.1 python scripts/test_resource_resolution_audit.py --evidence /tmp/goal35-resource-resolution.json -v
+```
+
+The driver is scripted protocol qualification. It does not score an external
+model's prose interpretation or extract arbitrary facts from prose.

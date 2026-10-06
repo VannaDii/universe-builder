@@ -94,6 +94,59 @@ host must pass initialization instructions to its model for them to have effect.
    A changed proposal or canon head requires fresh validation and the applicable
    approval. A candidate awaiting approval is still a candidate.
 
+## Retrieve and record factual state
+
+For an object-level question, use `universe_get_state` at the scene's intended
+time and represented context. Inspect the returned object evidence, including
+ancestry, shared attributes, instance facts, initial-value candidates, behavior
+requirements, dependencies, conflicts, unknowns, and coverage. Follow every
+page. A proposition is claimable vocabulary, not proof that its value is true;
+check the supporting assertions, polarity, scope, validity, provenance, and
+unresolved evidence. Restricted or incomplete coverage does not establish
+absence. Request authorized access or ask the author before relying on missing
+evidence.
+
+For genuinely new facts, `universe_propose` supports `introduce_definition`,
+`introduce_instance`, `add_named_attribute`, and `refine_classification`.
+Supply only known identity, names, scope, time, precision, and evidence basis;
+unknown values remain unknown. Shared definition attributes and instance facts
+are distinct. Classification refinement retains identity and is not a physical
+transformation. Existing advanced record operations remain available for
+explicit corrections and event-linked changes.
+
+An initial-value definition is only a candidate. To establish starting state,
+use `initialize_instance` with its exact assertion version, an occurred start,
+and the requested scope and interval. Review, validate, approve, and commit it
+through the same publication path. The resulting instance assertion and durable
+receipt are separate from the definition candidate. Mentions, renames, holder
+changes, definition edits, and process restarts do not initialize again. A
+conflicting or unresolved applicable candidate requires an author resolution.
+
+When an opted-in `resources.accounting.v1` rule finds a stock change without a
+declared event or a coherent correction, keep the clarification unresolved and
+ask the author. Do not invent an event or infer a cause. If the author explicitly
+accepts the unexplained count, record an `IssueDecision` for the exact finding
+fingerprint and `resource:<predicate record ID>` scope. This scoped creative
+decision permits the count while retaining its unexplained marker; ordinary
+proposal approval does not answer the factual question. If the claim or its
+predecessor evidence changes, retrieve and validate again and obtain a fresh
+decision.
+
+After publication, recover a lost response with `universe_get_operation` and
+the original commit idempotency key. Reopen context at the receipt's committed
+revision and retrieve the affected object again before writing dependent prose.
+Stale context or validation requires fresh retrieval, validation, and approval
+as applicable.
+
+The [resource-resolution verification](resource-resolution-verification.md)
+records the real-MCP author clarification, rejection, exact scoped acceptance,
+historical state, restart recovery, and independent audit controls. The
+[effective-object](effective-object-verification.md) and
+[instance-initialization](instance-initialization-verification.md)
+verifications record restricted retrieval and reviewed once-only starts. These
+are scripted protocol proofs; they do not establish that a model will correctly
+interpret arbitrary prose or follow the advertised instructions.
+
 ## Prose and evidence
 
 Source assessment attachments now participate in the complete publication path.
