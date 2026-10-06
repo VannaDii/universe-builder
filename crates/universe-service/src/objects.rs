@@ -83,6 +83,21 @@ fn assemble_impl(
     let by_id: BTreeMap<_, _> = records.iter().map(|r| (&r.identity.record_id, r)).collect();
     let record_index = definitions::RecordIndex::new(records);
     let get = |id: &RecordId| by_id.get(id).copied();
+    let type_matches = |subject: &RecordId, targets: &[RecordId], worlds: Option<&[RecordId]>| {
+        if indexed_candidates {
+            record_index.matches(subject, targets, worlds)
+        } else {
+            definitions::matches(subject, targets, records, worlds)
+        }
+    };
+    let time_applies = |validity: &universe_domain::scope::Validity,
+                        time: &universe_domain::frame::FrameTime| {
+        if indexed_candidates {
+            universe_rules::events::applies_indexed(validity, time, &record_index)
+        } else {
+            universe_rules::events::applies(validity, time, records)
+        }
+    };
     let mut assertions_by_subject: BTreeMap<RecordId, Vec<usize>> = BTreeMap::new();
     let mut shared_candidate_positions = Vec::new();
     for (position, record) in records.iter().enumerate() {
@@ -116,7 +131,11 @@ fn assemble_impl(
             ) {
                 return None;
             }
-            let chain = record_index.ancestry(id);
+            let chain = if indexed_candidates {
+                record_index.ancestry(id)
+            } else {
+                definitions::ancestry(id, records)
+            };
             // Include the visible unresolved endpoint as provenance even when
             // executable ancestry stops before that definition.
             let mut ancestry = Vec::new();
@@ -198,7 +217,7 @@ fn assemble_impl(
                         checks.push(("proposition_context", Some(p.context == frame.context)));
                         checks.push((
                             "temporal_applicability",
-                            universe_rules::events::applies_indexed(&a.validity, &frame.time, &record_index),
+                            time_applies(&a.validity, &frame.time),
                         ));
                         if inherited {
                             checks.push((
@@ -223,7 +242,7 @@ fn assemble_impl(
                         {
                             checks.push((
                                 "property_subject_applicability",
-                                    record_index.matches(
+                                    type_matches(
                                         id,
                                         &property.subject_types,
                                         Some(&worlds),
@@ -268,7 +287,7 @@ fn assemble_impl(
                         for requirement in &a.requirements {
                             let applies =
                                 match get(&requirement.predicate.record).map(|r| &r.payload) {
-                                    Some(Payload::Property(p)) => record_index.matches(
+                                    Some(Payload::Property(p)) => type_matches(
                                         id,
                                         &p.subject_types,
                                         Some(&worlds),
@@ -285,7 +304,7 @@ fn assemble_impl(
                         checks.push(("requirement_subject_applicability", relevant));
                         checks.push((
                             "temporal_applicability",
-                            universe_rules::events::applies_indexed(&a.validity, &frame.time, &record_index),
+                            time_applies(&a.validity, &frame.time),
                         ));
                         let row = evidence(r, checks);
                         if row.applicability != Some(false) {
@@ -300,7 +319,7 @@ fn assemble_impl(
                             vec![
                                 (
                                     "rule_subject_applicability",
-                                    record_index.matches(
+                                    type_matches(
                                         id,
                                         &rule.subject_types,
                                         Some(&worlds),
@@ -312,11 +331,7 @@ fn assemble_impl(
                                 ),
                                 (
                                     "temporal_applicability",
-                                    universe_rules::events::applies_indexed(
-                                        &rule.validity,
-                                        &frame.time,
-                                        &record_index,
-                                    ),
+                                    time_applies(&rule.validity, &frame.time),
                                 ),
                             ],
                         );

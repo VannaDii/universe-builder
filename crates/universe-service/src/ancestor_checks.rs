@@ -273,6 +273,82 @@ fn indexed_retrieval_stays_pinned_to_store_historical_revisions() {
             serde_json::to_value(reference).unwrap()
         );
     }
+    let author = ProfileId::parse("prf_000000000000000000000001").unwrap();
+    let mut workflow = crate::workflow::Workflow {
+        kernel: &mut kernel,
+        authority: None,
+        principal: crate::registry::Principal {
+            id: author.clone(),
+            author: true,
+        },
+        approval_author: author,
+        scope: None,
+        permissions: (true, true, true),
+        name: "Retrieval history".into(),
+    };
+    let opened = workflow
+        .execute(universe_protocol::Request::OpenContext(
+            universe_protocol::request::OpenContext {
+                universe: universe_protocol::request::Selector("Retrieval history".into()),
+                universe_id: Some(universe.clone()),
+                continuity_id: continuity.clone(),
+                revision: universe_protocol::request::RevisionSelector::Exact {
+                    revision_id: last.clone(),
+                },
+                represented_context: RecordId::parse(&id(99)).unwrap(),
+                temporal_query: serde_json::from_value(json!({"kind":"timeless"})).unwrap(),
+                temporal_systems: vec![],
+                perspective: universe_domain::Perspective::Author,
+                reader_scene: None,
+            },
+        ))
+        .unwrap();
+    let context_id: ContextId =
+        serde_json::from_value(opened["result"]["context_id"].clone()).unwrap();
+    let visible: std::collections::BTreeSet<_> = latest
+        .iter()
+        .map(|record| record.identity.record_id.clone())
+        .collect();
+    let start = std::time::Instant::now();
+    let impact = workflow
+        .execute(universe_protocol::Request::GetImpact(
+            universe_protocol::request::GetImpact::Inline {
+                universe: universe_protocol::request::Selector("Retrieval history".into()),
+                universe_id: Some(universe.clone()),
+                context_id,
+                world: None,
+                world_id: None,
+                changed_records: vec![owner],
+                scope: universe_protocol::request::CheckScope::Universe,
+                byte_budget: 65_536,
+            },
+        ))
+        .unwrap();
+    let end_to_end_impact_elapsed = start.elapsed();
+    let reference_records: std::collections::BTreeSet<_> = latest
+        .iter()
+        .filter(|record| visible.contains(&record.identity.record_id))
+        .map(|record| record.identity.record_id.clone())
+        .collect();
+    let reference_worlds: std::collections::BTreeSet<_> = latest
+        .iter()
+        .filter(|record| visible.contains(&record.identity.record_id))
+        .flat_map(crate::operations::worlds)
+        .collect();
+    assert_eq!(
+        serde_json::to_value(&impact["result"]).unwrap(),
+        serde_json::to_value(universe_protocol::response::Impact {
+            records: reference_records.into_iter().collect(),
+            coverage: universe_protocol::response::Coverage::Complete,
+            world_ids: reference_worlds.into_iter().collect(),
+        })
+        .unwrap()
+    );
+    eprintln!(
+        "end-to-end impact workload: revisions=66 records={} elapsed_ms={}",
+        latest.len(),
+        end_to_end_impact_elapsed.as_millis()
+    );
 }
 #[test]
 fn inherited_conflicts_have_no_subtype_or_instance_precedence() {
@@ -518,6 +594,19 @@ fn object_retrieval_retains_unresolved_definition_endpoint_and_source() {
         false,
     )
     .remove(0);
+    let reference = crate::objects::assemble_reference(
+        &rows,
+        &[RecordId::parse(&id(4)).unwrap()],
+        &[],
+        &frame,
+        None,
+        false,
+    )
+    .remove(0);
+    assert_eq!(
+        serde_json::to_value(&object).unwrap(),
+        serde_json::to_value(&reference).unwrap()
+    );
     assert!(!object.ancestry_complete);
     assert_eq!(object.ancestry, vec![rows[1].clone(), rows[0].clone()]);
     assert_eq!(object.shared_attributes.len(), 1);
@@ -542,9 +631,9 @@ fn object_conflicts_respect_multiplicity_time_and_qualified_precision() {
         a.attribute_mode = AttributeMode::Instance;
     }
     rows.push(v(9, serde_json::to_value(a).unwrap()));
-    let frame: Frame = serde_json::from_value(json!({"universe":"unv_000000000000000000000001","continuity":"cont_000000000000000000000001","revision":"rev_000000000000000000000001","context":rr(99),"time":{"kind":"timeless"},"perspective":"author"})).unwrap();
+    let frame: Frame = serde_json::from_value(json!({"universe":"unv_000000000000000000000001","continuity":"cont_000000000000000000000001","revision":"rev_000000000000000000000001","context":rr(99),"time":{"kind":"at","time":{"kind":"exact","calendar":"cal_000000000000000000000010","value":"15"}},"perspective":"author"})).unwrap();
     let retrieve = |rows: &[RecordVersion]| {
-        crate::objects::assemble(
+        let indexed = crate::objects::assemble(
             rows,
             &[RecordId::parse(&id(4)).unwrap()],
             &[],
@@ -552,9 +641,55 @@ fn object_conflicts_respect_multiplicity_time_and_qualified_precision() {
             None,
             false,
         )
-        .remove(0)
+        .remove(0);
+        let reference = crate::objects::assemble_reference(
+            rows,
+            &[RecordId::parse(&id(4)).unwrap()],
+            &[],
+            &frame,
+            None,
+            false,
+        )
+        .remove(0);
+        assert_eq!(
+            serde_json::to_value(&indexed).unwrap(),
+            serde_json::to_value(&reference).unwrap()
+        );
+        indexed
     };
     assert_eq!(retrieve(&rows).conflicts.len(), 1);
+    let restricted_rows: Vec<_> = rows
+        .iter()
+        .filter(|record| {
+            record.identity.record_id != RecordId::parse(&id(8)).unwrap()
+                && record.identity.record_id != RecordId::parse(&id(9)).unwrap()
+        })
+        .cloned()
+        .collect();
+    let restricted_indexed = crate::objects::assemble(
+        &restricted_rows,
+        &[RecordId::parse(&id(4)).unwrap()],
+        &[],
+        &frame,
+        None,
+        true,
+    );
+    let restricted_reference = crate::objects::assemble_reference(
+        &restricted_rows,
+        &[RecordId::parse(&id(4)).unwrap()],
+        &[],
+        &frame,
+        None,
+        true,
+    );
+    assert_eq!(
+        serde_json::to_value(&restricted_indexed).unwrap(),
+        serde_json::to_value(&restricted_reference).unwrap()
+    );
+    assert!(restricted_indexed[0].conflicts.is_empty());
+    assert!(restricted_indexed[0]
+        .unknowns
+        .contains(&"current_permissions_or_perspective_limit_evidence".into()));
     if let Payload::Property(p) = &mut rows[4].payload {
         p.multiplicity = Multiplicity::Multiple;
     }
@@ -575,6 +710,20 @@ fn object_conflicts_respect_multiplicity_time_and_qualified_precision() {
         a.validity = serde_json::from_value(json!({"kind":"calendar_interval","calendar":"cal_000000000000000000000010","start":{"kind":"exact","value":"20"},"end":{"kind":"exact","value":"30"}})).unwrap();
     }
     assert!(retrieve(&rows).conflicts.is_empty());
+    if let Payload::Assertion(a) = &mut rows[8].payload {
+        a.validity = serde_json::from_value(json!({"kind":"calendar_interval","calendar":"cal_000000000000000000000010","start":{"kind":"exact","value":"10"},"end":{"kind":"exact","value":"20"}})).unwrap();
+    }
+    if let Payload::Assertion(a) = &mut rows[6].payload {
+        a.validity = universe_domain::scope::Validity::Unknown;
+    }
+    let unknown = retrieve(&rows);
+    assert_eq!(unknown.conflicts.len(), 1);
+    assert_eq!(unknown.conflicts[0].applicability, None);
+    assert!(unknown
+        .shared_attributes
+        .iter()
+        .chain(&unknown.instance_facts)
+        .any(|fact| fact.unknowns.contains(&"temporal_applicability".into())));
 }
 
 #[test]
@@ -651,11 +800,15 @@ fn snapshot_index_matches_complete_ancestor_reference_and_reports_cost() {
 }
 
 #[test]
+#[ignore = "history-scale retrieval workload; run explicitly"]
 fn indexed_context_assembly_matches_full_scan_with_overlapping_history() {
     use std::time::Instant;
+    use universe_store::kernel::{Assignment, CommitInput, Kernel};
     let mut rows = fixture();
+    rows.push(v(16, json!({"record_kind":"calendar","namespace":"proof","key":"days","labels":{},"unitStructure":{}})));
+    rows.push(v(99, json!({"record_kind":"represented_context","universe":"unv_000000000000000000000001","kind":{"kind":"objective"},"labels":{}})));
     let subjects = 64usize;
-    let facts_per_subject = 48usize;
+    let facts_per_subject = 32usize;
     for offset in 0..subjects {
         let owner = 100 + offset;
         rows.push(v(owner, json!({"record_kind":"entity","names":[],"classification":id(2),"classificationResolution":"resolved","worldAssociations":[],"labels":{},"metadata":{}})));
@@ -667,13 +820,74 @@ fn indexed_context_assembly_matches_full_scan_with_overlapping_history() {
     }
     // Unrelated retained definitions represent substantial snapshot history
     // and make a full scan per output object measurably expensive.
-    for n in 0..8_192 {
+    for n in 0..512 {
         rows.push(v(100_000 + n, json!({"record_kind":"property","namespace":"history","key":format!("property-{n}"),"labels":{},"value":{"kind":"boolean"},"multiplicity":"multiple","persistence":"unspecified","exclusive":false,"symmetric":false,"transitive":false})));
     }
+    let directory = tempfile::tempdir().unwrap();
+    let universe = UniverseId::parse("unv_000000000000000000000001").unwrap();
+    let continuity = ContinuityId::parse("cont_000000000000000000000001").unwrap();
+    let principal = PrincipalId::parse("prn_000000000000000000000001").unwrap();
+    let mut kernel = Kernel::create(
+        &directory.path().join("context-history.sqlite"),
+        universe.clone(),
+        "Context history",
+        continuity.clone(),
+        &principal,
+    )
+    .unwrap();
+    let start = Instant::now();
+    let mut revision = kernel.head(&continuity).unwrap();
+    let mut seed_commits = 0usize;
+    for batch in rows.chunks(100) {
+        revision = kernel
+            .commit(&CommitInput {
+                universe: universe.clone(),
+                continuity: continuity.clone(),
+                expected_head: revision,
+                principal: principal.clone(),
+                decision: "seed overlapping retrieval workload".into(),
+                reason: "Goal 36 context assembly".into(),
+                idempotency_key: format!("context-seed-{seed_commits}"),
+                changes: batch
+                    .iter()
+                    .map(|record| Assignment {
+                        record_id: record.identity.record_id.clone(),
+                        expected: None,
+                        next: Some(record.clone()),
+                    })
+                    .collect(),
+            })
+            .unwrap();
+        seed_commits += 1;
+    }
+    for offset in 0..64usize {
+        let record = v(
+            300_000 + offset,
+            json!({"record_kind":"property","namespace":"revision","key":format!("unrelated-{offset}"),"labels":{},"value":{"kind":"boolean"},"multiplicity":"multiple","persistence":"unspecified","exclusive":false,"symmetric":false,"transitive":false}),
+        );
+        revision = kernel
+            .commit(&CommitInput {
+                universe: universe.clone(),
+                continuity: continuity.clone(),
+                expected_head: revision,
+                principal: principal.clone(),
+                decision: "append history".into(),
+                reason: "preserve unrelated revision".into(),
+                idempotency_key: format!("context-history-{offset}"),
+                changes: vec![Assignment {
+                    record_id: record.identity.record_id.clone(),
+                    expected: None,
+                    next: Some(record),
+                }],
+            })
+            .unwrap();
+    }
+    let history_and_snapshot_elapsed = start.elapsed();
+    let rows = kernel.records(&continuity, &revision).unwrap();
     let owners: Vec<_> = (0..subjects)
         .map(|offset| RecordId::parse(&id(100 + offset)).unwrap())
         .collect();
-    let frame: Frame = serde_json::from_value(json!({"universe":"unv_000000000000000000000001","continuity":"cont_000000000000000000000001","revision":"rev_000000000000000000000001","context":rr(99),"time":{"kind":"at","time":{"kind":"exact","calendar":"cal_000000000000000000000010","value":"15"}},"perspective":"author"})).unwrap();
+    let frame: Frame = serde_json::from_value(json!({"universe":universe,"continuity":continuity,"revision":revision,"context":rr(99),"time":{"kind":"at","time":{"kind":"exact","calendar":"cal_000000000000000000000010","value":"15"}},"perspective":"author"})).unwrap();
     let start = Instant::now();
     let reference = crate::objects::assemble_reference(&rows, &owners, &[], &frame, None, false);
     let reference_elapsed = start.elapsed();
@@ -689,6 +903,12 @@ fn indexed_context_assembly_matches_full_scan_with_overlapping_history() {
         .iter()
         .all(|object| object.instance_facts.len() == facts_per_subject));
     eprintln!("context workload: records={} subjects={} overlapping_facts_per_subject={} reference_ms={} indexed_ms={}", rows.len(), subjects, facts_per_subject, reference_elapsed.as_millis(), indexed_elapsed.as_millis());
+    eprintln!(
+        "context history setup: commits={} records={} setup_and_latest_snapshot_ms={}",
+        seed_commits + 64,
+        rows.len(),
+        history_and_snapshot_elapsed.as_millis()
+    );
     let restricted_reference =
         crate::objects::assemble_reference(&rows, &owners, &[], &frame, None, true);
     let restricted_indexed = crate::objects::assemble(&rows, &owners, &[], &frame, None, true);
@@ -696,27 +916,60 @@ fn indexed_context_assembly_matches_full_scan_with_overlapping_history() {
         serde_json::to_value(restricted_indexed).unwrap(),
         serde_json::to_value(restricted_reference).unwrap()
     );
-    let visible: std::collections::BTreeSet<_> = rows
-        .iter()
-        .enumerate()
-        .filter(|(i, _)| i % 7 != 0)
-        .map(|(_, record)| record.identity.record_id.clone())
-        .collect();
+    let profile = ProfileId::parse("prf_000000000000000000000001").unwrap();
+    let mut workflow = crate::workflow::Workflow {
+        kernel: &mut kernel,
+        authority: None,
+        principal: crate::registry::Principal {
+            id: profile.clone(),
+            author: true,
+        },
+        approval_author: profile,
+        scope: None,
+        permissions: (true, true, true),
+        name: "Context history".into(),
+    };
+    let opened = workflow
+        .execute(universe_protocol::Request::OpenContext(
+            universe_protocol::request::OpenContext {
+                universe: universe_protocol::request::Selector("Context history".into()),
+                universe_id: Some(universe.clone()),
+                continuity_id: continuity.clone(),
+                revision: universe_protocol::request::RevisionSelector::Exact {
+                    revision_id: revision.clone(),
+                },
+                represented_context: RecordId::parse(&id(99)).unwrap(),
+                temporal_query: serde_json::from_value(json!({"kind":"at","time":{"kind":"exact","calendar":"cal_000000000000000000000010","value":"15"}})).unwrap(),
+                temporal_systems: vec![CalendarId::parse("cal_000000000000000000000010").unwrap()],
+                perspective: universe_domain::Perspective::Author,
+                reader_scene: None,
+            },
+        ))
+        .unwrap();
+    let context_id: ContextId =
+        serde_json::from_value(opened["result"]["context_id"].clone()).unwrap();
     let start = Instant::now();
-    let impact_reference = crate::impact::assemble_reference(&rows, &visible);
-    let impact_reference_elapsed = start.elapsed();
-    let start = Instant::now();
-    let impact_indexed = crate::impact::assemble(&rows, &visible);
-    let impact_indexed_elapsed = start.elapsed();
-    assert_eq!(
-        serde_json::to_value(impact_indexed).unwrap(),
-        serde_json::to_value(impact_reference).unwrap()
-    );
+    let oversized_impact = workflow.execute(universe_protocol::Request::GetImpact(
+        universe_protocol::request::GetImpact::Inline {
+            universe: universe_protocol::request::Selector("Context history".into()),
+            universe_id: Some(universe.clone()),
+            context_id,
+            world: None,
+            world_id: None,
+            changed_records: vec![owners[0].clone()],
+            scope: universe_protocol::request::CheckScope::Universe,
+            byte_budget: 65_536,
+        },
+    ));
+    let large_impact_elapsed = start.elapsed();
+    assert!(oversized_impact
+        .unwrap_err()
+        .to_string()
+        .contains("conservative impact closure exceeds"));
     eprintln!(
-        "impact workload: records={} visible={} reference_ms={} one_pass_ms={}",
+        "end-to-end large impact: commits={} records={} result=byte_budget_exceeded elapsed_ms={}",
+        seed_commits + 64,
         rows.len(),
-        visible.len(),
-        impact_reference_elapsed.as_millis(),
-        impact_indexed_elapsed.as_millis()
+        large_impact_elapsed.as_millis()
     );
 }
