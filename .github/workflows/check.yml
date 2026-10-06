@@ -57,7 +57,7 @@ jobs:
           python scripts/pistol_workflow_pilot.py --output "$RUNNER_TEMP/pistol-workflow.json"
           python scripts/audit_pistol_workflow.py "$RUNNER_TEMP/pistol-workflow.json"
           python scripts/test_pistol_workflow_audit.py --evidence "$RUNNER_TEMP/pistol-workflow.json" -v
-      - name: Resource resolution and independent acceptance history audit
+      - name: External writer factual workflow and independent state/history audit
         run: |
           python scripts/resource_resolution_pilot.py --output "$RUNNER_TEMP/resource-resolution.json"
           python scripts/audit_resource_resolution.py "$RUNNER_TEMP/resource-resolution.json"
