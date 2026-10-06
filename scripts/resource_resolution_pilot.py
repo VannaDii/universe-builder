@@ -35,7 +35,7 @@ def run(output,bin_dir):
         with output.with_suffix('.jsonl').open('w') as wire:
             s=AuthorSession(directory,bin_dir,r,wire=wire)
             try:
-                s.start();r['author_profile']=s.author;r['installation']=s.u;package=s.root/'packages'/(s.uid+'.sqlite')
+                s.start();r['author_profile']=s.author;r['installation']=s.u;r['initialization_instructions']=s.instructions;package=s.root/'packages'/(s.uid+'.sqlite')
                 val=lambda n:{'kind':'integer','digits':str(n)}
                 def prop(n,owner,value):return {'kind':'define_proposition','client_ref':s.rid(n),'record':{'subject':s.rr(owner),'predicate':s.rr(10),'value':val(value),'quantification':'particular','context':s.scope['context']}}
                 def claim(n,owner,value,t,end):return {'kind':'assert_proposition','client_ref':s.rid(n),'proposition':prop(n,owner,value)['record'],'assertion':{'attributeMode':'instance','proposition':s.rr(n),'polarity':'support','scope':s.scope,'validity':s.interval(t,end),'persistence':'explicit_interval','precision':'exact','basis':{'kind':'author_decision','note':'Exact factual stock claim; arrival is not supplied'}}}
@@ -100,6 +100,15 @@ def run(output,bin_dir):
                 p=s.propose([prop(50,4,2),prop(51,9,-1),event(52,13,31,[('gun',4),('reserve',9)],[('load',50),('reserve',51)])],'reserve-exhausted');before=authority_counts(s);error=s.validate(p,error=True);assert 'underflow' in error['message'];r['reload_rejection']={'response':error,'denied':s.call('universe_commit',s.commit_args(p,r['publications'][-1]['validation'],'reserve-exhausted-denied'),error=True),'before':before,'after':authority_counts(s)};assert before==authority_counts(s)
                 snapshot('final');state('final',13);snapshot('historical',old);state('historical',6,old)
                 restart(s,r);snapshot('restart');state('restart',13);state('restart-historical',6,old)
+                # Recover every committed operation from the durable operation
+                # index after restart, using the original commit idempotency key.
+                r['recovered_operations'] = []
+                for publication in r['publications']:
+                    commit_key = publication['commit_arguments']['idempotency_key']
+                    recovered = s.call('universe_get_operation', {'lookup':'key','universe':NAME,'operation_kind':'commit','idempotency_key':commit_key})['result']
+                    assert recovered['state'] == 'succeeded', recovered
+                    assert recovered['receipt'] == publication['receipt'], recovered
+                    r['recovered_operations'].append({'idempotency_key':commit_key,'result':recovered})
                 r['retry_receipts']=[s.call('universe_commit',x['commit_arguments'])['result'] for x in r['publications']]
                 final=build_identity(bin_dir,{})
                 assert final['source_sha256']==r['build']['source_sha256'] and final['binaries']==r['build']['binaries']

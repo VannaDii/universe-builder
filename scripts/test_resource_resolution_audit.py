@@ -74,5 +74,8 @@ class AuditControls(unittest.TestCase):
     def test_restart_denial_disguised_as_receipt(self):
         def mutate(report,wire):report['restart_denied']=report['publications'][1]['receipt']
         self.forge(tree_mutation=mutate)
+    def test_recovered_operation_receipt_forged(self):
+        def mutate(report,wire):report['recovered_operations'][0]['result']['receipt']['revision']='rev_'+'0'*24
+        self.forge(tree_mutation=mutate)
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--evidence',type=Path,required=True);a,rest=p.parse_known_args();EVIDENCE=a.evidence;unittest.main(argv=['test_resource_resolution_audit.py',*rest])

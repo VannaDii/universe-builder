@@ -16,6 +16,9 @@ strip=lambda p:{k:v for k,v in p.items() if k!='record_kind'}
 
 def audit(path,check_database=True):
     r=json.loads(path.read_text());e=json.loads(EXPECTED.read_text());assert r['status']=='executed'
+    instructions=r['initialization_instructions']
+    for phrase in ('universe_get_state','add_named_attribute','initialize_instance','resource:<predicate record ID>','universe_get_operation with the original idempotency key','continue from fresh canon facts'):
+        assert phrase in instructions,phrase
     assert r['expected_sha256']==hashlib.sha256(EXPECTED.read_bytes()).hexdigest()
     assert r['cleanup']['engine_stopped'] and r['cleanup']['installation_removed'] and not Path(r['cleanup']['owned_root']).exists()
     wire=[json.loads(line) for line in path.with_suffix('.jsonl').read_text().splitlines()]
@@ -105,6 +108,15 @@ def audit(path,check_database=True):
     assert r['restart_denied'] in received and r['restart_denied']['code']=='APPROVAL_STALE' and r['restart_ordinary_approval_returncode']!=0
     assert [p['key'] for p in r['publications']]==[s+'-commit' for s in e['publications']]
     assert r['retry_receipts']==[p['receipt'] for p in r['publications']]
+    assert len(r['recovered_operations'])==len(r['publications'])
+    recovered_calls=[call for call in r['mcp'] if call['tool']=='universe_get_operation' and call['arguments'].get('operation_kind')=='commit']
+    assert len(recovered_calls)==len(r['publications'])
+    for publication,recovered,call in zip(r['publications'],r['recovered_operations'],recovered_calls):
+        key=publication['commit_arguments']['idempotency_key']
+        assert recovered['idempotency_key']==key==call['arguments']['idempotency_key']
+        assert recovered['result']==call['result']['result'] and recovered['result']['state']=='succeeded'
+        assert recovered['result']['receipt']==publication['receipt']
+        assert call['result'] in received
     for p in r['publications']:
         assert p['without_approval'] in received and p['without_approval']['code']=='APPROVAL_REQUIRED'
         v=p['validation'];assert v['coverage']=='complete'
@@ -135,6 +147,8 @@ def audit(path,check_database=True):
     if check_database:
         with closing(sqlite3.connect(path.with_suffix('.sqlite'))) as db:
             for p in r['publications']:assert db.execute('SELECT revision_id FROM operation_receipts WHERE idempotency_key=?',(p['key'],)).fetchall()==[(p['receipt']['revision'],)]
+            for recovered in r['recovered_operations']:
+                assert db.execute('SELECT revision_id FROM operation_receipts WHERE operation_kind=? AND idempotency_key=?',('commit',recovered['idempotency_key'])).fetchall()==[(recovered['result']['receipt']['revision'],)]
     assert len(r['restart_instances'])==2 and all(x['before']!=x['after'] for x in r['restart_instances'])
     return {'status':'passed','calls':len(r['mcp']),'publications':len(r['publications']),'snapshots':len(r['snapshots']),'states':len(r['states']),'blocked_candidates':len(r['cases']),'versions':len(versions),'acceptances':2,'forced_restarts':2,'acceptance_fingerprints':'reconstructed independently from exact claim, policy and predecessor contents'}
 
