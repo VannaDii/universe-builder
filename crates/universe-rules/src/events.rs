@@ -80,6 +80,64 @@ pub fn applies(validity: &Validity, time: &FrameTime, records: &[RecordVersion])
         _ => None,
     }
 }
+
+/// Snapshot-indexed form of `applies`; preserves the reference behavior while
+/// avoiding a full record scan for each event-relative temporal check.
+pub fn applies_indexed(
+    validity: &Validity,
+    time: &FrameTime,
+    index: &crate::definitions::RecordIndex<'_>,
+) -> Option<bool> {
+    let FrameTime::AtEvent { event, side } = time else {
+        return crate::time::applies(validity, time);
+    };
+    let e = index
+        .get(&event.record)
+        .filter(|r| event.universe.as_ref() == Some(&r.identity.universe_id))?;
+    let Payload::Event(e) = &e.payload else {
+        return None;
+    };
+    if e.occurrence != OccurrenceMode::Occurred {
+        return None;
+    }
+    let (calendar, t) = exact(&e.time).ok()?;
+    if *side == EventTimeSide::After {
+        return crate::time::applies(
+            validity,
+            &FrameTime::At {
+                time: e.time.clone(),
+            },
+        );
+    }
+    match validity {
+        Validity::CalendarInterval {
+            calendar: c,
+            start,
+            end,
+        } if c == calendar => {
+            let start = match start {
+                TemporalBound::Unbounded => true,
+                TemporalBound::Exact { value } => value.parse::<i128>().ok()? < t,
+                _ => return None,
+            };
+            let end = match end {
+                TemporalBound::Unbounded => true,
+                TemporalBound::Exact { value } => t <= value.parse::<i128>().ok()?,
+                _ => return None,
+            };
+            Some(start && end)
+        }
+        Validity::Instant { at } => {
+            let (c, _) = exact(at).ok()?;
+            if c != calendar {
+                None
+            } else {
+                Some(false)
+            }
+        }
+        _ => None,
+    }
+}
 /// Expand all occurred events, including automatic ends of superseded generated
 /// values. Non-event evidence is never silently edited or overridden.
 pub fn expand(records: &[RecordVersion]) -> Result<BTreeMap<RecordId, Assertion>, String> {
@@ -332,6 +390,77 @@ mod tests {
         }
         assert!(verify(&complete).is_err());
         assert!(verify(&records).is_err());
+    }
+    #[test]
+    fn indexed_event_time_lookup_matches_linear_reference() {
+        use std::time::Instant;
+        let mut records = fixture();
+        let event_record = records.remove(1);
+        let proposition = records[0].payload.clone();
+        for n in 0..4_096usize {
+            let id = RecordId::parse(&format!("rec_{:024x}", 10_000 + n)).unwrap();
+            records.push(
+                RecordVersion::build(
+                    RecordVersionId::parse(&format!("ver_{:024x}", 10_000 + n)).unwrap(),
+                    RecordIdentity::new(
+                        event_record.identity.universe_id.clone(),
+                        id,
+                        RecordKind::Proposition,
+                    ),
+                    proposition.clone(),
+                )
+                .unwrap(),
+            );
+        }
+        records.push(event_record.clone());
+        let index = crate::definitions::RecordIndex::new(&records);
+        let event = RecordRef::new(
+            event_record.identity.universe_id.clone(),
+            event_record.identity.record_id.clone(),
+        );
+        let time = FrameTime::AtEvent {
+            event,
+            side: EventTimeSide::Before,
+        };
+        let validity = Validity::CalendarInterval {
+            calendar: CalendarId::parse("cal_000000000000000000000001").unwrap(),
+            start: TemporalBound::Exact { value: "10".into() },
+            end: TemporalBound::Exact { value: "20".into() },
+        };
+        assert_eq!(
+            applies_indexed(&validity, &time, &index),
+            applies(&validity, &time, &records)
+        );
+        let start = Instant::now();
+        for _ in 0..256 {
+            std::hint::black_box(applies(&validity, &time, &records));
+        }
+        let reference_elapsed = start.elapsed();
+        let start = Instant::now();
+        for _ in 0..256 {
+            std::hint::black_box(applies_indexed(&validity, &time, &index));
+        }
+        let indexed_elapsed = start.elapsed();
+        eprintln!(
+            "temporal workload: records={} lookups=256 reference_us={} indexed_us={}",
+            records.len(),
+            reference_elapsed.as_micros(),
+            indexed_elapsed.as_micros()
+        );
+        for validity in [
+            Validity::Instant {
+                at: TemporalExpression::Exact {
+                    calendar: CalendarId::parse("cal_000000000000000000000001").unwrap(),
+                    value: "10".into(),
+                },
+            },
+            Validity::Unknown,
+        ] {
+            assert_eq!(
+                applies_indexed(&validity, &time, &index),
+                applies(&validity, &time, &records)
+            );
+        }
     }
     #[test]
     fn atomic_event_uses_explicit_effect_order_without_exposing_intermediate_state() {

@@ -1,11 +1,137 @@
 //! Resolution uses only the supplied factual snapshot, never a database head.
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use universe_domain::{ids::*, records::*, scope::Applicability};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ancestry {
     pub types: Vec<RecordId>,
     pub complete: bool,
+}
+
+/// Lookup table scoped to one already-selected record snapshot. It carries no
+/// revision or permission authority of its own; callers must build it only
+/// from the records visible in the requested frame.
+pub struct RecordIndex<'a> {
+    by_id: BTreeMap<&'a RecordId, &'a RecordVersion>,
+}
+
+impl<'a> RecordIndex<'a> {
+    pub fn new(records: &'a [RecordVersion]) -> Self {
+        Self {
+            by_id: records.iter().map(|r| (&r.identity.record_id, r)).collect(),
+        }
+    }
+
+    pub fn get(&self, id: &RecordId) -> Option<&'a RecordVersion> {
+        self.by_id.get(id).copied()
+    }
+
+    pub fn ancestry(&self, subject: &RecordId) -> Ancestry {
+        let Some(record) = self.get(subject) else {
+            return Ancestry {
+                types: vec![],
+                complete: false,
+            };
+        };
+        let universe = &record.identity.universe_id;
+        let mut next = match &record.payload {
+            Payload::Entity(e)
+                if e.classification_resolution == ClassificationResolution::Resolved =>
+            {
+                e.classification.clone()
+            }
+            Payload::EntityType(_) => Some(subject.clone()),
+            _ => {
+                return Ancestry {
+                    types: vec![],
+                    complete: false,
+                }
+            }
+        };
+        let mut result = Ancestry {
+            types: vec![],
+            complete: true,
+        };
+        let mut seen = BTreeSet::new();
+        while let Some(id) = next {
+            if !seen.insert(id.clone()) {
+                result.complete = false;
+                break;
+            }
+            let Some(r) = self
+                .get(&id)
+                .filter(|r| &r.identity.universe_id == universe)
+            else {
+                result.complete = false;
+                break;
+            };
+            let Payload::EntityType(t) = &r.payload else {
+                result.complete = false;
+                break;
+            };
+            if !t.classification_executable || t.parent_resolution == ParentResolution::Ambiguous {
+                result.complete = false;
+                break;
+            }
+            result.types.push(id);
+            match t.parent_resolution {
+                ParentResolution::Root if t.parent.is_none() => next = None,
+                ParentResolution::Resolved if t.parent.is_some() => next = t.parent.clone(),
+                _ => {
+                    result.complete = false;
+                    break;
+                }
+            }
+        }
+        if result.types.is_empty() {
+            result.complete = false;
+        }
+        result
+    }
+
+    pub fn matches(
+        &self,
+        subject: &RecordId,
+        targets: &[RecordId],
+        worlds: Option<&[RecordId]>,
+    ) -> Option<bool> {
+        if targets.is_empty() {
+            return Some(true);
+        }
+        if let Some(worlds) = worlds.filter(|w| w.len() > 1) {
+            let mut unknown = false;
+            for world in worlds {
+                match self.matches(subject, targets, Some(std::slice::from_ref(world))) {
+                    Some(false) => return Some(false),
+                    None => unknown = true,
+                    Some(true) => {}
+                }
+            }
+            return if unknown { None } else { Some(true) };
+        }
+        let chain = self.ancestry(subject);
+        let mut unknown = !chain.complete;
+        let mut matched = false;
+        for id in chain.types.iter().filter(|id| targets.contains(id)) {
+            let Some(RecordVersion {
+                payload: Payload::EntityType(t),
+                ..
+            }) = self.get(id)
+            else {
+                return None;
+            };
+            match worlds.map_or(Some(true), |w| world_applies(&t.applicability, w)) {
+                Some(true) if chain.complete => matched = true,
+                Some(false) => {}
+                _ => unknown = true,
+            }
+        }
+        if unknown {
+            None
+        } else {
+            Some(matched)
+        }
+    }
 }
 
 pub fn ancestry(subject: &RecordId, records: &[RecordVersion]) -> Ancestry {
@@ -148,6 +274,36 @@ pub fn rule_applies(rule: &Rule, records: &[RecordVersion], worlds: &[RecordId])
             records,
             Some(worlds),
         ) {
+            Some(true) => relevant = true,
+            Some(false) => {}
+            None => unknown = true,
+        }
+    }
+    if relevant {
+        Some(true)
+    } else if unknown {
+        None
+    } else {
+        Some(false)
+    }
+}
+
+pub fn rule_applies_indexed(
+    rule: &Rule,
+    records: &[RecordVersion],
+    index: &RecordIndex<'_>,
+    worlds: &[RecordId],
+) -> Option<bool> {
+    if rule.subject_types.is_empty() {
+        return Some(true);
+    }
+    let mut unknown = false;
+    let mut relevant = false;
+    for r in records
+        .iter()
+        .filter(|r| matches!(r.payload, Payload::Entity(_)))
+    {
+        match index.matches(&r.identity.record_id, &rule.subject_types, Some(worlds)) {
             Some(true) => relevant = true,
             Some(false) => {}
             None => unknown = true,

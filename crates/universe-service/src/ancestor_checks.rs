@@ -93,11 +93,21 @@ fn cedar_ancestry_scope_time_and_revision_are_explicit() {
         assert_eq!(claim(&rows, "20", indexed).0.outcome(), NotEstablished);
     }
     let historical = rows.clone();
+    let historical_index = RecordIndex::new(&historical);
     if let Payload::EntityType(t) = &mut rows[1].payload {
         t.parent = Some(RecordId::parse(&id(3)).unwrap());
     }
     assert_eq!(
         matches(&owner, std::slice::from_ref(&tree), &rows, None),
+        Some(false)
+    );
+    let current_index = RecordIndex::new(&rows);
+    assert_eq!(
+        historical_index.matches(&owner, std::slice::from_ref(&tree), None),
+        Some(true)
+    );
+    assert_eq!(
+        current_index.matches(&owner, std::slice::from_ref(&tree), None),
         Some(false)
     );
     assert_eq!(claim(&historical, "15", true).0.outcome(), Supported);
@@ -236,6 +246,11 @@ fn type_targets_do_not_choose_a_known_ancestor_over_an_unknown_one() {
 fn rule_targeting_uses_ancestors_without_rebinding_authored_operands() {
     let mut rows = fixture();
     let rule: Rule=serde_json::from_value(json!({"namespace":"proof","key":"r","labels":{},"kind":"physical_constraint","commitPolicy":"always_block","applicability":{"kind":"universe_wide"},"subjectTypes":[id(1)],"targetPredicates":[],"expression":{"kind":"lit","value":false},"capabilities":["basic.v1"],"executable":true,"validity":{"kind":"unspecified"}})).unwrap();
+    let indexed = universe_rules::definitions::RecordIndex::new(&rows);
+    assert_eq!(
+        universe_rules::definitions::rule_applies_indexed(&rule, &rows, &indexed, &[]),
+        universe_rules::definitions::rule_applies(&rule, &rows, &[])
+    );
     assert_eq!(
         universe_rules::definitions::rule_applies(&rule, &rows, &[]),
         Some(true)
@@ -243,6 +258,11 @@ fn rule_targeting_uses_ancestors_without_rebinding_authored_operands() {
     if let Payload::Entity(e) = &mut rows[3].payload {
         e.classification = Some(RecordId::parse(&id(3)).unwrap());
     }
+    let indexed = universe_rules::definitions::RecordIndex::new(&rows);
+    assert_eq!(
+        universe_rules::definitions::rule_applies_indexed(&rule, &rows, &indexed, &[]),
+        universe_rules::definitions::rule_applies(&rule, &rows, &[])
+    );
     assert_eq!(
         universe_rules::definitions::rule_applies(&rule, &rows, &[]),
         Some(false)
@@ -251,6 +271,11 @@ fn rule_targeting_uses_ancestors_without_rebinding_authored_operands() {
         e.classification = None;
         e.classification_resolution = ClassificationResolution::Unclassified;
     }
+    let indexed = universe_rules::definitions::RecordIndex::new(&rows);
+    assert_eq!(
+        universe_rules::definitions::rule_applies_indexed(&rule, &rows, &indexed, &[]),
+        universe_rules::definitions::rule_applies(&rule, &rows, &[])
+    );
     assert_eq!(
         universe_rules::definitions::rule_applies(&rule, &rows, &[]),
         None
@@ -395,4 +420,148 @@ fn object_conflicts_respect_multiplicity_time_and_qualified_precision() {
         a.validity = serde_json::from_value(json!({"kind":"calendar_interval","calendar":"cal_000000000000000000000010","start":{"kind":"exact","value":"20"},"end":{"kind":"exact","value":"30"}})).unwrap();
     }
     assert!(retrieve(&rows).conflicts.is_empty());
+}
+
+#[test]
+fn snapshot_index_matches_complete_ancestor_reference_and_reports_cost() {
+    use std::time::Instant;
+    use universe_rules::definitions::{ancestry, matches, RecordIndex};
+
+    // Reproducible bounded workload: deep chain, many subjects and unrelated
+    // history rows make repeated full-snapshot scans visible.
+    let depth = 384usize;
+    let subjects = 192usize;
+    let mut rows = Vec::with_capacity(depth + subjects + 64);
+    for n in 1..=depth {
+        let parent = if n == 1 {
+            Value::Null
+        } else {
+            json!(id(n - 1))
+        };
+        rows.push(v(n, json!({"record_kind":"entity_type","namespace":"perf","key":format!("type{n}"),"name":format!("Type {n}"),"labels":{},"parent":parent,"parentResolution":if n == 1 {"root"} else {"resolved"},"classificationExecutable":true,"applicability":{"kind":"universe_wide"}})));
+    }
+    for offset in 0..subjects {
+        let n = depth + offset + 1;
+        rows.push(v(n, json!({"record_kind":"entity","names":[],"classification":id(depth),"classificationResolution":"resolved","worldAssociations":[],"labels":{},"metadata":{}})));
+    }
+    let targets = vec![
+        RecordId::parse(&id(1)).unwrap(),
+        RecordId::parse(&id(depth / 2)).unwrap(),
+    ];
+    let index = RecordIndex::new(&rows);
+    let owners: Vec<_> = (0..subjects)
+        .map(|offset| RecordId::parse(&id(depth + offset + 1)).unwrap())
+        .collect();
+
+    let start = Instant::now();
+    let reference: Vec<_> = owners
+        .iter()
+        .map(|owner| {
+            (
+                ancestry(owner, &rows),
+                matches(owner, &targets, &rows, None),
+            )
+        })
+        .collect();
+    let reference_elapsed = start.elapsed();
+    let start = Instant::now();
+    let optimized: Vec<_> = owners
+        .iter()
+        .map(|owner| (index.ancestry(owner), index.matches(owner, &targets, None)))
+        .collect();
+    let indexed_elapsed = start.elapsed();
+    for (indexed, linear) in optimized.iter().zip(&reference) {
+        assert_eq!(indexed.0.complete, linear.0.complete);
+        assert_eq!(indexed.0.types, linear.0.types);
+        assert_eq!(indexed.1, linear.1);
+    }
+    let rule: Rule = serde_json::from_value(json!({"namespace":"perf","key":"ancestor-rule","labels":{},"kind":"physical_constraint","commitPolicy":"always_block","applicability":{"kind":"universe_wide"},"subjectTypes":[id(1)],"targetPredicates":[],"expression":{"kind":"lit","value":false},"capabilities":["basic.v1"],"executable":true,"validity":{"kind":"unspecified"}})).unwrap();
+    let start = Instant::now();
+    let rule_reference = universe_rules::definitions::rule_applies(&rule, &rows, &[]);
+    let rule_reference_elapsed = start.elapsed();
+    let start = Instant::now();
+    let rule_indexed = universe_rules::definitions::rule_applies_indexed(&rule, &rows, &index, &[]);
+    let rule_indexed_elapsed = start.elapsed();
+    assert_eq!(rule_indexed, rule_reference);
+    eprintln!(
+        "retrieval workload: records={} depth={} subjects={} ancestry_reference_us={} ancestry_indexed_us={} rule_reference_us={} rule_indexed_us={}",
+        rows.len(),
+        depth,
+        subjects,
+        reference_elapsed.as_micros(),
+        indexed_elapsed.as_micros(),
+        rule_reference_elapsed.as_micros(),
+        rule_indexed_elapsed.as_micros()
+    );
+}
+
+#[test]
+fn indexed_context_assembly_matches_full_scan_with_overlapping_history() {
+    use std::time::Instant;
+    let mut rows = fixture();
+    let subjects = 64usize;
+    let facts_per_subject = 48usize;
+    for offset in 0..subjects {
+        let owner = 100 + offset;
+        rows.push(v(owner, json!({"record_kind":"entity","names":[],"classification":id(2),"classificationResolution":"resolved","worldAssociations":[],"labels":{},"metadata":{}})));
+        for fact in 0..facts_per_subject {
+            let proposition = 10_000 + offset * facts_per_subject * 2 + fact * 2;
+            rows.push(v(proposition, json!({"record_kind":"proposition","subject":rr(owner),"predicate":rr(5),"context":rr(99),"value":{"kind":"boolean","value":true},"quantification":"particular"})));
+            rows.push(v(proposition + 1, json!({"record_kind":"assertion","attributeMode":"instance","proposition":rr(proposition),"polarity":"support","scope":{"context":rr(99),"applicability":{"kind":"universe_wide"}},"validity":{"kind":"calendar_interval","calendar":"cal_000000000000000000000010","start":{"kind":"exact","value":"10"},"end":{"kind":"exact","value":"20"}},"persistence":"explicit_interval","precision":"exact","basis":{"kind":"author_decision","note":"overlapping synthetic evidence"}})));
+        }
+    }
+    // Unrelated retained definitions represent substantial snapshot history
+    // and make a full scan per output object measurably expensive.
+    for n in 0..8_192 {
+        rows.push(v(100_000 + n, json!({"record_kind":"property","namespace":"history","key":format!("property-{n}"),"labels":{},"value":{"kind":"boolean"},"multiplicity":"multiple","persistence":"unspecified","exclusive":false,"symmetric":false,"transitive":false})));
+    }
+    let owners: Vec<_> = (0..subjects)
+        .map(|offset| RecordId::parse(&id(100 + offset)).unwrap())
+        .collect();
+    let frame: Frame = serde_json::from_value(json!({"universe":"unv_000000000000000000000001","continuity":"cont_000000000000000000000001","revision":"rev_000000000000000000000001","context":rr(99),"time":{"kind":"at","time":{"kind":"exact","calendar":"cal_000000000000000000000010","value":"15"}},"perspective":"author"})).unwrap();
+    let start = Instant::now();
+    let reference = crate::objects::assemble_reference(&rows, &owners, &[], &frame, None, false);
+    let reference_elapsed = start.elapsed();
+    let start = Instant::now();
+    let optimized = crate::objects::assemble(&rows, &owners, &[], &frame, None, false);
+    let indexed_elapsed = start.elapsed();
+    assert_eq!(
+        serde_json::to_value(&optimized).unwrap(),
+        serde_json::to_value(&reference).unwrap()
+    );
+    assert_eq!(optimized.len(), subjects);
+    assert!(optimized
+        .iter()
+        .all(|object| object.instance_facts.len() == facts_per_subject));
+    eprintln!("context workload: records={} subjects={} overlapping_facts_per_subject={} reference_ms={} indexed_ms={}", rows.len(), subjects, facts_per_subject, reference_elapsed.as_millis(), indexed_elapsed.as_millis());
+    let restricted_reference =
+        crate::objects::assemble_reference(&rows, &owners, &[], &frame, None, true);
+    let restricted_indexed = crate::objects::assemble(&rows, &owners, &[], &frame, None, true);
+    assert_eq!(
+        serde_json::to_value(restricted_indexed).unwrap(),
+        serde_json::to_value(restricted_reference).unwrap()
+    );
+    let visible: std::collections::BTreeSet<_> = rows
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| i % 7 != 0)
+        .map(|(_, record)| record.identity.record_id.clone())
+        .collect();
+    let start = Instant::now();
+    let impact_reference = crate::impact::assemble_reference(&rows, &visible);
+    let impact_reference_elapsed = start.elapsed();
+    let start = Instant::now();
+    let impact_indexed = crate::impact::assemble(&rows, &visible);
+    let impact_indexed_elapsed = start.elapsed();
+    assert_eq!(
+        serde_json::to_value(impact_indexed).unwrap(),
+        serde_json::to_value(impact_reference).unwrap()
+    );
+    eprintln!(
+        "impact workload: records={} visible={} reference_ms={} one_pass_ms={}",
+        rows.len(),
+        visible.len(),
+        impact_reference_elapsed.as_millis(),
+        impact_indexed_elapsed.as_millis()
+    );
 }

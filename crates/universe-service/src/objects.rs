@@ -52,12 +52,59 @@ pub fn assemble(
     world: Option<&WorldId>,
     restricted: bool,
 ) -> Vec<EffectiveObject> {
+    assemble_impl(records, ids, predicates, frame, world, restricted, true)
+}
+
+#[cfg(test)]
+pub(super) fn assemble_reference(
+    records: &[RecordVersion],
+    ids: &[RecordId],
+    predicates: &[RecordId],
+    frame: &Frame,
+    world: Option<&WorldId>,
+    restricted: bool,
+) -> Vec<EffectiveObject> {
+    assemble_impl(records, ids, predicates, frame, world, restricted, false)
+}
+
+fn assemble_impl(
+    records: &[RecordVersion],
+    ids: &[RecordId],
+    predicates: &[RecordId],
+    frame: &Frame,
+    world: Option<&WorldId>,
+    restricted: bool,
+    indexed_candidates: bool,
+) -> Vec<EffectiveObject> {
     let worlds: Vec<_> = world
         .into_iter()
         .map(|w| RecordId::parse(&w.as_str().replacen("wld_", "rec_", 1)).expect("world identity"))
         .collect();
     let by_id: BTreeMap<_, _> = records.iter().map(|r| (&r.identity.record_id, r)).collect();
+    let record_index = definitions::RecordIndex::new(records);
     let get = |id: &RecordId| by_id.get(id).copied();
+    let mut assertions_by_subject: BTreeMap<RecordId, Vec<usize>> = BTreeMap::new();
+    let mut shared_candidate_positions = Vec::new();
+    for (position, record) in records.iter().enumerate() {
+        match &record.payload {
+            Payload::Assertion(assertion) => {
+                if let Some(RecordVersion {
+                    payload: Payload::Proposition(proposition),
+                    ..
+                }) = get(&assertion.proposition.record)
+                {
+                    assertions_by_subject
+                        .entry(proposition.subject.record.clone())
+                        .or_default()
+                        .push(position);
+                }
+            }
+            Payload::ActionDefinition(_) | Payload::Rule(_) => {
+                shared_candidate_positions.push(position)
+            }
+            _ => {}
+        }
+    }
     let resource_gaps = crate::resources::assess(records, frame);
     let mut pairs_remaining = 1_000_000usize;
     ids.iter()
@@ -69,7 +116,7 @@ pub fn assemble(
             ) {
                 return None;
             }
-            let chain = definitions::ancestry(id, records);
+            let chain = record_index.ancestry(id);
             // Include the visible unresolved endpoint as provenance even when
             // executable ancestry stops before that definition.
             let mut ancestry = Vec::new();
@@ -88,6 +135,19 @@ pub fn assemble(
                 next = t.parent.clone();
             }
             let definition_ids: Vec<_> = ancestry.iter().map(|r| r.identity.record_id.clone()).collect();
+            let mut candidate_positions = if indexed_candidates {
+                let mut positions = shared_candidate_positions.clone();
+                for subject in std::iter::once(id).chain(definition_ids.iter()) {
+                    if let Some(assertions) = assertions_by_subject.get(subject) {
+                        positions.extend(assertions.iter().copied());
+                    }
+                }
+                positions.sort_unstable();
+                positions.dedup();
+                positions
+            } else {
+                (0..records.len()).collect()
+            };
             let mut object = EffectiveObject {
                 identity: identity.clone(),
                 ancestry,
@@ -115,7 +175,8 @@ pub fn assemble(
                     .push("current_permissions_or_perspective_limit_evidence".into());
             }
             let mut dependencies = BTreeSet::new();
-            for r in records {
+            for position in candidate_positions.drain(..) {
+                let r = &records[position];
                 match &r.payload {
                     Payload::Assertion(a) => {
                         let Some(proposition) = get(&a.proposition.record) else {
@@ -137,7 +198,7 @@ pub fn assemble(
                         checks.push(("proposition_context", Some(p.context == frame.context)));
                         checks.push((
                             "temporal_applicability",
-                            universe_rules::events::applies(&a.validity, &frame.time, records),
+                            universe_rules::events::applies_indexed(&a.validity, &frame.time, &record_index),
                         ));
                         if inherited {
                             checks.push((
@@ -162,11 +223,10 @@ pub fn assemble(
                         {
                             checks.push((
                                 "property_subject_applicability",
-                                definitions::matches(
-                                    id,
-                                    &property.subject_types,
-                                    records,
-                                    Some(&worlds),
+                                    record_index.matches(
+                                        id,
+                                        &property.subject_types,
+                                        Some(&worlds),
                                 ),
                             ));
                         }
@@ -208,10 +268,9 @@ pub fn assemble(
                         for requirement in &a.requirements {
                             let applies =
                                 match get(&requirement.predicate.record).map(|r| &r.payload) {
-                                    Some(Payload::Property(p)) => definitions::matches(
+                                    Some(Payload::Property(p)) => record_index.matches(
                                         id,
                                         &p.subject_types,
-                                        records,
                                         Some(&worlds),
                                     ),
                                     _ => None,
@@ -226,7 +285,7 @@ pub fn assemble(
                         checks.push(("requirement_subject_applicability", relevant));
                         checks.push((
                             "temporal_applicability",
-                            universe_rules::events::applies(&a.validity, &frame.time, records),
+                            universe_rules::events::applies_indexed(&a.validity, &frame.time, &record_index),
                         ));
                         let row = evidence(r, checks);
                         if row.applicability != Some(false) {
@@ -241,10 +300,9 @@ pub fn assemble(
                             vec![
                                 (
                                     "rule_subject_applicability",
-                                    definitions::matches(
+                                    record_index.matches(
                                         id,
                                         &rule.subject_types,
-                                        records,
                                         Some(&worlds),
                                     ),
                                 ),
@@ -254,10 +312,10 @@ pub fn assemble(
                                 ),
                                 (
                                     "temporal_applicability",
-                                    universe_rules::events::applies(
+                                    universe_rules::events::applies_indexed(
                                         &rule.validity,
                                         &frame.time,
-                                        records,
+                                        &record_index,
                                     ),
                                 ),
                             ],

@@ -313,6 +313,7 @@ pub fn evaluate_indexed(
     if worlds.is_empty() || frames.len().saturating_mul(worlds.len()) > 1000 {
         return unavailable();
     }
+    let subject_index = universe_rules::definitions::RecordIndex::new(records);
     let exceptions: Vec<_> = if let Some(index) = index {
         index.exceptions(&record.identity.record_id).collect()
     } else {
@@ -325,7 +326,12 @@ pub fn evaluate_indexed(
     };
     for frame in &frames {
         for world in &worlds {
-            match universe_rules::definitions::rule_applies(rule, records, world) {
+            match universe_rules::definitions::rule_applies_indexed(
+                rule,
+                records,
+                &subject_index,
+                world,
+            ) {
                 Some(false) => continue,
                 None => return unavailable(),
                 Some(true) => {}

@@ -2730,28 +2730,7 @@ impl Workflow<'_> {
                 }
                 // Conservative universe closure includes query-scope dependencies:
                 // adding a fact may change a prior absence/cardinality conclusion.
-                let restricted = all
-                    .iter()
-                    .any(|r| !visibility.contains(&r.identity.record_id));
-                let records: BTreeSet<_> = all
-                    .iter()
-                    .filter(|r| visibility.contains(&r.identity.record_id))
-                    .map(|r| r.identity.record_id.clone())
-                    .collect();
-                let world_ids: BTreeSet<_> = all
-                    .iter()
-                    .filter(|r| visibility.contains(&r.identity.record_id))
-                    .flat_map(operations::worlds)
-                    .collect();
-                let impact = serde_json::to_value(Impact {
-                    records: records.into_iter().collect(),
-                    coverage: if restricted {
-                        Coverage::Restricted
-                    } else {
-                        Coverage::Complete
-                    },
-                    world_ids: world_ids.into_iter().collect(),
-                })?;
+                let impact = serde_json::to_value(crate::impact::assemble(&all, &visibility))?;
                 if serde_json::to_vec(&impact)?.len() > field::<usize>(args, "byte_budget")? {
                     return Err(ProtocolError::EvaluationLimitReached {
                         message: "conservative impact closure exceeds the requested byte budget"
