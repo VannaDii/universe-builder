@@ -1,0 +1,64 @@
+{
+  "artifacts": [
+    {
+      "bytes": 6221466,
+      "path": "/tmp/goal35-external-writer-final-20261006.json",
+      "sha256": "dd823536d550f3f7abbfc8cdfc14e832682e128b466d7c6af85364bc48f4f0e5"
+    },
+    {
+      "bytes": 2973975,
+      "path": "/tmp/goal35-external-writer-final-20261006.jsonl",
+      "sha256": "0fb23b36692b00f4d0cd2bcd55f26fbcccd0c0952a319ccac2b9d5bbb1ae3d65"
+    },
+    {
+      "bytes": 6221824,
+      "path": "/tmp/goal35-external-writer-final-20261006.sqlite",
+      "sha256": "34b25780e53d439cdddfd643efff3bdc67d29325d6fb64570d448aba3ce9316d"
+    }
+  ],
+  "build": {
+    "binaries": {
+      "universe": {
+        "bytes": 37628872,
+        "sha256": "e53ece4a14da031d89cdbc9148daa8b445d96c4bbd4b2a6a1364aca7f43fb525"
+      },
+      "universe-engine": {
+        "bytes": 56196496,
+        "sha256": "3a0c57fb10487129a5efb4b305daa2552d092023d5cdc0b2c4837c40b3f9c0e6"
+      },
+      "universe-mcp": {
+        "bytes": 45499280,
+        "sha256": "72806456ab4b1a3b8d598ae6e953ca7025b91a25cd8665ed8f9dd4a697694acc"
+      }
+    },
+    "git_status": [],
+    "oracle_sha256": "38524e46d59a2b3e6580cda2bf28ad48629d0d122bda7eaa777772f4cffcfd53"
+  },
+  "commit_under_test": "32ae2bbff624132b263eff51c586fb7c3b99885d",
+  "forgery_controls": {
+    "authentic_evidence": 1,
+    "forgeries_rejected": 17,
+    "passed": 18,
+    "runner": "scripts/test_resource_resolution_audit.py"
+  },
+  "goal": "35",
+  "independent_auditor": "scripts/audit_resource_resolution.py",
+  "limitations": [
+    "Interrupted receipt was simulated by discarding the successful MCP result at the local client return-processing boundary; no network packet loss was simulated.",
+    "This proves scripted MCP protocol and state/history behavior only. It does not qualify model interpretation, native/host behavior, or release readiness."
+  ],
+  "runner": "scripts/resource_resolution_pilot.py",
+  "status": "passed",
+  "workflow": {
+    "delivered_immutable_versions": 65,
+    "forced_restarts": 3,
+    "mcp_calls": 268,
+    "publications": 9,
+    "recovered_operations": 9,
+    "restricted_views": 1,
+    "reviewed_initializations": 1,
+    "runtime_seconds": 20.775173750007525,
+    "snapshots": 10,
+    "state_responses": 15
+  }
+}
