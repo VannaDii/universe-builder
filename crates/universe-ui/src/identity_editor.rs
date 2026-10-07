@@ -6,6 +6,7 @@ use universe_domain::{ids::*, records::DomainOperation, Frame};
 struct Form {
     kind: String,
     name: String,
+    classification: String,
     work_kind: String,
     worlds: Vec<String>,
     role: String,
@@ -27,10 +28,19 @@ impl Form {
         }
         let associations:Vec<_>=self.worlds.iter().map(|id|json!({"world":id,"role":self.role,"validity":{"kind":"unspecified"},"qualifiers":{}})).collect();
         let (kind, record) = match self.kind.as_str() {
-            "entity" => (
-                "create_entity",
-                json!({"names":[],"classification":null,"classificationResolution":"unclassified","worldAssociations":associations,"labels":{"en":self.name},"metadata":{}}),
-            ),
+            "entity" => {
+                let classification = if self.classification.is_empty() {
+                    None
+                } else {
+                    Some(
+                        RecordId::parse(&self.classification)
+                            .map_err(|_| "Choose an existing classification.")?,
+                    )
+                };
+                return checked(
+                    json!({"kind":"introduce_instance","client_ref":RecordId::generate(&mut rand::rng()),"name":{"text":self.name,"validity":{"kind":"unspecified"}},"classification":classification,"world_associations":associations}),
+                );
+            }
             "world" => (
                 "create_world",
                 json!({"selector":self.name,"labels":{},"metadata":{}}),
@@ -104,6 +114,11 @@ pub fn IdentityEditor(
         summary{"Create an entity, world, work or saga"}
         label{r#for:"draft-kind","Record kind"}super::select::RichSelect {id:"draft-kind",disabled,value:form.read().kind.clone(),onchange:move|e: crate::select::SelectionEvent|form.write().kind=e.value(),options:super::select::choices(&[("","Choose a kind"),("entity","Character or entity"),("world","World"),("work","Narrative work"),("saga","Saga or series"),("work_version","Version of a narrative work")])}
         label{r#for:"draft-name","Name or version label"}input{id:"draft-name",disabled,value:form.read().name.clone(),oninput:move|e|form.write().name=e.value()}
+        if form.read().kind=="entity"{
+            label{r#for:"instance-classification","Classification (optional)"}
+            super::select::RichSelect{id:"instance-classification",disabled,value:form.read().classification.clone(),onchange:move|e:crate::select::SelectionEvent|form.write().classification=e.value(),options:super::select::record_choices(&choices,&["entity_type"],"Leave unclassified")}
+            p{"A name is enough to create an instance. Classification can be added later, then refined to a descendant without replacing its identity."}
+        }
         if form.read().kind=="work"{label{r#for:"work-kind","Work kind"}super::select::RichSelect {id:"work-kind",disabled,value:form.read().work_kind.clone(),onchange:move|e: crate::select::SelectionEvent|form.write().work_kind=e.value(),options:super::select::choices(&[("","Choose a work kind"),("novel","Novel"),("story","Story"),("series_chapter","Series Chapter"),("play","Play"),("film","Film"),("other","Other")])}}
         if ["entity","work"].contains(&form.read().kind.as_str()){
             fieldset{legend{"World associations"}p{"Selecting several worlds preserves one shared identity. Leaving all unchecked declares no association; it does not establish location."}
@@ -133,6 +148,89 @@ mod tests {
         serde_json::from_value(json!({"universe":"unv_000000000000000000000001","continuity":"cont_000000000000000000000001","revision":"rev_000000000000000000000001","context":{"universe":"unv_000000000000000000000001","record":"rec_000000000000000000000001"},"time":{"kind":"timeless"},"perspective":"author"})).unwrap()
     }
     #[test]
+    fn incremental_identity_operations_are_typed_and_visible_in_drafts() {
+        let mut form = Form {
+            kind: "entity".into(),
+            name: "Mara".into(),
+            ..Default::default()
+        };
+        let minimal = form.create(&frame()).unwrap();
+        assert_eq!(minimal["kind"], "introduce_instance");
+        assert_eq!(minimal["name"]["text"], "Mara");
+        assert!(minimal["classification"].is_null());
+        assert!(minimal["world_associations"].as_array().unwrap().is_empty());
+        let options = crate::author::choices(&[], &[], &json!([minimal]).to_string());
+        assert_eq!(options[0]["record_id"], minimal["client_ref"]);
+        assert_eq!(options[0]["label"], "Mara (draft)");
+        assert_eq!(
+            crate::readable::operation_summary(&minimal),
+            "Create instance: Mara (unclassified)"
+        );
+        form.classification = "invalid".into();
+        assert!(form.create(&frame()).is_err());
+        form.classification = "rec_000000000000000000000002".into();
+        let classified = form.create(&frame()).unwrap();
+        assert_eq!(classified["classification"], form.classification);
+        assert_eq!(
+            crate::readable::operation_summary(&classified),
+            "Create instance: Mara (classified)"
+        );
+        let selected = json!({"identity":{"record_id":"rec_000000000000000000000005"},"record_version_id":"ver_000000000000000000000005"});
+        let refine = crate::inspector_editor::operation(
+            &frame(),
+            &selected,
+            "refine_classification",
+            &form.classification,
+            "",
+            None,
+        )
+        .unwrap();
+        assert_eq!(refine["kind"], "refine_classification");
+        assert_eq!(
+            refine["record"]["record"],
+            selected["identity"]["record_id"]
+        );
+        assert_eq!(refine["expected_version"], selected["record_version_id"]);
+        assert!(
+            crate::readable::operation_summary(&refine).contains("Set or refine classification")
+        );
+    }
+
+    #[test]
+    fn review_renders_incremental_identity_changes() {
+        let op = Form {
+            kind: "entity".into(),
+            name: "Mara".into(),
+            ..Default::default()
+        }
+        .create(&frame())
+        .unwrap();
+        let selected = json!({"identity":{"record_id":"rec_000000000000000000000005"},"record_version_id":"ver_000000000000000000000005"});
+        let refine = crate::inspector_editor::operation(
+            &frame(),
+            &selected,
+            "refine_classification",
+            "rec_000000000000000000000002",
+            "",
+            None,
+        )
+        .unwrap();
+        let mut dom = dioxus::core::VirtualDom::new_with_props(
+            crate::readable::OperationReview,
+            crate::readable::OperationReviewProps {
+                operations: json!([op, refine]),
+            },
+        );
+        let mutations = dom.rebuild_to_vec();
+        for text in [
+            "Create instance: Mara (unclassified)",
+            "Set or refine classification",
+        ] {
+            assert!(mutations.edits.iter().any(|edit|matches!(edit,dioxus::core::Mutation::CreateTextNode { value, .. } if value.contains(text))),"missing review text: {text}");
+        }
+    }
+
+    #[test]
     fn shared_identity_and_work_binding_are_explicit() {
         let mut f = Form {
             kind: "entity".into(),
@@ -146,7 +244,7 @@ mod tests {
         assert!(f.create(&frame()).is_err());
         f.role = "appears in".into();
         assert_eq!(
-            f.create(&frame()).unwrap()["record"]["worldAssociations"]
+            f.create(&frame()).unwrap()["world_associations"]
                 .as_array()
                 .unwrap()
                 .len(),
@@ -167,3 +265,7 @@ mod tests {
         assert!(f.membership(&frame(), &selected).is_err());
     }
 }
+
+#[cfg(test)]
+#[path = "identity_workflow.rs"]
+mod workflow;

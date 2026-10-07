@@ -5329,10 +5329,13 @@ dependencies = [
  "rand 0.9.2",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
+ "tokio-util",
  "universe-client",
  "universe-domain",
  "universe-protocol",
+ "universe-service",
 ]
 
 [[package]]

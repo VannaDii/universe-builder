@@ -3,7 +3,7 @@ use dioxus::prelude::*;
 use serde_json::{json, Value};
 use universe_domain::{chronology::Chronology, records::DomainOperation, Frame};
 
-fn operation(
+pub(super) fn operation(
     frame: &Frame,
     selected: &Value,
     action: &str,
@@ -32,7 +32,7 @@ fn operation(
         "add_name" => {
             op["name"] = json!({"text":value,"language":null,"community":null,"role":null,"validity":{"kind":"unspecified"}})
         }
-        "add_type_membership" => op["entity_type"] = json!(value),
+        "refine_classification" => op["entity_type"] = json!(value),
         "rename_world_selector" => op["new_selector"] = json!(value),
         "add_world_alias" => op["alias"] = json!(value),
         "retract_assertion" => {
@@ -88,7 +88,7 @@ pub fn InspectorEditor(
         "entity" => vec![
             ("", "Choose a change"),
             ("add_name", "Add a contextual name"),
-            ("add_type_membership", "Add type membership"),
+            ("refine_classification", "Set or refine classification"),
         ],
         "world" => vec![
             ("", "Choose a change"),
@@ -114,8 +114,9 @@ pub fn InspectorEditor(
     rsx! {details{summary{"Change the inspected record"}
         p{"Changes enter the draft and require validation, exact approval and commit. Earlier revisions remain available."}
         super::select::RichSelect{id:"inspector-action",disabled,value:action(),options:super::select::choices(&options),onchange:move|e:super::select::SelectionEvent|{action.set(e.value());value.set(String::new());reason.set(String::new());error.set(String::new());}}
-        if action()=="add_type_membership"{
-            label{r#for:"inspector-type","Entity type"}
+        if action()=="refine_classification"{
+            p{"An unclassified instance can receive its first classification. Later refinements must use the same classification or a descendant; unrelated changes require an explicit correction."}
+            label{r#for:"inspector-type","Classification"}
             super::select::RichSelect{id:"inspector-type",disabled,value:value(),options:super::select::record_choices(&choices,&["entity_type"],"Choose a type"),onchange:move|e:super::select::SelectionEvent|value.set(e.value())}
         }else if action()=="property_multiplicity"{
             label{r#for:"inspector-multiplicity","Multiplicity"}

@@ -111,7 +111,7 @@ fn help(value: &str) -> Option<&'static str> {
     Some(match value {
         "" => "No selection. Choose deliberately; nothing is inferred.",
         "add_name" => "Keep the existing name and add another authored name.",
-        "add_type_membership" => "Classify the entity using an existing type definition.",
+        "refine_classification" => "Set the first classification or narrow it to a descendant while keeping the instance identity.",
         "rename_world_selector" => "Use a new display name while retaining the prior alias.",
         "add_world_alias" => "Add an alternative lookup name for the same world.",
         "end_assertion_at" => "Keep earlier validity and exclude this moment and later times.",

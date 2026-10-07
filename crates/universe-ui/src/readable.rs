@@ -51,6 +51,31 @@ pub fn ReadValue(value: Value) -> Element {
         },
     }
 }
+pub(super) fn operation_summary(op: &Value) -> String {
+    match op["kind"].as_str().unwrap_or_default() {
+        "introduce_instance" => format!(
+            "Create instance: {} ({})",
+            op["name"]["text"].as_str().unwrap_or("Unnamed"),
+            if op["classification"].is_null() {
+                "unclassified"
+            } else {
+                "classified"
+            }
+        ),
+        "refine_classification" => format!(
+            "Set or refine classification: {} → {}",
+            op["record"]["record"].as_str().unwrap_or("instance"),
+            op["entity_type"].as_str().unwrap_or("classification")
+        ),
+        kind => caption(kind),
+    }
+}
+#[component]
+pub fn OperationReview(operations: Value) -> Element {
+    rsx! {details{open:true,summary{"Authored changes"}
+        for (i,op) in operations.as_array().into_iter().flatten().enumerate(){details{key:"{i}",summary{"{i + 1}. " {operation_summary(op)}}ReadValue{value:op.clone()}}}
+    }}
+}
 #[component]
 pub fn DraftChanges(operations: String, disabled: bool, onremove: EventHandler<usize>) -> Element {
     let Ok(ops) = serde_json::from_str::<Vec<Value>>(&operations) else {
@@ -59,6 +84,6 @@ pub fn DraftChanges(operations: String, disabled: bool, onremove: EventHandler<u
     rsx! {div{class:"draft-changes",
         h3{"Draft changes"}
         if ops.is_empty(){p{"No changes added yet."}}
-        for (i,op) in ops.into_iter().enumerate(){details{key:"{i}",summary{"{i + 1}. " {caption(op["kind"].as_str().unwrap_or("change"))}}ReadValue{value:op}button{class:"secondary",disabled,onclick:move|_|onremove.call(i),"Remove this change"}}}
+        for (i,op) in ops.into_iter().enumerate(){details{key:"{i}",summary{"{i + 1}. " {operation_summary(&op)}}ReadValue{value:op}button{class:"secondary",disabled,onclick:move|_|onremove.call(i),"Remove this change"}}}
     }}
 }
