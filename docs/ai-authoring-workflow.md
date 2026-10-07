@@ -126,7 +126,7 @@ When an opted-in `resources.accounting.v1` rule finds a stock change without a
 declared event or a coherent correction, keep the clarification unresolved and
 ask the author. Do not invent an event or infer a cause. If the author explicitly
 accepts the unexplained count, record an `IssueDecision` for the exact finding
-fingerprint and `resource:<predicate record ID>` scope. This scoped creative
+fingerprint and `resource:<proposition record ID>` scope. This scoped creative
 decision permits the count while retaining its unexplained marker; ordinary
 proposal approval does not answer the factual question. If the claim or its
 predecessor evidence changes, retrieve and validate again and obtain a fresh

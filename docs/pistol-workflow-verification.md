@@ -21,17 +21,20 @@ wire delivery. These are synthetic author decisions, not changes to live author 
 | Direct conflicting refill | A direct factual assertion of three at 60 conflicts with zero. Proposal creation succeeds, validation returns complete conflicting findings, author approval fails, and commit is denied without a canonical change. This is evidence of conflict enforcement, not generic resource-transition enforcement. |
 | Non-event stock change | One factual candidate shortens the reserve's earlier interval to [0,5), corrects that earlier amount to 1, and asserts 2 on [5,20). No supplying event occurs at 5. The candidate passes validation, private review, approval and commit. Current queries at 4 and 6 give 1 and 2; its direct assertion has no event provenance. The reload at 20 still validates against 2, so checking every declared action does not close this path. |
 
-## Remaining semantic decision
+## Historical semantic decision and subsequent resolution
 
-**Goal 33 remains active pending the operator's decision.** The executed workflow
+**This decision was subsequently resolved by the author.** The opt-in implementation
+and its independent proof are recorded in [resource resolution verification](resource-resolution-verification.md).
+This original run characterizes opt-out behavior and remains a regression
+control; it is not an outstanding decision. The executed workflow
 qualifies existing behavior and exposes its enforcement limit; it does not prove
 that all factual stock changes obey resource-transition rules.
 
 Current action contracts enforce each declared event's owner, pre-stock, delta,
 bounds, post-stock, scope and effects. Factual assertions remain author-controlled.
 An author may legitimately establish an observed quantity or correct an earlier
-quantity. The current schema does not type the distinction between an observation,
-a correction, and an in-world stock transition. Prose rationale is not interpreted
+quantity. At the time of this proof, the schema did not type the distinction
+between an observation, a correction, and an in-world stock transition. Prose rationale is not interpreted
 as a machine-enforceable intent. Therefore the last candidate can represent either
 an unsupported replenishment or a legitimate historical factual account; admission
 cannot distinguish those meanings from its current structured evidence.
@@ -42,7 +45,9 @@ declared events. Legitimate observations and historical corrections must retain
 explicit admission rules and downstream revalidation. This is a proposed semantic
 extension, not an implementation fix to the current approved action semantics.
 The material tradeoff is additional schema, migration/compatibility decisions and
-author obligations. No such extension has been implemented or approved here.
+author obligations. This was the recommendation at the time of this proof.
+The later approved implementation uses existing Rule and IssueDecision records, without a schema
+change or typed observation/correction extension.
 The alternative is to retain trusted-author factual edits and document that event
 accounting is enforced only on declared transitions.
 
@@ -92,5 +97,5 @@ forged reload coordinate that initially hit bounds before arithmetic.
 
 No prose-to-intent interpretation, general physical simulation, native UI,
 VoiceOver, hosted CI execution, deployment or release qualification is claimed.
-No production semantics were changed. The remaining extension and any repair it
-requires are outside the proven completed work until the operator decides.
+This original proof changed no production semantics. Subsequent opt-in accounting
+qualification is linked above; native, host, migration and release limits remain.

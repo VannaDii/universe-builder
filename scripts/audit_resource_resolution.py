@@ -17,7 +17,7 @@ strip=lambda p:{k:v for k,v in p.items() if k!='record_kind'}
 def audit(path,check_database=True):
     r=json.loads(path.read_text());e=json.loads(EXPECTED.read_text());assert r['status']=='executed'
     instructions=r['initialization_instructions']
-    for phrase in ('universe_get_state','add_named_attribute','initialize_instance','resource:<predicate record ID>','universe_get_operation with the original idempotency key','continue from fresh canon facts'):
+    for phrase in ('universe_get_state','add_named_attribute','initialize_instance','resource:<proposition record ID>','universe_get_operation with the original idempotency key','continue from fresh canon facts'):
         assert phrase in instructions,phrase
     assert r['expected_sha256']==hashlib.sha256(EXPECTED.read_bytes()).hexdigest()
     assert r['cleanup']['engine_stopped'] and r['cleanup']['installation_removed'] and not Path(r['cleanup']['owned_root']).exists()

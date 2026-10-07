@@ -111,7 +111,7 @@ the independent audit confirms that the hidden source remains in canonical
 history. The resource rule is scoped to North so the two-world fixture preserves
 one exact accounting finding. Ordinary approval and commit are rejected while
 clarification remains unresolved. The author accepts the exact finding
-fingerprint and `resource:<predicate record ID>` scope. A changed balance then
+fingerprint and `resource:<proposition record ID>` scope. A changed balance then
 requires another decision, demonstrating that the first acceptance is content
 specific.
 

@@ -1,6 +1,8 @@
 # Universe Builder — Implementation Status
 
-Updated 2026-09-24 against the working tree. Design source: [v0.4 implementation plan](Universe_Builder_Full_Implementation_Plan_v0.4.md).
+Updated October 6, 2026 against `8847ead` plus the Goal 37 reconciliation. Current design source: [factual universe realignment plan](docs/factual-universe-realignment-plan.md). The [v0.4 implementation plan](Universe_Builder_Full_Implementation_Plan_v0.4.md) and dated milestone results below retain historical scope.
+
+The [current completion matrix and remaining sequence](docs/completion-roadmap-goal37.md) reconcile roadmap A–H, G01–G11 and R01–R14. Verified claims remain bounded by their linked proofs; knowledge, communication and cross-instance cardinality extensions await explicit approval.
 
 ## Delivery boundary
 
@@ -8,7 +10,7 @@ Milestones **1–8 have an implementation candidate for facilitated final testin
 
 Current native interaction/VoiceOver verification remains paused by the user. LM Studio remains blocked while Bionic stays open. Clean-machine/offline, hosted CI, supported-OS and distribution verification remain pending. The sealed development bundle declares `release_accepted: false`.
 
-## Implemented scope
+## Dated implementation evidence
 
 October 4 Goal 30: typed incremental definition/instance creation, named typed
 attributes and descendant classification refinement compile into the existing
@@ -138,7 +140,7 @@ See [authoring verification](docs/authoring-verification.md) for current command
 
 Native testing is paused at the user's request because test windows interfered with their work. The Mac is unlocked; a locked screen is no longer the blocker. Both fixture windows were closed when testing was paused. This increment does not reopen them or quit Bionic.
 
-Pre-read secret scans reported no findings. `sonar list projects --query universe-builder-mcp` returned no project, so full SonarQube code-quality analysis remains unavailable. Secret scans do not substitute for that analysis. No commit or PR was created; unrelated workspace changes were preserved.
+In the September 24 verification, pre-read secret scans reported no findings and `sonar list projects --query universe-builder-mcp` returned no project. That increment produced no full SonarQube analysis, commit or PR; unrelated workspace changes were preserved. These historical scan results are not current analysis of later work. Subsequent commits and checks are recorded in the dated evidence and Goal 37 matrix.
 
 ## 2026-10-01 local AI authoring evaluation
 
@@ -328,9 +330,10 @@ The independent accounting audit verifies sixteen publications, twelve admission
 controls, fifteen queries, twelve typed snapshots and five initialization receipts.
 A matching direct observation commits; a conflicting direct refill rejects.
 A coherent non-event reserve-history increase also commits, exposing the limit of
-resource enforcement on author-controlled factual assertions. Goal 33 remains
-active pending a decision on the proposed opt-in resource policy and typed
-observation/correction provenance. No semantic extension has been implemented.
+resource enforcement on author-controlled factual assertions without opt-in
+accounting. The subsequent author decision and implementation below resolve
+that decision using existing rules and exact creative acceptance. The original
+Pistol proof remains an opt-out control; its observations are preserved.
 See [Pistol workflow evidence](docs/pistol-workflow-verification.md).
 
 ## Resource resolution after author decision (October 5, 2026)
@@ -363,3 +366,16 @@ simulated. Scripted protocol evidence does not qualify a model's prose
 interpretation. Native UI, host integration, and release qualification remain on
 their existing separate review paths. See the
 [external-writer workflow evidence](docs/resource-resolution-verification.md#goal-35-external-writer-workflow--october-6-2026).
+
+## Goal 36 retrieval and Goal 37 reconciliation (October 6, 2026)
+
+Snapshot indexes have reference-parity and historical-isolation evidence for
+ancestor resolution, applicable-rule targeting, event-time lookup and context
+assembly. Impact retains the conservative complete projection. Local debug
+measurements include an explicit large-response budget failure; no production
+latency bound is established. See [Goal 36 measurements](docs/retrieval-performance-goal36.md).
+
+Goal 37 audits current source and committed proofs, repairs stale completion and
+resource-acceptance guidance, and records one [completion matrix](docs/completion-roadmap-goal37.md).
+No knowledge, channel or global-count semantics, live migration, native/host
+activation or release approval is introduced.
