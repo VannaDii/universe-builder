@@ -203,6 +203,12 @@ pub enum EvidenceOutcome {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Finding {
+    /// Repair guidance from the evaluator; never populated from hidden records.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    /// Existing record references resolving the version evidence at this frame.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub records: Vec<universe_domain::value::RecordRef>,
     pub fingerprint: FindingFingerprint,
     pub rule_id: RecordId,
     pub outcome: EvidenceOutcome,

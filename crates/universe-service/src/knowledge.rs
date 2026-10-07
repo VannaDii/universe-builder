@@ -71,6 +71,7 @@ fn check(
     policy: &KnowledgePolicy,
     frame: &Frame,
     evidence: &mut Vec<universe_domain::ids::RecordVersionId>,
+    reason: &mut String,
 ) -> Option<bool> {
     let find = |reference: &universe_domain::value::RecordRef| {
         records.iter().find(|r| {
@@ -81,12 +82,16 @@ fn check(
     let Payload::EpistemicAttitude(a) = &row.payload else {
         return None;
     };
+    *reason =
+        "Knowledge requires explicit acquisition time, truth context and acquisition basis.".into();
     let acquisition = a.acquisition.as_ref()?;
+    *reason = "Retrieve the claimed proposition and its represented truth context.".into();
     let prop = find(&a.proposition)?;
     evidence.push(prop.record_version_id.clone());
     let Payload::Proposition(p) = &prop.payload else {
         return None;
     };
+    *reason = "The acquisition truth context must match both the proposition and the authored knowledge policy.".into();
     if acquisition.truth_context != p.context || acquisition.truth_context != policy.context {
         return Some(false);
     }
@@ -95,9 +100,13 @@ fn check(
     if !matches!(context.payload, Payload::RepresentedContext(_)) {
         return None;
     }
+    *reason = "Acquisition must be at or before knowledge onset on the same exact authored clock; repair acquisition time or knowledge validity.".into();
     if !before_or_at(&acquisition.time, &beginning(&a.validity)?)? {
         return Some(false);
     }
+    *reason =
+        "The acquisition basis must match the authored author-established or justified policy."
+            .into();
     match (&policy.mode, &acquisition.basis) {
         (KnowledgeMode::AuthorEstablished, KnowledgeBasis::AuthorEstablished) => {
             return matches!(a.basis, EvidenceBasis::AuthorDecision { .. }).then_some(true);
@@ -116,23 +125,31 @@ fn check(
             let Payload::Communication(c) = &message.payload else {
                 return None;
             };
+            *reason =
+                "The communication needs an actual recipient and an authored receipt time.".into();
             if c.actual_recipients.is_empty() {
                 return None;
             }
+            *reason =
+                "The knowledge holder must be an actual recipient of the communication.".into();
             if !c.actual_recipients.contains(&a.holder) {
                 return Some(false);
             }
+            *reason = "Supply an explicit interpretation referencing the claimed proposition contained in the communication.".into();
             let interpreted = interpretation.as_ref()?;
             if interpreted != &a.proposition || !c.content.contains(interpreted) {
                 return Some(false);
             }
+            *reason = "Distorted communication does not establish interpreted knowledge in this bounded receipt lane.".into();
             if c.distorted {
                 return None;
             }
+            *reason = "Receipt must be at or before acquisition on the same exact authored clock; repair receipt or acquisition time.".into();
             if !before_or_at(c.received_at.as_ref()?, &acquisition.time)? {
                 return Some(false);
             }
             // Reuse Goal 39, including authored reverse channels and unresolved clocks.
+            *reason = "Retrieve the matching channel chronology contract and repair its missing or violated transmission timing.".into();
             let mut chronology_records:Vec<_>=records.iter().filter(|r| matches!(&r.payload,Payload::Rule(rule) if rule.channel_chronology.is_some())).cloned().collect();
             if chronology_records.is_empty() {
                 return None;
@@ -153,6 +170,9 @@ fn check(
             }
         }
     }
+    *reason =
+        "Justified acquisition requires a particular proposition with a supported definition."
+            .into();
     if p.quantification != Quantification::Particular {
         return None;
     }
@@ -199,6 +219,7 @@ fn check(
         polarity: Polarity::Support,
         context: None,
     };
+    *reason = "The claimed proposition needs unopposed supporting truth in its acquisition context, world and time. Retrieve its assertions; repair acquisition time or the missing/conflicting truth evidence.".into();
     let (truth, complete) = universe_rules::basic::evaluate(
         &expr,
         &universe_rules::EvaluationContext {
@@ -257,6 +278,8 @@ pub(crate) fn assess(records: &[RecordVersion], frame: &Frame) -> Vec<Finding> {
         }
         if matching.is_empty() {
             findings.push(Finding {
+                message: Some("No matching knowledge policy covers this explicit acquisition. Retrieve or author the policy for the proposition truth context.".into()),
+                records: vec![],
                 fingerprint: FindingFingerprint(String::new()),
                 rule_id: row.identity.record_id.clone(),
                 outcome: EvidenceOutcome::NotEstablished,
@@ -269,10 +292,17 @@ pub(crate) fn assess(records: &[RecordVersion], frame: &Frame) -> Vec<Finding> {
                 rule.record_version_id.clone(),
                 row.record_version_id.clone(),
             ];
-            let pass = check(records, row, policy, frame, &mut evidence);
+            let mut reason = String::new();
+            let pass = check(records, row, policy, frame, &mut evidence, &mut reason);
             evidence.sort();
             evidence.dedup();
             findings.push(Finding {
+                message: Some(if pass == Some(true) {
+                    "Declared knowledge acquisition is supported.".into()
+                } else {
+                    reason
+                }),
+                records: vec![],
                 fingerprint: FindingFingerprint(String::new()),
                 rule_id: rule.identity.record_id.clone(),
                 outcome: match pass {

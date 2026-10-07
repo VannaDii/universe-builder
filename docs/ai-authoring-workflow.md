@@ -325,3 +325,41 @@ refuted acquisition cannot be approved into publication. Correct earlier facts
 with exact version bindings and resolve dependent knowledge in the same candidate.
 Historical reads retain the old facts. See [the contract and executed proofs](knowledge-acquisition-verification.md)
 for supported shapes, legacy behavior and native editing limits.
+
+## Repairing factual constraint proposals
+
+Retrieve the applicable policies and evidence before proposing changes. Use
+`universe_describe` for capabilities, `universe_search` for authored rule names,
+and `universe_get_context` focused on the knowledge holder, proposition or relation
+key. Follow all cursors. Authorized context includes relevant communication links
+and the relation assertions needed to check an authored maximum across instances.
+Rule applicability in `universe_get_state` includes typed policy context and scope;
+applicability alone does not certify an action or establish complete knowledge.
+
+An author-visible validation finding provides `message`, `records` and exact
+version `evidence`. Retrieve committed records with `universe_get` at the same
+frame. For records introduced by the proposal, inspect `universe_get_proposal`
+compiled changes. Missing truth, interpretation, recipients, scope or comparable
+time stays unresolved; the message identifies which authored dependency needs
+attention. A receipt needs an explicit interpreted proposition to justify knowledge.
+
+To require knowledge for an action occurrence, author the existing attitude
+expression in the event's `preconditions`. The action definition's scalar attribute
+requirements still apply separately. Acquisition must follow receipt, supported
+truth must hold at acquisition, and knowledge must exist before the event. Correct
+an earlier fact using exact version bindings, then repair dependent acquisition,
+knowledge onset and event timing together. Use `universe_propose` with
+`action:"revise"` and fresh context to repair a held proposal, revalidate it and
+obtain approval for its exact revised reference. An earlier canon correction makes
+old approved proposals stale; historical reads do not certify the current head.
+
+For an authored maximum, simultaneous distinct participants can exceed the limit;
+sequential participants and repeated evidence for the same participant do not.
+Repair the participant, scope or validity evidence, or explicitly revise the authored
+rule. Multiplicity within one relation remains separate. Minimum counts,
+completeness inference and clock conversion remain deferred.
+
+Restricted validation retains its redacted response and cannot authorize a commit.
+Use authorized context and evidence retrieval, then request author validation of
+the exact proposal reference. Restricted diagnostics do not reveal hidden findings
+or promise that visible evidence is complete.

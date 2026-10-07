@@ -11660,6 +11660,14 @@
       "table": "r_finding",
       "kind": "object",
       "fields": {
+        "message": {
+          "model": "Finding_message",
+          "required": false
+        },
+        "records": {
+          "model": "Finding_records",
+          "required": false
+        },
         "fingerprint": {
           "model": "FindingFingerprint",
           "required": true
@@ -11681,6 +11689,27 @@
           "required": true
         }
       }
+    },
+    "Finding_message": {
+      "table": "r_finding_message",
+      "kind": "union",
+      "variants": [
+        "Finding_message_v0",
+        "Finding_message_v1"
+      ]
+    },
+    "Finding_message_v0": {
+      "table": "r_finding_message_v0",
+      "kind": "string"
+    },
+    "Finding_message_v1": {
+      "table": "r_finding_message_v1",
+      "kind": "null"
+    },
+    "Finding_records": {
+      "table": "r_finding_records",
+      "kind": "array",
+      "item": "RecordRef"
     },
     "EvidenceOutcome": {
       "table": "r_evidence_outcome",

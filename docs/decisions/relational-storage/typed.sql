@@ -7708,6 +7708,10 @@ CREATE TABLE "r_validation_findings_items" (owner INTEGER NOT NULL REFERENCES "r
 
 CREATE TABLE "r_finding" (
   __row_id INTEGER PRIMARY KEY,
+  "message__state" INTEGER NOT NULL CHECK("message__state" IN (0,1,2)),
+  "message" INTEGER REFERENCES "r_finding_message"(__row_id),
+  "records__state" INTEGER NOT NULL CHECK("records__state" IN (0,2)),
+  "records" INTEGER REFERENCES "r_finding_records"(__row_id),
   "fingerprint__state" INTEGER NOT NULL CHECK("fingerprint__state" IN (2)),
   "fingerprint" TEXT,
   "rule_id__state" INTEGER NOT NULL CHECK("rule_id__state" IN (2)),
@@ -7718,6 +7722,8 @@ CREATE TABLE "r_finding" (
   "evidence" INTEGER REFERENCES "r_finding_evidence"(__row_id),
   "coverage__state" INTEGER NOT NULL CHECK("coverage__state" IN (2)),
   "coverage" TEXT,
+  CHECK(("message__state"=2 AND "message" IS NOT NULL) OR ("message__state" IN (0,1) AND "message" IS NULL)),
+  CHECK(("records__state"=2 AND "records" IS NOT NULL) OR ("records__state" IN (0,1) AND "records" IS NULL)),
   CHECK(("fingerprint__state"=2 AND "fingerprint" IS NOT NULL) OR ("fingerprint__state" IN (0,1) AND "fingerprint" IS NULL)),
   CHECK(("rule_id__state"=2 AND "rule_id" IS NOT NULL) OR ("rule_id__state" IN (0,1) AND "rule_id" IS NULL)),
   CHECK(("outcome__state"=2 AND "outcome" IS NOT NULL) OR ("outcome__state" IN (0,1) AND "outcome" IS NULL)),
@@ -7726,6 +7732,22 @@ CREATE TABLE "r_finding" (
   CHECK(("coverage__state"=2 AND "coverage" IS NOT NULL) OR ("coverage__state" IN (0,1) AND "coverage" IS NULL)),
   CHECK("coverage" IN ('complete','partial','unsupported','restricted','failed'))
 ) STRICT;
+
+CREATE TABLE "r_finding_message" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 TEXT,
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_finding_records" (
+  __row_id INTEGER PRIMARY KEY
+) STRICT;
+
+CREATE TABLE "r_finding_records_items" (owner INTEGER NOT NULL REFERENCES "r_finding_records"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item INTEGER REFERENCES "r_record_ref"(__row_id), PRIMARY KEY(owner,ordinal)) STRICT;
 
 CREATE TABLE "r_finding_evidence" (
   __row_id INTEGER PRIMARY KEY
@@ -12153,6 +12175,18 @@ CREATE TRIGGER "r_validation_findings_items_no_delete" BEFORE DELETE ON "r_valid
 CREATE TRIGGER "r_finding_no_update" BEFORE UPDATE ON "r_finding" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_finding_no_delete" BEFORE DELETE ON "r_finding" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_finding_message_no_update" BEFORE UPDATE ON "r_finding_message" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_finding_message_no_delete" BEFORE DELETE ON "r_finding_message" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_finding_records_no_update" BEFORE UPDATE ON "r_finding_records" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_finding_records_no_delete" BEFORE DELETE ON "r_finding_records" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_finding_records_items_no_update" BEFORE UPDATE ON "r_finding_records_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_finding_records_items_no_delete" BEFORE DELETE ON "r_finding_records_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_finding_evidence_no_update" BEFORE UPDATE ON "r_finding_evidence" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 

@@ -1287,7 +1287,11 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `ValidationRunId` | `r_validation_run_id` (scalar column) | string |
 | `Coverage` | `r_coverage` (scalar column) | string |
 | `Validation_findings` | `r_validation_findings` | Finding |
-| `Finding` | `r_finding` | fingerprint → FindingFingerprint, rule_id → RecordId, outcome → EvidenceOutcome, evidence → Finding_evidence, coverage → Coverage |
+| `Finding` | `r_finding` | message → Finding_message, records → Finding_records, fingerprint → FindingFingerprint, rule_id → RecordId, outcome → EvidenceOutcome, evidence → Finding_evidence, coverage → Coverage |
+| `Finding_message` | `r_finding_message` | Finding_message_v0, Finding_message_v1 |
+| `Finding_message_v0` | `r_finding_message_v0` (scalar column) | string |
+| `Finding_message_v1` | `r_finding_message_v1` (scalar column) | null |
+| `Finding_records` | `r_finding_records` | RecordRef |
 | `EvidenceOutcome` | `r_evidence_outcome` (scalar column) | string |
 | `Finding_evidence` | `r_finding_evidence` | RecordVersionId |
 | `Validation_opposing_evidence` | `r_validation_opposing_evidence` | OpposingEvidence |

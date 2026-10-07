@@ -32732,6 +32732,20 @@
         "Finding": {
           "type": "object",
           "properties": {
+            "message": {
+              "description": "Repair guidance from the evaluator; never populated from hidden records.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "records": {
+              "description": "Existing record references resolving the version evidence at this frame.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
             "fingerprint": {
               "$ref": "#/$defs/FindingFingerprint"
             },
@@ -66247,6 +66261,20 @@
         "Finding": {
           "type": "object",
           "properties": {
+            "message": {
+              "description": "Repair guidance from the evaluator; never populated from hidden records.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "records": {
+              "description": "Existing record references resolving the version evidence at this frame.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
             "fingerprint": {
               "$ref": "#/$defs/FindingFingerprint"
             },
@@ -76036,6 +76064,20 @@
         "Finding": {
           "type": "object",
           "properties": {
+            "message": {
+              "description": "Repair guidance from the evaluator; never populated from hidden records.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "records": {
+              "description": "Existing record references resolving the version evidence at this frame.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
             "fingerprint": {
               "$ref": "#/$defs/FindingFingerprint"
             },

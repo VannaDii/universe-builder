@@ -100,6 +100,8 @@ pub(crate) fn assess(records: &[RecordVersion]) -> Vec<Finding> {
             .collect();
         if matching.is_empty() {
             findings.push(Finding {
+                message: Some("No authored chronology contract matches this communication channel. Retrieve the channel policies or correct the declared channel.".into()),
+                records: vec![],
                 fingerprint: FindingFingerprint(String::new()),
                 rule_id: row.identity.record_id.clone(),
                 outcome: EvidenceOutcome::NotEstablished,
@@ -121,6 +123,12 @@ pub(crate) fn assess(records: &[RecordVersion]) -> Vec<Finding> {
                         .is_none_or(|m| m.parse::<i128>().is_ok_and(|m| d <= m))
             });
             findings.push(Finding {
+                message: Some(match pass {
+                    Some(true) => "Authored channel chronology is satisfied.",
+                    Some(false) => "Transmission violates the authored forward-order or delay bounds. Retrieve this communication and its channel rule; correct send/receipt times or explicitly revise the policy.",
+                    None => "Chronology needs an actual recipient, receipt time and comparable exact same-clock send/receipt ticks. Repair the missing fact; delivery and clock conversion are not inferred.",
+                }.into()),
+                records: vec![],
                 fingerprint: FindingFingerprint(String::new()),
                 rule_id: rule_row.identity.record_id.clone(),
                 outcome: match pass {

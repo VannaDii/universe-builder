@@ -314,27 +314,20 @@ fn assemble_impl(
                         }
                     }
                     Payload::Rule(rule) => {
-                        let row = evidence(
-                            r,
-                            vec![
-                                (
-                                    "rule_subject_applicability",
-                                    type_matches(
-                                        id,
-                                        &rule.subject_types,
-                                        Some(&worlds),
-                                    ),
-                                ),
-                                (
-                                    "world_applicability",
-                                    definitions::world_applies(&rule.applicability, &worlds),
-                                ),
-                                (
-                                    "temporal_applicability",
-                                    time_applies(&rule.validity, &frame.time),
-                                ),
-                            ],
-                        );
+                        let typed = rule.channel_chronology.is_some() || rule.knowledge_policy.is_some() || rule.relation_cardinality.is_some();
+                        let mut checks = vec![
+                            ("rule_subject_applicability", type_matches(id, &rule.subject_types, Some(&worlds))),
+                            ("world_applicability", definitions::world_applies(&rule.applicability, &worlds)),
+                            ("temporal_applicability", if typed { Some(true) } else { time_applies(&rule.validity, &frame.time) }),
+                        ];
+                        if let Some(policy) = &rule.knowledge_policy {
+                            checks.push(("knowledge_truth_context", Some(policy.context == frame.context)));
+                        }
+                        if let Some(contract) = &rule.relation_cardinality {
+                            checks.extend(scoped(&contract.scope, frame, &worlds));
+                            checks.push(("cardinality_validity", if contract.validity == Validity::Unspecified { Some(true) } else { time_applies(&contract.validity, &frame.time) }));
+                        }
+                        let row = evidence(r, checks);
                         if row.applicability != Some(false) {
                             object.rules.push(row);
                         }

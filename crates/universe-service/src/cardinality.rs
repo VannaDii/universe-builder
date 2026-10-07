@@ -339,6 +339,12 @@ pub(crate) fn assess(records: &[RecordVersion]) -> Vec<Finding> {
             }
         }
         findings.push(Finding {
+            message: Some(if violation {
+                format!("Distinct participants exceed authored maximum {} at a common overlapping world/context/time for the grouping key. Retrieve this rule and its relation assertions; correct participants, scopes or validity, or explicitly revise the maximum.", c.maximum)
+            } else if unresolved {
+                "The scoped count is unresolved. Retrieve relation assertions and the authored scope/validity; repair unknown time, scope, precision or opposing evidence. Repeated evidence counts once and local role multiplicity is separate.".into()
+            } else { "The authored cross-instance maximum is satisfied; repeated evidence counts once and local role multiplicity remains separate.".into() }),
+            records: vec![],
             fingerprint: FindingFingerprint(String::new()),
             rule_id: row.identity.record_id.clone(),
             outcome: if violation {

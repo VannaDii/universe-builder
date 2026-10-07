@@ -93,12 +93,22 @@ async fn wall_traversal_requires_owning_entity_attributes() {
             assert_eq!(v["coverage"], "complete");
             assert!(v["findings"].as_array().unwrap().is_empty());
         } else {
-            let error = result.unwrap_err();
-            assert!(
-                error.to_string().contains("event.preconditions")
-                    || error.to_string().contains("event.action.requirements"),
-                "{n}: {error}"
-            );
+            match result {
+                Err(error) => assert!(
+                    error.to_string().contains("event.action.requirements"),
+                    "{n}: {error}"
+                ),
+                Ok(report) => assert!(
+                    report["result"]["execution"]["findings"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|f| f["message"]
+                            .as_str()
+                            .is_some_and(|m| m.contains("prerequisite"))),
+                    "{n}: {report}"
+                ),
+            }
         }
     }
     // Both state output and prerequisite validation retain the exact grant
@@ -2565,3 +2575,6 @@ mod audit;
 
 #[path = "support/cardinality.rs"]
 mod cardinality;
+
+#[path = "support/writer_constraints.rs"]
+mod writer_constraints;

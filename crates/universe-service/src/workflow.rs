@@ -13,7 +13,7 @@ use universe_domain::{
 };
 use universe_protocol::{request::*, response::*, ProtocolError, Request};
 use universe_store::kernel::{Assignment, CommitInput, Kernel};
-const EVALUATOR: &str = "finite-policy-v14-relation-cardinality";
+const EVALUATOR: &str = "finite-policy-v15-writer-constraint-diagnostics";
 use universe_protocol::validation_scope::*;
 use validation_binding::ValidationCapture;
 pub(crate) fn hash<T: Serialize>(v: &T) -> String {
@@ -898,6 +898,7 @@ impl Workflow<'_> {
                 .into());
             }
         }
+        let mut precondition_findings = Vec::new();
         for record in &candidate {
             cancelled()?;
             if let Payload::Event(e) = &record.payload {
@@ -923,7 +924,7 @@ impl Workflow<'_> {
                         event_frame.context = a.scope.context.clone();
                     }
                 }
-                for expression in &e.preconditions {
+                for (position, expression) in e.preconditions.iter().enumerate() {
                     let (evidence, complete) = universe_rules::basic::evaluate(
                         expression,
                         &universe_rules::EvaluationContext {
@@ -943,20 +944,37 @@ impl Workflow<'_> {
                     );
                     if !complete || evidence.outcome() != universe_rules::EvidenceOutcome::Supported
                     {
-                        return Err(ProtocolError::invalid_argument("event.preconditions","pre-event prerequisites are conflicting, unsupported or not established").into());
+                        let mut evidence_ids = evidence.all_sources();
+                        evidence_ids.push(record.record_version_id.clone());
+                        if let Some(action) = e.action.as_ref().and_then(|a| {
+                            candidate.iter().find(|r| r.identity.record_id == a.record)
+                        }) {
+                            evidence_ids.push(action.record_version_id.clone());
+                        }
+                        precondition_findings.push(Finding {
+                            message: Some(format!("Action prerequisite {} must be supported before this event. Retrieve the event and its precondition references; repair missing/conflicting evidence or the authored event time.", position + 1)),
+                            records: vec![], fingerprint: FindingFingerprint(String::new()), rule_id: record.identity.record_id.clone(),
+                            outcome: match evidence.outcome() { universe_rules::EvidenceOutcome::Supported => EvidenceOutcome::Supported, universe_rules::EvidenceOutcome::Refuted => EvidenceOutcome::Refuted, universe_rules::EvidenceOutcome::Conflicting => EvidenceOutcome::Conflicting, universe_rules::EvidenceOutcome::NotEstablished => EvidenceOutcome::NotEstablished }, evidence: evidence_ids,
+                            coverage: if complete { Coverage::Complete } else { Coverage::Unsupported },
+                        });
                     }
                 }
             }
         }
         let evaluation_index = universe_rules::EvaluationIndex::new(&candidate);
-        let mut findings = Vec::new();
+        let mut findings = precondition_findings;
         let mut unsupported_capabilities = crate::consequences::validate(
             &candidate,
             base,
             &p.changes.iter().map(|c| c.record_id.clone()).collect(),
             &p.proposal.base_frame,
         )?;
-        let mut admissible = true;
+        let mut admissible = findings.is_empty();
+        for f in &findings {
+            if f.coverage != Coverage::Complete {
+                unsupported_capabilities.push(format!("event.preconditions:{}", f.rule_id));
+            }
+        }
         let declared_findings = crate::cardinality::assess(&candidate)
             .into_iter()
             .map(|f| (f, "relations.cardinality"))
@@ -984,6 +1002,8 @@ impl Workflow<'_> {
                 admissible = false;
             }
             findings.push(Finding {
+                message: None,
+                records: vec![],
                 fingerprint: gap.fingerprint,
                 rule_id: gap.rule,
                 outcome: EvidenceOutcome::NotEstablished,
@@ -1064,6 +1084,8 @@ impl Workflow<'_> {
                         admissible = false;
                     }
                     findings.push(Finding {
+                        message: None,
+                        records: vec![],
                         fingerprint: FindingFingerprint(String::new()),
                         rule_id: record.identity.record_id.clone(),
                         outcome,
@@ -1086,6 +1108,8 @@ impl Workflow<'_> {
                             .push(format!("boundary:{}", record.identity.record_id));
                     }
                     findings.push(Finding {
+                        message: None,
+                        records: vec![],
                         fingerprint: FindingFingerprint(String::new()),
                         rule_id: record.identity.record_id.clone(),
                         outcome,
@@ -1114,6 +1138,8 @@ impl Workflow<'_> {
         }
         unsupported_capabilities.extend(gaps);
         findings.extend(conflicts.into_iter().map(|(rule_id, evidence)| Finding {
+            message: None,
+            records: vec![],
             fingerprint: FindingFingerprint(String::new()),
             rule_id,
             outcome: EvidenceOutcome::Conflicting,
@@ -1121,6 +1147,13 @@ impl Workflow<'_> {
             coverage: Coverage::Complete,
         }));
         for finding in &mut findings {
+            finding.records = candidate
+                .iter()
+                .filter(|r| finding.evidence.contains(&r.record_version_id))
+                .map(|r| {
+                    RecordRef::new(r.identity.universe_id.clone(), r.identity.record_id.clone())
+                })
+                .collect();
             if !finding.fingerprint.as_str().is_empty() {
                 continue;
             }
@@ -1534,7 +1567,7 @@ impl Workflow<'_> {
                 } else {
                     vec![]
                 };
-                serde_json::to_value(Description{fixture:false,worlds,definition_ids,capabilities:vec![Capability{id:"relations.cardinality.v1".into(),status:CapabilityStatus::Implemented,limitation:"Opt-in authored maximum counts distinct participants across supported relation instances for a grouping key, overlapping world/context/realm and exact same-clock time. Repeated evidence is deduplicated. Unknown scope/time, opposing evidence and ambiguous grouping remain unresolved. No minima, completeness inference or clock conversion.".into()},Capability{id:"communications.chronology.v1".into(),status:CapabilityStatus::Implemented,limitation:"Opt-in channel contracts enforce forward transmission and inclusive signed delay bounds on same-clock exact integer ticks. Missing rules, absent actual delivery and unmapped/nonexact clocks remain unresolved once activated. No inferred delivery, conversions or knowledge.".into()},Capability{id:"source_assessment.v1".into(),status:CapabilityStatus::Partial,limitation:"Authenticated immutable attachment and generation-checked selection through universe_propose. Pinned permission-checked assessment retrieval and shared author review are available. Exact assessment or absence and selection generation bind validation, approval and atomic commit. Native interaction and prose qualification remain unavailable.".into()},Capability{id:"canon.commit.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact author approval or explicit expiring entity/predicate/continuity delegation; fresh complete validation and current grants required".into()},Capability{id:"opposing_evidence.v1".into(),status:CapabilityStatus::Implemented,limitation:"Candidate-wide polarity diagnostics and explicitly scoped NoOpposingEvidence policies. Unresolved comparisons remain partial; no prose or integrated-story qualification.".into()},Capability{id:"basic.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact scalar, explicitly supplied finite collection and integer-tick temporal expressions; unsupported blocking checks fail admission. Collection cardinality does not aggregate dynamic relation instances; Communication chronology is separately opt-in through communications.chronology.v1.".into()},Capability{id:"events.owner_attributes.v1".into(),status:CapabilityStatus::Implemented,limitation:"New/revised events require declared actions. Mandatory values resolve on exactly one participant per owning role at pre-event time; direct and explicit item grants share evidence. Missing, muted, conflicting and unsupported prerequisites block use. Legacy actionless events remain readable but are not certified; prose/action classification still requires author review.".into()},Capability{id:"events.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact occurred-event effects, explicit within-event order, pre/post state and possession powers. Noncommuting effects from separate simultaneous events and complex causality are rejected.".into()},
+                serde_json::to_value(Description{fixture:false,worlds,definition_ids,capabilities:vec![Capability{id:"relations.cardinality.v1".into(),status:CapabilityStatus::Implemented,limitation:"Opt-in authored maximum counts distinct participants across supported relation instances for a grouping key, overlapping world/context/realm and exact same-clock time. Repeated evidence is deduplicated. Unknown scope/time, opposing evidence and ambiguous grouping remain unresolved. No minima, completeness inference or clock conversion.".into()},Capability{id:"communications.chronology.v1".into(),status:CapabilityStatus::Implemented,limitation:"Opt-in channel contracts enforce forward transmission and inclusive signed delay bounds on same-clock exact integer ticks. Missing rules, absent actual delivery and unmapped/nonexact clocks remain unresolved once activated. No inferred delivery, conversions or knowledge.".into()},Capability{id:"source_assessment.v1".into(),status:CapabilityStatus::Partial,limitation:"Authenticated immutable attachment and generation-checked selection through universe_propose. Pinned permission-checked assessment retrieval and shared author review are available. Exact assessment or absence and selection generation bind validation, approval and atomic commit. Native interaction and prose qualification remain unavailable.".into()},Capability{id:"canon.commit.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact author approval or explicit expiring entity/predicate/continuity delegation; fresh complete validation and current grants required. Restricted results reveal no hidden findings: retrieve visible policy/evidence with universe_get_context or universe_get evidence, then request author validation of the exact proposal reference.".into()},Capability{id:"opposing_evidence.v1".into(),status:CapabilityStatus::Implemented,limitation:"Candidate-wide polarity diagnostics and explicitly scoped NoOpposingEvidence policies. Unresolved comparisons remain partial; no prose or integrated-story qualification.".into()},Capability{id:"basic.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact scalar, explicitly supplied finite collection and integer-tick temporal expressions; unsupported blocking checks fail admission. Collection cardinality does not aggregate dynamic relation instances; Communication chronology is separately opt-in through communications.chronology.v1.".into()},Capability{id:"events.owner_attributes.v1".into(),status:CapabilityStatus::Implemented,limitation:"New/revised events require declared actions. Mandatory values resolve on exactly one participant per owning role at pre-event time; direct and explicit item grants share evidence. Missing, muted, conflicting and unsupported prerequisites block use. Legacy actionless events remain readable but are not certified; prose/action classification still requires author review.".into()},Capability{id:"events.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact occurred-event effects, explicit within-event order, pre/post state and possession powers. Noncommuting effects from separate simultaneous events and complex causality are rejected.".into()},
                     Capability{id:"knowledge.acquisition.v1".into(),status:CapabilityStatus::Implemented,limitation:"Explicit context policy distinguishes author-established knowledge from justified interpreted communication receipt. Justified knowledge checks actual recipient, acquisition/onset order, authored channel chronology and supported proposition truth at acquisition. Missing interpretation, truth, comparable clocks or policy stays unresolved; observation acquisition and automatic understanding are unavailable.".into()},
                     Capability{id:"knowledge.explicit.v1".into(),status:CapabilityStatus::Implemented,limitation:"Explicit, time-bound holder attitudes in their represented context. Presence, sending and receipt do not infer knowledge. Without an applicable acquisition policy, legacy Knows remains an authored attitude, not a justified-knowledge certificate.".into()},
                     Capability{id:"perspective.views.v1".into(),status:CapabilityStatus::Implemented,limitation:"Character and narrator views require matching represented contexts. Reader views require an exact scene and explicit disclosures in its bound work edition. No automatic knowledge inference.".into()},
@@ -2908,6 +2941,12 @@ fn label(r: &RecordVersion) -> String {
             .next()
             .cloned()
             .unwrap_or_else(|| d.key.clone()),
+        Payload::Rule(d) => d
+            .labels
+            .values()
+            .next()
+            .cloned()
+            .unwrap_or_else(|| format!("{}:{}", d.namespace, d.key)),
         Payload::Calendar(d) => d
             .labels
             .values()
@@ -2987,6 +3026,14 @@ fn research_closure(
             Payload::EpistemicAttitude(a) => {
                 vec![a.holder.record.clone(), a.proposition.record.clone()]
             }
+            Payload::Communication(c) => c
+                .intended_recipients
+                .iter()
+                .chain(&c.actual_recipients)
+                .chain(&c.content)
+                .chain(std::iter::once(&c.sender))
+                .map(|r| r.record.clone())
+                .collect(),
             Payload::Observation(o) => {
                 let mut targets = vec![o.observer.record.clone(), o.observed.record.clone()];
                 targets.extend(o.interpretation.iter().map(|r| r.record.clone()));
@@ -3013,7 +3060,26 @@ fn research_closure(
             }
             _ => vec![],
         };
-        count += dependencies.len() + targets.len();
+        let cardinality_targets: Vec<_> = match &r.payload {
+            Payload::Rule(rule) => rule
+                .relation_cardinality
+                .as_ref()
+                .map_or_else(Vec::new, |c| {
+                    records
+                        .iter()
+                        .filter_map(|r| match &r.payload {
+                            Payload::Proposition(p)
+                                if p.predicate == c.relation && p.context == c.scope.context =>
+                            {
+                                Some(r.identity.record_id.clone())
+                            }
+                            _ => None,
+                        })
+                        .collect()
+                }),
+            _ => vec![],
+        };
+        count += dependencies.len() + targets.len() + cardinality_targets.len();
         if count > 5_000_000 {
             return Err(ProtocolError::EvaluationLimitReached {
                 message: "research dependency budget exceeded".into(),
@@ -3021,6 +3087,10 @@ fn research_closure(
             .into());
         }
         edges.entry(id.clone()).or_default().extend(dependencies);
+        edges
+            .entry(id.clone())
+            .or_default()
+            .extend(cardinality_targets);
         for target in targets {
             edges.entry(target).or_default().push(id.clone());
         }
