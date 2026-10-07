@@ -1,0 +1,124 @@
+{
+  "status": "pass",
+  "seconds": 28.321750540984794,
+  "checks": [
+    "public launcher and symlink forwarding",
+    "fresh enrollment and current grants",
+    "13-tool discovery",
+    "forged authentication/protocol rejection",
+    "revocation",
+    "concurrent bootstrap",
+    "forced restart and durable heads",
+    "public launcher factual publication and exact private review/approval",
+    "independent expected facts and typed SQLite history reconstruction",
+    "effective objects, unknowns, restricted evidence and reviewed initialization",
+    "unresolved resource and changed-claim rejection",
+    "explicit exact resource acceptance",
+    "stale approval and commit-key rejection",
+    "forged creative authority rejection",
+    "receipt recovery and historical/current state after forced restart",
+    "independent auditor falsification controls"
+  ],
+  "resource_audit": {
+    "status": "passed",
+    "calls": 268,
+    "publications": 9,
+    "snapshots": 10,
+    "states": 11,
+    "blocked_candidates": 3,
+    "versions": 65,
+    "acceptances": 2,
+    "initializations": 1,
+    "restricted_state_views": 1,
+    "interrupted_receipt_recovered": true,
+    "forced_restarts": 3,
+    "acceptance_fingerprints": "reconstructed independently from exact claim, policy and predecessor contents"
+  },
+  "bundle_manifest": {
+    "format": 1,
+    "version": "0.1.0",
+    "channel": "local-development",
+    "minimum_macos": "15.0",
+    "architecture": "arm64",
+    "target": "aarch64-apple-darwin",
+    "verified_build_host": "27.0.1",
+    "source_revision": "2219ddd26fe888694713e601874639038ff2514b",
+    "dirty_build": false,
+    "supported_os": "Not certified; this build host only",
+    "rustc": "rustc 1.92.0 (ded5c06cf 2025-12-08)",
+    "helpers": {
+      "universe-engine": "0b4026c558ec2af228a134f1b33dafb7a972f86d82a66a5c8b51de7b4a59e75d",
+      "universe-mcp": "74c159ec50b9b571c0f5ba0223fe88733f6d5259d9ff80b85d03b62d7545d25d",
+      "universe": "b07d4ec3fa5eeff4d4a9cdb3b64ba12a4eee8ca43245b20b36877fc0e89eacff",
+      "multiverse-mcp": "9fddb7dd7430f89b01a6d2bb6dd717e09b2cd34a22fcd4c2532c9a1c6917dfc1"
+    },
+    "desktop_integrity": "Sealed by the bundle code signature",
+    "components_sha256": "9b7182526d50aa2d75bc5af8b4fd91e05e3808eba6107ce843de6d1257a626a7",
+    "assets": "Embedded in the desktop executable; no runtime asset server",
+    "update_protocol": "Stop the engine with authenticated shutdown, preserve installation data, replace the entire verified app bundle, restart explicitly. Never replace live helpers piecemeal.",
+    "release_accepted": false,
+    "pending_gates": [
+      "Native/VoiceOver verification paused by author",
+      "LM Studio blocked while Bionic remains open",
+      "Clean-machine offline verification",
+      "Developer ID signing and notarization",
+      "Full release workload/security acceptance"
+    ]
+  },
+  "bundle_files_sha256": {
+    "Contents/Info.plist": "68efdc3dd3bc744d8ab173fc0cf88618fe5e6830bb1f599ff473fc0d25dd611c",
+    "Contents/MacOS/multiverse-mcp": "9fddb7dd7430f89b01a6d2bb6dd717e09b2cd34a22fcd4c2532c9a1c6917dfc1",
+    "Contents/MacOS/universe": "b07d4ec3fa5eeff4d4a9cdb3b64ba12a4eee8ca43245b20b36877fc0e89eacff",
+    "Contents/MacOS/universe-builder": "f55745a1a3c34162c0b8180b75ac853d3fb9eae84fd1bef9001e28aa1c73939c",
+    "Contents/MacOS/universe-engine": "0b4026c558ec2af228a134f1b33dafb7a972f86d82a66a5c8b51de7b4a59e75d",
+    "Contents/MacOS/universe-mcp": "74c159ec50b9b571c0f5ba0223fe88733f6d5259d9ff80b85d03b62d7545d25d",
+    "Contents/Resources/components.json": "9b7182526d50aa2d75bc5af8b4fd91e05e3808eba6107ce843de6d1257a626a7",
+    "Contents/Resources/release-manifest.json": "37c53ee7c75cdfdc66a81a46f9a1431aca2f2567252672a27a53631070495ab9",
+    "Contents/_CodeSignature/CodeResources": "9e0855dccd70efbd5cb4d2da7750347a554ce03716ace5f834e71173cbc5272c"
+  },
+  "proof_sha256": {
+    "audit-tests.txt": "b8965eb6ae01443b48f49ac9c6b47b9c141f70d5ff8e008b0154920f197f6b70",
+    "resource-resolution.json": "c89e372123223e08e5d8975057b2d0ebb9c182adf21a29d69d681cbf49db5671",
+    "resource-resolution.jsonl": "5f162f57c6370977e303bd61cecceb3d09ee10b245779e59f0829fcb892bc8ee",
+    "resource-resolution.sqlite": "cd2421cea11768465b3386487b486aaf1a596c4ef641a7bb591f6def55c4f31c"
+  },
+  "bundle_unchanged": true,
+  "copied_bundle_removed": true,
+  "summary_sha256": "779321edb1cf9a65eb7f656fd300c702cfa81d7bd5e62bda8ba978e32db8135a",
+  "execution_count": 75,
+  "installed_engine_observations": 9,
+  "expected_sha256": "e3c8362342484173fd5fd25fdb71571393130bd0e7608ff48f2424c6b7491b0e",
+  "evidence_directory": "/tmp/goal38-final-proof",
+  "scope": "Local arm64 macOS development package, synthetic fresh installations; no distribution acceptance",
+  "verification": {
+    "workspace_check": {
+      "status": "pass",
+      "rust_tests_passed": 398,
+      "ignored": 2,
+      "formatting": true,
+      "strict_clippy": true,
+      "doc_tests": true,
+      "generated_schema_freshness": true
+    },
+    "contracts": {
+      "schemas": 26,
+      "valid_examples": 13,
+      "malformed_examples": 91
+    },
+    "distribution_unit_tests": 5,
+    "auditor_controls": 18
+  },
+  "gate_log_sha256": {
+    "goal38-check.log": "b66e5e2aa3962b347ab500402197be791b3098bb49c8252fc3b6baf371d1bd58",
+    "goal38-contracts.log": "a0735450518654b52c0a57eb2b8e049e6eb36bb08586859679fd3bed4dbaedb3",
+    "goal38-distribution-tests.log": "3ff437c36bca37e478cb4ca54dd846f1f74d6deec0834334b6b2e254a2fc7745",
+    "goal38-final-package.log": "5bbe62b22f2419471b5c6701a9a0fedeb6d78f4a108b516c0f7ad59345592d41",
+    "goal38-final-proof.log": "f7685ccd0eab8a3abf2a44e4daaa31d7f8ee80c9dbaa665940bce8e395607545"
+  },
+  "working_time_through_final_verification": {
+    "start_utc": "2026-10-07T01:34:17+00:00",
+    "end_utc": "2026-10-07T01:43:54.285781+00:00",
+    "wall_seconds": 577,
+    "includes_build_and_test_waits": true
+  }
+}
