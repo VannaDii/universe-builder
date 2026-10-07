@@ -323,6 +323,7 @@ mod tests {
                 RecordKind::Rule,
             ),
             Payload::Rule(universe_domain::records::Rule {
+                channel_chronology: None,
                 namespace: "t".into(),
                 key: "k".into(),
                 labels: Default::default(),
@@ -362,6 +363,7 @@ mod tests {
                 RecordKind::Rule,
             ),
             Payload::Rule(universe_domain::records::Rule {
+                channel_chronology: None,
                 namespace: "t".into(),
                 key: "d".into(),
                 labels: Default::default(),
@@ -408,6 +410,7 @@ mod tests {
                 RecordKind::Rule,
             ),
             Payload::Rule(universe_domain::records::Rule {
+                channel_chronology: None,
                 namespace: "t".into(),
                 key: "w".into(),
                 labels: Default::default(),
@@ -457,6 +460,7 @@ mod tests {
                 RecordKind::Rule,
             ),
             Payload::Rule(universe_domain::records::Rule {
+                channel_chronology: None,
                 namespace: "t".into(),
                 key: "k".into(),
                 labels: Default::default(),
@@ -493,6 +497,7 @@ mod tests {
                 RecordKind::Rule,
             ),
             Payload::Rule(universe_domain::records::Rule {
+                channel_chronology: None,
                 namespace: "t".into(),
                 key: "k".into(),
                 labels: Default::default(),
@@ -530,6 +535,7 @@ mod tests {
                 RecordKind::Rule,
             ),
             Payload::Rule(universe_domain::records::Rule {
+                channel_chronology: None,
                 namespace: "t".into(),
                 key: "k".into(),
                 labels: Default::default(),

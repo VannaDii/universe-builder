@@ -3392,6 +3392,8 @@ CREATE TABLE "r_payload_v22" (
   "validity" INTEGER REFERENCES "r_validity"(__row_id),
   "record_kind__state" INTEGER NOT NULL CHECK("record_kind__state" IN (2)),
   "record_kind" TEXT,
+  "channelChronology__state" INTEGER NOT NULL CHECK("channelChronology__state" IN (0,1,2)),
+  "channelChronology" INTEGER REFERENCES "r_payload_v22_channel_chronology"(__row_id),
   CHECK(("namespace__state"=2 AND "namespace" IS NOT NULL) OR ("namespace__state" IN (0,1) AND "namespace" IS NULL)),
   CHECK(("key__state"=2 AND "key" IS NOT NULL) OR ("key__state" IN (0,1) AND "key" IS NULL)),
   CHECK(("labels__state"=2 AND "labels" IS NOT NULL) OR ("labels__state" IN (0,1) AND "labels" IS NULL)),
@@ -3406,7 +3408,8 @@ CREATE TABLE "r_payload_v22" (
   CHECK("executable" IN (0,1)),
   CHECK(("validity__state"=2 AND "validity" IS NOT NULL) OR ("validity__state" IN (0,1) AND "validity" IS NULL)),
   CHECK(("record_kind__state"=2 AND "record_kind" IS NOT NULL) OR ("record_kind__state" IN (0,1) AND "record_kind" IS NULL)),
-  CHECK("record_kind"='rule')
+  CHECK("record_kind"='rule'),
+  CHECK(("channelChronology__state"=2 AND "channelChronology" IS NOT NULL) OR ("channelChronology__state" IN (0,1) AND "channelChronology" IS NULL))
 ) STRICT;
 
 CREATE TABLE "r_payload_v22_labels" (
@@ -3481,6 +3484,53 @@ CREATE TABLE "r_payload_v22_capabilities" (
 ) STRICT;
 
 CREATE TABLE "r_payload_v22_capabilities_items" (owner INTEGER NOT NULL REFERENCES "r_payload_v22_capabilities"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item TEXT, PRIMARY KEY(owner,ordinal)) STRICT;
+
+CREATE TABLE "r_payload_v22_channel_chronology" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_channel_chronology"(__row_id),
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_channel_chronology" (
+  __row_id INTEGER PRIMARY KEY,
+  "channel__state" INTEGER NOT NULL CHECK("channel__state" IN (2)),
+  "channel" TEXT,
+  "forwardOnly__state" INTEGER NOT NULL CHECK("forwardOnly__state" IN (2)),
+  "forwardOnly" INTEGER,
+  "minimumDelay__state" INTEGER NOT NULL CHECK("minimumDelay__state" IN (0,1,2)),
+  "minimumDelay" INTEGER REFERENCES "r_channel_chronology_minimum_delay"(__row_id),
+  "maximumDelay__state" INTEGER NOT NULL CHECK("maximumDelay__state" IN (0,1,2)),
+  "maximumDelay" INTEGER REFERENCES "r_channel_chronology_maximum_delay"(__row_id),
+  CHECK(("channel__state"=2 AND "channel" IS NOT NULL) OR ("channel__state" IN (0,1) AND "channel" IS NULL)),
+  CHECK(("forwardOnly__state"=2 AND "forwardOnly" IS NOT NULL) OR ("forwardOnly__state" IN (0,1) AND "forwardOnly" IS NULL)),
+  CHECK("forwardOnly" IN (0,1)),
+  CHECK(("minimumDelay__state"=2 AND "minimumDelay" IS NOT NULL) OR ("minimumDelay__state" IN (0,1) AND "minimumDelay" IS NULL)),
+  CHECK(("maximumDelay__state"=2 AND "maximumDelay" IS NOT NULL) OR ("maximumDelay__state" IN (0,1) AND "maximumDelay" IS NULL))
+) STRICT;
+
+CREATE TABLE "r_channel_chronology_minimum_delay" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 TEXT,
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_channel_chronology_maximum_delay" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 TEXT,
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
 
 CREATE TABLE "r_payload_v23" (
   __row_id INTEGER PRIMARY KEY,
@@ -6342,6 +6392,8 @@ CREATE TABLE "r_rule" (
   "executable" INTEGER,
   "validity__state" INTEGER NOT NULL CHECK("validity__state" IN (2)),
   "validity" INTEGER REFERENCES "r_validity"(__row_id),
+  "channelChronology__state" INTEGER NOT NULL CHECK("channelChronology__state" IN (0,1,2)),
+  "channelChronology" INTEGER REFERENCES "r_rule_channel_chronology"(__row_id),
   CHECK(("namespace__state"=2 AND "namespace" IS NOT NULL) OR ("namespace__state" IN (0,1) AND "namespace" IS NULL)),
   CHECK(("key__state"=2 AND "key" IS NOT NULL) OR ("key__state" IN (0,1) AND "key" IS NULL)),
   CHECK(("labels__state"=2 AND "labels" IS NOT NULL) OR ("labels__state" IN (0,1) AND "labels" IS NULL)),
@@ -6354,7 +6406,8 @@ CREATE TABLE "r_rule" (
   CHECK(("capabilities__state"=2 AND "capabilities" IS NOT NULL) OR ("capabilities__state" IN (0,1) AND "capabilities" IS NULL)),
   CHECK(("executable__state"=2 AND "executable" IS NOT NULL) OR ("executable__state" IN (0,1) AND "executable" IS NULL)),
   CHECK("executable" IN (0,1)),
-  CHECK(("validity__state"=2 AND "validity" IS NOT NULL) OR ("validity__state" IN (0,1) AND "validity" IS NULL))
+  CHECK(("validity__state"=2 AND "validity" IS NOT NULL) OR ("validity__state" IN (0,1) AND "validity" IS NULL)),
+  CHECK(("channelChronology__state"=2 AND "channelChronology" IS NOT NULL) OR ("channelChronology__state" IN (0,1) AND "channelChronology" IS NULL))
 ) STRICT;
 
 CREATE TABLE "r_rule_labels" (
@@ -6380,6 +6433,16 @@ CREATE TABLE "r_rule_capabilities" (
 ) STRICT;
 
 CREATE TABLE "r_rule_capabilities_items" (owner INTEGER NOT NULL REFERENCES "r_rule_capabilities"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item TEXT, PRIMARY KEY(owner,ordinal)) STRICT;
+
+CREATE TABLE "r_rule_channel_chronology" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_channel_chronology"(__row_id),
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
 
 CREATE TABLE "r_domain_operation_v38" (
   __row_id INTEGER PRIMARY KEY,
@@ -10292,6 +10355,22 @@ CREATE TRIGGER "r_payload_v22_capabilities_items_no_update" BEFORE UPDATE ON "r_
 
 CREATE TRIGGER "r_payload_v22_capabilities_items_no_delete" BEFORE DELETE ON "r_payload_v22_capabilities_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
+CREATE TRIGGER "r_payload_v22_channel_chronology_no_update" BEFORE UPDATE ON "r_payload_v22_channel_chronology" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_payload_v22_channel_chronology_no_delete" BEFORE DELETE ON "r_payload_v22_channel_chronology" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_channel_chronology_no_update" BEFORE UPDATE ON "r_channel_chronology" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_channel_chronology_no_delete" BEFORE DELETE ON "r_channel_chronology" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_channel_chronology_minimum_delay_no_update" BEFORE UPDATE ON "r_channel_chronology_minimum_delay" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_channel_chronology_minimum_delay_no_delete" BEFORE DELETE ON "r_channel_chronology_minimum_delay" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_channel_chronology_maximum_delay_no_update" BEFORE UPDATE ON "r_channel_chronology_maximum_delay" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_channel_chronology_maximum_delay_no_delete" BEFORE DELETE ON "r_channel_chronology_maximum_delay" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
 CREATE TRIGGER "r_payload_v23_no_update" BEFORE UPDATE ON "r_payload_v23" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_payload_v23_no_delete" BEFORE DELETE ON "r_payload_v23" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
@@ -11395,6 +11474,10 @@ CREATE TRIGGER "r_rule_capabilities_no_delete" BEFORE DELETE ON "r_rule_capabili
 CREATE TRIGGER "r_rule_capabilities_items_no_update" BEFORE UPDATE ON "r_rule_capabilities_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_rule_capabilities_items_no_delete" BEFORE DELETE ON "r_rule_capabilities_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_rule_channel_chronology_no_update" BEFORE UPDATE ON "r_rule_channel_chronology" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_rule_channel_chronology_no_delete" BEFORE DELETE ON "r_rule_channel_chronology" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_domain_operation_v38_no_update" BEFORE UPDATE ON "r_domain_operation_v38" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 

@@ -6904,6 +6904,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "channelChronology": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ChannelChronology"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "namespace": {
                   "type": "string"
                 },
@@ -9750,6 +9760,35 @@
           "enum": [
             "for_all",
             "exists"
+          ]
+        },
+        "ChannelChronology": {
+          "description": "Authored channel chronology on exact integer ticks of the same clock.\nBounds are inclusive signed receipt-minus-send delays; false forward_only\nexplicitly permits negative delay. No delivery or clock conversion is inferred.",
+          "type": "object",
+          "properties": {
+            "channel": {
+              "type": "string"
+            },
+            "forwardOnly": {
+              "type": "boolean"
+            },
+            "minimumDelay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "maximumDelay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "channel",
+            "forwardOnly"
           ]
         },
         "RuleKind": {
@@ -12883,6 +12922,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "channelChronology": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ChannelChronology"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "namespace": {
                   "type": "string"
                 },
@@ -15729,6 +15778,35 @@
           "enum": [
             "for_all",
             "exists"
+          ]
+        },
+        "ChannelChronology": {
+          "description": "Authored channel chronology on exact integer ticks of the same clock.\nBounds are inclusive signed receipt-minus-send delays; false forward_only\nexplicitly permits negative delay. No delivery or clock conversion is inferred.",
+          "type": "object",
+          "properties": {
+            "channel": {
+              "type": "string"
+            },
+            "forwardOnly": {
+              "type": "boolean"
+            },
+            "minimumDelay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "maximumDelay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "channel",
+            "forwardOnly"
           ]
         },
         "RuleKind": {
@@ -18760,6 +18838,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "channelChronology": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ChannelChronology"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "namespace": {
                   "type": "string"
                 },
@@ -21606,6 +21694,35 @@
           "enum": [
             "for_all",
             "exists"
+          ]
+        },
+        "ChannelChronology": {
+          "description": "Authored channel chronology on exact integer ticks of the same clock.\nBounds are inclusive signed receipt-minus-send delays; false forward_only\nexplicitly permits negative delay. No delivery or clock conversion is inferred.",
+          "type": "object",
+          "properties": {
+            "channel": {
+              "type": "string"
+            },
+            "forwardOnly": {
+              "type": "boolean"
+            },
+            "minimumDelay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "maximumDelay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "channel",
+            "forwardOnly"
           ]
         },
         "RuleKind": {
@@ -27753,6 +27870,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "channelChronology": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ChannelChronology"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "namespace": {
               "type": "string"
             },
@@ -27821,6 +27948,35 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "ChannelChronology": {
+          "description": "Authored channel chronology on exact integer ticks of the same clock.\nBounds are inclusive signed receipt-minus-send delays; false forward_only\nexplicitly permits negative delay. No delivery or clock conversion is inferred.",
+          "type": "object",
+          "properties": {
+            "channel": {
+              "type": "string"
+            },
+            "forwardOnly": {
+              "type": "boolean"
+            },
+            "minimumDelay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "maximumDelay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "channel",
+            "forwardOnly"
           ]
         },
         "RuleKind": {
@@ -29354,6 +29510,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "channelChronology": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ChannelChronology"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "namespace": {
                   "type": "string"
                 },
@@ -39476,6 +39642,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "channelChronology": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ChannelChronology"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "namespace": {
               "type": "string"
             },
@@ -39544,6 +39720,35 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "ChannelChronology": {
+          "description": "Authored channel chronology on exact integer ticks of the same clock.\nBounds are inclusive signed receipt-minus-send delays; false forward_only\nexplicitly permits negative delay. No delivery or clock conversion is inferred.",
+          "type": "object",
+          "properties": {
+            "channel": {
+              "type": "string"
+            },
+            "forwardOnly": {
+              "type": "boolean"
+            },
+            "minimumDelay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "maximumDelay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "channel",
+            "forwardOnly"
           ]
         },
         "RuleKind": {
@@ -41077,6 +41282,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "channelChronology": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ChannelChronology"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "namespace": {
                   "type": "string"
                 },
@@ -47990,6 +48205,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "channelChronology": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ChannelChronology"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "namespace": {
               "type": "string"
             },
@@ -48058,6 +48283,35 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "ChannelChronology": {
+          "description": "Authored channel chronology on exact integer ticks of the same clock.\nBounds are inclusive signed receipt-minus-send delays; false forward_only\nexplicitly permits negative delay. No delivery or clock conversion is inferred.",
+          "type": "object",
+          "properties": {
+            "channel": {
+              "type": "string"
+            },
+            "forwardOnly": {
+              "type": "boolean"
+            },
+            "minimumDelay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "maximumDelay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "channel",
+            "forwardOnly"
           ]
         },
         "RuleKind": {
@@ -49591,6 +49845,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "channelChronology": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ChannelChronology"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "namespace": {
                   "type": "string"
                 },
@@ -56724,6 +56988,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "channelChronology": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ChannelChronology"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "namespace": {
               "type": "string"
             },
@@ -56792,6 +57066,35 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "ChannelChronology": {
+          "description": "Authored channel chronology on exact integer ticks of the same clock.\nBounds are inclusive signed receipt-minus-send delays; false forward_only\nexplicitly permits negative delay. No delivery or clock conversion is inferred.",
+          "type": "object",
+          "properties": {
+            "channel": {
+              "type": "string"
+            },
+            "forwardOnly": {
+              "type": "boolean"
+            },
+            "minimumDelay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "maximumDelay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "channel",
+            "forwardOnly"
           ]
         },
         "RuleKind": {
@@ -58325,6 +58628,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "channelChronology": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ChannelChronology"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "namespace": {
                   "type": "string"
                 },
@@ -69791,6 +70104,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "channelChronology": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ChannelChronology"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "namespace": {
               "type": "string"
             },
@@ -69859,6 +70182,35 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "ChannelChronology": {
+          "description": "Authored channel chronology on exact integer ticks of the same clock.\nBounds are inclusive signed receipt-minus-send delays; false forward_only\nexplicitly permits negative delay. No delivery or clock conversion is inferred.",
+          "type": "object",
+          "properties": {
+            "channel": {
+              "type": "string"
+            },
+            "forwardOnly": {
+              "type": "boolean"
+            },
+            "minimumDelay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "maximumDelay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "channel",
+            "forwardOnly"
           ]
         },
         "RuleKind": {
@@ -71392,6 +71744,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "channelChronology": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ChannelChronology"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "namespace": {
                   "type": "string"
                 },
@@ -79303,6 +79665,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "channelChronology": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ChannelChronology"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "namespace": {
               "type": "string"
             },
@@ -79371,6 +79743,35 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "ChannelChronology": {
+          "description": "Authored channel chronology on exact integer ticks of the same clock.\nBounds are inclusive signed receipt-minus-send delays; false forward_only\nexplicitly permits negative delay. No delivery or clock conversion is inferred.",
+          "type": "object",
+          "properties": {
+            "channel": {
+              "type": "string"
+            },
+            "forwardOnly": {
+              "type": "boolean"
+            },
+            "minimumDelay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "maximumDelay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "channel",
+            "forwardOnly"
           ]
         },
         "RuleKind": {
@@ -80904,6 +81305,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "channelChronology": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ChannelChronology"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "namespace": {
                   "type": "string"
                 },

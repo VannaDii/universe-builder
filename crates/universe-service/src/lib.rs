@@ -17,6 +17,7 @@ mod provenance;
 mod validation;
 
 mod actions;
+mod communications;
 mod consequences;
 mod events;
 mod resources;

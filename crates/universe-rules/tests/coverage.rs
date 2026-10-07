@@ -9,6 +9,7 @@ fn rule(expression: Expr, applicability: Applicability, executable: bool) -> Rec
             RecordKind::Rule,
         ),
         Payload::Rule(Rule {
+            channel_chronology: None,
             namespace: "fixture".into(),
             key: "rule".into(),
             labels: Default::default(),

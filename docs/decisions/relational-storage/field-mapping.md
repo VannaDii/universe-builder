@@ -583,7 +583,7 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `Expr_v14_role` | `r_expr_v14_role` (scalar column) | string |
 | `Expr_v14_kind` | `r_expr_v14_kind` (scalar column) | string |
 | `Payload_v21_record_kind` | `r_payload_v21_record_kind` (scalar column) | string |
-| `Payload_v22` | `r_payload_v22` | namespace → Payload_v22_namespace, key → Payload_v22_key, labels → Payload_v22_labels, kind → RuleKind, commitPolicy → CommitPolicy, applicability → Applicability, subjectTypes → Payload_v22_subjectTypes, targetPredicates → Payload_v22_targetPredicates, expression → Expr, capabilities → Payload_v22_capabilities, executable → Payload_v22_executable, validity → Validity, record_kind → Payload_v22_record_kind |
+| `Payload_v22` | `r_payload_v22` | namespace → Payload_v22_namespace, key → Payload_v22_key, labels → Payload_v22_labels, kind → RuleKind, commitPolicy → CommitPolicy, applicability → Applicability, subjectTypes → Payload_v22_subjectTypes, targetPredicates → Payload_v22_targetPredicates, expression → Expr, capabilities → Payload_v22_capabilities, executable → Payload_v22_executable, validity → Validity, record_kind → Payload_v22_record_kind, channelChronology → Payload_v22_channelChronology |
 | `Payload_v22_namespace` | `r_payload_v22_namespace` (scalar column) | string |
 | `Payload_v22_key` | `r_payload_v22_key` (scalar column) | string |
 | `Payload_v22_labels` | `r_payload_v22_labels` | Payload_v22_labels_item |
@@ -610,6 +610,17 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `Payload_v22_capabilities_item` | `r_payload_v22_capabilities_item` (scalar column) | string |
 | `Payload_v22_executable` | `r_payload_v22_executable` (scalar column) | boolean |
 | `Payload_v22_record_kind` | `r_payload_v22_record_kind` (scalar column) | string |
+| `Payload_v22_channelChronology` | `r_payload_v22_channel_chronology` | ChannelChronology, Payload_v22_channelChronology_v1 |
+| `ChannelChronology` | `r_channel_chronology` | channel → ChannelChronology_channel, forwardOnly → ChannelChronology_forwardOnly, minimumDelay → ChannelChronology_minimumDelay, maximumDelay → ChannelChronology_maximumDelay |
+| `ChannelChronology_channel` | `r_channel_chronology_channel` (scalar column) | string |
+| `ChannelChronology_forwardOnly` | `r_channel_chronology_forward_only` (scalar column) | boolean |
+| `ChannelChronology_minimumDelay` | `r_channel_chronology_minimum_delay` | ChannelChronology_minimumDelay_v0, ChannelChronology_minimumDelay_v1 |
+| `ChannelChronology_minimumDelay_v0` | `r_channel_chronology_minimum_delay_v0` (scalar column) | string |
+| `ChannelChronology_minimumDelay_v1` | `r_channel_chronology_minimum_delay_v1` (scalar column) | null |
+| `ChannelChronology_maximumDelay` | `r_channel_chronology_maximum_delay` | ChannelChronology_maximumDelay_v0, ChannelChronology_maximumDelay_v1 |
+| `ChannelChronology_maximumDelay_v0` | `r_channel_chronology_maximum_delay_v0` (scalar column) | string |
+| `ChannelChronology_maximumDelay_v1` | `r_channel_chronology_maximum_delay_v1` (scalar column) | null |
+| `Payload_v22_channelChronology_v1` | `r_payload_v22_channel_chronology_v1` (scalar column) | null |
 | `Payload_v23` | `r_payload_v23` | rule → RecordRef, ruleVersion → Payload_v23_ruleVersion, scope → Scope, validity → Validity, authorizingDecision → RecordRef, rationale → Payload_v23_rationale, record_kind → Payload_v23_record_kind |
 | `Payload_v23_ruleVersion` | `r_payload_v23_rule_version` | RecordVersionId, Payload_v23_ruleVersion_v1 |
 | `Payload_v23_ruleVersion_v1` | `r_payload_v23_rule_version_v1` (scalar column) | null |
@@ -1066,7 +1077,7 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `DomainOperation_v36_kind` | `r_domain_operation_v36_kind` (scalar column) | string |
 | `DomainOperation_v37` | `r_domain_operation_v37` | client_ref → DomainOperation_v37_client_ref, record → Rule, kind → DomainOperation_v37_kind |
 | `DomainOperation_v37_client_ref` | `r_domain_operation_v37_client_ref` (scalar column) | string |
-| `Rule` | `r_rule` | namespace → Rule_namespace, key → Rule_key, labels → Rule_labels, kind → RuleKind, commitPolicy → CommitPolicy, applicability → Applicability, subjectTypes → Rule_subjectTypes, targetPredicates → Rule_targetPredicates, expression → Expr, capabilities → Rule_capabilities, executable → Rule_executable, validity → Validity |
+| `Rule` | `r_rule` | namespace → Rule_namespace, key → Rule_key, labels → Rule_labels, kind → RuleKind, commitPolicy → CommitPolicy, applicability → Applicability, subjectTypes → Rule_subjectTypes, targetPredicates → Rule_targetPredicates, expression → Expr, capabilities → Rule_capabilities, executable → Rule_executable, validity → Validity, channelChronology → Rule_channelChronology |
 | `Rule_namespace` | `r_rule_namespace` (scalar column) | string |
 | `Rule_key` | `r_rule_key` (scalar column) | string |
 | `Rule_labels` | `r_rule_labels` | Rule_labels_item |
@@ -1077,6 +1088,8 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `Rule_capabilities` | `r_rule_capabilities` | Rule_capabilities_item |
 | `Rule_capabilities_item` | `r_rule_capabilities_item` (scalar column) | string |
 | `Rule_executable` | `r_rule_executable` (scalar column) | boolean |
+| `Rule_channelChronology` | `r_rule_channel_chronology` | ChannelChronology, Rule_channelChronology_v1 |
+| `Rule_channelChronology_v1` | `r_rule_channel_chronology_v1` (scalar column) | null |
 | `DomainOperation_v37_kind` | `r_domain_operation_v37_kind` (scalar column) | string |
 | `DomainOperation_v38` | `r_domain_operation_v38` | client_ref → DomainOperation_v38_client_ref, record → CompletenessDecl, kind → DomainOperation_v38_kind |
 | `DomainOperation_v38_client_ref` | `r_domain_operation_v38_client_ref` (scalar column) | string |

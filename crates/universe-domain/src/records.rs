@@ -888,10 +888,26 @@ impl Canonical for CommitPolicy {
     }
 }
 
+/// Authored channel chronology on exact integer ticks of the same clock.
+/// Bounds are inclusive signed receipt-minus-send delays; false forward_only
+/// explicitly permits negative delay. No delivery or clock conversion is inferred.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct ChannelChronology {
+    pub channel: String,
+    pub forward_only: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub minimum_delay: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub maximum_delay: Option<String>,
+}
+
 /// A typed, declarative rule (spec §9.3, §27.2).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Rule {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channel_chronology: Option<ChannelChronology>,
     pub namespace: String,
     pub key: String,
     pub labels: BTreeMap<String, String>,
@@ -2422,6 +2438,7 @@ mod tests {
         let rule = DomainOperation::DefineRule {
             client_ref: "r".into(),
             record: Rule {
+                channel_chronology: None,
                 namespace: "author".into(),
                 key: "k".into(),
                 labels: BTreeMap::new(),
@@ -2487,6 +2504,7 @@ mod tests {
                 world_associations: vec![],
             }),
             Payload::Rule(Rule {
+                channel_chronology: None,
                 namespace: "author".into(),
                 key: "k".into(),
                 labels: BTreeMap::new(),

@@ -298,6 +298,15 @@ pub fn structural(records: &[RecordVersion]) -> anyhow::Result<()> {
                 }
             }
             Payload::Communication(c) => {
+                if std::iter::once(&c.sender)
+                    .chain(&c.intended_recipients)
+                    .chain(&c.actual_recipients)
+                    .any(|r| !matches!(map.get(&r.record), Some(Payload::Entity(_))))
+                {
+                    return Err(invalid(
+                        "communication sender and recipients must be entities",
+                    ));
+                }
                 if !c.actual_recipients.is_empty() && c.received_at.is_none() {
                     return Err(invalid(
                         "actual communication receipt requires a receipt time",
@@ -305,6 +314,7 @@ pub fn structural(records: &[RecordVersion]) -> anyhow::Result<()> {
                 }
             }
             Payload::Rule(rule) => {
+                crate::communications::validate_rule(rule)?;
                 for id in &rule.subject_types {
                     if !matches!(map.get(id), Some(Payload::EntityType(_))) {
                         return Err(invalid("rule subject type must resolve to a definition"));

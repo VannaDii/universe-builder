@@ -5108,6 +5108,10 @@
         "record_kind": {
           "model": "Payload_v22_record_kind",
           "required": true
+        },
+        "channelChronology": {
+          "model": "Payload_v22_channelChronology",
+          "required": false
         }
       }
     },
@@ -5249,6 +5253,80 @@
       "table": "r_payload_v22_record_kind",
       "kind": "string",
       "const": "rule"
+    },
+    "Payload_v22_channelChronology": {
+      "table": "r_payload_v22_channel_chronology",
+      "kind": "union",
+      "variants": [
+        "ChannelChronology",
+        "Payload_v22_channelChronology_v1"
+      ]
+    },
+    "ChannelChronology": {
+      "table": "r_channel_chronology",
+      "kind": "object",
+      "fields": {
+        "channel": {
+          "model": "ChannelChronology_channel",
+          "required": true
+        },
+        "forwardOnly": {
+          "model": "ChannelChronology_forwardOnly",
+          "required": true
+        },
+        "minimumDelay": {
+          "model": "ChannelChronology_minimumDelay",
+          "required": false
+        },
+        "maximumDelay": {
+          "model": "ChannelChronology_maximumDelay",
+          "required": false
+        }
+      }
+    },
+    "ChannelChronology_channel": {
+      "table": "r_channel_chronology_channel",
+      "kind": "string"
+    },
+    "ChannelChronology_forwardOnly": {
+      "table": "r_channel_chronology_forward_only",
+      "kind": "boolean"
+    },
+    "ChannelChronology_minimumDelay": {
+      "table": "r_channel_chronology_minimum_delay",
+      "kind": "union",
+      "variants": [
+        "ChannelChronology_minimumDelay_v0",
+        "ChannelChronology_minimumDelay_v1"
+      ]
+    },
+    "ChannelChronology_minimumDelay_v0": {
+      "table": "r_channel_chronology_minimum_delay_v0",
+      "kind": "string"
+    },
+    "ChannelChronology_minimumDelay_v1": {
+      "table": "r_channel_chronology_minimum_delay_v1",
+      "kind": "null"
+    },
+    "ChannelChronology_maximumDelay": {
+      "table": "r_channel_chronology_maximum_delay",
+      "kind": "union",
+      "variants": [
+        "ChannelChronology_maximumDelay_v0",
+        "ChannelChronology_maximumDelay_v1"
+      ]
+    },
+    "ChannelChronology_maximumDelay_v0": {
+      "table": "r_channel_chronology_maximum_delay_v0",
+      "kind": "string"
+    },
+    "ChannelChronology_maximumDelay_v1": {
+      "table": "r_channel_chronology_maximum_delay_v1",
+      "kind": "null"
+    },
+    "Payload_v22_channelChronology_v1": {
+      "table": "r_payload_v22_channel_chronology_v1",
+      "kind": "null"
     },
     "Payload_v23": {
       "table": "r_payload_v23",
@@ -9534,6 +9612,10 @@
         "validity": {
           "model": "Validity",
           "required": true
+        },
+        "channelChronology": {
+          "model": "Rule_channelChronology",
+          "required": false
         }
       }
     },
@@ -9580,6 +9662,18 @@
     "Rule_executable": {
       "table": "r_rule_executable",
       "kind": "boolean"
+    },
+    "Rule_channelChronology": {
+      "table": "r_rule_channel_chronology",
+      "kind": "union",
+      "variants": [
+        "ChannelChronology",
+        "Rule_channelChronology_v1"
+      ]
+    },
+    "Rule_channelChronology_v1": {
+      "table": "r_rule_channel_chronology_v1",
+      "kind": "null"
     },
     "DomainOperation_v37_kind": {
       "table": "r_domain_operation_v37_kind",
