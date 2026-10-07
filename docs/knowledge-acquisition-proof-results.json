@@ -1,0 +1,85 @@
+{
+  "goal": 40,
+  "date": "2026-10-07",
+  "evaluator": "finite-policy-v13-knowledge-acquisition",
+  "proofs": [
+    {
+      "proof": "knowledge",
+      "evidence_directory": "/tmp/goal40-knowledge-r3",
+      "results": {
+        "status": "passed",
+        "independently_assessed_validations": 32,
+        "mcp_calls": 207,
+        "wire_and_normalized_storage": "passed",
+        "cases": 26,
+        "publications": 6,
+        "historical_reads": 3,
+        "corrected_historical_reads_survive_restart": 3
+      },
+      "sha256": {
+        "report.json": "e80845658ab337c3f5aac6857d25c6c296ead77958c2a4279c85b3354d661ddf",
+        "mcp-transcript.jsonl": "dbc0c07bb360007ebb72c23b4ceca88e90dd9d702e0e837a8c81cd301057e4f3",
+        "package.sqlite": "122c9d3c05040f2f4dd3db55da8fd6b719cbe1a672673f73bfe9daef3ef962c0"
+      },
+      "cleanup": {
+        "engine_stopped": true,
+        "temporary_install_removed": true
+      }
+    },
+    {
+      "proof": "chronology_regression",
+      "evidence_directory": "/tmp/goal40-chronology-r1",
+      "results": {
+        "status": "passed",
+        "independently_assessed_validations": 35,
+        "mcp_calls": 222,
+        "wire_and_normalized_storage": "passed",
+        "cases": 24,
+        "publications": 11,
+        "historical_reads": 5,
+        "corrected_historical_reads_survive_restart": 1
+      },
+      "sha256": {
+        "report.json": "2e74af76c9b694a1da7f75cf49c75ff3854e4f1b6d5e054c29d7dee66e021089",
+        "mcp-transcript.jsonl": "d197aa664bbc61a132e77957a4a8c05265a65fb91796098275e25d59b25f41a3",
+        "package.sqlite": "9912f6b7e1416183beedfa395010f6cc64c5dbd955617073845c94712d2dd7aa"
+      },
+      "cleanup": {
+        "engine_stopped": true,
+        "temporary_install_removed": true
+      }
+    }
+  ],
+  "checks": {
+    "xtask_check": "passed",
+    "rust_tests_passed": 402,
+    "rust_tests_ignored": 2,
+    "final_strict_clippy": "passed",
+    "schemas": "26 schemas, 13 valid examples, 91 invalid examples",
+    "assessment_contract_tests": 6,
+    "action_contract_tests": 5,
+    "knowledge_audit_controls": 7,
+    "chronology_oracle_and_audit_controls": 14,
+    "mcp_smoke": "passed including malformed mutations, restart/receipt recovery and both protocol versions"
+  },
+  "helpers_sha256": {
+    "scripts/knowledge_acquisition_pilot.py": "b4fee768b4b4ad73f7b3e025a595a63d235983aac6252a678be82925c0b062ac",
+    "scripts/audit_knowledge_acquisition.py": "369ae4ed5864d9e06a2d43412750caa279bfb79203ad516aa8473328d26b041e",
+    "scripts/test_knowledge_acquisition_audit.py": "2bebf640018ec9ae7176abcd700980946931b251db3fb9ad5ea26aa759cefd76"
+  },
+  "artifact_policy": "Only final knowledge proof and required chronology regression retained; failed and superseded knowledge runs removed. No copied raw evidence in repository.",
+  "limits": [
+    "Explicit context policies; observation acquisition and automatic understanding excluded.",
+    "Exact same-clock integer acquisition/onset ordering; no clock conversion.",
+    "Public truth proof uses exact universe-wide boolean evidence; optional world selector is implemented through the existing evaluator but not separately qualified by this proof.",
+    "Truth correction/history/restart qualified; communication retcon not separately executed.",
+    "No new native controls or native/VoiceOver qualification, installed package migration, deployment or release acceptance.",
+    "Independent calculation/storage/wire auditor authored by implementing agent; no separate agent or human review."
+  ],
+  "working_wall_time_through_verification": {
+    "start_utc": "2026-10-07 18:47:50 UTC",
+    "end_utc": "2026-10-07 19:15:03 UTC",
+    "seconds": 1633,
+    "includes": "implementation, builds, failed attempts, repairs, proof and test waits; final commit/reporting follow"
+  }
+}

@@ -13,7 +13,7 @@ use universe_domain::{
 };
 use universe_protocol::{request::*, response::*, ProtocolError, Request};
 use universe_store::kernel::{Assignment, CommitInput, Kernel};
-const EVALUATOR: &str = "finite-policy-v12-communication-chronology";
+const EVALUATOR: &str = "finite-policy-v13-knowledge-acquisition";
 use universe_protocol::validation_scope::*;
 use validation_binding::ValidationCapture;
 pub(crate) fn hash<T: Serialize>(v: &T) -> String {
@@ -957,14 +957,20 @@ impl Workflow<'_> {
             &p.proposal.base_frame,
         )?;
         let mut admissible = true;
-        let chronology = crate::communications::assess(&candidate);
-        for finding in chronology {
+        let declared_findings = crate::communications::assess(&candidate)
+            .into_iter()
+            .map(|f| (f, "communications.chronology"))
+            .chain(
+                crate::knowledge::assess(&candidate, &p.proposal.base_frame)
+                    .into_iter()
+                    .map(|f| (f, "knowledge.acquisition")),
+            );
+        for (finding, capability) in declared_findings {
             if !matches!(finding.outcome, EvidenceOutcome::Supported) {
                 admissible = false;
             }
             if finding.coverage != Coverage::Complete {
-                unsupported_capabilities
-                    .push(format!("communications.chronology:{}", finding.rule_id));
+                unsupported_capabilities.push(format!("{capability}:{}", finding.rule_id));
             }
             findings.push(finding);
         }
@@ -1001,7 +1007,7 @@ impl Workflow<'_> {
             cancelled()?;
             match &record.payload {
                 Payload::Rule(rule) => {
-                    if rule.channel_chronology.is_some() {
+                    if rule.channel_chronology.is_some() || rule.knowledge_policy.is_some() {
                         continue;
                     }
                     if !rule.expression.uses_opposing_evidence()
@@ -1521,7 +1527,8 @@ impl Workflow<'_> {
                     vec![]
                 };
                 serde_json::to_value(Description{fixture:false,worlds,definition_ids,capabilities:vec![Capability{id:"communications.chronology.v1".into(),status:CapabilityStatus::Implemented,limitation:"Opt-in channel contracts enforce forward transmission and inclusive signed delay bounds on same-clock exact integer ticks. Missing rules, absent actual delivery and unmapped/nonexact clocks remain unresolved once activated. No inferred delivery, conversions or knowledge.".into()},Capability{id:"source_assessment.v1".into(),status:CapabilityStatus::Partial,limitation:"Authenticated immutable attachment and generation-checked selection through universe_propose. Pinned permission-checked assessment retrieval and shared author review are available. Exact assessment or absence and selection generation bind validation, approval and atomic commit. Native interaction and prose qualification remain unavailable.".into()},Capability{id:"canon.commit.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact author approval or explicit expiring entity/predicate/continuity delegation; fresh complete validation and current grants required".into()},Capability{id:"opposing_evidence.v1".into(),status:CapabilityStatus::Implemented,limitation:"Candidate-wide polarity diagnostics and explicitly scoped NoOpposingEvidence policies. Unresolved comparisons remain partial; no prose or integrated-story qualification.".into()},Capability{id:"basic.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact scalar, explicitly supplied finite collection and integer-tick temporal expressions; unsupported blocking checks fail admission. Collection cardinality does not aggregate dynamic relation instances; Communication chronology is separately opt-in through communications.chronology.v1.".into()},Capability{id:"events.owner_attributes.v1".into(),status:CapabilityStatus::Implemented,limitation:"New/revised events require declared actions. Mandatory values resolve on exactly one participant per owning role at pre-event time; direct and explicit item grants share evidence. Missing, muted, conflicting and unsupported prerequisites block use. Legacy actionless events remain readable but are not certified; prose/action classification still requires author review.".into()},Capability{id:"events.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact occurred-event effects, explicit within-event order, pre/post state and possession powers. Noncommuting effects from separate simultaneous events and complex causality are rejected.".into()},
-                    Capability{id:"knowledge.explicit.v1".into(),status:CapabilityStatus::Implemented,limitation:"Explicit, time-bound holder attitudes in their represented context. Presence, sending and receipt do not infer knowledge. Knows matches authored attitudes without verifying proposition truth or a justified acquisition chain.".into()},
+                    Capability{id:"knowledge.acquisition.v1".into(),status:CapabilityStatus::Implemented,limitation:"Explicit context policy distinguishes author-established knowledge from justified interpreted communication receipt. Justified knowledge checks actual recipient, acquisition/onset order, authored channel chronology and supported proposition truth at acquisition. Missing interpretation, truth, comparable clocks or policy stays unresolved; observation acquisition and automatic understanding are unavailable.".into()},
+                    Capability{id:"knowledge.explicit.v1".into(),status:CapabilityStatus::Implemented,limitation:"Explicit, time-bound holder attitudes in their represented context. Presence, sending and receipt do not infer knowledge. Without an applicable acquisition policy, legacy Knows remains an authored attitude, not a justified-knowledge certificate.".into()},
                     Capability{id:"perspective.views.v1".into(),status:CapabilityStatus::Implemented,limitation:"Character and narrator views require matching represented contexts. Reader views require an exact scene and explicit disclosures in its bound work edition. No automatic knowledge inference.".into()},
                     Capability{id:"history.v1".into(),status:CapabilityStatus::Implemented,limitation:"Typed summaries, evidence and pinned record history; history is limited to 100 changes per record and unrestricted author-perspective reads. Native restoration produces a reviewed compensating revision.".into()},
                     Capability{id:"knowledge.inference".into(),status:CapabilityStatus::Unsupported,limitation:"Automatic perception, understanding, nested attitude inference and memory decay require explicit author records.".into()},

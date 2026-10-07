@@ -74,6 +74,14 @@
           "model": "Payload_v0_names",
           "required": true
         },
+        "classification": {
+          "model": "Payload_v0_classification",
+          "required": false
+        },
+        "classificationResolution": {
+          "model": "ClassificationResolution",
+          "required": true
+        },
         "worldAssociations": {
           "model": "Payload_v0_worldAssociations",
           "required": true
@@ -88,14 +96,6 @@
         },
         "record_kind": {
           "model": "Payload_v0_record_kind",
-          "required": true
-        },
-        "classification": {
-          "model": "Payload_v0_classification",
-          "required": true
-        },
-        "classificationResolution": {
-          "model": "Payload_v0_classificationResolution",
           "required": true
         }
       }
@@ -1264,6 +1264,27 @@
       "kind": "string",
       "const": "condition_dependent"
     },
+    "Payload_v0_classification": {
+      "table": "r_payload_v0_classification",
+      "kind": "union",
+      "variants": [
+        "RecordId",
+        "Payload_v0_classification_v1"
+      ]
+    },
+    "Payload_v0_classification_v1": {
+      "table": "r_payload_v0_classification_v1",
+      "kind": "null"
+    },
+    "ClassificationResolution": {
+      "table": "r_classification_resolution",
+      "kind": "string",
+      "enum": [
+        "unclassified",
+        "resolved",
+        "ambiguous"
+      ]
+    },
     "Payload_v0_worldAssociations": {
       "table": "r_payload_v0_world_associations",
       "kind": "array",
@@ -1323,27 +1344,6 @@
       "table": "r_payload_v0_record_kind",
       "kind": "string",
       "const": "entity"
-    },
-    "Payload_v0_classification": {
-      "table": "r_payload_v0_classification",
-      "kind": "union",
-      "variants": [
-        "RecordId",
-        "Payload_v0_classification_v1"
-      ]
-    },
-    "Payload_v0_classification_v1": {
-      "table": "r_payload_v0_classification_v1",
-      "kind": "null"
-    },
-    "Payload_v0_classificationResolution": {
-      "table": "r_payload_v0_classification_resolution",
-      "kind": "string",
-      "enum": [
-        "unclassified",
-        "resolved",
-        "ambiguous"
-      ]
     },
     "Payload_v1": {
       "table": "r_payload_v1",
@@ -2204,14 +2204,6 @@
           "model": "Payload_v10_labels",
           "required": true
         },
-        "classificationExecutable": {
-          "model": "Payload_v10_classificationExecutable",
-          "required": true
-        },
-        "record_kind": {
-          "model": "Payload_v10_record_kind",
-          "required": true
-        },
         "name": {
           "model": "Payload_v10_name",
           "required": true
@@ -2226,6 +2218,14 @@
         },
         "applicability": {
           "model": "Applicability",
+          "required": true
+        },
+        "classificationExecutable": {
+          "model": "Payload_v10_classificationExecutable",
+          "required": true
+        },
+        "record_kind": {
+          "model": "Payload_v10_record_kind",
           "required": true
         }
       }
@@ -2246,15 +2246,6 @@
     "Payload_v10_labels_item": {
       "table": "r_payload_v10_labels_item",
       "kind": "string"
-    },
-    "Payload_v10_classificationExecutable": {
-      "table": "r_payload_v10_classification_executable",
-      "kind": "boolean"
-    },
-    "Payload_v10_record_kind": {
-      "table": "r_payload_v10_record_kind",
-      "kind": "string",
-      "const": "entity_type"
     },
     "Payload_v10_name": {
       "table": "r_payload_v10_name",
@@ -2359,6 +2350,15 @@
       "table": "r_applicability_v3_kind",
       "kind": "string",
       "const": "unspecified"
+    },
+    "Payload_v10_classificationExecutable": {
+      "table": "r_payload_v10_classification_executable",
+      "kind": "boolean"
+    },
+    "Payload_v10_record_kind": {
+      "table": "r_payload_v10_record_kind",
+      "kind": "string",
+      "const": "entity_type"
     },
     "Payload_v11": {
       "table": "r_payload_v11",
@@ -3367,6 +3367,10 @@
       "table": "r_payload_v18",
       "kind": "object",
       "fields": {
+        "attributeMode": {
+          "model": "Payload_v18_attributeMode",
+          "required": true
+        },
         "proposition": {
           "model": "RecordRef",
           "required": true
@@ -3406,12 +3410,17 @@
         "record_kind": {
           "model": "Payload_v18_record_kind",
           "required": true
-        },
-        "attributeMode": {
-          "model": "Payload_v18_attributeMode",
-          "required": true
         }
       }
+    },
+    "Payload_v18_attributeMode": {
+      "table": "r_payload_v18_attribute_mode",
+      "kind": "string",
+      "enum": [
+        "instance",
+        "shared",
+        "initial_value"
+      ]
     },
     "Polarity": {
       "table": "r_polarity",
@@ -3476,7 +3485,8 @@
         "EvidenceBasis_v2",
         "EvidenceBasis_v3",
         "EvidenceBasis_v4",
-        "EvidenceBasis_v5"
+        "EvidenceBasis_v5",
+        "EvidenceBasis_v6"
       ]
     },
     "EvidenceBasis_v0": {
@@ -3560,6 +3570,18 @@
       "table": "r_evidence_basis_v3",
       "kind": "object",
       "fields": {
+        "start": {
+          "model": "VersionRef",
+          "required": true
+        },
+        "definition": {
+          "model": "VersionRef",
+          "required": true
+        },
+        "source_revision": {
+          "model": "RevisionId",
+          "required": true
+        },
         "kind": {
           "model": "EvidenceBasis_v3_kind",
           "required": true
@@ -3569,58 +3591,73 @@
     "EvidenceBasis_v3_kind": {
       "table": "r_evidence_basis_v3_kind",
       "kind": "string",
-      "const": "imported_claim"
+      "const": "instance_initialization"
     },
     "EvidenceBasis_v4": {
       "table": "r_evidence_basis_v4",
       "kind": "object",
       "fields": {
-        "chain": {
-          "model": "EvidenceBasis_v4_chain",
-          "required": true
-        },
-        "evaluator": {
-          "model": "EvidenceBasis_v4_evaluator",
-          "required": false
-        },
         "kind": {
           "model": "EvidenceBasis_v4_kind",
           "required": true
         }
       }
     },
-    "EvidenceBasis_v4_chain": {
-      "table": "r_evidence_basis_v4_chain",
-      "kind": "array",
-      "item": "VersionRef"
-    },
-    "EvidenceBasis_v4_evaluator": {
-      "table": "r_evidence_basis_v4_evaluator",
-      "kind": "union",
-      "variants": [
-        "EvidenceBasis_v4_evaluator_v0",
-        "EvidenceBasis_v4_evaluator_v1"
-      ]
-    },
-    "EvidenceBasis_v4_evaluator_v0": {
-      "table": "r_evidence_basis_v4_evaluator_v0",
-      "kind": "string"
-    },
-    "EvidenceBasis_v4_evaluator_v1": {
-      "table": "r_evidence_basis_v4_evaluator_v1",
-      "kind": "null"
-    },
     "EvidenceBasis_v4_kind": {
       "table": "r_evidence_basis_v4_kind",
       "kind": "string",
-      "const": "derivation"
+      "const": "imported_claim"
     },
     "EvidenceBasis_v5": {
       "table": "r_evidence_basis_v5",
       "kind": "object",
       "fields": {
+        "chain": {
+          "model": "EvidenceBasis_v5_chain",
+          "required": true
+        },
+        "evaluator": {
+          "model": "EvidenceBasis_v5_evaluator",
+          "required": false
+        },
         "kind": {
           "model": "EvidenceBasis_v5_kind",
+          "required": true
+        }
+      }
+    },
+    "EvidenceBasis_v5_chain": {
+      "table": "r_evidence_basis_v5_chain",
+      "kind": "array",
+      "item": "VersionRef"
+    },
+    "EvidenceBasis_v5_evaluator": {
+      "table": "r_evidence_basis_v5_evaluator",
+      "kind": "union",
+      "variants": [
+        "EvidenceBasis_v5_evaluator_v0",
+        "EvidenceBasis_v5_evaluator_v1"
+      ]
+    },
+    "EvidenceBasis_v5_evaluator_v0": {
+      "table": "r_evidence_basis_v5_evaluator_v0",
+      "kind": "string"
+    },
+    "EvidenceBasis_v5_evaluator_v1": {
+      "table": "r_evidence_basis_v5_evaluator_v1",
+      "kind": "null"
+    },
+    "EvidenceBasis_v5_kind": {
+      "table": "r_evidence_basis_v5_kind",
+      "kind": "string",
+      "const": "derivation"
+    },
+    "EvidenceBasis_v6": {
+      "table": "r_evidence_basis_v6",
+      "kind": "object",
+      "fields": {
+        "kind": {
+          "model": "EvidenceBasis_v6_kind",
           "required": true
         },
         "start": {
@@ -3637,8 +3674,8 @@
         }
       }
     },
-    "EvidenceBasis_v5_kind": {
-      "table": "r_evidence_basis_v5_kind",
+    "EvidenceBasis_v6_kind": {
+      "table": "r_evidence_basis_v6_kind",
       "kind": "string",
       "const": "instance_initialization"
     },
@@ -3676,15 +3713,6 @@
       "table": "r_payload_v18_record_kind",
       "kind": "string",
       "const": "assertion"
-    },
-    "Payload_v18_attributeMode": {
-      "table": "r_payload_v18_attribute_mode",
-      "kind": "string",
-      "enum": [
-        "instance",
-        "shared",
-        "initial_value"
-      ]
     },
     "Payload_v19": {
       "table": "r_payload_v19",
@@ -5057,6 +5085,14 @@
       "table": "r_payload_v22",
       "kind": "object",
       "fields": {
+        "knowledgePolicy": {
+          "model": "Payload_v22_knowledgePolicy",
+          "required": false
+        },
+        "channelChronology": {
+          "model": "Payload_v22_channelChronology",
+          "required": false
+        },
         "namespace": {
           "model": "Payload_v22_namespace",
           "required": true
@@ -5108,12 +5144,116 @@
         "record_kind": {
           "model": "Payload_v22_record_kind",
           "required": true
+        }
+      }
+    },
+    "Payload_v22_knowledgePolicy": {
+      "table": "r_payload_v22_knowledge_policy",
+      "kind": "union",
+      "variants": [
+        "KnowledgePolicy",
+        "Payload_v22_knowledgePolicy_v1"
+      ]
+    },
+    "KnowledgePolicy": {
+      "table": "r_knowledge_policy",
+      "kind": "object",
+      "fields": {
+        "context": {
+          "model": "RecordRef",
+          "required": true
         },
-        "channelChronology": {
-          "model": "Payload_v22_channelChronology",
+        "mode": {
+          "model": "KnowledgeMode",
+          "required": true
+        }
+      }
+    },
+    "KnowledgeMode": {
+      "table": "r_knowledge_mode",
+      "kind": "string",
+      "enum": [
+        "author_established",
+        "justified"
+      ]
+    },
+    "Payload_v22_knowledgePolicy_v1": {
+      "table": "r_payload_v22_knowledge_policy_v1",
+      "kind": "null"
+    },
+    "Payload_v22_channelChronology": {
+      "table": "r_payload_v22_channel_chronology",
+      "kind": "union",
+      "variants": [
+        "ChannelChronology",
+        "Payload_v22_channelChronology_v1"
+      ]
+    },
+    "ChannelChronology": {
+      "table": "r_channel_chronology",
+      "kind": "object",
+      "fields": {
+        "channel": {
+          "model": "ChannelChronology_channel",
+          "required": true
+        },
+        "forwardOnly": {
+          "model": "ChannelChronology_forwardOnly",
+          "required": true
+        },
+        "minimumDelay": {
+          "model": "ChannelChronology_minimumDelay",
+          "required": false
+        },
+        "maximumDelay": {
+          "model": "ChannelChronology_maximumDelay",
           "required": false
         }
       }
+    },
+    "ChannelChronology_channel": {
+      "table": "r_channel_chronology_channel",
+      "kind": "string"
+    },
+    "ChannelChronology_forwardOnly": {
+      "table": "r_channel_chronology_forward_only",
+      "kind": "boolean"
+    },
+    "ChannelChronology_minimumDelay": {
+      "table": "r_channel_chronology_minimum_delay",
+      "kind": "union",
+      "variants": [
+        "ChannelChronology_minimumDelay_v0",
+        "ChannelChronology_minimumDelay_v1"
+      ]
+    },
+    "ChannelChronology_minimumDelay_v0": {
+      "table": "r_channel_chronology_minimum_delay_v0",
+      "kind": "string"
+    },
+    "ChannelChronology_minimumDelay_v1": {
+      "table": "r_channel_chronology_minimum_delay_v1",
+      "kind": "null"
+    },
+    "ChannelChronology_maximumDelay": {
+      "table": "r_channel_chronology_maximum_delay",
+      "kind": "union",
+      "variants": [
+        "ChannelChronology_maximumDelay_v0",
+        "ChannelChronology_maximumDelay_v1"
+      ]
+    },
+    "ChannelChronology_maximumDelay_v0": {
+      "table": "r_channel_chronology_maximum_delay_v0",
+      "kind": "string"
+    },
+    "ChannelChronology_maximumDelay_v1": {
+      "table": "r_channel_chronology_maximum_delay_v1",
+      "kind": "null"
+    },
+    "Payload_v22_channelChronology_v1": {
+      "table": "r_payload_v22_channel_chronology_v1",
+      "kind": "null"
     },
     "Payload_v22_namespace": {
       "table": "r_payload_v22_namespace",
@@ -5253,80 +5393,6 @@
       "table": "r_payload_v22_record_kind",
       "kind": "string",
       "const": "rule"
-    },
-    "Payload_v22_channelChronology": {
-      "table": "r_payload_v22_channel_chronology",
-      "kind": "union",
-      "variants": [
-        "ChannelChronology",
-        "Payload_v22_channelChronology_v1"
-      ]
-    },
-    "ChannelChronology": {
-      "table": "r_channel_chronology",
-      "kind": "object",
-      "fields": {
-        "channel": {
-          "model": "ChannelChronology_channel",
-          "required": true
-        },
-        "forwardOnly": {
-          "model": "ChannelChronology_forwardOnly",
-          "required": true
-        },
-        "minimumDelay": {
-          "model": "ChannelChronology_minimumDelay",
-          "required": false
-        },
-        "maximumDelay": {
-          "model": "ChannelChronology_maximumDelay",
-          "required": false
-        }
-      }
-    },
-    "ChannelChronology_channel": {
-      "table": "r_channel_chronology_channel",
-      "kind": "string"
-    },
-    "ChannelChronology_forwardOnly": {
-      "table": "r_channel_chronology_forward_only",
-      "kind": "boolean"
-    },
-    "ChannelChronology_minimumDelay": {
-      "table": "r_channel_chronology_minimum_delay",
-      "kind": "union",
-      "variants": [
-        "ChannelChronology_minimumDelay_v0",
-        "ChannelChronology_minimumDelay_v1"
-      ]
-    },
-    "ChannelChronology_minimumDelay_v0": {
-      "table": "r_channel_chronology_minimum_delay_v0",
-      "kind": "string"
-    },
-    "ChannelChronology_minimumDelay_v1": {
-      "table": "r_channel_chronology_minimum_delay_v1",
-      "kind": "null"
-    },
-    "ChannelChronology_maximumDelay": {
-      "table": "r_channel_chronology_maximum_delay",
-      "kind": "union",
-      "variants": [
-        "ChannelChronology_maximumDelay_v0",
-        "ChannelChronology_maximumDelay_v1"
-      ]
-    },
-    "ChannelChronology_maximumDelay_v0": {
-      "table": "r_channel_chronology_maximum_delay_v0",
-      "kind": "string"
-    },
-    "ChannelChronology_maximumDelay_v1": {
-      "table": "r_channel_chronology_maximum_delay_v1",
-      "kind": "null"
-    },
-    "Payload_v22_channelChronology_v1": {
-      "table": "r_payload_v22_channel_chronology_v1",
-      "kind": "null"
     },
     "Payload_v23": {
       "table": "r_payload_v23",
@@ -6048,6 +6114,10 @@
       "table": "r_payload_v27",
       "kind": "object",
       "fields": {
+        "acquisition": {
+          "model": "Payload_v27_acquisition",
+          "required": false
+        },
         "holder": {
           "model": "RecordRef",
           "required": true
@@ -6077,6 +6147,110 @@
           "required": true
         }
       }
+    },
+    "Payload_v27_acquisition": {
+      "table": "r_payload_v27_acquisition",
+      "kind": "union",
+      "variants": [
+        "KnowledgeAcquisition",
+        "Payload_v27_acquisition_v1"
+      ]
+    },
+    "KnowledgeAcquisition": {
+      "table": "r_knowledge_acquisition",
+      "kind": "object",
+      "fields": {
+        "truthContext": {
+          "model": "RecordRef",
+          "required": true
+        },
+        "time": {
+          "model": "TemporalExpression",
+          "required": true
+        },
+        "world": {
+          "model": "KnowledgeAcquisition_world",
+          "required": false
+        },
+        "basis": {
+          "model": "KnowledgeBasis",
+          "required": true
+        }
+      }
+    },
+    "KnowledgeAcquisition_world": {
+      "table": "r_knowledge_acquisition_world",
+      "kind": "union",
+      "variants": [
+        "RecordRef",
+        "KnowledgeAcquisition_world_v1"
+      ]
+    },
+    "KnowledgeAcquisition_world_v1": {
+      "table": "r_knowledge_acquisition_world_v1",
+      "kind": "null"
+    },
+    "KnowledgeBasis": {
+      "table": "r_knowledge_basis",
+      "kind": "union",
+      "variants": [
+        "KnowledgeBasis_v0",
+        "KnowledgeBasis_v1"
+      ]
+    },
+    "KnowledgeBasis_v0": {
+      "table": "r_knowledge_basis_v0",
+      "kind": "object",
+      "fields": {
+        "kind": {
+          "model": "KnowledgeBasis_v0_kind",
+          "required": true
+        }
+      }
+    },
+    "KnowledgeBasis_v0_kind": {
+      "table": "r_knowledge_basis_v0_kind",
+      "kind": "string",
+      "const": "author_established"
+    },
+    "KnowledgeBasis_v1": {
+      "table": "r_knowledge_basis_v1",
+      "kind": "object",
+      "fields": {
+        "communication": {
+          "model": "RecordRef",
+          "required": true
+        },
+        "interpretation": {
+          "model": "KnowledgeBasis_v1_interpretation",
+          "required": false
+        },
+        "kind": {
+          "model": "KnowledgeBasis_v1_kind",
+          "required": true
+        }
+      }
+    },
+    "KnowledgeBasis_v1_interpretation": {
+      "table": "r_knowledge_basis_v1_interpretation",
+      "kind": "union",
+      "variants": [
+        "RecordRef",
+        "KnowledgeBasis_v1_interpretation_v1"
+      ]
+    },
+    "KnowledgeBasis_v1_interpretation_v1": {
+      "table": "r_knowledge_basis_v1_interpretation_v1",
+      "kind": "null"
+    },
+    "KnowledgeBasis_v1_kind": {
+      "table": "r_knowledge_basis_v1_kind",
+      "kind": "string",
+      "const": "communication_receipt"
+    },
+    "Payload_v27_acquisition_v1": {
+      "table": "r_payload_v27_acquisition_v1",
+      "kind": "null"
     },
     "Payload_v27_certainty": {
       "table": "r_payload_v27_certainty",
@@ -6987,7 +7161,8 @@
         "DomainOperation_v51",
         "DomainOperation_v52",
         "DomainOperation_v53",
-        "DomainOperation_v54"
+        "DomainOperation_v54",
+        "DomainOperation_v55"
       ]
     },
     "DomainOperation_v0": {
@@ -7265,6 +7440,14 @@
           "model": "Entity_names",
           "required": true
         },
+        "classification": {
+          "model": "Entity_classification",
+          "required": false
+        },
+        "classificationResolution": {
+          "model": "ClassificationResolution",
+          "required": true
+        },
         "worldAssociations": {
           "model": "Entity_worldAssociations",
           "required": true
@@ -7276,14 +7459,6 @@
         "metadata": {
           "model": "Entity_metadata",
           "required": true
-        },
-        "classification": {
-          "model": "Entity_classification",
-          "required": true
-        },
-        "classificationResolution": {
-          "model": "Entity_classificationResolution",
-          "required": true
         }
       }
     },
@@ -7291,6 +7466,18 @@
       "table": "r_entity_names",
       "kind": "array",
       "item": "ContextualName"
+    },
+    "Entity_classification": {
+      "table": "r_entity_classification",
+      "kind": "union",
+      "variants": [
+        "RecordId",
+        "Entity_classification_v1"
+      ]
+    },
+    "Entity_classification_v1": {
+      "table": "r_entity_classification_v1",
+      "kind": "null"
     },
     "Entity_worldAssociations": {
       "table": "r_entity_world_associations",
@@ -7310,27 +7497,6 @@
       "table": "r_entity_metadata",
       "kind": "map",
       "item": "Value"
-    },
-    "Entity_classification": {
-      "table": "r_entity_classification",
-      "kind": "union",
-      "variants": [
-        "RecordId",
-        "Entity_classification_v1"
-      ]
-    },
-    "Entity_classification_v1": {
-      "table": "r_entity_classification_v1",
-      "kind": "null"
-    },
-    "Entity_classificationResolution": {
-      "table": "r_entity_classification_resolution",
-      "kind": "string",
-      "enum": [
-        "unclassified",
-        "resolved",
-        "ambiguous"
-      ]
     },
     "DomainOperation_v4_kind": {
       "table": "r_domain_operation_v4_kind",
@@ -7855,6 +8021,10 @@
       "table": "r_assertion",
       "kind": "object",
       "fields": {
+        "attributeMode": {
+          "model": "Assertion_attributeMode",
+          "required": true
+        },
         "proposition": {
           "model": "RecordRef",
           "required": true
@@ -7890,12 +8060,17 @@
         "establishedBy": {
           "model": "Assertion_establishedBy",
           "required": false
-        },
-        "attributeMode": {
-          "model": "Assertion_attributeMode",
-          "required": true
         }
       }
+    },
+    "Assertion_attributeMode": {
+      "table": "r_assertion_attribute_mode",
+      "kind": "string",
+      "enum": [
+        "instance",
+        "shared",
+        "initial_value"
+      ]
     },
     "Assertion_alternatives": {
       "table": "r_assertion_alternatives",
@@ -7913,15 +8088,6 @@
     "Assertion_establishedBy_v1": {
       "table": "r_assertion_established_by_v1",
       "kind": "null"
-    },
-    "Assertion_attributeMode": {
-      "table": "r_assertion_attribute_mode",
-      "kind": "string",
-      "enum": [
-        "instance",
-        "shared",
-        "initial_value"
-      ]
     },
     "DomainOperation_v15_kind": {
       "table": "r_domain_operation_v15_kind",
@@ -8458,6 +8624,10 @@
       "table": "r_epistemic_attitude",
       "kind": "object",
       "fields": {
+        "acquisition": {
+          "model": "EpistemicAttitude_acquisition",
+          "required": false
+        },
         "holder": {
           "model": "RecordRef",
           "required": true
@@ -8483,6 +8653,18 @@
           "required": true
         }
       }
+    },
+    "EpistemicAttitude_acquisition": {
+      "table": "r_epistemic_attitude_acquisition",
+      "kind": "union",
+      "variants": [
+        "KnowledgeAcquisition",
+        "EpistemicAttitude_acquisition_v1"
+      ]
+    },
+    "EpistemicAttitude_acquisition_v1": {
+      "table": "r_epistemic_attitude_acquisition_v1",
+      "kind": "null"
     },
     "EpistemicAttitude_certainty": {
       "table": "r_epistemic_attitude_certainty",
@@ -8959,10 +9141,6 @@
           "model": "EntityType_labels",
           "required": true
         },
-        "classificationExecutable": {
-          "model": "EntityType_classificationExecutable",
-          "required": true
-        },
         "name": {
           "model": "EntityType_name",
           "required": true
@@ -8977,6 +9155,10 @@
         },
         "applicability": {
           "model": "Applicability",
+          "required": true
+        },
+        "classificationExecutable": {
+          "model": "EntityType_classificationExecutable",
           "required": true
         }
       }
@@ -8997,10 +9179,6 @@
     "EntityType_labels_item": {
       "table": "r_entity_type_labels_item",
       "kind": "string"
-    },
-    "EntityType_classificationExecutable": {
-      "table": "r_entity_type_classification_executable",
-      "kind": "boolean"
     },
     "EntityType_name": {
       "table": "r_entity_type_name",
@@ -9026,6 +9204,10 @@
         "resolved",
         "ambiguous"
       ]
+    },
+    "EntityType_classificationExecutable": {
+      "table": "r_entity_type_classification_executable",
+      "kind": "boolean"
     },
     "DomainOperation_v31_kind": {
       "table": "r_domain_operation_v31_kind",
@@ -9565,6 +9747,14 @@
       "table": "r_rule",
       "kind": "object",
       "fields": {
+        "knowledgePolicy": {
+          "model": "Rule_knowledgePolicy",
+          "required": false
+        },
+        "channelChronology": {
+          "model": "Rule_channelChronology",
+          "required": false
+        },
         "namespace": {
           "model": "Rule_namespace",
           "required": true
@@ -9612,12 +9802,32 @@
         "validity": {
           "model": "Validity",
           "required": true
-        },
-        "channelChronology": {
-          "model": "Rule_channelChronology",
-          "required": false
         }
       }
+    },
+    "Rule_knowledgePolicy": {
+      "table": "r_rule_knowledge_policy",
+      "kind": "union",
+      "variants": [
+        "KnowledgePolicy",
+        "Rule_knowledgePolicy_v1"
+      ]
+    },
+    "Rule_knowledgePolicy_v1": {
+      "table": "r_rule_knowledge_policy_v1",
+      "kind": "null"
+    },
+    "Rule_channelChronology": {
+      "table": "r_rule_channel_chronology",
+      "kind": "union",
+      "variants": [
+        "ChannelChronology",
+        "Rule_channelChronology_v1"
+      ]
+    },
+    "Rule_channelChronology_v1": {
+      "table": "r_rule_channel_chronology_v1",
+      "kind": "null"
     },
     "Rule_namespace": {
       "table": "r_rule_namespace",
@@ -9662,18 +9872,6 @@
     "Rule_executable": {
       "table": "r_rule_executable",
       "kind": "boolean"
-    },
-    "Rule_channelChronology": {
-      "table": "r_rule_channel_chronology",
-      "kind": "union",
-      "variants": [
-        "ChannelChronology",
-        "Rule_channelChronology_v1"
-      ]
-    },
-    "Rule_channelChronology_v1": {
-      "table": "r_rule_channel_chronology_v1",
-      "kind": "null"
     },
     "DomainOperation_v37_kind": {
       "table": "r_domain_operation_v37_kind",
@@ -10637,6 +10835,49 @@
       "table": "r_domain_operation_v53",
       "kind": "object",
       "fields": {
+        "client_ref": {
+          "model": "DomainOperation_v53_client_ref",
+          "required": true
+        },
+        "instance": {
+          "model": "RecordRef",
+          "required": true
+        },
+        "start": {
+          "model": "RecordRef",
+          "required": true
+        },
+        "definition": {
+          "model": "VersionRef",
+          "required": true
+        },
+        "scope": {
+          "model": "Scope",
+          "required": true
+        },
+        "validity": {
+          "model": "Validity",
+          "required": true
+        },
+        "kind": {
+          "model": "DomainOperation_v53_kind",
+          "required": true
+        }
+      }
+    },
+    "DomainOperation_v53_client_ref": {
+      "table": "r_domain_operation_v53_client_ref",
+      "kind": "string"
+    },
+    "DomainOperation_v53_kind": {
+      "table": "r_domain_operation_v53_kind",
+      "kind": "string",
+      "const": "initialize_instance"
+    },
+    "DomainOperation_v54": {
+      "table": "r_domain_operation_v54",
+      "kind": "object",
+      "fields": {
         "record": {
           "model": "RecordRef",
           "required": true
@@ -10650,26 +10891,26 @@
           "required": true
         },
         "kind": {
-          "model": "DomainOperation_v53_kind",
+          "model": "DomainOperation_v54_kind",
           "required": true
         }
       }
     },
-    "DomainOperation_v53_kind": {
-      "table": "r_domain_operation_v53_kind",
+    "DomainOperation_v54_kind": {
+      "table": "r_domain_operation_v54_kind",
       "kind": "string",
       "const": "refine_classification"
     },
-    "DomainOperation_v54": {
-      "table": "r_domain_operation_v54",
+    "DomainOperation_v55": {
+      "table": "r_domain_operation_v55",
       "kind": "object",
       "fields": {
         "kind": {
-          "model": "DomainOperation_v54_kind",
+          "model": "DomainOperation_v55_kind",
           "required": true
         },
         "client_ref": {
-          "model": "DomainOperation_v54_client_ref",
+          "model": "DomainOperation_v55_client_ref",
           "required": true
         },
         "instance": {
@@ -10694,13 +10935,13 @@
         }
       }
     },
-    "DomainOperation_v54_kind": {
-      "table": "r_domain_operation_v54_kind",
+    "DomainOperation_v55_kind": {
+      "table": "r_domain_operation_v55_kind",
       "kind": "string",
       "const": "initialize_instance"
     },
-    "DomainOperation_v54_client_ref": {
-      "table": "r_domain_operation_v54_client_ref",
+    "DomainOperation_v55_client_ref": {
+      "table": "r_domain_operation_v55_client_ref",
       "kind": "string"
     },
     "StoredContext": {

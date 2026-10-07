@@ -125,6 +125,10 @@ CREATE TABLE "r_payload_v0" (
   __row_id INTEGER PRIMARY KEY,
   "names__state" INTEGER NOT NULL CHECK("names__state" IN (2)),
   "names" INTEGER REFERENCES "r_payload_v0_names"(__row_id),
+  "classification__state" INTEGER NOT NULL CHECK("classification__state" IN (0,1,2)),
+  "classification" INTEGER REFERENCES "r_payload_v0_classification"(__row_id),
+  "classificationResolution__state" INTEGER NOT NULL CHECK("classificationResolution__state" IN (2)),
+  "classificationResolution" TEXT,
   "worldAssociations__state" INTEGER NOT NULL CHECK("worldAssociations__state" IN (2)),
   "worldAssociations" INTEGER REFERENCES "r_payload_v0_world_associations"(__row_id),
   "labels__state" INTEGER NOT NULL CHECK("labels__state" IN (2)),
@@ -133,19 +137,15 @@ CREATE TABLE "r_payload_v0" (
   "metadata" INTEGER REFERENCES "r_payload_v0_metadata"(__row_id),
   "record_kind__state" INTEGER NOT NULL CHECK("record_kind__state" IN (2)),
   "record_kind" TEXT,
-  "classification__state" INTEGER NOT NULL CHECK("classification__state" IN (1,2)),
-  "classification" INTEGER REFERENCES "r_payload_v0_classification"(__row_id),
-  "classificationResolution__state" INTEGER NOT NULL CHECK("classificationResolution__state" IN (2)),
-  "classificationResolution" TEXT,
   CHECK(("names__state"=2 AND "names" IS NOT NULL) OR ("names__state" IN (0,1) AND "names" IS NULL)),
+  CHECK(("classification__state"=2 AND "classification" IS NOT NULL) OR ("classification__state" IN (0,1) AND "classification" IS NULL)),
+  CHECK(("classificationResolution__state"=2 AND "classificationResolution" IS NOT NULL) OR ("classificationResolution__state" IN (0,1) AND "classificationResolution" IS NULL)),
+  CHECK("classificationResolution" IN ('unclassified','resolved','ambiguous')),
   CHECK(("worldAssociations__state"=2 AND "worldAssociations" IS NOT NULL) OR ("worldAssociations__state" IN (0,1) AND "worldAssociations" IS NULL)),
   CHECK(("labels__state"=2 AND "labels" IS NOT NULL) OR ("labels__state" IN (0,1) AND "labels" IS NULL)),
   CHECK(("metadata__state"=2 AND "metadata" IS NOT NULL) OR ("metadata__state" IN (0,1) AND "metadata" IS NULL)),
   CHECK(("record_kind__state"=2 AND "record_kind" IS NOT NULL) OR ("record_kind__state" IN (0,1) AND "record_kind" IS NULL)),
-  CHECK("record_kind"='entity'),
-  CHECK(("classification__state"=2 AND "classification" IS NOT NULL) OR ("classification__state" IN (0,1) AND "classification" IS NULL)),
-  CHECK(("classificationResolution__state"=2 AND "classificationResolution" IS NOT NULL) OR ("classificationResolution__state" IN (0,1) AND "classificationResolution" IS NULL)),
-  CHECK("classificationResolution" IN ('unclassified','resolved','ambiguous'))
+  CHECK("record_kind"='entity')
 ) STRICT;
 
 CREATE TABLE "r_payload_v0_names" (
@@ -916,6 +916,16 @@ CREATE TABLE "r_validity_v6" (
   CHECK("kind"='condition_dependent')
 ) STRICT;
 
+CREATE TABLE "r_payload_v0_classification" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 TEXT,
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
 CREATE TABLE "r_payload_v0_world_associations" (
   __row_id INTEGER PRIMARY KEY
 ) STRICT;
@@ -955,16 +965,6 @@ CREATE TABLE "r_payload_v0_metadata" (
 ) STRICT;
 
 CREATE TABLE "r_payload_v0_metadata_items" (owner INTEGER NOT NULL REFERENCES "r_payload_v0_metadata"(__row_id), name TEXT NOT NULL, item INTEGER REFERENCES "r_value"(__row_id), PRIMARY KEY(owner,name)) STRICT;
-
-CREATE TABLE "r_payload_v0_classification" (
-  __row_id INTEGER PRIMARY KEY,
-  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
-  v0 TEXT,
-  v1 TEXT,
-  CHECK(variant=0 OR v0 IS NULL),
-  CHECK(variant!=0 OR v0 IS NOT NULL),
-  CHECK(variant=1 OR v1 IS NULL)
-) STRICT;
 
 CREATE TABLE "r_payload_v1" (
   __row_id INTEGER PRIMARY KEY,
@@ -1502,10 +1502,6 @@ CREATE TABLE "r_payload_v10" (
   "key" TEXT,
   "labels__state" INTEGER NOT NULL CHECK("labels__state" IN (2)),
   "labels" INTEGER REFERENCES "r_payload_v10_labels"(__row_id),
-  "classificationExecutable__state" INTEGER NOT NULL CHECK("classificationExecutable__state" IN (2)),
-  "classificationExecutable" INTEGER,
-  "record_kind__state" INTEGER NOT NULL CHECK("record_kind__state" IN (2)),
-  "record_kind" TEXT,
   "name__state" INTEGER NOT NULL CHECK("name__state" IN (2)),
   "name" TEXT,
   "parent__state" INTEGER NOT NULL CHECK("parent__state" IN (1,2)),
@@ -1514,18 +1510,22 @@ CREATE TABLE "r_payload_v10" (
   "parentResolution" TEXT,
   "applicability__state" INTEGER NOT NULL CHECK("applicability__state" IN (2)),
   "applicability" INTEGER REFERENCES "r_applicability"(__row_id),
+  "classificationExecutable__state" INTEGER NOT NULL CHECK("classificationExecutable__state" IN (2)),
+  "classificationExecutable" INTEGER,
+  "record_kind__state" INTEGER NOT NULL CHECK("record_kind__state" IN (2)),
+  "record_kind" TEXT,
   CHECK(("namespace__state"=2 AND "namespace" IS NOT NULL) OR ("namespace__state" IN (0,1) AND "namespace" IS NULL)),
   CHECK(("key__state"=2 AND "key" IS NOT NULL) OR ("key__state" IN (0,1) AND "key" IS NULL)),
   CHECK(("labels__state"=2 AND "labels" IS NOT NULL) OR ("labels__state" IN (0,1) AND "labels" IS NULL)),
-  CHECK(("classificationExecutable__state"=2 AND "classificationExecutable" IS NOT NULL) OR ("classificationExecutable__state" IN (0,1) AND "classificationExecutable" IS NULL)),
-  CHECK("classificationExecutable" IN (0,1)),
-  CHECK(("record_kind__state"=2 AND "record_kind" IS NOT NULL) OR ("record_kind__state" IN (0,1) AND "record_kind" IS NULL)),
-  CHECK("record_kind"='entity_type'),
   CHECK(("name__state"=2 AND "name" IS NOT NULL) OR ("name__state" IN (0,1) AND "name" IS NULL)),
   CHECK(("parent__state"=2 AND "parent" IS NOT NULL) OR ("parent__state" IN (0,1) AND "parent" IS NULL)),
   CHECK(("parentResolution__state"=2 AND "parentResolution" IS NOT NULL) OR ("parentResolution__state" IN (0,1) AND "parentResolution" IS NULL)),
   CHECK("parentResolution" IN ('root','resolved','ambiguous')),
-  CHECK(("applicability__state"=2 AND "applicability" IS NOT NULL) OR ("applicability__state" IN (0,1) AND "applicability" IS NULL))
+  CHECK(("applicability__state"=2 AND "applicability" IS NOT NULL) OR ("applicability__state" IN (0,1) AND "applicability" IS NULL)),
+  CHECK(("classificationExecutable__state"=2 AND "classificationExecutable" IS NOT NULL) OR ("classificationExecutable__state" IN (0,1) AND "classificationExecutable" IS NULL)),
+  CHECK("classificationExecutable" IN (0,1)),
+  CHECK(("record_kind__state"=2 AND "record_kind" IS NOT NULL) OR ("record_kind__state" IN (0,1) AND "record_kind" IS NULL)),
+  CHECK("record_kind"='entity_type')
 ) STRICT;
 
 CREATE TABLE "r_payload_v10_labels" (
@@ -2246,6 +2246,8 @@ CREATE TABLE "r_quantification" (
 
 CREATE TABLE "r_payload_v18" (
   __row_id INTEGER PRIMARY KEY,
+  "attributeMode__state" INTEGER NOT NULL CHECK("attributeMode__state" IN (2)),
+  "attributeMode" TEXT,
   "proposition__state" INTEGER NOT NULL CHECK("proposition__state" IN (2)),
   "proposition" INTEGER REFERENCES "r_record_ref"(__row_id),
   "polarity__state" INTEGER NOT NULL CHECK("polarity__state" IN (2)),
@@ -2266,8 +2268,8 @@ CREATE TABLE "r_payload_v18" (
   "establishedBy" INTEGER REFERENCES "r_payload_v18_established_by"(__row_id),
   "record_kind__state" INTEGER NOT NULL CHECK("record_kind__state" IN (2)),
   "record_kind" TEXT,
-  "attributeMode__state" INTEGER NOT NULL CHECK("attributeMode__state" IN (2)),
-  "attributeMode" TEXT,
+  CHECK(("attributeMode__state"=2 AND "attributeMode" IS NOT NULL) OR ("attributeMode__state" IN (0,1) AND "attributeMode" IS NULL)),
+  CHECK("attributeMode" IN ('instance','shared','initial_value')),
   CHECK(("proposition__state"=2 AND "proposition" IS NOT NULL) OR ("proposition__state" IN (0,1) AND "proposition" IS NULL)),
   CHECK(("polarity__state"=2 AND "polarity" IS NOT NULL) OR ("polarity__state" IN (0,1) AND "polarity" IS NULL)),
   CHECK("polarity" IN ('support','refutation')),
@@ -2280,9 +2282,7 @@ CREATE TABLE "r_payload_v18" (
   CHECK(("basis__state"=2 AND "basis" IS NOT NULL) OR ("basis__state" IN (0,1) AND "basis" IS NULL)),
   CHECK(("establishedBy__state"=2 AND "establishedBy" IS NOT NULL) OR ("establishedBy__state" IN (0,1) AND "establishedBy" IS NULL)),
   CHECK(("record_kind__state"=2 AND "record_kind" IS NOT NULL) OR ("record_kind__state" IN (0,1) AND "record_kind" IS NULL)),
-  CHECK("record_kind"='assertion'),
-  CHECK(("attributeMode__state"=2 AND "attributeMode" IS NOT NULL) OR ("attributeMode__state" IN (0,1) AND "attributeMode" IS NULL)),
-  CHECK("attributeMode" IN ('instance','shared','initial_value'))
+  CHECK("record_kind"='assertion')
 ) STRICT;
 
 CREATE TABLE "r_scope" (
@@ -2316,13 +2316,14 @@ CREATE TABLE "r_payload_v18_alternatives_items" (owner INTEGER NOT NULL REFERENC
 
 CREATE TABLE "r_evidence_basis" (
   __row_id INTEGER PRIMARY KEY,
-  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 5),
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 6),
   v0 INTEGER REFERENCES "r_evidence_basis_v0"(__row_id),
   v1 INTEGER REFERENCES "r_evidence_basis_v1"(__row_id),
   v2 INTEGER REFERENCES "r_evidence_basis_v2"(__row_id),
   v3 INTEGER REFERENCES "r_evidence_basis_v3"(__row_id),
   v4 INTEGER REFERENCES "r_evidence_basis_v4"(__row_id),
   v5 INTEGER REFERENCES "r_evidence_basis_v5"(__row_id),
+  v6 INTEGER REFERENCES "r_evidence_basis_v6"(__row_id),
   CHECK(variant=0 OR v0 IS NULL),
   CHECK(variant!=0 OR v0 IS NOT NULL),
   CHECK(variant=1 OR v1 IS NULL),
@@ -2334,7 +2335,9 @@ CREATE TABLE "r_evidence_basis" (
   CHECK(variant=4 OR v4 IS NULL),
   CHECK(variant!=4 OR v4 IS NOT NULL),
   CHECK(variant=5 OR v5 IS NULL),
-  CHECK(variant!=5 OR v5 IS NOT NULL)
+  CHECK(variant!=5 OR v5 IS NOT NULL),
+  CHECK(variant=6 OR v6 IS NULL),
+  CHECK(variant!=6 OR v6 IS NOT NULL)
 ) STRICT;
 
 CREATE TABLE "r_evidence_basis_v0" (
@@ -2379,18 +2382,35 @@ CREATE TABLE "r_evidence_basis_v2" (
 
 CREATE TABLE "r_evidence_basis_v3" (
   __row_id INTEGER PRIMARY KEY,
+  "start__state" INTEGER NOT NULL CHECK("start__state" IN (2)),
+  "start" INTEGER REFERENCES "r_version_ref"(__row_id),
+  "definition__state" INTEGER NOT NULL CHECK("definition__state" IN (2)),
+  "definition" INTEGER REFERENCES "r_version_ref"(__row_id),
+  "source_revision__state" INTEGER NOT NULL CHECK("source_revision__state" IN (2)),
+  "source_revision" TEXT,
+  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
+  "kind" TEXT,
+  CHECK(("start__state"=2 AND "start" IS NOT NULL) OR ("start__state" IN (0,1) AND "start" IS NULL)),
+  CHECK(("definition__state"=2 AND "definition" IS NOT NULL) OR ("definition__state" IN (0,1) AND "definition" IS NULL)),
+  CHECK(("source_revision__state"=2 AND "source_revision" IS NOT NULL) OR ("source_revision__state" IN (0,1) AND "source_revision" IS NULL)),
+  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
+  CHECK("kind"='instance_initialization')
+) STRICT;
+
+CREATE TABLE "r_evidence_basis_v4" (
+  __row_id INTEGER PRIMARY KEY,
   "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
   "kind" TEXT,
   CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
   CHECK("kind"='imported_claim')
 ) STRICT;
 
-CREATE TABLE "r_evidence_basis_v4" (
+CREATE TABLE "r_evidence_basis_v5" (
   __row_id INTEGER PRIMARY KEY,
   "chain__state" INTEGER NOT NULL CHECK("chain__state" IN (2)),
-  "chain" INTEGER REFERENCES "r_evidence_basis_v4_chain"(__row_id),
+  "chain" INTEGER REFERENCES "r_evidence_basis_v5_chain"(__row_id),
   "evaluator__state" INTEGER NOT NULL CHECK("evaluator__state" IN (0,1,2)),
-  "evaluator" INTEGER REFERENCES "r_evidence_basis_v4_evaluator"(__row_id),
+  "evaluator" INTEGER REFERENCES "r_evidence_basis_v5_evaluator"(__row_id),
   "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
   "kind" TEXT,
   CHECK(("chain__state"=2 AND "chain" IS NOT NULL) OR ("chain__state" IN (0,1) AND "chain" IS NULL)),
@@ -2399,13 +2419,13 @@ CREATE TABLE "r_evidence_basis_v4" (
   CHECK("kind"='derivation')
 ) STRICT;
 
-CREATE TABLE "r_evidence_basis_v4_chain" (
+CREATE TABLE "r_evidence_basis_v5_chain" (
   __row_id INTEGER PRIMARY KEY
 ) STRICT;
 
-CREATE TABLE "r_evidence_basis_v4_chain_items" (owner INTEGER NOT NULL REFERENCES "r_evidence_basis_v4_chain"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item INTEGER REFERENCES "r_version_ref"(__row_id), PRIMARY KEY(owner,ordinal)) STRICT;
+CREATE TABLE "r_evidence_basis_v5_chain_items" (owner INTEGER NOT NULL REFERENCES "r_evidence_basis_v5_chain"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item INTEGER REFERENCES "r_version_ref"(__row_id), PRIMARY KEY(owner,ordinal)) STRICT;
 
-CREATE TABLE "r_evidence_basis_v4_evaluator" (
+CREATE TABLE "r_evidence_basis_v5_evaluator" (
   __row_id INTEGER PRIMARY KEY,
   variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
   v0 TEXT,
@@ -2415,7 +2435,7 @@ CREATE TABLE "r_evidence_basis_v4_evaluator" (
   CHECK(variant=1 OR v1 IS NULL)
 ) STRICT;
 
-CREATE TABLE "r_evidence_basis_v5" (
+CREATE TABLE "r_evidence_basis_v6" (
   __row_id INTEGER PRIMARY KEY,
   "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
   "kind" TEXT,
@@ -3366,6 +3386,10 @@ CREATE TABLE "r_expr_v14" (
 
 CREATE TABLE "r_payload_v22" (
   __row_id INTEGER PRIMARY KEY,
+  "knowledgePolicy__state" INTEGER NOT NULL CHECK("knowledgePolicy__state" IN (0,1,2)),
+  "knowledgePolicy" INTEGER REFERENCES "r_payload_v22_knowledge_policy"(__row_id),
+  "channelChronology__state" INTEGER NOT NULL CHECK("channelChronology__state" IN (0,1,2)),
+  "channelChronology" INTEGER REFERENCES "r_payload_v22_channel_chronology"(__row_id),
   "namespace__state" INTEGER NOT NULL CHECK("namespace__state" IN (2)),
   "namespace" TEXT,
   "key__state" INTEGER NOT NULL CHECK("key__state" IN (2)),
@@ -3392,8 +3416,8 @@ CREATE TABLE "r_payload_v22" (
   "validity" INTEGER REFERENCES "r_validity"(__row_id),
   "record_kind__state" INTEGER NOT NULL CHECK("record_kind__state" IN (2)),
   "record_kind" TEXT,
-  "channelChronology__state" INTEGER NOT NULL CHECK("channelChronology__state" IN (0,1,2)),
-  "channelChronology" INTEGER REFERENCES "r_payload_v22_channel_chronology"(__row_id),
+  CHECK(("knowledgePolicy__state"=2 AND "knowledgePolicy" IS NOT NULL) OR ("knowledgePolicy__state" IN (0,1) AND "knowledgePolicy" IS NULL)),
+  CHECK(("channelChronology__state"=2 AND "channelChronology" IS NOT NULL) OR ("channelChronology__state" IN (0,1) AND "channelChronology" IS NULL)),
   CHECK(("namespace__state"=2 AND "namespace" IS NOT NULL) OR ("namespace__state" IN (0,1) AND "namespace" IS NULL)),
   CHECK(("key__state"=2 AND "key" IS NOT NULL) OR ("key__state" IN (0,1) AND "key" IS NULL)),
   CHECK(("labels__state"=2 AND "labels" IS NOT NULL) OR ("labels__state" IN (0,1) AND "labels" IS NULL)),
@@ -3408,8 +3432,75 @@ CREATE TABLE "r_payload_v22" (
   CHECK("executable" IN (0,1)),
   CHECK(("validity__state"=2 AND "validity" IS NOT NULL) OR ("validity__state" IN (0,1) AND "validity" IS NULL)),
   CHECK(("record_kind__state"=2 AND "record_kind" IS NOT NULL) OR ("record_kind__state" IN (0,1) AND "record_kind" IS NULL)),
-  CHECK("record_kind"='rule'),
-  CHECK(("channelChronology__state"=2 AND "channelChronology" IS NOT NULL) OR ("channelChronology__state" IN (0,1) AND "channelChronology" IS NULL))
+  CHECK("record_kind"='rule')
+) STRICT;
+
+CREATE TABLE "r_payload_v22_knowledge_policy" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_knowledge_policy"(__row_id),
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_knowledge_policy" (
+  __row_id INTEGER PRIMARY KEY,
+  "context__state" INTEGER NOT NULL CHECK("context__state" IN (2)),
+  "context" INTEGER REFERENCES "r_record_ref"(__row_id),
+  "mode__state" INTEGER NOT NULL CHECK("mode__state" IN (2)),
+  "mode" TEXT,
+  CHECK(("context__state"=2 AND "context" IS NOT NULL) OR ("context__state" IN (0,1) AND "context" IS NULL)),
+  CHECK(("mode__state"=2 AND "mode" IS NOT NULL) OR ("mode__state" IN (0,1) AND "mode" IS NULL)),
+  CHECK("mode" IN ('author_established','justified'))
+) STRICT;
+
+CREATE TABLE "r_payload_v22_channel_chronology" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_channel_chronology"(__row_id),
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_channel_chronology" (
+  __row_id INTEGER PRIMARY KEY,
+  "channel__state" INTEGER NOT NULL CHECK("channel__state" IN (2)),
+  "channel" TEXT,
+  "forwardOnly__state" INTEGER NOT NULL CHECK("forwardOnly__state" IN (2)),
+  "forwardOnly" INTEGER,
+  "minimumDelay__state" INTEGER NOT NULL CHECK("minimumDelay__state" IN (0,1,2)),
+  "minimumDelay" INTEGER REFERENCES "r_channel_chronology_minimum_delay"(__row_id),
+  "maximumDelay__state" INTEGER NOT NULL CHECK("maximumDelay__state" IN (0,1,2)),
+  "maximumDelay" INTEGER REFERENCES "r_channel_chronology_maximum_delay"(__row_id),
+  CHECK(("channel__state"=2 AND "channel" IS NOT NULL) OR ("channel__state" IN (0,1) AND "channel" IS NULL)),
+  CHECK(("forwardOnly__state"=2 AND "forwardOnly" IS NOT NULL) OR ("forwardOnly__state" IN (0,1) AND "forwardOnly" IS NULL)),
+  CHECK("forwardOnly" IN (0,1)),
+  CHECK(("minimumDelay__state"=2 AND "minimumDelay" IS NOT NULL) OR ("minimumDelay__state" IN (0,1) AND "minimumDelay" IS NULL)),
+  CHECK(("maximumDelay__state"=2 AND "maximumDelay" IS NOT NULL) OR ("maximumDelay__state" IN (0,1) AND "maximumDelay" IS NULL))
+) STRICT;
+
+CREATE TABLE "r_channel_chronology_minimum_delay" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 TEXT,
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_channel_chronology_maximum_delay" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 TEXT,
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
 ) STRICT;
 
 CREATE TABLE "r_payload_v22_labels" (
@@ -3484,53 +3575,6 @@ CREATE TABLE "r_payload_v22_capabilities" (
 ) STRICT;
 
 CREATE TABLE "r_payload_v22_capabilities_items" (owner INTEGER NOT NULL REFERENCES "r_payload_v22_capabilities"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item TEXT, PRIMARY KEY(owner,ordinal)) STRICT;
-
-CREATE TABLE "r_payload_v22_channel_chronology" (
-  __row_id INTEGER PRIMARY KEY,
-  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
-  v0 INTEGER REFERENCES "r_channel_chronology"(__row_id),
-  v1 TEXT,
-  CHECK(variant=0 OR v0 IS NULL),
-  CHECK(variant!=0 OR v0 IS NOT NULL),
-  CHECK(variant=1 OR v1 IS NULL)
-) STRICT;
-
-CREATE TABLE "r_channel_chronology" (
-  __row_id INTEGER PRIMARY KEY,
-  "channel__state" INTEGER NOT NULL CHECK("channel__state" IN (2)),
-  "channel" TEXT,
-  "forwardOnly__state" INTEGER NOT NULL CHECK("forwardOnly__state" IN (2)),
-  "forwardOnly" INTEGER,
-  "minimumDelay__state" INTEGER NOT NULL CHECK("minimumDelay__state" IN (0,1,2)),
-  "minimumDelay" INTEGER REFERENCES "r_channel_chronology_minimum_delay"(__row_id),
-  "maximumDelay__state" INTEGER NOT NULL CHECK("maximumDelay__state" IN (0,1,2)),
-  "maximumDelay" INTEGER REFERENCES "r_channel_chronology_maximum_delay"(__row_id),
-  CHECK(("channel__state"=2 AND "channel" IS NOT NULL) OR ("channel__state" IN (0,1) AND "channel" IS NULL)),
-  CHECK(("forwardOnly__state"=2 AND "forwardOnly" IS NOT NULL) OR ("forwardOnly__state" IN (0,1) AND "forwardOnly" IS NULL)),
-  CHECK("forwardOnly" IN (0,1)),
-  CHECK(("minimumDelay__state"=2 AND "minimumDelay" IS NOT NULL) OR ("minimumDelay__state" IN (0,1) AND "minimumDelay" IS NULL)),
-  CHECK(("maximumDelay__state"=2 AND "maximumDelay" IS NOT NULL) OR ("maximumDelay__state" IN (0,1) AND "maximumDelay" IS NULL))
-) STRICT;
-
-CREATE TABLE "r_channel_chronology_minimum_delay" (
-  __row_id INTEGER PRIMARY KEY,
-  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
-  v0 TEXT,
-  v1 TEXT,
-  CHECK(variant=0 OR v0 IS NULL),
-  CHECK(variant!=0 OR v0 IS NOT NULL),
-  CHECK(variant=1 OR v1 IS NULL)
-) STRICT;
-
-CREATE TABLE "r_channel_chronology_maximum_delay" (
-  __row_id INTEGER PRIMARY KEY,
-  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
-  v0 TEXT,
-  v1 TEXT,
-  CHECK(variant=0 OR v0 IS NULL),
-  CHECK(variant!=0 OR v0 IS NOT NULL),
-  CHECK(variant=1 OR v1 IS NULL)
-) STRICT;
 
 CREATE TABLE "r_payload_v23" (
   __row_id INTEGER PRIMARY KEY,
@@ -4007,6 +4051,8 @@ CREATE TABLE "r_effect_lifetime_v1" (
 
 CREATE TABLE "r_payload_v27" (
   __row_id INTEGER PRIMARY KEY,
+  "acquisition__state" INTEGER NOT NULL CHECK("acquisition__state" IN (0,1,2)),
+  "acquisition" INTEGER REFERENCES "r_payload_v27_acquisition"(__row_id),
   "holder__state" INTEGER NOT NULL CHECK("holder__state" IN (2)),
   "holder" INTEGER REFERENCES "r_record_ref"(__row_id),
   "proposition__state" INTEGER NOT NULL CHECK("proposition__state" IN (2)),
@@ -4021,6 +4067,7 @@ CREATE TABLE "r_payload_v27" (
   "basis" INTEGER REFERENCES "r_evidence_basis"(__row_id),
   "record_kind__state" INTEGER NOT NULL CHECK("record_kind__state" IN (2)),
   "record_kind" TEXT,
+  CHECK(("acquisition__state"=2 AND "acquisition" IS NOT NULL) OR ("acquisition__state" IN (0,1) AND "acquisition" IS NULL)),
   CHECK(("holder__state"=2 AND "holder" IS NOT NULL) OR ("holder__state" IN (0,1) AND "holder" IS NULL)),
   CHECK(("proposition__state"=2 AND "proposition" IS NOT NULL) OR ("proposition__state" IN (0,1) AND "proposition" IS NULL)),
   CHECK(("attitude__state"=2 AND "attitude" IS NOT NULL) OR ("attitude__state" IN (0,1) AND "attitude" IS NULL)),
@@ -4030,6 +4077,85 @@ CREATE TABLE "r_payload_v27" (
   CHECK(("basis__state"=2 AND "basis" IS NOT NULL) OR ("basis__state" IN (0,1) AND "basis" IS NULL)),
   CHECK(("record_kind__state"=2 AND "record_kind" IS NOT NULL) OR ("record_kind__state" IN (0,1) AND "record_kind" IS NULL)),
   CHECK("record_kind"='epistemic_attitude')
+) STRICT;
+
+CREATE TABLE "r_payload_v27_acquisition" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_knowledge_acquisition"(__row_id),
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_knowledge_acquisition" (
+  __row_id INTEGER PRIMARY KEY,
+  "truthContext__state" INTEGER NOT NULL CHECK("truthContext__state" IN (2)),
+  "truthContext" INTEGER REFERENCES "r_record_ref"(__row_id),
+  "time__state" INTEGER NOT NULL CHECK("time__state" IN (2)),
+  "time" INTEGER REFERENCES "r_temporal_expression"(__row_id),
+  "world__state" INTEGER NOT NULL CHECK("world__state" IN (0,1,2)),
+  "world" INTEGER REFERENCES "r_knowledge_acquisition_world"(__row_id),
+  "basis__state" INTEGER NOT NULL CHECK("basis__state" IN (2)),
+  "basis" INTEGER REFERENCES "r_knowledge_basis"(__row_id),
+  CHECK(("truthContext__state"=2 AND "truthContext" IS NOT NULL) OR ("truthContext__state" IN (0,1) AND "truthContext" IS NULL)),
+  CHECK(("time__state"=2 AND "time" IS NOT NULL) OR ("time__state" IN (0,1) AND "time" IS NULL)),
+  CHECK(("world__state"=2 AND "world" IS NOT NULL) OR ("world__state" IN (0,1) AND "world" IS NULL)),
+  CHECK(("basis__state"=2 AND "basis" IS NOT NULL) OR ("basis__state" IN (0,1) AND "basis" IS NULL))
+) STRICT;
+
+CREATE TABLE "r_knowledge_acquisition_world" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_record_ref"(__row_id),
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_knowledge_basis" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_knowledge_basis_v0"(__row_id),
+  v1 INTEGER REFERENCES "r_knowledge_basis_v1"(__row_id),
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL),
+  CHECK(variant!=1 OR v1 IS NOT NULL)
+) STRICT;
+
+CREATE TABLE "r_knowledge_basis_v0" (
+  __row_id INTEGER PRIMARY KEY,
+  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
+  "kind" TEXT,
+  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
+  CHECK("kind"='author_established')
+) STRICT;
+
+CREATE TABLE "r_knowledge_basis_v1" (
+  __row_id INTEGER PRIMARY KEY,
+  "communication__state" INTEGER NOT NULL CHECK("communication__state" IN (2)),
+  "communication" INTEGER REFERENCES "r_record_ref"(__row_id),
+  "interpretation__state" INTEGER NOT NULL CHECK("interpretation__state" IN (0,1,2)),
+  "interpretation" INTEGER REFERENCES "r_knowledge_basis_v1_interpretation"(__row_id),
+  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
+  "kind" TEXT,
+  CHECK(("communication__state"=2 AND "communication" IS NOT NULL) OR ("communication__state" IN (0,1) AND "communication" IS NULL)),
+  CHECK(("interpretation__state"=2 AND "interpretation" IS NOT NULL) OR ("interpretation__state" IN (0,1) AND "interpretation" IS NULL)),
+  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
+  CHECK("kind"='communication_receipt')
+) STRICT;
+
+CREATE TABLE "r_knowledge_basis_v1_interpretation" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_record_ref"(__row_id),
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
 ) STRICT;
 
 CREATE TABLE "r_payload_v27_certainty" (
@@ -4569,7 +4695,7 @@ CREATE TABLE "r_issue_decision_mode" (
 
 CREATE TABLE "r_domain_operation" (
   __row_id INTEGER PRIMARY KEY,
-  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 54),
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 55),
   v0 INTEGER REFERENCES "r_domain_operation_v0"(__row_id),
   v1 INTEGER REFERENCES "r_domain_operation_v1"(__row_id),
   v2 INTEGER REFERENCES "r_domain_operation_v2"(__row_id),
@@ -4625,6 +4751,7 @@ CREATE TABLE "r_domain_operation" (
   v52 INTEGER REFERENCES "r_domain_operation_v52"(__row_id),
   v53 INTEGER REFERENCES "r_domain_operation_v53"(__row_id),
   v54 INTEGER REFERENCES "r_domain_operation_v54"(__row_id),
+  v55 INTEGER REFERENCES "r_domain_operation_v55"(__row_id),
   CHECK(variant=0 OR v0 IS NULL),
   CHECK(variant!=0 OR v0 IS NOT NULL),
   CHECK(variant=1 OR v1 IS NULL),
@@ -4734,7 +4861,9 @@ CREATE TABLE "r_domain_operation" (
   CHECK(variant=53 OR v53 IS NULL),
   CHECK(variant!=53 OR v53 IS NOT NULL),
   CHECK(variant=54 OR v54 IS NULL),
-  CHECK(variant!=54 OR v54 IS NOT NULL)
+  CHECK(variant!=54 OR v54 IS NOT NULL),
+  CHECK(variant=55 OR v55 IS NULL),
+  CHECK(variant!=55 OR v55 IS NOT NULL)
 ) STRICT;
 
 CREATE TABLE "r_domain_operation_v0" (
@@ -4883,23 +5012,23 @@ CREATE TABLE "r_entity" (
   __row_id INTEGER PRIMARY KEY,
   "names__state" INTEGER NOT NULL CHECK("names__state" IN (2)),
   "names" INTEGER REFERENCES "r_entity_names"(__row_id),
+  "classification__state" INTEGER NOT NULL CHECK("classification__state" IN (0,1,2)),
+  "classification" INTEGER REFERENCES "r_entity_classification"(__row_id),
+  "classificationResolution__state" INTEGER NOT NULL CHECK("classificationResolution__state" IN (2)),
+  "classificationResolution" TEXT,
   "worldAssociations__state" INTEGER NOT NULL CHECK("worldAssociations__state" IN (2)),
   "worldAssociations" INTEGER REFERENCES "r_entity_world_associations"(__row_id),
   "labels__state" INTEGER NOT NULL CHECK("labels__state" IN (2)),
   "labels" INTEGER REFERENCES "r_entity_labels"(__row_id),
   "metadata__state" INTEGER NOT NULL CHECK("metadata__state" IN (2)),
   "metadata" INTEGER REFERENCES "r_entity_metadata"(__row_id),
-  "classification__state" INTEGER NOT NULL CHECK("classification__state" IN (1,2)),
-  "classification" INTEGER REFERENCES "r_entity_classification"(__row_id),
-  "classificationResolution__state" INTEGER NOT NULL CHECK("classificationResolution__state" IN (2)),
-  "classificationResolution" TEXT,
   CHECK(("names__state"=2 AND "names" IS NOT NULL) OR ("names__state" IN (0,1) AND "names" IS NULL)),
-  CHECK(("worldAssociations__state"=2 AND "worldAssociations" IS NOT NULL) OR ("worldAssociations__state" IN (0,1) AND "worldAssociations" IS NULL)),
-  CHECK(("labels__state"=2 AND "labels" IS NOT NULL) OR ("labels__state" IN (0,1) AND "labels" IS NULL)),
-  CHECK(("metadata__state"=2 AND "metadata" IS NOT NULL) OR ("metadata__state" IN (0,1) AND "metadata" IS NULL)),
   CHECK(("classification__state"=2 AND "classification" IS NOT NULL) OR ("classification__state" IN (0,1) AND "classification" IS NULL)),
   CHECK(("classificationResolution__state"=2 AND "classificationResolution" IS NOT NULL) OR ("classificationResolution__state" IN (0,1) AND "classificationResolution" IS NULL)),
-  CHECK("classificationResolution" IN ('unclassified','resolved','ambiguous'))
+  CHECK("classificationResolution" IN ('unclassified','resolved','ambiguous')),
+  CHECK(("worldAssociations__state"=2 AND "worldAssociations" IS NOT NULL) OR ("worldAssociations__state" IN (0,1) AND "worldAssociations" IS NULL)),
+  CHECK(("labels__state"=2 AND "labels" IS NOT NULL) OR ("labels__state" IN (0,1) AND "labels" IS NULL)),
+  CHECK(("metadata__state"=2 AND "metadata" IS NOT NULL) OR ("metadata__state" IN (0,1) AND "metadata" IS NULL))
 ) STRICT;
 
 CREATE TABLE "r_entity_names" (
@@ -4907,6 +5036,16 @@ CREATE TABLE "r_entity_names" (
 ) STRICT;
 
 CREATE TABLE "r_entity_names_items" (owner INTEGER NOT NULL REFERENCES "r_entity_names"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item INTEGER REFERENCES "r_contextual_name"(__row_id), PRIMARY KEY(owner,ordinal)) STRICT;
+
+CREATE TABLE "r_entity_classification" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 TEXT,
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
 
 CREATE TABLE "r_entity_world_associations" (
   __row_id INTEGER PRIMARY KEY
@@ -4925,16 +5064,6 @@ CREATE TABLE "r_entity_metadata" (
 ) STRICT;
 
 CREATE TABLE "r_entity_metadata_items" (owner INTEGER NOT NULL REFERENCES "r_entity_metadata"(__row_id), name TEXT NOT NULL, item INTEGER REFERENCES "r_value"(__row_id), PRIMARY KEY(owner,name)) STRICT;
-
-CREATE TABLE "r_entity_classification" (
-  __row_id INTEGER PRIMARY KEY,
-  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
-  v0 TEXT,
-  v1 TEXT,
-  CHECK(variant=0 OR v0 IS NULL),
-  CHECK(variant!=0 OR v0 IS NOT NULL),
-  CHECK(variant=1 OR v1 IS NULL)
-) STRICT;
 
 CREATE TABLE "r_domain_operation_v5" (
   __row_id INTEGER PRIMARY KEY,
@@ -5272,6 +5401,8 @@ CREATE TABLE "r_proposition_value" (
 
 CREATE TABLE "r_assertion" (
   __row_id INTEGER PRIMARY KEY,
+  "attributeMode__state" INTEGER NOT NULL CHECK("attributeMode__state" IN (2)),
+  "attributeMode" TEXT,
   "proposition__state" INTEGER NOT NULL CHECK("proposition__state" IN (2)),
   "proposition" INTEGER REFERENCES "r_record_ref"(__row_id),
   "polarity__state" INTEGER NOT NULL CHECK("polarity__state" IN (2)),
@@ -5290,8 +5421,8 @@ CREATE TABLE "r_assertion" (
   "basis" INTEGER REFERENCES "r_evidence_basis"(__row_id),
   "establishedBy__state" INTEGER NOT NULL CHECK("establishedBy__state" IN (0,1,2)),
   "establishedBy" INTEGER REFERENCES "r_assertion_established_by"(__row_id),
-  "attributeMode__state" INTEGER NOT NULL CHECK("attributeMode__state" IN (2)),
-  "attributeMode" TEXT,
+  CHECK(("attributeMode__state"=2 AND "attributeMode" IS NOT NULL) OR ("attributeMode__state" IN (0,1) AND "attributeMode" IS NULL)),
+  CHECK("attributeMode" IN ('instance','shared','initial_value')),
   CHECK(("proposition__state"=2 AND "proposition" IS NOT NULL) OR ("proposition__state" IN (0,1) AND "proposition" IS NULL)),
   CHECK(("polarity__state"=2 AND "polarity" IS NOT NULL) OR ("polarity__state" IN (0,1) AND "polarity" IS NULL)),
   CHECK("polarity" IN ('support','refutation')),
@@ -5302,9 +5433,7 @@ CREATE TABLE "r_assertion" (
   CHECK("precision" IN ('exact','approximate','range','one_of','unresolved')),
   CHECK(("alternatives__state"=2 AND "alternatives" IS NOT NULL) OR ("alternatives__state" IN (0,1) AND "alternatives" IS NULL)),
   CHECK(("basis__state"=2 AND "basis" IS NOT NULL) OR ("basis__state" IN (0,1) AND "basis" IS NULL)),
-  CHECK(("establishedBy__state"=2 AND "establishedBy" IS NOT NULL) OR ("establishedBy__state" IN (0,1) AND "establishedBy" IS NULL)),
-  CHECK(("attributeMode__state"=2 AND "attributeMode" IS NOT NULL) OR ("attributeMode__state" IN (0,1) AND "attributeMode" IS NULL)),
-  CHECK("attributeMode" IN ('instance','shared','initial_value'))
+  CHECK(("establishedBy__state"=2 AND "establishedBy" IS NOT NULL) OR ("establishedBy__state" IN (0,1) AND "establishedBy" IS NULL))
 ) STRICT;
 
 CREATE TABLE "r_assertion_alternatives" (
@@ -5665,6 +5794,8 @@ CREATE TABLE "r_domain_operation_v25" (
 
 CREATE TABLE "r_epistemic_attitude" (
   __row_id INTEGER PRIMARY KEY,
+  "acquisition__state" INTEGER NOT NULL CHECK("acquisition__state" IN (0,1,2)),
+  "acquisition" INTEGER REFERENCES "r_epistemic_attitude_acquisition"(__row_id),
   "holder__state" INTEGER NOT NULL CHECK("holder__state" IN (2)),
   "holder" INTEGER REFERENCES "r_record_ref"(__row_id),
   "proposition__state" INTEGER NOT NULL CHECK("proposition__state" IN (2)),
@@ -5677,6 +5808,7 @@ CREATE TABLE "r_epistemic_attitude" (
   "validity" INTEGER REFERENCES "r_validity"(__row_id),
   "basis__state" INTEGER NOT NULL CHECK("basis__state" IN (2)),
   "basis" INTEGER REFERENCES "r_evidence_basis"(__row_id),
+  CHECK(("acquisition__state"=2 AND "acquisition" IS NOT NULL) OR ("acquisition__state" IN (0,1) AND "acquisition" IS NULL)),
   CHECK(("holder__state"=2 AND "holder" IS NOT NULL) OR ("holder__state" IN (0,1) AND "holder" IS NULL)),
   CHECK(("proposition__state"=2 AND "proposition" IS NOT NULL) OR ("proposition__state" IN (0,1) AND "proposition" IS NULL)),
   CHECK(("attitude__state"=2 AND "attitude" IS NOT NULL) OR ("attitude__state" IN (0,1) AND "attitude" IS NULL)),
@@ -5684,6 +5816,16 @@ CREATE TABLE "r_epistemic_attitude" (
   CHECK(("certainty__state"=2 AND "certainty" IS NOT NULL) OR ("certainty__state" IN (0,1) AND "certainty" IS NULL)),
   CHECK(("validity__state"=2 AND "validity" IS NOT NULL) OR ("validity__state" IN (0,1) AND "validity" IS NULL)),
   CHECK(("basis__state"=2 AND "basis" IS NOT NULL) OR ("basis__state" IN (0,1) AND "basis" IS NULL))
+) STRICT;
+
+CREATE TABLE "r_epistemic_attitude_acquisition" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_knowledge_acquisition"(__row_id),
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
 ) STRICT;
 
 CREATE TABLE "r_epistemic_attitude_certainty" (
@@ -6008,8 +6150,6 @@ CREATE TABLE "r_entity_type" (
   "key" TEXT,
   "labels__state" INTEGER NOT NULL CHECK("labels__state" IN (2)),
   "labels" INTEGER REFERENCES "r_entity_type_labels"(__row_id),
-  "classificationExecutable__state" INTEGER NOT NULL CHECK("classificationExecutable__state" IN (2)),
-  "classificationExecutable" INTEGER,
   "name__state" INTEGER NOT NULL CHECK("name__state" IN (2)),
   "name" TEXT,
   "parent__state" INTEGER NOT NULL CHECK("parent__state" IN (1,2)),
@@ -6018,16 +6158,18 @@ CREATE TABLE "r_entity_type" (
   "parentResolution" TEXT,
   "applicability__state" INTEGER NOT NULL CHECK("applicability__state" IN (2)),
   "applicability" INTEGER REFERENCES "r_applicability"(__row_id),
+  "classificationExecutable__state" INTEGER NOT NULL CHECK("classificationExecutable__state" IN (2)),
+  "classificationExecutable" INTEGER,
   CHECK(("namespace__state"=2 AND "namespace" IS NOT NULL) OR ("namespace__state" IN (0,1) AND "namespace" IS NULL)),
   CHECK(("key__state"=2 AND "key" IS NOT NULL) OR ("key__state" IN (0,1) AND "key" IS NULL)),
   CHECK(("labels__state"=2 AND "labels" IS NOT NULL) OR ("labels__state" IN (0,1) AND "labels" IS NULL)),
-  CHECK(("classificationExecutable__state"=2 AND "classificationExecutable" IS NOT NULL) OR ("classificationExecutable__state" IN (0,1) AND "classificationExecutable" IS NULL)),
-  CHECK("classificationExecutable" IN (0,1)),
   CHECK(("name__state"=2 AND "name" IS NOT NULL) OR ("name__state" IN (0,1) AND "name" IS NULL)),
   CHECK(("parent__state"=2 AND "parent" IS NOT NULL) OR ("parent__state" IN (0,1) AND "parent" IS NULL)),
   CHECK(("parentResolution__state"=2 AND "parentResolution" IS NOT NULL) OR ("parentResolution__state" IN (0,1) AND "parentResolution" IS NULL)),
   CHECK("parentResolution" IN ('root','resolved','ambiguous')),
-  CHECK(("applicability__state"=2 AND "applicability" IS NOT NULL) OR ("applicability__state" IN (0,1) AND "applicability" IS NULL))
+  CHECK(("applicability__state"=2 AND "applicability" IS NOT NULL) OR ("applicability__state" IN (0,1) AND "applicability" IS NULL)),
+  CHECK(("classificationExecutable__state"=2 AND "classificationExecutable" IS NOT NULL) OR ("classificationExecutable__state" IN (0,1) AND "classificationExecutable" IS NULL)),
+  CHECK("classificationExecutable" IN (0,1))
 ) STRICT;
 
 CREATE TABLE "r_entity_type_labels" (
@@ -6368,6 +6510,10 @@ CREATE TABLE "r_domain_operation_v37" (
 
 CREATE TABLE "r_rule" (
   __row_id INTEGER PRIMARY KEY,
+  "knowledgePolicy__state" INTEGER NOT NULL CHECK("knowledgePolicy__state" IN (0,1,2)),
+  "knowledgePolicy" INTEGER REFERENCES "r_rule_knowledge_policy"(__row_id),
+  "channelChronology__state" INTEGER NOT NULL CHECK("channelChronology__state" IN (0,1,2)),
+  "channelChronology" INTEGER REFERENCES "r_rule_channel_chronology"(__row_id),
   "namespace__state" INTEGER NOT NULL CHECK("namespace__state" IN (2)),
   "namespace" TEXT,
   "key__state" INTEGER NOT NULL CHECK("key__state" IN (2)),
@@ -6392,8 +6538,8 @@ CREATE TABLE "r_rule" (
   "executable" INTEGER,
   "validity__state" INTEGER NOT NULL CHECK("validity__state" IN (2)),
   "validity" INTEGER REFERENCES "r_validity"(__row_id),
-  "channelChronology__state" INTEGER NOT NULL CHECK("channelChronology__state" IN (0,1,2)),
-  "channelChronology" INTEGER REFERENCES "r_rule_channel_chronology"(__row_id),
+  CHECK(("knowledgePolicy__state"=2 AND "knowledgePolicy" IS NOT NULL) OR ("knowledgePolicy__state" IN (0,1) AND "knowledgePolicy" IS NULL)),
+  CHECK(("channelChronology__state"=2 AND "channelChronology" IS NOT NULL) OR ("channelChronology__state" IN (0,1) AND "channelChronology" IS NULL)),
   CHECK(("namespace__state"=2 AND "namespace" IS NOT NULL) OR ("namespace__state" IN (0,1) AND "namespace" IS NULL)),
   CHECK(("key__state"=2 AND "key" IS NOT NULL) OR ("key__state" IN (0,1) AND "key" IS NULL)),
   CHECK(("labels__state"=2 AND "labels" IS NOT NULL) OR ("labels__state" IN (0,1) AND "labels" IS NULL)),
@@ -6406,8 +6552,27 @@ CREATE TABLE "r_rule" (
   CHECK(("capabilities__state"=2 AND "capabilities" IS NOT NULL) OR ("capabilities__state" IN (0,1) AND "capabilities" IS NULL)),
   CHECK(("executable__state"=2 AND "executable" IS NOT NULL) OR ("executable__state" IN (0,1) AND "executable" IS NULL)),
   CHECK("executable" IN (0,1)),
-  CHECK(("validity__state"=2 AND "validity" IS NOT NULL) OR ("validity__state" IN (0,1) AND "validity" IS NULL)),
-  CHECK(("channelChronology__state"=2 AND "channelChronology" IS NOT NULL) OR ("channelChronology__state" IN (0,1) AND "channelChronology" IS NULL))
+  CHECK(("validity__state"=2 AND "validity" IS NOT NULL) OR ("validity__state" IN (0,1) AND "validity" IS NULL))
+) STRICT;
+
+CREATE TABLE "r_rule_knowledge_policy" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_knowledge_policy"(__row_id),
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_rule_channel_chronology" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_channel_chronology"(__row_id),
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
 ) STRICT;
 
 CREATE TABLE "r_rule_labels" (
@@ -6433,16 +6598,6 @@ CREATE TABLE "r_rule_capabilities" (
 ) STRICT;
 
 CREATE TABLE "r_rule_capabilities_items" (owner INTEGER NOT NULL REFERENCES "r_rule_capabilities"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item TEXT, PRIMARY KEY(owner,ordinal)) STRICT;
-
-CREATE TABLE "r_rule_channel_chronology" (
-  __row_id INTEGER PRIMARY KEY,
-  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
-  v0 INTEGER REFERENCES "r_channel_chronology"(__row_id),
-  v1 TEXT,
-  CHECK(variant=0 OR v0 IS NULL),
-  CHECK(variant!=0 OR v0 IS NOT NULL),
-  CHECK(variant=1 OR v1 IS NULL)
-) STRICT;
 
 CREATE TABLE "r_domain_operation_v38" (
   __row_id INTEGER PRIMARY KEY,
@@ -7010,6 +7165,32 @@ CREATE TABLE "r_attribute_evidence_alternatives_items" (owner INTEGER NOT NULL R
 
 CREATE TABLE "r_domain_operation_v53" (
   __row_id INTEGER PRIMARY KEY,
+  "client_ref__state" INTEGER NOT NULL CHECK("client_ref__state" IN (2)),
+  "client_ref" TEXT,
+  "instance__state" INTEGER NOT NULL CHECK("instance__state" IN (2)),
+  "instance" INTEGER REFERENCES "r_record_ref"(__row_id),
+  "start__state" INTEGER NOT NULL CHECK("start__state" IN (2)),
+  "start" INTEGER REFERENCES "r_record_ref"(__row_id),
+  "definition__state" INTEGER NOT NULL CHECK("definition__state" IN (2)),
+  "definition" INTEGER REFERENCES "r_version_ref"(__row_id),
+  "scope__state" INTEGER NOT NULL CHECK("scope__state" IN (2)),
+  "scope" INTEGER REFERENCES "r_scope"(__row_id),
+  "validity__state" INTEGER NOT NULL CHECK("validity__state" IN (2)),
+  "validity" INTEGER REFERENCES "r_validity"(__row_id),
+  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
+  "kind" TEXT,
+  CHECK(("client_ref__state"=2 AND "client_ref" IS NOT NULL) OR ("client_ref__state" IN (0,1) AND "client_ref" IS NULL)),
+  CHECK(("instance__state"=2 AND "instance" IS NOT NULL) OR ("instance__state" IN (0,1) AND "instance" IS NULL)),
+  CHECK(("start__state"=2 AND "start" IS NOT NULL) OR ("start__state" IN (0,1) AND "start" IS NULL)),
+  CHECK(("definition__state"=2 AND "definition" IS NOT NULL) OR ("definition__state" IN (0,1) AND "definition" IS NULL)),
+  CHECK(("scope__state"=2 AND "scope" IS NOT NULL) OR ("scope__state" IN (0,1) AND "scope" IS NULL)),
+  CHECK(("validity__state"=2 AND "validity" IS NOT NULL) OR ("validity__state" IN (0,1) AND "validity" IS NULL)),
+  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
+  CHECK("kind"='initialize_instance')
+) STRICT;
+
+CREATE TABLE "r_domain_operation_v54" (
+  __row_id INTEGER PRIMARY KEY,
   "record__state" INTEGER NOT NULL CHECK("record__state" IN (2)),
   "record" INTEGER REFERENCES "r_record_ref"(__row_id),
   "expected_version__state" INTEGER NOT NULL CHECK("expected_version__state" IN (2)),
@@ -7025,7 +7206,7 @@ CREATE TABLE "r_domain_operation_v53" (
   CHECK("kind"='refine_classification')
 ) STRICT;
 
-CREATE TABLE "r_domain_operation_v54" (
+CREATE TABLE "r_domain_operation_v55" (
   __row_id INTEGER PRIMARY KEY,
   "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
   "kind" TEXT,
@@ -9331,6 +9512,10 @@ CREATE TRIGGER "r_validity_v6_no_update" BEFORE UPDATE ON "r_validity_v6" BEGIN 
 
 CREATE TRIGGER "r_validity_v6_no_delete" BEFORE DELETE ON "r_validity_v6" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
+CREATE TRIGGER "r_payload_v0_classification_no_update" BEFORE UPDATE ON "r_payload_v0_classification" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_payload_v0_classification_no_delete" BEFORE DELETE ON "r_payload_v0_classification" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
 CREATE TRIGGER "r_payload_v0_world_associations_no_update" BEFORE UPDATE ON "r_payload_v0_world_associations" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_payload_v0_world_associations_no_delete" BEFORE DELETE ON "r_payload_v0_world_associations" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
@@ -9366,10 +9551,6 @@ CREATE TRIGGER "r_payload_v0_metadata_no_delete" BEFORE DELETE ON "r_payload_v0_
 CREATE TRIGGER "r_payload_v0_metadata_items_no_update" BEFORE UPDATE ON "r_payload_v0_metadata_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_payload_v0_metadata_items_no_delete" BEFORE DELETE ON "r_payload_v0_metadata_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_payload_v0_classification_no_update" BEFORE UPDATE ON "r_payload_v0_classification" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_payload_v0_classification_no_delete" BEFORE DELETE ON "r_payload_v0_classification" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_payload_v1_no_update" BEFORE UPDATE ON "r_payload_v1" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
@@ -9983,21 +10164,25 @@ CREATE TRIGGER "r_evidence_basis_v4_no_update" BEFORE UPDATE ON "r_evidence_basi
 
 CREATE TRIGGER "r_evidence_basis_v4_no_delete" BEFORE DELETE ON "r_evidence_basis_v4" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
-CREATE TRIGGER "r_evidence_basis_v4_chain_no_update" BEFORE UPDATE ON "r_evidence_basis_v4_chain" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_evidence_basis_v4_chain_no_delete" BEFORE DELETE ON "r_evidence_basis_v4_chain" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_evidence_basis_v4_chain_items_no_update" BEFORE UPDATE ON "r_evidence_basis_v4_chain_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_evidence_basis_v4_chain_items_no_delete" BEFORE DELETE ON "r_evidence_basis_v4_chain_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_evidence_basis_v4_evaluator_no_update" BEFORE UPDATE ON "r_evidence_basis_v4_evaluator" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_evidence_basis_v4_evaluator_no_delete" BEFORE DELETE ON "r_evidence_basis_v4_evaluator" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
 CREATE TRIGGER "r_evidence_basis_v5_no_update" BEFORE UPDATE ON "r_evidence_basis_v5" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_evidence_basis_v5_no_delete" BEFORE DELETE ON "r_evidence_basis_v5" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_evidence_basis_v5_chain_no_update" BEFORE UPDATE ON "r_evidence_basis_v5_chain" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_evidence_basis_v5_chain_no_delete" BEFORE DELETE ON "r_evidence_basis_v5_chain" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_evidence_basis_v5_chain_items_no_update" BEFORE UPDATE ON "r_evidence_basis_v5_chain_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_evidence_basis_v5_chain_items_no_delete" BEFORE DELETE ON "r_evidence_basis_v5_chain_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_evidence_basis_v5_evaluator_no_update" BEFORE UPDATE ON "r_evidence_basis_v5_evaluator" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_evidence_basis_v5_evaluator_no_delete" BEFORE DELETE ON "r_evidence_basis_v5_evaluator" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_evidence_basis_v6_no_update" BEFORE UPDATE ON "r_evidence_basis_v6" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_evidence_basis_v6_no_delete" BEFORE DELETE ON "r_evidence_basis_v6" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_payload_v18_established_by_no_update" BEFORE UPDATE ON "r_payload_v18_established_by" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
@@ -10315,6 +10500,30 @@ CREATE TRIGGER "r_payload_v22_no_update" BEFORE UPDATE ON "r_payload_v22" BEGIN 
 
 CREATE TRIGGER "r_payload_v22_no_delete" BEFORE DELETE ON "r_payload_v22" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
+CREATE TRIGGER "r_payload_v22_knowledge_policy_no_update" BEFORE UPDATE ON "r_payload_v22_knowledge_policy" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_payload_v22_knowledge_policy_no_delete" BEFORE DELETE ON "r_payload_v22_knowledge_policy" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_knowledge_policy_no_update" BEFORE UPDATE ON "r_knowledge_policy" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_knowledge_policy_no_delete" BEFORE DELETE ON "r_knowledge_policy" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_payload_v22_channel_chronology_no_update" BEFORE UPDATE ON "r_payload_v22_channel_chronology" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_payload_v22_channel_chronology_no_delete" BEFORE DELETE ON "r_payload_v22_channel_chronology" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_channel_chronology_no_update" BEFORE UPDATE ON "r_channel_chronology" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_channel_chronology_no_delete" BEFORE DELETE ON "r_channel_chronology" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_channel_chronology_minimum_delay_no_update" BEFORE UPDATE ON "r_channel_chronology_minimum_delay" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_channel_chronology_minimum_delay_no_delete" BEFORE DELETE ON "r_channel_chronology_minimum_delay" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_channel_chronology_maximum_delay_no_update" BEFORE UPDATE ON "r_channel_chronology_maximum_delay" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_channel_chronology_maximum_delay_no_delete" BEFORE DELETE ON "r_channel_chronology_maximum_delay" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
 CREATE TRIGGER "r_payload_v22_labels_no_update" BEFORE UPDATE ON "r_payload_v22_labels" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_payload_v22_labels_no_delete" BEFORE DELETE ON "r_payload_v22_labels" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
@@ -10354,22 +10563,6 @@ CREATE TRIGGER "r_payload_v22_capabilities_no_delete" BEFORE DELETE ON "r_payloa
 CREATE TRIGGER "r_payload_v22_capabilities_items_no_update" BEFORE UPDATE ON "r_payload_v22_capabilities_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_payload_v22_capabilities_items_no_delete" BEFORE DELETE ON "r_payload_v22_capabilities_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_payload_v22_channel_chronology_no_update" BEFORE UPDATE ON "r_payload_v22_channel_chronology" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_payload_v22_channel_chronology_no_delete" BEFORE DELETE ON "r_payload_v22_channel_chronology" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_channel_chronology_no_update" BEFORE UPDATE ON "r_channel_chronology" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_channel_chronology_no_delete" BEFORE DELETE ON "r_channel_chronology" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_channel_chronology_minimum_delay_no_update" BEFORE UPDATE ON "r_channel_chronology_minimum_delay" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_channel_chronology_minimum_delay_no_delete" BEFORE DELETE ON "r_channel_chronology_minimum_delay" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_channel_chronology_maximum_delay_no_update" BEFORE UPDATE ON "r_channel_chronology_maximum_delay" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_channel_chronology_maximum_delay_no_delete" BEFORE DELETE ON "r_channel_chronology_maximum_delay" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_payload_v23_no_update" BEFORE UPDATE ON "r_payload_v23" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
@@ -10554,6 +10747,34 @@ CREATE TRIGGER "r_effect_lifetime_v1_no_delete" BEFORE DELETE ON "r_effect_lifet
 CREATE TRIGGER "r_payload_v27_no_update" BEFORE UPDATE ON "r_payload_v27" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_payload_v27_no_delete" BEFORE DELETE ON "r_payload_v27" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_payload_v27_acquisition_no_update" BEFORE UPDATE ON "r_payload_v27_acquisition" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_payload_v27_acquisition_no_delete" BEFORE DELETE ON "r_payload_v27_acquisition" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_knowledge_acquisition_no_update" BEFORE UPDATE ON "r_knowledge_acquisition" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_knowledge_acquisition_no_delete" BEFORE DELETE ON "r_knowledge_acquisition" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_knowledge_acquisition_world_no_update" BEFORE UPDATE ON "r_knowledge_acquisition_world" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_knowledge_acquisition_world_no_delete" BEFORE DELETE ON "r_knowledge_acquisition_world" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_knowledge_basis_no_update" BEFORE UPDATE ON "r_knowledge_basis" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_knowledge_basis_no_delete" BEFORE DELETE ON "r_knowledge_basis" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_knowledge_basis_v0_no_update" BEFORE UPDATE ON "r_knowledge_basis_v0" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_knowledge_basis_v0_no_delete" BEFORE DELETE ON "r_knowledge_basis_v0" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_knowledge_basis_v1_no_update" BEFORE UPDATE ON "r_knowledge_basis_v1" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_knowledge_basis_v1_no_delete" BEFORE DELETE ON "r_knowledge_basis_v1" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_knowledge_basis_v1_interpretation_no_update" BEFORE UPDATE ON "r_knowledge_basis_v1_interpretation" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_knowledge_basis_v1_interpretation_no_delete" BEFORE DELETE ON "r_knowledge_basis_v1_interpretation" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_payload_v27_certainty_no_update" BEFORE UPDATE ON "r_payload_v27_certainty" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
@@ -10827,6 +11048,10 @@ CREATE TRIGGER "r_entity_names_items_no_update" BEFORE UPDATE ON "r_entity_names
 
 CREATE TRIGGER "r_entity_names_items_no_delete" BEFORE DELETE ON "r_entity_names_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
+CREATE TRIGGER "r_entity_classification_no_update" BEFORE UPDATE ON "r_entity_classification" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_entity_classification_no_delete" BEFORE DELETE ON "r_entity_classification" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
 CREATE TRIGGER "r_entity_world_associations_no_update" BEFORE UPDATE ON "r_entity_world_associations" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_entity_world_associations_no_delete" BEFORE DELETE ON "r_entity_world_associations" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
@@ -10850,10 +11075,6 @@ CREATE TRIGGER "r_entity_metadata_no_delete" BEFORE DELETE ON "r_entity_metadata
 CREATE TRIGGER "r_entity_metadata_items_no_update" BEFORE UPDATE ON "r_entity_metadata_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_entity_metadata_items_no_delete" BEFORE DELETE ON "r_entity_metadata_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_entity_classification_no_update" BEFORE UPDATE ON "r_entity_classification" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_entity_classification_no_delete" BEFORE DELETE ON "r_entity_classification" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_domain_operation_v5_no_update" BEFORE UPDATE ON "r_domain_operation_v5" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
@@ -11151,6 +11372,10 @@ CREATE TRIGGER "r_epistemic_attitude_no_update" BEFORE UPDATE ON "r_epistemic_at
 
 CREATE TRIGGER "r_epistemic_attitude_no_delete" BEFORE DELETE ON "r_epistemic_attitude" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
+CREATE TRIGGER "r_epistemic_attitude_acquisition_no_update" BEFORE UPDATE ON "r_epistemic_attitude_acquisition" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_epistemic_attitude_acquisition_no_delete" BEFORE DELETE ON "r_epistemic_attitude_acquisition" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
 CREATE TRIGGER "r_epistemic_attitude_certainty_no_update" BEFORE UPDATE ON "r_epistemic_attitude_certainty" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_epistemic_attitude_certainty_no_delete" BEFORE DELETE ON "r_epistemic_attitude_certainty" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
@@ -11443,6 +11668,14 @@ CREATE TRIGGER "r_rule_no_update" BEFORE UPDATE ON "r_rule" BEGIN SELECT RAISE(A
 
 CREATE TRIGGER "r_rule_no_delete" BEFORE DELETE ON "r_rule" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
+CREATE TRIGGER "r_rule_knowledge_policy_no_update" BEFORE UPDATE ON "r_rule_knowledge_policy" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_rule_knowledge_policy_no_delete" BEFORE DELETE ON "r_rule_knowledge_policy" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_rule_channel_chronology_no_update" BEFORE UPDATE ON "r_rule_channel_chronology" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_rule_channel_chronology_no_delete" BEFORE DELETE ON "r_rule_channel_chronology" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
 CREATE TRIGGER "r_rule_labels_no_update" BEFORE UPDATE ON "r_rule_labels" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_rule_labels_no_delete" BEFORE DELETE ON "r_rule_labels" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
@@ -11474,10 +11707,6 @@ CREATE TRIGGER "r_rule_capabilities_no_delete" BEFORE DELETE ON "r_rule_capabili
 CREATE TRIGGER "r_rule_capabilities_items_no_update" BEFORE UPDATE ON "r_rule_capabilities_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_rule_capabilities_items_no_delete" BEFORE DELETE ON "r_rule_capabilities_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_rule_channel_chronology_no_update" BEFORE UPDATE ON "r_rule_channel_chronology" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
-
-CREATE TRIGGER "r_rule_channel_chronology_no_delete" BEFORE DELETE ON "r_rule_channel_chronology" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_domain_operation_v38_no_update" BEFORE UPDATE ON "r_domain_operation_v38" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
@@ -11674,6 +11903,10 @@ CREATE TRIGGER "r_domain_operation_v53_no_delete" BEFORE DELETE ON "r_domain_ope
 CREATE TRIGGER "r_domain_operation_v54_no_update" BEFORE UPDATE ON "r_domain_operation_v54" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_domain_operation_v54_no_delete" BEFORE DELETE ON "r_domain_operation_v54" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v55_no_update" BEFORE UPDATE ON "r_domain_operation_v55" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v55_no_delete" BEFORE DELETE ON "r_domain_operation_v55" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_stored_context_no_update" BEFORE UPDATE ON "r_stored_context" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 

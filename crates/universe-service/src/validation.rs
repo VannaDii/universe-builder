@@ -291,6 +291,34 @@ pub fn structural(records: &[RecordVersion]) -> anyhow::Result<()> {
                 {
                     return Err(invalid("attitude requires a holder and a proposition"));
                 }
+                if let Some(acquisition) = &a.acquisition {
+                    if !matches!(
+                        map.get(&acquisition.truth_context.record),
+                        Some(Payload::RepresentedContext(_))
+                    ) || acquisition
+                        .world
+                        .as_ref()
+                        .is_some_and(|w| !matches!(map.get(&w.record), Some(Payload::World(_))))
+                    {
+                        return Err(invalid("knowledge truth context/world has the wrong kind"));
+                    }
+                    if let KnowledgeBasis::CommunicationReceipt {
+                        communication,
+                        interpretation,
+                    } = &acquisition.basis
+                    {
+                        if !matches!(
+                            map.get(&communication.record),
+                            Some(Payload::Communication(_))
+                        ) || interpretation.as_ref().is_some_and(|p| {
+                            !matches!(map.get(&p.record), Some(Payload::Proposition(_)))
+                        }) {
+                            return Err(invalid(
+                                "knowledge receipt/interpretation has the wrong kind",
+                            ));
+                        }
+                    }
+                }
             }
             Payload::Observation(o) => {
                 if !matches!(map.get(&o.observer.record), Some(Payload::Entity(_))) {
@@ -315,6 +343,17 @@ pub fn structural(records: &[RecordVersion]) -> anyhow::Result<()> {
             }
             Payload::Rule(rule) => {
                 crate::communications::validate_rule(rule)?;
+                crate::knowledge::validate_rule(rule)?;
+                if rule.knowledge_policy.as_ref().is_some_and(|p| {
+                    !matches!(
+                        map.get(&p.context.record),
+                        Some(Payload::RepresentedContext(_))
+                    )
+                }) {
+                    return Err(invalid(
+                        "knowledge policy context must be a represented context",
+                    ));
+                }
                 for id in &rule.subject_types {
                     if !matches!(map.get(id), Some(Payload::EntityType(_))) {
                         return Err(invalid("rule subject type must resolve to a definition"));

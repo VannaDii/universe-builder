@@ -9,6 +9,7 @@ fn rule(expression: Expr, applicability: Applicability, executable: bool) -> Rec
             RecordKind::Rule,
         ),
         Payload::Rule(Rule {
+            knowledge_policy: None,
             channel_chronology: None,
             namespace: "fixture".into(),
             key: "rule".into(),
@@ -111,6 +112,7 @@ fn explicit_belief_is_not_knowledge_and_acquisition_is_time_and_context_bound() 
         version(
             5,
             Payload::EpistemicAttitude(EpistemicAttitude {
+                acquisition: None,
                 holder: rr(1),
                 proposition: rr(3),
                 attitude: kind,

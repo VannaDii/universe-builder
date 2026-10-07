@@ -5,7 +5,7 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | Contract | Table / scalar domain | Fields or links |
 |---|---|---|
 | `Payload` | `r_payload` | Payload_v0, Payload_v1, Payload_v2, Payload_v3, Payload_v4, Payload_v5, Payload_v6, Payload_v7, Payload_v8, Payload_v9, Payload_v10, Payload_v11, Payload_v12, Payload_v13, Payload_v14, Payload_v15, Payload_v16, Payload_v17, Payload_v18, Payload_v19, Payload_v20, Payload_v21, Payload_v22, Payload_v23, Payload_v24, Payload_v25, Payload_v26, Payload_v27, Payload_v28, Payload_v29, Payload_v30, Payload_v31, Payload_v32, Payload_v33, Payload_v34, Payload_v35, Payload_v36, Payload_v37 |
-| `Payload_v0` | `r_payload_v0` | names → Payload_v0_names, worldAssociations → Payload_v0_worldAssociations, labels → Payload_v0_labels, metadata → Payload_v0_metadata, record_kind → Payload_v0_record_kind, classification → Payload_v0_classification, classificationResolution → Payload_v0_classificationResolution |
+| `Payload_v0` | `r_payload_v0` | names → Payload_v0_names, classification → Payload_v0_classification, classificationResolution → ClassificationResolution, worldAssociations → Payload_v0_worldAssociations, labels → Payload_v0_labels, metadata → Payload_v0_metadata, record_kind → Payload_v0_record_kind |
 | `Payload_v0_names` | `r_payload_v0_names` | ContextualName |
 | `ContextualName` | `r_contextual_name` | text → ContextualName_text, language → ContextualName_language, community → ContextualName_community, role → ContextualName_role, validity → Validity |
 | `ContextualName_text` | `r_contextual_name_text` (scalar column) | string |
@@ -139,6 +139,9 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `Validity_v5_kind` | `r_validity_v5_kind` (scalar column) | string |
 | `Validity_v6` | `r_validity_v6` | kind → Validity_v6_kind |
 | `Validity_v6_kind` | `r_validity_v6_kind` (scalar column) | string |
+| `Payload_v0_classification` | `r_payload_v0_classification` | RecordId, Payload_v0_classification_v1 |
+| `Payload_v0_classification_v1` | `r_payload_v0_classification_v1` (scalar column) | null |
+| `ClassificationResolution` | `r_classification_resolution` (scalar column) | string |
 | `Payload_v0_worldAssociations` | `r_payload_v0_world_associations` | WorldAssociation |
 | `WorldAssociation` | `r_world_association` | world → WorldId, role → WorldAssociation_role, validity → Validity, qualifiers → WorldAssociation_qualifiers |
 | `WorldId` | `r_world_id` (scalar column) | string |
@@ -148,9 +151,6 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `Payload_v0_labels_item` | `r_payload_v0_labels_item` (scalar column) | string |
 | `Payload_v0_metadata` | `r_payload_v0_metadata` | Value |
 | `Payload_v0_record_kind` | `r_payload_v0_record_kind` (scalar column) | string |
-| `Payload_v0_classification` | `r_payload_v0_classification` | RecordId, Payload_v0_classification_v1 |
-| `Payload_v0_classification_v1` | `r_payload_v0_classification_v1` (scalar column) | null |
-| `Payload_v0_classificationResolution` | `r_payload_v0_classification_resolution` (scalar column) | string |
 | `Payload_v1` | `r_payload_v1` | target → AppearanceTarget, label → Payload_v1_label, physical_description → Payload_v1_physical_description, atmosphere → Payload_v1_atmosphere, images → Payload_v1_images, links → Payload_v1_links, validity → Validity, record_kind → Payload_v1_record_kind |
 | `AppearanceTarget` | `r_appearance_target` | AppearanceTarget_v0, AppearanceTarget_v1 |
 | `AppearanceTarget_v0` | `r_appearance_target_v0` | kind → AppearanceTarget_v0_kind |
@@ -252,13 +252,11 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `SagaMembership_order_v0` | `r_saga_membership_order_v0` (scalar column) | integer |
 | `SagaMembership_order_v1` | `r_saga_membership_order_v1` (scalar column) | null |
 | `Payload_v9_record_kind` | `r_payload_v9_record_kind` (scalar column) | string |
-| `Payload_v10` | `r_payload_v10` | namespace → Payload_v10_namespace, key → Payload_v10_key, labels → Payload_v10_labels, classificationExecutable → Payload_v10_classificationExecutable, record_kind → Payload_v10_record_kind, name → Payload_v10_name, parent → Payload_v10_parent, parentResolution → Payload_v10_parentResolution, applicability → Applicability |
+| `Payload_v10` | `r_payload_v10` | namespace → Payload_v10_namespace, key → Payload_v10_key, labels → Payload_v10_labels, name → Payload_v10_name, parent → Payload_v10_parent, parentResolution → Payload_v10_parentResolution, applicability → Applicability, classificationExecutable → Payload_v10_classificationExecutable, record_kind → Payload_v10_record_kind |
 | `Payload_v10_namespace` | `r_payload_v10_namespace` (scalar column) | string |
 | `Payload_v10_key` | `r_payload_v10_key` (scalar column) | string |
 | `Payload_v10_labels` | `r_payload_v10_labels` | Payload_v10_labels_item |
 | `Payload_v10_labels_item` | `r_payload_v10_labels_item` (scalar column) | string |
-| `Payload_v10_classificationExecutable` | `r_payload_v10_classification_executable` (scalar column) | boolean |
-| `Payload_v10_record_kind` | `r_payload_v10_record_kind` (scalar column) | string |
 | `Payload_v10_name` | `r_payload_v10_name` (scalar column) | string |
 | `Payload_v10_parent` | `r_payload_v10_parent` | RecordId, Payload_v10_parent_v1 |
 | `Payload_v10_parent_v1` | `r_payload_v10_parent_v1` (scalar column) | null |
@@ -273,6 +271,8 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `Applicability_v2_kind` | `r_applicability_v2_kind` (scalar column) | string |
 | `Applicability_v3` | `r_applicability_v3` | kind → Applicability_v3_kind |
 | `Applicability_v3_kind` | `r_applicability_v3_kind` (scalar column) | string |
+| `Payload_v10_classificationExecutable` | `r_payload_v10_classification_executable` (scalar column) | boolean |
+| `Payload_v10_record_kind` | `r_payload_v10_record_kind` (scalar column) | string |
 | `Payload_v11` | `r_payload_v11` | namespace → Payload_v11_namespace, key → Payload_v11_key, labels → Payload_v11_labels, subjectTypes → Payload_v11_subjectTypes, value → ValueShape, multiplicity → Multiplicity, unitDimension → Payload_v11_unitDimension, persistence → PersistenceSemantics, exclusive → Payload_v11_exclusive, inverse → Payload_v11_inverse, symmetric → Payload_v11_symmetric, transitive → Payload_v11_transitive, record_kind → Payload_v11_record_kind |
 | `Payload_v11_namespace` | `r_payload_v11_namespace` (scalar column) | string |
 | `Payload_v11_key` | `r_payload_v11_key` (scalar column) | string |
@@ -399,14 +399,15 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `Quantification_v1` | `r_quantification_v1` (scalar column) | string |
 | `Quantification_v2` | `r_quantification_v2` (scalar column) | string |
 | `Payload_v17_record_kind` | `r_payload_v17_record_kind` (scalar column) | string |
-| `Payload_v18` | `r_payload_v18` | proposition → RecordRef, polarity → Polarity, scope → Scope, validity → Validity, persistence → PersistenceSemantics, precision → Precision, alternatives → Payload_v18_alternatives, basis → EvidenceBasis, establishedBy → Payload_v18_establishedBy, record_kind → Payload_v18_record_kind, attributeMode → Payload_v18_attributeMode |
+| `Payload_v18` | `r_payload_v18` | attributeMode → Payload_v18_attributeMode, proposition → RecordRef, polarity → Polarity, scope → Scope, validity → Validity, persistence → PersistenceSemantics, precision → Precision, alternatives → Payload_v18_alternatives, basis → EvidenceBasis, establishedBy → Payload_v18_establishedBy, record_kind → Payload_v18_record_kind |
+| `Payload_v18_attributeMode` | `r_payload_v18_attribute_mode` (scalar column) | string |
 | `Polarity` | `r_polarity` (scalar column) | string |
 | `Scope` | `r_scope` | applicability → Applicability, context → RecordRef, realm → Scope_realm |
 | `Scope_realm` | `r_scope_realm` | RecordRef, Scope_realm_v1 |
 | `Scope_realm_v1` | `r_scope_realm_v1` (scalar column) | null |
 | `Precision` | `r_precision` (scalar column) | string |
 | `Payload_v18_alternatives` | `r_payload_v18_alternatives` | Value |
-| `EvidenceBasis` | `r_evidence_basis` | EvidenceBasis_v0, EvidenceBasis_v1, EvidenceBasis_v2, EvidenceBasis_v3, EvidenceBasis_v4, EvidenceBasis_v5 |
+| `EvidenceBasis` | `r_evidence_basis` | EvidenceBasis_v0, EvidenceBasis_v1, EvidenceBasis_v2, EvidenceBasis_v3, EvidenceBasis_v4, EvidenceBasis_v5, EvidenceBasis_v6 |
 | `EvidenceBasis_v0` | `r_evidence_basis_v0` | note → EvidenceBasis_v0_note, kind → EvidenceBasis_v0_kind |
 | `EvidenceBasis_v0_note` | `r_evidence_basis_v0_note` (scalar column) | string |
 | `EvidenceBasis_v0_kind` | `r_evidence_basis_v0_kind` (scalar column) | string |
@@ -416,22 +417,23 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `EvidenceBasis_v2` | `r_evidence_basis_v2` | event → RecordRef, slot → EvidenceBasis_v2_slot, kind → EvidenceBasis_v2_kind |
 | `EvidenceBasis_v2_slot` | `r_evidence_basis_v2_slot` (scalar column) | string |
 | `EvidenceBasis_v2_kind` | `r_evidence_basis_v2_kind` (scalar column) | string |
-| `EvidenceBasis_v3` | `r_evidence_basis_v3` | kind → EvidenceBasis_v3_kind |
+| `EvidenceBasis_v3` | `r_evidence_basis_v3` | start → VersionRef, definition → VersionRef, source_revision → RevisionId, kind → EvidenceBasis_v3_kind |
 | `EvidenceBasis_v3_kind` | `r_evidence_basis_v3_kind` (scalar column) | string |
-| `EvidenceBasis_v4` | `r_evidence_basis_v4` | chain → EvidenceBasis_v4_chain, evaluator → EvidenceBasis_v4_evaluator, kind → EvidenceBasis_v4_kind |
-| `EvidenceBasis_v4_chain` | `r_evidence_basis_v4_chain` | VersionRef |
-| `EvidenceBasis_v4_evaluator` | `r_evidence_basis_v4_evaluator` | EvidenceBasis_v4_evaluator_v0, EvidenceBasis_v4_evaluator_v1 |
-| `EvidenceBasis_v4_evaluator_v0` | `r_evidence_basis_v4_evaluator_v0` (scalar column) | string |
-| `EvidenceBasis_v4_evaluator_v1` | `r_evidence_basis_v4_evaluator_v1` (scalar column) | null |
+| `EvidenceBasis_v4` | `r_evidence_basis_v4` | kind → EvidenceBasis_v4_kind |
 | `EvidenceBasis_v4_kind` | `r_evidence_basis_v4_kind` (scalar column) | string |
-| `EvidenceBasis_v5` | `r_evidence_basis_v5` | kind → EvidenceBasis_v5_kind, start → VersionRef, definition → VersionRef, source_revision → RevisionId |
+| `EvidenceBasis_v5` | `r_evidence_basis_v5` | chain → EvidenceBasis_v5_chain, evaluator → EvidenceBasis_v5_evaluator, kind → EvidenceBasis_v5_kind |
+| `EvidenceBasis_v5_chain` | `r_evidence_basis_v5_chain` | VersionRef |
+| `EvidenceBasis_v5_evaluator` | `r_evidence_basis_v5_evaluator` | EvidenceBasis_v5_evaluator_v0, EvidenceBasis_v5_evaluator_v1 |
+| `EvidenceBasis_v5_evaluator_v0` | `r_evidence_basis_v5_evaluator_v0` (scalar column) | string |
+| `EvidenceBasis_v5_evaluator_v1` | `r_evidence_basis_v5_evaluator_v1` (scalar column) | null |
 | `EvidenceBasis_v5_kind` | `r_evidence_basis_v5_kind` (scalar column) | string |
+| `EvidenceBasis_v6` | `r_evidence_basis_v6` | kind → EvidenceBasis_v6_kind, start → VersionRef, definition → VersionRef, source_revision → RevisionId |
+| `EvidenceBasis_v6_kind` | `r_evidence_basis_v6_kind` (scalar column) | string |
 | `Payload_v18_establishedBy` | `r_payload_v18_established_by` | EventEffectRef, Payload_v18_establishedBy_v1 |
 | `EventEffectRef` | `r_event_effect_ref` | event → RecordRef, slot → EventEffectRef_slot |
 | `EventEffectRef_slot` | `r_event_effect_ref_slot` (scalar column) | string |
 | `Payload_v18_establishedBy_v1` | `r_payload_v18_established_by_v1` (scalar column) | null |
 | `Payload_v18_record_kind` | `r_payload_v18_record_kind` (scalar column) | string |
-| `Payload_v18_attributeMode` | `r_payload_v18_attribute_mode` (scalar column) | string |
 | `Payload_v19` | `r_payload_v19` | universe → UniverseId, kind → RepresentedContextKind, parent → Payload_v19_parent, chronology → Payload_v19_chronology, labels → Payload_v19_labels, record_kind → Payload_v19_record_kind |
 | `RepresentedContextKind` | `r_represented_context_kind` | RepresentedContextKind_v0, RepresentedContextKind_v1, RepresentedContextKind_v2, RepresentedContextKind_v3, RepresentedContextKind_v4 |
 | `RepresentedContextKind_v0` | `r_represented_context_kind_v0` | kind → RepresentedContextKind_v0_kind |
@@ -583,7 +585,22 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `Expr_v14_role` | `r_expr_v14_role` (scalar column) | string |
 | `Expr_v14_kind` | `r_expr_v14_kind` (scalar column) | string |
 | `Payload_v21_record_kind` | `r_payload_v21_record_kind` (scalar column) | string |
-| `Payload_v22` | `r_payload_v22` | namespace → Payload_v22_namespace, key → Payload_v22_key, labels → Payload_v22_labels, kind → RuleKind, commitPolicy → CommitPolicy, applicability → Applicability, subjectTypes → Payload_v22_subjectTypes, targetPredicates → Payload_v22_targetPredicates, expression → Expr, capabilities → Payload_v22_capabilities, executable → Payload_v22_executable, validity → Validity, record_kind → Payload_v22_record_kind, channelChronology → Payload_v22_channelChronology |
+| `Payload_v22` | `r_payload_v22` | knowledgePolicy → Payload_v22_knowledgePolicy, channelChronology → Payload_v22_channelChronology, namespace → Payload_v22_namespace, key → Payload_v22_key, labels → Payload_v22_labels, kind → RuleKind, commitPolicy → CommitPolicy, applicability → Applicability, subjectTypes → Payload_v22_subjectTypes, targetPredicates → Payload_v22_targetPredicates, expression → Expr, capabilities → Payload_v22_capabilities, executable → Payload_v22_executable, validity → Validity, record_kind → Payload_v22_record_kind |
+| `Payload_v22_knowledgePolicy` | `r_payload_v22_knowledge_policy` | KnowledgePolicy, Payload_v22_knowledgePolicy_v1 |
+| `KnowledgePolicy` | `r_knowledge_policy` | context → RecordRef, mode → KnowledgeMode |
+| `KnowledgeMode` | `r_knowledge_mode` (scalar column) | string |
+| `Payload_v22_knowledgePolicy_v1` | `r_payload_v22_knowledge_policy_v1` (scalar column) | null |
+| `Payload_v22_channelChronology` | `r_payload_v22_channel_chronology` | ChannelChronology, Payload_v22_channelChronology_v1 |
+| `ChannelChronology` | `r_channel_chronology` | channel → ChannelChronology_channel, forwardOnly → ChannelChronology_forwardOnly, minimumDelay → ChannelChronology_minimumDelay, maximumDelay → ChannelChronology_maximumDelay |
+| `ChannelChronology_channel` | `r_channel_chronology_channel` (scalar column) | string |
+| `ChannelChronology_forwardOnly` | `r_channel_chronology_forward_only` (scalar column) | boolean |
+| `ChannelChronology_minimumDelay` | `r_channel_chronology_minimum_delay` | ChannelChronology_minimumDelay_v0, ChannelChronology_minimumDelay_v1 |
+| `ChannelChronology_minimumDelay_v0` | `r_channel_chronology_minimum_delay_v0` (scalar column) | string |
+| `ChannelChronology_minimumDelay_v1` | `r_channel_chronology_minimum_delay_v1` (scalar column) | null |
+| `ChannelChronology_maximumDelay` | `r_channel_chronology_maximum_delay` | ChannelChronology_maximumDelay_v0, ChannelChronology_maximumDelay_v1 |
+| `ChannelChronology_maximumDelay_v0` | `r_channel_chronology_maximum_delay_v0` (scalar column) | string |
+| `ChannelChronology_maximumDelay_v1` | `r_channel_chronology_maximum_delay_v1` (scalar column) | null |
+| `Payload_v22_channelChronology_v1` | `r_payload_v22_channel_chronology_v1` (scalar column) | null |
 | `Payload_v22_namespace` | `r_payload_v22_namespace` (scalar column) | string |
 | `Payload_v22_key` | `r_payload_v22_key` (scalar column) | string |
 | `Payload_v22_labels` | `r_payload_v22_labels` | Payload_v22_labels_item |
@@ -610,17 +627,6 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `Payload_v22_capabilities_item` | `r_payload_v22_capabilities_item` (scalar column) | string |
 | `Payload_v22_executable` | `r_payload_v22_executable` (scalar column) | boolean |
 | `Payload_v22_record_kind` | `r_payload_v22_record_kind` (scalar column) | string |
-| `Payload_v22_channelChronology` | `r_payload_v22_channel_chronology` | ChannelChronology, Payload_v22_channelChronology_v1 |
-| `ChannelChronology` | `r_channel_chronology` | channel → ChannelChronology_channel, forwardOnly → ChannelChronology_forwardOnly, minimumDelay → ChannelChronology_minimumDelay, maximumDelay → ChannelChronology_maximumDelay |
-| `ChannelChronology_channel` | `r_channel_chronology_channel` (scalar column) | string |
-| `ChannelChronology_forwardOnly` | `r_channel_chronology_forward_only` (scalar column) | boolean |
-| `ChannelChronology_minimumDelay` | `r_channel_chronology_minimum_delay` | ChannelChronology_minimumDelay_v0, ChannelChronology_minimumDelay_v1 |
-| `ChannelChronology_minimumDelay_v0` | `r_channel_chronology_minimum_delay_v0` (scalar column) | string |
-| `ChannelChronology_minimumDelay_v1` | `r_channel_chronology_minimum_delay_v1` (scalar column) | null |
-| `ChannelChronology_maximumDelay` | `r_channel_chronology_maximum_delay` | ChannelChronology_maximumDelay_v0, ChannelChronology_maximumDelay_v1 |
-| `ChannelChronology_maximumDelay_v0` | `r_channel_chronology_maximum_delay_v0` (scalar column) | string |
-| `ChannelChronology_maximumDelay_v1` | `r_channel_chronology_maximum_delay_v1` (scalar column) | null |
-| `Payload_v22_channelChronology_v1` | `r_payload_v22_channel_chronology_v1` (scalar column) | null |
 | `Payload_v23` | `r_payload_v23` | rule → RecordRef, ruleVersion → Payload_v23_ruleVersion, scope → Scope, validity → Validity, authorizingDecision → RecordRef, rationale → Payload_v23_rationale, record_kind → Payload_v23_record_kind |
 | `Payload_v23_ruleVersion` | `r_payload_v23_rule_version` | RecordVersionId, Payload_v23_ruleVersion_v1 |
 | `Payload_v23_ruleVersion_v1` | `r_payload_v23_rule_version_v1` (scalar column) | null |
@@ -696,7 +702,19 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `EffectLifetime_v1` | `r_effect_lifetime_v1` | count → ConsequenceInteger, kind → EffectLifetime_v1_kind |
 | `EffectLifetime_v1_kind` | `r_effect_lifetime_v1_kind` (scalar column) | string |
 | `Payload_v26_record_kind` | `r_payload_v26_record_kind` (scalar column) | string |
-| `Payload_v27` | `r_payload_v27` | holder → RecordRef, proposition → RecordRef, attitude → EpistemicAttitudeKind, certainty → Payload_v27_certainty, validity → Validity, basis → EvidenceBasis, record_kind → Payload_v27_record_kind |
+| `Payload_v27` | `r_payload_v27` | acquisition → Payload_v27_acquisition, holder → RecordRef, proposition → RecordRef, attitude → EpistemicAttitudeKind, certainty → Payload_v27_certainty, validity → Validity, basis → EvidenceBasis, record_kind → Payload_v27_record_kind |
+| `Payload_v27_acquisition` | `r_payload_v27_acquisition` | KnowledgeAcquisition, Payload_v27_acquisition_v1 |
+| `KnowledgeAcquisition` | `r_knowledge_acquisition` | truthContext → RecordRef, time → TemporalExpression, world → KnowledgeAcquisition_world, basis → KnowledgeBasis |
+| `KnowledgeAcquisition_world` | `r_knowledge_acquisition_world` | RecordRef, KnowledgeAcquisition_world_v1 |
+| `KnowledgeAcquisition_world_v1` | `r_knowledge_acquisition_world_v1` (scalar column) | null |
+| `KnowledgeBasis` | `r_knowledge_basis` | KnowledgeBasis_v0, KnowledgeBasis_v1 |
+| `KnowledgeBasis_v0` | `r_knowledge_basis_v0` | kind → KnowledgeBasis_v0_kind |
+| `KnowledgeBasis_v0_kind` | `r_knowledge_basis_v0_kind` (scalar column) | string |
+| `KnowledgeBasis_v1` | `r_knowledge_basis_v1` | communication → RecordRef, interpretation → KnowledgeBasis_v1_interpretation, kind → KnowledgeBasis_v1_kind |
+| `KnowledgeBasis_v1_interpretation` | `r_knowledge_basis_v1_interpretation` | RecordRef, KnowledgeBasis_v1_interpretation_v1 |
+| `KnowledgeBasis_v1_interpretation_v1` | `r_knowledge_basis_v1_interpretation_v1` (scalar column) | null |
+| `KnowledgeBasis_v1_kind` | `r_knowledge_basis_v1_kind` (scalar column) | string |
+| `Payload_v27_acquisition_v1` | `r_payload_v27_acquisition_v1` (scalar column) | null |
 | `Payload_v27_certainty` | `r_payload_v27_certainty` | Payload_v27_certainty_v0, Payload_v27_certainty_v1 |
 | `Payload_v27_certainty_v0` | `r_payload_v27_certainty_v0` (scalar column) | string |
 | `Payload_v27_certainty_v1` | `r_payload_v27_certainty_v1` (scalar column) | null |
@@ -797,7 +815,7 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `Payload_v37_scope` | `r_payload_v37_scope` (scalar column) | string |
 | `Payload_v37_rationale` | `r_payload_v37_rationale` (scalar column) | string |
 | `Payload_v37_record_kind` | `r_payload_v37_record_kind` (scalar column) | string |
-| `DomainOperation` | `r_domain_operation` | DomainOperation_v0, DomainOperation_v1, DomainOperation_v2, DomainOperation_v3, DomainOperation_v4, DomainOperation_v5, DomainOperation_v6, DomainOperation_v7, DomainOperation_v8, DomainOperation_v9, DomainOperation_v10, DomainOperation_v11, DomainOperation_v12, DomainOperation_v13, DomainOperation_v14, DomainOperation_v15, DomainOperation_v16, DomainOperation_v17, DomainOperation_v18, DomainOperation_v19, DomainOperation_v20, DomainOperation_v21, DomainOperation_v22, DomainOperation_v23, DomainOperation_v24, DomainOperation_v25, DomainOperation_v26, DomainOperation_v27, DomainOperation_v28, DomainOperation_v29, DomainOperation_v30, DomainOperation_v31, DomainOperation_v32, DomainOperation_v33, DomainOperation_v34, DomainOperation_v35, DomainOperation_v36, DomainOperation_v37, DomainOperation_v38, DomainOperation_v39, DomainOperation_v40, DomainOperation_v41, DomainOperation_v42, DomainOperation_v43, DomainOperation_v44, DomainOperation_v45, DomainOperation_v46, DomainOperation_v47, DomainOperation_v48, DomainOperation_v49, DomainOperation_v50, DomainOperation_v51, DomainOperation_v52, DomainOperation_v53, DomainOperation_v54 |
+| `DomainOperation` | `r_domain_operation` | DomainOperation_v0, DomainOperation_v1, DomainOperation_v2, DomainOperation_v3, DomainOperation_v4, DomainOperation_v5, DomainOperation_v6, DomainOperation_v7, DomainOperation_v8, DomainOperation_v9, DomainOperation_v10, DomainOperation_v11, DomainOperation_v12, DomainOperation_v13, DomainOperation_v14, DomainOperation_v15, DomainOperation_v16, DomainOperation_v17, DomainOperation_v18, DomainOperation_v19, DomainOperation_v20, DomainOperation_v21, DomainOperation_v22, DomainOperation_v23, DomainOperation_v24, DomainOperation_v25, DomainOperation_v26, DomainOperation_v27, DomainOperation_v28, DomainOperation_v29, DomainOperation_v30, DomainOperation_v31, DomainOperation_v32, DomainOperation_v33, DomainOperation_v34, DomainOperation_v35, DomainOperation_v36, DomainOperation_v37, DomainOperation_v38, DomainOperation_v39, DomainOperation_v40, DomainOperation_v41, DomainOperation_v42, DomainOperation_v43, DomainOperation_v44, DomainOperation_v45, DomainOperation_v46, DomainOperation_v47, DomainOperation_v48, DomainOperation_v49, DomainOperation_v50, DomainOperation_v51, DomainOperation_v52, DomainOperation_v53, DomainOperation_v54, DomainOperation_v55 |
 | `DomainOperation_v0` | `r_domain_operation_v0` | client_ref → DomainOperation_v0_client_ref, record → Appearance, kind → DomainOperation_v0_kind |
 | `DomainOperation_v0_client_ref` | `r_domain_operation_v0_client_ref` (scalar column) | string |
 | `Appearance` | `r_appearance` | target → AppearanceTarget, label → Appearance_label, physical_description → Appearance_physical_description, atmosphere → Appearance_atmosphere, images → Appearance_images, links → Appearance_links, validity → Validity |
@@ -826,15 +844,14 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `DomainOperation_v3_kind` | `r_domain_operation_v3_kind` (scalar column) | string |
 | `DomainOperation_v4` | `r_domain_operation_v4` | client_ref → DomainOperation_v4_client_ref, record → Entity, kind → DomainOperation_v4_kind |
 | `DomainOperation_v4_client_ref` | `r_domain_operation_v4_client_ref` (scalar column) | string |
-| `Entity` | `r_entity` | names → Entity_names, worldAssociations → Entity_worldAssociations, labels → Entity_labels, metadata → Entity_metadata, classification → Entity_classification, classificationResolution → Entity_classificationResolution |
+| `Entity` | `r_entity` | names → Entity_names, classification → Entity_classification, classificationResolution → ClassificationResolution, worldAssociations → Entity_worldAssociations, labels → Entity_labels, metadata → Entity_metadata |
 | `Entity_names` | `r_entity_names` | ContextualName |
+| `Entity_classification` | `r_entity_classification` | RecordId, Entity_classification_v1 |
+| `Entity_classification_v1` | `r_entity_classification_v1` (scalar column) | null |
 | `Entity_worldAssociations` | `r_entity_world_associations` | WorldAssociation |
 | `Entity_labels` | `r_entity_labels` | Entity_labels_item |
 | `Entity_labels_item` | `r_entity_labels_item` (scalar column) | string |
 | `Entity_metadata` | `r_entity_metadata` | Value |
-| `Entity_classification` | `r_entity_classification` | RecordId, Entity_classification_v1 |
-| `Entity_classification_v1` | `r_entity_classification_v1` (scalar column) | null |
-| `Entity_classificationResolution` | `r_entity_classification_resolution` (scalar column) | string |
 | `DomainOperation_v4_kind` | `r_domain_operation_v4_kind` (scalar column) | string |
 | `DomainOperation_v5` | `r_domain_operation_v5` | record → RecordRef, expected_version → RecordVersionId, name → ContextualName, kind → DomainOperation_v5_kind |
 | `DomainOperation_v5_kind` | `r_domain_operation_v5_kind` (scalar column) | string |
@@ -889,11 +906,11 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `Proposition_roles` | `r_proposition_roles` | PropositionRole |
 | `Proposition_value` | `r_proposition_value` | Value, Proposition_value_v1 |
 | `Proposition_value_v1` | `r_proposition_value_v1` (scalar column) | null |
-| `Assertion` | `r_assertion` | proposition → RecordRef, polarity → Polarity, scope → Scope, validity → Validity, persistence → PersistenceSemantics, precision → Precision, alternatives → Assertion_alternatives, basis → EvidenceBasis, establishedBy → Assertion_establishedBy, attributeMode → Assertion_attributeMode |
+| `Assertion` | `r_assertion` | attributeMode → Assertion_attributeMode, proposition → RecordRef, polarity → Polarity, scope → Scope, validity → Validity, persistence → PersistenceSemantics, precision → Precision, alternatives → Assertion_alternatives, basis → EvidenceBasis, establishedBy → Assertion_establishedBy |
+| `Assertion_attributeMode` | `r_assertion_attribute_mode` (scalar column) | string |
 | `Assertion_alternatives` | `r_assertion_alternatives` | Value |
 | `Assertion_establishedBy` | `r_assertion_established_by` | EventEffectRef, Assertion_establishedBy_v1 |
 | `Assertion_establishedBy_v1` | `r_assertion_established_by_v1` (scalar column) | null |
-| `Assertion_attributeMode` | `r_assertion_attribute_mode` (scalar column) | string |
 | `DomainOperation_v15_kind` | `r_domain_operation_v15_kind` (scalar column) | string |
 | `DomainOperation_v16` | `r_domain_operation_v16` | client_ref → DomainOperation_v16_client_ref, proposition → Proposition, assertion → Assertion, kind → DomainOperation_v16_kind |
 | `DomainOperation_v16_client_ref` | `r_domain_operation_v16_client_ref` (scalar column) | string |
@@ -949,7 +966,9 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `DomainOperation_v24_kind` | `r_domain_operation_v24_kind` (scalar column) | string |
 | `DomainOperation_v25` | `r_domain_operation_v25` | client_ref → DomainOperation_v25_client_ref, record → EpistemicAttitude, kind → DomainOperation_v25_kind |
 | `DomainOperation_v25_client_ref` | `r_domain_operation_v25_client_ref` (scalar column) | string |
-| `EpistemicAttitude` | `r_epistemic_attitude` | holder → RecordRef, proposition → RecordRef, attitude → EpistemicAttitudeKind, certainty → EpistemicAttitude_certainty, validity → Validity, basis → EvidenceBasis |
+| `EpistemicAttitude` | `r_epistemic_attitude` | acquisition → EpistemicAttitude_acquisition, holder → RecordRef, proposition → RecordRef, attitude → EpistemicAttitudeKind, certainty → EpistemicAttitude_certainty, validity → Validity, basis → EvidenceBasis |
+| `EpistemicAttitude_acquisition` | `r_epistemic_attitude_acquisition` | KnowledgeAcquisition, EpistemicAttitude_acquisition_v1 |
+| `EpistemicAttitude_acquisition_v1` | `r_epistemic_attitude_acquisition_v1` (scalar column) | null |
 | `EpistemicAttitude_certainty` | `r_epistemic_attitude_certainty` | EpistemicAttitude_certainty_v0, EpistemicAttitude_certainty_v1 |
 | `EpistemicAttitude_certainty_v0` | `r_epistemic_attitude_certainty_v0` (scalar column) | string |
 | `EpistemicAttitude_certainty_v1` | `r_epistemic_attitude_certainty_v1` (scalar column) | null |
@@ -1000,16 +1019,16 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `DomainOperation_v30_kind` | `r_domain_operation_v30_kind` (scalar column) | string |
 | `DomainOperation_v31` | `r_domain_operation_v31` | client_ref → DomainOperation_v31_client_ref, record → EntityType, kind → DomainOperation_v31_kind |
 | `DomainOperation_v31_client_ref` | `r_domain_operation_v31_client_ref` (scalar column) | string |
-| `EntityType` | `r_entity_type` | namespace → EntityType_namespace, key → EntityType_key, labels → EntityType_labels, classificationExecutable → EntityType_classificationExecutable, name → EntityType_name, parent → EntityType_parent, parentResolution → EntityType_parentResolution, applicability → Applicability |
+| `EntityType` | `r_entity_type` | namespace → EntityType_namespace, key → EntityType_key, labels → EntityType_labels, name → EntityType_name, parent → EntityType_parent, parentResolution → EntityType_parentResolution, applicability → Applicability, classificationExecutable → EntityType_classificationExecutable |
 | `EntityType_namespace` | `r_entity_type_namespace` (scalar column) | string |
 | `EntityType_key` | `r_entity_type_key` (scalar column) | string |
 | `EntityType_labels` | `r_entity_type_labels` | EntityType_labels_item |
 | `EntityType_labels_item` | `r_entity_type_labels_item` (scalar column) | string |
-| `EntityType_classificationExecutable` | `r_entity_type_classification_executable` (scalar column) | boolean |
 | `EntityType_name` | `r_entity_type_name` (scalar column) | string |
 | `EntityType_parent` | `r_entity_type_parent` | RecordId, EntityType_parent_v1 |
 | `EntityType_parent_v1` | `r_entity_type_parent_v1` (scalar column) | null |
 | `EntityType_parentResolution` | `r_entity_type_parent_resolution` (scalar column) | string |
+| `EntityType_classificationExecutable` | `r_entity_type_classification_executable` (scalar column) | boolean |
 | `DomainOperation_v31_kind` | `r_domain_operation_v31_kind` (scalar column) | string |
 | `DomainOperation_v32` | `r_domain_operation_v32` | client_ref → DomainOperation_v32_client_ref, record → PropertyDef, kind → DomainOperation_v32_kind |
 | `DomainOperation_v32_client_ref` | `r_domain_operation_v32_client_ref` (scalar column) | string |
@@ -1077,7 +1096,11 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `DomainOperation_v36_kind` | `r_domain_operation_v36_kind` (scalar column) | string |
 | `DomainOperation_v37` | `r_domain_operation_v37` | client_ref → DomainOperation_v37_client_ref, record → Rule, kind → DomainOperation_v37_kind |
 | `DomainOperation_v37_client_ref` | `r_domain_operation_v37_client_ref` (scalar column) | string |
-| `Rule` | `r_rule` | namespace → Rule_namespace, key → Rule_key, labels → Rule_labels, kind → RuleKind, commitPolicy → CommitPolicy, applicability → Applicability, subjectTypes → Rule_subjectTypes, targetPredicates → Rule_targetPredicates, expression → Expr, capabilities → Rule_capabilities, executable → Rule_executable, validity → Validity, channelChronology → Rule_channelChronology |
+| `Rule` | `r_rule` | knowledgePolicy → Rule_knowledgePolicy, channelChronology → Rule_channelChronology, namespace → Rule_namespace, key → Rule_key, labels → Rule_labels, kind → RuleKind, commitPolicy → CommitPolicy, applicability → Applicability, subjectTypes → Rule_subjectTypes, targetPredicates → Rule_targetPredicates, expression → Expr, capabilities → Rule_capabilities, executable → Rule_executable, validity → Validity |
+| `Rule_knowledgePolicy` | `r_rule_knowledge_policy` | KnowledgePolicy, Rule_knowledgePolicy_v1 |
+| `Rule_knowledgePolicy_v1` | `r_rule_knowledge_policy_v1` (scalar column) | null |
+| `Rule_channelChronology` | `r_rule_channel_chronology` | ChannelChronology, Rule_channelChronology_v1 |
+| `Rule_channelChronology_v1` | `r_rule_channel_chronology_v1` (scalar column) | null |
 | `Rule_namespace` | `r_rule_namespace` (scalar column) | string |
 | `Rule_key` | `r_rule_key` (scalar column) | string |
 | `Rule_labels` | `r_rule_labels` | Rule_labels_item |
@@ -1088,8 +1111,6 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `Rule_capabilities` | `r_rule_capabilities` | Rule_capabilities_item |
 | `Rule_capabilities_item` | `r_rule_capabilities_item` (scalar column) | string |
 | `Rule_executable` | `r_rule_executable` (scalar column) | boolean |
-| `Rule_channelChronology` | `r_rule_channel_chronology` | ChannelChronology, Rule_channelChronology_v1 |
-| `Rule_channelChronology_v1` | `r_rule_channel_chronology_v1` (scalar column) | null |
 | `DomainOperation_v37_kind` | `r_domain_operation_v37_kind` (scalar column) | string |
 | `DomainOperation_v38` | `r_domain_operation_v38` | client_ref → DomainOperation_v38_client_ref, record → CompletenessDecl, kind → DomainOperation_v38_kind |
 | `DomainOperation_v38_client_ref` | `r_domain_operation_v38_client_ref` (scalar column) | string |
@@ -1181,11 +1202,14 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `AttributeMode` | `r_attribute_mode` (scalar column) | string |
 | `AttributeEvidence_alternatives` | `r_attribute_evidence_alternatives` | Value |
 | `DomainOperation_v52_kind` | `r_domain_operation_v52_kind` (scalar column) | string |
-| `DomainOperation_v53` | `r_domain_operation_v53` | record → RecordRef, expected_version → RecordVersionId, entity_type → RecordId, kind → DomainOperation_v53_kind |
+| `DomainOperation_v53` | `r_domain_operation_v53` | client_ref → DomainOperation_v53_client_ref, instance → RecordRef, start → RecordRef, definition → VersionRef, scope → Scope, validity → Validity, kind → DomainOperation_v53_kind |
+| `DomainOperation_v53_client_ref` | `r_domain_operation_v53_client_ref` (scalar column) | string |
 | `DomainOperation_v53_kind` | `r_domain_operation_v53_kind` (scalar column) | string |
-| `DomainOperation_v54` | `r_domain_operation_v54` | kind → DomainOperation_v54_kind, client_ref → DomainOperation_v54_client_ref, instance → RecordRef, start → RecordRef, definition → VersionRef, scope → Scope, validity → Validity |
+| `DomainOperation_v54` | `r_domain_operation_v54` | record → RecordRef, expected_version → RecordVersionId, entity_type → RecordId, kind → DomainOperation_v54_kind |
 | `DomainOperation_v54_kind` | `r_domain_operation_v54_kind` (scalar column) | string |
-| `DomainOperation_v54_client_ref` | `r_domain_operation_v54_client_ref` (scalar column) | string |
+| `DomainOperation_v55` | `r_domain_operation_v55` | kind → DomainOperation_v55_kind, client_ref → DomainOperation_v55_client_ref, instance → RecordRef, start → RecordRef, definition → VersionRef, scope → Scope, validity → Validity |
+| `DomainOperation_v55_kind` | `r_domain_operation_v55_kind` (scalar column) | string |
+| `DomainOperation_v55_client_ref` | `r_domain_operation_v55_client_ref` (scalar column) | string |
 | `StoredContext` | `r_stored_context` | owner → StoredContext_owner, scope → StoredContext_scope, expires → StoredContext_expires, frame → Frame |
 | `StoredContext_owner` | `r_stored_context_owner` (scalar column) | string |
 | `StoredContext_scope` | `r_stored_context_scope` (scalar column) | string |

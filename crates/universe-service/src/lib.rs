@@ -20,6 +20,7 @@ mod actions;
 mod communications;
 mod consequences;
 mod events;
+mod knowledge;
 mod resources;
 
 mod powers;

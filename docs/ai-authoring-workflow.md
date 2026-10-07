@@ -308,3 +308,20 @@ Restart retrieval under current access instead of combining obsolete pages.
 Historical attachments remain exact history; their declared conclusion does not
 certify current canon or promote the existing record-only validation result into
 assessed prose. See [retrieval proofs](assessment-review-verification.md).
+
+## Declared knowledge acquisition: Goal 40
+
+Use an explicit context `knowledgePolicy` on a blocking rule to choose
+`author_established` or `justified`. A `knows` attitude then declares `acquisition`
+with its truth context and exact authored time. Direct author establishment uses
+its distinct typed basis and an attributable author decision. Justified receipt
+names a communication and an explicit interpreted proposition; provide an actual
+holder recipient, content, receipt and matching channel chronology rule. The
+service checks supported truth at acquisition and acquisition before or at knowledge
+onset. Receipt alone does not infer understanding, and false belief stays belief.
+
+Unknown truth, interpretation, policy or comparable clocks stays unresolved;
+refuted acquisition cannot be approved into publication. Correct earlier facts
+with exact version bindings and resolve dependent knowledge in the same candidate.
+Historical reads retain the old facts. See [the contract and executed proofs](knowledge-acquisition-verification.md)
+for supported shapes, legacy behavior and native editing limits.

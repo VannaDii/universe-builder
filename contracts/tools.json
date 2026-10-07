@@ -6904,6 +6904,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "knowledgePolicy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/KnowledgePolicy"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "channelChronology": {
                   "anyOf": [
                     {
@@ -7225,6 +7235,16 @@
             {
               "type": "object",
               "properties": {
+                "acquisition": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/KnowledgeAcquisition"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "holder": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -9762,6 +9782,30 @@
             "exists"
           ]
         },
+        "KnowledgePolicy": {
+          "description": "Explicit context policy; no knowledge policy is inferred from an attitude.",
+          "type": "object",
+          "properties": {
+            "context": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "mode": {
+              "$ref": "#/$defs/KnowledgeMode"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "context",
+            "mode"
+          ]
+        },
+        "KnowledgeMode": {
+          "type": "string",
+          "enum": [
+            "author_established",
+            "justified"
+          ]
+        },
         "ChannelChronology": {
           "description": "Authored channel chronology on exact integer ticks of the same clock.\nBounds are inclusive signed receipt-minus-send delays; false forward_only\nexplicitly permits negative delay. No delivery or clock conversion is inferred.",
           "type": "object",
@@ -10212,6 +10256,81 @@
               "required": [
                 "kind",
                 "count"
+              ]
+            }
+          ]
+        },
+        "KnowledgeAcquisition": {
+          "type": "object",
+          "properties": {
+            "truthContext": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "time": {
+              "$ref": "#/$defs/TemporalExpression"
+            },
+            "world": {
+              "description": "Optional exact world for truth evaluation. Absence means universe-wide evidence only.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "basis": {
+              "$ref": "#/$defs/KnowledgeBasis"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "truthContext",
+            "time",
+            "basis"
+          ]
+        },
+        "KnowledgeBasis": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "author_established"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "communication": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "interpretation": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "communication_receipt"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "communication"
               ]
             }
           ]
@@ -12922,6 +13041,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "knowledgePolicy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/KnowledgePolicy"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "channelChronology": {
                   "anyOf": [
                     {
@@ -13243,6 +13372,16 @@
             {
               "type": "object",
               "properties": {
+                "acquisition": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/KnowledgeAcquisition"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "holder": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -15780,6 +15919,30 @@
             "exists"
           ]
         },
+        "KnowledgePolicy": {
+          "description": "Explicit context policy; no knowledge policy is inferred from an attitude.",
+          "type": "object",
+          "properties": {
+            "context": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "mode": {
+              "$ref": "#/$defs/KnowledgeMode"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "context",
+            "mode"
+          ]
+        },
+        "KnowledgeMode": {
+          "type": "string",
+          "enum": [
+            "author_established",
+            "justified"
+          ]
+        },
         "ChannelChronology": {
           "description": "Authored channel chronology on exact integer ticks of the same clock.\nBounds are inclusive signed receipt-minus-send delays; false forward_only\nexplicitly permits negative delay. No delivery or clock conversion is inferred.",
           "type": "object",
@@ -16230,6 +16393,81 @@
               "required": [
                 "kind",
                 "count"
+              ]
+            }
+          ]
+        },
+        "KnowledgeAcquisition": {
+          "type": "object",
+          "properties": {
+            "truthContext": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "time": {
+              "$ref": "#/$defs/TemporalExpression"
+            },
+            "world": {
+              "description": "Optional exact world for truth evaluation. Absence means universe-wide evidence only.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "basis": {
+              "$ref": "#/$defs/KnowledgeBasis"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "truthContext",
+            "time",
+            "basis"
+          ]
+        },
+        "KnowledgeBasis": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "author_established"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "communication": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "interpretation": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "communication_receipt"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "communication"
               ]
             }
           ]
@@ -18838,6 +19076,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "knowledgePolicy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/KnowledgePolicy"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "channelChronology": {
                   "anyOf": [
                     {
@@ -19159,6 +19407,16 @@
             {
               "type": "object",
               "properties": {
+                "acquisition": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/KnowledgeAcquisition"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "holder": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -21696,6 +21954,30 @@
             "exists"
           ]
         },
+        "KnowledgePolicy": {
+          "description": "Explicit context policy; no knowledge policy is inferred from an attitude.",
+          "type": "object",
+          "properties": {
+            "context": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "mode": {
+              "$ref": "#/$defs/KnowledgeMode"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "context",
+            "mode"
+          ]
+        },
+        "KnowledgeMode": {
+          "type": "string",
+          "enum": [
+            "author_established",
+            "justified"
+          ]
+        },
         "ChannelChronology": {
           "description": "Authored channel chronology on exact integer ticks of the same clock.\nBounds are inclusive signed receipt-minus-send delays; false forward_only\nexplicitly permits negative delay. No delivery or clock conversion is inferred.",
           "type": "object",
@@ -22146,6 +22428,81 @@
               "required": [
                 "kind",
                 "count"
+              ]
+            }
+          ]
+        },
+        "KnowledgeAcquisition": {
+          "type": "object",
+          "properties": {
+            "truthContext": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "time": {
+              "$ref": "#/$defs/TemporalExpression"
+            },
+            "world": {
+              "description": "Optional exact world for truth evaluation. Absence means universe-wide evidence only.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "basis": {
+              "$ref": "#/$defs/KnowledgeBasis"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "truthContext",
+            "time",
+            "basis"
+          ]
+        },
+        "KnowledgeBasis": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "author_established"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "communication": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "interpretation": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "communication_receipt"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "communication"
               ]
             }
           ]
@@ -26979,6 +27336,16 @@
         "EpistemicAttitude": {
           "type": "object",
           "properties": {
+            "acquisition": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/KnowledgeAcquisition"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "holder": {
               "$ref": "#/$defs/RecordRef"
             },
@@ -27008,6 +27375,81 @@
             "attitude",
             "validity",
             "basis"
+          ]
+        },
+        "KnowledgeAcquisition": {
+          "type": "object",
+          "properties": {
+            "truthContext": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "time": {
+              "$ref": "#/$defs/TemporalExpression"
+            },
+            "world": {
+              "description": "Optional exact world for truth evaluation. Absence means universe-wide evidence only.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "basis": {
+              "$ref": "#/$defs/KnowledgeBasis"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "truthContext",
+            "time",
+            "basis"
+          ]
+        },
+        "KnowledgeBasis": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "author_established"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "communication": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "interpretation": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "communication_receipt"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "communication"
+              ]
+            }
           ]
         },
         "Observation": {
@@ -27870,6 +28312,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "knowledgePolicy": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/KnowledgePolicy"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "channelChronology": {
               "anyOf": [
                 {
@@ -27948,6 +28400,30 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "KnowledgePolicy": {
+          "description": "Explicit context policy; no knowledge policy is inferred from an attitude.",
+          "type": "object",
+          "properties": {
+            "context": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "mode": {
+              "$ref": "#/$defs/KnowledgeMode"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "context",
+            "mode"
+          ]
+        },
+        "KnowledgeMode": {
+          "type": "string",
+          "enum": [
+            "author_established",
+            "justified"
           ]
         },
         "ChannelChronology": {
@@ -29510,6 +29986,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "knowledgePolicy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/KnowledgePolicy"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "channelChronology": {
                   "anyOf": [
                     {
@@ -29831,6 +30317,16 @@
             {
               "type": "object",
               "properties": {
+                "acquisition": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/KnowledgeAcquisition"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "holder": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -38751,6 +39247,16 @@
         "EpistemicAttitude": {
           "type": "object",
           "properties": {
+            "acquisition": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/KnowledgeAcquisition"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "holder": {
               "$ref": "#/$defs/RecordRef"
             },
@@ -38780,6 +39286,81 @@
             "attitude",
             "validity",
             "basis"
+          ]
+        },
+        "KnowledgeAcquisition": {
+          "type": "object",
+          "properties": {
+            "truthContext": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "time": {
+              "$ref": "#/$defs/TemporalExpression"
+            },
+            "world": {
+              "description": "Optional exact world for truth evaluation. Absence means universe-wide evidence only.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "basis": {
+              "$ref": "#/$defs/KnowledgeBasis"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "truthContext",
+            "time",
+            "basis"
+          ]
+        },
+        "KnowledgeBasis": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "author_established"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "communication": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "interpretation": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "communication_receipt"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "communication"
+              ]
+            }
           ]
         },
         "Observation": {
@@ -39642,6 +40223,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "knowledgePolicy": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/KnowledgePolicy"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "channelChronology": {
               "anyOf": [
                 {
@@ -39720,6 +40311,30 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "KnowledgePolicy": {
+          "description": "Explicit context policy; no knowledge policy is inferred from an attitude.",
+          "type": "object",
+          "properties": {
+            "context": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "mode": {
+              "$ref": "#/$defs/KnowledgeMode"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "context",
+            "mode"
+          ]
+        },
+        "KnowledgeMode": {
+          "type": "string",
+          "enum": [
+            "author_established",
+            "justified"
           ]
         },
         "ChannelChronology": {
@@ -41282,6 +41897,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "knowledgePolicy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/KnowledgePolicy"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "channelChronology": {
                   "anyOf": [
                     {
@@ -41603,6 +42228,16 @@
             {
               "type": "object",
               "properties": {
+                "acquisition": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/KnowledgeAcquisition"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "holder": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -47314,6 +47949,16 @@
         "EpistemicAttitude": {
           "type": "object",
           "properties": {
+            "acquisition": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/KnowledgeAcquisition"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "holder": {
               "$ref": "#/$defs/RecordRef"
             },
@@ -47343,6 +47988,81 @@
             "attitude",
             "validity",
             "basis"
+          ]
+        },
+        "KnowledgeAcquisition": {
+          "type": "object",
+          "properties": {
+            "truthContext": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "time": {
+              "$ref": "#/$defs/TemporalExpression"
+            },
+            "world": {
+              "description": "Optional exact world for truth evaluation. Absence means universe-wide evidence only.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "basis": {
+              "$ref": "#/$defs/KnowledgeBasis"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "truthContext",
+            "time",
+            "basis"
+          ]
+        },
+        "KnowledgeBasis": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "author_established"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "communication": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "interpretation": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "communication_receipt"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "communication"
+              ]
+            }
           ]
         },
         "Observation": {
@@ -48205,6 +48925,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "knowledgePolicy": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/KnowledgePolicy"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "channelChronology": {
               "anyOf": [
                 {
@@ -48283,6 +49013,30 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "KnowledgePolicy": {
+          "description": "Explicit context policy; no knowledge policy is inferred from an attitude.",
+          "type": "object",
+          "properties": {
+            "context": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "mode": {
+              "$ref": "#/$defs/KnowledgeMode"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "context",
+            "mode"
+          ]
+        },
+        "KnowledgeMode": {
+          "type": "string",
+          "enum": [
+            "author_established",
+            "justified"
           ]
         },
         "ChannelChronology": {
@@ -49845,6 +50599,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "knowledgePolicy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/KnowledgePolicy"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "channelChronology": {
                   "anyOf": [
                     {
@@ -50166,6 +50930,16 @@
             {
               "type": "object",
               "properties": {
+                "acquisition": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/KnowledgeAcquisition"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "holder": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -56097,6 +56871,16 @@
         "EpistemicAttitude": {
           "type": "object",
           "properties": {
+            "acquisition": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/KnowledgeAcquisition"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "holder": {
               "$ref": "#/$defs/RecordRef"
             },
@@ -56126,6 +56910,81 @@
             "attitude",
             "validity",
             "basis"
+          ]
+        },
+        "KnowledgeAcquisition": {
+          "type": "object",
+          "properties": {
+            "truthContext": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "time": {
+              "$ref": "#/$defs/TemporalExpression"
+            },
+            "world": {
+              "description": "Optional exact world for truth evaluation. Absence means universe-wide evidence only.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "basis": {
+              "$ref": "#/$defs/KnowledgeBasis"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "truthContext",
+            "time",
+            "basis"
+          ]
+        },
+        "KnowledgeBasis": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "author_established"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "communication": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "interpretation": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "communication_receipt"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "communication"
+              ]
+            }
           ]
         },
         "Observation": {
@@ -56988,6 +57847,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "knowledgePolicy": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/KnowledgePolicy"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "channelChronology": {
               "anyOf": [
                 {
@@ -57066,6 +57935,30 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "KnowledgePolicy": {
+          "description": "Explicit context policy; no knowledge policy is inferred from an attitude.",
+          "type": "object",
+          "properties": {
+            "context": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "mode": {
+              "$ref": "#/$defs/KnowledgeMode"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "context",
+            "mode"
+          ]
+        },
+        "KnowledgeMode": {
+          "type": "string",
+          "enum": [
+            "author_established",
+            "justified"
           ]
         },
         "ChannelChronology": {
@@ -58628,6 +59521,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "knowledgePolicy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/KnowledgePolicy"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "channelChronology": {
                   "anyOf": [
                     {
@@ -58949,6 +59852,16 @@
             {
               "type": "object",
               "properties": {
+                "acquisition": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/KnowledgeAcquisition"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "holder": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -69213,6 +70126,16 @@
         "EpistemicAttitude": {
           "type": "object",
           "properties": {
+            "acquisition": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/KnowledgeAcquisition"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "holder": {
               "$ref": "#/$defs/RecordRef"
             },
@@ -69242,6 +70165,81 @@
             "attitude",
             "validity",
             "basis"
+          ]
+        },
+        "KnowledgeAcquisition": {
+          "type": "object",
+          "properties": {
+            "truthContext": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "time": {
+              "$ref": "#/$defs/TemporalExpression"
+            },
+            "world": {
+              "description": "Optional exact world for truth evaluation. Absence means universe-wide evidence only.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "basis": {
+              "$ref": "#/$defs/KnowledgeBasis"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "truthContext",
+            "time",
+            "basis"
+          ]
+        },
+        "KnowledgeBasis": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "author_established"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "communication": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "interpretation": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "communication_receipt"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "communication"
+              ]
+            }
           ]
         },
         "Observation": {
@@ -70104,6 +71102,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "knowledgePolicy": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/KnowledgePolicy"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "channelChronology": {
               "anyOf": [
                 {
@@ -70182,6 +71190,30 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "KnowledgePolicy": {
+          "description": "Explicit context policy; no knowledge policy is inferred from an attitude.",
+          "type": "object",
+          "properties": {
+            "context": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "mode": {
+              "$ref": "#/$defs/KnowledgeMode"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "context",
+            "mode"
+          ]
+        },
+        "KnowledgeMode": {
+          "type": "string",
+          "enum": [
+            "author_established",
+            "justified"
           ]
         },
         "ChannelChronology": {
@@ -71744,6 +72776,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "knowledgePolicy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/KnowledgePolicy"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "channelChronology": {
                   "anyOf": [
                     {
@@ -72065,6 +73107,16 @@
             {
               "type": "object",
               "properties": {
+                "acquisition": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/KnowledgeAcquisition"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "holder": {
                   "$ref": "#/$defs/RecordRef"
                 },
@@ -78774,6 +79826,16 @@
         "EpistemicAttitude": {
           "type": "object",
           "properties": {
+            "acquisition": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/KnowledgeAcquisition"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "holder": {
               "$ref": "#/$defs/RecordRef"
             },
@@ -78803,6 +79865,81 @@
             "attitude",
             "validity",
             "basis"
+          ]
+        },
+        "KnowledgeAcquisition": {
+          "type": "object",
+          "properties": {
+            "truthContext": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "time": {
+              "$ref": "#/$defs/TemporalExpression"
+            },
+            "world": {
+              "description": "Optional exact world for truth evaluation. Absence means universe-wide evidence only.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "basis": {
+              "$ref": "#/$defs/KnowledgeBasis"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "truthContext",
+            "time",
+            "basis"
+          ]
+        },
+        "KnowledgeBasis": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "author_established"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "communication": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "interpretation": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "communication_receipt"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "communication"
+              ]
+            }
           ]
         },
         "Observation": {
@@ -79665,6 +80802,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "knowledgePolicy": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/KnowledgePolicy"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "channelChronology": {
               "anyOf": [
                 {
@@ -79743,6 +80890,30 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "KnowledgePolicy": {
+          "description": "Explicit context policy; no knowledge policy is inferred from an attitude.",
+          "type": "object",
+          "properties": {
+            "context": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "mode": {
+              "$ref": "#/$defs/KnowledgeMode"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "context",
+            "mode"
+          ]
+        },
+        "KnowledgeMode": {
+          "type": "string",
+          "enum": [
+            "author_established",
+            "justified"
           ]
         },
         "ChannelChronology": {
@@ -81305,6 +82476,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "knowledgePolicy": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/KnowledgePolicy"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "channelChronology": {
                   "anyOf": [
                     {
@@ -81626,6 +82807,16 @@
             {
               "type": "object",
               "properties": {
+                "acquisition": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/KnowledgeAcquisition"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "holder": {
                   "$ref": "#/$defs/RecordRef"
                 },

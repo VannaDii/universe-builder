@@ -55,7 +55,7 @@ entries already present. This does not change the canonical record format.
 |---|---|---|
 | Facts versus claims | Separate propositions and positive/negative assertions; four-valued evidence | A proposition's existence is not truth; state propositions can outlive active assertions |
 | Story time | Authored clocks, half-open intervals, event pre/post state, explicit time advancement | No automatic synchronization of independent calendars or inferred travel feasibility |
-| Character knowledge | Represented contexts, explicit attitudes and acquisition time | Presence, receipt, reports and beliefs do not automatically establish knowledge |
+| Character knowledge | Represented contexts and [declared knowledge acquisition](knowledge-acquisition-verification.md): explicit author establishment or justified interpreted receipt with truth/order checks | Presence, receipt, reports and beliefs do not automatically establish knowledge; legacy attitudes without policy are not justified-knowledge certificates; observation acquisition is unavailable |
 | Reader spoilers | Exact bound work edition, pinned scene and explicit disclosure | Narrative position is not story time; inferred reader knowledge is unavailable |
 | Possession and powers | Explicit custody, occurred-event effects, timers and possession-dependent powers | New/revised events enforce mandatory owner-bound action attributes; untouched actionless history and prose/action classification still need review |
 | Identity and worlds | Stable IDs, aliases, contextual names and world/shared footprints | Cross-universe live references are rejected; universe/world scope must stay explicit |

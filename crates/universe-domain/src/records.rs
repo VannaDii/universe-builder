@@ -907,6 +907,8 @@ pub struct ChannelChronology {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Rule {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub knowledge_policy: Option<KnowledgePolicy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub channel_chronology: Option<ChannelChronology>,
     pub namespace: String,
     pub key: String,
@@ -1201,12 +1203,48 @@ impl Canonical for EpistemicAttitudeKind {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct EpistemicAttitude {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acquisition: Option<KnowledgeAcquisition>,
     pub holder: RecordRef,
     pub proposition: RecordRef,
     pub attitude: EpistemicAttitudeKind,
     pub certainty: Option<String>,
     pub validity: Validity,
     pub basis: EvidenceBasis,
+}
+
+/// Explicit context policy; no knowledge policy is inferred from an attitude.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct KnowledgePolicy {
+    pub context: RecordRef,
+    pub mode: KnowledgeMode,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
+pub enum KnowledgeMode {
+    AuthorEstablished,
+    Justified,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct KnowledgeAcquisition {
+    pub truth_context: RecordRef,
+    pub time: TemporalExpression,
+    /// Optional exact world for truth evaluation. Absence means universe-wide evidence only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub world: Option<RecordRef>,
+    pub basis: KnowledgeBasis,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, tag = "kind", rename_all = "snake_case")]
+pub enum KnowledgeBasis {
+    AuthorEstablished,
+    CommunicationReceipt {
+        communication: RecordRef,
+        interpretation: Option<RecordRef>,
+    },
 }
 
 /// An observation: presence alone does not establish perception or
@@ -2438,6 +2476,7 @@ mod tests {
         let rule = DomainOperation::DefineRule {
             client_ref: "r".into(),
             record: Rule {
+                knowledge_policy: None,
                 channel_chronology: None,
                 namespace: "author".into(),
                 key: "k".into(),
@@ -2504,6 +2543,7 @@ mod tests {
                 world_associations: vec![],
             }),
             Payload::Rule(Rule {
+                knowledge_policy: None,
                 channel_chronology: None,
                 namespace: "author".into(),
                 key: "k".into(),
