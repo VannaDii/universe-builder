@@ -113,7 +113,9 @@ background service is needed to complete the factual boundary.
 
 ## Goal 37 checks
 
-No native window, model host, live installation or container was opened. Fresh
+No native window, model host or live author installation was opened. The audit
+did not explicitly launch Docker, but a subsequent inventory found automatically
+launched MCP containers; the cleanup correction below records that omission. Fresh
 protocol pilots used owned disposable installations and report stopped engines
 and removed installations. The final shared gate passed against the repaired source.
 
@@ -166,3 +168,23 @@ from October 6, 2026 at 18:10:35 PDT to 2026-10-07 01:20:29 UTC
 (October 6 locally). This includes executed build/test waits. Final commit and
 completion-report bookkeeping follow in the same session. No remote publication
 or release acceptance is claimed.
+
+
+## Docker lifecycle correction — October 6, 2026
+
+The original claim that no container was opened omitted automatic MCP startup.
+After the author requested cleanup, inventory and launcher-process working
+folders identified three Sonar containers mounted read-only to this project and
+three GitHub stdio containers launched from this project's working folder.
+The other loaded project chats were idle; this cleanup required neither server.
+All six used generated names and automatic removal, with no persistent volumes
+or writable project mounts. They were stopped and automatically removed:
+`b84712572845`, `621a3b55d7d2`, `a519903c4713`, `28173226aaf8`,
+`69f49e834898`, `290f651793e5`.
+
+A fresh inventory verified all six absent and no remaining project-mounted or
+project-named containers. No project files, volumes or other projects' containers
+were deleted by this cleanup. Automatic per-chat stdio startup remains a launcher
+configuration limitation: compliant project naming and shared HTTP reuse have
+not been implemented by this cleanup. The earlier factual/host test results are
+unchanged; the inaccurate container-lifecycle claim is corrected here.
