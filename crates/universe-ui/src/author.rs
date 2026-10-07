@@ -135,6 +135,10 @@ pub(super) fn choices(hits: &[Value], definitions: &[Value], operations: &str) -
             "define_unit" => "unit",
             "define_calendar" => "calendar",
             "define_action" => "action_definition",
+            "record_communication" => "communication",
+            "add_belief" => "epistemic_attitude",
+            "define_rule" => "rule",
+            "assert_proposition" | "record_relation" => "proposition",
             _ => continue,
         };
         let label = op["name"]["text"]
@@ -144,7 +148,7 @@ pub(super) fn choices(hits: &[Value], definitions: &[Value], operations: &str) -
             .or_else(|| op["record"]["selector"].as_str())
             .unwrap_or("Draft record");
         options.push(
-            json!({"kind":kind,"record_id":op["client_ref"],"label":format!("{label} (draft)"),"definition":op["record"]}),
+            json!({"kind":kind,"record_id":op["client_ref"],"label":format!("{label} (draft)"),"definition":if kind=="proposition" {&op["proposition"]} else {&op["record"]}}),
         );
     }
     options
@@ -367,7 +371,7 @@ pub fn AuthorApp() -> Element {
                             }
                         }
                         super::readable::OperationReview{operations:proposal()["operations"].clone()}
-                        p{"Write footprint"}super::readable::ReadValue{value:review()["footprint"].clone()}details{open:true,summary{"Resolved record changes"}super::readable::ReadValue{value:review()["diff"].clone()}}p{{format!("Engine execution coverage: {}",validation()["execution"]["coverage"])}}super::readable::ReadValue{value:validation()}
+                        p{"Write footprint"}super::readable::ReadValue{value:review()["footprint"].clone()}details{open:true,summary{"Resolved record changes"}super::readable::ReadValue{value:review()["diff"].clone()}}super::readable::ValidationReview{value:validation(),choices:choices(&hits(),&definitions(),&operations())}
                         button{disabled:busy()||saving()||approved()||validation()["final_binding_digest"].is_null(),onclick:move|_|{busy.set(true);let(r,p,u,pr,v,g)=(root(),profile(),selected(),proposal(),validation(),generation());spawn(async move{let result=async{send(r,p,EngineRequest::Approve{universe:Selector(u),proposal_reference:reference(&pr)?,validation_run:serde_json::from_value(v["execution"]["run_id"].clone()).map_err(|e|e.to_string())?}).await}.await;if generation()==g{match result{Ok(_)=>{approved.set(true);status.set("Exact proposal approved. Commit publishes these reviewed changes atomically.".into());},Err(e)=>status.set(e)}busy.set(false);}});},"Approve this exact proposal"}
                         button{disabled:busy()||saving()||!approved(),onclick:move|_|{busy.set(true);let(r,p,u,pr,v,g)=(root(),profile(),selected(),proposal(),validation(),generation());spawn(async move{let result=async{send(r,p,tool("universe_commit",json!({"universe":u,"universe_id":pr["base_frame"]["universe"],"proposal_reference":reference(&pr)?,"expected_base_revision":pr["base_frame"]["revision"],"validation_run":v["execution"]["run_id"],"idempotency_key":format!("native-commit-{}",pr["digest"])}))?).await}.await;if generation()==g{match result{Ok(v)=>{approved.set(false);if draft_proposal()["proposal_id"]==pr["proposal_id"]{draft_proposal.set(Value::Null);operations.set("[]".into());rationale.set(String::new());draft_base.set(v["result"]["revision"].clone());}status.set(format!("Committed revision {}. Open current revision to query the result.",v["result"]["revision"]));},Err(e)=>status.set(e)}busy.set(false);}});},"Commit approved changes"}
                     }

@@ -377,3 +377,20 @@ supported blocking wrapper fixed; they do not offer minima, clock conversion,
 automatic understanding or generic rule exceptions. Added policies remain drafts
 until normal validation, exact author approval and publication. Activating a policy
 rechecks existing facts and can require dependent evidence to be repaired first.
+
+The native knowledge form requires an explicit acquisition path for **Knows**:
+author establishment or interpreted communication receipt. Choose the truth
+context, acquisition time and optional truth world; for a receipt, explicitly
+choose the message and interpreted proposition. Acquisition and attitude onset
+use that context's authored clock. Belief, suspicion, rejection and memory stay
+separate and do not acquire knowledge automatically. Messages and propositions
+in the current draft can be selected before publication.
+
+Native review shows the existing finding guidance, policies, affected record
+references and exact evidence versions. Authorized draft metadata identifies
+related holders, messages, propositions and relations. Inspect those records,
+remove and replace the affected draft operation, then revise and validate again.
+A canon correction requires reopening the current context and rebasing the draft;
+old approval does not carry over. Restricted validation shows only fixed guidance
+for requesting authorized author review. Automated form and connected service
+checks do not qualify manual native interaction, which remains pending.

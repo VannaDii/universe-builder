@@ -108,3 +108,74 @@ pub fn DraftChanges(operations: String, disabled: bool, onremove: EventHandler<u
         for (i,op) in ops.into_iter().enumerate(){details{key:"{i}",summary{"{i + 1}. " {operation_summary(&op)}}ReadValue{value:op}button{class:"secondary",disabled,onclick:move|_|onremove.call(i),"Remove this change"}}}
     }}
 }
+
+/// Labels are drawn only from the currently authorized explorer and draft.
+fn affected_label(id: &str, choices: &[Value]) -> String {
+    choices
+        .iter()
+        .find(|r| r["record_id"] == id)
+        .map(|r| {
+            format!(
+                "{}: {} ({id})",
+                caption(r["kind"].as_str().unwrap_or("record")),
+                r["label"].as_str().unwrap_or("Record")
+            )
+        })
+        .unwrap_or_else(|| id.to_owned())
+}
+fn related_labels(record: &Value, choices: &[Value]) -> Vec<String> {
+    let Some(row) = choices.iter().find(|r| r["record_id"] == record["record"]) else {
+        return vec![];
+    };
+    let p = &row["definition"];
+    [
+        ("Holder", &p["holder"]),
+        ("Proposition", &p["proposition"]),
+        ("Message", &p["acquisition"]["basis"]["communication"]),
+        (
+            "Interpretation",
+            &p["acquisition"]["basis"]["interpretation"],
+        ),
+        ("Relation", &p["relationCardinality"]["relation"]),
+    ]
+    .into_iter()
+    .filter_map(|(label, r)| {
+        r["record"]
+            .as_str()
+            .map(|id| format!("{label}: {}", affected_label(id, choices)))
+    })
+    .collect()
+}
+#[component]
+pub fn ValidationReview(value: Value, choices: Vec<Value>) -> Element {
+    // The restricted envelope has no author findings. Ignore even unexpected
+    // attached fields rather than deriving any output from concealed data.
+    if value["kind"] != "evaluated" {
+        return rsx! {section{class:"panel",h3{"Validation unavailable in this view"}p{"Use an authorized author view to review findings and repair the draft. Restricted information remains concealed."}}};
+    }
+    let execution = &value["execution"];
+    let findings = execution["findings"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    rsx! {section{class:"panel",h3{"Findings and repairs"}
+        p{{format!("Execution coverage: {}",execution["coverage"].as_str().unwrap_or("Unavailable"))}}
+        p{"For a finding below, inspect the affected records, remove and replace the affected draft operation, then revise and validate again. Changing canon requires reopening the current context and rebasing the draft. Acknowledging an issue does not waive a blocking policy."}
+        if findings.is_empty(){p{"No findings returned. Check execution coverage before approval."}}
+        for (i,finding) in findings.into_iter().enumerate(){article{key:"{i}",class:"panel",
+            h4{{caption(finding["outcome"].as_str().unwrap_or("unavailable"))}}
+            p{{finding["message"].as_str().unwrap_or("Inspect the policy and evidence before deciding how to repair this draft.")}}
+            p{{format!("Policy: {}",affected_label(finding["rule_id"].as_str().unwrap_or("Unavailable"),&choices))}}
+            p{{format!("Coverage: {}",finding["coverage"].as_str().unwrap_or("Unavailable"))}}
+            h5{"Affected records"}
+            ul{for record in finding["records"].as_array().cloned().unwrap_or_default(){li{{affected_label(record["record"].as_str().unwrap_or("Unavailable"),&choices)} ul{for label in related_labels(&record,&choices){li{"{label}"}}}}}}
+            details{summary{"Exact evidence versions and finding reference"}ReadValue{value:serde_json::json!({"evidence":finding["evidence"],"fingerprint":finding["fingerprint"]})}}
+        }}
+        if execution["unsupported_capabilities"].as_array().is_some_and(|a|!a.is_empty()){
+            h4{"Unresolved execution requirements"}p{"These capabilities were not established. Correct the supporting draft or policy before certification."}ReadValue{value:execution["unsupported_capabilities"].clone()}
+        }
+        if execution["opposing_evidence"].as_array().is_some_and(|a|!a.is_empty()){
+            details{open:true,summary{"Opposing evidence requiring review"}ReadValue{value:execution["opposing_evidence"].clone()}}
+        }
+    }}
+}
