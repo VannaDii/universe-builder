@@ -1,0 +1,82 @@
+{
+  "goal": 39,
+  "status": "executed_and_independently_audited",
+  "implementation_commit": "34028150c54fec65f5bbf37696e01946b7be576c",
+  "local_evidence_directory": "/tmp/goal39-chronology-r4",
+  "audit": {
+    "status": "passed",
+    "independently_assessed_validations": 35,
+    "mcp_calls": 222,
+    "wire_and_normalized_storage": "passed",
+    "cases": 24,
+    "publications": 11,
+    "historical_reads": 5,
+    "corrected_historical_reads_survive_restart": 1
+  },
+  "invalid_contract_controls": 3,
+  "oracle_and_evidence_tests": {
+    "passed": 14,
+    "numerical_suites": 6,
+    "authentic_evidence": 1,
+    "rejected_forgeries": 7
+  },
+  "workspace_check": {
+    "status": "passed",
+    "formatting": "passed",
+    "strict_clippy_workspace_all_targets": "passed",
+    "rust_tests_passed": 398,
+    "rust_tests_ignored": 2,
+    "doc_tests": "passed",
+    "generated_schema_freshness": "passed",
+    "large_archive_restart_regression": "passed",
+    "log_sha256": "c9f4a39db9fad207f44f0b5b221e1d4f3191748d315c00856e85a671fd0a092e"
+  },
+  "contracts": {
+    "schemas": 26,
+    "valid_examples": 13,
+    "invalid_examples": 91,
+    "action_contract_regression_tests_passed": 5
+  },
+  "mcp_smoke": {
+    "status": "passed",
+    "tools": 13,
+    "malformed_mutations": 91,
+    "negotiated_versions": [
+      "2025-11-25",
+      "2024-11-05"
+    ]
+  },
+  "cleanup": {
+    "engine_stopped": true,
+    "temporary_install_removed": true
+  },
+  "proof_driver_seconds": 7.468963166989852,
+  "working_wall_time_through_verification": {
+    "started_utc": "2026-10-07 18:22:53 UTC",
+    "verified_utc": "2026-10-07 18:46:08 UTC",
+    "seconds": 1395,
+    "includes_build_and_test_waits": true
+  },
+  "evidence_sha256": {
+    "report.json": "cfa45bb23dcecf4180f64f3120c7296ec9876b9a9dde51765f3d90767e3c4914",
+    "mcp-transcript.jsonl": "59afe63939ebe065da5645d2e0a41dfe6e5e6a96c12d255cccd48ed3fb4399cb",
+    "package.sqlite": "dcd941b99a7e05a7bb2ad1f1d4f187a01cf8e609a5647e4ba18c1fc186b5f484",
+    "audit.json": "fcf16ae9fcb086ff930da93435e2945f9d7edee223837f8a2936089655e2a7e5"
+  },
+  "binary_sha256": {
+    "universe": "5f9ca0228448790791d214effcec7bda45761f68a401b2404d1616c7650d0b36",
+    "universe-engine": "0d24611b1773c67e62a19ae1cbfc9d858983471485cf9599196aaba1d83f655a",
+    "universe-mcp": "b98de07a5a474e2285821727a30e33d96abfb9fa1089b6eabed5fc559e495a66"
+  },
+  "relational_mapping_sha256": {
+    "catalog.json": "f1c39e742462a6b3bac26aafd5cf0a591d599939b69161dbc43b7c173b792ee4",
+    "typed.sql": "adfb3177671c6200583b189cbebdfc78a6814d0184228fcc1e8db3b1a532809d"
+  },
+  "limitations": [
+    "Disposable authored structured communications only",
+    "No inferred delivery, knowledge or clock conversions",
+    "Same-clock exact signed i128 ticks only",
+    "Current-schema new-package restart only; no live package migration",
+    "No native UI, model-host, installed-bundle, hosted CI or release acceptance"
+  ]
+}

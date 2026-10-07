@@ -59,6 +59,9 @@ These are recommendations for decision, not implementation instructions.
 
 ### K2 — Channel chronology policy
 
+Goal 39 authorizes the bounded implementation and proof in [communication chronology verification](../communication-chronology-verification.md). The original probes and decision wording below retain their historical scope.
+
+
 - **Author-controlled meaning:** named channel rules declare whether sender to
   recipient order must be forward, a minimum/maximum delay, or an explicit
   exception such as reverse-time transmission. No universal ordinary-world

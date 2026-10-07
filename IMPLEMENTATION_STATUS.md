@@ -8,9 +8,9 @@ restart. See the [executed proof and scope](docs/packaged-factual-workflow-verif
 Native interaction, signing/deployment and distribution acceptance remain outside
 this local fresh-installation proof.
 
-Updated October 6, 2026 against `8847ead` plus the Goal 37 reconciliation. Current design source: [factual universe realignment plan](docs/factual-universe-realignment-plan.md). The [v0.4 implementation plan](Universe_Builder_Full_Implementation_Plan_v0.4.md) and dated milestone results below retain historical scope.
+Updated October 7, 2026 with the bounded Goal 39 chronology contract; the dated milestone results below retain their original build identities. Current design source: [factual universe realignment plan](docs/factual-universe-realignment-plan.md). The [v0.4 implementation plan](Universe_Builder_Full_Implementation_Plan_v0.4.md) and dated milestone results below retain historical scope.
 
-The [current completion matrix and remaining sequence](docs/completion-roadmap-goal37.md) reconcile roadmap A–H, G01–G11 and R01–R14. Verified claims remain bounded by their linked proofs; knowledge, communication and cross-instance cardinality extensions await explicit approval.
+The [current completion matrix and remaining sequence](docs/completion-roadmap-goal37.md) reconcile roadmap A–H, G01–G11 and R01–R14. Goal 39 adds [opt-in authored channel chronology](docs/communication-chronology-verification.md). Verified claims remain bounded by their linked proofs; knowledge acquisition and cross-instance cardinality extensions await explicit approval.
 
 ## Delivery boundary
 
