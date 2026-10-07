@@ -2562,3 +2562,6 @@ mod appearance;
 
 #[path = "support/audit.rs"]
 mod audit;
+
+#[path = "support/cardinality.rs"]
+mod cardinality;

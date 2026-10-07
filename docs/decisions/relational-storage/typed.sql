@@ -3386,6 +3386,8 @@ CREATE TABLE "r_expr_v14" (
 
 CREATE TABLE "r_payload_v22" (
   __row_id INTEGER PRIMARY KEY,
+  "relationCardinality__state" INTEGER NOT NULL CHECK("relationCardinality__state" IN (0,1,2)),
+  "relationCardinality" INTEGER REFERENCES "r_payload_v22_relation_cardinality"(__row_id),
   "knowledgePolicy__state" INTEGER NOT NULL CHECK("knowledgePolicy__state" IN (0,1,2)),
   "knowledgePolicy" INTEGER REFERENCES "r_payload_v22_knowledge_policy"(__row_id),
   "channelChronology__state" INTEGER NOT NULL CHECK("channelChronology__state" IN (0,1,2)),
@@ -3416,6 +3418,7 @@ CREATE TABLE "r_payload_v22" (
   "validity" INTEGER REFERENCES "r_validity"(__row_id),
   "record_kind__state" INTEGER NOT NULL CHECK("record_kind__state" IN (2)),
   "record_kind" TEXT,
+  CHECK(("relationCardinality__state"=2 AND "relationCardinality" IS NOT NULL) OR ("relationCardinality__state" IN (0,1) AND "relationCardinality" IS NULL)),
   CHECK(("knowledgePolicy__state"=2 AND "knowledgePolicy" IS NOT NULL) OR ("knowledgePolicy__state" IN (0,1) AND "knowledgePolicy" IS NULL)),
   CHECK(("channelChronology__state"=2 AND "channelChronology" IS NOT NULL) OR ("channelChronology__state" IN (0,1) AND "channelChronology" IS NULL)),
   CHECK(("namespace__state"=2 AND "namespace" IS NOT NULL) OR ("namespace__state" IN (0,1) AND "namespace" IS NULL)),
@@ -3433,6 +3436,68 @@ CREATE TABLE "r_payload_v22" (
   CHECK(("validity__state"=2 AND "validity" IS NOT NULL) OR ("validity__state" IN (0,1) AND "validity" IS NULL)),
   CHECK(("record_kind__state"=2 AND "record_kind" IS NOT NULL) OR ("record_kind__state" IN (0,1) AND "record_kind" IS NULL)),
   CHECK("record_kind"='rule')
+) STRICT;
+
+CREATE TABLE "r_payload_v22_relation_cardinality" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_relation_cardinality"(__row_id),
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_relation_cardinality" (
+  __row_id INTEGER PRIMARY KEY,
+  "relation__state" INTEGER NOT NULL CHECK("relation__state" IN (2)),
+  "relation" INTEGER REFERENCES "r_record_ref"(__row_id),
+  "grouping__state" INTEGER NOT NULL CHECK("grouping__state" IN (2)),
+  "grouping" INTEGER REFERENCES "r_cardinality_key"(__row_id),
+  "countedRole__state" INTEGER NOT NULL CHECK("countedRole__state" IN (2)),
+  "countedRole" TEXT,
+  "maximum__state" INTEGER NOT NULL CHECK("maximum__state" IN (2)),
+  "maximum" TEXT,
+  "scope__state" INTEGER NOT NULL CHECK("scope__state" IN (2)),
+  "scope" INTEGER REFERENCES "r_scope"(__row_id),
+  "validity__state" INTEGER NOT NULL CHECK("validity__state" IN (2)),
+  "validity" INTEGER REFERENCES "r_validity"(__row_id),
+  CHECK(("relation__state"=2 AND "relation" IS NOT NULL) OR ("relation__state" IN (0,1) AND "relation" IS NULL)),
+  CHECK(("grouping__state"=2 AND "grouping" IS NOT NULL) OR ("grouping__state" IN (0,1) AND "grouping" IS NULL)),
+  CHECK(("countedRole__state"=2 AND "countedRole" IS NOT NULL) OR ("countedRole__state" IN (0,1) AND "countedRole" IS NULL)),
+  CHECK(("maximum__state"=2 AND "maximum" IS NOT NULL) OR ("maximum__state" IN (0,1) AND "maximum" IS NULL)),
+  CHECK(("scope__state"=2 AND "scope" IS NOT NULL) OR ("scope__state" IN (0,1) AND "scope" IS NULL)),
+  CHECK(("validity__state"=2 AND "validity" IS NOT NULL) OR ("validity__state" IN (0,1) AND "validity" IS NULL))
+) STRICT;
+
+CREATE TABLE "r_cardinality_key" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_cardinality_key_v0"(__row_id),
+  v1 INTEGER REFERENCES "r_cardinality_key_v1"(__row_id),
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL),
+  CHECK(variant!=1 OR v1 IS NOT NULL)
+) STRICT;
+
+CREATE TABLE "r_cardinality_key_v0" (
+  __row_id INTEGER PRIMARY KEY,
+  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
+  "kind" TEXT,
+  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
+  CHECK("kind"='subject')
+) STRICT;
+
+CREATE TABLE "r_cardinality_key_v1" (
+  __row_id INTEGER PRIMARY KEY,
+  "role__state" INTEGER NOT NULL CHECK("role__state" IN (2)),
+  "role" TEXT,
+  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
+  "kind" TEXT,
+  CHECK(("role__state"=2 AND "role" IS NOT NULL) OR ("role__state" IN (0,1) AND "role" IS NULL)),
+  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
+  CHECK("kind"='role')
 ) STRICT;
 
 CREATE TABLE "r_payload_v22_knowledge_policy" (
@@ -6510,6 +6575,8 @@ CREATE TABLE "r_domain_operation_v37" (
 
 CREATE TABLE "r_rule" (
   __row_id INTEGER PRIMARY KEY,
+  "relationCardinality__state" INTEGER NOT NULL CHECK("relationCardinality__state" IN (0,1,2)),
+  "relationCardinality" INTEGER REFERENCES "r_rule_relation_cardinality"(__row_id),
   "knowledgePolicy__state" INTEGER NOT NULL CHECK("knowledgePolicy__state" IN (0,1,2)),
   "knowledgePolicy" INTEGER REFERENCES "r_rule_knowledge_policy"(__row_id),
   "channelChronology__state" INTEGER NOT NULL CHECK("channelChronology__state" IN (0,1,2)),
@@ -6538,6 +6605,7 @@ CREATE TABLE "r_rule" (
   "executable" INTEGER,
   "validity__state" INTEGER NOT NULL CHECK("validity__state" IN (2)),
   "validity" INTEGER REFERENCES "r_validity"(__row_id),
+  CHECK(("relationCardinality__state"=2 AND "relationCardinality" IS NOT NULL) OR ("relationCardinality__state" IN (0,1) AND "relationCardinality" IS NULL)),
   CHECK(("knowledgePolicy__state"=2 AND "knowledgePolicy" IS NOT NULL) OR ("knowledgePolicy__state" IN (0,1) AND "knowledgePolicy" IS NULL)),
   CHECK(("channelChronology__state"=2 AND "channelChronology" IS NOT NULL) OR ("channelChronology__state" IN (0,1) AND "channelChronology" IS NULL)),
   CHECK(("namespace__state"=2 AND "namespace" IS NOT NULL) OR ("namespace__state" IN (0,1) AND "namespace" IS NULL)),
@@ -6553,6 +6621,16 @@ CREATE TABLE "r_rule" (
   CHECK(("executable__state"=2 AND "executable" IS NOT NULL) OR ("executable__state" IN (0,1) AND "executable" IS NULL)),
   CHECK("executable" IN (0,1)),
   CHECK(("validity__state"=2 AND "validity" IS NOT NULL) OR ("validity__state" IN (0,1) AND "validity" IS NULL))
+) STRICT;
+
+CREATE TABLE "r_rule_relation_cardinality" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_relation_cardinality"(__row_id),
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
 ) STRICT;
 
 CREATE TABLE "r_rule_knowledge_policy" (
@@ -10500,6 +10578,26 @@ CREATE TRIGGER "r_payload_v22_no_update" BEFORE UPDATE ON "r_payload_v22" BEGIN 
 
 CREATE TRIGGER "r_payload_v22_no_delete" BEFORE DELETE ON "r_payload_v22" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
+CREATE TRIGGER "r_payload_v22_relation_cardinality_no_update" BEFORE UPDATE ON "r_payload_v22_relation_cardinality" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_payload_v22_relation_cardinality_no_delete" BEFORE DELETE ON "r_payload_v22_relation_cardinality" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_relation_cardinality_no_update" BEFORE UPDATE ON "r_relation_cardinality" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_relation_cardinality_no_delete" BEFORE DELETE ON "r_relation_cardinality" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_cardinality_key_no_update" BEFORE UPDATE ON "r_cardinality_key" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_cardinality_key_no_delete" BEFORE DELETE ON "r_cardinality_key" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_cardinality_key_v0_no_update" BEFORE UPDATE ON "r_cardinality_key_v0" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_cardinality_key_v0_no_delete" BEFORE DELETE ON "r_cardinality_key_v0" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_cardinality_key_v1_no_update" BEFORE UPDATE ON "r_cardinality_key_v1" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_cardinality_key_v1_no_delete" BEFORE DELETE ON "r_cardinality_key_v1" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
 CREATE TRIGGER "r_payload_v22_knowledge_policy_no_update" BEFORE UPDATE ON "r_payload_v22_knowledge_policy" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_payload_v22_knowledge_policy_no_delete" BEFORE DELETE ON "r_payload_v22_knowledge_policy" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
@@ -11667,6 +11765,10 @@ CREATE TRIGGER "r_domain_operation_v37_no_delete" BEFORE DELETE ON "r_domain_ope
 CREATE TRIGGER "r_rule_no_update" BEFORE UPDATE ON "r_rule" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_rule_no_delete" BEFORE DELETE ON "r_rule" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_rule_relation_cardinality_no_update" BEFORE UPDATE ON "r_rule_relation_cardinality" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_rule_relation_cardinality_no_delete" BEFORE DELETE ON "r_rule_relation_cardinality" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_rule_knowledge_policy_no_update" BEFORE UPDATE ON "r_rule_knowledge_policy" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 

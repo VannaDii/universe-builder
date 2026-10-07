@@ -6904,6 +6904,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "relationCardinality": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RelationCardinality"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "knowledgePolicy": {
                   "anyOf": [
                     {
@@ -9780,6 +9790,75 @@
           "enum": [
             "for_all",
             "exists"
+          ]
+        },
+        "RelationCardinality": {
+          "description": "Authored maximum across relation instances, independent of local multiplicity.",
+          "type": "object",
+          "properties": {
+            "relation": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "grouping": {
+              "$ref": "#/$defs/CardinalityKey"
+            },
+            "countedRole": {
+              "type": "string"
+            },
+            "maximum": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "scope": {
+              "$ref": "#/$defs/Scope"
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "relation",
+            "grouping",
+            "countedRole",
+            "maximum",
+            "scope",
+            "validity"
+          ]
+        },
+        "CardinalityKey": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "subject"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "role"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "role"
+              ]
+            }
           ]
         },
         "KnowledgePolicy": {
@@ -13041,6 +13120,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "relationCardinality": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RelationCardinality"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "knowledgePolicy": {
                   "anyOf": [
                     {
@@ -15917,6 +16006,75 @@
           "enum": [
             "for_all",
             "exists"
+          ]
+        },
+        "RelationCardinality": {
+          "description": "Authored maximum across relation instances, independent of local multiplicity.",
+          "type": "object",
+          "properties": {
+            "relation": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "grouping": {
+              "$ref": "#/$defs/CardinalityKey"
+            },
+            "countedRole": {
+              "type": "string"
+            },
+            "maximum": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "scope": {
+              "$ref": "#/$defs/Scope"
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "relation",
+            "grouping",
+            "countedRole",
+            "maximum",
+            "scope",
+            "validity"
+          ]
+        },
+        "CardinalityKey": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "subject"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "role"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "role"
+              ]
+            }
           ]
         },
         "KnowledgePolicy": {
@@ -19076,6 +19234,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "relationCardinality": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RelationCardinality"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "knowledgePolicy": {
                   "anyOf": [
                     {
@@ -21952,6 +22120,75 @@
           "enum": [
             "for_all",
             "exists"
+          ]
+        },
+        "RelationCardinality": {
+          "description": "Authored maximum across relation instances, independent of local multiplicity.",
+          "type": "object",
+          "properties": {
+            "relation": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "grouping": {
+              "$ref": "#/$defs/CardinalityKey"
+            },
+            "countedRole": {
+              "type": "string"
+            },
+            "maximum": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "scope": {
+              "$ref": "#/$defs/Scope"
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "relation",
+            "grouping",
+            "countedRole",
+            "maximum",
+            "scope",
+            "validity"
+          ]
+        },
+        "CardinalityKey": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "subject"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "role"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "role"
+              ]
+            }
           ]
         },
         "KnowledgePolicy": {
@@ -28312,6 +28549,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "relationCardinality": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RelationCardinality"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "knowledgePolicy": {
               "anyOf": [
                 {
@@ -28400,6 +28647,75 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "RelationCardinality": {
+          "description": "Authored maximum across relation instances, independent of local multiplicity.",
+          "type": "object",
+          "properties": {
+            "relation": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "grouping": {
+              "$ref": "#/$defs/CardinalityKey"
+            },
+            "countedRole": {
+              "type": "string"
+            },
+            "maximum": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "scope": {
+              "$ref": "#/$defs/Scope"
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "relation",
+            "grouping",
+            "countedRole",
+            "maximum",
+            "scope",
+            "validity"
+          ]
+        },
+        "CardinalityKey": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "subject"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "role"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "role"
+              ]
+            }
           ]
         },
         "KnowledgePolicy": {
@@ -29986,6 +30302,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "relationCardinality": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RelationCardinality"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "knowledgePolicy": {
                   "anyOf": [
                     {
@@ -40223,6 +40549,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "relationCardinality": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RelationCardinality"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "knowledgePolicy": {
               "anyOf": [
                 {
@@ -40311,6 +40647,75 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "RelationCardinality": {
+          "description": "Authored maximum across relation instances, independent of local multiplicity.",
+          "type": "object",
+          "properties": {
+            "relation": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "grouping": {
+              "$ref": "#/$defs/CardinalityKey"
+            },
+            "countedRole": {
+              "type": "string"
+            },
+            "maximum": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "scope": {
+              "$ref": "#/$defs/Scope"
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "relation",
+            "grouping",
+            "countedRole",
+            "maximum",
+            "scope",
+            "validity"
+          ]
+        },
+        "CardinalityKey": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "subject"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "role"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "role"
+              ]
+            }
           ]
         },
         "KnowledgePolicy": {
@@ -41897,6 +42302,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "relationCardinality": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RelationCardinality"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "knowledgePolicy": {
                   "anyOf": [
                     {
@@ -48925,6 +49340,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "relationCardinality": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RelationCardinality"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "knowledgePolicy": {
               "anyOf": [
                 {
@@ -49013,6 +49438,75 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "RelationCardinality": {
+          "description": "Authored maximum across relation instances, independent of local multiplicity.",
+          "type": "object",
+          "properties": {
+            "relation": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "grouping": {
+              "$ref": "#/$defs/CardinalityKey"
+            },
+            "countedRole": {
+              "type": "string"
+            },
+            "maximum": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "scope": {
+              "$ref": "#/$defs/Scope"
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "relation",
+            "grouping",
+            "countedRole",
+            "maximum",
+            "scope",
+            "validity"
+          ]
+        },
+        "CardinalityKey": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "subject"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "role"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "role"
+              ]
+            }
           ]
         },
         "KnowledgePolicy": {
@@ -50599,6 +51093,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "relationCardinality": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RelationCardinality"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "knowledgePolicy": {
                   "anyOf": [
                     {
@@ -57847,6 +58351,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "relationCardinality": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RelationCardinality"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "knowledgePolicy": {
               "anyOf": [
                 {
@@ -57935,6 +58449,75 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "RelationCardinality": {
+          "description": "Authored maximum across relation instances, independent of local multiplicity.",
+          "type": "object",
+          "properties": {
+            "relation": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "grouping": {
+              "$ref": "#/$defs/CardinalityKey"
+            },
+            "countedRole": {
+              "type": "string"
+            },
+            "maximum": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "scope": {
+              "$ref": "#/$defs/Scope"
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "relation",
+            "grouping",
+            "countedRole",
+            "maximum",
+            "scope",
+            "validity"
+          ]
+        },
+        "CardinalityKey": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "subject"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "role"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "role"
+              ]
+            }
           ]
         },
         "KnowledgePolicy": {
@@ -59521,6 +60104,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "relationCardinality": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RelationCardinality"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "knowledgePolicy": {
                   "anyOf": [
                     {
@@ -71102,6 +71695,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "relationCardinality": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RelationCardinality"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "knowledgePolicy": {
               "anyOf": [
                 {
@@ -71190,6 +71793,75 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "RelationCardinality": {
+          "description": "Authored maximum across relation instances, independent of local multiplicity.",
+          "type": "object",
+          "properties": {
+            "relation": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "grouping": {
+              "$ref": "#/$defs/CardinalityKey"
+            },
+            "countedRole": {
+              "type": "string"
+            },
+            "maximum": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "scope": {
+              "$ref": "#/$defs/Scope"
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "relation",
+            "grouping",
+            "countedRole",
+            "maximum",
+            "scope",
+            "validity"
+          ]
+        },
+        "CardinalityKey": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "subject"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "role"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "role"
+              ]
+            }
           ]
         },
         "KnowledgePolicy": {
@@ -72776,6 +73448,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "relationCardinality": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RelationCardinality"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "knowledgePolicy": {
                   "anyOf": [
                     {
@@ -80802,6 +81484,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "relationCardinality": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RelationCardinality"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "knowledgePolicy": {
               "anyOf": [
                 {
@@ -80890,6 +81582,75 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "RelationCardinality": {
+          "description": "Authored maximum across relation instances, independent of local multiplicity.",
+          "type": "object",
+          "properties": {
+            "relation": {
+              "$ref": "#/$defs/RecordRef"
+            },
+            "grouping": {
+              "$ref": "#/$defs/CardinalityKey"
+            },
+            "countedRole": {
+              "type": "string"
+            },
+            "maximum": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "scope": {
+              "$ref": "#/$defs/Scope"
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "relation",
+            "grouping",
+            "countedRole",
+            "maximum",
+            "scope",
+            "validity"
+          ]
+        },
+        "CardinalityKey": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "subject"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "role"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "role"
+              ]
+            }
           ]
         },
         "KnowledgePolicy": {
@@ -82476,6 +83237,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "relationCardinality": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RelationCardinality"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "knowledgePolicy": {
                   "anyOf": [
                     {

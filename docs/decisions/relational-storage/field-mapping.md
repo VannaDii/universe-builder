@@ -585,7 +585,18 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `Expr_v14_role` | `r_expr_v14_role` (scalar column) | string |
 | `Expr_v14_kind` | `r_expr_v14_kind` (scalar column) | string |
 | `Payload_v21_record_kind` | `r_payload_v21_record_kind` (scalar column) | string |
-| `Payload_v22` | `r_payload_v22` | knowledgePolicy → Payload_v22_knowledgePolicy, channelChronology → Payload_v22_channelChronology, namespace → Payload_v22_namespace, key → Payload_v22_key, labels → Payload_v22_labels, kind → RuleKind, commitPolicy → CommitPolicy, applicability → Applicability, subjectTypes → Payload_v22_subjectTypes, targetPredicates → Payload_v22_targetPredicates, expression → Expr, capabilities → Payload_v22_capabilities, executable → Payload_v22_executable, validity → Validity, record_kind → Payload_v22_record_kind |
+| `Payload_v22` | `r_payload_v22` | relationCardinality → Payload_v22_relationCardinality, knowledgePolicy → Payload_v22_knowledgePolicy, channelChronology → Payload_v22_channelChronology, namespace → Payload_v22_namespace, key → Payload_v22_key, labels → Payload_v22_labels, kind → RuleKind, commitPolicy → CommitPolicy, applicability → Applicability, subjectTypes → Payload_v22_subjectTypes, targetPredicates → Payload_v22_targetPredicates, expression → Expr, capabilities → Payload_v22_capabilities, executable → Payload_v22_executable, validity → Validity, record_kind → Payload_v22_record_kind |
+| `Payload_v22_relationCardinality` | `r_payload_v22_relation_cardinality` | RelationCardinality, Payload_v22_relationCardinality_v1 |
+| `RelationCardinality` | `r_relation_cardinality` | relation → RecordRef, grouping → CardinalityKey, countedRole → RelationCardinality_countedRole, maximum → RelationCardinality_maximum, scope → Scope, validity → Validity |
+| `CardinalityKey` | `r_cardinality_key` | CardinalityKey_v0, CardinalityKey_v1 |
+| `CardinalityKey_v0` | `r_cardinality_key_v0` | kind → CardinalityKey_v0_kind |
+| `CardinalityKey_v0_kind` | `r_cardinality_key_v0_kind` (scalar column) | string |
+| `CardinalityKey_v1` | `r_cardinality_key_v1` | role → CardinalityKey_v1_role, kind → CardinalityKey_v1_kind |
+| `CardinalityKey_v1_role` | `r_cardinality_key_v1_role` (scalar column) | string |
+| `CardinalityKey_v1_kind` | `r_cardinality_key_v1_kind` (scalar column) | string |
+| `RelationCardinality_countedRole` | `r_relation_cardinality_counted_role` (scalar column) | string |
+| `RelationCardinality_maximum` | `r_relation_cardinality_maximum` (scalar column) | integer |
+| `Payload_v22_relationCardinality_v1` | `r_payload_v22_relation_cardinality_v1` (scalar column) | null |
 | `Payload_v22_knowledgePolicy` | `r_payload_v22_knowledge_policy` | KnowledgePolicy, Payload_v22_knowledgePolicy_v1 |
 | `KnowledgePolicy` | `r_knowledge_policy` | context → RecordRef, mode → KnowledgeMode |
 | `KnowledgeMode` | `r_knowledge_mode` (scalar column) | string |
@@ -1096,7 +1107,9 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `DomainOperation_v36_kind` | `r_domain_operation_v36_kind` (scalar column) | string |
 | `DomainOperation_v37` | `r_domain_operation_v37` | client_ref → DomainOperation_v37_client_ref, record → Rule, kind → DomainOperation_v37_kind |
 | `DomainOperation_v37_client_ref` | `r_domain_operation_v37_client_ref` (scalar column) | string |
-| `Rule` | `r_rule` | knowledgePolicy → Rule_knowledgePolicy, channelChronology → Rule_channelChronology, namespace → Rule_namespace, key → Rule_key, labels → Rule_labels, kind → RuleKind, commitPolicy → CommitPolicy, applicability → Applicability, subjectTypes → Rule_subjectTypes, targetPredicates → Rule_targetPredicates, expression → Expr, capabilities → Rule_capabilities, executable → Rule_executable, validity → Validity |
+| `Rule` | `r_rule` | relationCardinality → Rule_relationCardinality, knowledgePolicy → Rule_knowledgePolicy, channelChronology → Rule_channelChronology, namespace → Rule_namespace, key → Rule_key, labels → Rule_labels, kind → RuleKind, commitPolicy → CommitPolicy, applicability → Applicability, subjectTypes → Rule_subjectTypes, targetPredicates → Rule_targetPredicates, expression → Expr, capabilities → Rule_capabilities, executable → Rule_executable, validity → Validity |
+| `Rule_relationCardinality` | `r_rule_relation_cardinality` | RelationCardinality, Rule_relationCardinality_v1 |
+| `Rule_relationCardinality_v1` | `r_rule_relation_cardinality_v1` (scalar column) | null |
 | `Rule_knowledgePolicy` | `r_rule_knowledge_policy` | KnowledgePolicy, Rule_knowledgePolicy_v1 |
 | `Rule_knowledgePolicy_v1` | `r_rule_knowledge_policy_v1` (scalar column) | null |
 | `Rule_channelChronology` | `r_rule_channel_chronology` | ChannelChronology, Rule_channelChronology_v1 |

@@ -323,6 +323,7 @@ mod tests {
                 RecordKind::Rule,
             ),
             Payload::Rule(universe_domain::records::Rule {
+                relation_cardinality: None,
                 knowledge_policy: None,
                 channel_chronology: None,
                 namespace: "t".into(),
@@ -364,6 +365,7 @@ mod tests {
                 RecordKind::Rule,
             ),
             Payload::Rule(universe_domain::records::Rule {
+                relation_cardinality: None,
                 knowledge_policy: None,
                 channel_chronology: None,
                 namespace: "t".into(),
@@ -412,6 +414,7 @@ mod tests {
                 RecordKind::Rule,
             ),
             Payload::Rule(universe_domain::records::Rule {
+                relation_cardinality: None,
                 knowledge_policy: None,
                 channel_chronology: None,
                 namespace: "t".into(),
@@ -463,6 +466,7 @@ mod tests {
                 RecordKind::Rule,
             ),
             Payload::Rule(universe_domain::records::Rule {
+                relation_cardinality: None,
                 knowledge_policy: None,
                 channel_chronology: None,
                 namespace: "t".into(),
@@ -501,6 +505,7 @@ mod tests {
                 RecordKind::Rule,
             ),
             Payload::Rule(universe_domain::records::Rule {
+                relation_cardinality: None,
                 knowledge_policy: None,
                 channel_chronology: None,
                 namespace: "t".into(),
@@ -540,6 +545,7 @@ mod tests {
                 RecordKind::Rule,
             ),
             Payload::Rule(universe_domain::records::Rule {
+                relation_cardinality: None,
                 knowledge_policy: None,
                 channel_chronology: None,
                 namespace: "t".into(),

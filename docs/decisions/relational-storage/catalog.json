@@ -5085,6 +5085,10 @@
       "table": "r_payload_v22",
       "kind": "object",
       "fields": {
+        "relationCardinality": {
+          "model": "Payload_v22_relationCardinality",
+          "required": false
+        },
         "knowledgePolicy": {
           "model": "Payload_v22_knowledgePolicy",
           "required": false
@@ -5146,6 +5150,103 @@
           "required": true
         }
       }
+    },
+    "Payload_v22_relationCardinality": {
+      "table": "r_payload_v22_relation_cardinality",
+      "kind": "union",
+      "variants": [
+        "RelationCardinality",
+        "Payload_v22_relationCardinality_v1"
+      ]
+    },
+    "RelationCardinality": {
+      "table": "r_relation_cardinality",
+      "kind": "object",
+      "fields": {
+        "relation": {
+          "model": "RecordRef",
+          "required": true
+        },
+        "grouping": {
+          "model": "CardinalityKey",
+          "required": true
+        },
+        "countedRole": {
+          "model": "RelationCardinality_countedRole",
+          "required": true
+        },
+        "maximum": {
+          "model": "RelationCardinality_maximum",
+          "required": true
+        },
+        "scope": {
+          "model": "Scope",
+          "required": true
+        },
+        "validity": {
+          "model": "Validity",
+          "required": true
+        }
+      }
+    },
+    "CardinalityKey": {
+      "table": "r_cardinality_key",
+      "kind": "union",
+      "variants": [
+        "CardinalityKey_v0",
+        "CardinalityKey_v1"
+      ]
+    },
+    "CardinalityKey_v0": {
+      "table": "r_cardinality_key_v0",
+      "kind": "object",
+      "fields": {
+        "kind": {
+          "model": "CardinalityKey_v0_kind",
+          "required": true
+        }
+      }
+    },
+    "CardinalityKey_v0_kind": {
+      "table": "r_cardinality_key_v0_kind",
+      "kind": "string",
+      "const": "subject"
+    },
+    "CardinalityKey_v1": {
+      "table": "r_cardinality_key_v1",
+      "kind": "object",
+      "fields": {
+        "role": {
+          "model": "CardinalityKey_v1_role",
+          "required": true
+        },
+        "kind": {
+          "model": "CardinalityKey_v1_kind",
+          "required": true
+        }
+      }
+    },
+    "CardinalityKey_v1_role": {
+      "table": "r_cardinality_key_v1_role",
+      "kind": "string"
+    },
+    "CardinalityKey_v1_kind": {
+      "table": "r_cardinality_key_v1_kind",
+      "kind": "string",
+      "const": "role"
+    },
+    "RelationCardinality_countedRole": {
+      "table": "r_relation_cardinality_counted_role",
+      "kind": "string"
+    },
+    "RelationCardinality_maximum": {
+      "table": "r_relation_cardinality_maximum",
+      "kind": "integer",
+      "minimum": 0
+    },
+    "Payload_v22_relationCardinality_v1": {
+      "table": "r_payload_v22_relation_cardinality_v1",
+      "kind": "null"
     },
     "Payload_v22_knowledgePolicy": {
       "table": "r_payload_v22_knowledge_policy",
@@ -9747,6 +9848,10 @@
       "table": "r_rule",
       "kind": "object",
       "fields": {
+        "relationCardinality": {
+          "model": "Rule_relationCardinality",
+          "required": false
+        },
         "knowledgePolicy": {
           "model": "Rule_knowledgePolicy",
           "required": false
@@ -9804,6 +9909,18 @@
           "required": true
         }
       }
+    },
+    "Rule_relationCardinality": {
+      "table": "r_rule_relation_cardinality",
+      "kind": "union",
+      "variants": [
+        "RelationCardinality",
+        "Rule_relationCardinality_v1"
+      ]
+    },
+    "Rule_relationCardinality_v1": {
+      "table": "r_rule_relation_cardinality_v1",
+      "kind": "null"
     },
     "Rule_knowledgePolicy": {
       "table": "r_rule_knowledge_policy",

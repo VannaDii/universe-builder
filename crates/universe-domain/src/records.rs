@@ -902,10 +902,31 @@ pub struct ChannelChronology {
     pub maximum_delay: Option<String>,
 }
 
+/// Authored maximum across relation instances, independent of local multiplicity.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RelationCardinality {
+    pub relation: RecordRef,
+    pub grouping: CardinalityKey,
+    pub counted_role: String,
+    pub maximum: u32,
+    pub scope: Scope,
+    pub validity: Validity,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, tag = "kind", rename_all = "snake_case")]
+pub enum CardinalityKey {
+    Subject,
+    Role { role: String },
+}
+
 /// A typed, declarative rule (spec §9.3, §27.2).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Rule {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relation_cardinality: Option<RelationCardinality>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub knowledge_policy: Option<KnowledgePolicy>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2476,6 +2497,7 @@ mod tests {
         let rule = DomainOperation::DefineRule {
             client_ref: "r".into(),
             record: Rule {
+                relation_cardinality: None,
                 knowledge_policy: None,
                 channel_chronology: None,
                 namespace: "author".into(),
@@ -2543,6 +2565,7 @@ mod tests {
                 world_associations: vec![],
             }),
             Payload::Rule(Rule {
+                relation_cardinality: None,
                 knowledge_policy: None,
                 channel_chronology: None,
                 namespace: "author".into(),
