@@ -53,6 +53,27 @@ pub fn ReadValue(value: Value) -> Element {
 }
 pub(super) fn operation_summary(op: &Value) -> String {
     match op["kind"].as_str().unwrap_or_default() {
+        "define_rule"
+            if [
+                "channelChronology",
+                "knowledgePolicy",
+                "relationCardinality",
+            ]
+            .iter()
+            .any(|field| !op["record"][field].is_null()) =>
+        {
+            let kind = if !op["record"]["channelChronology"].is_null() {
+                "communication chronology"
+            } else if !op["record"]["knowledgePolicy"].is_null() {
+                "knowledge basis"
+            } else {
+                "maximum cardinality"
+            };
+            format!(
+                "Define {kind} policy: {}",
+                op["record"]["key"].as_str().unwrap_or("Unnamed")
+            )
+        }
         "introduce_instance" => format!(
             "Create instance: {} ({})",
             op["name"]["text"].as_str().unwrap_or("Unnamed"),

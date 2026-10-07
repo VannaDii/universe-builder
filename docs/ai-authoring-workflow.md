@@ -363,3 +363,17 @@ Restricted validation retains its redacted response and cannot authorize a commi
 Use authorized context and evidence retrieval, then request author validation of
 the exact proposal reference. Restricted diagnostics do not reveal hidden findings
 or promise that visible evidence is complete.
+
+The native policy editor offers **Communication chronology**, **Knowledge basis**,
+and **Maximum relation participants** as explicit opt-in choices alongside the
+existing rule, boundary and complete-set forms. Chronology takes a channel,
+forward or signed-delay order, and optional inclusive integer-tick delay bounds.
+Knowledge basis selects an existing truth context and author-established or
+justified interpreted-receipt knowledge. Maximum cardinality selects a relation,
+its declared grouping/counting roles (or subject grouping), an unsigned maximum,
+world/context/optional realm scope, and unrestricted, instant or interval validity.
+Exact validity uses the selected context's authored clock. These forms keep the
+supported blocking wrapper fixed; they do not offer minima, clock conversion,
+automatic understanding or generic rule exceptions. Added policies remain drafts
+until normal validation, exact author approval and publication. Activating a policy
+rechecks existing facts and can require dependent evidence to be repaired first.

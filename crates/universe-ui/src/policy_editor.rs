@@ -3,6 +3,8 @@ use super::select::{Choice, RichSelect, SelectionEvent};
 use dioxus::prelude::*;
 use serde_json::{json, Value};
 use universe_domain::{chronology::Chronology, ids::RecordId, records::DomainOperation, Frame};
+#[path = "factual_policy.rs"]
+mod factual;
 #[component]
 pub fn PolicyEditor(
     frame: Frame,
@@ -39,9 +41,12 @@ pub fn PolicyEditor(
         })
         .cloned()
         .collect();
-    rsx! {details{class:"panel",summary{"Rules, protected areas and complete sets"}
+    rsx! {details{class:"panel",summary{"Factual policies, rules, protected areas and complete sets"}
         p{"Choose an explicit finite constraint. Laws and typical behavior produce findings; physical requirements can block publication. Unknown or unsupported evaluation never becomes a successful check."}
-        label{r#for:"policy-mode","Definition"}RichSelect{id:"policy-mode",disabled,value:mode(),options:vec![Choice::described("rule","Boolean property rule","Require a selected property of one subject to be true or false."),Choice::described("boundary","Creative boundary","Protect additions and edits concerning one record."),Choice::described("complete","Complete membership set","Explicitly close one subject’s entity-reference collection in this scope and time.")],onchange:move|e:SelectionEvent|{mode.set(e.value());kind.set(String::new());predicate.set(String::new());}}
+        label{r#for:"policy-mode","Definition"}RichSelect{id:"policy-mode",disabled,value:mode(),options:vec![Choice::described("rule","Boolean property rule","Require a selected property of one subject to be true or false."),Choice::described("boundary","Creative boundary","Protect additions and edits concerning one record."),Choice::described("complete","Complete membership set","Explicitly close one subject’s entity-reference collection in this scope and time."),Choice::described("chronology","Communication chronology","Opt in to authored channel order and delay bounds."),Choice::described("knowledge","Knowledge basis","Choose how knowledge is established in a truth context."),Choice::described("cardinality","Maximum relation participants","Count distinct participants across overlapping supported relation instances.")],onchange:move|e:SelectionEvent|{mode.set(e.value());kind.set(String::new());predicate.set(String::new());}}
+        if ["chronology","knowledge","cardinality"].contains(&mode().as_str()) {
+            factual::FactualPolicy{mode:mode(),frame,clock,choices,namespaces,disabled,onadd}
+        } else {
         label{r#for:"policy-subject","Subject"}RichSelect{id:"policy-subject",disabled,value:subject(),options:super::select::record_choices(&choices,&["entity"],"Choose the subject"),onchange:move|e:SelectionEvent|subject.set(e.value())}
         if mode()!="complete" {
             label{r#for:"policy-namespace","Namespace"}RichSelect{id:"policy-namespace",disabled,value:namespace(),options:namespaces,allow_new:true,onchange:move|e:SelectionEvent|namespace.set(e.value())}
@@ -84,5 +89,6 @@ pub fn PolicyEditor(
             })();match result{Ok(op)=>{onadd.call(op);status.set("Definition added to draft for validation and review.".into());},Err(e)=>status.set(e)}
         },"Add definition to draft"}
         p{role:"status","{status}"}
+        }
     }}
 }

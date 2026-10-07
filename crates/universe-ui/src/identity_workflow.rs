@@ -5,7 +5,7 @@ use universe_client::installation::EngineClient;
 use universe_protocol::{installation::*, request::ProposalRef};
 use universe_service::runtime;
 
-async fn connect(root: &std::path::Path, author: &ProfileId) -> EngineClient {
+pub(crate) async fn connect(root: &std::path::Path, author: &ProfileId) -> EngineClient {
     for _ in 0..100 {
         if let Ok(c) = EngineClient::connect(root, author, "native-identity-test").await {
             return c;
@@ -14,18 +14,18 @@ async fn connect(root: &std::path::Path, author: &ProfileId) -> EngineClient {
     }
     panic!("engine unavailable");
 }
-async fn tool(c: &mut EngineClient, name: &str, args: Value) -> Value {
+pub(crate) async fn tool(c: &mut EngineClient, name: &str, args: Value) -> Value {
     c.call(crate::author::tool(name, args).unwrap())
         .await
         .unwrap()
 }
-async fn open(c: &mut EngineClient, u: &Value) -> Value {
+pub(crate) async fn open(c: &mut EngineClient, u: &Value) -> Value {
     tool(c,"universe_open_context",json!({"universe":"Alpha","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":u["context_id"],"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"})).await
 }
-async fn read(c: &mut EngineClient, opened: &Value, id: &Value) -> Value {
+pub(crate) async fn read(c: &mut EngineClient, opened: &Value, id: &Value) -> Value {
     tool(c,"universe_get",json!({"universe":"Alpha","context_id":opened["result"]["context_id"],"record_ids":[id],"field_groups":[]})).await["result"]["records"][0].clone()
 }
-async fn publish(c: &mut EngineClient, opened: &Value, ops: Value, key: &str) {
+pub(crate) async fn publish(c: &mut EngineClient, opened: &Value, ops: Value, key: &str) {
     let p = tool(c,"universe_propose",json!({"action":"create","universe":"Alpha","context_id":opened["result"]["context_id"],"operations":ops,"submission":"submitted","rationale":"Native identity changes","idempotency_key":key})).await["result"].clone();
     let reference: ProposalRef = serde_json::from_value(
         json!({"proposal_id":p["proposal_id"],"version":p["version"],"digest":p["digest"]}),

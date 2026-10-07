@@ -268,4 +268,4 @@ mod tests {
 
 #[cfg(test)]
 #[path = "identity_workflow.rs"]
-mod workflow;
+pub(crate) mod workflow;
