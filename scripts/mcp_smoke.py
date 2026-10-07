@@ -12,9 +12,9 @@ import time
 from validate_contracts import ROOT, validators
 
 class MCP:
-    def __init__(self, binary, socket=None, protocol='2025-11-25', *, installation=None, profile=None):
+    def __init__(self, binary, socket=None, protocol='2025-11-25', *, installation=None, profile=None, command_prefix=()):
         args = ['--installation', str(installation), '--profile', str(profile)] if installation else ['--fixture', '--socket', str(socket)]
-        self.process = subprocess.Popen([str(binary), *args], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env={**os.environ, 'PATH': '/usr/bin:/bin'})
+        self.process = subprocess.Popen([str(binary), *command_prefix, *args], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env={**os.environ, 'PATH': '/usr/bin:/bin'})
         self.responses = queue.Queue()
         self.seq = 0
         self.notifications = []

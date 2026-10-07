@@ -64,3 +64,7 @@ jobs:
           python scripts/test_resource_resolution_audit.py --evidence "$RUNNER_TEMP/resource-resolution.json" -v
       - name: Native and host gates
         run: echo 'Native GUI, VoiceOver, clean-machine, and LM Studio checks require separate evidence; not run by this job.'
+      - name: Fresh installed development package factual workflow
+        run: |
+          cargo run --locked -p xtask -- package-fixture
+          python scripts/packaged_factual_workflow.py --bundle 'target/fixture/Universe Builder Fixture.app' --output "$RUNNER_TEMP/packaged-factual"
