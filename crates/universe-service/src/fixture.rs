@@ -219,6 +219,8 @@ impl Fixture {
             world: world.clone(),
         };
         match request {
+   Request::ReadFacts(_)=>Err(unsupported("plain factual reading requires a persistent installation")),
+   Request::CheckChanges(_)=>Err(unsupported("plain factual checking requires a persistent installation")),
    Request::Describe(_) => Ok(Response::Describe(scope.wrap(Description{fixture:true,worlds:universe.worlds.clone(),capabilities:capabilities(),definition_ids:vec![],continuities:vec![]}))),
    Request::OpenContext(a) => {
     if self.contexts.len()>=128{return Err(limit())}

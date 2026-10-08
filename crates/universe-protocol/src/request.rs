@@ -675,6 +675,10 @@ pub struct CancelOperation {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "tool", content = "args", deny_unknown_fields)]
 pub enum Request {
+    #[serde(rename = "universe_check_changes")]
+    CheckChanges(crate::writing::CheckChanges),
+    #[serde(rename = "universe_read_facts")]
+    ReadFacts(crate::writing::ReadFacts),
     #[serde(rename = "universe_describe")]
     Describe(Describe),
     #[serde(rename = "universe_open_context")]
@@ -705,6 +709,8 @@ pub enum Request {
 impl Request {
     pub fn tool_name(&self) -> &'static str {
         match self {
+            Self::ReadFacts(..) => "universe_read_facts",
+            Self::CheckChanges(..) => "universe_check_changes",
             Self::Describe(..) => "universe_describe",
             Self::OpenContext(..) => "universe_open_context",
             Self::Search(..) => "universe_search",
@@ -722,6 +728,8 @@ impl Request {
     }
     pub fn universe(&self) -> &Selector {
         match self {
+            Self::ReadFacts(a) => &a.universe,
+            Self::CheckChanges(a) => &a.universe,
             Self::Describe(Describe::Summary { universe, .. }) => universe,
             Self::Describe(Describe::Capabilities { universe, .. }) => universe,
             Self::Describe(Describe::Worlds { universe, .. }) => universe,
@@ -757,6 +765,41 @@ impl Request {
         Ok(request)
     }
     pub fn validate(&self) -> ProtocolResult<()> {
+        if let Self::ReadFacts(input) = self {
+            if input.object_names.is_empty()
+                || input.object_names.len() > 100
+                || input.object_names.iter().any(|n| n.trim().is_empty())
+            {
+                return Err(ProtocolError::invalid_argument(
+                    "object_names",
+                    "one to 100 nonempty object names required",
+                ));
+            }
+        }
+        if let Self::CheckChanges(a) = self {
+            if a.changes.len() > 100
+                || a.changes.iter().map(|o| o.facts.len()).sum::<usize>() > 100
+                || a.questions.len() > 20
+            {
+                return Err(ProtocolError::invalid_argument(
+                    "changes",
+                    "at most 100 objects/facts and 20 questions",
+                ));
+            }
+            for fact in a.changes.iter().flat_map(|o| &o.facts) {
+                if !matches!(
+                    fact.statement.as_str(),
+                    "objective" | "dialogue" | "belief" | "plan" | "hypothetical" | "metaphor"
+                ) || !matches!(fact.when.as_str(), "scene" | "unspecified")
+                    || fact.scope.trim().is_empty()
+                {
+                    return Err(ProtocolError::invalid_argument(
+                        "changes",
+                        "unknown statement, time or empty scope intent",
+                    ));
+                }
+            }
+        }
         if let Self::GetProposal(a) = self {
             if a.assessment_reference.is_some()
                 && !matches!(a.view_group, Some(ProposalView::Assessment))
@@ -848,6 +891,18 @@ pub struct ToolSchema {
 }
 pub fn tool_schemas() -> Vec<ToolSchema> {
     vec![
+        ToolSchema {
+            name: "universe_read_facts".into(),
+            description: "Read plain effective facts for named objects in a pinned context. Returns exact authored property names and plain values, support/refutation/conflicts/unknowns, scope, time and actual coverage. Shared facts and initial-value candidates remain distinct. Missing or ambiguous identities never imply a new identity. Reuse returned property names for deltas. Source records are resolved by the engine; no internal schemas or ID joins required.".into(),
+            input_schema: augment_schema(serde_json::to_value(schemars::schema_for!(crate::writing::ReadFacts)).expect("schema")),
+            output_schema: serde_json::to_value(schemars::schema_for!(crate::response::Envelope<serde_json::Value>)).expect("schema"),
+        },
+        ToolSchema {
+            name: "universe_check_changes".into(),
+            description: "Check plain factual deltas from author writing against pinned canon. Resolve existing objects by their exact visible names; introduce new identities only explicitly. Preserve dialogue, beliefs, plans, hypothetical and figurative claims as non-objective. The engine constructs canonical records, creates a provisional candidate, validates it and inspects impact. It returns a candidate handle, findings and material clarifications; it never approves or publishes. Scope/time/ownership ambiguities remain unresolved. New scalar properties impose no single-value constraint; existing authored property semantics and resource accounting remain enforced.".into(),
+            input_schema: augment_schema(serde_json::to_value(schemars::schema_for!(crate::writing::CheckChanges)).expect("schema")),
+            output_schema: serde_json::to_value(schemars::schema_for!(crate::response::Envelope<crate::writing::WritingCheck>)).expect("schema"),
+        },
         ToolSchema {
             name: "universe_describe".into(),
             description: "Describe: summary discovers visible continuity heads and represented-context IDs needed to open a first context; other modes describe capabilities or pinned world/definition records. Explicit universe required; fixture mode has no canon writes."

@@ -1,5 +1,24 @@
 [
   {
+    "tool": "universe_check_changes",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "context_id": "ctx_000000000000000000000001",
+      "changes": [],
+      "questions": []
+    }
+  },
+  {
+    "tool": "universe_read_facts",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "context_id": "ctx_000000000000000000000001",
+      "object_names": [
+        "Mara"
+      ]
+    }
+  },
+  {
     "tool": "universe_describe",
     "args": {
       "universe": "The Ashen Cycle",

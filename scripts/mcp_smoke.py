@@ -13,8 +13,9 @@ from validate_contracts import ROOT, validators
 from jsonschema import Draft202012Validator
 
 class MCP:
-    def __init__(self, binary, socket=None, protocol='2025-11-25', *, installation=None, profile=None, command_prefix=(), client_name='universe-independent-fixture-client'):
+    def __init__(self, binary, socket=None, protocol='2025-11-25', *, installation=None, profile=None, command_prefix=(), client_name='universe-independent-fixture-client', advanced_tools=False):
         args = ['--installation', str(installation), '--profile', str(profile)] if installation else ['--fixture', '--socket', str(socket)]
+        if advanced_tools: args.append('--advanced-tools')
         self.process = subprocess.Popen([str(binary), *command_prefix, *args], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env={**os.environ, 'PATH': '/usr/bin:/bin'})
         self.responses = queue.Queue()
         self.seq = 0
@@ -94,7 +95,16 @@ def run(bin_dir):
                 if engine.poll() is not None: raise RuntimeError(engine.stderr.read().decode())
                 time.sleep(.05)
             assert socket.exists(), 'engine did not start'
-            client = MCP(bin_dir / 'universe-mcp', socket)
+            ordinary = MCP(bin_dir / 'universe-mcp', socket)
+            try:
+                public = {t['name'] for t in ordinary.request('tools/list', {})['tools']}
+                assert 'universe_check_changes' in public
+                assert not public & {'universe_propose', 'universe_validate', 'universe_get', 'universe_get_state', 'universe_get_context'}
+                assert 'universe_read_facts' in public
+                assert 'client_ref' not in ordinary.initialization['instructions']
+            finally:
+                ordinary.close()
+            client = MCP(bin_dir / 'universe-mcp', socket, advanced_tools=True)
             try:
                 tools = client.request('tools/list', {})['tools']
                 check_server_contract(client.initialization, tools)
@@ -137,7 +147,7 @@ def run(bin_dir):
                 print(json.dumps({'status': 'pass', 'route': 'independent stdio', 'negotiated': client.initialization['protocolVersion'], 'tools': len(tools), 'checks': ['91 malformed contract mutations across all tools', 'known record', 'omitted world', 'isolation', 'Unicode proposal', 'idempotency', 'receipt recovery', 'canon denial', 'text/structured parity', 'output schemas']}, indent=2))
             finally: client.close()
             # Replace the adapter entirely. Recovery uses the engine receipt, not client memory.
-            resumed = MCP(bin_dir / 'universe-mcp', socket)
+            resumed = MCP(bin_dir / 'universe-mcp', socket, advanced_tools=True)
             try:
                 recovered = resumed.call('universe_get_operation', examples['universe_get_operation'])
                 assert recovered['result']['proposal'] == proposal
@@ -148,7 +158,7 @@ def run(bin_dir):
                 print(json.dumps({'adapter_restart_receipt_recovery': 'pass', 'equivalent_frame_retry': 'pass'}))
             finally: resumed.close()
             # An older lifecycle must negotiate explicitly; never imply its requested version worked.
-            older = MCP(bin_dir / 'universe-mcp', socket, '2024-11-05')
+            older = MCP(bin_dir / 'universe-mcp', socket, '2024-11-05', advanced_tools=True)
             try:
                 older.call('universe_describe', examples['universe_describe'])
                 print(json.dumps({'older_requested': '2024-11-05', 'negotiated': older.initialization['protocolVersion'], 'read': 'pass'}))

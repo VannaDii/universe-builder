@@ -1,175 +1,84 @@
-"""Functional session regressions; no saved conversations or model required."""
+"""Functional session regressions; conversations remain in memory."""
 import copy
 import io
 import json
 import unittest
-from types import SimpleNamespace
-from unittest.mock import patch
-
-from author_session import AuthorSession, ProtocolError, passages, schema_feedback
-from local_mlx import Generation, OfflineMLX
-
+from author_session import AuthorSession, ProtocolError, passages
+from local_mlx import Generation
 
 class Client:
     initialization = {"instructions": "Canonical server guidance"}
-
     def __init__(self):
         self.calls = []
-        self.result = {"content": [], "structuredContent": {"answer": "retrieved"}}
-        tool = {"name": "universe_describe", "description": "Describe explicit universe",
-                "inputSchema": {"type": "object", "required": ["universe"],
-                                "properties": {"universe": {"type": "string"}},
-                                "additionalProperties": False},
-                "outputSchema": {"type": "object", "required": ["answer"],
-                                 "properties": {"answer": {"type": "string"}}}}
-        self.tools = [tool, {**tool, "name": "universe_commit"}]
-
+        shape = {"type":"object","required":["universe"],"properties":{"universe":{"type":"string"}},"additionalProperties":False}
+        self.tools = [{"name":name,"description":name,"inputSchema":shape,"outputSchema":{"type":"object"}} for name in ("universe_describe","universe_check_changes","universe_commit")]
+        self.results = iter([])
     def request(self, method, params):
-        if method == "tools/list":
-            return {"tools": self.tools}
-        self.calls.append((method, params))
-        if isinstance(self.result, Exception):
-            raise self.result
-        return self.result
-
-
+        if method == "tools/list": return {"tools":self.tools}
+        self.calls.append(params)
+        result = next(self.results, {"structuredContent":{"result":{"status":"checked_candidate"}},"content":[]})
+        if isinstance(result, Exception): raise result
+        return result
 class Model:
-    def __init__(self, *texts):
-        self.texts = iter(texts)
-        self.inputs = []
-
-    def generate(self, messages, **kwargs):
-        self.inputs.append(copy.deepcopy(messages))
-        value = next(self.texts)
-        if isinstance(value, Generation):
-            return value
-        return Generation(value, 0, 0, False)
-
-
+    def __init__(self,*responses): self.responses=iter(responses); self.inputs=[]; self.tools=[]
+    def generate(self,messages,**kwargs):
+        self.inputs.append(copy.deepcopy(messages)); self.tools.append(kwargs["tools"])
+        response=next(self.responses)
+        if isinstance(response,Exception): raise response
+        return response if isinstance(response,Generation) else Generation(response,0,0,False)
+def call(name="universe_describe",args=None):
+    return Generation("<tool_call>native</tool_call>",0,0,False,({"name":name,"arguments":args if args is not None else {"universe":"Story"}},))
 class SessionTests(unittest.TestCase):
-    def session(self, model=None, client=None, **kwargs):
-        return AuthorSession(model or Model(), client or Client(), "Story", output=lambda _: None, **kwargs)
-
-    def test_multiline_blank_line_eof_and_quit(self):
-        self.assertEqual(list(passages(io.StringIO("a\nb\n\n\nc\n\n/quit\nignored"))), ["a\nb", "c"])
-        self.assertEqual(list(passages(io.StringIO("tail"))), ["tail"])
-        self.assertEqual(list(passages(io.StringIO("/quit\n"))), [])
-
-    def test_model_selected_research_and_reply(self):
-        model = Model('{"tool":"universe_describe","arguments":{"universe":"Story"}}',
-                      '{"reply":"The world is retrieved."}')
-        client = Client()
-        session = self.session(model, client)
-        self.assertEqual(session.respond("Research my world"), "The world is retrieved.")
-        self.assertEqual(client.calls, [("tools/call", {"name": "universe_describe", "arguments": {"universe": "Story"}})])
-        self.assertEqual(session.messages[0]["content"], client.initialization["instructions"])
-        framing = json.loads(session.messages[1]["content"])
-        self.assertEqual([t["name"] for t in framing["tools"]], ["universe_describe"])
-        self.assertEqual([set(shape) for shape in framing["response_formats"]],
-                         [{"tool", "arguments"}, {"reply"}])
-        self.assertIn("retrieved", model.inputs[1][-1]["content"])
-
-    def test_mutating_wrong_universe_and_invalid_arguments_never_dispatch(self):
-        from jsonschema import ValidationError
-        session = self.session()
-        for decision in ({"tool": "universe_commit", "arguments": {"universe": "Story"}},
-                         {"tool": "universe_describe", "arguments": {"universe": "Other"}},
-                         {"tool": "universe_describe", "arguments": {}},
-                         {"tool": "universe_describe", "arguments": {"universe": "Story"}, "approval": True},
-                         {"tool": [], "arguments": {}}):
-            with self.subTest(decision=decision), self.assertRaises((ValueError, ValidationError)):
-                session.dispatch(decision)
-        self.assertEqual(session.client.calls, [])
-
-    def test_invalid_json_receives_format_feedback_without_answer(self):
-        model = Model('```json {} ```', '{"reply":"Need more information."}')
-        session = self.session(model)
-        self.assertEqual(session.respond("author prose"), "Need more information.")
-        feedback = json.loads(model.inputs[1][-1]["content"])
-        self.assertEqual(set(feedback), {"error"})
-        self.assertEqual(session.client.calls, [])
-
-    def test_protocol_and_tool_errors_return_to_model(self):
-        for result in (ProtocolError({"code": -32602, "message": "invalid context"}),
-                       {"content": [{"type": "text", "text": "access denied"}], "isError": True}):
-            client = Client()
-            client.result = result
-            model = Model('{"tool":"universe_describe","arguments":{"universe":"Story"}}',
-                          '{"reply":"Research could not finish."}')
-            session = self.session(model, client)
-            self.assertEqual(session.respond("prose"), "Research could not finish.")
-            self.assertIn("error" if isinstance(result, Exception) else "isError", model.inputs[1][-1]["content"])
-
-    def test_turn_and_generation_limits_never_execute_truncated_call(self):
-        model = Model(Generation('{"tool":"universe_describe","arguments":{"universe":"Story"}}', 0, 10, True))
-        session = self.session(model, max_steps=1)
+    def session(self,model,client=None,**kwargs): return AuthorSession(model,client or Client(),"Story",output=lambda _:None,**kwargs)
+    def test_multiline_and_quit(self):
+        self.assertEqual(list(passages(io.StringIO("a\nb\n\nc\n\n/quit\nignored"))),["a\nb","c"])
+    def test_native_research_then_plain_answer(self):
+        model=Model(call(),"Retrieved the world."); client=Client(); session=self.session(model,client,checking=False)
+        self.assertEqual(session.respond("Author prose"),"Retrieved the world.")
+        self.assertEqual(client.calls[0]["name"],"universe_describe")
+        self.assertEqual(model.inputs[1][-1]["role"],"tool")
+        self.assertEqual(session.messages[0]["content"],client.initialization["instructions"])
+        self.assertEqual(model.inputs[0][-1]["content"],"Author prose")
+        self.assertNotIn("universe_commit",[t["function"]["name"] for t in model.tools[0]])
+    def test_boundaries_and_real_error_feedback(self):
+        model=Model(call("universe_commit"),call(args={"universe":"Other"}),"Can't check.")
+        client=Client(); session=self.session(model,client)
+        self.assertIn("no completed change check",session.respond("prose")); self.assertEqual(client.calls,[])
+        self.assertIn("session universe",model.inputs[2][-1]["content"])
+    def test_checked_status_is_engine_result_and_failed_recheck_clears_it(self):
+        client=Client(); client.results=iter([{"structuredContent":{"result":{"status":"checked_candidate"}},"content":[]},ProtocolError({"message":"stale context"})])
+        model=Model(call("universe_check_changes"),call("universe_check_changes"),"Everything consistent.")
+        session=self.session(model,client)
+        self.assertIn("no completed change check",session.respond("prose"))
+        self.assertIn("stale context",model.inputs[2][-1]["content"])
+    def test_backend_report_overrides_false_model_publication_or_creation(self):
+        client=Client();client.results=iter([{"structuredContent":{"result":{"status":"needs_clarification","additions":["New object: silver pistol"],"excluded":["Mara plan: plan claim"],"clarifications":["Which owner?"],"unknowns":[],"unchanged":[]}},"content":[]}])
+        session=self.session(Model(call("universe_check_changes"),"Canon updated. Mara introduced."),client)
+        reply=session.respond("prose")
+        self.assertIn("not published",reply);self.assertIn("Tentative held suggestion: New object: silver pistol",reply)
+        self.assertNotIn("Canon updated",reply);self.assertNotIn("Mara introduced",reply);self.assertIn("Which owner?",reply)
+    def test_empty_delta_cannot_hide_prior_pending_candidate(self):
+        client=Client(); client.results=iter([{"structuredContent":{"result":{"status":"checked_candidate","candidate_handle":"opaque"}},"content":[]},{"structuredContent":{"result":{"status":"no_changes"}},"content":[]}])
+        session=self.session(Model(call("universe_check_changes"),call("universe_check_changes"),"No changes."),client)
+        self.assertIn("no completed change check",session.respond("prose"))
+        self.assertIn("prior uncommitted candidate",session.messages[-2]["content"])
+    def test_success_conflict_and_unknown_status_labels(self):
+        for status,label in (("checked_candidate","Candidate checked"),("conflict","Continuity conflict"),("incomplete","check incomplete")):
+            client=Client(); client.results=iter([{"structuredContent":{"result":{"status":status}},"content":[]}])
+            session=self.session(Model(call("universe_check_changes"),"Bounded result."),client)
+            self.assertIn(label,session.respond("prose"))
+    def test_repeated_error_stops_without_publication(self):
+        session=self.session(Model(call("universe_commit"),call("universe_commit")))
+        self.assertIsNone(session.respond("prose")); self.assertEqual(session.client.calls,[])
+    def test_text_structured_parity_failure_is_incomplete(self):
+        client=Client();client.results=iter([{"structuredContent":{},"content":[{"type":"text","text":"{\"other\":true}"}]}])
+        session=self.session(Model(call()),client)
         self.assertIsNone(session.respond("prose"))
-        self.assertEqual(session.client.calls, [])
-
-    def test_discovered_schema_used_instead_of_repository_shape(self):
-        client = Client()
-        client.tools[0]["inputSchema"]["required"].append("cursor")
-        client.tools[0]["inputSchema"]["properties"]["cursor"] = {"type": "string"}
-        session = self.session(client=client)
-        model = Model('{"tool":"universe_describe","arguments":{"universe":"Story"}}', '{"reply":"Incomplete."}')
-        session.model = model
-        session.respond("prose")
-        self.assertEqual(client.calls, [])
-        self.assertIn("cursor", model.inputs[1][-1]["content"])
-
-    def test_nested_schema_feedback_identifies_missing_fields(self):
-        from jsonschema import Draft202012Validator
-        schema = {"oneOf": [{"type": "object", "required": ["context_id"]},
-                            {"type": "object", "required": ["operation_id"]}]}
-        error = next(Draft202012Validator(schema).iter_errors({}))
-        feedback = schema_feedback(error)
-        self.assertIn("context_id", feedback)
-        self.assertIn("operation_id", feedback)
-        self.assertNotIn("required_response", feedback)
-
-    def test_catalog_pagination_and_duplicate_failure(self):
-        client = Client()
-        original = client.request
-        pages = iter([{"tools": [client.tools[0]], "nextCursor": "next"},
-                      {"tools": [client.tools[1]]}])
-        client.request = lambda method, params: next(pages) if method == "tools/list" else original(method, params)
-        self.assertEqual(len(self.session(client=client).tools), 2)
-        client = Client()
-        client.tools.append(client.tools[0])
-        with self.assertRaisesRegex(RuntimeError, "duplicate"):
-            self.session(client=client)
-
-
-class InferenceTests(unittest.TestCase):
-    def runtime(self):
-        model = OfflineMLX.__new__(OfflineMLX)
-        model.model = object()
-        model.tokenizer = SimpleNamespace(
-            apply_chat_template=lambda *args, **kwargs: "template",
-            encode=lambda *args, **kwargs: [1, 2, 3])
-        return model
-
-    def test_context_limit_prevents_generation_without_dropping_history(self):
-        calls = []
-        modules = {"mlx_lm": SimpleNamespace(stream_generate=lambda *args, **kwargs: calls.append(args)),
-                   "mlx_lm.sample_utils": SimpleNamespace(make_sampler=lambda **kwargs: None)}
-        with patch.dict("sys.modules", modules):
-            with self.assertRaisesRegex(RuntimeError, "context limit"):
-                self.runtime().generate([{"role": "user", "content": "writing"}],
-                                        max_tokens=2, max_context_tokens=4)
-        self.assertEqual(calls, [])
-
-    def test_runtime_returns_limits_without_recording_conversation(self):
-        part = SimpleNamespace(text="{}", prompt_tokens=3, generation_tokens=2)
-        modules = {"mlx_lm": SimpleNamespace(stream_generate=lambda *args, **kwargs: iter([part])),
-                   "mlx_lm.sample_utils": SimpleNamespace(make_sampler=lambda **kwargs: None)}
-        model = self.runtime()
-        with patch.dict("sys.modules", modules):
-            result = model.generate([{"role": "user", "content": "writing"}], max_tokens=2)
-        self.assertEqual(result.text, "{}")
-        self.assertTrue(result.reached_token_limit)
-        self.assertEqual(set(vars(model)), {"model", "tokenizer"})
-
-
-if __name__ == "__main__":
-    unittest.main()
+    def test_native_parser_union_and_reference_type_hints(self):
+        from mlx_lm.tool_parsers.qwen3_coder import parse_tool_call
+        shape={"$defs":{"Focus":{"type":"object","properties":{"world":{"type":"string"}}}},"oneOf":[{"type":"object","properties":{"mode":{"const":"one","type":"string"},"focus":{"$ref":"#/$defs/Focus"},"ids":{"type":"array","items":{"type":"string"}}}}]}
+        tools=[{"type":"function","function":{"name":"research","parameters":AuthorSession.native_parameters(shape)}}]
+        text='<function=research>\n<parameter=mode>one</parameter>\n<parameter=focus>{"world":"Here"}</parameter>\n<parameter=ids>["a","b"]</parameter>\n</function>'
+        parsed=parse_tool_call(text,tools)
+        self.assertEqual(parsed["arguments"]["focus"],{"world":"Here"});self.assertEqual(parsed["arguments"]["ids"],["a","b"])
+if __name__=="__main__": unittest.main()

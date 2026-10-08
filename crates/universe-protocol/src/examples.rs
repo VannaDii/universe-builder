@@ -13,6 +13,14 @@ pub fn valid() -> Vec<(&'static str, Value)> {
     let u = "The Ashen Cycle";
     let c = id("ctx", 1);
     vec![
+        (
+            "universe_check_changes",
+            json!({"universe":u,"context_id":c,"changes":[],"questions":[]}),
+        ),
+        (
+            "universe_read_facts",
+            json!({"universe":u,"context_id":c,"object_names":["Mara"]}),
+        ),
         ("universe_describe", json!({"universe":u,"mode":"summary"})),
         (
             "universe_open_context",
@@ -69,9 +77,9 @@ mod tests {
     use super::*;
     use crate::{tool_schemas, Request};
     #[test]
-    fn all_thirteen_tools_have_valid_examples_and_closed_schemas() {
-        assert_eq!(valid().len(), 13);
-        assert_eq!(tool_schemas().len(), 13);
+    fn all_fifteen_tools_have_valid_examples_and_closed_schemas() {
+        assert_eq!(valid().len(), 15);
+        assert_eq!(tool_schemas().len(), 15);
         for (tool, args) in valid() {
             let parsed = Request::from_tool(tool, args.clone()).unwrap();
             assert_eq!(parsed.tool_name(), tool);
@@ -111,10 +119,18 @@ mod tests {
     }
     #[test]
     fn optional_does_not_mean_null_and_nested_payloads_are_closed() {
-        let mut search = valid()[2].1.clone();
+        let mut search = valid()
+            .into_iter()
+            .find(|(tool, _)| *tool == "universe_search")
+            .unwrap()
+            .1;
         search["world"] = Value::Null;
         assert!(Request::from_tool("universe_search", search).is_err());
-        let mut prop = valid()[7].1.clone();
+        let mut prop = valid()
+            .into_iter()
+            .find(|(tool, _)| *tool == "universe_propose")
+            .unwrap()
+            .1;
         prop["operations"][0]["record"]["approved"] = json!(true);
         assert!(Request::from_tool("universe_propose", prop).is_err());
     }

@@ -1968,6 +1968,11 @@ pub struct AttributeEvidence {
 /// The versioned domain operation catalog underlying proposal batches
 /// (spec §27.9). Each operation carries a closed typed payload and, for
 /// replacement, the exact expected prior version.
+/// Each newly created record needs its own unique, nonempty client_ref; target
+/// and source identities belong in RecordRef fields, not reused client_ref names.
+/// For new records referenced within the same batch, reserve a fresh valid rec_
+/// identity as client_ref and use that identity in RecordRef.record. Friendly
+/// client_ref names allocate opaque identities and cannot be used as record refs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, tag = "kind", rename_all = "snake_case")]
 pub enum DomainOperation {

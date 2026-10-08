@@ -4,6 +4,7 @@ pub mod examples;
 pub mod request;
 pub mod response;
 pub mod wire;
+pub mod writing;
 pub use error::{ProtocolError, ProtocolResult};
 pub use request::{tool_schemas, Request, ToolSchema};
 pub use response::Response;

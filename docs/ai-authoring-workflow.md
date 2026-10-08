@@ -215,13 +215,14 @@ are distinct. Never treat `delivery.complete`, a complete context brief, zero
 reported findings under restricted coverage, or an imported source as a canon
 commit or as an unrestricted continuity certificate.
 
-## Interactive local author research
+## Interactive local author writing checks
 
-`scripts/author_session.py` runs a local writing and research conversation using
-an existing MLX model and installation. Use a Python environment that already
-contains `mlx`, `mlx-lm` and `jsonschema`; the session does not download models.
-Build the current helpers first and supply distinct existing author and agent
-profiles. The agent needs a read grant for the named universe.
+`scripts/author_session.py` checks author-entered writing against existing canon
+using an installed MLX model and installation. Use a Python environment that
+already contains `mlx`, `mlx-lm` and `jsonschema`; no models are downloaded.
+Build current helpers and supply distinct existing author and agent profiles.
+The agent needs read/propose permissions for the selected universe and grants
+covering its proposed changes.
 
 ```sh
 python scripts/author_session.py \
@@ -233,26 +234,48 @@ python scripts/author_session.py \
   --agent-profile prf_EXISTING_AGENT_ID
 ```
 
-Enter multiline writing or a research request; a blank line submits it. Enter
-`/quit` between passages to exit. The model receives the server's canonical
-instructions and discovered research input schemas, chooses its own calls and
-receives actual tool results or errors. `universe_describe` summary now exposes
-visible continuity heads and represented-context choices so the model can open
-its first research frame without manually supplied IDs. Hidden contexts are
-filtered through the existing world/dependency visibility rules. Ambiguous
-choices require author clarification. The host enforces the selected universe
-and research-only tools. Author credentials and private author actions are kept
-outside model input. Conversation stays in memory; the session saves no transcript
-or report. It closes its adapter on exit and leaves the installation engine
-available for other clients.
+Enter multiline prose; a blank line submits it for automatic checking. `/quit`
+between passages exits. The model uses the installed tokenizer's native tool calling
+with canonical serving instructions and ordinary public MCP tools. It researches
+pinned canon, then sends only plain factual deltas to `universe_check_changes`.
+`universe_read_facts` returns named effective facts, exact property names, conflicts,
+unknowns and authored clock metadata from the existing pinned state engine.
+The session renders actual checking results, including proposed additions, exclusions,
+material questions and coverage; generated explanations cannot claim publication.
+The engine resolves existing identities and property definitions, allocates new
+records, and runs the existing proposal, validation and impact workflow. New
+identities require explicit introduction intent. Existing facts reuse evidence.
+Dialogue, beliefs, plans, hypotheticals and metaphor remain separate from objective
+narration. Relevant ambiguity requires author clarification; unspecified scope or
+time remains visible as an unknown without inventing defaults. Any unresolved
+submitted or engine clarification holds the entire delta before creating a candidate;
+held suggestions have no validation or impact result. Resubmit corrected changes
+after the author answers.
 
-This initial session researches canon and answers requests. It does not propose,
-validate or publish writing changes, and its answers do not certify continuity.
-The default limits are twelve model turns per passage, 1,600 generated tokens per
-turn and 32,768 total context tokens including the next generation. A limit or
-transport failure leaves research incomplete; a context limit requires a fresh
-session. The limits can be configured with `--max-steps`, `--max-tokens` and
-`--max-context-tokens`.
+Default MCP discovery includes this small change interface. Raw `universe_propose`
+and `universe_validate`, plus raw `universe_get`, `universe_get_state` and
+`universe_get_context` views, remain supported and are discoverable with the MCP server's
+`--advanced-tools` flag. Ordinary callers do not construct internal domain records
+or maintain proposal versions. They receive an opaque candidate handle and actual
+engine findings. Changes remain incremental and uncommitted. A completed candidate
+check requires evaluated validation and complete engine/impact coverage; restricted
+or unsupported checks remain incomplete.
+
+Structured tool results enter the conversation once. Author prose, tool decisions,
+errors and retrieved evidence stay in memory; no transcript or report is saved.
+Private author credentials stay outside model input. The adapter closes on exit;
+the installation engine remains available to other clients.
+
+The session reports concise additions, conflicts or material clarification. It
+cannot approve, stage source bytes or publish canon; those author actions remain
+unavailable. A candidate remains uncommitted, and the model's bounded interpretation
+does not guarantee extraction of every implication in prose.
+
+Default limits are 20 model turns per passage, 3,000 generated tokens per turn
+and 32,768 context tokens including the next generation. Configure them with
+`--max-steps`, `--max-tokens` and `--max-context-tokens`. Two identical invalid
+responses stop the passage check promptly. Limits and transport errors
+leave checking incomplete; a context limit requires a fresh session.
 
 ## Local MLX verification
 

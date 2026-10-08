@@ -1047,6 +1047,14 @@ mod incremental_tests {
             .contains("resolved definition"));
     }
     #[test]
+    fn new_instance_identity_can_be_referenced_by_attribute_in_same_batch() {
+        let instance = json!({"kind":"introduce_instance","client_ref":rid(20),"name":{"text":"New identity","validity":{"kind":"unspecified"}},"world_associations":[]});
+        let attribute = json!({"kind":"add_named_attribute","client_ref":"attribute","subject":rr(20),"namespace":"test","key":"color","value_shape":{"kind":"text"},"subject_types":[],"multiplicity":"single","value":{"kind":"text","text":"green"},"evidence":{"attributeMode":"instance","polarity":"support","scope":{"context":rr(99),"applicability":{"kind":"universe_wide"}},"validity":{"kind":"unspecified"},"persistence":"unspecified","precision":"exact","basis":{"kind":"imported_claim"}}});
+        let changes = compile_json(&fixture(), vec![instance, attribute]).unwrap();
+        assert!(changes.iter().any(|c| c.record_id.to_string() == rid(20)));
+        assert!(changes.iter().any(|c| matches!(c.next.as_ref().map(|v| &v.payload), Some(Payload::Proposition(p)) if p.subject.record.to_string() == rid(20))));
+    }
+    #[test]
     fn same_batch_named_attributes_share_one_definition_and_keep_evidence() {
         let attribute = |n| json!({"kind":"add_named_attribute","client_ref":format!("attribute{n}"),"subject":rr(4),"namespace":"test","key":"hazard","value_shape":{"kind":"text"},"subject_types":[rid(1)],"multiplicity":"multiple","value":{"kind":"text","text":format!("Hazard{n}")},"evidence":{"attributeMode":"instance","polarity":"support","scope":{"context":rr(99),"applicability":{"kind":"universe_wide"}},"validity":{"kind":"unknown"},"persistence":"unspecified","precision":"unresolved","basis":{"kind":"imported_claim"}}});
         let changes = compile_json(&fixture(), vec![attribute(1), attribute(2)]).unwrap();

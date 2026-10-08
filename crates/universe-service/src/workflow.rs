@@ -14,6 +14,7 @@ use universe_domain::{
 use universe_protocol::{request::*, response::*, ProtocolError, Request};
 use universe_store::kernel::{Assignment, CommitInput, Kernel};
 const EVALUATOR: &str = "finite-policy-v15-writer-constraint-diagnostics";
+mod writing;
 use universe_protocol::validation_scope::*;
 use validation_binding::ValidationCapture;
 pub(crate) fn hash<T: Serialize>(v: &T) -> String {
@@ -1494,6 +1495,8 @@ impl Workflow<'_> {
         let mut cursor = None;
         let mut complete = true;
         let result = match request {
+            Request::ReadFacts(a) => return self.read_writing_facts(a),
+            Request::CheckChanges(a) => return self.check_writing_changes(a),
             Request::OpenContext(a) => {
                 if let FrameTime::At { ref time } = a.temporal_query {
                     if universe_rules::time::relation(

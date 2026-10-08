@@ -17,10 +17,14 @@ struct Args {
     installation: Option<std::path::PathBuf>,
     #[arg(long)]
     profile: Option<String>,
+    /// Advertise advanced canonical change, validation and raw record views.
+    #[arg(long)]
+    advanced_tools: bool,
 }
 #[derive(Clone)]
 struct Adapter {
     client: Backend,
+    advanced_tools: bool,
 }
 #[derive(Clone)]
 enum Backend {
@@ -60,10 +64,10 @@ impl Backend {
 impl ServerHandler for Adapter {
     fn get_info(&self) -> ServerConfig {
         let mut config = ServerConfig::default();
-        config.instructions = Some(instructions::instructions(matches!(
-            self.client,
-            Backend::Fixture(_)
-        )));
+        config.instructions = Some(instructions::instructions(
+            matches!(self.client, Backend::Fixture(_)),
+            self.advanced_tools,
+        ));
         config.capabilities = ServerCapabilities::builder().enable_tools().build();
         config
     }
@@ -74,6 +78,17 @@ impl ServerHandler for Adapter {
     ) -> Result<ListToolsResult, ErrorData> {
         let tools = tool_schemas()
             .into_iter()
+            .filter(|s| {
+                self.advanced_tools
+                    || !matches!(
+                        s.name.as_str(),
+                        "universe_propose"
+                            | "universe_validate"
+                            | "universe_get"
+                            | "universe_get_state"
+                            | "universe_get_context"
+                    )
+            })
             .map(|s| {
                 let mut tool = Tool::new(
                     s.name,
@@ -182,7 +197,12 @@ async fn main() -> anyhow::Result<()> {
         JsonRpcMessageCodec::<TxJsonRpcMessage<RoleServer>>::default(),
     )
     .sink_map_err(std::io::Error::from);
-    let service = Adapter { client }.serve((output, input)).await?;
+    let service = Adapter {
+        client,
+        advanced_tools: args.advanced_tools,
+    }
+    .serve((output, input))
+    .await?;
     service.waiting().await?;
     Ok(())
 }
