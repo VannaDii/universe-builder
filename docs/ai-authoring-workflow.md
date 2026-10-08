@@ -409,6 +409,14 @@ use that context's authored clock. Belief, suspicion, rejection and memory stay
 separate and do not acquire knowledge automatically. Messages and propositions
 in the current draft can be selected before publication.
 
+The native **Communication and delivery** form records a sender, separate
+intended and actual recipients, proposition content, channel, authored send and
+receipt times, and distortion. Unchecked recipients stay absent; an unspecified
+time stays unspecified. Review and publish messages through the ordinary draft
+workflow. Published messages load into the knowledge-acquisition selector when
+the current revision is opened. Delivery alone never adds knowledge. An active
+channel chronology rule can block reversed or unresolved delivery.
+
 Native review shows the existing finding guidance, policies, affected record
 references and exact evidence versions. Authorized draft metadata identifies
 related holders, messages, propositions and relations. Inspect those records,

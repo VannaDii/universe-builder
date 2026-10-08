@@ -132,3 +132,5 @@ mod appearance_editor;
 
 mod initialization_editor;
 mod resource_acceptance;
+
+mod communication_editor;
