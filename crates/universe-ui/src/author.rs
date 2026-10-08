@@ -138,7 +138,7 @@ pub(super) fn choices(hits: &[Value], definitions: &[Value], operations: &str) -
             "record_communication" => "communication",
             "add_belief" => "epistemic_attitude",
             "define_rule" => "rule",
-            "assert_proposition" | "record_relation" => "proposition",
+            "assert_proposition" | "record_relation" | "define_proposition" => "proposition",
             _ => continue,
         };
         let label = op["name"]
@@ -149,7 +149,7 @@ pub(super) fn choices(hits: &[Value], definitions: &[Value], operations: &str) -
             .or_else(|| op["record"]["selector"].as_str())
             .unwrap_or("Draft record");
         options.push(
-            json!({"kind":kind,"record_id":op["client_ref"],"label":if kind=="communication"{format!("{} (draft)",super::communication_editor::label(&op["record"],&op["client_ref"]))}else{format!("{label} (draft)")},"definition":if op["kind"]=="introduce_definition" {&op} else if kind=="proposition" {&op["proposition"]} else {&op["record"]}}),
+            json!({"kind":kind,"record_id":op["client_ref"],"label":if kind=="communication"{format!("{} (draft)",super::communication_editor::label(&op["record"],&op["client_ref"]))}else{format!("{label} (draft)")},"definition":if op["kind"]=="introduce_definition" {&op} else if kind=="proposition" && op["kind"]!="define_proposition" {&op["proposition"]} else {&op["record"]}}),
         );
     }
     options

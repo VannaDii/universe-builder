@@ -381,6 +381,16 @@ transfer explicitly. Fixed assignments can last until changed or for positive
 calendar ticks; deltas last until changed. Ordinary actions can explicitly permit
 no effects. Definitions follow the protected draft, review and approval workflow.
 
+The native event editor uses the selected action’s declared roles and slots.
+Assign each participant and explicitly include or omit each effect. Supply a new
+typed value or an existing proposition, the represented context and world scope,
+an authored timestamp and exclusive end, polarity and declared order. Resource
+effects require explicit post-event whole-number balances in the contract’s exact
+unit. A reload with reserve consumption needs both declared effects; the editor
+does not compute balances or invent a reserve. Review the resulting propositions
+and event together before publication. Changing actions clears role assignments
+and effect inputs.
+
 To require knowledge for an action occurrence, author the existing attitude
 expression in the event's `preconditions`. The action definition's scalar attribute
 requirements still apply separately. Acquisition must follow receipt, supported

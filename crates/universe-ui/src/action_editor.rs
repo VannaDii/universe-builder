@@ -16,16 +16,21 @@ fn reference(frame: &Frame, id: &str) -> Result<Value, String> {
     Ok(json!({"universe":frame.universe,"record":RecordId::parse(id).map_err(|e|e.to_string())?}))
 }
 #[derive(Clone, Default, PartialEq)]
-struct FixedValue {
-    source: String,
-    value: String,
-    extra: String,
-    lower: String,
-    upper: String,
-    calendar: String,
+pub(super) struct FixedValue {
+    pub(super) source: String,
+    pub(super) value: String,
+    pub(super) extra: String,
+    pub(super) lower: String,
+    pub(super) upper: String,
+    pub(super) calendar: String,
 }
 impl FixedValue {
-    fn build(&self, frame: &Frame, choices: &[Value], predicate: &str) -> Result<Value, String> {
+    pub(super) fn build(
+        &self,
+        frame: &Frame,
+        choices: &[Value],
+        predicate: &str,
+    ) -> Result<Value, String> {
         let shape = &property(choices, predicate)?["value"];
         let v = match self.source.as_str() {
             "proposition" => choices
@@ -202,7 +207,7 @@ impl ActionForm {
     }
 }
 #[component]
-fn ValueControls(
+pub(super) fn ValueControls(
     id: String,
     value: FixedValue,
     predicate: String,

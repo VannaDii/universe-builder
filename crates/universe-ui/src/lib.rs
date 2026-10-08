@@ -138,3 +138,5 @@ mod communication_editor;
 mod effective_object_view;
 
 mod action_editor;
+
+mod consequence_event;
