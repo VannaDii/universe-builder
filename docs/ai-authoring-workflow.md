@@ -391,6 +391,17 @@ does not compute balances or invent a reserve. Review the resulting propositions
 and event together before publication. Changing actions clears role assignments
 and effect inputs.
 
+To correct a consequence-bearing event, inspect it and load its authored
+references at the pinned revision. The same event controls retain the original
+action, participants, time and effects, and preserve additional labels, sequence,
+occurrence identity and preconditions. The draft uses `revise_event` bound to the
+loaded record version. Review the returned dependency context and add coherent
+dependent-event corrections to the same proposal; an isolated earlier balance
+change may invalidate later events. Generated assertions are rebuilt by event
+recompilation and cannot be directly edited or restored in the inspector.
+Earlier revisions remain readable. Unsupported clocks or effect validity block
+loading for editing and retain the original event.
+
 To require knowledge for an action occurrence, author the existing attitude
 expression in the event's `preconditions`. The action definition's scalar attribute
 requirements still apply separately. Acquisition must follow receipt, supported

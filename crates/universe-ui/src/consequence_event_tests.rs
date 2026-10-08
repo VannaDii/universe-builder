@@ -153,7 +153,14 @@ async fn reject(
     key: &str,
     reason: &str,
 ) {
-    let p=tool(c,"universe_propose",json!({"action":"create","universe":"Alpha","context_id":opened["result"]["context_id"],"operations":ops,"submission":"submitted","rationale":"Authored candidate for validation","idempotency_key":key})).await["result"].clone();
+    let request=crate::author::tool("universe_propose",json!({"action":"create","universe":"Alpha","context_id":opened["result"]["context_id"],"operations":ops,"submission":"submitted","rationale":"Authored candidate for validation","idempotency_key":key})).unwrap();
+    let p = match c.call(request).await {
+        Ok(p) => p["result"].clone(),
+        Err(e) => {
+            assert!(e.to_string().contains(reason), "{key}: {e}");
+            return;
+        }
+    };
     let reference =
         json!({"proposal_id":p["proposal_id"],"version":p["version"],"digest":p["digest"]});
     let request=crate::author::tool("universe_validate",json!({"mode":"proposal","universe":"Alpha","context_id":opened["result"]["context_id"],"proposal_reference":reference,"check_scope":"universe"})).unwrap();
@@ -362,4 +369,272 @@ async fn consumption_reload_reserve_debit_rejections_exhaustion_and_recovery() {
     drop(c);
     stop.cancel();
     server.await.unwrap().unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn version_bound_corrections_recompile_dependents_and_preserve_history() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("installation");
+    let author = runtime::initialize(&root).unwrap();
+    let stop = CancellationToken::new();
+    let (r, s) = (root.clone(), stop.clone());
+    let server = tokio::spawn(async move { runtime::serve(&r, s).await });
+    let mut c = connect(&root, &author).await;
+    let u = c
+        .call(EngineRequest::CreateUniverse {
+            name: "Alpha".into(),
+            start: universe_domain::chronology::UniverseStart::Fictional {
+                calendar_name: "Days".into(),
+                initial_tick: "0".into(),
+                tick_label: "days".into(),
+                ticks_per_month: None,
+            },
+        })
+        .await
+        .unwrap();
+    let opened = open(&mut c, &u).await;
+    let f: Frame = serde_json::from_value(opened["result"]["frame"].clone()).unwrap();
+    let mut choice = choices(&f);
+    let mut seed = vec![];
+    for (n, key, shape) in [(1, "stock", "integer"), (2, "enabled", "boolean")] {
+        seed.push(json!({"kind":"define_property","client_ref":id(n),"record":{"namespace":"events","key":key,"labels":{},"subjectTypes":[],"value":{"kind":shape},"multiplicity":"single","persistence":"explicit_interval","exclusive":true,"symmetric":false,"transitive":false}}));
+    }
+    for n in [10, 11] {
+        seed.push(json!({"kind":"create_entity","client_ref":id(n),"record":{"names":[],"classificationResolution":"unclassified","worldAssociations":[],"labels":{},"metadata":{}}}));
+    }
+    for n in 20..=23 {
+        seed.push(json!({"kind":"define_action","client_ref":id(n),"record":action(&choice,&id(n)).unwrap()}));
+    }
+    let clock: Chronology = serde_json::from_value(
+        read(&mut c, &opened, &u["context_id"]).await["payload"]["chronology"].clone(),
+    )
+    .unwrap();
+    for (n, subject, digits, end) in [(40, 10, "2", "1"), (41, 11, "3", "2")] {
+        let rr = |n| json!({"universe":f.universe,"record":id(n)});
+        seed.push(json!({"kind":"assert_proposition","client_ref":id(n),"proposition":{"subject":rr(subject),"predicate":rr(1),"value":{"kind":"integer","digits":digits},"context":f.context,"quantification":"particular"},"assertion":{"attributeMode":"instance","proposition":rr(n),"polarity":"support","scope":{"context":f.context,"applicability":{"kind":"universe_wide"}},"validity":{"kind":"calendar_interval","calendar":clock.calendar,"start":{"kind":"exact","value":"0"},"end":{"kind":"exact","value":end}},"persistence":"explicit_interval","precision":"exact","basis":{"kind":"author_decision","note":"Explicit initial stock"}}}));
+    }
+    publish(&mut c, &opened, json!(seed), "event-fixture").await;
+    let opened = open(&mut c, &u).await;
+    let f: Frame = serde_json::from_value(opened["result"]["frame"].clone()).unwrap();
+    for n in 20..=23 {
+        let r = read(&mut c, &opened, &json!(id(n))).await;
+        choice.iter_mut().find(|c| c["record_id"] == id(n)).unwrap()["definition"] =
+            r["payload"].clone();
+    }
+
+    let mut burst = choice.iter().find(|c| c["record_id"] == id(20)).unwrap()["definition"].clone();
+    burst.as_object_mut().unwrap().remove("record_kind");
+    burst["key"] = json!("burst");
+    burst["consequenceContract"]["slots"][0]["change"]["delta"] = json!("-2");
+    publish(
+        &mut c,
+        &opened,
+        json!([{"kind":"define_action","client_ref":id(24),"record":burst}]),
+        "correction-burst",
+    )
+    .await;
+    choice.push(
+        json!({"kind":"action_definition","record_id":id(24),"label":"Burst","definition":burst}),
+    );
+    let opened = open(&mut c, &u).await;
+    let mut first_ops = form(&f, &choice, 20, "1", &["1"])
+        .build(&f, Some(&clock), &choice)
+        .unwrap();
+    let first_id = first_ops.last().unwrap()["client_ref"].clone();
+    let event = first_ops.last_mut().unwrap();
+    event["record"]["labels"]["fr"] = json!("Tir");
+    event["record"]["sequence"] = json!("authored-sequence");
+    event["record"]["occurrenceId"] = json!("first-occurrence");
+    event["record"]["preconditions"] = json!([{"kind":"lit","value":true}]);
+    publish(&mut c, &opened, json!(first_ops), "correction-first").await;
+    let opened = open(&mut c, &u).await;
+    let second_ops = form(&f, &choice, 21, "2", &["3", "1"])
+        .build(&f, Some(&clock), &choice)
+        .unwrap();
+    let second_id = second_ops.last().unwrap()["client_ref"].clone();
+    publish(&mut c, &opened, json!(second_ops), "correction-reload").await;
+    let old = open(&mut c, &u).await;
+    let first = read(&mut c, &old, &first_id).await;
+    let second = read(&mut c, &old, &second_id).await;
+    for event in [&first, &second] {
+        for effect in event["payload"]["effects"].as_array().unwrap() {
+            let p = read(&mut c, &old, &effect["proposition"]["record"]).await;
+            choice.extend(crate::author::choices(&[], &[p], "[]"));
+        }
+    }
+    let (loaded, related) = crate::event_correction::load(
+        root.to_string_lossy().into(),
+        author.to_string(),
+        "Alpha".into(),
+        old["result"]["context_id"].clone(),
+        &first,
+    )
+    .await
+    .unwrap();
+    assert!(loaded.iter().any(|c| c["record_id"] == id(20)));
+    assert!(!related["result"].is_null());
+    Form::load(first.clone(), &f, Some(&clock), &loaded)
+        .unwrap()
+        .build(&f, Some(&clock), &loaded)
+        .unwrap();
+    let unchanged = Form::load(first.clone(), &f, Some(&clock), &choice)
+        .unwrap()
+        .build(&f, Some(&clock), &choice)
+        .unwrap();
+    let expected: universe_domain::records::Event = serde_json::from_value({
+        let mut p = first["payload"].clone();
+        p.as_object_mut().unwrap().remove("record_kind");
+        p
+    })
+    .unwrap();
+    let roundtrip: universe_domain::records::Event =
+        serde_json::from_value(unchanged[0]["replacement"].clone()).unwrap();
+    assert_eq!(roundtrip, expected);
+    let mut earlier = Form::load(first.clone(), &f, Some(&clock), &choice).unwrap();
+    earlier.action = id(24);
+    earlier.effects[0].source = "new".into();
+    earlier.effects[0].balance = "0".into();
+    let first_change = earlier.build(&f, Some(&clock), &choice).unwrap();
+    reject(
+        &mut c,
+        &old,
+        first_change.clone(),
+        "isolated-earlier-correction",
+        "post-value does not equal",
+    )
+    .await;
+    let mut dependent = Form::load(second.clone(), &f, Some(&clock), &choice).unwrap();
+    dependent.effects[0].source = "new".into();
+    dependent.effects[0].balance = "2".into();
+    let mut coherent = earlier.build(&f, Some(&clock), &choice).unwrap();
+    coherent.extend(dependent.build(&f, Some(&clock), &choice).unwrap());
+    // Normal review includes recompiled generated assertions alongside the event replacements.
+    let p=tool(&mut c,"universe_propose",json!({"action":"create","universe":"Alpha","context_id":old["result"]["context_id"],"operations":coherent,"submission":"submitted","rationale":"Correct earlier event and dependent balance together","idempotency_key":"coherent-event-review"})).await["result"].clone();
+    let reference = serde_json::from_value(
+        json!({"proposal_id":p["proposal_id"],"version":p["version"],"digest":p["digest"]}),
+    )
+    .unwrap();
+    let review = c
+        .call(EngineRequest::Review {
+            universe: Selector("Alpha".into()),
+            proposal_reference: reference,
+        })
+        .await
+        .unwrap();
+    assert!(review.to_string().contains("establishedBy"));
+    assert!(review.to_string().contains(first_id.as_str().unwrap()));
+    assert!(review.to_string().contains(second_id.as_str().unwrap()));
+    let reference = serde_json::from_value(
+        json!({"proposal_id":p["proposal_id"],"version":p["version"],"digest":p["digest"]}),
+    )
+    .unwrap();
+    let v=tool(&mut c,"universe_validate",json!({"mode":"proposal","universe":"Alpha","context_id":old["result"]["context_id"],"proposal_reference":reference,"check_scope":"universe"})).await["result"]["execution"].clone();
+    assert_eq!(v["coverage"], "complete");
+    c.call(EngineRequest::Approve {
+        universe: Selector("Alpha".into()),
+        proposal_reference: reference,
+        validation_run: serde_json::from_value(v["run_id"].clone()).unwrap(),
+    })
+    .await
+    .unwrap();
+    tool(&mut c,"universe_commit",json!({"universe":"Alpha","proposal_reference":{"proposal_id":p["proposal_id"],"version":p["version"],"digest":p["digest"]},"expected_base_revision":p["base_frame"]["revision"],"validation_run":v["run_id"],"idempotency_key":"coherent-event-correction"})).await;
+    let current = open(&mut c, &u).await;
+    let corrected = read(&mut c, &current, &first_id).await;
+    assert_ne!(corrected["record_version_id"], first["record_version_id"]);
+    assert_eq!(corrected["payload"]["labels"]["fr"], "Tir");
+    assert_eq!(
+        corrected["payload"]["preconditions"],
+        first["payload"]["preconditions"]
+    );
+    assert_eq!(corrected["payload"]["occurrenceId"], "first-occurrence");
+    assert_eq!(corrected["payload"]["sequence"], "authored-sequence");
+    reject(
+        &mut c,
+        &current,
+        {let mut payload=corrected["payload"].clone();payload.as_object_mut().unwrap().remove("record_kind");vec![json!({"kind":"revise_event","record":{"universe":f.universe,"record":first_id},"expected_version":first["record_version_id"],"replacement":payload})]},
+        "stale-event-correction",
+        "version",
+    )
+    .await;
+    assert_eq!(read(&mut c, &old, &first_id).await, first);
+    assert_eq!(read(&mut c, &old, &second_id).await, second);
+    let before = read(
+        &mut c,
+        &old,
+        &second["payload"]["effects"][0]["proposition"]["record"],
+    )
+    .await;
+    assert_eq!(before["payload"]["value"]["digits"], "3");
+    let new_second = read(&mut c, &current, &second_id).await;
+    let after = read(
+        &mut c,
+        &current,
+        &new_second["payload"]["effects"][0]["proposition"]["record"],
+    )
+    .await;
+    assert_eq!(after["payload"]["value"]["digits"], "2");
+    drop(c);
+    stop.cancel();
+    server.await.unwrap().unwrap();
+}
+#[test]
+fn correction_roundtrip_preserves_gregorian_fields_and_blocks_generated_edits() {
+    let f = frame();
+    let c = choices(&f);
+    let calendar = universe_domain::ids::CalendarId::parse("cal_000000000000000000000001").unwrap();
+    let (clock, _) = universe_domain::chronology::UniverseStart::Gregorian {
+        timestamp: "2026-10-08T10:00:00-07:00".into(),
+    }
+    .build(calendar)
+    .unwrap();
+    let mut event_form = form(&f, &c, 22, "2026-10-08T10:00:00-07:00", &[]);
+    event_form.effects[0].value = FixedValue {
+        source: "literal".into(),
+        value: "true".into(),
+        ..Default::default()
+    };
+    event_form.effects[0].end_kind = "exact".into();
+    event_form.effects[0].end = "2026-10-08T10:00:03-07:00".into();
+    let ops = event_form.build(&f, Some(&clock), &c).unwrap();
+    let mut c = c;
+    c.extend(crate::author::choices(
+        &[],
+        &[],
+        &serde_json::to_string(&ops).unwrap(),
+    ));
+    let mut payload = ops.last().unwrap()["record"].clone();
+    payload["record_kind"] = json!("event");
+    payload["labels"]["fr"] = json!("Événement");
+    payload["preconditions"] = json!([{"kind":"lit","value":true}]);
+    payload["sequence"] = json!("retained sequence");
+    payload["occurrenceId"] = json!("retained occurrence");
+    let original = json!({"identity":{"universe_id":f.universe,"record_id":id(99)},"record_version_id":"ver_000000000000000000000099","payload":payload});
+    let loaded = Form::load(original.clone(), &f, Some(&clock), &c).unwrap();
+    let revised = loaded.build(&f, Some(&clock), &c).unwrap();
+    let mut payload = payload;
+    payload.as_object_mut().unwrap().remove("record_kind");
+    let before: universe_domain::records::Event = serde_json::from_value(payload).unwrap();
+    let after: universe_domain::records::Event =
+        serde_json::from_value(revised[0]["replacement"].clone()).unwrap();
+    assert_eq!(before, after);
+    assert_eq!(
+        revised[0]["expected_version"],
+        original["record_version_id"]
+    );
+    let assertion = json!({"payload":{"record_kind":"assertion","establishedBy":{"event":{"record":id(99)},"slot":"enable"}}});
+    assert!(crate::inspector_editor::operation(
+        &f,
+        &assertion,
+        "retract_assertion",
+        "",
+        "Correction",
+        Some(&clock)
+    )
+    .unwrap_err()
+    .contains("establishing event"));
+    fn fixture() -> Element {
+        rsx! {crate::event_correction::EventCorrection{root:"unused",profile:"unused",universe:"Alpha",context:Value::Null,frame:frame(),original:Value::Null,clock:Some(crate::consequence_event::tests::clock()),disabled:false,onadd:move |_|{}}}
+    }
+    let mut dom = VirtualDom::new(fixture);
+    assert!(!dom.rebuild_to_vec().edits.is_empty());
 }

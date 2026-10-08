@@ -140,3 +140,5 @@ mod effective_object_view;
 mod action_editor;
 
 mod consequence_event;
+
+mod event_correction;

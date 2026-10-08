@@ -11,6 +11,14 @@ pub(super) fn operation(
     reason: &str,
     clock: Option<&Chronology>,
 ) -> Result<Value, String> {
+    if selected["payload"]["record_kind"] == "assertion"
+        && !selected["payload"]["establishedBy"].is_null()
+    {
+        return Err(
+            "Correct the establishing event; generated assertions are recompiled by the service."
+                .into(),
+        );
+    }
     if value.trim().is_empty() && action != "retract_assertion" {
         return Err("Enter a value before adding this change.".into());
     }
@@ -81,6 +89,11 @@ pub fn InspectorEditor(
     let mut value = use_signal(String::new);
     let mut reason = use_signal(String::new);
     let mut error = use_signal(String::new);
+    if selected["payload"]["record_kind"] == "assertion"
+        && !selected["payload"]["establishedBy"].is_null()
+    {
+        return rsx! {p{"Correct the establishing event. Its generated assertions cannot be edited directly."}};
+    }
     let options = match selected["payload"]["record_kind"]
         .as_str()
         .unwrap_or_default()

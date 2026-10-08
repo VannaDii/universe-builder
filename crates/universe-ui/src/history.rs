@@ -10,7 +10,7 @@ pub fn History(records: Value, disabled: bool, onadd: EventHandler<Value>) -> El
             article {
                 p { {format!("{} · {}", entry["revision"].as_str().unwrap_or_default(), entry["reason"].as_str().unwrap_or_default())} }
                 super::readable::ReadValue {value:entry["record"].clone()}
-                button {disabled:disabled||entry["record"].is_null()||current.is_null()||entry["record"]["record_version_id"]==current["record_version_id"],onclick:{let old=entry["record"].clone();let expected=current["record_version_id"].clone();move |_|onadd.call(json!({"kind":"adopt_record_version","source":old,"expected_version":expected}))},"Restore this version in draft"}
+                button {disabled:disabled||!current["payload"]["establishedBy"].is_null()||!entry["record"]["payload"]["establishedBy"].is_null()||entry["record"].is_null()||current.is_null()||entry["record"]["record_version_id"]==current["record_version_id"],onclick:{let old=entry["record"].clone();let expected=current["record_version_id"].clone();move |_|onadd.call(json!({"kind":"adopt_record_version","source":old,"expected_version":expected}))},"Restore this version in draft"}
             }
         }
     }}

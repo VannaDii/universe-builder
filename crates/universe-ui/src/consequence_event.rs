@@ -35,6 +35,7 @@ struct EffectForm {
 }
 #[derive(Clone, Default)]
 struct Form {
+    original: Value,
     title: String,
     action: String,
     occurrence: String,
@@ -47,6 +48,134 @@ struct Form {
     effects: Vec<EffectForm>,
 }
 impl Form {
+    fn load(
+        original: Value,
+        frame: &Frame,
+        clock: Option<&Chronology>,
+        choices: &[Value],
+    ) -> Result<Self, String> {
+        let event = &original["payload"];
+        let _: universe_domain::ids::RecordVersionId =
+            serde_json::from_value(original["record_version_id"].clone())
+                .map_err(|e| e.to_string())?;
+        if event["record_kind"] != "event"
+            || original["identity"]["universe_id"] != json!(frame.universe)
+        {
+            return Err("Load an event from this pinned universe.".into());
+        }
+        let clock = clock.ok_or("The event needs its authored clock.")?;
+        if event["time"]["kind"] != "exact" || event["time"]["calendar"] != json!(clock.calendar) {
+            return Err("This editor requires the event's exact named calendar; its original fields remain intact.".into());
+        }
+        let display = |value: &str| {
+            if matches!(
+                clock.system,
+                universe_domain::chronology::ClockSystem::Gregorian { .. }
+            ) {
+                clock.display(value)
+            } else {
+                Ok(value.to_string())
+            }
+        };
+        let mut f = Self::default();
+        f.select(
+            event["action"]["record"]
+                .as_str()
+                .ok_or("The event's action is unavailable.")?
+                .into(),
+            choices,
+        )?;
+        f.title = event["labels"]["en"].as_str().unwrap_or_default().into();
+        f.occurrence = event["occurrence"].as_str().unwrap_or("descriptive").into();
+        f.start = display(
+            event["time"]["value"]
+                .as_str()
+                .ok_or("Event time unavailable.")?,
+        )?;
+        f.context = action(choices, &f.action)?["scope"]["context"]["record"]
+            .as_str()
+            .ok_or("Action context unavailable.")?
+            .into();
+        f.worlds = event["worlds"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|w| w.as_str().unwrap_or_default().into())
+            .collect();
+        f.applicability = if f.worlds.is_empty() {
+            "universe_wide"
+        } else {
+            "worlds"
+        }
+        .into();
+        f.region = event["region"]["record"]
+            .as_str()
+            .unwrap_or_default()
+            .into();
+        f.roles = event["participants"]
+            .as_array()
+            .ok_or("Participants unavailable.")?
+            .iter()
+            .map(|p| {
+                Ok((
+                    p["role"]
+                        .as_str()
+                        .ok_or("Participant role unavailable.")?
+                        .into(),
+                    p["record"]["record"]
+                        .as_str()
+                        .ok_or("Participant unavailable.")?
+                        .into(),
+                ))
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        for input in &mut f.effects {
+            if let Some(effect) = event["effects"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .find(|e| e["slot"] == input.slot)
+            {
+                input.include = "yes".into();
+                input.source = "existing".into();
+                input.proposition = effect["proposition"]["record"]
+                    .as_str()
+                    .ok_or("Effect proposition unavailable.")?
+                    .into();
+                input.polarity = effect["polarity"].as_str().unwrap_or_default().into();
+                input.order = effect["order"].to_string();
+                if effect["validity"]["kind"] != "calendar_interval"
+                    || effect["validity"]["calendar"] != event["time"]["calendar"]
+                    || effect["validity"]["start"]["value"] != event["time"]["value"]
+                {
+                    return Err("Effect validity cannot be represented by these controls; the original event is preserved.".into());
+                }
+                input.end_kind = effect["validity"]["end"]["kind"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .into();
+                input.end = if input.end_kind == "exact" {
+                    display(
+                        effect["validity"]["end"]["value"]
+                            .as_str()
+                            .ok_or("Effect end unavailable.")?,
+                    )?
+                } else {
+                    String::new()
+                };
+            } else {
+                input.include = "no".into();
+            }
+        }
+        if event["effects"].as_array().is_some_and(|rows| {
+            rows.iter()
+                .any(|e| !f.effects.iter().any(|i| e["slot"] == i.slot))
+        }) {
+            return Err("An event effect is outside the returned contract. Preserve it and retrieve the matching action before editing.".into());
+        }
+        f.original = original;
+        Ok(f)
+    }
     fn select(&mut self, id: String, choices: &[Value]) -> Result<(), String> {
         let a = action(choices, &id)?;
         let _: ConsequenceContract = serde_json::from_value(a["consequenceContract"].clone())
@@ -96,7 +225,7 @@ impl Form {
         clock: Option<&Chronology>,
         choices: &[Value],
     ) -> Result<Vec<Value>, String> {
-        if self.title.trim().is_empty() {
+        if self.original.is_null() && self.title.trim().is_empty() {
             return Err("Name the event.".into());
         }
         let a = action(choices, &self.action)?;
@@ -131,9 +260,8 @@ impl Form {
         };
         let scope = json!({"context":context,"applicability":if worlds.is_empty(){json!({"kind":"universe_wide"})}else{json!({"kind":"worlds","world_ids":worlds})}});
         let mut participants = Vec::new();
-        let mut names = BTreeSet::new();
         for (role, id) in &self.roles {
-            if role.trim().is_empty() || !names.insert(role) {
+            if role.trim().is_empty() {
                 return Err("Participant roles must be nonempty and unique.".into());
             }
             if !choices
@@ -201,7 +329,50 @@ impl Form {
             };
             effects.push(json!({"slot":input.slot,"proposition":prop,"polarity":input.polarity,"scope":scope,"validity":{"kind":"calendar_interval","calendar":clock.calendar,"start":{"kind":"exact","value":start},"end":end},"order":input.order.parse::<usize>().map_err(|_|"Enter the declared effect order.")?}));
         }
-        ops.push(json!({"kind":"record_event","client_ref":RecordId::generate(&mut rand::rng()),"record":{"occurrence":self.occurrence,"action":rr(frame,&self.action)?,"time":{"kind":"exact","calendar":clock.calendar,"value":start},"worlds":worlds,"region":if self.region.is_empty(){Value::Null}else{rr(frame,&self.region)?},"participants":participants,"effects":effects,"labels":{"en":self.title}}}));
+        let mut replacement = json!({"occurrence":self.occurrence,"action":rr(frame,&self.action)?,"time":{"kind":"exact","calendar":clock.calendar,"value":start},"worlds":worlds,"region":if self.region.is_empty(){Value::Null}else{rr(frame,&self.region)?},"participants":participants,"effects":effects,"labels":{"en":self.title}});
+        if self.original.is_null() {
+            ops.push(json!({"kind":"record_event","client_ref":RecordId::generate(&mut rand::rng()),"record":replacement}));
+        } else {
+            let mut preserved = self.original["payload"].clone();
+            preserved
+                .as_object_mut()
+                .ok_or("Original event unavailable.")?
+                .remove("record_kind");
+            for field in [
+                "occurrence",
+                "action",
+                "time",
+                "worlds",
+                "region",
+                "participants",
+                "effects",
+            ] {
+                if field == "occurrence" && self.occurrence == "descriptive" {
+                    continue;
+                }
+                preserved[field] = replacement[field].take();
+            }
+            if self.title
+                != self.original["payload"]["labels"]["en"]
+                    .as_str()
+                    .unwrap_or_default()
+            {
+                preserved["labels"]["en"] = json!(self.title);
+            }
+            // Keep authored effect array order, even when contract slot order differs.
+            let old = self.original["payload"]["effects"]
+                .as_array()
+                .ok_or("Original effects unavailable.")?;
+            preserved["effects"]
+                .as_array_mut()
+                .unwrap()
+                .sort_by_key(|e| {
+                    old.iter()
+                        .position(|o| o["slot"] == e["slot"])
+                        .unwrap_or(old.len())
+                });
+            ops.push(json!({"kind":"revise_event","record":rr(frame,self.original["identity"]["record_id"].as_str().ok_or("Event identity unavailable.")?)?,"expected_version":self.original["record_version_id"],"replacement":preserved}));
+        }
         ops.into_iter()
             .map(|op| {
                 let typed: DomainOperation =
@@ -254,8 +425,15 @@ pub(super) fn ConsequenceEventEditor(
     choices: Vec<Value>,
     disabled: bool,
     onadd: EventHandler<Vec<Value>>,
+    #[props(default)] original: Value,
 ) -> Element {
-    let mut form = use_signal(Form::default);
+    let initial = if original.is_null() {
+        Ok(Form::default())
+    } else {
+        Form::load(original.clone(), &frame, clock.as_ref(), &choices)
+    };
+    let load_error = initial.as_ref().err().cloned().unwrap_or_default();
+    let mut form = use_signal(|| initial.unwrap_or_default());
     let mut error = use_signal(String::new);
     let definition = action(&choices, &form.read().action)
         .cloned()
@@ -264,7 +442,9 @@ pub(super) fn ConsequenceEventEditor(
         .as_array()
         .cloned()
         .unwrap_or_default();
-    rsx! {details{summary{"Record an event with declared consequences"}
+    rsx! {details{summary{if original.is_null(){"Record an event with declared consequences"}else{"Correct this event and its consequences"}}
+        if !original.is_null(){details{summary{"Original event and exact version binding"}super::readable::ReadValue{value:original.clone()}}}
+        if !load_error.is_empty(){p{role:"alert","{load_error}"}}
         p{"Choose an action, assign its roles and explicitly propose each effect. Validation checks required effects, authored conditions, exact values, resource balances, scope, validity and order. Plans and reports do not establish objective effects."}
         label{r#for:"event-title","Event name"}input{id:"event-title",disabled,value:form.read().title.clone(),oninput:move|e|form.write().title=e.value()}
         label{r#for:"event-action","Declared action"}super::select::RichSelect{id:"event-action",disabled,value:form.read().action.clone(),options:super::select::record_choices(&choices.iter().filter(|c|c["kind"]=="action_definition"&&!c["definition"]["consequenceContract"].is_null()).cloned().collect::<Vec<_>>(),&["action_definition"],"Choose a contract-bearing action"),onchange:{let choices=choices.clone();move|e:super::select::SelectionEvent|{match form.write().select(e.value(),&choices){Ok(())=>error.set(String::new()),Err(e)=>error.set(e)}}}}
@@ -284,7 +464,7 @@ pub(super) fn ConsequenceEventEditor(
         }
         for(i,input)in form.read().effects.clone().into_iter().enumerate(){EffectControls{key:"{i}",id:format!("event-effect-{i}"),slot:slots.get(i).cloned().unwrap_or(Value::Null),input,choices:choices.clone(),disabled,onchange:move|v|form.write().effects[i]=v}}
         if !error().is_empty(){p{role:"alert","{error}"}}
-        button{disabled,onclick:move|_|match form.read().build(&frame,clock.as_ref(),&choices){Ok(ops)=>{onadd.call(ops);error.set(String::new());},Err(e)=>error.set(e)},"Add event and explicit effects to draft"}
+        button{disabled:disabled||!load_error.is_empty(),onclick:move|_|match form.read().build(&frame,clock.as_ref(),&choices){Ok(ops)=>{onadd.call(ops);error.set(String::new());},Err(e)=>error.set(e)},if original.is_null(){"Add event and explicit effects to draft"}else{"Add version-bound event correction to draft"}}
     }}
 }
 #[cfg(test)]
