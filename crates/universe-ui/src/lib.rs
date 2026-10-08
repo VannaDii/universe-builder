@@ -134,3 +134,5 @@ mod initialization_editor;
 mod resource_acceptance;
 
 mod communication_editor;
+
+mod effective_object_view;

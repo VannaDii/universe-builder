@@ -141,7 +141,16 @@ async fn state(
     clock: &Chronology,
 ) -> Value {
     let at=tool(c,"universe_open_context",json!({"universe":"Alpha","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":u["context_id"],"temporal_query":{"kind":"at","time":{"kind":"exact","calendar":clock.calendar,"value":"10"}},"temporal_systems":[],"perspective":"author"})).await;
-    tool(c,"universe_get_state",json!({"universe":"Alpha","context_id":at["result"]["context_id"],"entity_ids":[id(1),id(2)],"predicate_filters":[]})).await["result"].clone()
+    let response=tool(c,"universe_get_state",json!({"universe":"Alpha","context_id":at["result"]["context_id"],"entity_ids":[id(1),id(2)],"predicate_filters":[]})).await;
+    let rendered = crate::effective_object_view::tests::render(response.clone());
+    assert!(rendered.contains(at["result"]["frame"]["revision"].as_str().unwrap()));
+    assert!(rendered.contains("Instance facts") && rendered.contains("Initial-value candidates"));
+    for object in response["result"]["objects"].as_array().unwrap() {
+        for receipt in object["initialization_receipts"].as_array().unwrap() {
+            assert!(rendered.contains(receipt["assertion"].as_str().unwrap()));
+        }
+    }
+    response["result"].clone()
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn native_initialization_reviews_publishes_recovers_and_cannot_repeat() {

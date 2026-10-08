@@ -113,6 +113,12 @@ unresolved evidence. Restricted or incomplete coverage does not establish
 absence. Request authorized access or ask the author before relying on missing
 evidence.
 
+The native state inspector presents these returned evidence lanes separately,
+with the queried revision, represented context, world focus, time and coverage.
+Shared definition attributes and initial-value candidates are not current stock.
+Initialization history is shown with its own coverage; restricted receipts stay
+concealed. Expand a row to inspect exact records, qualifications and references.
+
 For genuinely new facts, `universe_propose` supports `introduce_definition`,
 `introduce_instance`, `add_named_attribute`, and `refine_classification`.
 Supply only known identity, names, scope, time, precision, and evidence basis;

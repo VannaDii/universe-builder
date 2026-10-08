@@ -75,6 +75,6 @@ pub fn StateView(
             });
         },"Evaluate state"}
         if !error().is_empty(){p{role:"alert","{error}"}}
-        if !result().is_null(){p{role:"status",{format!("State at the requested pinned frame. Coverage: {}",result()["result"]["coverage"].as_str().unwrap_or("unknown"))}}super::readable::ReadValue{value:result()["result"].clone()}}
+        if !result().is_null(){super::effective_object_view::EffectiveState{response:result()}}
     }}
 }
