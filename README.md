@@ -1,8 +1,6 @@
 # Universe Builder
 
-A local universe-management application with a shared Rust engine, a Dioxus desktop, and an MCP interface for external agents.
-
-Two modes are available: the disposable read/propose fixture, and a **persistent authenticated engine** for author-defined factual universes. Persistent mode supports incremental definitions and instances, scoped evidence, effective-object retrieval, reviewed once-only initialization, declared events and resource accounting, exact approval, atomic publication, history and recovery. The external writer interprets prose and asks for author clarification; the MCP validates supported factual declarations. Assessments are optional attributed evidence. [Opt-in authored channel chronology](docs/communication-chronology-verification.md) enforces forward transmission and signed delay bounds on exact same-clock receipts. Knowledge acquisition and cross-instance cardinality extensions await explicit approval. Native, intended-host and release acceptance remain open. See the [current completion matrix and remaining sequence](docs/completion-roadmap-goal37.md) and [implementation status](IMPLEMENTATION_STATUS.md).
+Two modes are available: the disposable read/propose fixture and a persistent authenticated engine for author-defined factual universes. Persistent mode supports incremental definitions and instances, scoped factual constraints, retrieval, declared knowledge acquisition, scoped cross-instance cardinality, exact approval, atomic publication, history and recovery. The external writer interprets prose and asks for author clarification; the MCP validates supported factual declarations. Assessments remain optional attributed domain records. Manual native interaction and release acceptance remain pending.
 
 ## Homebrew and the desktop launcher
 
@@ -130,7 +128,7 @@ The packaged helpers are under `target/fixture/Universe Builder Fixture.app/Cont
 
 ## Scope and next work
 
-The architecture and full backlog are in [the v0.4 specification](Universe_Builder_Full_Implementation_Plan_v0.4.md). The implemented author/agent loop and pending verification gates are recorded in [authoring verification](docs/authoring-verification.md). The silver-gate scenarios in `fixtures/silver-gate.json` record semantic targets; the disposable fixture still reports them as unsupported. Persistent-engine S01–S10 evidence is listed separately; the broader story-level acceptance matrix remains open. Passing related unit tests does not complete that suite.
+The architecture and full backlog are in [the v0.4 specification](Universe_Builder_Full_Implementation_Plan_v0.4.md). The silver-gate scenarios in `fixtures/silver-gate.json` record semantic targets; the disposable fixture still reports them as unsupported. the broader story-level acceptance matrix remains open. Passing related unit tests does not complete that suite.
 
 ## Review, sources and recovery
 
@@ -139,7 +137,7 @@ For writing a novel with an external AI, follow the
 material continuity claims, then commit its universe changes when the author
 chooses to use it. Only a successful `universe_commit` makes changes canon; fresh
 context must include that revision before dependent writing continues. The
-[novel readiness assessment](docs/novel-authoring-readiness.md) records the local
+novel readiness assessment records the local
 MLX evaluation, implementation strengths and remaining acceptance work.
 
 The CLI exposes the same author boundary as the native UI:
@@ -161,4 +159,4 @@ Source staging returns proposal operations and does not admit source records. UT
 
 The native author workspace includes rich selectors for event occurrence, possession, powers, knowledge and data packs. Definitions can be revised through typed inspector controls. Continuities fork an exact revision; comparison and selected adoption create reviewable draft operations. Later parent edits never enter a child automatically. Data packs contain references and exact dependencies, not executable plugins.
 
-The [milestone 7–8 evidence](docs/semantic-release-verification.md) distinguishes implemented behavior, representation fixtures and remaining acceptance. The [release runbook](docs/release-runbook.md) documents whole-bundle updates, rollback and headless checks. Packaging writes helper digests and a locked component inventory and seals them with the ad-hoc bundle signature. Packaged clients reject modified bundles before engine startup. This does not replace Developer ID signing, notarization, independent security review or clean-machine testing.
+The [release runbook](docs/release-runbook.md) documents whole-bundle updates, rollback and headless checks. Packaging writes helper digests and a locked component inventory and seals them with the ad-hoc bundle signature. Packaged clients reject modified bundles before engine startup. This does not replace Developer ID signing, notarization, independent security review or clean-machine testing.

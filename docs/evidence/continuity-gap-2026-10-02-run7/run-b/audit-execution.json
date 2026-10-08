@@ -1,5 +1,0 @@
-{
-  "returncode": 0,
-  "stdout": "PASS: 13 cases, 12 MCP receipts, 13 kernel receipts, independent SQLite/wire audit\n",
-  "stderr": ""
-}

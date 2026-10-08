@@ -4,7 +4,6 @@ October 3, 2026. Normative unreleased replacement roadmap, based on Vanna's clar
 
 This replaces the unstarted Goals 20–21 and the remaining execution sequence in the [continuity-gap remediation plan](continuity-gap-remediation-plan.md). Completed work and its evidence remain valid within their recorded scope. Vanna has directed replacement with one normative model and no parallel prerelease schema/contract versions. The concrete mapping is in [the relational package](decisions/relational-storage/README.md). Production migration remains a separate operator action; the earlier two-operand recommendation is superseded.
 
-Current reconciliation: [Goal 37 completion matrix](completion-roadmap-goal37.md) maps A–H and every original G/R scenario to committed proof, bounded support and remaining decisions as of October 6, 2026. The findings below describe the October 3 starting point; they are not a current list of unimplemented work. Operator migration and K1–K3 semantic extensions remain separately gated.
 
 ## Product boundary
 
@@ -45,7 +44,7 @@ Source inspection confirms these mismatches:
 3. State/context retrieval exposes record families that callers must assemble. It does not yet provide one effective object description with separately attributed definition facts, instance facts, chronology and applicable rules.
 4. The earlier rule recommendation used an isolated evaluator result as evidence of an admission gap. Full candidate validation separately rejects incompatible supported values of a single-valued property. Retain the probe as a characterization of the rule function; reassess the recommendation through the entire public workflow.
 
-Implementation anchors: [types](../crates/universe-domain/src/records.rs), [structural/scalar validation](../crates/universe-service/src/validation.rs), [canonical storage](../crates/universe-store/src/kernel.rs), [stored workflow schema](../crates/universe-store/src/schema_v2.sql), [installation authority](../crates/universe-service/src/registry.rs), [logical archive](../crates/universe-store/src/archive.rs), and [cumulative proof](cumulative-resource-verification.md).
+Implementation anchors: [types](../crates/universe-domain/src/records.rs), [structural/scalar validation](../crates/universe-service/src/validation.rs), [canonical storage](../crates/universe-store/src/kernel.rs), stored workflow schema, [installation authority](../crates/universe-service/src/registry.rs), [logical archive](../crates/universe-store/src/archive.rs), and cumulative proof.
 
 ## Preserve the working foundation
 

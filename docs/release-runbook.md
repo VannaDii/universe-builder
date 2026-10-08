@@ -59,43 +59,6 @@ URLs into a temporary test tap. Do not commit or distribute that formula.
 forwarding, installation initialization/status/shutdown, literal shortcut
 execution and overwrite refusal without opening a native window.
 
-### Local packaging verification, 2026-09-24
-
-On the Apple Silicon development host, workspace formatting, Clippy, tests and
-schema drift checks passed, along with five distribution metadata tests,
-independent contract validation, packaged MCP/installation smoke checks and
-launcher/shortcut checks. The sealed bundle passed component/helper digest
-checks and rejected a modified helper even through a public-command symlink.
-Homebrew unpacking and the actual formula install hook were exercised against
-the local archive in an isolated prefix; the installed signature and public
-launcher checks passed there too.
-
-After the author updated the Xcode tools, the earlier Command Line Tools/macOS
-27 blocker was resolved. A full `brew install
-local/multiverse-verification/multiverse-mcp` and `brew test
-local/multiverse-verification/multiverse-mcp` passed using the existing local
-Apple Silicon archive. The installed bundle also passed `verify_release.py`,
-and `verify_launcher.py --bin-dir /opt/homebrew/bin` passed through Homebrew's
-public symlink. This verifies installation of the existing build, not a rebuild
-with the updated compiler. The temporary installation and test tap were removed
-after verification.
-
-Both release jobs require real `brew install` and `brew test` on macOS 15 before
-uploading artifacts. Those hosted jobs, the Intel build, native window/shortcut
-interaction and clean-machine/notarization acceptance have not been run here.
-No release or remote repository was created.
-
-The final secrets verification command was:
-
-```sh
-sonar analyze secrets .github/workflows packaging scripts crates/universe-cli crates/universe-client/src/installation.rs apps/desktop/src/main.rs xtask/src/main.rs README.md docs/release-runbook.md
-sonar list projects --query universe-builder-mcp
-```
-
-The secrets scan ran with no findings. Project lookup returned no matching
-project, so broader project-based Sonar quality analysis remains unavailable;
-the secrets result is not a project quality-gate result.
-
 ## Build and inspect
 
 On the verified build host, use `DEVELOPER_DIR=/Library/Developer/CommandLineTools` with Cargo. Run `cargo run --locked -p xtask -- check`, `cargo run --locked -p xtask -- validate-contracts`, and `cargo run --locked -p xtask -- package-fixture`. The independent Python checks require the `jsonschema` package; select an existing environment with `UNIVERSE_PYTHON` when invoking xtask.
@@ -148,7 +111,7 @@ A same-version restart/restore drill is implemented. A historical released-versi
 - Native layout, keyboard/VoiceOver interaction, LM Studio, clean supported Macs, true offline operation, hosted CI, Developer ID/notarization, broader security/fuzz/scale acceptance and the full scope-case matrix remain release gates until evidence is recorded. Publish OS support only for actually tested environments.
 
 
-Relational archive transfer is verified in [Goal 26 evidence](relational-archive-verification.md). `universe export NAME /absolute/archive.sqlite` creates a canon-only archive; add `--complete-history` to retain workflows, drafts, receipts and staged content. Complete-history export requires the entire universe. `--record ID` creates a dependency-closed canon-only archive with declared omissions. Validate an import preview and accept its exact digest; use restore for original identities or clone for a fresh universe identity. Canon-only completeness describes canonical identities; `includes_workflow` separately declares workflow inclusion. Installation grants, credentials and profile secrets are excluded from both archive modes. Old serialized packages and preview layouts require explicit operator conversion; this work does not migrate active author data.
+Relational archive transfer is verified in Goal 26 evidence. `universe export NAME /absolute/archive.sqlite` creates a canon-only archive; add `--complete-history` to retain workflows, drafts, receipts and staged content. Complete-history export requires the entire universe. `--record ID` creates a dependency-closed canon-only archive with declared omissions. Validate an import preview and accept its exact digest; use restore for original identities or clone for a fresh universe identity. Canon-only completeness describes canonical identities; `includes_workflow` separately declares workflow inclusion. Installation grants, credentials and profile secrets are excluded from both archive modes. Old serialized packages and preview layouts require explicit operator conversion; this work does not migrate active author data.
 
 Goal 27's [explicit operator procedure](operator-conversion-procedure.md) and
 [readiness report](operator-conversion-readiness.md) qualify disposable offline

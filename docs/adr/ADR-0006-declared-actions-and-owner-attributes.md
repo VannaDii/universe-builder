@@ -67,9 +67,9 @@ wrong-owner and omitted-requirement bypasses, undeclared/expired/muted powers,
 restoration, custody conflicts/unknowns/transfers, scalar attribute ownership,
 exact pre-event boundaries, world/context scope, ambiguous roles, historical
 decoding and self-grant rejection. See the dated execution evidence in
-[novel readiness](../novel-authoring-readiness.md).
+novel readiness.
 
-The scoped [G02 qualification](../g02-action-applicability-verification.md) adds
+The scoped G02 qualification adds
 authored breathing/consciousness requirements, legal undead speech and body
 movement, exact incapacity/restoration boundaries, unknown evidence and earlier
 incapacity retcon proofs using this same decision.

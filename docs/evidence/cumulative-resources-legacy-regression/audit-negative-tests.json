@@ -1,5 +1,0 @@
-{
-  "returncode": 0,
-  "stdout": "",
-  "stderr": "test_changed_oracle (__main__.AuditTests.test_changed_oracle) ... ok\ntest_changed_query (__main__.AuditTests.test_changed_query) ... ok\ntest_changed_review (__main__.AuditTests.test_changed_review) ... ok\ntest_forged_head (__main__.AuditTests.test_forged_head) ... ok\ntest_rehashed_forged_accounting_expectation (__main__.AuditTests.test_rehashed_forged_accounting_expectation) ... ok\ntest_saved_proof (__main__.AuditTests.test_saved_proof) ... ok\ntest_wire_owner (__main__.AuditTests.test_wire_owner) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 0.763s\n\nOK\n"
-}

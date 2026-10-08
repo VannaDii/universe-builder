@@ -1,9 +1,0 @@
-{
-  "forged_post": "rejected",
-  "missing_consumption": "rejected",
-  "missing_transfer_credit": "rejected",
-  "unrelated_walk_grant": "rejected",
-  "wrong_grant_end": "rejected",
-  "wrong_order": "rejected",
-  "wrong_recipient": "rejected"
-}

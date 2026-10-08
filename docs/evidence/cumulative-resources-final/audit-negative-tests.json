@@ -1,5 +1,0 @@
-{
-  "returncode": 0,
-  "stdout": "",
-  "stderr": "test_focused_independent_accounting (__main__.AccountingTests.test_focused_independent_accounting) ... ok\ntest_changed_head (__main__.AuditTests.test_changed_head) ... ok\ntest_changed_review (__main__.AuditTests.test_changed_review) ... ok\ntest_changed_wire_owner (__main__.AuditTests.test_changed_wire_owner) ... ok\ntest_forged_old_edition (__main__.AuditTests.test_forged_old_edition) ... ok\ntest_forged_state (__main__.AuditTests.test_forged_state) ... ok\ntest_missing_retry_receipt (__main__.AuditTests.test_missing_retry_receipt) ... ok\ntest_rehashed_false_oracle (__main__.AuditTests.test_rehashed_false_oracle) ... ok\ntest_saved_proof (__main__.AuditTests.test_saved_proof) ... ok\n\n----------------------------------------------------------------------\nRan 9 tests in 0.558s\n\nOK\n"
-}

@@ -12,7 +12,7 @@ document. Product boundary follows the [factual universe realignment plan](../fa
 | Cross-instance cardinality (G08) | A relation role has per-relation-instance multiplicity. Validation can reject competing values for a single/exclusive property on one subject. `Expr::Cardinality` counts a finite expression collection; it does not aggregate matching relation instances from the candidate universe by role, scope and overlapping validity. | No, for a reusable max/min count over distinct participants across relation instances. A fixed explicitly enumerated collection can be counted, but it is not a dynamic relationship constraint. |
 
 The historical public-workflow stimuli are maintained in
-[`scripts/continuity_gap/cases.py`](../../scripts/continuity_gap/cases.py): G06
+`scripts/continuity_gap/cases.py`: G06
 submits `Knows` for a refuted proposition without an acquisition chain; G07
 submits an ordinary letter received before it was sent; G08 submits two
 simultaneous counterparts despite a single role declaration. The historical
@@ -59,7 +59,7 @@ These are recommendations for decision, not implementation instructions.
 
 ### K2 — Channel chronology policy
 
-Goal 39 authorizes the bounded implementation and proof in [communication chronology verification](../communication-chronology-verification.md). The original probes and decision wording below retain their historical scope.
+Goal 39 authorizes the bounded implementation and proof in communication chronology verification. The original probes and decision wording below retain their historical scope.
 
 
 - **Author-controlled meaning:** named channel rules declare whether sender to
@@ -115,74 +115,6 @@ Goal 39 authorizes the bounded implementation and proof in [communication chrono
 - **Authoring tradeoff:** authors choose participant key, scope, validity and
   completeness where minimum counts depend on absence. This is more setup than
   local role multiplicity, in exchange for defensible global bounds.
-
-## Probe work and status
-
-The current-build reproducer is [`scripts/factual_constraints_pilot.py`](../../scripts/factual_constraints_pilot.py).
-It uses one fresh disposable installation and the public
-`universe_propose` → `universe_validate` → author approval → `universe_commit`
-path for nine cases. Each submission is recorded in its MCP transcript and
-compared against the canonical authority counts and head before/after. Cases
-with “illegal-if” labels deliberately state the needed author policy; no such
-policy exists in the present model, so their clean admission is a gap
-observation, not evidence that the engine violated an existing rule. The
-unknown truth/validity cases likewise show that a bare explicit attitude or
-relation assertion is not itself a global consistency judgment.
-
-Reproduce in an isolated Python environment with `jsonschema==4.25.1`:
-
-```sh
-python3 -m venv /tmp/ub-goal34-venv
-/tmp/ub-goal34-venv/bin/python -m pip install jsonschema==4.25.1
-PYTHONPATH=scripts /tmp/ub-goal34-venv/bin/python scripts/factual_constraints_pilot.py \
-  --output docs/evidence/goal34-public-probe-RUN-ID
-```
-
-Current execution on 2026-10-05: nine cases reached public validation,
-author approval and commit; all had complete coverage, no findings, approval
-return code 0 and successful admission. This includes belief about a refuted
-claim (legal), `Knows` about that refuted claim (illegal only if justified
-knowledge is authored), `Knows` about an unsupported claim (unresolved),
-forward/reversed/unreceived communications, and one/several/unknown-validity
-counterpart relations. Exact evidence and source/build identity are retained
-under `docs/evidence/goal34-public-probe-2026-10-05-r4/` (ignored). The
-historical rerun stopped before its G06–G08 cases because its seed uses the
-removed `create_entity` operation; it is retained separately under
-`docs/evidence/goal34-baseline-2026-10-05/` and is not counted as a probe pass.
-
-The focused reproducer uses current incremental `introduce_instance` and keeps
-the historical `create_entity` pilot untouched. The fresh extended run at
-`docs/evidence/goal34-public-probe-2026-10-05-r10/` repeats all nine cases, then
-publishes one correction for each family: replace `Knows` with `believes`,
-replace a reversed communication with a forward send/receipt, and remove the
-extra relation assertion. These prove record correction mechanics, not K1–K3
-semantic enforcement. Old knowledge, communication and relation assertion
-records were retrieved at their pinned pre-correction revisions before and
-after a service restart. The corrected head was checked for replacements and
-removal; relation correction targets the generated assertion record, distinct
-from its proposition record.
-
-The extended report was independently checked with
-[`scripts/audit_factual_constraints.py`](../../scripts/audit_factual_constraints.py).
-It checks the fixed case inventory and classifications, full/no-finding
-validation, successful admission, revision movement, authority-count movement,
-and public validate/commit calls in the raw MCP transcript. It checks all three
-correction commits, stable historical identity/version/payload/digest across
-restart, and corrected-head records. It mutates an admission flag and
-historical payload and verifies rejection. The auditor is a structural
-consistency check: it does not independently recompute engine semantics.
-Re-run with:
-
-```sh
-python3 scripts/audit_factual_constraints.py \
-  docs/evidence/goal34-public-probe-2026-10-05-r10
-```
-
-The nine initial cases all validate and commit without findings under current
-behavior. “Illegal-if” and “unresolved” remain challenge labels contingent on
-the proposed authored policies; clean admissions do not establish existing
-engine defects. K1–K3 remain decision proposals and no semantic changes were
-implemented.
 
 ## Original continuity scenarios
 

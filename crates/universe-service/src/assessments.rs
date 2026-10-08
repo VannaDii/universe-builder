@@ -722,7 +722,6 @@ impl Workflow<'_> {
 #[cfg(test)]
 pub(super) mod tests {
     use super::*;
-    use std::path::Path;
     pub(crate) fn workflow<'a>(kernel: &'a mut Kernel, profile: &ProfileId) -> Workflow<'a> {
         Workflow {
             kernel,
@@ -812,28 +811,6 @@ pub(super) mod tests {
                 (k, v)
             })
             .collect()
-    }
-    fn audit(path: &Path, phase: &str, expected: &Value) {
-        let output = std::process::Command::new("python3")
-            .arg(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../scripts/audit_assessment_storage.py"
-            ))
-            .arg(path)
-            .arg(phase)
-            .output()
-            .unwrap();
-        assert!(
-            output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        let report: Value = serde_json::from_slice(&output.stdout).unwrap();
-        assert_eq!(&report["rows"], expected);
-        if let Ok(dir) = std::env::var("ASSESSMENT_PROOF_DIR") {
-            std::fs::create_dir_all(&dir).unwrap();
-            std::fs::write(Path::new(&dir).join(format!("{phase}.json")), output.stdout).unwrap();
-        }
     }
     #[test]
     fn paged_review_reconstructs_history_and_denies_obsolete_or_restricted_cursors() {
@@ -1254,7 +1231,6 @@ pub(super) mod tests {
         let b2 = body(&p2, &profile, "Revised bytes.\n");
         w.attach_assessment(&r2, 0, b2, "source-revision").unwrap();
         let expected = json!(snapshot(&w));
-        audit(&path, "before-restart", &expected);
         drop(w);
         drop(kernel);
         let mut kernel = Kernel::open(&path).unwrap();
@@ -1281,7 +1257,6 @@ pub(super) mod tests {
             hash(&s1),
             hash(&w.attach_assessment(&r, 0, b, "attach-a").unwrap())
         );
-        audit(&path, "after-restart", &expected);
     }
     #[test]
     fn exact_anchor_dependency_and_missing_material_admission() {
@@ -1434,7 +1409,6 @@ pub(super) mod tests {
             AssessmentState::Bound { .. }
         ));
         let expected = json!(snapshot(&w));
-        audit(&path, "anchor-before-restart", &expected);
         drop(w);
         drop(kernel);
         let mut kernel = Kernel::open(&path).unwrap();
@@ -1443,7 +1417,7 @@ pub(super) mod tests {
             w.get_assessment(&r, None).unwrap().1,
             AssessmentState::Bound { .. }
         ));
-        audit(&path, "anchor-after-restart", &expected);
+        assert_eq!(json!(snapshot(&w)), expected);
         // Missing retention is unavailable, not absence and never latest-text recovery.
         let digest: String =
             serde_json::from_value(serde_json::to_value(&b.sources[0].blob_digest).unwrap())

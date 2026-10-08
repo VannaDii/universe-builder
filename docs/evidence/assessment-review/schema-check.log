@@ -1,4 +1,0 @@
-   Compiling universe-protocol v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-protocol)
-   Compiling xtask v0.1.0 (/Users/vanna/Source/universe-builder-mcp/xtask)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.89s
-     Running `target/debug/xtask check-schemas`

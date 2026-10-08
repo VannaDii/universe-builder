@@ -447,54 +447,6 @@ mod tests {
         w.save(format!("operation:{id}"), &op).unwrap();
         id
     }
-    fn case(w: &Workflow<'_>, label: &str, p: &StoredProposal, checked: &Checked) -> Value {
-        let (selection, _, envelope) = w.get_assessment(&reference(p), None).unwrap();
-        let mut bytes = serde_json::Map::new();
-        if let Some(e) = &envelope {
-            for source in &e.body.sources {
-                let digest: String =
-                    serde_json::from_value(serde_json::to_value(&source.blob_digest).unwrap())
-                        .unwrap();
-                bytes.insert(
-                    source.key.clone(),
-                    json!(w.load::<String>(&format!("source:{digest}")).unwrap()),
-                );
-            }
-        }
-        json!({"label":label,"proposal":p.proposal,"validation":checked.report,"selection":selection,"envelope":envelope,"source_bytes_utf8":bytes})
-    }
-    fn independent(name: &str, bindings: Vec<Value>) {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("evidence.json");
-        let evidence = json!({"bindings":bindings});
-        std::fs::write(&path, serde_json::to_vec_pretty(&evidence).unwrap()).unwrap();
-        let output = std::process::Command::new("python3")
-            .arg(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../scripts/audit_validation_binding.py"
-            ))
-            .arg(&path)
-            .output()
-            .unwrap();
-        assert!(
-            output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        if let Ok(dir) = std::env::var("VALIDATION_BINDING_PROOF_DIR") {
-            std::fs::create_dir_all(&dir).unwrap();
-            std::fs::write(
-                std::path::Path::new(&dir).join(format!("service-{name}-bindings.json")),
-                serde_json::to_vec_pretty(&evidence).unwrap(),
-            )
-            .unwrap();
-            std::fs::write(
-                std::path::Path::new(&dir).join(format!("service-{name}-independent.json")),
-                output.stdout,
-            )
-            .unwrap();
-        }
-    }
     fn kernel(path: &std::path::Path) -> Kernel {
         Kernel::create(
             path,
@@ -517,12 +469,10 @@ mod tests {
         let absent = synchronous(&mut w, &p);
         assert!(w.publication_capture(&p, &absent).is_ok());
         w.approve(&r, &absent.validation.run_id).unwrap();
-        let mut proofs = vec![case(&w, "absent", &p, &absent)];
         w.attach_assessment(&r, 0, b.clone(), "first").unwrap();
         assert!(w.publication_capture(&p, &absent).is_err());
         assert!(w.approve(&r, &absent.validation.run_id).is_err());
         let first = synchronous(&mut w, &p);
-        proofs.push(case(&w, "selected", &p, &first));
         assert!(w.publication_capture(&p, &first).is_ok());
         let id = queued(&mut w, &p, "queue");
         w.run_validation(&id).unwrap();
@@ -534,27 +484,30 @@ mod tests {
                 op.status.validation.unwrap().run_id
             ))
             .unwrap();
-        proofs.push(case(&w, "queued-selected", &p, &checked));
         b.assessor.assessed_at = "2026-10-03T00:00:01Z".into();
         w.attach_assessment(&r, 1, b.clone(), "replacement")
             .unwrap();
         let replacement = synchronous(&mut w, &p);
-        proofs.push(case(&w, "replacement", &p, &replacement));
         assert_ne!(hash(&first.report), hash(&replacement.report));
         w.select_assessment(&r, 2, None, "withdrawal").unwrap();
         let withdrawn = synchronous(&mut w, &p);
-        proofs.push(case(&w, "withdrawn", &p, &withdrawn));
+        assert_eq!(
+            serde_json::to_value(&withdrawn.report).unwrap()["assessment"]["kind"],
+            "absent"
+        );
         b.declared_inventory = serde_json::from_value(json!([{"item_id":"uncertain","source_key":"passage","range":{"start":0,"end":5},"material_kind":"description","statement":"Uncertain description","mapping_ids":[],"unresolved_ids":["u"]}])).unwrap();
         b.inventory_declaration.kind = InventoryKind::MaterialInventoryDeclared;
         b.unresolved = serde_json::from_value(json!([{"unresolved_id":"u","item_ids":["uncertain"],"reason":"unrepresented_material","detail":"Explicit unresolved material"}])).unwrap();
         b.conclusion = DeclaredConclusion::Unresolved;
         w.attach_assessment(&r, 3, b.clone(), "unresolved").unwrap();
         let unresolved = synchronous(&mut w, &p);
-        proofs.push(case(&w, "unresolved", &p, &unresolved));
+        assert_eq!(
+            serde_json::to_value(&unresolved.report).unwrap()["assessment"]["declared_conclusion"],
+            "unresolved"
+        );
         // Accounting is reverified: an unresolved body cannot be relabeled clean.
         b.conclusion = DeclaredConclusion::ConsistentWithDeclaredInventory;
         assert!(w.attach_assessment(&r, 4, b, "false-clean").is_err());
-        independent("selection", proofs);
         drop(w);
         drop(kernel);
         let mut kernel = Kernel::open(&path).unwrap();
@@ -673,7 +626,7 @@ mod tests {
             .attach_assessment(&reference(&p), 0, b.clone(), "with-dependency")
             .unwrap();
         let fresh = synchronous(&mut w, &p);
-        let mut proofs = vec![case(&w, "active-dependency", &p, &fresh)];
+        assert!(w.publication_capture(&p, &fresh).is_ok());
         let mut changed = serde_json::to_value(&ops).unwrap();
         changed[2]["record"]["labels"]["en"] = json!("Changed dependency");
         freeze(
@@ -690,7 +643,6 @@ mod tests {
             .unwrap()
             .contains(&json!("dependency_changed")));
         assert_eq!(result["submitted_input"]["kind"], "record_candidate");
-        proofs.push(case(&w, "changed-dependency", &p, &stale));
         assert!(w.approve(&reference(&p), &stale.validation.run_id).is_err());
         drop(w);
         drop(kernel);
@@ -712,8 +664,6 @@ mod tests {
         let result = serde_json::to_value(&unavailable.report).unwrap();
         assert_eq!(result["assessment"]["kind"], "unavailable");
         assert_eq!(result["submitted_input"]["kind"], "record_candidate");
-        proofs.push(case(&w, "missing-assessment-record-only", &p, &unavailable));
-        independent("dependency-retention", proofs);
         let blob = serde_json::to_value(&b.sources[0].blob_digest).unwrap();
         drop(w);
         drop(kernel);

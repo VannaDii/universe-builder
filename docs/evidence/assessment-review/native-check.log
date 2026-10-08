@@ -1,5 +1,0 @@
-    Blocking waiting for file lock on build directory
-    Checking universe-protocol v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-protocol)
-    Checking universe-client v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-client)
-    Checking universe-ui v0.1.0 (/Users/vanna/Source/universe-builder-mcp/crates/universe-ui)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 55.32s

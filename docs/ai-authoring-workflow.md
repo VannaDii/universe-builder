@@ -28,13 +28,13 @@ grant that is still supported, not a lost or expired power.
 Existing actionless history remains readable; new/adopted/revised events need an
 action declaration. Existing validations/approvals from an older evaluator must
 be refreshed. See [the approved decision](adr/ADR-0006-declared-actions-and-owner-attributes.md)
-and [executed power evidence](novel-authoring-readiness.md#wall-traversal-and-declared-powers-october-2-verification).
+and executed power evidence.
 
 For G02, declare breathing, consciousness, mobility or other capabilities only
 on the roles and actions that need them. Life, body and agency are separate
 facts: an authored undead speaker can have speech capability, and a capable
 actor can move an unconscious patient. Unknown capability evidence does not
-authorize use. See the [authoring requirements and applicability proofs](g02-action-applicability-verification.md)
+authorize use. See the authoring requirements and applicability proofs
 for exact incapacity/restoration boundaries and retcon invalidation.
 
 ## Prose verification and canon commits
@@ -138,16 +138,6 @@ revision and retrieve the affected object again before writing dependent prose.
 Stale context or validation requires fresh retrieval, validation, and approval
 as applicable.
 
-The [Goal 35 resource-resolution verification](resource-resolution-verification.md#goal-35-external-writer-workflow--october-6-2026)
-records one real-MCP run from incremental facts and reviewed initialization
-through restricted retrieval, unresolved clarification, exact scoped acceptance,
-restart recovery, and fresh canon. The existing
-[effective-object](effective-object-verification.md) and
-[instance-initialization](instance-initialization-verification.md) proofs remain
-additional focused audits. All are scripted protocol evidence; they do not
-establish that a model will correctly interpret arbitrary prose or follow the
-advertised instructions.
-
 ## Prose and evidence
 
 Source assessment attachments now participate in the complete publication path.
@@ -158,8 +148,7 @@ delegated commit require that exact final binding; replacement, withdrawal and
 reselection require fresh validation and applicable approval. Private revalidation
 and atomic publication check the same selection. Assessment conclusions remain
 assessor declarations and do not add universal admission blockers. Fresh raw-source
-and record publication remains available under the existing rules. See
-[executed publication proofs](assessment-publication-verification.md).
+and record publication remains available under the existing rules.
 
 Preserve exact used text through author source staging in the desktop or CLI.
 Link each material change to its exact immutable source version and supporting
@@ -233,7 +222,7 @@ cargo build --locked -p universe-cli -p universe-engine -p universe-mcp
 python -m unittest discover -s scripts -p 'test_mlx_authoring_smoke.py' -v
 python scripts/mlx_authoring_smoke.py \
   --model /absolute/path/to/existing/MLX-model \
-  --report docs/evidence/mlx-authoring-new-run.json
+  --report /tmp/mlx-authoring-new-run.json
 ```
 
 Use a fresh report path for each run. The test refuses to overwrite evidence and
@@ -251,7 +240,7 @@ workflow decisions are scored separately, with no correction of wrong answers.
 
 Fast harness tests run in CI without a model. MLX inference is opt-in so ordinary
 CI does not require Metal or download model weights. See the
-[readiness assessment](novel-authoring-readiness.md) for executed evidence and
+readiness assessment for executed evidence and
 remaining limits.
 
 ## Chapter and retcon pilot
@@ -283,14 +272,14 @@ python -m unittest discover -s scripts -p 'test_chapter_retcon_pilot.py' -v
 python scripts/chapter_retcon_pilot.py --regression --output /tmp/chapter-regression-new
 python scripts/chapter_retcon_pilot.py \
   --model /absolute/path/to/existing/MLX-model \
-  --output docs/evidence/chapter-pilot-new
+  --output /tmp/chapter-pilot-new
 ```
 
 Use a new output directory each time. Reports retain the complete prompts, raw
 outputs, explicit feedback, calls, actual validation failures, author reviews,
 approvals' exact references and successful receipts. The output text files remain
 external writing artifacts; only the committed structured records become canon.
-See [chapter pilot evidence](chapter-retcon-verification.md) for executed results.
+See chapter pilot evidence for executed results.
 
 ## Exact source assessment review
 
@@ -307,7 +296,7 @@ Replacement, withdrawal, reselection or changed authority invalidates old cursor
 Restart retrieval under current access instead of combining obsolete pages.
 Historical attachments remain exact history; their declared conclusion does not
 certify current canon or promote the existing record-only validation result into
-assessed prose. See [retrieval proofs](assessment-review-verification.md).
+assessed prose. See retrieval proofs.
 
 ## Declared knowledge acquisition: Goal 40
 
@@ -323,7 +312,7 @@ onset. Receipt alone does not infer understanding, and false belief stays belief
 Unknown truth, interpretation, policy or comparable clocks stays unresolved;
 refuted acquisition cannot be approved into publication. Correct earlier facts
 with exact version bindings and resolve dependent knowledge in the same candidate.
-Historical reads retain the old facts. See [the contract and executed proofs](knowledge-acquisition-verification.md)
+Historical reads retain the old facts. See the contract and executed proofs
 for supported shapes, legacy behavior and native editing limits.
 
 ## Repairing factual constraint proposals

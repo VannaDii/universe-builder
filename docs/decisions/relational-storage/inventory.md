@@ -1,6 +1,6 @@
 # Persisted-family inventory and migration mapping
 
-Scope: all persistence-writing paths in the current repository, including supported historical input schemas. This is a source inventory, not an inventory of Vanna's installed author packages. No live package or credential was opened. Source hashes and coverage counts are recorded by `audit_inventory.py`.
+Scope: all persistence-writing paths in the current repository, including supported historical input schemas. This is a source inventory, not an inventory of Vanna's installed author packages. No live package or credential was opened.
 
 ## Canonical records
 

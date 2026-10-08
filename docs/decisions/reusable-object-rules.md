@@ -270,8 +270,8 @@ cases**, and **nine existing cumulative accounting fixtures** pass. The reposito
 check passes **327 tests**, zero failures and one pre-existing ignored workload,
 formatting, warnings-as-errors Clippy and generated-schema freshness.
 
-See [verification](../evidence/object-rules/verification.json) and
-[independent judgments](../evidence/object-rules/independent-judgments.json).
+See verification and
+independent judgments.
 Capability fixtures assert actual current outcomes, including limitations; the
 independent examples assert intended set/start/accounting judgments. They are
 separate inputs with no production evaluator imports. Accounting examples of

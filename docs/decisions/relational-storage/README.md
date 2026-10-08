@@ -1,6 +1,6 @@
 # Normative relational storage and definition resolution
 
-October 3, 2026. Vanna's direction: replace the existing model; decisions revise the single normative model until release. Do not add parallel schemas, contract versions, old body routes or prerelease compatibility layers. This package specifies that replacement and demonstrates it in disposable databases. Runtime cutover and production migration remain outside the original goal.
+October 3, 2026. Vanna's direction: replace the existing model; decisions revise the single normative model until release. Do not add parallel schemas, contract versions, old body routes or prerelease compatibility layers. This package specifies that replacement. Runtime cutover and production migration remain outside the original goal.
 
 ## Concrete storage
 
@@ -12,9 +12,8 @@ October 3, 2026. Vanna's direction: replace the existing model; decisions revise
 - [export.sql](export.sql): the same relational model in a trusted-schema archive, with content integrity and historical-evidence boundaries.
 - [field-mapping.md](field-mapping.md), [catalog.json](catalog.json): concrete scalar columns, ordered children, references and closed branches.
 - [inventory.md](inventory.md), [compatibility.md](compatibility.md): every source family, replacement mapping and preservation policy.
-- [verification.md](verification.md), [proof-results.json](proof-results.json): independent readback evidence and its limits.
 
-The generator consumes a snapshot of the existing source contracts solely as inventory, then replaces their type/classification/assertion shapes and removes contract-version tags. That snapshot is not an alternate active schema. Named values, references, scopes and expression nodes share fixed tables; scalar fields remain columns. Application data is never stored as a generic document, field-path/value store or serialized body. JSON fixtures and the mapping catalog are software proof artifacts, not persisted application authority.
+The generator consumes a snapshot of the existing source contracts solely as inventory, then replaces their type/classification/assertion shapes and removes contract-version tags. That snapshot is not an alternate active schema. Named values, references, scopes and expression nodes share fixed tables; scalar fields remain columns. Application data is never stored as a generic document, field-path/value store or serialized body. JSON fixtures support functional storage tests; the mapping catalog defines the codec.
 
 ## Definitions and instances
 

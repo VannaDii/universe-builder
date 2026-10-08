@@ -6,9 +6,9 @@ import sqlite3
 import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'docs/decisions/relational-storage'))
-from prototype import Writer
-from independent_audit import encoded, reader
-from verify_export import stream
+from fixture_writer import Writer
+from relational_reader import encoded, reader
+from archive_stream import stream
 
 
 def rehash(db):

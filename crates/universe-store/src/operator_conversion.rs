@@ -1224,12 +1224,6 @@ mod tests {
         }
     }
     #[test]
-    fn generate_operator_fixture() {
-        if let Ok(root) = std::env::var("UNIVERSE_OPERATOR_PROOF_ROOT") {
-            fixture(Path::new(&root));
-        }
-    }
-    #[test]
     fn process_termination_worker() {
         let Ok(root) = std::env::var("UNIVERSE_CONVERSION_KILL_ROOT") else {
             return;

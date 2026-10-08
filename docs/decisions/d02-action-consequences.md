@@ -19,9 +19,3 @@ This approves the behavior above. It does not approve general simulation, change
 ## Approval record
 
 Vanna first agreed that relevant object attributes and action effects must be explicit, then required author clarification and reusable world/universe rules with cumulative resource accounting. Vanna's final approval was: “As long as our discussion is the totallity of D02, then it's approved.” This document records that boundary; it does not treat approval of behavior as approval of every earlier implementation suggestion.
-
-## Supporting material
-
-The [earlier technical notes](d02/implementation-notes.md), [sample payloads](d02/payloads.json), [candidate test cases](d02/acceptance.md) and [current-code review](d02/review.md) are implementation aids. They cannot add to or override this decision. Select and adapt them to test the approved behavior; their suggested representations, limits and workflow details are not separate approved requirements.
-
-The [calculation proofs](d02/proof-results.json) establish agreement between two calculation methods and seven rejection controls. Eleven existing action/event tests passed during preparation. These results do not establish implementation of D02 or of the added world-rule behavior.

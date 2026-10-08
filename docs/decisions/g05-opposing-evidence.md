@@ -37,7 +37,7 @@ Applicability is evidence, not ownership or focus. UniverseWide intersects Unive
 
 Realm identities must match, including both absent for non-realm evidence. Two different explicit realms are isolated. A missing realm is not all realms; mixed absent/present comparison is unresolved when containment would be required. Equal explicit realm tags allow a direct scoped pair report, but do not certify realm-dependent rule inference: current generic claim evaluation cannot do that. Such blocking rule evaluation remains unsupported unless already supported, not silently widened.
 
-Use named-calendar integer ticks and the existing half-open `[start,end)` algebra. Report the actual common interval or instant, not the union of assertion lifetimes. `[0,10)` versus `[10,20)` has no overlap; tick 10 belongs only to the latter. Equal exact instants overlap; a point at an interval's excluded end does not. Empty `[10,10)` contains no instant. Explicit unbounded endpoints remain unbounded; Unknown is never infinity. Different calendars and legacy intervals without a clock stay unresolved; no date conversion is synthesized from labels or descriptive conversion expressions.
+Use named-calendar integer ticks and the existing half-open `start,end)` algebra. Report the actual common interval or instant, not the union of assertion lifetimes. `[0,10)` versus `[10,20)` has no overlap; tick 10 belongs only to the latter. Equal exact instants overlap; a point at an interval's excluded end does not. Empty `[10,10)` contains no instant. Explicit unbounded endpoints remain unbounded; Unknown is never infinity. Different calendars and legacy intervals without a clock stay unresolved; no date conversion is synthesized from labels or descriptive conversion expressions.
 
 Two Unspecified validities preserve the existing no-temporal-claim comparison convention (`time::overlaps` returns true). Label their intersection **unqualified**, without inventing a calendar or claiming overlap at any named tick. Unspecified paired with a dated validity, Unknown, relative times without supported ordering, unsupported persistence/conditions and approximate endpoint units are unresolved. Do not extrapolate persistence or choose the newest assertion as truth.
 
@@ -93,7 +93,7 @@ Closed-schema clients may reject a new Validation field or expression variant. N
 
 ## Measurable acceptance after approval and implementation
 
-The companion fixture table is a frozen design oracle, independently compared with [review](g05-independent-review.md). It does not claim engine execution. Qualification must achieve:
+The companion fixture table is a frozen design oracle, independently compared with [review. It does not claim engine execution. Qualification must achieve:
 
 1. Exact expected detection and scope for every fixture, with zero false conflicts in isolation/non-overlap controls; both failure mechanisms detected without consuming rules. All four truth states and an unrelated absent claim remain correct.
 2. Every applicable support/refutation version and dependency present in authorized output; no hidden ID/hash/count/metadata disclosed in restricted output. Original findings remain after exceptions and historical correction reads.

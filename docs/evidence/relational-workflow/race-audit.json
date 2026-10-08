@@ -1,6 +1,0 @@
-{
-  "interrupted_publication": "atomic, no orphan typed rows",
-  "selection_race": "one winner, one stale denial",
-  "restart_retry": "exact receipt",
-  "independent_body_and_workflow_hashes": "verified"
-}

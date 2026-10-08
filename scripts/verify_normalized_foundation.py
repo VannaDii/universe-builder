@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'docs/decisions/relational-storage'))
-from independent_audit import reader, encoded
+from relational_reader import reader, encoded
 
 def verify(path,first,later):
     f=json.loads((ROOT/'fixtures/normalized-foundation/facts.json').read_text())
