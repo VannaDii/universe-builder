@@ -398,3 +398,19 @@ remain reusable definition facts; initial values remain candidates for explicit
 reviewed initialization. Neither mode creates or refills current instance stock.
 Conflicting applicable values require correction before admission; a descendant
 or newer assertion does not silently override an inherited value.
+
+The native initialization control selects an instance, an approved initial-value
+assertion and an exact occurred event containing that instance. The preview pins
+the source assertion version and begins validity at the event's time; scope and
+an exact exclusive or explicitly unbounded end are authored choices. Selected
+worlds are inspected separately at the pinned revision. The preview separates the
+proposed starting fact, shared attributes, existing instance facts, candidates,
+conflicts and initialization receipts before adding the operation to the draft.
+Publish the source and start event before selecting them in this control.
+
+Initialization follows normal proposal validation, review, approval and
+publication. Draft recovery retains the selected version, scope and validity.
+Conflicting or unresolved candidates cannot initialize an instance. Existing
+receipts prevent a second initialization of the same instance property across
+retry, naming changes, classification refinement and restart. A starting fact
+belongs to its instance; changing a reusable initial value does not refill stock.
