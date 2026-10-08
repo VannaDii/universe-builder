@@ -139,6 +139,12 @@ proposal approval does not answer the factual question. If the claim or its
 predecessor evidence changes, retrieve and validate again and obtain a fresh
 decision.
 
+In native proposal review, validate and show the exact changes, then use
+“Accept an unexplained resource count” to select the resource finding and enter
+the author's rationale. Recording acceptance revises that proposal; it does not
+approve or publish it. Validate and review the revision, approve it separately,
+then commit. The count enters canon while its arrival remains unexplained.
+
 After publication, recover a lost response with `universe_get_operation` and
 the original commit idempotency key. Reopen context at the receipt's committed
 revision and retrieve the affected object again before writing dependent prose.

@@ -1002,8 +1002,13 @@ impl Workflow<'_> {
                 admissible = false;
             }
             findings.push(Finding {
-                message: None,
-                records: vec![],
+                message: Some("The resource count changed without an accounted event or coherent correction. Exact author acceptance preserves the count with its arrival unexplained.".into()),
+                // Native review binds acceptance to this proposition, then shows
+                // its supporting assertion. Restricted validation omits findings.
+                records: vec![
+                    RecordRef { universe: Some(p.proposal.base_frame.universe.clone()), record: gap.proposition },
+                    RecordRef { universe: Some(p.proposal.base_frame.universe.clone()), record: gap.assertion },
+                ],
                 fingerprint: gap.fingerprint,
                 rule_id: gap.rule,
                 outcome: EvidenceOutcome::NotEstablished,
@@ -1147,13 +1152,15 @@ impl Workflow<'_> {
             coverage: Coverage::Complete,
         }));
         for finding in &mut findings {
-            finding.records = candidate
-                .iter()
-                .filter(|r| finding.evidence.contains(&r.record_version_id))
-                .map(|r| {
-                    RecordRef::new(r.identity.universe_id.clone(), r.identity.record_id.clone())
-                })
-                .collect();
+            if finding.records.is_empty() {
+                finding.records = candidate
+                    .iter()
+                    .filter(|r| finding.evidence.contains(&r.record_version_id))
+                    .map(|r| {
+                        RecordRef::new(r.identity.universe_id.clone(), r.identity.record_id.clone())
+                    })
+                    .collect();
+            }
             if !finding.fingerprint.as_str().is_empty() {
                 continue;
             }

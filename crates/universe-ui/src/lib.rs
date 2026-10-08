@@ -131,3 +131,4 @@ mod policy_editor;
 mod appearance_editor;
 
 mod initialization_editor;
+mod resource_acceptance;
