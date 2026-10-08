@@ -25,10 +25,8 @@ jobs:
       - run: cargo run --locked -p xtask -- installation-smoke
         env:
           UNIVERSE_PYTHON: python
-      - name: Persistent chapter and retcon regression
-        run: python scripts/chapter_retcon_pilot.py --regression --output "$RUNNER_TEMP/chapter-pilot"
-      - name: Owning-entity attributes and declared powers
-        run: python scripts/power_authoring_pilot.py --output "$RUNNER_TEMP/power-pilot"
+      - name: Current pilot contract regressions without reports
+        run: python -m unittest discover -s scripts -p 'test_pilot_contracts.py' -v
       - run: python scripts/verify_launcher.py --bin-dir target/debug
       - name: Native and host gates
         run: echo 'Native GUI, VoiceOver, clean-machine, and LM Studio checks are not run by this job.'

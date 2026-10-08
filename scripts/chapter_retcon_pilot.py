@@ -17,7 +17,7 @@ import tempfile
 import traceback
 
 from mlx_authoring_smoke import (LocalModel, artifact_manifest, exact_model_decision,
-                                 fixture_supported_values, require)
+                                 fixture_supported_values, require, validation_execution)
 from pilot_support import NAME, PilotSession, excerpt_locator, source_anchor
 from pilot_evidence import focused_evidence
 
@@ -247,9 +247,10 @@ class Writer:
         args = {"mode": "proposal", "universe": NAME, "context_id": self.s.ctx,
                 "proposal_reference": self.s.reference(p), "check_scope": "universe"}
         decision = self.decision("validate_" + key, "universe_validate", args)
-        v = self.s.call(decision["tool"], decision["arguments"])["result"]
+        response = self.s.call(decision["tool"], decision["arguments"])
+        v = validation_execution(response)
         require(v["coverage"] == "complete" and not v["findings"], f"continuity rejected {key}: {v}")
-        self.last_validation = v
+        self.last_validation = response["result"]
         self.last_review = self.s.admin("review", NAME, p["proposal_id"], p["version"], p["digest"])
         return p
 
@@ -266,7 +267,7 @@ def text_value(text):
 def claim(s, n, subject, predicate, value, start, end=None, basis=None):
     return {"kind": "assert_proposition", "client_ref": s.rid(n),
             "proposition": proposition(s, subject, predicate, value), "assertion": {
-                "proposition": s.rr(n), "polarity": "support", "scope": s.scope,
+                "attributeMode": "instance", "proposition": s.rr(n), "polarity": "support", "scope": s.scope,
                 "validity": s.interval(start, end), "persistence": "explicit_interval", "precision": "exact",
                 "basis": basis or {"kind": "author_decision", "note": "Synthetic pilot premise"}}}
 
@@ -278,11 +279,18 @@ def narrative(s, n, kind, payload):
 
 def seed(s):
     ops = [{"kind": "create_entity", "client_ref": s.rid(n), "record": {
-        "names": [], "types": [], "worldAssociations": [], "labels": {"en": label}, "metadata": {}}}
+        "names": [], "classification": None, "classificationResolution": "unclassified", "worldAssociations": [], "labels": {"en": label}, "metadata": {}}}
         for n, label in ((1, "Mara"), (2, "Iven"), (3, "Copper key"), (4, "Archive door"), (5, "Map"))]
-    ops.append({"kind": "define_action", "client_ref": s.rid(31), "record": {
-        "namespace": "pilot", "key": "ordinary_story_action", "labels": {},
-        "requirements": [], "scope": s.scope, "validity": {"kind": "unspecified"}}})
+    for n, key, slots in ((31,"ordinary_story_action",[]),
+                          (32,"key_handoff",[("object",10,{"kind":"entity_ref","ref":s.rr(2)})]),
+                          (33,"archive_opening",[("door",11,{"kind":"boolean","value":True})])):
+        ops.append({"kind":"define_action","client_ref":s.rid(n),"record":{
+            "namespace":"pilot","key":key,"labels":{},"requirements":[],
+            "consequenceContract":{"kind":"action_consequences","slots":[{
+                "slot":"state","order":0,"presence":"required","target":{"role":role,"predicate":s.rr(predicate)},
+                "condition":{"kind":"always"},"change":{"kind":"set","polarity":"support","value":value},
+                "lifetime":{"kind":"until_changed"}} for role,predicate,value in slots]},
+            "scope":s.scope,"validity":{"kind":"unspecified"}}})
     for n, key, shape in ((10, "holder", {"kind": "entity_ref", "subject_types": []}),
                           (11, "open", {"kind": "boolean"}), (12, "route", {"kind": "text"}),
                           (13, "password", {"kind": "text"})):
@@ -322,7 +330,7 @@ def precondition(s, subject, predicate, value):
 
 
 def event(s, day, participants, label, preconditions=None, effect=None):
-    return {"occurrence": "occurred", "action": s.rr(31), "time": s.instant(day), "participants": [
+    return {"occurrence": "occurred", "action": s.rr({25:32,26:33}.get(effect,31)), "time": s.instant(day), "participants": [
         {"record": s.rr(n), "role": role} for n, role in participants],
         "labels": {"en": label}, "preconditions": preconditions or [], "effects": [] if effect is None else [{
             "slot": "state", "proposition": s.rr(effect), "polarity": "support",
@@ -549,14 +557,18 @@ def run(args, report):
             require(report["tampered_excerpt"]["code"] == "INVALID_ARGUMENT", "tampered excerpt digest was accepted")
             # Keep a fully validated, approved proposal stale across the retcon.
             stale = s.propose([{"kind": "create_entity", "client_ref": s.rid(901), "record": {
-                "names": [], "types": [], "worldAssociations": [], "labels": {"en": "Stale marker"}, "metadata": {}}}], "stale-marker")
+                "names": [], "classification": None, "classificationResolution": "unclassified", "worldAssociations": [], "labels": {"en": "Stale marker"}, "metadata": {}}}], "stale-marker")
             sv = s.validate(stale)
             s.approval(stale, sv)
             # Partial retcon: opening day13 must fail without day12 custody and knowledge.
             naive = s.propose([revise_event(s, 60, 14), replace_assertion(s, 20, 10, 14)], "incomplete-retcon")
-            invalid = s.validate(naive, error=True)
-            require(invalid["code"] == "INVALID_ARGUMENT" and invalid.get("field") == "event.preconditions",
-                    "partial retcon was not rejected by the causal prerequisite check")
+            invalid = s.validate(naive)
+            require(invalid["coverage"] == "complete" and any(
+                f["rule_id"] == s.rid(61) and f["outcome"] == "not_established"
+                for f in invalid["findings"]), "partial retcon lost the opening prerequisite conflict")
+            require(s.approval(naive, invalid, check=False).returncode != 0,
+                    "partial retcon unexpectedly acquired author approval")
+            s.call("universe_commit", s.commit_args(naive, invalid, "invalid-retcon-commit"), error=True)
             report["retcon_conflicts"] = invalid
             impact = s.impact(naive)
             require(impact["delivery"]["complete"], "retcon impact incomplete")

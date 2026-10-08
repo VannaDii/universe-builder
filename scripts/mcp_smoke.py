@@ -64,6 +64,8 @@ class MCP:
         except subprocess.TimeoutExpired:
             self.process.terminate()
             self.process.wait(timeout=5)
+        self.process.stdout.close()
+        self.process.stderr.close()
 
 
 def check_server_contract(initialization, tools):

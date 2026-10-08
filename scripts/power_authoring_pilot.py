@@ -16,12 +16,12 @@ from pilot_evidence import focused_evidence
 
 
 def run(args, report):
-    with tempfile.TemporaryDirectory(prefix="ub-powers-") as directory:
+    with tempfile.TemporaryDirectory(prefix="ub-powers-", dir="/tmp") as directory:
         s = PilotSession(directory, args.bin_dir, report).start()
         try:
             report["instructions"] = s.instructions
             ops = [{"kind": "create_entity", "client_ref": s.rid(n), "record": {
-                "names": [], "types": [], "worldAssociations": [], "labels": {"en": label}, "metadata": {}}}
+                "names": [], "classification": None, "classificationResolution": "unclassified", "worldAssociations": [], "labels": {"en": label}, "metadata": {}}}
                 for n, label in ((1, "Mara"), (2, "Iven"), (3, "Nera"), (4, "Phase ring"), (5, "Probe"), (6, "Solid wall"))]
             for n, key, shape in ((10, "wall_phase", {"kind": "boolean"}),
                                   (11, "holder", {"kind": "entity_ref", "subject_types": []}),
@@ -34,7 +34,7 @@ def run(args, report):
                 return {"kind": "assert_proposition", "client_ref": s.rid(n), "proposition": {
                     "subject": s.rr(owner), "predicate": s.rr(predicate), "value": value,
                     "context": s.scope["context"], "quantification": "particular"}, "assertion": {
-                    "proposition": s.rr(n), "polarity": polarity, "scope": s.scope,
+                    "attributeMode": "instance", "proposition": s.rr(n), "polarity": polarity, "scope": s.scope,
                     "validity": s.interval(start, end), "persistence": "explicit_interval", "precision": "exact",
                     "basis": {"kind": "author_decision", "note": "Synthetic sci-fi pilot premise"}}}
             boolean = {"kind": "boolean", "value": True}
@@ -54,6 +54,7 @@ def run(args, report):
                 ops.append({"kind": "define_action", "client_ref": s.rid(n), "record": {
                     "namespace": "phase", "key": key, "labels": {}, "requirements": [
                         {"role": "actor", "predicate": s.rr(predicate), "value": value}],
+                    "consequenceContract": {"kind": "action_consequences", "slots": []},
                     "scope": s.scope, "validity": {"kind": "unspecified"}}})
             s.publish(s.propose(ops, "power-premises"), "power-premises-commit")
             cases = [

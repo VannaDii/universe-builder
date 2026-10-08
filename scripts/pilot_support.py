@@ -12,7 +12,7 @@ import subprocess
 import time
 
 from mcp_smoke import MCP
-from mlx_authoring_smoke import require
+from mlx_authoring_smoke import require, validation_execution, commit_arguments
 
 NAME = "The Cairn Archive Pilot"
 
@@ -129,7 +129,7 @@ class PilotSession:
         result = self.call("universe_validate", {"mode": "proposal", "universe": NAME,
             "context_id": context or self.ctx, "proposal_reference": self.reference(p),
             "check_scope": "universe"}, error)
-        return result if error else result["result"]["execution"]
+        return result if error else validation_execution(result)
 
     def impact(self, p):
         return self.call("universe_get_impact", {"mode": "proposal", "universe": NAME,
@@ -140,8 +140,7 @@ class PilotSession:
                         profile=self.author, check=check)
 
     def commit_args(self, p, v, key):
-        return {"universe": NAME, "proposal_reference": self.reference(p),
-                "expected_base_revision": p["base_frame"]["revision"], "validation_run": v["run_id"], "idempotency_key": key}
+        return commit_arguments(NAME, p, v, key)
 
     def publish(self, p, key, model=None):
         v = self.validate(p)

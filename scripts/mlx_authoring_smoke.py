@@ -161,6 +161,50 @@ def artifact_manifest(path):
     return records
 
 
+def validation_execution(response):
+    result = response["result"]
+    require(result.get("kind") == "evaluated", "validation did not deliver evaluated protocol-3 evidence")
+    require("final_binding_digest" in result, "validation binding is missing")
+    return result["execution"]
+
+
+def claim_operation(rid, rr, scope, interval, n, subject, predicate, value, start=0, end=None):
+    return {"kind": "assert_proposition", "client_ref": rid(n),
+            "proposition": {"subject": rr(subject), "predicate": rr(predicate),
+                            "value": value, "context": scope["context"],
+                            "quantification": "particular"},
+            "assertion": {"attributeMode": "instance", "proposition": rr(n), "polarity": "support", "scope": scope,
+                          "validity": interval(start, end), "persistence": "explicit_interval",
+                          "precision": "exact", "basis": {"kind": "author_decision",
+                          "note": "Disposable authored test premise"}}}
+
+
+def commit_arguments(universe, proposal, execution, key):
+    return {"universe": universe,
+            "proposal_reference": {k: proposal[k] for k in ("proposal_id", "version", "digest")},
+            "expected_base_revision": proposal["base_frame"]["revision"],
+            "validation_run": execution["run_id"], "idempotency_key": key}
+
+
+def setup_operations(rid, rr, scope, claim):
+    setup = [{"kind": "create_entity", "client_ref": rid(n), "record": {
+              "names": [], "classification": None, "classificationResolution": "unclassified", "worldAssociations": [], "labels": {"en": label},
+              "metadata": {}}} for n, label in ((1, "Mara"), (2, "Iven"), (3, "Seal"))]
+    for n, key, shape in ((10, "eye_colour", {"kind": "text"}),
+                           (11, "holder", {"kind": "entity_ref", "subject_types": []}),
+                           (12, "knows_password", {"kind": "boolean"}),
+                           (13, "age", {"kind": "integer"})):
+        setup.append({"kind": "define_property", "client_ref": rid(n), "record": {
+            "namespace": "novel", "key": key, "labels": {}, "subjectTypes": [],
+            "value": shape, "multiplicity": "single", "persistence": "explicit_interval",
+            "exclusive": True, "symmetric": False, "transitive": False}})
+    setup += [claim(20, 1, 10, {"kind": "text", "text": "green"}),
+              claim(21, 3, 11, {"kind": "entity_ref", "ref": rr(1)}, 0, 17),
+              claim(22, 3, 11, {"kind": "entity_ref", "ref": rr(2)}, 17),
+              claim(23, 2, 12, {"kind": "boolean", "value": False}, 0, 18)]
+    return setup
+
+
 def evaluate(args, report):
     model = LocalModel(args.model, args.seed)
     report["model"] = {"path": str(args.model), "seed": args.seed, "temperature": 0.0,
@@ -218,14 +262,7 @@ def evaluate(args, report):
                                {"kind": "exact", "value": str(end)}}
 
             def claim(n, subject, predicate, value, start=0, end=None):
-                return {"kind": "assert_proposition", "client_ref": rid(n),
-                        "proposition": {"subject": rr(subject), "predicate": rr(predicate),
-                                        "value": value, "context": scope["context"],
-                                        "quantification": "particular"},
-                        "assertion": {"proposition": rr(n), "polarity": "support", "scope": scope,
-                                      "validity": interval(start, end), "persistence": "explicit_interval",
-                                      "precision": "exact", "basis": {"kind": "author_decision",
-                                      "note": "Disposable authored test premise"}}}
+                return claim_operation(rid, rr, scope, interval, n, subject, predicate, value, start, end)
 
             def propose(operations, key):
                 request = {"action": "create", "universe": NAME, "context_id": ctx,
@@ -236,34 +273,19 @@ def evaluate(args, report):
 
             def validate(p):
                 ref = {k: p[k] for k in ("proposal_id", "version", "digest")}
-                return client.call("universe_validate", {"mode": "proposal", "universe": NAME,
-                    "context_id": ctx, "proposal_reference": ref, "check_scope": "universe"})["result"]["execution"]
+                return validation_execution(client.call("universe_validate", {"mode": "proposal", "universe": NAME,
+                    "context_id": ctx, "proposal_reference": ref, "check_scope": "universe"}))
 
-            setup = [{"kind": "create_entity", "client_ref": rid(n), "record": {
-                      "names": [], "types": [], "worldAssociations": [], "labels": {"en": label},
-                      "metadata": {}}} for n, label in ((1, "Mara"), (2, "Iven"), (3, "Seal"))]
-            for n, key, shape in ((10, "eye_colour", {"kind": "text"}),
-                                   (11, "holder", {"kind": "entity_ref", "subject_types": []}),
-                                   (12, "knows_password", {"kind": "boolean"}),
-                                   (13, "age", {"kind": "integer"})):
-                setup.append({"kind": "define_property", "client_ref": rid(n), "record": {
-                    "namespace": "novel", "key": key, "labels": {}, "subjectTypes": [],
-                    "value": shape, "multiplicity": "single", "persistence": "explicit_interval",
-                    "exclusive": True, "symmetric": False, "transitive": False}})
-            setup += [claim(20, 1, 10, {"kind": "text", "text": "green"}),
-                      claim(21, 3, 11, {"kind": "entity_ref", "ref": rr(1)}, 0, 17),
-                      claim(22, 3, 11, {"kind": "entity_ref", "ref": rr(2)}, 17),
-                      claim(23, 2, 12, {"kind": "boolean", "value": False}, 0, 18)]
+            setup = setup_operations(rid, rr, scope, claim)
             p = propose(setup, "seed")
             v = validate(p)
             require(v["coverage"] == "complete" and not v["findings"], "seed canon did not validate")
-            commit = {"universe": NAME, "proposal_reference": {k: p[k] for k in
-                      ("proposal_id", "version", "digest")}, "expected_base_revision": p["base_frame"]["revision"],
-                      "validation_run": v["run_id"], "idempotency_key": "seed-commit"}
+            commit = commit_arguments(NAME, p, v, "seed-commit")
             denied = client.call("universe_commit", commit, error=True)
             report["checks"]["unapproved_commit_denied"] = denied
             # Author approval is solely for synthetic fixture setup.
-            admin("approve", NAME, p["proposal_id"], str(p["version"]), p["digest"], v["run_id"])
+            approval = admin("approve", NAME, p["proposal_id"], str(p["version"]), p["digest"], v["run_id"])
+            require(approval == {"approved": commit["proposal_reference"], "validation_run": v["run_id"]}, "setup approval binding differs")
             receipt = client.call("universe_commit", commit)["result"]
             require(client.call("universe_commit", commit)["result"] == receipt, "commit retry changed receipt")
             report["checks"]["setup_commit_retry"] = True
@@ -396,11 +418,10 @@ def evaluate(args, report):
                 "context_id": ctx, "proposal_reference": ref, "scope": "universe", "byte_budget": 65536})
             require(impact["delivery"]["complete"] and impact["result"]["coverage"] == "complete", "impact incomplete")
             admin("review", NAME, used["proposal_id"], str(used["version"]), used["digest"])
-            used_commit = {"universe": NAME, "proposal_reference": ref,
-                "expected_base_revision": used["base_frame"]["revision"],
-                "validation_run": used_validation["run_id"], "idempotency_key": "selected-prose-commit"}
+            used_commit = commit_arguments(NAME, used, used_validation, "selected-prose-commit")
             client.call("universe_commit", used_commit, error=True)
-            admin("approve", NAME, used["proposal_id"], str(used["version"]), used["digest"], used_validation["run_id"])
+            approval = admin("approve", NAME, used["proposal_id"], str(used["version"]), used["digest"], used_validation["run_id"])
+            require(approval == {"approved": used_commit["proposal_reference"], "validation_run": used_validation["run_id"]}, "selected prose approval binding differs")
             commit_decision = exact_model_decision(model, "selected_prose_commit_call", [messages[0],
                 {"role": "user", "content": json.dumps({"task": "The synthetic author has now granted exact approval "
                  "for this validation and the selected prose. Return {tool: universe_commit, arguments: supplied arguments} "

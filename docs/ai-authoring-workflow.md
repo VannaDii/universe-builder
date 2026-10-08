@@ -233,12 +233,15 @@ python scripts/mlx_authoring_smoke.py \
 ```
 
 These commands are historical opt-in entry points, not evidence of a current
-model run. The end-to-end scripts still contain legacy entity shapes; the MLX
-smoke also reads pre-protocol-3 validation fields. Update those call sites to the
-current typed contracts before attempting an end-to-end run. Passing pure harness
-tests does not establish that those entry points complete. The scripts save prompts, outputs and reports, so running them requires
-an explicit request for those artifacts under AGENTS.md. Ordinary review uses
-the existing focused harness tests without saving transcripts.
+model run. Their operation shapes and protocol-3 validation, approval and commit
+handling are covered by focused deterministic contract regressions against
+disposable engines. Build the current engine, CLI and adapter, then run
+`python -m unittest discover -s scripts -p 'test_pilot_contracts.py' -v`. These
+tests retain source prose only as temporary application fixtures and write no
+reports or transcripts. They do not establish model behavior. The scripts save
+prompts, outputs and reports, so running them requires an explicit request for
+those artifacts under AGENTS.md. Ordinary review uses the existing focused
+harness tests without saving transcripts.
 
 The system message now uses the actual MCP initialization instructions unchanged.
 The user message supplies the task, response choices, schemas and retrieved
