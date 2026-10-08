@@ -45,6 +45,22 @@ pub struct WorldSummary {
     pub id: WorldId,
     pub name: Selector,
 }
+/// Visible context choices at one continuity head, for opening the first frame.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RepresentedContextSummary {
+    pub id: RecordId,
+    pub kind: universe_domain::records::RepresentedContextKind,
+    pub labels: std::collections::BTreeMap<String, String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ContinuitySummary {
+    pub id: ContinuityId,
+    pub revision_id: RevisionId,
+    pub name: String,
+    pub represented_contexts: Vec<RepresentedContextSummary>,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Description {
@@ -52,6 +68,7 @@ pub struct Description {
     pub worlds: Vec<WorldSummary>,
     pub capabilities: Vec<Capability>,
     pub definition_ids: Vec<RecordId>,
+    pub continuities: Vec<ContinuitySummary>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

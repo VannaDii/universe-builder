@@ -429,6 +429,48 @@ impl Workflow<'_> {
         }
         Ok(all.difference(&hidden).cloned().collect())
     }
+    fn discovery_continuities(&self) -> anyhow::Result<Vec<ContinuitySummary>> {
+        let mut result = Vec::new();
+        for (continuity, revision) in self.kernel.status()?.heads {
+            let id = ContinuityId::parse(&continuity)?;
+            let revision_id = RevisionId::parse(&revision)?;
+            let records = self.kernel.records(&id, &revision_id)?;
+            let visibility = self.visible_ids(&records)?;
+            let represented_contexts: Vec<_> = records
+                .iter()
+                .filter_map(|record| {
+                    if !visibility.contains(&record.identity.record_id) {
+                        return None;
+                    }
+                    if let Payload::RepresentedContext(context) = &record.payload {
+                        Some(RepresentedContextSummary {
+                            id: record.identity.record_id.clone(),
+                            kind: context.kind.clone(),
+                            labels: context.labels.clone(),
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            // A hidden context and its continuity do not become discoverable.
+            if represented_contexts.is_empty() {
+                continue;
+            }
+            let name = self
+                .kernel
+                .workflow_get(&format!("continuity-name:{id}"))?
+                .and_then(|value| value.as_str().map(str::to_owned))
+                .unwrap_or_else(|| "Original continuity".into());
+            result.push(ContinuitySummary {
+                id,
+                revision_id,
+                name,
+                represented_contexts,
+            });
+        }
+        Ok(result)
+    }
     fn context(&self, id: &ContextId) -> anyhow::Result<Context> {
         let c: Context = self.load(&format!("context:{id}"))?;
         if c.owner != self.principal.id || c.scope != self.scope_hash() {
@@ -1528,6 +1570,11 @@ impl Workflow<'_> {
                 })?
             }
             Request::Describe(ref a) => {
+                let continuities = if matches!(a, Describe::Summary { .. }) {
+                    self.discovery_continuities()?
+                } else {
+                    vec![]
+                };
                 let records = if let Some(id) = args.get("context_id") {
                     let c = self.context(&serde_json::from_value(id.clone())?)?;
                     frame = Some(c.frame.clone());
@@ -1574,7 +1621,7 @@ impl Workflow<'_> {
                 } else {
                     vec![]
                 };
-                serde_json::to_value(Description{fixture:false,worlds,definition_ids,capabilities:vec![Capability{id:"relations.cardinality.v1".into(),status:CapabilityStatus::Implemented,limitation:"Opt-in authored maximum counts distinct participants across supported relation instances for a grouping key, overlapping world/context/realm and exact same-clock time. Repeated evidence is deduplicated. Unknown scope/time, opposing evidence and ambiguous grouping remain unresolved. No minima, completeness inference or clock conversion.".into()},Capability{id:"communications.chronology.v1".into(),status:CapabilityStatus::Implemented,limitation:"Opt-in channel contracts enforce forward transmission and inclusive signed delay bounds on same-clock exact integer ticks. Missing rules, absent actual delivery and unmapped/nonexact clocks remain unresolved once activated. No inferred delivery, conversions or knowledge.".into()},Capability{id:"source_assessment.v1".into(),status:CapabilityStatus::Partial,limitation:"Authenticated immutable attachment and generation-checked selection through universe_propose. Pinned permission-checked assessment retrieval and shared author review are available. Exact assessment or absence and selection generation bind validation, approval and atomic commit. Native interaction and prose qualification remain unavailable.".into()},Capability{id:"canon.commit.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact author approval or explicit expiring entity/predicate/continuity delegation; fresh complete validation and current grants required. Restricted results reveal no hidden findings: retrieve visible policy/evidence with universe_get_context or universe_get evidence, then request author validation of the exact proposal reference.".into()},Capability{id:"opposing_evidence.v1".into(),status:CapabilityStatus::Implemented,limitation:"Candidate-wide polarity diagnostics and explicitly scoped NoOpposingEvidence policies. Unresolved comparisons remain partial; no prose or integrated-story qualification.".into()},Capability{id:"basic.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact scalar, explicitly supplied finite collection and integer-tick temporal expressions; unsupported blocking checks fail admission. Collection cardinality does not aggregate dynamic relation instances; Communication chronology is separately opt-in through communications.chronology.v1.".into()},Capability{id:"events.owner_attributes.v1".into(),status:CapabilityStatus::Implemented,limitation:"New/revised events require declared actions. Mandatory values resolve on exactly one participant per owning role at pre-event time; direct and explicit item grants share evidence. Missing, muted, conflicting and unsupported prerequisites block use. Legacy actionless events remain readable but are not certified; prose/action classification still requires author review.".into()},Capability{id:"events.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact occurred-event effects, explicit within-event order, pre/post state and possession powers. Noncommuting effects from separate simultaneous events and complex causality are rejected.".into()},
+                serde_json::to_value(Description{fixture:false,worlds,definition_ids,continuities,capabilities:vec![Capability{id:"relations.cardinality.v1".into(),status:CapabilityStatus::Implemented,limitation:"Opt-in authored maximum counts distinct participants across supported relation instances for a grouping key, overlapping world/context/realm and exact same-clock time. Repeated evidence is deduplicated. Unknown scope/time, opposing evidence and ambiguous grouping remain unresolved. No minima, completeness inference or clock conversion.".into()},Capability{id:"communications.chronology.v1".into(),status:CapabilityStatus::Implemented,limitation:"Opt-in channel contracts enforce forward transmission and inclusive signed delay bounds on same-clock exact integer ticks. Missing rules, absent actual delivery and unmapped/nonexact clocks remain unresolved once activated. No inferred delivery, conversions or knowledge.".into()},Capability{id:"source_assessment.v1".into(),status:CapabilityStatus::Partial,limitation:"Authenticated immutable attachment and generation-checked selection through universe_propose. Pinned permission-checked assessment retrieval and shared author review are available. Exact assessment or absence and selection generation bind validation, approval and atomic commit. Native interaction and prose qualification remain unavailable.".into()},Capability{id:"canon.commit.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact author approval or explicit expiring entity/predicate/continuity delegation; fresh complete validation and current grants required. Restricted results reveal no hidden findings: retrieve visible policy/evidence with universe_get_context or universe_get evidence, then request author validation of the exact proposal reference.".into()},Capability{id:"opposing_evidence.v1".into(),status:CapabilityStatus::Implemented,limitation:"Candidate-wide polarity diagnostics and explicitly scoped NoOpposingEvidence policies. Unresolved comparisons remain partial; no prose or integrated-story qualification.".into()},Capability{id:"basic.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact scalar, explicitly supplied finite collection and integer-tick temporal expressions; unsupported blocking checks fail admission. Collection cardinality does not aggregate dynamic relation instances; Communication chronology is separately opt-in through communications.chronology.v1.".into()},Capability{id:"events.owner_attributes.v1".into(),status:CapabilityStatus::Implemented,limitation:"New/revised events require declared actions. Mandatory values resolve on exactly one participant per owning role at pre-event time; direct and explicit item grants share evidence. Missing, muted, conflicting and unsupported prerequisites block use. Legacy actionless events remain readable but are not certified; prose/action classification still requires author review.".into()},Capability{id:"events.v1".into(),status:CapabilityStatus::Implemented,limitation:"Exact occurred-event effects, explicit within-event order, pre/post state and possession powers. Noncommuting effects from separate simultaneous events and complex causality are rejected.".into()},
                     Capability{id:"knowledge.acquisition.v1".into(),status:CapabilityStatus::Implemented,limitation:"Explicit context policy distinguishes author-established knowledge from justified interpreted communication receipt. Justified knowledge checks actual recipient, acquisition/onset order, authored channel chronology and supported proposition truth at acquisition. Missing interpretation, truth, comparable clocks or policy stays unresolved; observation acquisition and automatic understanding are unavailable.".into()},
                     Capability{id:"knowledge.explicit.v1".into(),status:CapabilityStatus::Implemented,limitation:"Explicit, time-bound holder attitudes in their represented context. Presence, sending and receipt do not infer knowledge. Without an applicable acquisition policy, legacy Knows remains an authored attitude, not a justified-knowledge certificate.".into()},
                     Capability{id:"perspective.views.v1".into(),status:CapabilityStatus::Implemented,limitation:"Character and narrator views require matching represented contexts. Reader views require an exact scene and explicit disclosures in its bound work edition. No automatic knowledge inference.".into()},
@@ -3465,3 +3512,7 @@ mod assessments;
 
 #[path = "validation_binding.rs"]
 mod validation_binding;
+
+#[cfg(test)]
+#[path = "discovery_tests.rs"]
+mod discovery_tests;

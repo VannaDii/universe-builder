@@ -1,4 +1,4 @@
-"""Independent stdio MCP client. Runs only the disposable fixture engine."""
+"""Stdio MCP transport shared by fixture checks and local author sessions."""
 import argparse
 import copy
 import json
@@ -13,7 +13,7 @@ from validate_contracts import ROOT, validators
 from jsonschema import Draft202012Validator
 
 class MCP:
-    def __init__(self, binary, socket=None, protocol='2025-11-25', *, installation=None, profile=None, command_prefix=()):
+    def __init__(self, binary, socket=None, protocol='2025-11-25', *, installation=None, profile=None, command_prefix=(), client_name='universe-independent-fixture-client'):
         args = ['--installation', str(installation), '--profile', str(profile)] if installation else ['--fixture', '--socket', str(socket)]
         self.process = subprocess.Popen([str(binary), *command_prefix, *args], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env={**os.environ, 'PATH': '/usr/bin:/bin'})
         self.responses = queue.Queue()
@@ -28,7 +28,7 @@ class MCP:
                     self.responses.put(error)
             self.responses.put(EOFError('MCP stdout closed'))
         threading.Thread(target=read, daemon=True).start()
-        self.initialization = self.request('initialize', {'protocolVersion': protocol, 'capabilities': {}, 'clientInfo': {'name': 'universe-independent-fixture-client', 'version': '1'}})
+        self.initialization = self.request('initialize', {'protocolVersion': protocol, 'capabilities': {}, 'clientInfo': {'name': client_name, 'version': '1'}})
         self.write({'jsonrpc': '2.0', 'method': 'notifications/initialized'})
     def write(self, message):
         # Default Python escaping is valid MCP JSON, including surrogate pairs.

@@ -850,7 +850,7 @@ pub fn tool_schemas() -> Vec<ToolSchema> {
     vec![
         ToolSchema {
             name: "universe_describe".into(),
-            description: "Describe: explicit universe required; fixture mode has no canon writes."
+            description: "Describe: summary discovers visible continuity heads and represented-context IDs needed to open a first context; other modes describe capabilities or pinned world/definition records. Explicit universe required; fixture mode has no canon writes."
                 .into(),
             input_schema: augment_schema(
                 serde_json::to_value(schemars::schema_for!(Describe)).expect("schema"),

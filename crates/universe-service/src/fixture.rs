@@ -219,7 +219,7 @@ impl Fixture {
             world: world.clone(),
         };
         match request {
-   Request::Describe(_) => Ok(Response::Describe(scope.wrap(Description{fixture:true,worlds:universe.worlds.clone(),capabilities:capabilities(),definition_ids:vec![]}))),
+   Request::Describe(_) => Ok(Response::Describe(scope.wrap(Description{fixture:true,worlds:universe.worlds.clone(),capabilities:capabilities(),definition_ids:vec![],continuities:vec![]}))),
    Request::OpenContext(a) => {
     if self.contexts.len()>=128{return Err(limit())}
     if a.continuity_id.as_str()!=id("cont",1) || a.represented_context.as_str()!=id("rec",90) || !matches!(a.temporal_query,FrameTime::Timeless) || !matches!(a.perspective,Perspective::Author) || !a.temporal_systems.is_empty() {return Err(unsupported("fixture supports main, objective, timeless author frame only"))}

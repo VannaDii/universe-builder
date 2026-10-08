@@ -17,6 +17,7 @@ import tempfile
 import time
 
 from mcp_smoke import MCP
+from local_mlx import OfflineMLX
 
 NAME = "MLX Authoring Test"
 
@@ -78,44 +79,24 @@ def fixture_supported_values(state, predicate):
             if r["identity"]["record_id"] in active and r["payload"]["predicate"]["record"] == predicate]
 
 
-class LocalModel:
+class LocalModel(OfflineMLX):
+    """Evaluation-only timing and transcript capture around shared inference."""
     def __init__(self, path, seed):
-        # Set offline flags before importing libraries. Use only an existing path.
-        os.environ["HF_HUB_OFFLINE"] = "1"
-        os.environ["TRANSFORMERS_OFFLINE"] = "1"
-        config = json.loads((path / "config.json").read_text())
-        require(not config.get("model_file") and not config.get("auto_map"),
-                "custom model code is outside this local smoke test")
-        import mlx.core as mx
-        from mlx_lm import load
-        require(mx.metal.is_available(), "MLX Metal device is required")
-        mx.set_default_device(mx.gpu)
-        mx.random.seed(seed)
-        self.mx = mx
         started = time.monotonic()
-        self.model, self.tokenizer = load(str(path), tokenizer_config={"trust_remote_code": False})
+        super().__init__(path, seed)
         self.metrics = {"load_seconds": time.monotonic() - started, "turns": []}
 
     def ask(self, task, messages, max_tokens=1600):
-        from mlx_lm import stream_generate
-        from mlx_lm.sample_utils import make_sampler
-        prompt = self.tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True, enable_thinking=False)
         started = time.monotonic()
-        text, last = "", None
-        for part in stream_generate(self.model, self.tokenizer, prompt,
-                                    max_tokens=max_tokens, sampler=make_sampler(temp=0.0)):
-            text += part.text
-            last = part
-        require(last is not None, "model returned no tokens")
+        result = self.generate(messages, max_tokens=max_tokens)
         self.metrics["turns"].append({"task": task, "seconds": time.monotonic() - started,
                                      "messages": messages, "max_tokens": max_tokens,
-                                     "prompt_tokens": last.prompt_tokens,
-                                     "generation_tokens": last.generation_tokens,
-                                     "reached_token_limit": last.generation_tokens >= max_tokens,
-                                     "output": text})
+                                     "prompt_tokens": result.prompt_tokens,
+                                     "generation_tokens": result.generation_tokens,
+                                     "reached_token_limit": result.reached_token_limit,
+                                     "output": result.text})
         print(f"Completed MLX turn: {task}", flush=True)
-        return parse_object(text)
+        return parse_object(result.text)
 
 
 def exact_model_decision(model, task, messages, expected, report, max_tokens=850):

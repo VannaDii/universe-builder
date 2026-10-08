@@ -14,6 +14,7 @@ jobs:
       - run: python scripts/test_distribution.py
       - run: python -m unittest discover -s scripts -p 'test_mcp_smoke.py' -v
       - run: python -m unittest discover -s scripts -p 'test_mlx_authoring_smoke.py' -v
+      - run: python -m unittest discover -s scripts -p 'test_author_session.py' -v
       - run: python -m unittest discover -s scripts -p 'test_chapter_retcon_pilot.py' -v
       - run: cargo run --locked -p xtask -- check
       - run: cargo run --locked -p xtask -- validate-contracts

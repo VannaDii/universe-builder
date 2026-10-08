@@ -215,6 +215,45 @@ are distinct. Never treat `delivery.complete`, a complete context brief, zero
 reported findings under restricted coverage, or an imported source as a canon
 commit or as an unrestricted continuity certificate.
 
+## Interactive local author research
+
+`scripts/author_session.py` runs a local writing and research conversation using
+an existing MLX model and installation. Use a Python environment that already
+contains `mlx`, `mlx-lm` and `jsonschema`; the session does not download models.
+Build the current helpers first and supply distinct existing author and agent
+profiles. The agent needs a read grant for the named universe.
+
+```sh
+python scripts/author_session.py \
+  --model /absolute/path/to/existing/MLX-model \
+  --bin-dir /absolute/path/to/current/helpers \
+  --installation /absolute/path/to/installation \
+  --universe "Your universe" \
+  --author-profile prf_EXISTING_AUTHOR_ID \
+  --agent-profile prf_EXISTING_AGENT_ID
+```
+
+Enter multiline writing or a research request; a blank line submits it. Enter
+`/quit` between passages to exit. The model receives the server's canonical
+instructions and discovered research input schemas, chooses its own calls and
+receives actual tool results or errors. `universe_describe` summary now exposes
+visible continuity heads and represented-context choices so the model can open
+its first research frame without manually supplied IDs. Hidden contexts are
+filtered through the existing world/dependency visibility rules. Ambiguous
+choices require author clarification. The host enforces the selected universe
+and research-only tools. Author credentials and private author actions are kept
+outside model input. Conversation stays in memory; the session saves no transcript
+or report. It closes its adapter on exit and leaves the installation engine
+available for other clients.
+
+This initial session researches canon and answers requests. It does not propose,
+validate or publish writing changes, and its answers do not certify continuity.
+The default limits are twelve model turns per passage, 1,600 generated tokens per
+turn and 32,768 total context tokens including the next generation. A limit or
+transport failure leaves research incomplete; a context limit requires a fresh
+session. The limits can be configured with `--max-steps`, `--max-tokens` and
+`--max-context-tokens`.
+
 ## Local MLX verification
 
 The opt-in evaluator uses an already installed model with MLX-LM on Metal. It

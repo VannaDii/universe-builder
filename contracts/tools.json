@@ -1,7 +1,7 @@
 [
   {
     "name": "universe_describe",
-    "description": "Describe: explicit universe required; fixture mode has no canon writes.",
+    "description": "Describe: summary discovers visible continuity heads and represented-context IDs needed to open a first context; other modes describe capabilities or pinned world/definition records. Explicit universe required; fixture mode has no canon writes.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Describe",
@@ -1191,6 +1191,12 @@
               "items": {
                 "$ref": "#/$defs/RecordId"
               }
+            },
+            "continuities": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ContinuitySummary"
+              }
             }
           },
           "additionalProperties": false,
@@ -1198,7 +1204,8 @@
             "fixture",
             "worlds",
             "capabilities",
-            "definition_ids"
+            "definition_ids",
+            "continuities"
           ]
         },
         "WorldSummary": {
@@ -1244,6 +1251,148 @@
             "partial",
             "descriptive_only",
             "unsupported"
+          ]
+        },
+        "ContinuitySummary": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/ContinuityId"
+            },
+            "revision_id": {
+              "$ref": "#/$defs/RevisionId"
+            },
+            "name": {
+              "type": "string"
+            },
+            "represented_contexts": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RepresentedContextSummary"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "revision_id",
+            "name",
+            "represented_contexts"
+          ]
+        },
+        "RepresentedContextSummary": {
+          "description": "Visible context choices at one continuity head, for opening the first frame.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/RecordId"
+            },
+            "kind": {
+              "$ref": "#/$defs/RepresentedContextKind"
+            },
+            "labels": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "kind",
+            "labels"
+          ]
+        },
+        "RepresentedContextKind": {
+          "description": "A represented context (spec §27.3): a dream, myth, quotation, or\nembedded story is not automatically objective reality.",
+          "oneOf": [
+            {
+              "description": "The objective reality of this universe.",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "objective"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "description": "A character's represented beliefs/knowledge.",
+              "type": "object",
+              "properties": {
+                "holder": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "character"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "holder"
+              ]
+            },
+            {
+              "description": "A source's depicted narrative.",
+              "type": "object",
+              "properties": {
+                "source": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "source"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "source"
+              ]
+            },
+            {
+              "description": "A narrator's account.",
+              "type": "object",
+              "properties": {
+                "narrator": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "narrator"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "narrator"
+              ]
+            },
+            {
+              "description": "Another authored context (dream, myth, embedded story).",
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "authored"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "label"
+              ]
+            }
           ]
         }
       }
