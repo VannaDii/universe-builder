@@ -38,11 +38,18 @@ pub fn namespace_choices(records: &[serde_json::Value], operations: &str) -> Vec
     for data in records
         .iter()
         .map(|r| &r["payload"])
-        .chain(draft.iter().map(|op| &op["record"]))
+        .chain(draft.iter().map(|op| {
+            if op["kind"] == "introduce_definition" {
+                op
+            } else {
+                &op["record"]
+            }
+        }))
     {
         if let Some(namespace) = data["namespace"].as_str().filter(|n| !n.trim().is_empty()) {
             let name = data["labels"]["en"]
                 .as_str()
+                .or_else(|| data["name"].as_str())
                 .or_else(|| data["key"].as_str())
                 .unwrap_or("Definition");
             let labels = grouped.entry(namespace.into()).or_default();
@@ -289,11 +296,12 @@ mod tests {
             json!({"payload":{"record_kind":"property","namespace":"magic","key":"power","labels":{"en":"Granted powers"}}}),
             json!({"payload":{"record_kind":"property","namespace":"places","key":"region"}}),
         ];
-        let draft=json!([{"record":{"namespace":"magic","key":"owner"}},{"record":{"namespace":"myth","key":"origin"}}]).to_string();
+        let draft=json!([{"record":{"namespace":"magic","key":"owner"}},{"record":{"namespace":"myth","key":"origin"}},{"kind":"introduce_definition","namespace":"magic","key":"device","name":"Device"}]).to_string();
         let items = namespace_choices(&records, &draft);
         assert_eq!(items.len(), 3);
         assert!(items[0].description.contains("Granted powers"));
         assert!(items[0].description.contains("owner"));
+        assert!(items[0].description.contains("Device"));
         assert_eq!(items[1].value, "myth");
     }
 }

@@ -121,7 +121,7 @@ pub(super) fn choices(hits: &[Value], definitions: &[Value], operations: &str) -
             id
         };
         options.retain(|o| o["record_id"] != *id);
-        options.push(json!({"kind":p["record_kind"],"record_id":id,"label":p["labels"]["en"].as_str().or_else(||p["key"].as_str()).unwrap_or("Definition"),"definition":p}));
+        options.push(json!({"kind":p["record_kind"],"record_id":id,"label":p["labels"]["en"].as_str().or_else(||p["name"].as_str()).or_else(||p["key"].as_str()).unwrap_or("Definition"),"definition":p}));
     }
     for op in serde_json::from_str::<Vec<Value>>(operations).unwrap_or_default() {
         let kind = match op["kind"].as_str().unwrap_or_default() {
@@ -131,7 +131,7 @@ pub(super) fn choices(hits: &[Value], definitions: &[Value], operations: &str) -
             "create_saga" => "saga",
             "define_property" => "property",
             "define_relation" => "relation",
-            "define_type" => "entity_type",
+            "define_type" | "introduce_definition" => "entity_type",
             "define_unit" => "unit",
             "define_calendar" => "calendar",
             "define_action" => "action_definition",
@@ -141,14 +141,15 @@ pub(super) fn choices(hits: &[Value], definitions: &[Value], operations: &str) -
             "assert_proposition" | "record_relation" => "proposition",
             _ => continue,
         };
-        let label = op["name"]["text"]
+        let label = op["name"]
             .as_str()
+            .or_else(|| op["name"]["text"].as_str())
             .or_else(|| op["record"]["labels"]["en"].as_str())
             .or_else(|| op["record"]["title"].as_str())
             .or_else(|| op["record"]["selector"].as_str())
             .unwrap_or("Draft record");
         options.push(
-            json!({"kind":kind,"record_id":op["client_ref"],"label":format!("{label} (draft)"),"definition":if kind=="proposition" {&op["proposition"]} else {&op["record"]}}),
+            json!({"kind":kind,"record_id":op["client_ref"],"label":format!("{label} (draft)"),"definition":if op["kind"]=="introduce_definition" {&op} else if kind=="proposition" {&op["proposition"]} else {&op["record"]}}),
         );
     }
     options
@@ -340,7 +341,7 @@ pub fn AuthorApp() -> Element {
                             super::history::Issues{findings:validation()["execution"]["findings"].clone(),profile:profile(),disabled:busy(),onadd:move|op:Value|{if let Ok(mut ops)=serde_json::from_str::<Vec<Value>>(&operations()){ops.push(op);operations.set(serde_json::to_string(&ops).unwrap());proposal.set(Value::Null);validation.set(Value::Null);review.set(Value::Null);approved.set(false);}}}
                             super::pack_editor::PackEditor{oninstall:move|added:Vec<Value>|{if let Ok(mut ops)=serde_json::from_str::<Vec<Value>>(&operations()){ops.extend(added);operations.set(serde_json::to_string(&ops).unwrap());proposal.set(Value::Null);validation.set(Value::Null);review.set(Value::Null);approved.set(false);}},frame:frame.clone(),records:definitions(),disabled:busy(),onadd:move|op:Value|{if let Ok(mut ops)=serde_json::from_str::<Vec<Value>>(&operations()){ops.push(op);operations.set(serde_json::to_string(&ops).unwrap());proposal.set(Value::Null);validation.set(Value::Null);review.set(Value::Null);approved.set(false);}}}
                             super::claim_editor::ClaimEditor{frame,clock:serde_json::from_value(clock_record()["payload"]["chronology"].clone()).ok(),choices:choices(&hits(),&definitions(),&operations()),disabled:busy(),onadd:move|op:Value|{let Ok(mut ops)=serde_json::from_str::<Vec<Value>>(&operations())else{status.set("This draft cannot be decoded; reopen a saved draft before adding a claim.".into());return;};ops.push(op);operations.set(serde_json::to_string_pretty(&ops).unwrap());proposal.set(Value::Null);validation.set(Value::Null);review.set(Value::Null);approved.set(false);}}
-                        super::definitions::DefinitionEditor{disabled:busy(),namespaces:super::select::namespace_choices(&definitions(),&operations()),onadd:move|op:Value|{if let Ok(mut ops)=serde_json::from_str::<Vec<Value>>(&operations()){ops.push(op);operations.set(serde_json::to_string(&ops).unwrap());proposal.set(Value::Null);validation.set(Value::Null);review.set(Value::Null);approved.set(false);}}}
+                        super::definitions::DefinitionEditor{choices:choices(&hits(),&definitions(),&operations()),disabled:busy(),namespaces:super::select::namespace_choices(&definitions(),&operations()),onadd:move|op:Value|{if let Ok(mut ops)=serde_json::from_str::<Vec<Value>>(&operations()){ops.push(op);operations.set(serde_json::to_string(&ops).unwrap());proposal.set(Value::Null);validation.set(Value::Null);review.set(Value::Null);approved.set(false);}}}
                         }
                         }
                         super::readable::DraftChanges{operations:operations(),disabled:busy(),onremove:move|index:usize|{if let Ok(mut ops)=serde_json::from_str::<Vec<Value>>(&operations()){if index<ops.len(){ops.remove(index);operations.set(serde_json::to_string(&ops).unwrap());proposal.set(Value::Null);validation.set(Value::Null);review.set(Value::Null);approved.set(false);}}}}

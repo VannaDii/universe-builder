@@ -5,6 +5,7 @@ use universe_domain::{ids::*, records::DomainOperation, value::validate_value, F
 
 #[derive(Clone, Default)]
 struct Form {
+    attribute_mode: String,
     subject: String,
     predicate: String,
     kind: String,
@@ -34,6 +35,16 @@ impl Form {
         frame: &Frame,
         clock: Option<&universe_domain::chronology::Chronology>,
     ) -> Result<DomainOperation, String> {
+        if !["instance", "shared", "initial_value"].contains(&self.attribute_mode.as_str()) {
+            return Err(
+                "Choose an instance fact, shared attribute or initial-value attribute.".into(),
+            );
+        }
+        if self.kind == "relationship" && self.attribute_mode != "instance" {
+            return Err(
+                "Definition-owned attributes require a property value, not a relationship.".into(),
+            );
+        }
         let rr = |s: &str| -> Result<Value, String> {
             let id = RecordId::parse(s.trim()).map_err(|e| e.to_string())?;
             Ok(json!({"universe":frame.universe,"record":id}))
@@ -181,7 +192,7 @@ impl Form {
             "kind":if self.kind=="relationship"{"record_relation"}else{"assert_proposition"},
             "client_ref":id,
             "proposition":{"predicate":rr(&self.predicate)?,"subject":rr(&self.subject)?,"roles":roles,"value":value,"quantification":"particular","context":frame.context},
-            "assertion":{"attributeMode":"instance","proposition":{"universe":frame.universe,"record":id},"polarity":self.polarity,"scope":{"applicability":applicability,"context":frame.context},"validity":validity,"persistence":if ["interval","timer"].contains(&self.validity.as_str()){"explicit_interval"}else if self.validity=="instant"{"instantaneous_observation"}else{"unspecified"},"precision":self.precision,"alternatives":alternatives,"basis":{"kind":"author_decision","note":self.note}}
+            "assertion":{"attributeMode":self.attribute_mode,"proposition":{"universe":frame.universe,"record":id},"polarity":self.polarity,"scope":{"applicability":applicability,"context":frame.context},"validity":validity,"persistence":if ["interval","timer"].contains(&self.validity.as_str()){"explicit_interval"}else if self.validity=="instant"{"instantaneous_observation"}else{"unspecified"},"precision":self.precision,"alternatives":alternatives,"basis":{"kind":"author_decision","note":self.note}}
         });
         serde_json::from_value(op).map_err(|e| e.to_string())
     }
@@ -203,8 +214,11 @@ pub fn ClaimEditor(
             details {
                 summary { "Add a typed value or relationship" }
                 p { "Choose records from the loaded explorer or draft. Load more explorer records if needed. Add the completed claim to your draft to save it. Definitions and evidence are checked before approval." }
-                label { r#for:"claim-subject", "Subject entity ID" }
-                super::select::RichSelect { id:"claim-subject", disabled, value:form.read().subject.clone(), onchange:move|e: crate::select::SelectionEvent|form.write().subject=e.value(),options:super::select::record_choices(&choices, &["entity"], "Choose an entity")}
+                label{r#for:"claim-owner-mode","Attribute ownership"}
+                super::select::RichSelect{id:"claim-owner-mode",disabled,value:form.read().attribute_mode.clone(),options:super::select::choices(&[("","Choose ownership"),("instance","Current instance fact"),("shared","Definition-owned shared attribute"),("initial_value","Definition-owned initial-value attribute")]),onchange:move|e:crate::select::SelectionEvent|{let mut f=form.write();f.attribute_mode=e.value();f.subject.clear();}}
+                if form.read().attribute_mode!="instance"{p{"Shared attributes remain definition facts. Initial values are candidates for explicit reviewed initialization; neither creates current instance stock."}}
+                label { r#for:"claim-subject", "Attribute owner" }
+                super::select::RichSelect { id:"claim-subject", disabled, value:form.read().subject.clone(), onchange:move|e: crate::select::SelectionEvent|form.write().subject=e.value(),options:super::select::record_choices(&choices, if form.read().attribute_mode=="instance" {&["entity"]} else {&["entity_type"]}, "Choose the attribute owner")}
                 label { r#for:"claim-predicate", "Property or relation definition ID" }
                 super::select::RichSelect { id:"claim-predicate", disabled, value:form.read().predicate.clone(), onchange:move|e: crate::select::SelectionEvent|form.write().predicate=e.value(),options:super::select::record_choices(&choices, &["property","relation"], "Choose a property or relationship")}
                 label { r#for:"claim-kind", "Value or relationship type" }
@@ -272,6 +286,7 @@ mod tests {
     }
     fn form() -> Form {
         Form {
+            attribute_mode: "instance".into(),
             subject: "rec_000000000000000000000002".into(),
             predicate: "rec_000000000000000000000003".into(),
             kind: "integer".into(),
@@ -335,6 +350,7 @@ mod qualified_tests {
     fn ranges_alternatives_and_interval_endpoints_require_explicit_input() {
         let frame:Frame=serde_json::from_value(json!({"universe":"unv_000000000000000000000001","continuity":"cont_000000000000000000000001","revision":"rev_000000000000000000000001","context":{"universe":"unv_000000000000000000000001","record":"rec_000000000000000000000001"},"time":{"kind":"timeless"},"perspective":"author"})).unwrap();
         let mut f = Form {
+            attribute_mode: "instance".into(),
             subject: "rec_000000000000000000000002".into(),
             predicate: "rec_000000000000000000000003".into(),
             kind: "range".into(),
@@ -381,6 +397,7 @@ mod timer_tests {
         .build(CalendarId::parse("cal_000000000000000000000004").unwrap())
         .unwrap();
         let mut f = Form {
+            attribute_mode: "instance".into(),
             subject: "rec_000000000000000000000002".into(),
             predicate: "rec_000000000000000000000003".into(),
             kind: "boolean".into(),
@@ -415,3 +432,7 @@ mod timer_tests {
         assert_eq!(clock.current, clock.first_interaction);
     }
 }
+
+#[cfg(test)]
+#[path = "definition_workflow.rs"]
+mod definition_workflow;

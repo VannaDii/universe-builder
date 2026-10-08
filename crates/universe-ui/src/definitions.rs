@@ -2,15 +2,15 @@
 use dioxus::prelude::*;
 use serde_json::{json, Value};
 use universe_domain::{
-    ids::{RecordId, UnitId},
+    ids::{RecordId, UnitId, WorldId},
     records::DomainOperation,
 };
 #[derive(Clone, Default)]
-struct DefinitionForm {
-    kind: String,
-    namespace: String,
-    key: String,
-    label: String,
+pub(super) struct DefinitionForm {
+    pub(super) kind: String,
+    pub(super) namespace: String,
+    pub(super) key: String,
+    pub(super) label: String,
     shape: String,
     multiplicity: String,
     unit: String,
@@ -18,9 +18,13 @@ struct DefinitionForm {
     dimension: String,
     symbol: String,
     epoch: String,
+    pub(super) parent: String,
+    pub(super) applicability: String,
+    pub(super) worlds: Vec<String>,
+    pub(super) classification: String,
 }
 impl DefinitionForm {
-    fn operation(&self) -> Result<Value, String> {
+    pub(super) fn operation(&self) -> Result<Value, String> {
         if self.namespace.trim().is_empty() || self.key.trim().is_empty() {
             return Err("Enter a namespace and definition key.".into());
         }
@@ -29,16 +33,31 @@ impl DefinitionForm {
         } else {
             self.label.clone()
         };
+        if self.kind == "type" {
+            let parent = match self.parent.as_str() {
+                "" => {
+                    return Err("Choose a parent definition or explicitly choose no parent.".into())
+                }
+                "none" => None,
+                id => Some(RecordId::parse(id).map_err(|e| e.to_string())?),
+            };
+            let applicability = match self.applicability.as_str() {
+                "unspecified" | "universe_wide" => json!({"kind":self.applicability}),
+                "worlds" => {
+                    json!({"kind":"worlds","world_ids":self.worlds.iter().map(|s|WorldId::parse(s).map_err(|e|e.to_string())).collect::<Result<Vec<_>,_>>()?})
+                }
+                _ => return Err("Choose the definition’s applicability explicitly.".into()),
+            };
+            let executable = match self.classification.as_str() {
+                "true" => true,
+                "false" => false,
+                _ => return Err("Choose whether classification can be executed.".into()),
+            };
+            let op:DomainOperation=serde_json::from_value(json!({"kind":"introduce_definition","client_ref":RecordId::generate(&mut rand::rng()),"namespace":self.namespace,"key":self.key,"name":label,"parent":parent,"applicability":applicability,"classification_executable":executable})).map_err(|e|e.to_string())?;
+            return serde_json::to_value(op).map_err(|e| e.to_string());
+        }
         let mut record = json!({"namespace":self.namespace,"key":self.key,"labels":{"en":label}});
         let kind = match self.kind.as_str() {
-            "type" => {
-                record["name"] = json!(label);
-                record["parent"] = Value::Null;
-                record["parentResolution"] = json!("root");
-                record["applicability"] = json!({"kind":"unspecified"});
-                record["classificationExecutable"] = json!(false);
-                "define_type"
-            }
             "property" => {
                 if ![
                     "text",
@@ -121,6 +140,7 @@ impl DefinitionForm {
 #[component]
 pub fn DefinitionEditor(
     namespaces: Vec<super::select::Choice>,
+    choices: Vec<Value>,
     disabled: bool,
     onadd: EventHandler<Value>,
 ) -> Element {
@@ -128,11 +148,25 @@ pub fn DefinitionEditor(
     let mut error = use_signal(String::new);
     rsx! {details{
         summary{"Define a type, property, relationship, unit or calendar"}
-        p{"Definitions are reviewed as protected changes. This form adds no inheritance, persistence, unit conversion or inter-calendar conversion implicitly."}
+        p{"Definitions are reviewed as protected changes. Parent, applicability and executable classification are explicit. No persistence or clock conversion is inferred."}
         label{r#for:"definition-kind","Definition kind"}super::select::RichSelect {id:"definition-kind",disabled,value:form.read().kind.clone(),onchange:move|e: crate::select::SelectionEvent|form.write().kind=e.value(),options:super::select::choices(&[("","Choose a kind"),("type","Entity type"),("property","Property"),("relation","Relationship"),("unit","Unit"),("calendar","Calendar")])}
         label{r#for:"definition-namespace","Namespace"}super::select::RichSelect{id:"definition-namespace",disabled,value:form.read().namespace.clone(),allow_new:true,options:namespaces,onchange:move|e:crate::select::SelectionEvent|form.write().namespace=e.value()}
         label{r#for:"definition-key","Definition key"}input{id:"definition-key",disabled,value:form.read().key.clone(),oninput:move|e|form.write().key=e.value()}
         label{r#for:"definition-label","Display name"}input{id:"definition-label",disabled,value:form.read().label.clone(),oninput:move|e|form.write().label=e.value()}
+        if form.read().kind=="type" {
+            label{r#for:"definition-parent","Parent definition"}
+            super::select::RichSelect{id:"definition-parent",disabled,value:form.read().parent.clone(),options:{let mut opts=super::select::record_choices(&choices,&["entity_type"],"Choose parent or no parent");opts.insert(1,super::select::Choice::new("none","No parent (root definition)"));opts},onchange:move|e:crate::select::SelectionEvent|form.write().parent=e.value()}
+            label{r#for:"definition-applicability","Where this definition applies"}
+            super::select::RichSelect{id:"definition-applicability",disabled,value:form.read().applicability.clone(),options:super::select::choices(&[("","Choose applicability"),("unspecified","Unspecified (remains unresolved)"),("universe_wide","Universe wide"),("worlds","Selected worlds")]),onchange:move|e:crate::select::SelectionEvent|form.write().applicability=e.value()}
+            if form.read().applicability=="worlds" {
+                fieldset{legend{"Applicable worlds"}p{"No selected worlds means this definition applies nowhere."}
+                    for world in choices.iter().filter(|r|r["kind"]=="world").cloned(){label{class:"check-label",input{r#type:"checkbox",disabled,checked:form.read().worlds.contains(&world["record_id"].as_str().unwrap_or_default().replacen("rec_","wld_",1)),onchange:{let id=world["record_id"].as_str().unwrap_or_default().replacen("rec_","wld_",1);move|e|{if e.checked(){form.write().worlds.push(id.clone());}else{form.write().worlds.retain(|w|w!=&id);}}}}{world["label"].as_str().unwrap_or("World").to_string()}}}
+                }
+            }
+            label{r#for:"definition-executable","Use this definition for executable classification"}
+            super::select::RichSelect{id:"definition-executable",disabled,value:form.read().classification.clone(),options:super::select::choices(&[("","Choose explicitly"),("true","Yes"),("false","No — retain as non-executable")]),onchange:move|e:crate::select::SelectionEvent|form.write().classification=e.value()}
+            p{"Ancestor applicability is checked separately. A child does not widen its parent’s scope."}
+        }
         if form.read().kind=="property"{
             label{r#for:"definition-shape","Value shape"}super::select::RichSelect {id:"definition-shape",disabled,value:form.read().shape.clone(),onchange:move|e: crate::select::SelectionEvent|form.write().shape=e.value(),options:super::select::choices(&[("","Choose a shape"),("text","Text"),("boolean","Boolean"),("integer","Integer"),("decimal","Decimal"),("rational","Rational"),("temporal","Temporal"),("entity_ref","Entity Ref"),("range","Range"),("quantity","Quantity")])}
             if form.read().shape=="quantity"{label{r#for:"definition-unit","Unit ID"}input{id:"definition-unit",disabled,value:form.read().unit.clone(),oninput:move|e|form.write().unit=e.value()}}
@@ -175,6 +209,9 @@ mod tests {
         assert!(f.operation().is_ok());
         for kind in ["type", "unit", "calendar"] {
             f.kind = kind.into();
+            f.parent = "none".into();
+            f.applicability = "unspecified".into();
+            f.classification = "false".into();
             f.dimension = "length".into();
             f.symbol = "m".into();
             assert!(f.operation().is_ok(), "{kind}");

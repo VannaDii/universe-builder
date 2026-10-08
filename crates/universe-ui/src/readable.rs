@@ -74,6 +74,17 @@ pub(super) fn operation_summary(op: &Value) -> String {
                 op["record"]["key"].as_str().unwrap_or("Unnamed")
             )
         }
+        "introduce_definition" => format!(
+            "Introduce reusable definition: {}",
+            op["name"].as_str().unwrap_or("Unnamed")
+        ),
+        "assert_proposition" => format!(
+            "Add {} attribute",
+            op["assertion"]["attributeMode"]
+                .as_str()
+                .unwrap_or("instance")
+                .replace('_', " ")
+        ),
         "introduce_instance" => format!(
             "Create instance: {} ({})",
             op["name"]["text"].as_str().unwrap_or("Unnamed"),

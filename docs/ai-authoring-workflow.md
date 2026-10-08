@@ -383,3 +383,18 @@ A canon correction requires reopening the current context and rebasing the draft
 old approval does not carry over. Restricted validation shows only fixed guidance
 for requesting authorized author review. Automated form and connected service
 checks do not qualify manual native interaction, which remains pending.
+
+The native type form introduces a reusable definition with an explicitly selected
+parent (or no parent), applicability and executable classification setting.
+Unspecified applicability stays unresolved; selecting no worlds applies nowhere.
+Each ancestor's applicability still matters: a child does not widen its parent.
+Pending definitions remain selectable in the same draft and survive draft recovery.
+
+Attribute authoring now distinguishes current instance facts from definition-owned
+shared attributes and initial-value attributes. Select an instance for the first
+mode or a definition for the other two. All modes retain typed values, authored
+scope, validity, precision, alternatives, polarity and basis. Shared attributes
+remain reusable definition facts; initial values remain candidates for explicit
+reviewed initialization. Neither mode creates or refills current instance stock.
+Conflicting applicable values require correction before admission; a descendant
+or newer assertion does not silently override an inherited value.
