@@ -372,6 +372,15 @@ compiled changes. Missing truth, interpretation, recipients, scope or comparable
 time stays unresolved; the message identifies which authored dependency needs
 attention. A receipt needs an explicit interpreted proposition to justify knowledge.
 
+The native action editor declares consequence slots separately from attribute
+requirements. Choose required or permitted presence, an owning role, target
+property, an always or attribute-equality condition, and a fixed assignment or
+bounded resource delta. Delta amounts and stock bounds use exact whole-number
+strings; quantity units must match the property exactly. Declare both sides of a
+transfer explicitly. Fixed assignments can last until changed or for positive
+calendar ticks; deltas last until changed. Ordinary actions can explicitly permit
+no effects. Definitions follow the protected draft, review and approval workflow.
+
 To require knowledge for an action occurrence, author the existing attitude
 expression in the event's `preconditions`. The action definition's scalar attribute
 requirements still apply separately. Acquisition must follow receipt, supported

@@ -3,61 +3,6 @@ use dioxus::prelude::*;
 use serde_json::{json, Value};
 use universe_domain::{chronology::Chronology, ids::RecordId, records::DomainOperation, Frame};
 
-/// Small author-facing form; complex/multiple requirements remain available
-/// through the same typed definition contract, not executable free-text rules.
-#[component]
-fn ActionEditor(
-    frame: Frame,
-    choices: Vec<Value>,
-    disabled: bool,
-    onadd: EventHandler<Value>,
-) -> Element {
-    let mut namespace = use_signal(String::new);
-    let mut key = use_signal(String::new);
-    let mut mode = use_signal(String::new);
-    let mut role = use_signal(String::new);
-    let mut predicate = use_signal(String::new);
-    let mut value = use_signal(String::new);
-    let mut error = use_signal(String::new);
-    let properties = super::select::record_choices(&choices, &["property"], "Choose an attribute");
-    rsx! { details {
-        summary { "Declare an action and its required attribute" }
-        p { "The required attribute is checked on the entity performing that role. Declaring an ordinary action explicitly means it has no special attribute requirement; it cannot stand in for a power-dependent action." }
-        label { r#for:"action-namespace", "Namespace" } input { id:"action-namespace", disabled, value:namespace, oninput:move|e|namespace.set(e.value()) }
-        label { r#for:"action-key", "Action name" } input { id:"action-key", disabled, value:key, oninput:move|e|key.set(e.value()) }
-        label { r#for:"action-mode", "Requirements" } super::select::RichSelect { id:"action-mode", disabled, value:mode(), options:super::select::choices(&[("","Choose explicitly"),("ordinary","Ordinary action, no special requirement"),("attribute","Requires an attribute or power")]), onchange:move|e:super::select::SelectionEvent|mode.set(e.value()) }
-        if mode()=="attribute" {
-            label { r#for:"action-role", "Role that must have the attribute (for example actor, item or holder)" } input { id:"action-role", disabled, value:role, oninput:move|e|role.set(e.value()) }
-            label { r#for:"action-property", "Required attribute" } super::select::RichSelect { id:"action-property", disabled, value:predicate(), options:properties, onchange:move|e:super::select::SelectionEvent|predicate.set(e.value()) }
-            label { r#for:"action-value", "Required value (Boolean true/false, text or whole number)" } input { id:"action-value", disabled, value:value, oninput:move|e|value.set(e.value()) }
-        }
-        button { disabled, onclick:move|_| {
-            let result=(|| {
-                if namespace().trim().is_empty() || key().trim().is_empty() { return Err("Name the action and its namespace.".into()); }
-                let requirements=match mode().as_str() {
-                    "ordinary"=>vec![],
-                    "attribute"=> {
-                        if role().trim().is_empty() || predicate().is_empty() { return Err("Choose the owning role and required attribute.".into()); }
-                        let shape=choices.iter().find(|c| c["record_id"]==predicate()).ok_or("Choose a known attribute.")?["definition"]["value"]["kind"].as_str().unwrap_or("");
-                        let v=match shape {
-                            "boolean"=>match value().as_str() { "true"=>json!({"kind":"boolean","value":true}), "false"=>json!({"kind":"boolean","value":false}), _=>return Err("Enter true or false explicitly.".into()) },
-                            "text"=>json!({"kind":"text","text":value()}),
-                            "integer"=>{value().parse::<i128>().map_err(|_|"Enter a whole number.")?;json!({"kind":"integer","digits":value()})},
-                            _=>return Err("This form supports Boolean, text and whole-number requirements.".into()),
-                        };
-                        vec![json!({"role":role(),"predicate":{"universe":frame.universe,"record":predicate()},"value":v})]
-                    },
-                    _=>return Err("Choose the requirements explicitly.".into()),
-                };
-                let op=json!({"kind":"define_action","client_ref":RecordId::generate(&mut rand::rng()),"record":{"namespace":namespace(),"key":key(),"labels":{"en":key()},"requirements":requirements,"scope":{"context":frame.context,"applicability":{"kind":"universe_wide"}},"validity":{"kind":"unspecified"}}});
-                serde_json::from_value::<DomainOperation>(op.clone()).map_err(|e|e.to_string())?;
-                Ok::<_,String>(op)
-            })();
-            match result { Ok(op)=>{onadd.call(op);error.set(String::new());}, Err(e)=>error.set(e) }
-        }, "Add action definition to draft" }
-        if !error().is_empty() { p { role:"alert", "{error}" } }
-    }}
-}
 #[component]
 pub fn EventEditor(
     frame: Frame,
@@ -106,7 +51,7 @@ pub fn EventEditor(
     let powers =
         super::select::record_choices(&boolean_properties, &["property"], "Choose a Boolean power");
     rsx! {
-        ActionEditor {frame:frame.clone(),choices:choices.clone(),disabled,onadd:move|op:Value|onadd.call(vec![op])}
+        super::action_editor::ActionEditor {frame:frame.clone(),choices:choices.clone(),disabled,onadd:move|op:Value|onadd.call(vec![op])}
         details{summary{"Record an item transfer, loss or timed effect"}
         p{"Only an occurred event changes state. Select the item’s holder property and the holder. Refutation records loss of that possession. Existing authored evidence is retained for conflict checking."}
         label{r#for:"event-title","Event name"}input{id:"event-title",disabled,value:title,oninput:move|e|title.set(e.value())}
