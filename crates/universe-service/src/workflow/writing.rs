@@ -577,7 +577,7 @@ impl Workflow<'_> {
     }
 }
 
-fn plain_value(
+pub(super) fn plain_value(
     value: &universe_domain::value::Value,
     label: &impl Fn(&RecordId) -> Option<String>,
 ) -> Option<Value> {
@@ -601,7 +601,7 @@ fn plain_value(
         _ => return None,
     })
 }
-fn plain_time(value: &Value, label: &impl Fn(&RecordId) -> Option<String>) -> String {
+pub(super) fn plain_time(value: &Value, label: &impl Fn(&RecordId) -> Option<String>) -> String {
     let calendar = value
         .get("calendar")
         .and_then(Value::as_str)

@@ -3,7 +3,7 @@ import copy
 import io
 import json
 import unittest
-from author_session import AuthorSession, ProtocolError, passages
+from author_session import AuthorSession, AuthorDecisions, ProtocolError, passages
 from local_mlx import Generation
 
 class Client:
@@ -81,4 +81,69 @@ class SessionTests(unittest.TestCase):
         text='<function=research>\n<parameter=mode>one</parameter>\n<parameter=focus>{"world":"Here"}</parameter>\n<parameter=ids>["a","b"]</parameter>\n</function>'
         parsed=parse_tool_call(text,tools)
         self.assertEqual(parsed["arguments"]["focus"],{"world":"Here"});self.assertEqual(parsed["arguments"]["ids"],["a","b"])
+
+class AuthorDecisionTests(unittest.TestCase):
+    def controller(self):
+        from types import SimpleNamespace
+        session=SimpleNamespace(universe="Story",last_check=None,last_passage="Original author prose",messages=[{"role":"system","content":"guidance"},{"role":"user","content":"setup"},{"role":"tool","content":"old pinned state"}])
+        session.dispatch=lambda name,args: {"structuredContent":{"result":{"context_id":"fresh-context"}}}
+        session.respond=lambda text: setattr(session,"last_passage",text)
+        output=[]
+        controller=AuthorDecisions(session,"private binary","installation","secret-author",output.append)
+        calls=[]
+        controller.action=lambda args: calls.append(copy.deepcopy(args)) or {"result":{"operation_id":"op_"+"1"*24,"proposal_id":"prp_"+"2"*24,"revision":"rev_"+"3"*24},"frame":{"continuity":"continuity","context":{"record":"context"}}}
+        return controller,session,calls,output
+    def test_questions_hold_and_natural_clarification_keeps_author_bytes(self):
+        controller,session,calls,_=self.controller()
+        session.last_check={"clarifications":["Who took it?"],"candidate_handle":None}
+        with self.assertRaises(ValueError): controller.handle("/review")
+        self.assertFalse(calls)
+        controller.handle("Mara took it.")
+        self.assertEqual(session.last_passage,"Original author prose\n\nAuthor clarification:\nMara took it.")
+    def test_exact_review_separate_approval_recovery_and_fresh_context(self):
+        import base64,json
+        controller,session,calls,output=self.controller()
+        controller.review={"publishable":True,"candidate":{"proposal_id":"prp_"+"2"*24,"version":2,"digest":"exact"},"validation":{"execution":{"run_id":"exact-run"}}}
+        controller.publish_key="original-key"
+        controller.handle("/approve")
+        self.assertEqual(calls[0]["candidate"]["digest"],"exact")
+        self.assertEqual(calls[0]["idempotency_key"],"original-key")
+        token=output[0].split("/recover ",1)[1]
+        self.assertEqual(json.loads(base64.urlsafe_b64decode(token)),calls[0])
+        self.assertNotIn("secret-author",token)
+        self.assertNotIn("old pinned state",str(session.messages))
+        controller.handle("/recover "+token)
+        self.assertEqual(calls[0],calls[1])
+    def test_private_review_resolves_restricted_opaque_handle_without_versions(self):
+        controller,session,calls,_=self.controller()
+        session.last_check={"candidate_handle":"opaque-candidate","validation":{"kind":"restricted"},"clarifications":[]}
+        def private(args):
+            calls.append(args)
+            return {"candidate":{"proposal_id":"opaque-candidate","version":2,"digest":"exact"},"publishable":False,"summary":["Actual candidate requires author review"]}
+        controller.action=private
+        controller.handle("/review")
+        self.assertEqual(calls[0]["candidate"],"opaque-candidate")
+        self.assertNotIn("version",calls[0])
+        with self.assertRaises(ValueError): controller.handle("/approve")
+
+    def test_missing_receipt_never_claims_publication(self):
+        controller,session,_,output=self.controller()
+        controller.review={"publishable":True,"candidate":{"proposal_id":"prp_"+"2"*24},"validation":{"execution":{"run_id":"run"}}}
+        controller.publish_key="original-key"
+        controller.action=lambda _: {"result":{"status":"pending"}}
+        with self.assertRaises(RuntimeError): controller.handle("/approve")
+        self.assertFalse(any(line=="Author-approved changes published." for line in output))
+        self.assertEqual(controller.publish_key,"original-key")
+
+    def test_failed_publication_retains_exact_review_and_key(self):
+        controller,session,_,output=self.controller()
+        controller.review={"publishable":True,"candidate":{"digest":"exact"},"validation":{"execution":{"run_id":"run"}}}
+        controller.publish_key="same-key"
+        def interrupted(args): raise RuntimeError("interrupted")
+        controller.action=interrupted
+        with self.assertRaises(RuntimeError): controller.handle("/approve")
+        self.assertEqual(controller.publish_key,"same-key")
+        self.assertEqual(controller.review["candidate"]["digest"],"exact")
+        self.assertTrue(output[0].startswith("If interrupted"))
+
 if __name__=="__main__": unittest.main()

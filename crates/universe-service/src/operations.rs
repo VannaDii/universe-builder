@@ -351,6 +351,18 @@ pub fn compile(
     base: &[RecordVersion],
     operations: &[DomainOperation],
 ) -> anyhow::Result<Vec<Assignment>> {
+    compile_allocated(u, revision, base, operations, &BTreeMap::new())
+}
+
+/// Server-allocated immutable versions for privately prepared source records.
+/// Ordinary domain operations still use fresh engine-generated versions.
+pub(crate) fn compile_allocated(
+    u: &UniverseId,
+    revision: &RevisionId,
+    base: &[RecordVersion],
+    operations: &[DomainOperation],
+    versions: &BTreeMap<RecordId, RecordVersionId>,
+) -> anyhow::Result<Vec<Assignment>> {
     let operations = incremental_operations(u, base, operations)?;
     let records: BTreeMap<_, _> = base
         .iter()
@@ -365,7 +377,10 @@ pub fn compile(
             return Err(invalid("new record identity already exists"));
         }
         let next = RecordVersion::build(
-            RecordVersionId::generate(&mut rand::rng()),
+            versions
+                .get(&record_id)
+                .cloned()
+                .unwrap_or_else(|| RecordVersionId::generate(&mut rand::rng())),
             RecordIdentity::new(u.clone(), record_id.clone(), payload.kind()),
             payload,
         )?;

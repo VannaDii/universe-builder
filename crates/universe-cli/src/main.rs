@@ -71,6 +71,10 @@ enum Command {
         digest: String,
         validation: String,
     },
+    /// Read a private author writing decision from standard input.
+    AuthorWriting {
+        universe: String,
+    },
     StageSource {
         universe: String,
         label: String,
@@ -277,6 +281,17 @@ async fn main() -> anyhow::Result<()> {
             },
             validation_run: ValidationRunId::parse(&validation)?,
         },
+        Command::AuthorWriting { universe } => {
+            use std::io::Read;
+            let mut input = String::new();
+            std::io::stdin()
+                .take(1_000_000)
+                .read_to_string(&mut input)?;
+            EngineRequest::AuthorWriting {
+                universe: universe_protocol::request::Selector(universe),
+                action: serde_json::from_str(&input)?,
+            }
+        }
         Command::StageSource {
             universe,
             label,

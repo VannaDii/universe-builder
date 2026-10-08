@@ -597,6 +597,29 @@ impl Runtime {
                     .image_preview(&context_id, &asset)
                 })?
             }
+            EngineRequest::AuthorWriting { universe, action } => {
+                let registry = self.registry.lock().unwrap();
+                let current = registry.authenticate(h)?;
+                Registry::require_author(&current)?;
+                let u = registry.resolve(&current, &universe.0)?;
+                drop(registry);
+                let gate = self.registry.clone();
+                let hello = h.clone();
+                self.worker(&u.universe_id, &u.path)?.run(move |kernel| {
+                    let registry = gate.lock().unwrap();
+                    Registry::require_author(&registry.authenticate(&hello)?)?;
+                    crate::workflow::Workflow {
+                        kernel,
+                        authority: None,
+                        approval_author: current.id.clone(),
+                        principal: current,
+                        scope: None,
+                        permissions: (true, true, true),
+                        name: u.name,
+                    }
+                    .author_writing(universe, action)
+                })?
+            }
             EngineRequest::StageSource {
                 universe,
                 label,

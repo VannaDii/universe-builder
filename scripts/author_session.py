@@ -1,14 +1,18 @@
 """Interactive offline author research using model-selected MCP calls.
 
 Run with an existing MLX Python environment. Conversation stays in memory;
-writing is checked through uncommitted proposals. Author approval and publication
-are not available in this session.
+writing is checked through uncommitted proposals. Explicit author commands
+review, approve and publish through a separate private authority.
 """
 import argparse
+import base64
 import copy
 import json
 from pathlib import Path
 import queue
+import re
+import subprocess
+import uuid
 import sys
 
 from jsonschema import Draft202012Validator, ValidationError
@@ -91,6 +95,8 @@ class AuthorSession:
         self.max_steps, self.max_tokens = max_steps, max_tokens
         self.max_context_tokens, self.output, self.checking = max_context_tokens, output, checking
         self.tool_calls, self.generations = [], []
+        self.last_check = None
+        self.last_passage = None
         instructions = client.initialization.get("instructions")
         if not isinstance(instructions, str) or not instructions.strip():
             raise RuntimeError("server did not provide authoring instructions")
@@ -193,6 +199,8 @@ class AuthorSession:
         return "\n".join(lines)
 
     def respond(self, passage):
+        self.last_check = None
+        self.last_passage = passage
         self.messages.append({"role": "user", "content": passage})
         checked, previous_error, repeats = None, None, 0
         pending_candidate = False
@@ -208,6 +216,7 @@ class AuthorSession:
                 if not calls:
                     self.messages.append({"role": "assistant", "content": generated.text})
                     if self.checking:
+                        self.last_check = checked
                         reply = self.check_report(checked)
                     else:
                         reply = generated.text
@@ -266,6 +275,117 @@ class AuthorSession:
         return None
 
 
+class AuthorDecisions:
+    """Host-only author authority. Private responses and identities never reach inference."""
+    def __init__(self, session, binary, installation, author_profile, output=print):
+        self.session, self.binary, self.installation = session, binary, installation
+        self.author_profile, self.output = author_profile, output
+        self.review = None
+        self.publish_key = None
+
+    def action(self, arguments):
+        result = subprocess.run([str(self.binary), "--installation", str(self.installation),
+            "--profile", self.author_profile, "author-writing", self.session.universe],
+            input=json.dumps(arguments), capture_output=True, text=True)
+        if result.returncode:
+            raise RuntimeError(result.stderr.strip() or "Author action failed; retain the original recovery key.")
+        return json.loads(result.stdout)
+
+    def candidate(self):
+        checked = self.session.last_check
+        if not checked or checked.get("clarifications") or not checked.get("candidate_handle"):
+            raise ValueError("Answer the material questions and submit corrected writing first.")
+        return checked["candidate_handle"]
+
+    def show_review(self):
+        if not self.review:
+            raise ValueError("Prepare the author's selected passage first with /review.")
+        for line in self.review.get("summary", []):
+            self.output(line)
+        self.output("Ready for exact approval." if self.review.get("publishable") else "Publication blocked by the engine; correct the writing or explicitly resolve a supported finding.")
+        for finding in self.review.get("validation", {}).get("execution", {}).get("findings", []):
+            self.output(f"Finding {finding['fingerprint']}: {finding.get('message') or finding['outcome']}")
+        for option in self.review.get("acceptance_options", []):
+            self.output(f"Creative acceptance option: {option['fingerprint']} {option['scope']}; requires your explicit reason.")
+        self.output(f"Exact review: {self.review['candidate']['digest']}")
+
+    def handle(self, passage):
+        if not passage.startswith("/"):
+            # A natural-language clarification carries the original author's passage;
+            # both are preserved verbatim for later source review.
+            if self.session.last_check and self.session.last_check.get("clarifications"):
+                passage = self.session.last_passage + "\n\nAuthor clarification:\n" + passage
+            self.review, self.publish_key = None, None
+            return self.session.respond(passage)
+        command, _, rest = passage.partition(" ")
+        if command == "/review":
+            if self.review is None:
+                self.review = self.action({"action":"prepare", "candidate":self.candidate(),
+                    "label":"Author selected passage", "text":self.session.last_passage})
+                self.publish_key = "author-publish:" + uuid.uuid4().hex
+            self.show_review()
+        elif command == "/reject":
+            candidate = self.review["candidate"]["proposal_id"] if self.review else self.candidate()
+            self.action({"action":"reject", "candidate":candidate})
+            self.review, self.publish_key, self.session.last_check = None, None, None
+            self.output("Candidate rejected; no changes published.")
+        elif command == "/accept":
+            if not self.review:
+                raise ValueError("Review the exact current candidate first.")
+            fingerprint, _, rest = rest.partition(" ")
+            scope, _, rationale = rest.partition(" ")
+            if not fingerprint or not scope or not rationale.strip():
+                raise ValueError("Use /accept FINDING RESOURCE_SCOPE your reason; this is separate from approval.")
+            self.review = self.action({"action":"accept", "candidate":self.review["candidate"],
+                "fingerprint":fingerprint,"scope":scope,"rationale":rationale})
+            self.publish_key = "author-publish:" + uuid.uuid4().hex
+            self.show_review()
+        elif command == "/recover":
+            try:
+                arguments = json.loads(base64.urlsafe_b64decode(rest.encode()))
+            except (ValueError, UnicodeError) as error:
+                raise ValueError("Invalid recovery token.") from error
+            if arguments.get("action") != "publish":
+                raise ValueError("Recovery token must identify the original publication.")
+            receipt = self.action(arguments)
+            self.published(receipt, arguments["candidate"])
+            return receipt
+        elif command in {"/approve", "/retry"}:
+            if not self.review or not self.publish_key or not self.review.get("publishable"):
+                raise ValueError("No publishable exact review is awaiting author approval.")
+            arguments = {"action":"publish", "candidate":self.review["candidate"],
+                "validation_run":self.review["validation"]["execution"]["run_id"],
+                "idempotency_key":self.publish_key}
+            token = base64.urlsafe_b64encode(json.dumps(arguments).encode()).decode()
+            self.output("If interrupted, recover the original operation with /recover " + token)
+            receipt = self.action(arguments)
+            self.published(receipt, arguments["candidate"])
+            return receipt
+        else:
+            raise ValueError("Commands: /review, /approve, /retry, /recover TOKEN, /reject, /accept FINDING RESOURCE_SCOPE reason, /quit.")
+
+    def published(self, receipt, candidate):
+        result = receipt.get("result", {})
+        for key, prefix in (("operation_id", "op"), ("proposal_id", "prp"), ("revision", "rev")):
+            if not isinstance(result.get(key), str) or not re.fullmatch(prefix + r"_[0-9a-f]{24}", result[key]):
+                raise RuntimeError("Publication outcome unknown: no valid commit receipt. Retain the original recovery token.")
+        if result["proposal_id"] != candidate["proposal_id"]:
+            raise RuntimeError("Publication receipt does not match the approved candidate.")
+        self.session.messages = self.session.messages[:2]
+        self.review, self.publish_key, self.session.last_check = None, None, None
+        self.output("Author-approved changes published.")
+        frame = receipt["frame"]
+        fresh = self.session.dispatch("universe_open_context", {"universe":self.session.universe,
+            "continuity_id":frame["continuity"], "revision":{"kind":"head"},
+            "represented_context":frame["context"]["record"],"temporal_query":{"kind":"timeless"},
+            "temporal_systems":[],"perspective":"author"})
+        if fresh.get("isError"):
+            raise RuntimeError("Changes published, but fresh research context is unavailable. Retrieve current canon before continuing.")
+        self.session.messages.append({"role":"user", "content":
+            "Publication returned a real receipt. Fresh public research context: " + json.dumps(fresh) +
+            ". Retrieve relevant facts from this current context before checking further writing."})
+
+
 def passages(stream):
     """A blank line submits multiline input; /quit between passages exits."""
     lines = []
@@ -315,10 +435,14 @@ def main():
         model = OfflineMLX(args.model)
         session = AuthorSession(model, client, args.universe, max_steps=args.max_steps,
                                 max_tokens=args.max_tokens, max_context_tokens=args.max_context_tokens)
-        print("Enter writing or a research request. Blank line submits; /quit exits. Writing is checked automatically; changes are proposed, not published.", flush=True)
+        decisions = AuthorDecisions(session, args.bin_dir.resolve() / "universe", args.installation.resolve(), args.author_profile)
+        print("Enter writing or a research request. Blank line submits; /quit exits. Writing is checked automatically. /review prepares exact author source; /approve publishes only that review; /reject discards; /retry recovers an interrupted publication.", flush=True)
         for passage in passages(sys.stdin):
             print("Checking writing…", flush=True)
-            session.respond(passage)
+            try:
+                decisions.handle(passage)
+            except (ValueError, RuntimeError) as error:
+                print(f"Author action stopped: {error}", file=sys.stderr)
     except (OSError, RuntimeError, ValueError, KeyboardInterrupt) as error:
         print(f"Session stopped; research incomplete: {error}", file=sys.stderr)
         return 1

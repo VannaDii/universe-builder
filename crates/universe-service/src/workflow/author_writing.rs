@@ -1,0 +1,629 @@
+//! Private author decisions over existing proposal, provenance and commit workflows.
+use super::*;
+use std::collections::BTreeMap;
+use universe_protocol::installation::AuthorWritingAction;
+
+impl Workflow<'_> {
+    pub fn author_writing(
+        &mut self,
+        universe: Selector,
+        action: AuthorWritingAction,
+    ) -> anyhow::Result<Value> {
+        if !self.principal.author {
+            return Err(denied());
+        }
+        match action {
+            AuthorWritingAction::Publish {
+                candidate,
+                validation_run,
+                idempotency_key,
+            } => {
+                let p = self.proposal(&candidate)?;
+                let args = json!({"universe":universe,"proposal_reference":candidate,"expected_base_revision":p.proposal.base_frame.revision,"validation_run":validation_run,"idempotency_key":idempotency_key});
+                // A completed original receipt survives head changes; never approve a new operation on retry.
+                let key = self.operation_key("commit", &idempotency_key);
+                if self.kernel.workflow_get(&key)?.is_none() {
+                    self.approve(&candidate, &validation_run)?;
+                }
+                self.execute(Request::from_tool("universe_commit", args)?)
+            }
+            AuthorWritingAction::Reject { candidate } => {
+                let key = format!("writing-reject:{}", hash(&candidate));
+                let receipt = self.operation_key("propose", &key);
+                if self.kernel.workflow_get(&receipt)?.is_some() {
+                    return Ok(serde_json::to_value(
+                        self.operation(&receipt)?
+                            .status
+                            .proposal
+                            .ok_or_else(denied)?,
+                    )?);
+                }
+                let keys = self
+                    .kernel
+                    .workflow_keys(&format!("proposal:{candidate}:"))?;
+                let p: StoredProposal = self.load(keys.last().ok_or_else(denied)?)?;
+                let candidate = ProposalRef {
+                    proposal_id: p.proposal.proposal_id.clone(),
+                    version: p.proposal.version,
+                    digest: p.proposal.digest.clone(),
+                };
+                let p = self.proposal(&candidate)?;
+                self.writing_author_current(&p.proposal)?;
+                let ctx = self.writing_author_context(&universe, &p.proposal)?;
+                let result = self.execute(Request::from_tool("universe_propose", json!({"action":"withdraw","universe":universe,"context_id":ctx,"proposal_reference":candidate,"idempotency_key":key}))?)?;
+                Ok(result["result"].clone())
+            }
+            AuthorWritingAction::Prepare {
+                candidate,
+                label,
+                text,
+            } => {
+                if text.trim().is_empty() {
+                    return Err(ProtocolError::invalid_argument(
+                        "text",
+                        "author source must not be empty",
+                    )
+                    .into());
+                }
+                let key = format!("writing-prepare:{}", hash(&(&candidate, &label, &text)));
+                let receipt = self.operation_key("propose", &key);
+                if self.kernel.workflow_get(&receipt)?.is_some() {
+                    let p = self
+                        .operation(&receipt)?
+                        .status
+                        .proposal
+                        .ok_or_else(denied)?;
+                    return self.writing_author_review(&universe, &p);
+                }
+                let keys = self
+                    .kernel
+                    .workflow_keys(&format!("proposal:{candidate}:"))?;
+                let stored: StoredProposal = self.load(keys.last().ok_or_else(denied)?)?;
+                let candidate = ProposalRef {
+                    proposal_id: stored.proposal.proposal_id.clone(),
+                    version: stored.proposal.version,
+                    digest: stored.proposal.digest.clone(),
+                };
+                let p = self.proposal(&candidate)?;
+                self.writing_author_current(&p.proposal)?;
+                if !matches!(p.proposal.submission, Submission::Draft) {
+                    return Err(ProtocolError::ApprovalStale.into());
+                }
+                if p.proposal.operations.iter().any(|op| {
+                    !matches!(
+                        op,
+                        DomainOperation::IntroduceInstance { .. }
+                            | DomainOperation::DefineProperty { .. }
+                            | DomainOperation::AssertProposition { .. }
+                    )
+                }) {
+                    return Err(ProtocolError::PolicyDenied{message:"Source preparation accepts agent factual deltas only; creative acceptance requires a separate explicit author decision.".into()}.into());
+                }
+                let mut ops = p.proposal.operations.clone();
+                // Exact staged bytes are author input; no model-authored source or approval.
+                let staged = self.stage_source(label, text.clone())?;
+                let mut source_ops: Vec<DomainOperation> = field(&staged, "operations")?;
+                let source_version = source_ops
+                    .iter()
+                    .find_map(|op| match op {
+                        DomainOperation::RecordNarrativeReference {
+                            client_ref,
+                            payload: Payload::SourceVersion(_),
+                            ..
+                        } => RecordId::parse(client_ref).ok(),
+                        _ => None,
+                    })
+                    .ok_or_else(denied)?;
+                let version = RecordVersionId::generate(&mut rand::rng());
+                let anchor = RecordId::generate(&mut rand::rng());
+                source_ops.push(DomainOperation::AddSourceAnchor {
+                    client_ref: anchor.to_string(),
+                    record: Anchor {
+                        source_version: universe_domain::value::VersionRef {
+                            universe: Some(self.kernel.universe().clone()),
+                            record: source_version.clone(),
+                            version: version.clone(),
+                        },
+                        locator: AnchorLocator::ByteRange {
+                            start: 0,
+                            end: text.len() as u64,
+                        },
+                        excerpt_digest: hex::encode(Sha256::digest(text.as_bytes())),
+                        excerpt: text,
+                        context: Some(p.proposal.base_frame.context.clone()),
+                    },
+                });
+                let basis = universe_domain::scope::EvidenceBasis::SourceAnchor {
+                    anchor: RecordRef::new(self.kernel.universe().clone(), anchor),
+                    verified: true,
+                };
+                for op in &mut ops {
+                    match op {
+                        DomainOperation::AssertProposition { assertion, .. }
+                        | DomainOperation::RecordRelation { assertion, .. } => {
+                            assertion.basis = basis.clone()
+                        }
+                        _ => (),
+                    }
+                }
+                source_ops.extend(ops);
+                let ctx = self.writing_author_context(&universe, &p.proposal)?;
+                let request = Request::from_tool(
+                    "universe_propose",
+                    json!({"action":"revise","universe":universe,"context_id":ctx,"proposal_reference":candidate,"operations":source_ops,"submission":"submitted","rationale":"Author selected exact source passage for factual review; publication still requires separate exact approval.","idempotency_key":key}),
+                )?;
+                let proposed =
+                    self.execute_allocated(request, &BTreeMap::from([(source_version, version)]))?;
+                let p: Proposal = field(&proposed, "result")?;
+                self.writing_author_review(&universe, &p)
+            }
+            AuthorWritingAction::Accept {
+                candidate,
+                fingerprint,
+                scope,
+                rationale,
+            } => {
+                if rationale.trim().is_empty() {
+                    return Err(ProtocolError::invalid_argument(
+                        "rationale",
+                        "author acceptance requires a reason",
+                    )
+                    .into());
+                }
+                let key = format!(
+                    "writing-accept:{}",
+                    hash(&(&candidate, &fingerprint, &scope, &rationale))
+                );
+                let receipt = self.operation_key("propose", &key);
+                if self.kernel.workflow_get(&receipt)?.is_some() {
+                    let p = self
+                        .operation(&receipt)?
+                        .status
+                        .proposal
+                        .ok_or_else(denied)?;
+                    return self.writing_author_review(&universe, &p);
+                }
+                let p = self.proposal(&candidate)?;
+                self.writing_author_current(&p.proposal)?;
+                let checked = self.check(&p)?;
+                // This is the existing opt-in resource resolution route, not a general bypass.
+                let records = self
+                    .kernel
+                    .preview(&self.input(&p, "acceptance-review".into())?)?;
+                let gaps = crate::resources::assess(&records, &p.proposal.base_frame)?;
+                let gap = gaps.iter().find(|g| g.fingerprint == fingerprint && g.acceptance.is_none() && scope == format!("resource:{}",g.proposition)).ok_or_else(|| ProtocolError::invalid_argument("scope", "select an exact current unresolved resource finding and its resource scope"))?;
+                let finding = checked
+                    .validation
+                    .findings
+                    .iter()
+                    .find(|f| f.fingerprint == gap.fingerprint)
+                    .ok_or_else(denied)?;
+                let mut operations = p.proposal.operations.clone();
+                operations.push(DomainOperation::RecordIssueDecision {
+                    client_ref: RecordId::generate(&mut rand::rng()).to_string(),
+                    record: IssueDecision {
+                        fingerprints: vec![finding.fingerprint.clone()],
+                        mode: IssueDecisionMode::Accept,
+                        scope: scope.clone(),
+                        rationale: rationale.clone(),
+                        principal: PrincipalId::parse(
+                            &self.principal.id.as_str().replacen("prf_", "prn_", 1),
+                        )?,
+                    },
+                });
+                let ctx = self.writing_author_context(&universe, &p.proposal)?;
+                // Existing source versions must retain their immutable identities in the revised candidate.
+                let versions = p
+                    .changes
+                    .iter()
+                    .filter_map(|c| c.next.as_ref())
+                    .filter(|r| matches!(r.payload, Payload::SourceVersion(_)))
+                    .map(|r| (r.identity.record_id.clone(), r.record_version_id.clone()))
+                    .collect();
+                let proposed = self.execute_allocated(Request::from_tool("universe_propose", json!({"action":"revise","universe":universe,"context_id":ctx,"proposal_reference":candidate,"operations":operations,"submission":"submitted","rationale":rationale,"idempotency_key":key}))?, &versions)?;
+                self.writing_author_review(&universe, &field(&proposed, "result")?)
+            }
+        }
+    }
+    fn writing_author_current(&self, p: &Proposal) -> anyhow::Result<()> {
+        if !self.latest(p)?
+            || p.withdrawn
+            || self.kernel.head(&p.base_frame.continuity)? != p.base_frame.revision
+        {
+            return Err(ProtocolError::ApprovalStale.into());
+        }
+        Ok(())
+    }
+    fn writing_author_context(
+        &mut self,
+        universe: &Selector,
+        p: &Proposal,
+    ) -> anyhow::Result<Value> {
+        let opened = self.execute(Request::from_tool("universe_open_context", json!({"universe":universe,"continuity_id":p.base_frame.continuity,"revision":{"kind":"exact","revision_id":p.base_frame.revision},"represented_context":p.base_frame.context.record,"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"}))?)?;
+        Ok(opened["result"]["context_id"].clone())
+    }
+    fn writing_author_review(
+        &mut self,
+        universe: &Selector,
+        p: &Proposal,
+    ) -> anyhow::Result<Value> {
+        self.writing_author_current(p)?;
+        let reference = ProposalRef {
+            proposal_id: p.proposal_id.clone(),
+            version: p.version,
+            digest: p.digest.clone(),
+        };
+        let ctx = self.writing_author_context(universe, p)?;
+        let validation = self.execute(Request::from_tool("universe_validate", json!({"mode":"proposal","universe":universe,"context_id":ctx,"proposal_reference":reference,"check_scope":"universe"}))?)?;
+        let impact = self.execute(Request::from_tool("universe_get_impact", json!({"mode":"proposal","universe":universe,"context_id":ctx,"proposal_reference":reference,"scope":"universe","byte_budget":65536}))?)?;
+        let checked: Checked = self.load(&format!(
+            "validation:{}",
+            validation["result"]["execution"]["run_id"]
+                .as_str()
+                .ok_or_else(denied)?
+        ))?;
+        let stored = self.proposal(&reference)?;
+        let mut records = self
+            .kernel
+            .records(&p.base_frame.continuity, &p.base_frame.revision)?;
+        for change in &stored.changes {
+            records.retain(|r| r.identity.record_id != change.record_id);
+            records.extend(change.next.clone());
+        }
+        let label = |id: &RecordId| {
+            records
+                .iter()
+                .find(|r| &r.identity.record_id == id)
+                .and_then(|r| match &r.payload {
+                    Payload::Entity(e) => e
+                        .labels
+                        .values()
+                        .next()
+                        .cloned()
+                        .or_else(|| e.names.first().map(|n| n.text.clone())),
+                    Payload::Property(d) => Some(d.key.clone()),
+                    _ => None,
+                })
+        };
+        let mut summary = vec![];
+        for row in stored.changes.iter().filter_map(|c| c.next.as_ref()) {
+            match &row.payload {
+                Payload::Entity(_) => summary.push(format!(
+                    "Proposed identity: {}",
+                    label(&row.identity.record_id)
+                        .unwrap_or_else(|| row.identity.record_id.to_string())
+                )),
+                Payload::Assertion(a) => {
+                    if let Some(proposition) = records
+                        .iter()
+                        .find(|r| r.identity.record_id == a.proposition.record)
+                        .and_then(|r| {
+                            if let Payload::Proposition(p) = &r.payload {
+                                Some(p)
+                            } else {
+                                None
+                            }
+                        })
+                    {
+                        summary.push(format!(
+                            "Proposed fact: {} — {} = {}; polarity {:?}; validity {}; scope {}",
+                            label(&proposition.subject.record)
+                                .unwrap_or_else(|| proposition.subject.record.to_string()),
+                            label(&proposition.predicate.record)
+                                .unwrap_or_else(|| proposition.predicate.record.to_string()),
+                            proposition
+                                .value
+                                .as_ref()
+                                .and_then(|v| writing::plain_value(v, &label))
+                                .unwrap_or(Value::Null),
+                            a.polarity,
+                            writing::plain_time(&serde_json::to_value(&a.validity)?, &label),
+                            serde_json::to_value(&a.scope.applicability)?
+                        ));
+                    }
+                }
+                Payload::Anchor(a) => summary.push(format!(
+                    "Exact author source: {} UTF-8 bytes; digest {}",
+                    a.excerpt.len(),
+                    a.excerpt_digest
+                )),
+                Payload::IssueDecision(d) => summary.push(format!(
+                    "Author creative acceptance: {}; reason {}",
+                    d.scope, d.rationale
+                )),
+                _ => (),
+            }
+        }
+        Ok(
+            json!({"acceptance_options":crate::resources::assess(&records,&p.base_frame)?.iter().filter(|g|g.acceptance.is_none()).map(|g|json!({"fingerprint":g.fingerprint,"scope":format!("resource:{}",g.proposition)})).collect::<Vec<_>>(),"summary":summary,"candidate":reference,"validation":validation["result"],"impact":impact["result"],"publishable":checked.admissible && impact["delivery"]["complete"] == true && impact["result"]["coverage"] == "complete","review":self.review(&reference)?}),
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn author_source_exact_review_publication_and_recovery() {
+        let dir = tempfile::tempdir().unwrap();
+        let u = UniverseId::parse("unv_000000000000000000000001").unwrap();
+        let c = ContinuityId::parse("cont_000000000000000000000001").unwrap();
+        let principal = PrincipalId::parse("prn_000000000000000000000001").unwrap();
+        let profile = ProfileId::parse("prf_000000000000000000000001").unwrap();
+        let context = RecordId::parse("rec_000000000000000000000001").unwrap();
+        let mut kernel = Kernel::create(
+            &dir.path().join("world.sqlite"),
+            u.clone(),
+            "Writing",
+            c.clone(),
+            &principal,
+        )
+        .unwrap();
+        let payload: Payload = serde_json::from_value(json!({"record_kind":"represented_context","universe":u,"kind":{"kind":"objective"},"labels":{}})).unwrap();
+        let row = RecordVersion::build(
+            RecordVersionId::parse("ver_000000000000000000000001").unwrap(),
+            RecordIdentity::new(u.clone(), context.clone(), payload.kind()),
+            payload,
+        )
+        .unwrap();
+        let revision = kernel
+            .commit(&CommitInput {
+                universe: u,
+                continuity: c.clone(),
+                expected_head: kernel.head(&c).unwrap(),
+                principal,
+                decision: "seed".into(),
+                reason: "context".into(),
+                idempotency_key: "seed".into(),
+                changes: vec![Assignment {
+                    record_id: context.clone(),
+                    expected: None,
+                    next: Some(row),
+                }],
+            })
+            .unwrap();
+        let mut workflow = Workflow {
+            kernel: &mut kernel,
+            authority: None,
+            principal: Principal {
+                id: profile.clone(),
+                author: false,
+            },
+            approval_author: profile,
+            scope: None,
+            permissions: (true, false, true),
+            name: "Writing".into(),
+        };
+        let opened=workflow.execute(Request::from_tool("universe_open_context",json!({"universe":"Writing","continuity_id":c,"revision":{"kind":"head"},"represented_context":context,"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"})).unwrap()).unwrap();
+        let args = json!({"universe":"Writing","context_id":opened["result"]["context_id"],"changes":[{"name":"Mara","introduce":true,"facts":[{"property":"age","value":30}]}]});
+
+        let checked = workflow
+            .execute(Request::from_tool("universe_check_changes", args).unwrap())
+            .unwrap();
+        let candidate: ProposalRef = serde_json::from_value(
+            checked["result"]["validation"]["submitted_input"]["proposal"].clone(),
+        )
+        .unwrap();
+        let prepare = AuthorWritingAction::Prepare {
+            candidate: candidate.proposal_id.clone(),
+            label: "Selected writing".into(),
+            text: "Mara was thirty years old. é".into(),
+        };
+        assert!(workflow
+            .author_writing(Selector("Writing".into()), prepare.clone())
+            .is_err());
+        workflow.principal.author = true;
+        workflow.permissions = (true, true, true);
+        let review = workflow
+            .author_writing(Selector("Writing".into()), prepare.clone())
+            .unwrap();
+        assert_eq!(workflow.kernel.head(&c).unwrap(), revision);
+        assert_eq!(review["publishable"], true, "{review}");
+        let prepared: ProposalRef = field(&review, "candidate").unwrap();
+        let p = workflow.proposal(&prepared).unwrap();
+        let anchor = p
+            .changes
+            .iter()
+            .filter_map(|c| c.next.as_ref())
+            .find_map(|r| {
+                if let Payload::Anchor(a) = &r.payload {
+                    Some(a)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        let source = p
+            .changes
+            .iter()
+            .filter_map(|c| c.next.as_ref())
+            .find(|r| r.identity.record_id == anchor.source_version.record)
+            .unwrap();
+        assert_eq!(anchor.source_version.version, source.record_version_id);
+        assert_eq!(anchor.excerpt, "Mara was thirty years old. é");
+        assert_eq!(
+            anchor.excerpt_digest,
+            hex::encode(Sha256::digest(anchor.excerpt.as_bytes()))
+        );
+        assert_eq!(
+            workflow
+                .author_writing(Selector("Writing".into()), prepare)
+                .unwrap()["candidate"],
+            review["candidate"]
+        );
+        assert!(workflow
+            .author_writing(
+                Selector("Writing".into()),
+                AuthorWritingAction::Prepare {
+                    candidate: candidate.proposal_id.clone(),
+                    label: "Selected writing".into(),
+                    text: "Different author bytes".into()
+                }
+            )
+            .is_err());
+        let run: ValidationRunId =
+            serde_json::from_value(review["validation"]["execution"]["run_id"].clone()).unwrap();
+        let commit = json!({"universe":"Writing","proposal_reference":prepared,"expected_base_revision":revision,"validation_run":run,"idempotency_key":"author-commit"});
+        assert!(workflow
+            .execute(Request::from_tool("universe_commit", commit).unwrap())
+            .is_err());
+        let Payload::SourceVersion(source_payload) = &source.payload else {
+            panic!("source version")
+        };
+        let source_key = format!("source:{}", source_payload.digest);
+        assert!(workflow.save(source_key, &"altered source bytes").is_err());
+        assert_eq!(workflow.kernel.head(&c).unwrap(), revision);
+        let publish = AuthorWritingAction::Publish {
+            candidate: prepared.clone(),
+            validation_run: run,
+            idempotency_key: "author-commit".into(),
+        };
+        let receipt = workflow
+            .author_writing(Selector("Writing".into()), publish.clone())
+            .unwrap();
+        assert_ne!(workflow.kernel.head(&c).unwrap(), revision);
+        assert_eq!(
+            workflow
+                .author_writing(Selector("Writing".into()), publish)
+                .unwrap(),
+            receipt
+        );
+        assert!(workflow
+            .author_writing(
+                Selector("Writing".into()),
+                AuthorWritingAction::Reject {
+                    candidate: prepared.proposal_id
+                }
+            )
+            .is_err());
+
+        let fresh=workflow.execute(Request::from_tool("universe_open_context",json!({"universe":"Writing","continuity_id":c,"revision":{"kind":"head"},"represented_context":context,"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"})).unwrap()).unwrap();
+        let facts=workflow.execute(Request::from_tool("universe_read_facts",json!({"universe":"Writing","context_id":fresh["result"]["context_id"],"object_names":["Mara"]})).unwrap()).unwrap();
+        assert!(facts["result"]["objects"][0]["facts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["property"] == "age" && f["value"]["number"] == "30"));
+        assert_eq!(facts["frame"]["revision"], receipt["result"]["revision"]);
+        let rr = |n: u64| json!({"universe":workflow.kernel.universe(),"record":format!("rec_{n:024x}")});
+        let mut ops = vec![
+            json!({"kind":"define_calendar","client_ref":format!("rec_{:024x}",6),"record":{"namespace":"story","key":"days","labels":{},"unitStructure":{},"conversions":[]}}),
+            json!({"kind":"create_entity","client_ref":format!("rec_{:024x}",3),"record":{"names":[],"classificationResolution":"unclassified","worldAssociations":[],"labels":{"en":"Reserve"},"metadata":{}}}),
+            json!({"kind":"define_property","client_ref":format!("rec_{:024x}",4),"record":{"namespace":"resource","key":"rounds","labels":{},"subjectTypes":[],"value":{"kind":"integer"},"multiplicity":"single","persistence":"explicit_interval","exclusive":false,"symmetric":false,"transitive":false}}),
+            json!({"kind":"define_rule","client_ref":format!("rec_{:024x}",9),"record":{"namespace":"resource","key":"accounting","labels":{},"kind":"physical_constraint","commitPolicy":"block_unless_exception","applicability":{"kind":"universe_wide"},"subjectTypes":[],"targetPredicates":["resource:rounds"],"expression":{"kind":"lit","value":true},"capabilities":["resources.accounting.v1"],"executable":true,"validity":{"kind":"unspecified"}}}),
+        ];
+        for (n, value, start, end) in [(10, 1, 0, 5), (12, 2, 5, 20)] {
+            ops.push(json!({"kind":"assert_proposition","client_ref":format!("rec_{n:024x}"),"proposition":{"subject":rr(3),"predicate":rr(4),"value":{"kind":"integer","digits":value.to_string()},"quantification":"particular","context":rr(1)},"assertion":{"attributeMode":"instance","proposition":rr(n),"polarity":"support","scope":{"context":rr(1),"applicability":{"kind":"universe_wide"}},"validity":{"kind":"calendar_interval","calendar":format!("cal_{:024x}",6),"start":{"kind":"exact","value":start.to_string()},"end":{"kind":"exact","value":end.to_string()}},"persistence":"explicit_interval","precision":"exact","basis":{"kind":"author_decision","note":"Author stock history"}}}));
+        }
+        // Authored accounting definitions are fixture canon, independent of passage admission.
+        let definitions: Vec<DomainOperation> = ops
+            .drain(..4)
+            .map(|v| serde_json::from_value(v).unwrap())
+            .collect();
+        let head = workflow.kernel.head(&c).unwrap();
+        let base = workflow.kernel.records(&c, &head).unwrap();
+        workflow
+            .kernel
+            .commit(&CommitInput {
+                universe: workflow.kernel.universe().clone(),
+                continuity: c.clone(),
+                expected_head: head.clone(),
+                principal: PrincipalId::parse("prn_000000000000000000000001").unwrap(),
+                decision: "authored stock definitions".into(),
+                reason: "Fixture author declared resource accounting".into(),
+                idempotency_key: "stock-definitions".into(),
+                changes: operations::compile(
+                    workflow.kernel.universe(),
+                    &head,
+                    &base,
+                    &definitions,
+                )
+                .unwrap(),
+            })
+            .unwrap();
+        let fresh=workflow.execute(Request::from_tool("universe_open_context",json!({"universe":"Writing","continuity_id":c,"revision":{"kind":"head"},"represented_context":context,"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"})).unwrap()).unwrap();
+        workflow.principal.author = false;
+        let forbidden=workflow.execute(Request::from_tool("universe_propose",json!({"action":"create","universe":"Writing","context_id":fresh["result"]["context_id"],"operations":[{"kind":"record_issue_decision","client_ref":format!("rec_{:024x}",99),"record":{"fingerprints":["forged-fingerprint"],"mode":"accept","scope":"resource:forged","rationale":"Agent attempted acceptance","principal":"prn_000000000000000000000001"}}],"submission":"draft","rationale":"Raw advanced operation","idempotency_key":"forbidden-writing-operation"})).unwrap()).unwrap();
+        let forbidden: Proposal = field(&forbidden, "result").unwrap();
+        workflow.principal.author = true;
+        let keys_before = workflow.kernel.workflow_keys("").unwrap();
+        assert!(workflow
+            .author_writing(
+                Selector("Writing".into()),
+                AuthorWritingAction::Prepare {
+                    candidate: forbidden.proposal_id,
+                    label: "Forbidden preparation".into(),
+                    text: "Author prose".into()
+                }
+            )
+            .is_err());
+        assert_eq!(workflow.kernel.workflow_keys("").unwrap(), keys_before);
+        let stock=workflow.execute(Request::from_tool("universe_propose",json!({"action":"create","universe":"Writing","context_id":fresh["result"]["context_id"],"operations":ops,"submission":"draft","rationale":"Authored stock history","idempotency_key":"stock"})).unwrap()).unwrap();
+        let stock: Proposal = field(&stock, "result").unwrap();
+        let review = workflow
+            .author_writing(
+                Selector("Writing".into()),
+                AuthorWritingAction::Prepare {
+                    candidate: stock.proposal_id,
+                    label: "Stock passage".into(),
+                    text: "The reserve had one round earlier and two rounds later.".into(),
+                },
+            )
+            .unwrap();
+        assert_eq!(review["publishable"], false);
+        let candidate: ProposalRef = field(&review, "candidate").unwrap();
+        let option = &review["acceptance_options"][0];
+        let acceptance = AuthorWritingAction::Accept {
+            candidate: candidate.clone(),
+            fingerprint: field(option, "fingerprint").unwrap(),
+            scope: field(option, "scope").unwrap(),
+            rationale: "Author accepts the unexplained arrival for this reserve.".into(),
+        };
+        let mut wrong = acceptance.clone();
+        if let AuthorWritingAction::Accept { scope, .. } = &mut wrong {
+            *scope = "resource:wrong".into();
+        }
+        assert!(workflow
+            .author_writing(Selector("Writing".into()), wrong)
+            .is_err());
+        let accepted = workflow
+            .author_writing(Selector("Writing".into()), acceptance.clone())
+            .unwrap();
+        assert_eq!(accepted["publishable"], true, "{accepted}");
+        assert_ne!(accepted["candidate"], review["candidate"]);
+        assert_eq!(
+            workflow
+                .author_writing(Selector("Writing".into()), acceptance)
+                .unwrap()["candidate"],
+            accepted["candidate"]
+        );
+        let accepted: ProposalRef = field(&accepted, "candidate").unwrap();
+        let old_run: ValidationRunId =
+            serde_json::from_value(review["validation"]["execution"]["run_id"].clone()).unwrap();
+        assert!(workflow
+            .author_writing(
+                Selector("Writing".into()),
+                AuthorWritingAction::Publish {
+                    candidate: accepted.clone(),
+                    validation_run: old_run,
+                    idempotency_key: "stale-stock".into()
+                }
+            )
+            .is_err());
+        let before_rejection = workflow.kernel.head(&c).unwrap();
+        let rejection = AuthorWritingAction::Reject {
+            candidate: accepted.proposal_id.clone(),
+        };
+        let rejected = workflow
+            .author_writing(Selector("Writing".into()), rejection.clone())
+            .unwrap();
+        assert_eq!(rejected["withdrawn"], true);
+        assert_eq!(
+            workflow
+                .author_writing(Selector("Writing".into()), rejection)
+                .unwrap(),
+            rejected
+        );
+        assert_eq!(workflow.kernel.head(&c).unwrap(), before_rejection);
+    }
+}

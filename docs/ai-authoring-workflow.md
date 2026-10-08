@@ -277,6 +277,27 @@ and 32,768 context tokens including the next generation. Configure them with
 responses stop the passage check promptly. Limits and transport errors
 leave checking incomplete; a context limit requires a fresh session.
 
+The local session also accepts private author commands. `/review` stages the exact
+submitted passage (including any author clarification), binds its UTF-8 source
+anchor to the factual candidate, and shows the actual compiled changes and fresh
+engine findings. `/approve` explicitly approves and publishes only that exact
+review. `/reject` withdraws the candidate without changing canon. Questions hold
+the entire delta; answering in ordinary language triggers a fresh corrected check.
+
+`/accept FINDING RESOURCE_SCOPE reason` records separate creative acceptance of an
+exact current resource-accounting finding. The engine preserves its unexplained
+arrival and reruns validation and review; acceptance does not waive structural
+constraints or grant publication approval. Other unsupported issues remain blocked.
+
+If publication is interrupted, `/retry` uses the same operation key. The printed
+`/recover TOKEN` command also recovers that original operation after session
+restart; it carries exact review bindings, not credentials. Successful publication
+clears old pinned research, requiring fresh canon retrieval before continuation.
+Author commands use `universe author-writing UNIVERSE` with a private JSON decision
+on standard input. These actions are never exposed as model tools; author credentials
+remain outside inference. No conversation transcript is saved.
+
+
 ## Local MLX verification
 
 The opt-in evaluator uses an already installed model with MLX-LM on Metal. It

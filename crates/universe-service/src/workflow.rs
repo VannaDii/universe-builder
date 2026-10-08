@@ -14,6 +14,7 @@ use universe_domain::{
 use universe_protocol::{request::*, response::*, ProtocolError, Request};
 use universe_store::kernel::{Assignment, CommitInput, Kernel};
 const EVALUATOR: &str = "finite-policy-v15-writer-constraint-diagnostics";
+mod author_writing;
 mod writing;
 use universe_protocol::validation_scope::*;
 use validation_binding::ValidationCapture;
@@ -1476,6 +1477,13 @@ impl Workflow<'_> {
         Ok(json!({"approved":r,"validation_run":run}))
     }
     pub fn execute(&mut self, request: Request) -> anyhow::Result<Value> {
+        self.execute_allocated(request, &std::collections::BTreeMap::new())
+    }
+    fn execute_allocated(
+        &mut self,
+        request: Request,
+        versions: &std::collections::BTreeMap<RecordId, RecordVersionId>,
+    ) -> anyhow::Result<Value> {
         request.validate()?;
         let raw = serde_json::to_value(&request)?;
         let args = &raw["args"];
@@ -2225,11 +2233,12 @@ impl Workflow<'_> {
                     };
                     let mut p = if matches!(action, "create" | "revise") {
                         let operations: Vec<DomainOperation> = field(args, "operations")?;
-                        let changes = operations::compile(
+                        let changes = operations::compile_allocated(
                             self.kernel.universe(),
                             &ctx.frame.revision,
                             &base,
                             &operations,
+                            versions,
                         )?;
                         let footprint = operations::footprint(&base, &changes);
                         let id = previous

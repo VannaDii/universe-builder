@@ -149,6 +149,10 @@ pub enum EngineRequest {
         context_id: ContextId,
         asset: RecordId,
     },
+    AuthorWriting {
+        universe: crate::request::Selector,
+        action: AuthorWritingAction,
+    },
     StageSource {
         universe: crate::request::Selector,
         label: String,
@@ -227,4 +231,29 @@ pub struct EngineCall {
 pub struct EngineReply {
     pub id: u64,
     pub result: Result<serde_json::Value, crate::ProtocolError>,
+}
+
+/// Private author decisions; never exposed as model tools.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
+pub enum AuthorWritingAction {
+    Prepare {
+        candidate: ProposalId,
+        label: String,
+        text: String,
+    },
+    Reject {
+        candidate: ProposalId,
+    },
+    Publish {
+        candidate: crate::request::ProposalRef,
+        validation_run: ValidationRunId,
+        idempotency_key: String,
+    },
+    Accept {
+        candidate: crate::request::ProposalRef,
+        fingerprint: FindingFingerprint,
+        scope: String,
+        rationale: String,
+    },
 }
