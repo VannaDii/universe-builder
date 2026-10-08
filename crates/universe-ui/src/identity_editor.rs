@@ -3,23 +3,23 @@ use dioxus::prelude::*;
 use serde_json::{json, Value};
 use universe_domain::{ids::*, records::DomainOperation, Frame};
 #[derive(Clone, Default)]
-struct Form {
-    kind: String,
-    name: String,
-    classification: String,
-    work_kind: String,
-    worlds: Vec<String>,
-    role: String,
-    work: String,
-    order: String,
-    binding: String,
+pub(super) struct Form {
+    pub(super) kind: String,
+    pub(super) name: String,
+    pub(super) classification: String,
+    pub(super) work_kind: String,
+    pub(super) worlds: Vec<String>,
+    pub(super) role: String,
+    pub(super) work: String,
+    pub(super) order: String,
+    pub(super) binding: String,
 }
 fn checked(value: Value) -> Result<Value, String> {
     let operation: DomainOperation = serde_json::from_value(value).map_err(|e| e.to_string())?;
     serde_json::to_value(operation).map_err(|e| e.to_string())
 }
 impl Form {
-    fn create(&self, frame: &Frame) -> Result<Value, String> {
+    pub(super) fn create(&self, frame: &Frame) -> Result<Value, String> {
         if self.name.trim().is_empty() {
             return Err("Enter a name.".into());
         }

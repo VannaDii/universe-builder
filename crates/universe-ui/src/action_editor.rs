@@ -89,28 +89,28 @@ impl FixedValue {
     }
 }
 #[derive(Clone, Default, PartialEq)]
-struct SlotForm {
-    slot: String,
-    order: String,
-    presence: String,
-    role: String,
-    predicate: String,
-    condition: String,
-    condition_role: String,
-    condition_property: String,
-    condition_value: FixedValue,
-    change: String,
-    polarity: String,
-    value: FixedValue,
-    delta: String,
-    minimum: String,
-    maximum: String,
-    unit: String,
-    lifetime: String,
-    ticks: String,
+pub(super) struct SlotForm {
+    pub(super) slot: String,
+    pub(super) order: String,
+    pub(super) presence: String,
+    pub(super) role: String,
+    pub(super) predicate: String,
+    pub(super) condition: String,
+    pub(super) condition_role: String,
+    pub(super) condition_property: String,
+    pub(super) condition_value: FixedValue,
+    pub(super) change: String,
+    pub(super) polarity: String,
+    pub(super) value: FixedValue,
+    pub(super) delta: String,
+    pub(super) minimum: String,
+    pub(super) maximum: String,
+    pub(super) unit: String,
+    pub(super) lifetime: String,
+    pub(super) ticks: String,
 }
 impl SlotForm {
-    fn build(&self, frame: &Frame, choices: &[Value]) -> Result<Value, String> {
+    pub(super) fn build(&self, frame: &Frame, choices: &[Value]) -> Result<Value, String> {
         let target = property(choices, &self.predicate)?;
         let condition = match self.condition.as_str() {
             "always" => json!({"kind":"always"}),
@@ -154,18 +154,18 @@ impl SlotForm {
     }
 }
 #[derive(Clone, Default)]
-struct ActionForm {
-    namespace: String,
-    key: String,
-    mode: String,
-    role: String,
-    predicate: String,
-    value: FixedValue,
-    consequences: String,
-    slots: Vec<SlotForm>,
+pub(super) struct ActionForm {
+    pub(super) namespace: String,
+    pub(super) key: String,
+    pub(super) mode: String,
+    pub(super) role: String,
+    pub(super) predicate: String,
+    pub(super) value: FixedValue,
+    pub(super) consequences: String,
+    pub(super) slots: Vec<SlotForm>,
 }
 impl ActionForm {
-    fn build(&self, frame: &Frame, choices: &[Value]) -> Result<Value, String> {
+    pub(super) fn build(&self, frame: &Frame, choices: &[Value]) -> Result<Value, String> {
         if self.namespace.trim().is_empty() || self.key.trim().is_empty() {
             return Err("Name the action and its namespace.".into());
         }

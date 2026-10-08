@@ -139,11 +139,11 @@ fn factual_forms_match_the_supported_contracts_and_reject_invalid_fields() {
 #[test]
 fn factual_control_branches_mount() {
     fn fixture() -> Element {
-        rsx! { for mode in ["chronology","knowledge","cardinality"] { FactualPolicy{mode:mode.to_string(),frame:frame(),clock:Some(clock()),choices:choices(),namespaces:vec![],disabled:false,onadd:move |_|{}} } }
+        rsx! { for mode in ["chronology","knowledge","cardinality","resources"] { FactualPolicy{mode:mode.to_string(),frame:frame(),clock:Some(clock()),choices:choices(),namespaces:vec![],disabled:false,onadd:move |_|{}} } }
     }
     let mut dom = dioxus::core::VirtualDom::new(fixture);
     let mutations = dom.rebuild_to_vec();
-    // Templates carry static labels; rebuilding also proves all three control branches mount.
+    // Templates carry static labels; rebuilding also proves the factual control branches mount.
     assert!(!mutations.edits.is_empty());
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -278,4 +278,26 @@ async fn factual_policy_forms_recover_review_approve_and_publish() {
     drop(c);
     stop.cancel();
     server.await.unwrap().unwrap();
+}
+
+#[test]
+fn resource_policy_requires_a_single_supported_stock_property() {
+    let mut f = base();
+    let mut c = choices();
+    let id = "rec_000000000000000000000005";
+    c.push(json!({"kind":"property","record_id":id,"definition":{"namespace":"stock","key":"rounds","multiplicity":"single","value":{"kind":"integer"}}}));
+    assert!(f.build("resources", &frame(), None, &c).is_err());
+    f.predicate = id.into();
+    let op = f.build("resources", &frame(), None, &c).unwrap();
+    assert_eq!(
+        op["record"]["capabilities"],
+        json!(["resources.accounting.v1"])
+    );
+    assert_eq!(op["record"]["commitPolicy"], "block_unless_exception");
+    assert_eq!(op["record"]["targetPredicates"], json!(["stock:rounds"]));
+    c.last_mut().unwrap()["definition"]["multiplicity"] = json!("multiple");
+    assert!(f.build("resources", &frame(), None, &c).is_err());
+    c.last_mut().unwrap()["definition"]["multiplicity"] = json!("single");
+    c.last_mut().unwrap()["definition"]["value"]["kind"] = json!("text");
+    assert!(f.build("resources", &frame(), None, &c).is_err());
 }

@@ -1,26 +1,27 @@
 //! Supported opt-in contracts; generic rule wrappers are deliberately fixed.
 use super::*;
 #[derive(Clone, Default)]
-struct Form {
-    namespace: String,
-    key: String,
-    channel: String,
-    order: String,
-    minimum: String,
-    maximum_delay: String,
-    context: String,
-    knowledge: String,
-    relation: String,
-    grouping: String,
-    group_role: String,
-    counted_role: String,
-    maximum: String,
-    applicability: String,
-    worlds: Vec<String>,
-    realm: String,
-    validity: String,
-    start: String,
-    end: String,
+pub(crate) struct Form {
+    pub(crate) namespace: String,
+    pub(crate) key: String,
+    pub(crate) predicate: String,
+    pub(crate) channel: String,
+    pub(crate) order: String,
+    pub(crate) minimum: String,
+    pub(crate) maximum_delay: String,
+    pub(crate) context: String,
+    pub(crate) knowledge: String,
+    pub(crate) relation: String,
+    pub(crate) grouping: String,
+    pub(crate) group_role: String,
+    pub(crate) counted_role: String,
+    pub(crate) maximum: String,
+    pub(crate) applicability: String,
+    pub(crate) worlds: Vec<String>,
+    pub(crate) realm: String,
+    pub(crate) validity: String,
+    pub(crate) start: String,
+    pub(crate) end: String,
 }
 fn roles(choices: &[Value], relation: &str) -> Vec<String> {
     choices
@@ -50,7 +51,7 @@ fn contexts(choices: &[Value], frame: &Frame) -> Vec<Choice> {
     options
 }
 impl Form {
-    fn build(
+    pub(crate) fn build(
         &self,
         mode: &str,
         frame: &Frame,
@@ -73,6 +74,31 @@ impl Form {
         };
         let mut rule = json!({"namespace":self.namespace,"key":self.key,"labels":{"en":self.key},"kind":"physical_constraint","commitPolicy":"always_block","applicability":{"kind":"universe_wide"},"targetPredicates":[],"expression":{"kind":"lit","value":true},"executable":true,"validity":{"kind":"unspecified"}});
         let capability = match mode {
+            "resources" => {
+                let property = choices
+                    .iter()
+                    .find(|c| c["kind"] == "property" && c["record_id"] == self.predicate)
+                    .ok_or("Choose an existing resource property.")?;
+                let definition = &property["definition"];
+                if definition["multiplicity"] != "single"
+                    || !["integer", "quantity"]
+                        .contains(&definition["value"]["kind"].as_str().unwrap_or_default())
+                {
+                    return Err("Resource accounting requires a single integer or exact-unit quantity property.".into());
+                }
+                let namespace = definition["namespace"]
+                    .as_str()
+                    .filter(|s| !s.is_empty())
+                    .ok_or("Resource property namespace unavailable.")?;
+                let key = definition["key"]
+                    .as_str()
+                    .filter(|s| !s.is_empty())
+                    .ok_or("Resource property key unavailable.")?;
+                rule["commitPolicy"] = json!("block_unless_exception");
+                rule["subjectTypes"] = json!([]);
+                rule["targetPredicates"] = json!([format!("{namespace}:{key}")]);
+                "resources.accounting.v1"
+            }
             "chronology" => {
                 if self.channel.trim().is_empty() || self.channel.len() > 256 {
                     return Err("Enter a channel name of at most 256 bytes.".into());
@@ -225,13 +251,17 @@ pub(super) fn FactualPolicy(
         p{"This policy starts only after validation, exact author approval and publication. It rechecks existing facts. Missing or uncertain evidence stays unresolved and prevents certification."}
         label{r#for:"factual-namespace","Namespace"}RichSelect{id:"factual-namespace",disabled,value:form.read().namespace.clone(),options:namespaces,allow_new:true,onchange:move|e:SelectionEvent|form.write().namespace=e.value()}
         label{r#for:"factual-key","Policy name"}input{id:"factual-key",disabled,value:form.read().key.clone(),oninput:move|e|form.write().key=e.value()}
+        if mode=="resources"{
+            p{"This authored rule accounts for the selected property's stock across the universe. It requires explicit transitions or exact author acceptance, and never invents arrivals, costs or unit conversions."}
+            label{r#for:"factual-resource","Single resource property"}super::super::select::RichSelect{id:"factual-resource",disabled,value:form.read().predicate.clone(),options:super::super::select::record_choices(&choices.iter().filter(|c|c["kind"]=="property"&&c["definition"]["multiplicity"]=="single"&&["integer","quantity"].contains(&c["definition"]["value"]["kind"].as_str().unwrap_or_default())).cloned().collect::<Vec<_>>(),&["property"],"Choose stock property"),onchange:move|e:SelectionEvent|form.write().predicate=e.value()}
+        }
         if mode=="chronology" {
             label{r#for:"factual-channel","Communication channel"}input{id:"factual-channel",disabled,value:form.read().channel.clone(),oninput:move|e|form.write().channel=e.value()}
             label{r#for:"factual-order","Transmission order"}RichSelect{id:"factual-order",disabled,value:form.read().order.clone(),options:super::super::select::choices(&[("","Choose explicitly"),("forward","Forward only"),("signed","Allow authored negative delays")]),onchange:move|e:SelectionEvent|form.write().order=e.value()}
             p{"Bounds are inclusive signed integer ticks on each message’s same authored clock. Blank means no bound. Delivery and clock conversions are not inferred."}
             label{r#for:"factual-minimum","Minimum delay (optional)"}input{id:"factual-minimum",disabled,value:form.read().minimum.clone(),oninput:move|e|form.write().minimum=e.value()}
             label{r#for:"factual-delay-maximum","Maximum delay (optional)"}input{id:"factual-delay-maximum",disabled,value:form.read().maximum_delay.clone(),oninput:move|e|form.write().maximum_delay=e.value()}
-        } else {
+        } else if mode!="resources" {
             label{r#for:"factual-context","Truth context"}RichSelect{id:"factual-context",disabled,value:form.read().context.clone(),options:contexts(&choices,&frame),onchange:move|e:SelectionEvent|form.write().context=e.value()}
             if mode=="knowledge" {
                 label{r#for:"factual-knowledge","Knowledge basis"}RichSelect{id:"factual-knowledge",disabled,value:form.read().knowledge.clone(),options:super::super::select::choices(&[("","Choose explicitly"),("author_established","Author-established knowledge"),("justified","Justified interpreted receipt")]),onchange:move|e:SelectionEvent|form.write().knowledge=e.value()}

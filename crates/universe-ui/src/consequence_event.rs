@@ -21,34 +21,34 @@ fn rr(frame: &Frame, id: &str) -> Result<Value, String> {
     Ok(json!({"universe":frame.universe,"record":RecordId::parse(id).map_err(|e|e.to_string())?}))
 }
 #[derive(Clone, Default, PartialEq)]
-struct EffectForm {
-    slot: String,
-    include: String,
-    source: String,
-    proposition: String,
-    value: FixedValue,
-    balance: String,
-    polarity: String,
-    end_kind: String,
-    end: String,
-    order: String,
+pub(super) struct EffectForm {
+    pub(super) slot: String,
+    pub(super) include: String,
+    pub(super) source: String,
+    pub(super) proposition: String,
+    pub(super) value: FixedValue,
+    pub(super) balance: String,
+    pub(super) polarity: String,
+    pub(super) end_kind: String,
+    pub(super) end: String,
+    pub(super) order: String,
 }
 #[derive(Clone, Default)]
-struct Form {
-    original: Value,
-    title: String,
-    action: String,
-    occurrence: String,
-    start: String,
-    context: String,
-    applicability: String,
-    worlds: Vec<String>,
-    region: String,
-    roles: Vec<(String, String)>,
-    effects: Vec<EffectForm>,
+pub(super) struct Form {
+    pub(super) original: Value,
+    pub(super) title: String,
+    pub(super) action: String,
+    pub(super) occurrence: String,
+    pub(super) start: String,
+    pub(super) context: String,
+    pub(super) applicability: String,
+    pub(super) worlds: Vec<String>,
+    pub(super) region: String,
+    pub(super) roles: Vec<(String, String)>,
+    pub(super) effects: Vec<EffectForm>,
 }
 impl Form {
-    fn load(
+    pub(super) fn load(
         original: Value,
         frame: &Frame,
         clock: Option<&Chronology>,
@@ -176,7 +176,7 @@ impl Form {
         f.original = original;
         Ok(f)
     }
-    fn select(&mut self, id: String, choices: &[Value]) -> Result<(), String> {
+    pub(super) fn select(&mut self, id: String, choices: &[Value]) -> Result<(), String> {
         let a = action(choices, &id)?;
         let _: ConsequenceContract = serde_json::from_value(a["consequenceContract"].clone())
             .map_err(|_| "This action has no supported consequence contract.")?;
@@ -219,7 +219,7 @@ impl Form {
         self.worlds.clear();
         Ok(())
     }
-    fn build(
+    pub(super) fn build(
         &self,
         frame: &Frame,
         clock: Option<&Chronology>,

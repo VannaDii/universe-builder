@@ -11,15 +11,16 @@ use universe_protocol::{
 };
 use universe_service::runtime;
 fn definition(name: &str, parent: &str, applicability: &str) -> DefinitionForm {
-    let mut f = DefinitionForm::default();
-    f.kind = "type".into();
-    f.namespace = "native".into();
-    f.key = name.into();
-    f.label = name.into();
-    f.parent = parent.into();
-    f.applicability = applicability.into();
-    f.classification = "true".into();
-    f
+    DefinitionForm {
+        kind: "type".into(),
+        namespace: "native".into(),
+        key: name.into(),
+        label: name.into(),
+        parent: parent.into(),
+        applicability: applicability.into(),
+        classification: "true".into(),
+        ..Default::default()
+    }
 }
 fn attribute(subject: &str, predicate: &str, mode: &str, value: &str) -> Form {
     Form {

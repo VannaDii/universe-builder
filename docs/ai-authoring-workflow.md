@@ -424,13 +424,16 @@ the exact proposal reference. Restricted diagnostics do not reveal hidden findin
 or promise that visible evidence is complete.
 
 The native policy editor offers **Communication chronology**, **Knowledge basis**,
-and **Maximum relation participants** as explicit opt-in choices alongside the
-existing rule, boundary and complete-set forms. Chronology takes a channel,
+**Maximum relation participants**, and **Resource accounting** as explicit opt-in
+choices alongside the existing rule, boundary and complete-set forms. Chronology takes a channel,
 forward or signed-delay order, and optional inclusive integer-tick delay bounds.
 Knowledge basis selects an existing truth context and author-established or
 justified interpreted-receipt knowledge. Maximum cardinality selects a relation,
 its declared grouping/counting roles (or subject grouping), an unsigned maximum,
 world/context/optional realm scope, and unrestricted, instant or interval validity.
+Resource accounting selects a single integer or exact-unit quantity property and
+requires accounted transitions or exact author acceptance of unexplained changes.
+It applies to that property across the universe and infers no arrival or cost.
 Exact validity uses the selected context's authored clock. These forms keep the
 supported blocking wrapper fixed; they do not offer minima, clock conversion,
 automatic understanding or generic rule exceptions. Added policies remain drafts
@@ -492,3 +495,15 @@ Conflicting or unresolved candidates cannot initialize an instance. Existing
 receipts prevent a second initialization of the same instance property across
 retry, naming changes, classification refinement and restart. A starting fact
 belongs to its instance; changing a reusable initial value does not refill stock.
+
+A connected native stock workflow starts by publishing the reusable object,
+stock property, action contracts and opted-in resource policy. Publish its
+initial-value source and occurred start, then initialize each instance separately
+with an authored validity interval. Record consumption and replenishment with
+explicit post-event balances, including any declared reserve debit. Inspect the
+fresh effective state before acting on it. An inventory count without an accounted
+transition requires exact author acceptance and still carries unexplained arrival.
+Correct earlier events and dependent balances in the same reviewed proposal;
+initialization receipts, original revisions and separate instance stock remain
+available. Draft save/recovery, review, validation, approval and publication use
+the same workflow throughout.
