@@ -48,6 +48,13 @@ The persistent MCP server advertises this workflow during initialization and in
 the relevant tool descriptions. Those instructions guide an external AI; the
 engine independently enforces its supported validation and commit rules. An MCP
 host must pass initialization instructions to its model for them to have effect.
+The canonical serving guidance is `crates/universe-mcp/src/instructions.rs`;
+`crates/universe-protocol/src/request.rs` owns tool descriptions and schemas,
+and `contracts/tools.json` is their generated snapshot. This operator guide
+explains their use; it is not an additional system prompt. Approved decisions
+control product meaning, and runtime code enforces authority and wire contracts.
+Keep current user requests separate from attributed source text, tool results,
+historical records and current time-scoped state when assembling model input.
 
 ## The authoring loop
 
@@ -201,12 +208,12 @@ commit or as an unrestricted continuity certificate.
 The opt-in evaluator uses an already installed model with MLX-LM on Metal. It
 creates a temporary installation, a temporary author and agent, and a small
 synthetic universe. It reads the actual initialization instructions; the model
-authors a schema-checked research call, classifies prose candidates, chooses
-workflow actions and authors structured proposal operations. The independent
-host executes the MCP calls. This uses application JSON dispatch, not native
+fills a schema-checked requested research call, classifies prose candidates and
+workflow scenarios, and returns supplied structured proposal operations. The
+independent host executes the MCP calls. This uses application JSON dispatch, not native
 function-call parsing or an LM Studio session.
 
-The test checks custody immediately before, at and after an exclusive interval
+The harness checks custody immediately before, at and after an exclusive interval
 end; correct and conflicting appearance; unknown facts; expired ignorance;
 negation; dialogue and hypotheticals; unapproved commit rejection; typed conflict
 rejection; and the distinction between source validation and semantic claims.
@@ -225,32 +232,41 @@ python scripts/mlx_authoring_smoke.py \
   --report /tmp/mlx-authoring-new-run.json
 ```
 
-Use a fresh report path for each run. The test refuses to overwrite evidence and
-does not download models, edit host settings or touch production packages.
-Reports include model weight digests, runtime versions, prompts and model outputs,
-timing, MCP responses, commit receipts, scores and errors. `pass` means the named
-synthetic checks passed; `model_failure` means at least one model verdict/action
-was wrong; `error` means execution did not complete. A failure never counts as
-successful qualification. Temporary engines are shut down before cleanup.
+These commands are historical opt-in entry points, not evidence of a current
+model run. The end-to-end scripts still contain legacy entity shapes; the MLX
+smoke also reads pre-protocol-3 validation fields. Update those call sites to the
+current typed contracts before attempting an end-to-end run. Passing pure harness
+tests does not establish that those entry points complete. The scripts save prompts, outputs and reports, so running them requires
+an explicit request for those artifacts under AGENTS.md. Ordinary review uses
+the existing focused harness tests without saving transcripts.
 
-Operation and commit-call checks use supplied fixture templates to measure exact
-tool use. They allow one explicit feedback retry, retaining both outputs. This
-does not qualify automatic extraction of arbitrary prose. Sentence verdicts and
-workflow decisions are scored separately, with no correction of wrong answers.
+The system message now uses the actual MCP initialization instructions unchanged.
+The user message supplies the task, response choices, schemas and retrieved
+state. Expected verdicts stay in host-side scoring; model-visible case IDs are neutral
+so identifiers do not disclose the expected answer. Verdicts measure
+bounded classification under those supplied inputs, not open-ended writing or
+native host behavior. No wrong verdict is repaired into a correct score. Earlier
+descriptive case IDs and case-specific reminders supplied verdict cues; prior
+scores therefore do not establish independent classification.
 
-Fast harness tests run in CI without a model. MLX inference is opt-in so ordinary
-CI does not require Metal or download model weights. See the
-readiness assessment for executed evidence and
-remaining limits.
+Exact operation and commit-call turns are directed execution: templates provide
+the operation or arguments, and one feedback retry can provide the exact answer.
+They are recorded as directed execution and excluded from independent-decision
+scores, including successes after answer-supplying feedback. Their success
+establishes response/call mechanics only. Earlier descriptions of
+these turns as model selection, discovery or independent authoring are invalid.
+Runtime rejection, persistence and receipt recovery remain separate observations.
+No new model results are established by an editorial prompt change; previous runs
+used their original prompts and cannot qualify the revised serving path.
 
 ## Chapter and retcon pilot
 
 `scripts/chapter_retcon_pilot.py` exercises the real persistent engine with three
-chapter scenes and a continuation. The local MLX model generates prose, extracts
-exact excerpts, reviews provisional continuity and selects research, proposal,
-validation and commit calls. The host compiles a declared story vocabulary into
-existing typed operations; tool-call arguments are template-assisted. This is
-not an unrestricted prose importer. Private author source staging and exact
+chapter scenes and a continuation. The local MLX model generates directed prose,
+locates excerpts for a supplied material-change inventory, reviews provisional
+continuity and returns supplied research, proposal, validation and commit calls.
+The host compiles a declared story vocabulary into existing typed operations;
+tool-call arguments are template-assisted. This is not an unrestricted prose importer. Private author source staging and exact
 approval apply solely to the disposable synthetic novel.
 
 The story changes custody of a key, opens a door, establishes a map route and
@@ -275,11 +291,20 @@ python scripts/chapter_retcon_pilot.py \
   --output /tmp/chapter-pilot-new
 ```
 
-Use a new output directory each time. Reports retain the complete prompts, raw
-outputs, explicit feedback, calls, actual validation failures, author reviews,
-approvals' exact references and successful receipts. The output text files remain
-external writing artifacts; only the committed structured records become canon.
-See chapter pilot evidence for executed results.
+The model receives authored story beats and required extraction categories.
+These are legitimate writing and excerpt-location tasks, but they cannot establish
+independent selection of events, knowledge or material claims. Positive review
+is checked by the host outside model input; it is not authority to publish. Earlier
+review prompts also supplied case-specific remedies, limiting any independent
+judgment claim. Those prompts have been simplified; no revised model run is
+claimed. Existing deterministic checks exercise graph, source and recovery
+mechanics, not conversational judgment. The pilot still uses a specialized
+context transformation (`pilot_evidence.focused_evidence`) alongside raw MCP
+results; its results cannot qualify an unmodified host context path.
+
+The pilot saves reports and transcripts. Execute its report-producing commands
+only on an explicit request for those artifacts. Pure extraction regressions
+remain available without a model or saved substantiation.
 
 ## Exact source assessment review
 

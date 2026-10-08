@@ -7,6 +7,12 @@
 
 This document supersedes v0.3 and all earlier implementation-plan revisions. The former top-level “world” project is now a **universe**; actual worlds are named records inside that universe. This is a structural scope change, not only a terminology change. It contains the product contract, full architectural plan, domain coverage, detailed implementation contracts, dependency-ordered work, and acceptance criteria in one place. It is not a UI-only amendment. The companion backlog and test catalog are extracts for execution; this document is the authoritative plan.
 
+Later approved decisions and the factual-universe realignment plan supersede
+this September baseline where explicitly stated. AGENTS.md governs agent work:
+older instructions here to create saved transcripts, proof packages or other
+substantiation do not authorize those artifacts. Preserve functional fixtures,
+application records and the product requirements; report actual checks in chat.
+
 ## Evidence, authority, and confidence
 
 **Established requirements / High confidence:** Universe Builder manages multiple named universes, each supporting multiple named worlds and associated novels, stories, and sagas; every domain MCP call explicitly specifies its universe, with world selection supported where appropriate. Universe management only; external applications own research conversations and manuscript writing; expose agent-callable operations through MCP; use Dioxus with selected Rust/UI components; preserve the supplied universe's entity/fact/state distinctions and authorial control.

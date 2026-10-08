@@ -1,9 +1,11 @@
 # Validation input scope
 
-This document records the earlier reporting-only slice. Current selected-assessment
-validation behavior and qualification are in Selected assessment validation
-bindings. Historical proofs below retain
-their original scope.
+This document records the historical reporting-only slice. Statements below
+about absent attachment routes apply to that slice, not the current service.
+Current selected-assessment behavior is described in
+[the operator workflow](ai-authoring-workflow.md) and governed by
+[the approved D03/D08 contract](decisions/d03-d08-source-assessments.md).
+Retained results describe their original scope.
 
 October 2, 2026. Implements the reporting slice of the [approved D03/D08 decision](decisions/d03-d08-source-assessments.md). Execution coverage, submitted input and assessment evidence are separate axes. This does not implement assessment attachment submission, language interpretation or native interaction qualification.
 

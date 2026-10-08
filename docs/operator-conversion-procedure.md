@@ -49,8 +49,9 @@ universe --installation /private/legacy-installation convert-credential \
 Replace `prf_ID` with the exact existing profile identity; retain the same filename
 identity for use by the client. The installation command already converts all its
 credentials; use the standalone credential command only for a separately retained
-credential input. Save each returned report with the source inventory. Reports
-include original file SHA-256 values and verification counts, never secrets.
+credential input. Inspect each returned result against the source inventory.
+Results include original file SHA-256 values and verification counts, never secrets. Keep command output
+temporary; saving a substantiating report requires an explicit user request.
 
 The package converter verifies known original digest recipes, writes one normative
 schema, retains original record/workflow hashes separately from normalized hashes,
@@ -106,8 +107,8 @@ publication can leave a complete verified target despite an error response: reta
 and inspect that target rather than overwrite it. Publication never replaces an
 existing target or original source.
 
-Inspect the readiness report and saved conversion reports before considering any
-later cutover. Changing catalog paths/device/inode values, replacing the active
+Inspect the existing readiness limits and actual conversion results before considering
+any later cutover. Changing catalog paths/device/inode values, replacing the active
 installation, authenticating live credentials or converting live author packages is
 outside this procedure's qualified execution. Startup continues to refuse legacy
 layouts and does not call the conversion routines.

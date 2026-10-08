@@ -114,6 +114,10 @@ class HarnessTests(unittest.TestCase):
         self.assertEqual(exact_model_decision(model, "claim", [], expected, report), expected)
         self.assertEqual(model.calls, 2)
         self.assertEqual(len(report["model_repairs"]), 1)
+        self.assertEqual(report["directed_execution"], [{"task": "claim", "attempts": 2,
+            "answer_supplied": True, "included_in_independent_scores": False}])
+        self.assertNotIn("model_score", report)
+        self.assertNotIn("workflow_score", report)
         model = Model([{}, {}])
         with self.assertRaises(RuntimeError):
             exact_model_decision(model, "claim", [], expected, {})

@@ -75,7 +75,7 @@ def run(args, report):
                 state = s.call("universe_get_state", {"universe": NAME, "context_id": ctx,
                     "entity_ids": list(dict.fromkeys([s.rid(owner), s.rid(4)])), "predicate_filters": []})["result"]
                 records = s.get([s.rid(n) for n in (1, 2, 3, 4, 5, 6, 10, 11, 12, 24, 30, 31)])
-                evidence.append({"id": key, "day": day, "owner": s.rr(owner), "prose": prose,
+                evidence.append({"id": f"case_{len(evidence) + 1:02d}", "day": day, "owner": s.rr(owner), "prose": prose,
                     "active_attributes": focused_evidence(records + state["propositions"], [{"next": r} for r in state["assertions"]]),
                     "definitions_and_entities": records, "derived": state["derived"], "state": state})
                 # Mandatory action requirement is tested without optional preconditions.
@@ -98,15 +98,15 @@ def run(args, report):
                 report["model_manifest"] = artifact_manifest(args.model)
                 report["runtime"] = {name: importlib.metadata.version(name) for name in ("mlx", "mlx-lm", "transformers")}
                 model = LocalModel(args.model, args.seed)
-                messages = [{"role": "system", "content": s.instructions + "\nReturn JSON only."},
-                    {"role": "user", "content": json.dumps({"task": "Review each prose case against its actual owning-entity evidence at the stated day. Return {verdicts:[{id,verdict,reason}]} in case order. verdict is usable, conflict (explicitly contradictory), or unknown (insufficient active evidence). A proposition catalogue is not truth. A held item's grant benefits only its declared recipient. No engine outcomes are provided.", "cases": evidence}, ensure_ascii=False)}]
+                messages = [{"role": "system", "content": s.instructions},
+                    {"role": "user", "content": json.dumps({"task": "Review each prose case against its actual owning-entity evidence at the stated day. Return only one JSON object {verdicts:[{id,verdict,reason}]} in case order. verdict is usable (supported by active evidence), conflict (explicitly contradictory), or unknown (insufficient active evidence). Use the supplied records and time-scoped state as evidence.", "cases": evidence}, ensure_ascii=False)}]
                 try:
                     result = model.ask("owner_attribute_review", messages, max_tokens=3200)
                     report["model_review"] = result
                     require(set(result) == {"verdicts"} and len(result["verdicts"]) == len(cases), "wrong verdict shape")
                     failures = []
-                    for row, case in zip(result["verdicts"], cases):
-                        if row.get("id") != case[0] or row.get("verdict") != case[5]:
+                    for row, case, stimulus in zip(result["verdicts"], cases, evidence):
+                        if row.get("id") != stimulus["id"] or row.get("verdict") != case[5]:
                             failures.append({"id": case[0], "expected": case[5], "actual": row})
                     report["model_assessment"] = {"passed": len(cases) - len(failures), "total": len(cases), "failures": failures}
                     require(not failures, f"model review failed {len(failures)}/{len(cases)} cases")

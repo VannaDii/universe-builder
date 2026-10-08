@@ -11,7 +11,7 @@ import struct
 import subprocess
 import tempfile
 import time
-from mcp_smoke import MCP
+from mcp_smoke import MCP, check_server_contract
 
 
 def run(bin_dir):
@@ -40,16 +40,9 @@ def run(bin_dir):
             agent = admin('enroll')['profile_id']
             uid = universe['universe_id']
             client = MCP(bin_dir / 'universe-mcp', installation=root, profile=agent)
-            guidance = client.initialization['instructions']
-            assert 'Persistent mode authenticates a profile' in guidance
-            assert 'Once the author chooses to use the verified prose' in guidance
-            assert 'Confirm the commit receipt' in guidance
-            assert 'supporting UTF-8 passage anchors' in guidance
-            assert 'source_anchor evidence' in guidance
-            assert 'unavailable until approval integration' not in guidance
+            check_server_contract(client.initialization, client.request('tools/list', {})['tools'])
             client.call('universe_describe', {'universe': 'The Ashen Cycle', 'mode': 'summary'}, error=True)
             admin('grant', agent, uid, '--propose')
-            assert len(client.request('tools/list', {})['tools']) == 13
             result = client.call('universe_describe', {'universe': 'The Ashen Cycle', 'mode': 'summary'})
             assert result['universe_id'] == uid and result['result']['fixture'] is False
             # Same closed public contracts as native authoring, independent client.

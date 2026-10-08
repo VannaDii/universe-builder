@@ -1,12 +1,49 @@
 """Pure extraction regressions. Persistent graph checks run via --regression."""
 import unittest
+import json
 
-from chapter_retcon_pilot import audit_known_pilot_prose, manuscript, validate_extraction, validate_scenes
+from chapter_retcon_pilot import Writer, audit_known_pilot_prose, manuscript, validate_extraction, validate_scenes
 from pilot_support import excerpt_locator
 from pilot_evidence import focused_evidence
 
 
 class PassageTests(unittest.TestCase):
+    def test_review_uses_canonical_guidance_and_does_not_repair_a_negative_judgment(self):
+        class Session:
+            instructions = "Delivered canonical serving guidance"
+        class Model:
+            calls = []
+            def ask(self, task, messages, **kwargs):
+                self.calls.append((task, messages))
+                return {"usable_after_commit": False, "issues": ["Missing support"]}
+        model = Model()
+        writer = Writer(model, Session(), {})
+        canon = {"research_records": {"records": []}, "state": {"assertions": []}}
+        with self.assertRaises(RuntimeError):
+            writer.verify([], {}, canon)
+        self.assertEqual(len(model.calls), 1)
+        messages = model.calls[0][1]
+        self.assertEqual(messages[0], {"role": "system", "content": Session.instructions})
+        data = json.loads(messages[1]["content"])
+        self.assertEqual(data["located_inventory_excerpts"], {})
+        self.assertEqual(data["canon"], canon)
+        self.assertNotIn("required_response", data)
+        self.assertNotIn("expected", data)
+
+    def test_supplied_call_execution_is_excluded_from_independent_scores(self):
+        class Session:
+            instructions = "Delivered canonical serving guidance"
+        class Model:
+            def ask(self, task, messages, **kwargs):
+                self.messages = messages
+                return json.loads(messages[1]["content"])["required_call"]
+        report, model = {}, Model()
+        args = {"universe": "synthetic", "context_id": "pinned"}
+        result = Writer(model, Session(), report).decision("research", "universe_get_context", args)
+        self.assertEqual(result, {"tool": "universe_get_context", "arguments": args})
+        self.assertEqual(model.messages[0]["content"], Session.instructions)
+        self.assertFalse(report["directed_execution"][0]["included_in_independent_scores"])
+
     def test_focused_evidence_keeps_polarity_and_exact_candidate_knowledge(self):
         ref = lambda n: {"record": n, "universe": "u"}
         record = lambda n, p: {"identity": {"record_id": n}, "record_version_id": "v-" + n, "payload": p}

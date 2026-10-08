@@ -961,7 +961,7 @@ pub fn tool_schemas() -> Vec<ToolSchema> {
         },
         ToolSchema {
             name: "universe_get_impact".into(),
-            description: "Inspect affected canon and dependencies before using and committing verified prose changes. Explicit universe required; unavailable in fixture mode."
+            description: "Inspect affected canon and dependencies before using and committing a checked candidate's structured changes. Explicit universe required; unavailable in fixture mode."
                 .into(),
             input_schema: augment_schema(
                 serde_json::to_value(schemars::schema_for!(GetImpact)).expect("schema"),
@@ -973,7 +973,7 @@ pub fn tool_schemas() -> Vec<ToolSchema> {
         },
         ToolSchema {
             name: "universe_commit".into(),
-            description: "After the author chooses to use verified prose, commit its exact validated structured universe changes so future writing includes their impact. Requires current authority and exact author approval or bounded delegation. Confirm the receipt and reopen at the committed revision. Explicit universe required; denied in fixture mode."
+            description: "After the author chooses to use checked candidate prose, commit its exact validated structured universe changes so future writing includes their impact. Requires current authority and exact author approval or bounded delegation. Confirm the receipt and reopen at the committed revision. Explicit universe required; denied in fixture mode."
                 .into(),
             input_schema: augment_schema(
                 serde_json::to_value(schemars::schema_for!(Commit)).expect("schema"),

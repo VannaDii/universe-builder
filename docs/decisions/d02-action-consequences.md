@@ -1,6 +1,6 @@
 # D02: action consequences and resource use
 
-**Approved by Vanna on October 3, 2026. Our discussion is the entirety of D02.** No implementation has occurred.
+**Approved by Vanna on October 3, 2026. Our discussion is the entirety of D02.** That statement of approval does not itself claim implementation; current supported authoring paths are described in [the operator workflow](../ai-authoring-workflow.md).
 
 ## Approved decision
 

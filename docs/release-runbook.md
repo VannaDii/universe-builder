@@ -71,7 +71,7 @@ Use `scripts/verify_release.py --bundle PATH` to verify the sealed bundle and de
 
 `scripts/benchmark_workload.py --bin-dir PATH/Contents/MacOS --output REPORT` creates disposable installations, commits five batches of 100 entities through exact author approval, measures cold start and 30 concurrent searches in separate universes, restarts the engine and restores a backup into a second installation. Reports include OS/architecture, sample count, median and maximum latency. These measurements are evidence for that workload and hardware only. They are not an SLA or a substitute for source-heavy, event-heavy, many-world or memory-pressure acceptance.
 
-All fixtures stop their own engines in cleanup. They do not inspect or close unrelated processes. Do not start the desktop or LM Studio while the user's pause on native testing remains in force. Bionic remains open.
+All fixtures stop their own engines in cleanup. They do not inspect or close unrelated processes. Do not start the desktop or LM Studio while the user's pause on native testing remains in force. The earlier Bionic state was historical; it is not a current process observation.
 
 ## Data preservation guarantees and bounds
 

@@ -1,7 +1,12 @@
 # Goal 34: factual constraint decisions
 
-Status: decision package prepared. No semantic change is approved by this
-document. Product boundary follows the [factual universe realignment plan](../factual-universe-realignment-plan.md): the author defines the universe and its rules; the external writer interprets prose; MCP validates submitted facts and declared constraints without inferring unauthored laws.
+Status: historical decision package. The proposals and original scenario table
+below describe the Goal 34 baseline, not current implementation or authorization.
+This document itself grants no semantic approval. Current authoring behavior is
+described in [the operator workflow](../ai-authoring-workflow.md), including the
+later bounded chronology, knowledge-basis and maximum-cardinality implementations.
+
+Product boundary follows the [factual universe realignment plan](../factual-universe-realignment-plan.md): the author defines the universe and its rules; the external writer interprets prose; MCP validates submitted facts and declared constraints without inferring unauthored laws.
 
 ## Current implementation and authored-expression fit
 
@@ -127,8 +132,8 @@ Goal 39 authorizes the bounded implementation and proof in communication chronol
 | G08 cross-instance cardinality; R10 quantifiers; R13 succession | Local relation roles and finite-set expressions are supported. Dynamic cross-instance counting, open-world completeness and promise fulfillment policies remain unsupported. |
 | R11 retcons and delayed consequences | Proposal dependency impact and immutable historical revisions are supported for represented record links. Natural-language dependencies not represented in the fact graph remain outside deterministic validation. |
 
-## Decision required before semantic implementation
+## Historical decision request
 
-Please decide whether the three proposed author-controlled contracts K1, K2 and
-K3 should be adopted. The current task is to finish reproducible current-build
-probes and this decision package; it does not authorize implementing K1–K3.
+At Goal 34, adoption of K1–K3 required a separate decision. This retained request
+is historical; it does not revoke later authorization or authorize unimplemented
+parts of these proposals (such as minimum cardinality or clock conversion).

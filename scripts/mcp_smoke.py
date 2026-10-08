@@ -10,6 +10,7 @@ import tempfile
 import threading
 import time
 from validate_contracts import ROOT, validators
+from jsonschema import Draft202012Validator
 
 class MCP:
     def __init__(self, binary, socket=None, protocol='2025-11-25', *, installation=None, profile=None, command_prefix=()):
@@ -65,6 +66,21 @@ class MCP:
             self.process.wait(timeout=5)
 
 
+def check_server_contract(initialization, tools):
+    """Check delivery and public contracts; functional scenarios check behavior."""
+    guidance = initialization.get('instructions')
+    assert isinstance(guidance, str) and guidance.strip(), 'missing serving guidance'
+    expected = {t['name']: t for t in json.loads((ROOT / 'contracts/tools.json').read_text())}
+    assert len(tools) == len(expected), 'missing or duplicate tools'
+    assert {t['name'] for t in tools} == set(expected), 'unexpected tool catalog'
+    for tool in tools:
+        name = tool['name']
+        assert isinstance(tool.get('description'), str) and tool['description'].strip(), name
+        for delivered, owned in [('inputSchema', 'input_schema'), ('outputSchema', 'output_schema')]:
+            Draft202012Validator.check_schema(tool[delivered])
+            assert tool[delivered] == expected[name][owned], (name, delivered)
+
+
 def run(bin_dir):
     examples = {e['tool']: e['args'] for e in json.loads((ROOT / 'contracts/examples.json').read_text())}
     with tempfile.TemporaryDirectory(prefix='universe-fixture-') as directory:
@@ -78,16 +94,8 @@ def run(bin_dir):
             assert socket.exists(), 'engine did not start'
             client = MCP(bin_dir / 'universe-mcp', socket)
             try:
-                guidance = client.initialization['instructions']
-                assert 'disposable read/propose fixture' in guidance
-                assert 'draft prose is provisional' in guidance
-                assert 'universe_validate' in guidance and 'universe_commit' in guidance
-                assert 'supporting UTF-8 passage anchors' in guidance
-                assert 'preserve historical' in guidance
-                assert 'mandatory attributes' in guidance and 'owning entity' in guidance
-                assert 'unavailable until approval integration' not in guidance
                 tools = client.request('tools/list', {})['tools']
-                assert len(tools) == 13
+                check_server_contract(client.initialization, tools)
                 for tool in tools:
                     name = tool['name']
                     bad = copy.deepcopy(examples[name]); del bad['universe']

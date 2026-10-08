@@ -1,5 +1,10 @@
 # Reusable object rules: capability evidence and decision
 
+Historical proposal and baseline results. Its initializer and operand availability
+statements do not describe the current runtime; use the
+[operator workflow](../ai-authoring-workflow.md) and current typed contracts.
+The retained proposal is not an implementation instruction or renewed decision request.
+
 October 3, 2026. Baseline `7609ba2`. Status: **proposed; extension not authorized
 or implemented**. This document resolves the design investigation, not delivery
 of a new runtime feature. Proofs use synthetic examples and production rule

@@ -62524,7 +62524,7 @@
   },
   {
     "name": "universe_get_impact",
-    "description": "Inspect affected canon and dependencies before using and committing verified prose changes. Explicit universe required; unavailable in fixture mode.",
+    "description": "Inspect affected canon and dependencies before using and committing a checked candidate's structured changes. Explicit universe required; unavailable in fixture mode.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "GetImpact",
@@ -63767,7 +63767,7 @@
   },
   {
     "name": "universe_commit",
-    "description": "After the author chooses to use verified prose, commit its exact validated structured universe changes so future writing includes their impact. Requires current authority and exact author approval or bounded delegation. Confirm the receipt and reopen at the committed revision. Explicit universe required; denied in fixture mode.",
+    "description": "After the author chooses to use checked candidate prose, commit its exact validated structured universe changes so future writing includes their impact. Requires current authority and exact author approval or bounded delegation. Confirm the receipt and reopen at the committed revision. Explicit universe required; denied in fixture mode.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Commit",
