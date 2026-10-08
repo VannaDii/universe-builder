@@ -16,6 +16,7 @@ use universe_store::kernel::{Assignment, CommitInput, Kernel};
 const EVALUATOR: &str = "finite-policy-v15-writer-constraint-diagnostics";
 mod author_writing;
 mod writing;
+mod writing_connected;
 use universe_protocol::validation_scope::*;
 use validation_binding::ValidationCapture;
 pub(crate) fn hash<T: Serialize>(v: &T) -> String {
@@ -1503,6 +1504,7 @@ impl Workflow<'_> {
         let mut cursor = None;
         let mut complete = true;
         let result = match request {
+            Request::ReadContracts(a) => return self.read_writing_contracts(a),
             Request::ReadFacts(a) => return self.read_writing_facts(a),
             Request::CheckChanges(a) => return self.check_writing_changes(a),
             Request::OpenContext(a) => {

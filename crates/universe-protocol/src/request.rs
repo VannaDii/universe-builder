@@ -679,6 +679,8 @@ pub enum Request {
     CheckChanges(crate::writing::CheckChanges),
     #[serde(rename = "universe_read_facts")]
     ReadFacts(crate::writing::ReadFacts),
+    #[serde(rename = "universe_read_contracts")]
+    ReadContracts(crate::writing::ReadContracts),
     #[serde(rename = "universe_describe")]
     Describe(Describe),
     #[serde(rename = "universe_open_context")]
@@ -709,6 +711,7 @@ pub enum Request {
 impl Request {
     pub fn tool_name(&self) -> &'static str {
         match self {
+            Self::ReadContracts(..) => "universe_read_contracts",
             Self::ReadFacts(..) => "universe_read_facts",
             Self::CheckChanges(..) => "universe_check_changes",
             Self::Describe(..) => "universe_describe",
@@ -728,6 +731,7 @@ impl Request {
     }
     pub fn universe(&self) -> &Selector {
         match self {
+            Self::ReadContracts(a) => &a.universe,
             Self::ReadFacts(a) => &a.universe,
             Self::CheckChanges(a) => &a.universe,
             Self::Describe(Describe::Summary { universe, .. }) => universe,
@@ -765,6 +769,16 @@ impl Request {
         Ok(request)
     }
     pub fn validate(&self) -> ProtocolResult<()> {
+        if let Self::ReadContracts(input) = self {
+            if input.action_names.len() > 100
+                || input.action_names.iter().any(|n| n.trim().is_empty())
+            {
+                return Err(ProtocolError::invalid_argument(
+                    "action_names",
+                    "at most 100 nonempty exact action names",
+                ));
+            }
+        }
         if let Self::ReadFacts(input) = self {
             if input.object_names.is_empty()
                 || input.object_names.len() > 100
@@ -777,7 +791,8 @@ impl Request {
             }
         }
         if let Self::CheckChanges(a) = self {
-            if a.changes.len() > 100
+            if a.events.len() + a.messages.len() + a.attitudes.len() + a.corrections.len() > 100
+                || a.changes.len() > 100
                 || a.changes.iter().map(|o| o.facts.len()).sum::<usize>() > 100
                 || a.questions.len() > 20
             {
@@ -891,6 +906,12 @@ pub struct ToolSchema {
 }
 pub fn tool_schemas() -> Vec<ToolSchema> {
     vec![
+        ToolSchema {
+            name: "universe_read_contracts".into(),
+            description: "Read plain pinned, visible action roles/requirements/consequences and authored knowledge/channel contracts. Exact action names; empty discovers names. No missing contract implies a default rule. No internal record joins required.".into(),
+            input_schema: augment_schema(serde_json::to_value(schemars::schema_for!(crate::writing::ReadContracts)).expect("schema")),
+            output_schema: serde_json::to_value(schemars::schema_for!(crate::response::Envelope<serde_json::Value>)).expect("schema"),
+        },
         ToolSchema {
             name: "universe_read_facts".into(),
             description: "Read plain effective facts for named objects in a pinned context. Returns exact authored property names and plain values, support/refutation/conflicts/unknowns, scope, time and actual coverage. Shared facts and initial-value candidates remain distinct. Missing or ambiguous identities never imply a new identity. Reuse returned property names for deltas. Source records are resolved by the engine; no internal schemas or ID joins required.".into(),

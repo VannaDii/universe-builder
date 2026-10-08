@@ -172,7 +172,7 @@ impl Workflow<'_> {
                         json!({"kind":"boolean"}),
                     ),
                     FactValue::Number(n) => {
-                        let kind = if n.is_i64() || n.is_u64() {
+                        let kind = if !n.to_string().chars().any(|c| matches!(c, '.' | 'e' | 'E')) {
                             "integer"
                         } else {
                             "decimal"
@@ -257,11 +257,75 @@ impl Workflow<'_> {
                         }
                     },
                 };
-                let validity = match fact.when.as_str() {
+                let when = if fact.at_tick.is_some() {
+                    "scene"
+                } else {
+                    fact.when.as_str()
+                };
+                if when != "scene"
+                    && !matches!(
+                        fact.lifetime,
+                        universe_protocol::writing::FactLifetime::Unspecified
+                    )
+                {
+                    result.clarifications.push(
+                        "What authored scene time starts this explicit fact lifetime?".into(),
+                    );
+                    continue;
+                }
+                let fact_time = if when == "scene" && fact.at_tick.is_some() {
+                    match super::writing_connected::time(
+                        &ctx.frame,
+                        &records.iter().map(|r| (*r).clone()).collect::<Vec<_>>(),
+                        &fact.at_tick,
+                    ) {
+                        Ok(time) => FrameTime::At { time },
+                        Err(e) => {
+                            result.clarifications.push(e.to_string());
+                            continue;
+                        }
+                    }
+                } else {
+                    ctx.frame.time.clone()
+                };
+                let validity = match when {
                     "unspecified" => universe_domain::scope::Validity::Unspecified,
-                    "scene" => match &ctx.frame.time {
+                    "scene" => match &fact_time {
                         FrameTime::At { time } => {
-                            universe_domain::scope::Validity::Instant { at: time.clone() }
+                            use universe_domain::scope::{PersistenceSemantics, Validity};
+                            use universe_domain::temporal::{TemporalBound, TemporalExpression};
+                            use universe_protocol::writing::FactLifetime;
+                            match (&fact.lifetime, time) {
+                                (FactLifetime::Unspecified, _)
+                                    if property.1.persistence
+                                        != PersistenceSemantics::PersistentUntilChanged =>
+                                {
+                                    Validity::Instant { at: time.clone() }
+                                }
+                                (lifetime, TemporalExpression::Exact { calendar, value }) => {
+                                    Validity::CalendarInterval {
+                                        calendar: calendar.clone(),
+                                        start: TemporalBound::Exact {
+                                            value: value.clone(),
+                                        },
+                                        end: match lifetime {
+                                            FactLifetime::Until { end_tick } => {
+                                                TemporalBound::Exact {
+                                                    value: end_tick.clone(),
+                                                }
+                                            }
+                                            _ => TemporalBound::Unbounded,
+                                        },
+                                    }
+                                }
+                                _ => {
+                                    result.clarifications.push(
+                                        "What exact calendar time/lifetime applies to this fact?"
+                                            .into(),
+                                    );
+                                    continue;
+                                }
+                            }
                         }
                         _ => {
                             result
@@ -291,7 +355,7 @@ impl Workflow<'_> {
                     universe_domain::scope::Polarity::Support
                 };
                 let already = records.iter().any(|r| if let Payload::Proposition(p) = &r.payload {
-                    p.subject.record == subject && p.predicate.record == property.0 && p.value.as_ref() == Some(&value_typed) && p.context == ctx.frame.context && records.iter().any(|a| matches!(&a.payload, Payload::Assertion(a) if a.proposition.record == r.identity.record_id && a.polarity == polarity && a.precision == universe_domain::scope::Precision::Exact && a.alternatives.is_empty() && a.scope == scope && (a.validity == validity || matches!(&ctx.frame.time, FrameTime::At {..}) && universe_rules::time::applies(&a.validity, &ctx.frame.time) == Some(true))))
+                    p.subject.record == subject && p.predicate.record == property.0 && p.value.as_ref() == Some(&value_typed) && p.context == ctx.frame.context && records.iter().any(|a| matches!(&a.payload, Payload::Assertion(a) if a.proposition.record == r.identity.record_id && a.polarity == polarity && a.precision == universe_domain::scope::Precision::Exact && a.alternatives.is_empty() && a.scope == scope && (a.validity == validity || matches!(&fact_time, FrameTime::At {..}) && universe_rules::time::applies(&a.validity, &fact_time) == Some(true))))
                 } else { false });
                 let assertion_binding =
                     hash(&(&subject, &property.0, &value, &scope, &validity, &polarity));
@@ -307,7 +371,7 @@ impl Workflow<'_> {
                             .into(),
                     );
                 }
-                if fact.when == "unspecified" {
+                if when == "unspecified" {
                     result.unknowns.push(
                         "The story-time validity of the new facts remains unspecified.".into(),
                     );
@@ -331,6 +395,13 @@ impl Workflow<'_> {
                 ));
             }
         }
+        self.connected_writing(
+            &input,
+            &ctx,
+            &records.iter().map(|r| (*r).clone()).collect::<Vec<_>>(),
+            &mut operations,
+            &mut result,
+        )?;
         result.clarifications.sort();
         result.clarifications.dedup();
         result.unknowns.sort();
@@ -549,7 +620,7 @@ impl Workflow<'_> {
                             .collect::<Vec<_>>()
                             .join(", "),
                     };
-                    let item = json!({"property":property.key,"value":value,"state":outcome,"group":group,"scope":scope,"time":plain_time(&serde_json::to_value(&assertion.validity)?,&label),"unknowns":row.unknowns,"multiple_values_allowed":property.multiplicity==universe_domain::records::Multiplicity::Multiple,"exclusive":property.exclusive});
+                    let item = json!({"fact_handle":if assertion.established_by.is_none(){Some(row.record.identity.record_id.to_string())}else{None},"property":property.key,"value":value,"state":outcome,"group":group,"scope":scope,"time":plain_time(&serde_json::to_value(&assertion.validity)?,&label),"unknowns":row.unknowns,"value_type":serde_json::to_value(&property.value)?["kind"],"unit":match proposition.value.as_ref(){Some(universe_domain::value::Value::Quantity{unit,..})=>Some(unit),_=>None},"unsupported_plain_value":value.is_none(),"multiple_values_allowed":property.multiplicity==universe_domain::records::Multiplicity::Multiple,"exclusive":property.exclusive});
                     if group == "initial_candidate" {
                         initial.push(item)
                     } else {
@@ -568,7 +639,7 @@ impl Workflow<'_> {
                     .map(|r| &r.payload)
                 {
                     let value = plain_value(&derived.value, &label);
-                    facts.push(json!({"property":property.key,"state":if value.is_some(){"supported"}else{"unknown"},"value":value,"group":"derived","scope":"pinned research context","time":plain_time(&serde_json::to_value(&ctx.frame.time)?,&label),"unknowns":if value.is_some(){vec![]}else{vec!["plain value presentation unavailable"]}}));
+                    facts.push(json!({"property":property.key,"state":if value.is_some(){"supported"}else{"unknown"},"value":value,"value_type":serde_json::to_value(&property.value)?["kind"],"unit":match &derived.value{universe_domain::value::Value::Quantity{unit,..}=>Some(unit),_=>None},"unsupported_plain_value":value.is_none(),"group":"derived","scope":"pinned research context","time":plain_time(&serde_json::to_value(&ctx.frame.time)?,&label),"unknowns":if value.is_some(){vec![]}else{vec!["plain value presentation unavailable"]}}));
                 }
             }
             objects.push(json!({"name":name,"identity":"resolved","facts":facts,"initial_value_candidates":initial,"coverage":object.coverage,"unknowns":object.unknowns,"state_coverage":state.coverage,"limitations":state.unsupported_capabilities}));
@@ -585,19 +656,10 @@ pub(super) fn plain_value(
     Some(match value {
         V::Text { text } => json!(text),
         V::Boolean { value } => json!(value),
-        V::Integer { digits } | V::Decimal { digits } => json!({"number":digits}),
-        V::EntityRef { record } | V::RecordRef { record } | V::PropositionRef { record } => {
-            json!({"object":label(&record.record)?})
-        }
-        V::Rational {
-            numerator,
-            denominator,
-        } => json!({"numerator":numerator,"denominator":denominator}),
-        V::Sequence { items } | V::Set { items } => json!(items
-            .iter()
-            .map(|v| plain_value(v, label))
-            .collect::<Option<Vec<_>>>()?),
-        V::Enum { key, .. } => json!(key),
+        V::Integer { digits } | V::Decimal { digits } => serde_json::from_str::<Value>(digits)
+            .ok()
+            .filter(Value::is_number)?,
+        V::EntityRef { record } => json!({"object":label(&record.record)?}),
         _ => return None,
     })
 }
@@ -767,10 +829,7 @@ mod tests {
         let fresh=workflow.execute(Request::from_tool("universe_open_context",json!({"universe":"Writing","continuity_id":c,"revision":{"kind":"head"},"represented_context":context,"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"})).unwrap()).unwrap();
         let read=workflow.execute(Request::from_tool("universe_read_facts",json!({"universe":"Writing","context_id":fresh["result"]["context_id"],"object_names":["Mara","Blue pistol","Dreamed dragon"]})).unwrap()).unwrap();
         assert_eq!(read["result"]["objects"][0]["facts"][0]["property"], "age");
-        assert_eq!(
-            read["result"]["objects"][0]["facts"][0]["value"],
-            json!({"number":"30"})
-        );
+        assert_eq!(read["result"]["objects"][0]["facts"][0]["value"], json!(30));
         assert_eq!(
             read["result"]["objects"][0]["facts"][0]["state"],
             "supported"

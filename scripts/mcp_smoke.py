@@ -100,7 +100,7 @@ def run(bin_dir):
                 public = {t['name'] for t in ordinary.request('tools/list', {})['tools']}
                 assert 'universe_check_changes' in public
                 assert not public & {'universe_propose', 'universe_validate', 'universe_get', 'universe_get_state', 'universe_get_context'}
-                assert 'universe_read_facts' in public
+                assert {'universe_read_facts', 'universe_read_contracts'} <= public
                 assert 'client_ref' not in ordinary.initialization['instructions']
             finally:
                 ordinary.close()

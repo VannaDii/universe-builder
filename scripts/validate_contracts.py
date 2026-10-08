@@ -17,7 +17,7 @@ def validators():
 def main():
     schemas = validators()
     examples = json.loads((ROOT / 'contracts/examples.json').read_text())
-    assert len(schemas) == len(examples) == 15
+    assert len(schemas) == len(examples) == 16
     count = 0
     for example in examples:
         validator = schemas[example['tool']][0]
@@ -31,7 +31,7 @@ def main():
         del malformed['universe']
         assert not validator.is_valid(malformed)
         count += 1
-    print(f'PASS: 30 schemas, 15 valid examples, {count} invalid examples')
+    print(f'PASS: {2 * len(schemas)} schemas, {len(examples)} valid examples, {count} invalid examples')
 
 if __name__ == '__main__':
     main()

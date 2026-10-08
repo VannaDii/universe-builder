@@ -51,6 +51,19 @@ class SessionTests(unittest.TestCase):
         session=self.session(model,client)
         self.assertIn("no completed change check",session.respond("prose"))
         self.assertIn("stale context",model.inputs[2][-1]["content"])
+    def test_absent_check_gets_one_procedural_reminder_without_supplied_delta(self):
+        model=Model(call(),"Already unchanged.",call("universe_check_changes"),"Checked.")
+        session=self.session(model)
+        self.assertIn("Candidate checked",session.respond("Ordinary author prose"))
+        reminder=model.inputs[2][-1]["content"]
+        self.assertIn("no engine writing check",reminder)
+        self.assertNotIn("changes",reminder)
+        self.assertEqual(sum("no engine writing check" in m.get("content","") for m in session.messages),1)
+    def test_reminder_is_bounded_and_cannot_convert_missing_check_to_success(self):
+        session=self.session(Model("It is consistent.","It is still consistent."))
+        self.assertIn("no completed change check",session.respond("Author prose"))
+        self.assertIsNone(session.last_check)
+
     def test_backend_report_overrides_false_model_publication_or_creation(self):
         client=Client();client.results=iter([{"structuredContent":{"result":{"status":"needs_clarification","additions":["New object: silver pistol"],"excluded":["Mara plan: plan claim"],"clarifications":["Which owner?"],"unknowns":[],"unchanged":[]}},"content":[]}])
         session=self.session(Model(call("universe_check_changes"),"Canon updated. Mara introduced."),client)

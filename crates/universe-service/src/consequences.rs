@@ -1,4 +1,4 @@
-//! Match authored effects; never synthesize a missing obligation or post-value.
+//! Validate and mechanically realize authored effects; never invent a contract.
 use std::collections::{BTreeMap, BTreeSet};
 use universe_domain::{
     consequences::*,
@@ -74,7 +74,7 @@ fn magnitude(value: &Value, unit: &Option<UnitId>) -> anyhow::Result<i128> {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn transition(
+fn balance_after(
     records: &[RecordVersion],
     by_id: &BTreeMap<&RecordId, &RecordVersion>,
     event: &Event,
@@ -82,7 +82,7 @@ fn transition(
     frame: &Frame,
     worlds: &[Vec<RecordId>],
     charge: &mut impl FnMut(usize) -> anyhow::Result<()>,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<i128> {
     let EffectChange::Delta {
         delta,
         minimum,
@@ -90,30 +90,10 @@ fn transition(
         unit,
     } = &slot.change
     else {
-        return Ok(());
+        return Err(invalid("not a delta slot"));
     };
     let target = owner(event, &slot.target.role, by_id)?;
-    let effect = event
-        .effects
-        .iter()
-        .find(|e| e.slot == slot.slot)
-        .ok_or_else(|| invalid("missing resource effect"))?;
-    let Some(Payload::Proposition(post)) =
-        by_id.get(&effect.proposition.record).map(|r| &r.payload)
-    else {
-        return Err(invalid("resource post-value unavailable"));
-    };
-    if effect.polarity != Polarity::Support {
-        return Err(invalid(
-            "resource effects must support the proposed balance",
-        ));
-    }
-    let proposed = magnitude(
-        post.value
-            .as_ref()
-            .ok_or_else(|| invalid("resource post-value missing"))?,
-        unit,
-    )?;
+    let mut balances = BTreeSet::new();
     for world in worlds {
         let mut supported = BTreeSet::new();
         let mut refuted = BTreeSet::new();
@@ -195,11 +175,52 @@ fn transition(
                 "resource transition underflow or overflow of declared bounds",
             ));
         }
-        if proposed != after {
-            return Err(invalid(
-                "resource post-value does not equal pre-value plus declared change",
-            ));
-        }
+        balances.insert(after);
+    }
+    if balances.len() != 1 {
+        return Err(invalid("resource balance differs across event worlds"));
+    }
+    Ok(*balances.first().expect("one balance"))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn transition(
+    records: &[RecordVersion],
+    by_id: &BTreeMap<&RecordId, &RecordVersion>,
+    event: &Event,
+    slot: &EffectSlot,
+    frame: &Frame,
+    worlds: &[Vec<RecordId>],
+    charge: &mut impl FnMut(usize) -> anyhow::Result<()>,
+) -> anyhow::Result<()> {
+    let EffectChange::Delta { unit, .. } = &slot.change else {
+        return Ok(());
+    };
+    let effect = event
+        .effects
+        .iter()
+        .find(|e| e.slot == slot.slot)
+        .ok_or_else(|| invalid("missing resource effect"))?;
+    let Some(Payload::Proposition(post)) =
+        by_id.get(&effect.proposition.record).map(|r| &r.payload)
+    else {
+        return Err(invalid("resource post-value unavailable"));
+    };
+    if effect.polarity != Polarity::Support {
+        return Err(invalid(
+            "resource effects must support the proposed balance",
+        ));
+    }
+    let proposed = magnitude(
+        post.value
+            .as_ref()
+            .ok_or_else(|| invalid("resource post-value missing"))?,
+        unit,
+    )?;
+    if proposed != balance_after(records, by_id, event, slot, frame, worlds, charge)? {
+        return Err(invalid(
+            "resource post-value does not equal pre-value plus declared change",
+        ));
     }
     Ok(())
 }
@@ -211,7 +232,6 @@ pub fn validate(
     frame: &Frame,
 ) -> anyhow::Result<Vec<String>> {
     let by_id: BTreeMap<_, _> = records.iter().map(|r| (&r.identity.record_id, r)).collect();
-    let index = universe_rules::EvaluationIndex::new(records);
     let mut remaining = 1_000_000usize;
     let mut charge = |cost| -> anyhow::Result<()> {
         remaining =
@@ -385,100 +405,21 @@ pub fn validate(
         }
         for slot in &contract.slots {
             let present = seen.contains(&slot.slot);
-            let mut enabled = true;
-            if let EffectCondition::AttributeEquals {
-                role,
-                predicate,
-                value,
-            } = &slot.condition
-            {
-                let subject = owner(event, role, &by_id)?;
-                let Some(Payload::Property(property)) =
-                    by_id.get(&predicate.record).map(|r| &r.payload)
-                else {
-                    return Err(invalid("condition property unavailable"));
-                };
-                let mut values = vec![value.clone()];
-                for r in records {
-                    charge(1)?;
-                    let v = match &r.payload {
-                        Payload::Proposition(p)
-                            if p.predicate == *predicate && p.context == scope.context =>
-                        {
-                            p.value.as_ref()
-                        }
-                        Payload::ItemPower(p) if p.power_predicate == *predicate => Some(&p.value),
-                        _ => None,
-                    };
-                    if let Some(v) = v {
-                        if !values.contains(v) {
-                            values.push(v.clone());
-                        }
-                    }
-                }
-                let mut truths = Vec::new();
-                for world in &world_queries {
-                    let mut supported = Vec::new();
-                    let mut refuted_expected = false;
-                    for v in &values {
-                        charge(records.len())?;
-                        let expr = Expr::Claim {
-                            subject: Operand::Record {
-                                record: subject.clone(),
-                            },
-                            predicate: format!("{}:{}", property.namespace, property.key),
-                            roles: vec![],
-                            value: Some(Operand::Value { value: v.clone() }),
-                            polarity: Polarity::Support,
-                            context: None,
-                        };
-                        let (evidence, complete) = universe_rules::basic::evaluate(
-                            &expr,
-                            &universe_rules::EvaluationContext {
-                                frame: Some(&event_frame),
-                                base_snapshot: records,
-                                candidate_changes: vec![],
-                                index: Some(&index),
-                                world_scope: Some(world.clone()),
-                            },
-                        );
-                        if !complete
-                            || evidence.outcome() == universe_rules::EvidenceOutcome::Conflicting
-                        {
-                            return Err(invalid("effect condition unresolved: incomplete or conflicting pre-event evidence"));
-                        }
-                        match evidence.outcome() {
-                            universe_rules::EvidenceOutcome::Supported => supported.push(v),
-                            universe_rules::EvidenceOutcome::Refuted if v == value => {
-                                refuted_expected = true
-                            }
-                            _ => {}
-                        }
-                    }
-                    let single = property.multiplicity == Multiplicity::Single;
-                    if single && supported.len() > 1 {
-                        return Err(invalid(
-                            "effect condition unresolved: incompatible pre-event values",
-                        ));
-                    }
-                    let truth = if supported.contains(&value) {
-                        true
-                    } else if refuted_expected || single && supported.len() == 1 {
-                        false
-                    } else {
-                        return Err(invalid(
-                            "effect condition unresolved: no established pre-event truth",
-                        ));
-                    };
-                    truths.push(truth);
-                }
-                if present && truths.iter().any(|t| !t) {
-                    return Err(invalid(
-                        "effect supplied for a false condition in an event world",
-                    ));
-                }
-                enabled = truths.iter().any(|t| *t);
+            let truths = condition_truths(
+                records,
+                &by_id,
+                event,
+                slot,
+                &event_frame,
+                &world_queries,
+                &mut charge,
+            )?;
+            if present && truths.iter().any(|t| !t) {
+                return Err(invalid(
+                    "effect supplied for a false condition in an event world",
+                ));
             }
+            let enabled = truths.iter().any(|t| *t);
             if (!enabled && present)
                 || (enabled && slot.presence == EffectPresence::Required && !present)
             {
@@ -534,6 +475,242 @@ pub fn validate(
         }
     }
     Ok(exclusions)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn condition_truths(
+    records: &[RecordVersion],
+    by_id: &BTreeMap<&RecordId, &RecordVersion>,
+    event: &Event,
+    slot: &EffectSlot,
+    event_frame: &Frame,
+    world_queries: &[Vec<RecordId>],
+    charge: &mut impl FnMut(usize) -> anyhow::Result<()>,
+) -> anyhow::Result<Vec<bool>> {
+    let EffectCondition::AttributeEquals {
+        role,
+        predicate,
+        value,
+    } = &slot.condition
+    else {
+        return Ok(vec![true; world_queries.len()]);
+    };
+    let index = universe_rules::EvaluationIndex::new(records);
+    let subject = owner(event, role, by_id)?;
+    let Some(Payload::Property(property)) = by_id.get(&predicate.record).map(|r| &r.payload) else {
+        return Err(invalid("condition property unavailable"));
+    };
+    let mut values = vec![value.clone()];
+    for r in records {
+        charge(1)?;
+        let v = match &r.payload {
+            Payload::Proposition(p)
+                if p.predicate == *predicate && p.context == event_frame.context =>
+            {
+                p.value.as_ref()
+            }
+            Payload::ItemPower(p) if p.power_predicate == *predicate => Some(&p.value),
+            _ => None,
+        };
+        if let Some(v) = v {
+            if !values.contains(v) {
+                values.push(v.clone());
+            }
+        }
+    }
+    let mut truths = Vec::new();
+    for world in world_queries {
+        let mut supported = Vec::new();
+        let mut refuted_expected = false;
+        for v in &values {
+            charge(records.len())?;
+            let expr = Expr::Claim {
+                subject: Operand::Record {
+                    record: subject.clone(),
+                },
+                predicate: format!("{}:{}", property.namespace, property.key),
+                roles: vec![],
+                value: Some(Operand::Value { value: v.clone() }),
+                polarity: Polarity::Support,
+                context: None,
+            };
+            let (evidence, complete) = universe_rules::basic::evaluate(
+                &expr,
+                &universe_rules::EvaluationContext {
+                    frame: Some(event_frame),
+                    base_snapshot: records,
+                    candidate_changes: vec![],
+                    index: Some(&index),
+                    world_scope: Some(world.clone()),
+                },
+            );
+            if !complete || evidence.outcome() == universe_rules::EvidenceOutcome::Conflicting {
+                return Err(invalid(
+                    "effect condition unresolved: incomplete or conflicting pre-event evidence",
+                ));
+            }
+            match evidence.outcome() {
+                universe_rules::EvidenceOutcome::Supported => supported.push(v),
+                universe_rules::EvidenceOutcome::Refuted if v == value => refuted_expected = true,
+                _ => {}
+            }
+        }
+        let single = property.multiplicity == Multiplicity::Single;
+        if single && supported.len() > 1 {
+            return Err(invalid(
+                "effect condition unresolved: incompatible pre-event values",
+            ));
+        }
+        let truth = if supported.contains(&value) {
+            true
+        } else if refuted_expected || single && supported.len() == 1 {
+            false
+        } else {
+            return Err(invalid(
+                "effect condition unresolved: no established pre-event truth",
+            ));
+        };
+        truths.push(truth);
+    }
+    Ok(truths)
+}
+
+/// Mechanical realization of authored contracts, sharing the validator's exact
+/// condition and resource calculation. Missing evidence remains an error.
+pub(crate) fn author_effects(
+    records: &[RecordVersion],
+    event_id: &RecordId,
+    event: &Event,
+    action: &ActionDefinition,
+    frame: &Frame,
+) -> anyhow::Result<Vec<(RecordId, Proposition, EntityEffect)>> {
+    let contract = action
+        .consequence_contract
+        .as_ref()
+        .ok_or_else(|| invalid("action has no authored consequence contract"))?;
+    let by_id: BTreeMap<_, _> = records.iter().map(|r| (&r.identity.record_id, r)).collect();
+    let scope = Scope {
+        context: action.scope.context.clone(),
+        applicability: if event.worlds.is_empty() {
+            Applicability::UniverseWide
+        } else {
+            Applicability::Worlds {
+                world_ids: event.worlds.clone(),
+            }
+        },
+        realm: None,
+    };
+    let mut event_frame = frame.clone();
+    event_frame.context = scope.context.clone();
+    event_frame.time = FrameTime::AtEvent {
+        event: RecordRef::new(frame.universe.clone(), event_id.clone()),
+        side: EventTimeSide::Before,
+    };
+    let mut rows = records.to_vec();
+    rows.push(RecordVersion::build(
+        RecordVersionId::generate(&mut rand::rng()),
+        RecordIdentity::new(frame.universe.clone(), event_id.clone(), RecordKind::Event),
+        Payload::Event(event.clone()),
+    )?);
+    let (calendar, tick) = universe_rules::events::exact(&event.time).map_err(|e| invalid(&e))?;
+    let worlds: Vec<Vec<RecordId>> = if event.worlds.is_empty() {
+        vec![vec![]]
+    } else {
+        event
+            .worlds
+            .iter()
+            .map(|w| RecordId::parse(&w.as_str().replacen("wld_", "rec_", 1)).map(|id| vec![id]))
+            .collect::<Result<_, _>>()?
+    };
+    let mut remaining = 1_000_000usize;
+    let mut charge = |cost| -> anyhow::Result<()> {
+        remaining = remaining
+            .checked_sub(cost)
+            .ok_or_else(|| invalid("consequence work budget exceeded"))?;
+        Ok(())
+    };
+    let mut effects = vec![];
+    for slot in &contract.slots {
+        let truths = condition_truths(
+            &rows,
+            &by_id,
+            event,
+            slot,
+            &event_frame,
+            &worlds,
+            &mut charge,
+        )?;
+        if truths.iter().all(|v| !*v) {
+            continue;
+        }
+        if truths.iter().any(|v| !*v) {
+            return Err(invalid("condition differs across worlds"));
+        }
+        if slot.presence == EffectPresence::Optional {
+            return Err(invalid("author must specify optional action consequences"));
+        }
+        let target = owner(event, &slot.target.role, &by_id)?;
+        let (polarity, value) = match &slot.change {
+            EffectChange::Set { polarity, value } => (*polarity, value.clone()),
+            EffectChange::Delta { unit, .. } => {
+                let n = balance_after(
+                    &rows,
+                    &by_id,
+                    event,
+                    slot,
+                    &event_frame,
+                    &worlds,
+                    &mut charge,
+                )?;
+                let v = Value::Integer {
+                    digits: n.to_string(),
+                };
+                (
+                    Polarity::Support,
+                    if let Some(unit) = unit {
+                        Value::Quantity {
+                            value: Box::new(v),
+                            unit: unit.clone(),
+                        }
+                    } else {
+                        v
+                    },
+                )
+            }
+        };
+        let end = match &slot.lifetime {
+            EffectLifetime::UntilChanged {} => TemporalBound::Unbounded,
+            EffectLifetime::Ticks { count } => TemporalBound::Exact {
+                value: tick
+                    .checked_add(count.get())
+                    .ok_or_else(|| invalid("effect lifetime overflow"))?
+                    .to_string(),
+            },
+        };
+        let id = RecordId::generate(&mut rand::rng());
+        let proposition: Proposition = serde_json::from_value(
+            serde_json::json!({"subject":target,"predicate":slot.target.predicate,"value":value,"context":scope.context,"quantification":"particular"}),
+        )?;
+        effects.push((
+            id.clone(),
+            proposition,
+            EntityEffect {
+                slot: slot.slot.clone(),
+                proposition: RecordRef::new(frame.universe.clone(), id),
+                polarity,
+                validity: Validity::CalendarInterval {
+                    calendar: calendar.clone(),
+                    start: TemporalBound::Exact {
+                        value: tick.to_string(),
+                    },
+                    end,
+                },
+                scope: scope.clone(),
+                order: usize::from(slot.order),
+            },
+        ));
+    }
+    Ok(effects)
 }
 
 #[cfg(test)]

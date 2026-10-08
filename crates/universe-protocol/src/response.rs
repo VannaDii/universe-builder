@@ -405,6 +405,8 @@ pub enum Response {
     #[serde(rename = "universe_check_changes")]
     CheckChanges(Envelope<crate::writing::WritingCheck>),
     ReadFacts(Envelope<serde_json::Value>),
+    #[serde(rename = "universe_read_contracts")]
+    ReadContracts(Envelope<serde_json::Value>),
     #[serde(rename = "universe_describe")]
     Describe(DescribeResult),
     #[serde(rename = "universe_open_context")]
@@ -435,6 +437,7 @@ pub enum Response {
 impl Response {
     pub fn body_json(&self) -> serde_json::Value {
         match self {
+            Self::ReadContracts(v) => serde_json::to_value(v).expect("typed response"),
             Self::ReadFacts(v) => serde_json::to_value(v).expect("typed response"),
             Self::CheckChanges(v) => serde_json::to_value(v).expect("typed response"),
             Self::Describe(v) => serde_json::to_value(v).expect("typed response"),

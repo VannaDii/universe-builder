@@ -219,6 +219,7 @@ impl Fixture {
             world: world.clone(),
         };
         match request {
+   Request::ReadContracts(_)=>Err(unsupported("plain contracts require a persistent installation")),
    Request::ReadFacts(_)=>Err(unsupported("plain factual reading requires a persistent installation")),
    Request::CheckChanges(_)=>Err(unsupported("plain factual checking requires a persistent installation")),
    Request::Describe(_) => Ok(Response::Describe(scope.wrap(Description{fixture:true,worlds:universe.worlds.clone(),capabilities:capabilities(),definition_ids:vec![],continuities:vec![]}))),

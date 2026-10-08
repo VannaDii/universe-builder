@@ -2578,3 +2578,6 @@ mod cardinality;
 
 #[path = "support/writer_constraints.rs"]
 mod writer_constraints;
+
+#[path = "support/plain_connected.rs"]
+mod plain_connected;

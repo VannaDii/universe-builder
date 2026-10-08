@@ -21,7 +21,7 @@ from mcp_smoke import MCP
 
 RESEARCH_TOOLS = frozenset({
     "universe_describe", "universe_open_context", "universe_search", "universe_read_facts",
-    "universe_get_operation",
+    "universe_get_operation", "universe_read_contracts",
 })
 
 class ProtocolError(RuntimeError):
@@ -204,6 +204,7 @@ class AuthorSession:
         self.messages.append({"role": "user", "content": passage})
         checked, previous_error, repeats = None, None, 0
         pending_candidate = False
+        check_attempted, reminder_sent = False, False
         stop_reason = "the session reached its turn limit"
         for _ in range(self.max_steps):
             try:
@@ -215,6 +216,11 @@ class AuthorSession:
                 calls = generated.tool_calls
                 if not calls:
                     self.messages.append({"role": "assistant", "content": generated.text})
+                    if self.checking and not check_attempted and not reminder_sent and previous_error is None:
+                        self.messages.append({"role":"user", "content":
+                            "This submitted passage still has no engine writing check. Use the available ordinary writing-check tool before finishing; if you cannot check it, report the limit honestly."})
+                        reminder_sent = True
+                        continue
                     if self.checking:
                         self.last_check = checked
                         reply = self.check_report(checked)
@@ -230,6 +236,7 @@ class AuthorSession:
                 for call in native_calls:
                     function = call["function"]
                     if function["name"] == "universe_check_changes":
+                        check_attempted = True
                         checked = None
                     try:
                         result = self.dispatch(function["name"], function["arguments"])

@@ -95,6 +95,11 @@ impl Workflow<'_> {
                         DomainOperation::IntroduceInstance { .. }
                             | DomainOperation::DefineProperty { .. }
                             | DomainOperation::AssertProposition { .. }
+                            | DomainOperation::DefineProposition { .. }
+                            | DomainOperation::RecordEvent { .. }
+                            | DomainOperation::RecordCommunication { .. }
+                            | DomainOperation::AddBelief { .. }
+                            | DomainOperation::SupersedeAssertion { .. }
                     )
                 }) {
                     return Err(ProtocolError::PolicyDenied{message:"Source preparation accepts agent factual deltas only; creative acceptance requires a separate explicit author decision.".into()}.into());
@@ -143,6 +148,10 @@ impl Workflow<'_> {
                         | DomainOperation::RecordRelation { assertion, .. } => {
                             assertion.basis = basis.clone()
                         }
+                        DomainOperation::SupersedeAssertion { replacement, .. } => {
+                            replacement.basis = basis.clone()
+                        }
+                        DomainOperation::AddBelief { record, .. } => record.basis = basis.clone(),
                         _ => (),
                     }
                 }
@@ -282,8 +291,12 @@ impl Workflow<'_> {
                         .cloned()
                         .or_else(|| e.names.first().map(|n| n.text.clone())),
                     Payload::Property(d) => Some(d.key.clone()),
+                    Payload::ActionDefinition(d) => Some(d.key.clone()),
                     _ => None,
                 })
+        };
+        let describe_claim = |reference: &RecordRef| {
+            records.iter().find(|r|r.identity.record_id==reference.record).and_then(|r| if let Payload::Proposition(p)=&r.payload {Some(json!({"subject":label(&p.subject.record),"property":label(&p.predicate.record),"value":p.value.as_ref().and_then(|v|writing::plain_value(v,&label))}))}else{None}).unwrap_or(json!({"unknown_claim":reference.record}))
         };
         let mut summary = vec![];
         for row in stored.changes.iter().filter_map(|c| c.next.as_ref()) {
@@ -327,6 +340,9 @@ impl Workflow<'_> {
                     a.excerpt.len(),
                     a.excerpt_digest
                 )),
+                Payload::Event(e) => summary.push(format!("Proposed occurred action: {}; time {}; participants {}; preconditions {}; effects {}. Exact source shares this reviewed editorial commit; no direct event anchor link.", e.action.as_ref().and_then(|r|label(&r.record)).unwrap_or_default(), serde_json::to_value(&e.time)?, serde_json::to_value(&e.participants)?, serde_json::to_value(&e.preconditions)?, serde_json::to_value(&e.effects)?)),
+                Payload::Communication(c) => summary.push(format!("Proposed communication: sender {}; actual recipients {}; claims {}; receipt {}; distorted {}. Content alone is not objective truth; exact source shares this reviewed editorial commit without a direct message anchor link.", label(&c.sender.record).unwrap_or_default(), c.actual_recipients.iter().filter_map(|r|label(&r.record)).collect::<Vec<_>>().join(", "), serde_json::to_value(c.content.iter().map(&describe_claim).collect::<Vec<_>>())?, serde_json::to_value(&c.received_at)?, c.distorted)),
+                Payload::EpistemicAttitude(a) => summary.push(format!("Proposed attitude: {} {:?}; claim {}; acquisition {}; validity {}",label(&a.holder.record).unwrap_or_default(),a.attitude,describe_claim(&a.proposition),serde_json::to_value(&a.acquisition)?,serde_json::to_value(&a.validity)?)),
                 Payload::IssueDecision(d) => summary.push(format!(
                     "Author creative acceptance: {}; reason {}",
                     d.scope, d.rationale
@@ -503,7 +519,7 @@ mod tests {
             .as_array()
             .unwrap()
             .iter()
-            .any(|f| f["property"] == "age" && f["value"]["number"] == "30"));
+            .any(|f| f["property"] == "age" && f["value"] == 30));
         assert_eq!(facts["frame"]["revision"], receipt["result"]["revision"]);
         let rr = |n: u64| json!({"universe":workflow.kernel.universe(),"record":format!("rec_{n:024x}")});
         let mut ops = vec![

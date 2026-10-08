@@ -590,3 +590,24 @@ Correct earlier events and dependent balances in the same reviewed proposal;
 initialization receipts, original revisions and separate instance stock remain
 available. Draft save/recovery, review, validation, approval and publication use
 the same workflow throughout.
+
+The ordinary writing tools also accept occurred actions, attributed messages,
+separate epistemic attitudes, and corrections to pinned authored fact handles.
+`universe_read_contracts` presents visible action roles, requirements and effects,
+knowledge policies, channel chronology and attributed communications. Event
+balances use the existing consequence evaluator; callers supply factual intent,
+not generated post-state records. Explicit fact/attitude lifetimes are supported;
+missing lifetime is not an invented stock interval. An explicit `at_tick` supplies
+authored scene time on the selected context's declared calendar, including when
+the research frame is timeless; no missing tick defaults to the current time. Interpretation alone never
+establishes knowledge. The ordinary path supports justified communication receipt;
+author-established knowledge still needs its separate actual author decision.
+
+Private source preparation admits these factual operation kinds, preserves
+`source_anchor` evidence on assertions/attitudes/corrections and `event_effect`
+evidence on generated event assertions. Events and messages share the exact staged
+source and reviewed atomic editorial commit; their existing records have no direct
+anchor field. This does not establish per-record citation or complete prose mapping.
+A correction preserves original assertion scope/time and checks subsequent actions
+and knowledge through existing validation and impact. Generated event facts cannot
+be corrected directly.

@@ -14,6 +14,10 @@ pub fn valid() -> Vec<(&'static str, Value)> {
     let c = id("ctx", 1);
     vec![
         (
+            "universe_read_contracts",
+            json!({"universe":u,"context_id":c,"action_names":[]}),
+        ),
+        (
             "universe_check_changes",
             json!({"universe":u,"context_id":c,"changes":[],"questions":[]}),
         ),
@@ -77,9 +81,9 @@ mod tests {
     use super::*;
     use crate::{tool_schemas, Request};
     #[test]
-    fn all_fifteen_tools_have_valid_examples_and_closed_schemas() {
-        assert_eq!(valid().len(), 15);
-        assert_eq!(tool_schemas().len(), 15);
+    fn all_sixteen_tools_have_valid_examples_and_closed_schemas() {
+        assert_eq!(valid().len(), 16);
+        assert_eq!(tool_schemas().len(), 16);
         for (tool, args) in valid() {
             let parsed = Request::from_tool(tool, args.clone()).unwrap();
             assert_eq!(parsed.tool_name(), tool);

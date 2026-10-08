@@ -1,5 +1,13 @@
 [
   {
+    "tool": "universe_read_contracts",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "context_id": "ctx_000000000000000000000001",
+      "action_names": []
+    }
+  },
+  {
     "tool": "universe_check_changes",
     "args": {
       "universe": "The Ashen Cycle",
