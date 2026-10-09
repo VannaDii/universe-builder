@@ -699,3 +699,17 @@ anchor field. This does not establish per-record citation or complete prose mapp
 A correction preserves original assertion scope/time and checks subsequent actions
 and knowledge through existing validation and impact. Generated event facts cannot
 be corrected directly.
+
+Ordinary `definition_corrections` revise a named type's ancestry or applicability,
+without reclassifying or recreating its instances. Omitted parent preserves
+ancestry; `parent: {kind: "root"}` explicitly removes it. Named
+`action_corrections` replace only supplied requirements/effects/applicability or
+explicit time and lifetime. Supplied lists replace the complete selected field;
+omitted fields preserve authored metadata. Legacy undeclared or custom-slot
+consequences require advanced review when editing effects. Shared attribute values
+use the existing pinned fact correction handles, retaining their scope and time.
+Type and action revisions require private `/review-contracts` and exact approval;
+ordinary `/review` cannot adopt them. Validation rechecks affected authored
+instances and events, impact remains bounded to the engine's dependency coverage,
+and pinned older revisions remain readable. Revisions do not repair later actions
+automatically.

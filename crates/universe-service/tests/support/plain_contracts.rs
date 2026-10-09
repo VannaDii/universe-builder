@@ -154,7 +154,7 @@ async fn ordinary_contracts_setup_requires_explicit_author_declaration_and_check
     );
 
     // Publish reusable starting values before selecting them for two independent starts.
-    let defaults=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":timeless,"definitions":[{"name":"Pistol kind","introduce":true,"scope":"universe","initial_values":[{"property":"rounds","value":2,"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"100"}}]},{"name":"Ornate pistol","introduce":true,"parent":"Pistol kind","scope":"universe"}]}))).await.unwrap();
+    let defaults=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":timeless,"definitions":[{"name":"Pistol kind","introduce":true,"scope":"universe","shared_attributes":[{"property":"finish","value":"plain","scope":"universe","at_tick":"0","lifetime":{"kind":"until_changed"}}],"initial_values":[{"property":"rounds","value":2,"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"100"}}]},{"name":"Ornate pistol","introduce":true,"parent":"Pistol kind","scope":"universe"}]}))).await.unwrap();
     assert_eq!(
         defaults["result"]["status"], "checked_candidate",
         "{defaults}"
@@ -184,7 +184,8 @@ async fn ordinary_contracts_setup_requires_explicit_author_declaration_and_check
     assert!(initial["result"]["objects"][0]["inherited_attributes"]
         .as_array()
         .unwrap()
-        .is_empty());
+        .iter()
+        .all(|f| f["property"] != "rounds"));
     let start = |name: &str, end: &str| json!({"instance":name,"initial_value_handles":[selected],"start":{"kind":"occurred","event":{"action":"begin","participants":{"instance":name},"at_tick":"10"}},"scope":"universe","lifetime":{"kind":"until","end_tick":end}});
     let starts_args = json!({"universe":"Alpha","context_id":fresh,"changes":[{"name":"First pistol","introduce":true,"classification":"Pistol kind","facts":[{"property":"ready","value":true,"scope":"universe","at_tick":"10","lifetime":{"kind":"until_changed"}}]},{"name":"Second pistol","introduce":true,"classification":"Pistol kind"}],"initializations":[start("First pistol","11"),start("Second pistol","100")]});
     let starts = c
@@ -435,6 +436,141 @@ async fn ordinary_contracts_setup_requires_explicit_author_declaration_and_check
             .iter()
             .any(|f| f["property"] == "rounds" && f["value"] == 0 && f["state"] == "supported"),
         "{former}"
+    );
+    // Revision edits retain identity/history and recheck genuinely committed events/instances.
+    let pinned = context(&mut c, &u, "Alpha").await;
+    let blocked=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":pinned,"action_corrections":[{"name":"fire","reason":"Firing requires not ready instead.","requirements":[{"role":"pistol","property":"ready","value":false}]}]}))).await.unwrap_err();
+    assert!(
+        blocked.to_string().contains("event.action.requirements"),
+        "{blocked}"
+    );
+    let cycle=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":pinned,"definition_corrections":[{"name":"Pistol kind","reason":"Change the ancestry.","parent":{"kind":"definition","name":"Ornate pistol"}}]}))).await.unwrap_err();
+    assert!(cycle.to_string().contains("structural"), "{cycle}");
+    let old_defs=c.call(tool("universe_read_facts",json!({"universe":"Alpha","context_id":pinned,"object_names":["Ornate pistol","First pistol"]}))).await.unwrap();
+    let legal=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":pinned,"action_corrections":[{"name":"fire","reason":"Expand the explicitly authored round limit.","effects":[{"role":"pistol","property":"rounds","change":{"kind":"delta","amount":-1,"minimum":0,"maximum":7},"lifetime":{"kind":"until_changed"}}]}],"definition_corrections":[{"name":"Ornate pistol","reason":"This is an independent root type.","parent":{"kind":"root"}}]}))).await.unwrap();
+    assert_eq!(legal["result"]["status"], "checked_candidate", "{legal}");
+    let candidate: ProposalId =
+        serde_json::from_value(legal["result"]["candidate_handle"].clone()).unwrap();
+    assert!(c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::Prepare {
+                candidate: candidate.clone(),
+                label: "revision".into(),
+                text: "Explicit contract correction".into()
+            }
+        })
+        .await
+        .is_err());
+    let review=c.call(EngineRequest::AuthorWriting{universe:Selector("Alpha".into()),action:AuthorWritingAction::PrepareContracts{candidate,label:"revision".into(),text:"Ornate pistol is a root type. Firing retains its requirements, validity and universe applicability, consumes one round, with the declared maximum changed to seven.".into()}}).await.unwrap();
+    assert_eq!(review["publishable"], true, "{review}");
+    c.call(EngineRequest::AuthorWriting {
+        universe: Selector("Alpha".into()),
+        action: AuthorWritingAction::Publish {
+            candidate: serde_json::from_value(review["candidate"].clone()).unwrap(),
+            validation_run: serde_json::from_value(
+                review["validation"]["execution"]["run_id"].clone(),
+            )
+            .unwrap(),
+            idempotency_key: "contract-revision".into(),
+        },
+    })
+    .await
+    .unwrap();
+    let latest = context(&mut c, &u, "Alpha").await;
+    let now_defs=c.call(tool("universe_read_facts",json!({"universe":"Alpha","context_id":latest,"object_names":["Ornate pistol","First pistol"]}))).await.unwrap();
+    assert!(
+        old_defs["result"]["objects"][0]["ancestry"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("Pistol kind")),
+        "{old_defs}"
+    );
+    assert!(
+        !now_defs["result"]["objects"][0]["ancestry"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("Pistol kind")),
+        "{now_defs}"
+    );
+    assert_eq!(
+        old_defs["result"]["objects"][1]["classification"],
+        now_defs["result"]["objects"][1]["classification"]
+    );
+    let old_contracts = c
+        .call(tool(
+            "universe_read_contracts",
+            json!({"universe":"Alpha","context_id":pinned}),
+        ))
+        .await
+        .unwrap();
+    let new_contracts = c
+        .call(tool(
+            "universe_read_contracts",
+            json!({"universe":"Alpha","context_id":latest}),
+        ))
+        .await
+        .unwrap();
+    let old_fire = old_contracts["result"]["actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["name"] == "fire")
+        .unwrap();
+    let new_fire = new_contracts["result"]["actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["name"] == "fire")
+        .unwrap();
+    assert_eq!(old_fire["requirements"], new_fire["requirements"]);
+    assert_eq!(old_fire["scope"], new_fire["scope"]);
+    assert_eq!(old_fire["time"], new_fire["time"]);
+    assert_eq!(old_fire["effects"][0]["change"]["maximum"], 6);
+    assert_eq!(new_fire["effects"][0]["change"]["maximum"], 7);
+    let shared=c.call(tool("universe_read_facts",json!({"universe":"Alpha","context_id":latest,"object_names":["Pistol kind","Second pistol"]}))).await.unwrap();
+    let shared_fact = shared["result"]["objects"][0]["inherited_attributes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["property"] == "finish")
+        .unwrap();
+    let corrected=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":latest,"corrections":[{"fact_handle":shared_fact["fact_handle"],"value":"polished","reason":"The shared finish was polished."}]}))).await.unwrap();
+    assert_eq!(
+        corrected["result"]["status"], "checked_candidate",
+        "{corrected}"
+    );
+    publish_plain(
+        &mut c,
+        &corrected,
+        "Pistols have a polished shared finish, without changing stock or classification.",
+        "shared-finish-correction",
+    )
+    .await;
+    let newest = context(&mut c, &u, "Alpha").await;
+    let revised=c.call(tool("universe_read_facts",json!({"universe":"Alpha","context_id":newest,"object_names":["Pistol kind","Second pistol"]}))).await.unwrap();
+    assert!(
+        revised["result"]["objects"][1]["inherited_attributes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["property"] == "finish" && f["value"] == "polished"),
+        "{revised}"
+    );
+    let retained = c
+        .call(tool(
+            "universe_read_facts",
+            json!({"universe":"Alpha","context_id":latest,"object_names":["Pistol kind"]}),
+        ))
+        .await
+        .unwrap();
+    assert!(
+        retained["result"]["objects"][0]["inherited_attributes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["property"] == "finish" && f["value"] == "plain"),
+        "{retained}"
     );
     stop.cancel();
     server.await.unwrap().unwrap();

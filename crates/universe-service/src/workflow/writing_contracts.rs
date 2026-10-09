@@ -153,7 +153,11 @@ impl Workflow<'_> {
         ops: &mut Vec<Value>,
         result: &mut WritingCheck,
     ) -> anyhow::Result<()> {
-        if input.actions.is_empty() && input.constraints.is_empty() {
+        if input.actions.is_empty()
+            && input.constraints.is_empty()
+            && input.action_corrections.is_empty()
+            && input.definition_corrections.is_empty()
+        {
             return Ok(());
         }
         let rows =
@@ -225,6 +229,167 @@ impl Workflow<'_> {
                     result
                         .additions
                         .push(format!("New action contract: {}", a.name));
+                }
+                Err(e) => result.clarifications.push(e.to_string()),
+            }
+        }
+        // Reuse the finite declaration compiler only for explicitly replaced fields.
+        for patch in &input.action_corrections {
+            let build = || -> anyhow::Result<Value> {
+                if patch.reason.trim().is_empty() {
+                    anyhow::bail!("Give the reason for this action correction.");
+                }
+                if patch.requirements.is_none()
+                    && patch.effects.is_none()
+                    && patch.scope.is_none()
+                    && patch.at_tick.is_none()
+                    && patch.lifetime.is_none()
+                {
+                    anyhow::bail!(
+                        "Specify the action fields to correct; omitted fields stay unchanged."
+                    );
+                }
+                let found: Vec<_> = base
+                    .iter()
+                    .filter_map(|r| match &r.payload {
+                        Payload::ActionDefinition(a)
+                            if a.key == patch.name
+                                || a.labels.values().any(|n| n == &patch.name) =>
+                        {
+                            Some((r, a))
+                        }
+                        _ => None,
+                    })
+                    .collect();
+                let [(original, action)] = found.as_slice() else {
+                    anyhow::bail!("Which exact authored action is '{}' ?", patch.name);
+                };
+                if patch.at_tick.is_some() != patch.lifetime.is_some() {
+                    anyhow::bail!("An action validity correction requires an explicit tick and lifetime together.");
+                }
+                if patch.effects.is_some() && action.consequence_contract.is_none() {
+                    anyhow::bail!("Legacy action without a declared consequence contract requires advanced review.");
+                }
+                if patch.effects.is_some()
+                    && action.consequence_contract.as_ref().is_some_and(|c| {
+                        c.slots.iter().enumerate().any(|(i, s)| {
+                            s.slot != format!("effect_{}", i + 1) || usize::from(s.order) != i
+                        })
+                    })
+                {
+                    anyhow::bail!("Editing legacy effect slots/order requires advanced contract review; no authored slot metadata is discarded.");
+                }
+                let mut declaration = input.clone();
+                declaration.actions = vec![WritingAction {
+                    name: patch.name.clone(),
+                    introduce: true,
+                    requirements: patch.requirements.clone().unwrap_or_default(),
+                    effects: patch.effects.clone().unwrap_or_default(),
+                    scope: patch.scope.clone().unwrap_or_else(|| "unspecified".into()),
+                    at_tick: patch.at_tick.clone(),
+                    lifetime: patch.lifetime.clone().unwrap_or(FactLifetime::Unspecified),
+                }];
+                declaration.constraints.clear();
+                declaration.action_corrections.clear();
+                declaration.definition_corrections.clear();
+                let mut generated = vec![];
+                let mut feedback = result.clone();
+                feedback.clarifications.clear();
+                let other: Vec<_> = rows
+                    .iter()
+                    .filter(|r| r.identity.record_id != original.identity.record_id)
+                    .cloned()
+                    .collect();
+                self.writing_contracts(&declaration, ctx, &other, &mut generated, &mut feedback)?;
+                if !feedback.clarifications.is_empty() {
+                    anyhow::bail!("{}", feedback.clarifications.join(" "));
+                }
+                let mut replacement = serde_json::to_value(action)?;
+                let built = &generated[0]["record"];
+                if patch.requirements.is_some() {
+                    replacement["requirements"] = built["requirements"].clone();
+                }
+                if patch.effects.is_some() {
+                    replacement["consequenceContract"] = built["consequenceContract"].clone();
+                }
+                if patch.scope.is_some() {
+                    replacement["scope"]["applicability"] = built["scope"]["applicability"].clone();
+                }
+                if patch.at_tick.is_some() {
+                    replacement["validity"] = built["validity"].clone();
+                }
+                replacement["record_kind"] = json!("action_definition");
+                Ok(
+                    json!({"kind":"revise_definition","record":{"universe":u,"record":original.identity.record_id},"expected_version":original.record_version_id,"replacement":replacement}),
+                )
+            };
+            match build() {
+                Ok(op) => {
+                    ops.push(op);
+                    result.additions.push(format!(
+                        "Action contract correction: {} — {}",
+                        patch.name, patch.reason
+                    ));
+                }
+                Err(e) => result.clarifications.push(e.to_string()),
+            }
+        }
+        for patch in &input.definition_corrections {
+            let build = || -> anyhow::Result<Value> {
+                if patch.reason.trim().is_empty() {
+                    anyhow::bail!("Give the reason for this ancestry/applicability correction.");
+                }
+                if patch.parent.is_none() && patch.scope.is_none() {
+                    anyhow::bail!("Specify the ancestry or applicability correction; omitted fields stay unchanged.");
+                }
+                let found: Vec<_> = base
+                    .iter()
+                    .filter_map(|r| match &r.payload {
+                        Payload::EntityType(d)
+                            if d.key == patch.name
+                                || d.name == patch.name
+                                || d.labels.values().any(|n| n == &patch.name) =>
+                        {
+                            Some((r, d))
+                        }
+                        _ => None,
+                    })
+                    .collect();
+                let [(original, d)] = found.as_slice() else {
+                    anyhow::bail!("Which exact authored definition is '{}' ?", patch.name);
+                };
+                let mut replacement = (*d).clone();
+                if let Some(parent) = &patch.parent {
+                    replacement.parent = match parent {
+                        WritingParent::Root => None,
+                        WritingParent::Definition { name } => {
+                            let parents:Vec<_>=rows.iter().filter(|r|matches!(&r.payload,Payload::EntityType(p)if p.key==*name||p.name==*name||p.labels.values().any(|n|n==name))).collect();
+                            let [p] = parents.as_slice() else {
+                                anyhow::bail!("Which exact parent definition is '{}' ?", name);
+                            };
+                            Some(p.identity.record_id.clone())
+                        }
+                    };
+                    replacement.parent_resolution = if replacement.parent.is_some() {
+                        universe_domain::records::ParentResolution::Resolved
+                    } else {
+                        universe_domain::records::ParentResolution::Root
+                    };
+                }
+                if let Some(scope) = &patch.scope {
+                    replacement.applicability = applicability(self, scope, &rows)?;
+                }
+                Ok(
+                    json!({"kind":"revise_definition","record":{"universe":u,"record":original.identity.record_id},"expected_version":original.record_version_id,"replacement":Payload::EntityType(replacement)}),
+                )
+            };
+            match build() {
+                Ok(op) => {
+                    ops.push(op);
+                    result.additions.push(format!(
+                        "Definition correction: {} — {}",
+                        patch.name, patch.reason
+                    ));
                 }
                 Err(e) => result.clarifications.push(e.to_string()),
             }

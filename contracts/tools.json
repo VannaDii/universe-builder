@@ -2165,7 +2165,7 @@
   },
   {
     "name": "universe_check_changes",
-    "description": "Check plain factual deltas from author writing against pinned canon. Resolve existing objects by their exact visible names; introduce new identities only explicitly. Preserve dialogue, beliefs, plans, hypothetical and figurative claims as non-objective. The engine constructs canonical records, creates a provisional candidate, validates it and inspects impact. It returns a candidate handle, findings and material clarifications; it never approves or publishes. Scope/time/ownership ambiguities remain unresolved. Named definitions introduce reusable types/parent relationships/shared attributes; classification introduces or refines an instance without replacing identity. Shared attributes never become initial stock. definitions.initial_values declare starting candidates, which must be approved before explicit initializations select their opaque handles. Each initialization requires an explicit occurred start using a declared action/participants/time/world, or a retrieved pinned occurred-event handle, and an authored interval. First mention, classification and restart never initialize or refill. event_corrections use pinned occurred-event handles and changed named fields; omitted fields retain canon. Participants explicitly replace all bindings; empty requires_knowledge explicitly clears direct Knows preconditions. Effects are recalculated from authored contracts, never editable stock facts. Manual effects outside declared slots require advanced correction. Later events are checked but never automatically rewritten. New scalar properties impose no single-value constraint; explicit properties declare type, multiplicity and persistence without revising existing definitions. Named actions support role/property/value requirements, set or bounded integer-delta effects and authored lifetimes. Constraints support resource_accounting or no_opposing_evidence. Contracts require separate private author declaration review and exact approval. Explicit quantities use {amount,unit} with exact authored numbers and named units. Quantity properties require a unit. Visible unit metadata is returned by read_contracts; explicit no-conversion unit declarations require private contract review. Never infer dimension, symbol, unit conversion or physics. Quantity deltas require integer amounts/bounds with the exact declared unit; decimal resource arithmetic remains unsupported. Existing authored property semantics and resource accounting remain enforced.",
+    "description": "Check plain factual deltas from author writing against pinned canon. Resolve existing objects by their exact visible names; introduce new identities only explicitly. Preserve dialogue, beliefs, plans, hypothetical and figurative claims as non-objective. The engine constructs canonical records, creates a provisional candidate, validates it and inspects impact. It returns a candidate handle, findings and material clarifications; it never approves or publishes. Scope/time/ownership ambiguities remain unresolved. Named definitions introduce reusable types/parent relationships/shared attributes; classification introduces or refines an instance without replacing identity. Shared attributes never become initial stock. definitions.initial_values declare starting candidates, which must be approved before explicit initializations select their opaque handles. Each initialization requires an explicit occurred start using a declared action/participants/time/world, or a retrieved pinned occurred-event handle, and an authored interval. First mention, classification and restart never initialize or refill. event_corrections use pinned occurred-event handles and changed named fields; omitted fields retain canon. Participants explicitly replace all bindings; empty requires_knowledge explicitly clears direct Knows preconditions. Effects are recalculated from authored contracts, never editable stock facts. Manual effects outside declared slots require advanced correction. Later events are checked but never automatically rewritten. New scalar properties impose no single-value constraint; explicit properties declare type, multiplicity and persistence without revising existing definitions. definition_corrections revise named type ancestry/applicability without reclassifying instances; an explicit root parent removes ancestry. action_corrections replace only supplied requirements/effects/applicability or explicit tick plus lifetime; omitted fields retain canon. Both require private contract review, preserve history and recheck affected instances/events. Supplied action lists replace the complete selected field; custom legacy effect slots require advanced editing. Shared attribute values use pinned factual correction handles. Named actions support role/property/value requirements, set or bounded integer-delta effects and authored lifetimes. Constraints support resource_accounting or no_opposing_evidence. Contracts require separate private author declaration review and exact approval. Explicit quantities use {amount,unit} with exact authored numbers and named units. Quantity properties require a unit. Visible unit metadata is returned by read_contracts; explicit no-conversion unit declarations require private contract review. Never infer dimension, symbol, unit conversion or physics. Quantity deltas require integer amounts/bounds with the exact declared unit; decimal resource arithmetic remains unsupported. Existing authored property semantics and resource accounting remain enforced.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "CheckChanges",
@@ -2216,6 +2216,22 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/WritingAction"
+          },
+          "default": []
+        },
+        "definition_corrections": {
+          "description": "Incremental ancestry/applicability revisions; omitted fields keep authored metadata. Requires private contract review.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingDefinitionCorrection"
+          },
+          "default": []
+        },
+        "action_corrections": {
+          "description": "Incremental supported action revisions; supplied lists explicitly replace those fields, omitted fields stay unchanged. Requires private contract review.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingActionCorrection"
           },
           "default": []
         },
@@ -2806,6 +2822,137 @@
                 "count"
               ]
             }
+          ]
+        },
+        "WritingDefinitionCorrection": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "parent": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/WritingParent"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "scope": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "reason"
+          ]
+        },
+        "WritingParent": {
+          "description": "Explicit ancestry change, distinct from refining an instance's classification.",
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "root"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "definition"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "name"
+              ]
+            }
+          ]
+        },
+        "WritingActionCorrection": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "requirements": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/$defs/RoleValue"
+              },
+              "default": null
+            },
+            "effects": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/$defs/WritingEffect"
+              },
+              "default": null
+            },
+            "scope": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "at_tick": {
+              "description": "Time revision requires both explicit tick and lifetime; omission preserves existing validity.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "lifetime": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FactLifetime"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "reason"
           ]
         },
         "WritingConstraint": {

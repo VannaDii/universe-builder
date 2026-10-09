@@ -107,7 +107,45 @@ impl Workflow<'_> {
                 if !matches!(p.proposal.submission, Submission::Draft) {
                     return Err(ProtocolError::ApprovalStale.into());
                 }
+                let originals = self.kernel.records(
+                    &p.proposal.base_frame.continuity,
+                    &p.proposal.base_frame.revision,
+                )?;
                 if p.proposal.operations.iter().any(|op| {
+                    if let DomainOperation::ReviseDefinition {
+                        record,
+                        expected_version,
+                        replacement,
+                    } = op
+                    {
+                        if !contracts {
+                            return true;
+                        }
+                        let Some(original) = originals.iter().find(|r| {
+                            r.identity.record_id == record.record
+                                && &r.record_version_id == expected_version
+                        }) else {
+                            return true;
+                        };
+                        return match (&original.payload, replacement.as_ref()) {
+                            (Payload::EntityType(old), Payload::EntityType(new)) => {
+                                let mut permitted = old.clone();
+                                permitted.parent = new.parent.clone();
+                                permitted.parent_resolution = new.parent_resolution;
+                                permitted.applicability = new.applicability.clone();
+                                &permitted != new
+                            }
+                            (Payload::ActionDefinition(old), Payload::ActionDefinition(new)) => {
+                                let mut permitted = old.clone();
+                                permitted.requirements = new.requirements.clone();
+                                permitted.consequence_contract = new.consequence_contract.clone();
+                                permitted.scope.applicability = new.scope.applicability.clone();
+                                permitted.validity = new.validity.clone();
+                                &permitted != new
+                            }
+                            _ => true,
+                        };
+                    }
                     if contracts && matches!(op, DomainOperation::DefineAction { .. }) {
                         return false;
                     }

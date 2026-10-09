@@ -123,6 +123,12 @@ pub struct CheckChanges {
     pub units: Vec<WritingUnit>,
     #[serde(default)]
     pub actions: Vec<WritingAction>,
+    /// Incremental ancestry/applicability revisions; omitted fields keep authored metadata. Requires private contract review.
+    #[serde(default)]
+    pub definition_corrections: Vec<WritingDefinitionCorrection>,
+    /// Incremental supported action revisions; supplied lists explicitly replace those fields, omitted fields stay unchanged. Requires private contract review.
+    #[serde(default)]
+    pub action_corrections: Vec<WritingActionCorrection>,
     /// Finite supported policies. Separate private author contract review is required before publication.
     #[serde(default)]
     pub constraints: Vec<WritingConstraint>,
@@ -431,4 +437,39 @@ pub struct WritingUnit {
     pub introduce: bool,
     pub dimension: String,
     pub symbol: String,
+}
+
+/// Explicit ancestry change, distinct from refining an instance's classification.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum WritingParent {
+    Root,
+    Definition { name: String },
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingDefinitionCorrection {
+    pub name: String,
+    pub reason: String,
+    #[serde(default)]
+    pub parent: Option<WritingParent>,
+    #[serde(default)]
+    pub scope: Option<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingActionCorrection {
+    pub name: String,
+    pub reason: String,
+    #[serde(default)]
+    pub requirements: Option<Vec<RoleValue>>,
+    #[serde(default)]
+    pub effects: Option<Vec<WritingEffect>>,
+    #[serde(default)]
+    pub scope: Option<String>,
+    /// Time revision requires both explicit tick and lifetime; omission preserves existing validity.
+    #[serde(default)]
+    pub at_tick: Option<String>,
+    #[serde(default)]
+    pub lifetime: Option<FactLifetime>,
 }
