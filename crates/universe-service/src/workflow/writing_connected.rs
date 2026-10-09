@@ -19,6 +19,27 @@ pub(super) fn plain_action(
     json!({"name":a.key,"requirements":requirements,"effects":effects,"scope":match &a.scope.applicability { Applicability::UniverseWide=>json!("universe"),Applicability::Worlds{world_ids}=>json!({"worlds":world_ids.iter().map(|id|RecordId::parse(&id.as_str().replacen("wld_","rec_",1)).ok().and_then(|id|name(&id))).collect::<Vec<_>>()}),_=>json!("unresolved") },"time":plain_time(&json!(a.validity),name),"contract_declared":a.consequence_contract.is_some()})
 }
 
+pub(super) fn authored_fact<'a>(
+    rows: &'a [RecordVersion],
+    handle: &str,
+) -> anyhow::Result<(&'a RecordVersion, &'a Assertion)> {
+    let row = rows
+        .iter()
+        .find(|r| r.record_version_id.as_str() == handle)
+        .ok_or_else(|| {
+            anyhow::anyhow!("Retrieve the current pinned authored fact handle before editing it")
+        })?;
+    let Payload::Assertion(assertion) = &row.payload else {
+        anyhow::bail!("Correction handle is not an authored assertion")
+    };
+    if assertion.established_by.is_some() {
+        anyhow::bail!(
+            "Generated event facts cannot be corrected directly; correct the authored cause"
+        )
+    }
+    Ok((row, assertion))
+}
+
 fn reference(u: &UniverseId, id: &RecordId) -> RecordRef {
     RecordRef::new(u.clone(), id.clone())
 }
@@ -264,6 +285,8 @@ impl Workflow<'_> {
             && input.messages.is_empty()
             && input.attitudes.is_empty()
             && input.corrections.is_empty()
+            && input.fact_endings.is_empty()
+            && input.fact_withdrawals.is_empty()
         {
             return Ok(());
         }
@@ -447,24 +470,15 @@ impl Workflow<'_> {
                 Err(e) => result.clarifications.push(e.to_string()),
             }
         }
+        let mut edited_facts = BTreeSet::new();
         for correction in &input.corrections {
             let built = (|| -> anyhow::Result<_> {
                 if correction.reason.trim().is_empty() {
                     anyhow::bail!("A factual correction requires the author's stated reason")
                 }
-                let row = base
-                    .iter()
-                    .find(|r| r.record_version_id.as_str() == correction.fact_handle)
-                    .ok_or_else(|| {
-                        anyhow::anyhow!(
-                            "Retrieve the current pinned authored fact handle before editing it"
-                        )
-                    })?;
-                let Payload::Assertion(old) = &row.payload else {
-                    anyhow::bail!("Correction handle is not an authored assertion")
-                };
-                if old.established_by.is_some() {
-                    anyhow::bail!("Generated event facts cannot be corrected directly; correct the authored cause")
+                let (row, old) = authored_fact(base, &correction.fact_handle)?;
+                if !edited_facts.insert(row.identity.record_id.clone()) {
+                    anyhow::bail!("Submit only one correction, ending or withdrawal for each authored fact in a delta.")
                 }
                 let Some(Payload::Proposition(p)) = base
                     .iter()
@@ -490,6 +504,47 @@ impl Workflow<'_> {
                         "Correction to authored fact {} (original scope/time preserved)",
                         correction.fact_handle
                     ));
+                    rows = candidate_records(u, ctx, base, operations)?;
+                }
+                Err(e) => result.clarifications.push(e.to_string()),
+            }
+        }
+        for (handle, reason, end_tick) in input
+            .fact_endings
+            .iter()
+            .map(|e| (&e.fact_handle, &e.reason, Some(&e.end_tick)))
+            .chain(
+                input
+                    .fact_withdrawals
+                    .iter()
+                    .map(|w| (&w.fact_handle, &w.reason, None)),
+            )
+        {
+            let built = (|| -> anyhow::Result<Value> {
+                if reason.trim().is_empty() {
+                    anyhow::bail!("Explain the author's fact ending or withdrawal.")
+                }
+                let (row, assertion) = authored_fact(base, handle)?;
+                if !edited_facts.insert(row.identity.record_id.clone()) {
+                    anyhow::bail!("Submit only one correction, ending or withdrawal for each authored fact in a delta.")
+                }
+                if let Some(tick) = end_tick {
+                    let Validity::CalendarInterval { calendar, .. } = &assertion.validity else {
+                        anyhow::bail!("Ending requires an authored calendar interval; use withdrawal or explicit historical correction for other validity.")
+                    };
+                    Ok(
+                        json!({"kind":"end_assertion_at","record":reference(u,&row.identity.record_id),"expected_version":row.record_version_id,"at":{"kind":"exact","calendar":calendar,"value":tick},"basis":{"kind":"imported_claim"}}),
+                    )
+                } else {
+                    Ok(
+                        json!({"kind":"retract_assertion","record":reference(u,&row.identity.record_id),"expected_version":row.record_version_id,"rationale":reason}),
+                    )
+                }
+            })();
+            match built {
+                Ok(op) => {
+                    operations.push(op);
+                    result.additions.push(if let Some(tick) = end_tick { format!("Authored fact ends at {tick}: {reason}") } else { format!("Authored fact support withdrawn, without asserting its opposite: {reason}") });
                     rows = candidate_records(u, ctx, base, operations)?;
                 }
                 Err(e) => result.clarifications.push(e.to_string()),

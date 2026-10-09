@@ -231,6 +231,7 @@ class ConnectedWritingTests(unittest.TestCase):
         import os
         import subprocess
         import tempfile
+        import time
         from pathlib import Path
         from types import SimpleNamespace
         from mcp_smoke import MCP
@@ -513,6 +514,11 @@ class ConnectedWritingTests(unittest.TestCase):
                 recovery={"action":"publish","candidate":ref,"validation_run":staged["validation"]["execution"]["run_id"],"idempotency_key":"connected-property-recovery"}
                 client.close();client=None
                 cli("shutdown",profile=author)
+                # Shutdown acknowledges the request before draining workers and removing its endpoint.
+                deadline=time.monotonic()+5
+                while (installation/"engine.sock").exists() and time.monotonic()<deadline:
+                    time.sleep(0.01)
+                self.assertFalse((installation/"engine.sock").exists(),"Owned daemon did not finish shutdown")
                 decisions=AuthorDecisions(SimpleNamespace(universe="Story"),binaries/"universe",installation,author,output=lambda _:None)
                 receipt=decisions.action(recovery)
                 self.assertEqual(decisions.action(recovery)["result"],receipt["result"])
@@ -520,6 +526,34 @@ class ConnectedWritingTests(unittest.TestCase):
                 self.assertEqual(property_settings(context())["persistence"],"until_changed")
                 self.assertFalse(property_settings(context())["single_value"])
                 self.assertEqual(property_settings(context(None,{"kind":"exact","revision_id":before_advance}))["persistence"],"unspecified")
+
+                # Explicit ending preserves past support; withdrawal does not refute.
+                facts=lambda ctx: client.call("universe_read_facts",{"universe":"Story","context_id":ctx,"object_names":["Courtyard"]})["result"]["objects"][0]
+                before_end=context(5)
+                locked=next(f for f in facts(before_end)["facts"] if f["property"]=="locked")
+                duplicate=check(before_end,corrections=[{"fact_handle":locked["fact_handle"],"value":False,"reason":"Explicit correction."}],fact_endings=[{"fact_handle":locked["fact_handle"],"end_tick":"8","reason":"Explicit ending."}])
+                self.assertEqual(duplicate["status"],"needs_clarification",duplicate)
+                self.assertIsNone(duplicate["candidate_handle"])
+                ending=check(before_end,fact_endings=[{"fact_handle":locked["fact_handle"],"end_tick":"8","reason":"The authored lock condition ends at day eight."}])
+                before_end_revision=publish(ending,"The courtyard's lock condition ends at day eight; its earlier condition is retained.","connected-fact-end")
+                self.assertTrue(any(f["property"]=="locked" and f["state"]=="supported" for f in facts(context(5))["facts"]))
+                later=facts(context(9))["facts"]
+                self.assertFalse(any(f["property"]=="locked" and f["state"] in {"supported","refuted"} for f in later),later)
+                current_locked=next(f for f in facts(context(5))["facts"] if f["property"]=="locked")
+                stale=check(context(5),fact_withdrawals=[{"fact_handle":locked["fact_handle"],"reason":"Old version cannot withdraw newer support."}])
+                self.assertEqual(stale["status"],"needs_clarification",stale)
+                code=next(f for f in facts(context(5))["facts"] if f["property"]=="code")
+                denied=client.request("tools/call",{"name":"universe_check_changes","arguments":{"universe":"Story","context_id":context(5),"fact_withdrawals":[{"fact_handle":code["fact_handle"],"reason":"Withdraw the evidence used by later knowledge and action."}]}})
+                self.assertTrue(denied.get("isError") or denied.get("structuredContent",{}).get("result",{}).get("status")!="checked_candidate",denied)
+                self.assertTrue(any(term in str(denied).lower() for term in ("knowledge","requirement")),denied)
+                replacement=check(context(5),fact_withdrawals=[{"fact_handle":current_locked["fact_handle"],"reason":"Explicitly replace the old support."}],changes=[{"name":"Courtyard","facts":[{"property":"locked","value":False,"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"8"}}]}])
+                self.assertEqual(replacement["status"],"checked_candidate",replacement)
+                withdrawn=check(context(5),fact_withdrawals=[{"fact_handle":current_locked["fact_handle"],"reason":"The author withdraws the lock assertion rather than declaring its opposite."}])
+                publish(withdrawn,"The author withdraws the courtyard lock claim, without claiming it was unlocked.","connected-fact-withdraw")
+                remaining=facts(context(5))["facts"]
+                self.assertFalse(any(f["property"]=="locked" and f["state"] in {"supported","refuted"} for f in remaining),remaining)
+                historical=facts(context(5,{"kind":"exact","revision_id":before_end_revision}))["facts"]
+                self.assertTrue(any(f["property"]=="locked" and f["state"]=="supported" for f in historical),historical)
 
 
 

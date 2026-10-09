@@ -182,6 +182,12 @@ pub struct CheckChanges {
     pub attitudes: Vec<WritingAttitude>,
     #[serde(default)]
     pub corrections: Vec<WritingCorrection>,
+    /// End an authored fact interval at an explicit tick on its original calendar; preserve past support.
+    #[serde(default)]
+    pub fact_endings: Vec<WritingFactEnding>,
+    /// Withdraw authored support without asserting its opposite; historical revisions remain intact.
+    #[serde(default)]
+    pub fact_withdrawals: Vec<WritingFactWithdrawal>,
     /// Material ambiguities identified in the writing. Any unresolved question holds the entire delta without creating a candidate.
     #[serde(default)]
     /// Neutral material questions only. Do not propose a guessed owner/identity as fact while asking who is intended.
@@ -329,6 +335,21 @@ pub struct WritingCorrection {
     /// Opaque authored assertion-version handle returned by plain factual research. Retrieve the current handle after a correction; generated event facts cannot be corrected directly.
     pub fact_handle: String,
     pub value: FactValue,
+    pub reason: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingFactEnding {
+    /// Current opaque authored assertion-version handle returned by universe_read_facts.
+    pub fact_handle: String,
+    pub end_tick: String,
+    pub reason: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingFactWithdrawal {
+    /// Current opaque authored assertion-version handle returned by universe_read_facts.
+    pub fact_handle: String,
     pub reason: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

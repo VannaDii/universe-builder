@@ -738,6 +738,12 @@ An edit handle identifies the exact authored assertion version. After a correcti
 retrieve its new handle; opening a fresh context does not make an old handle editable.
 Historical research retains the original handle and facts. Generated event facts
 remain non-editable; correct their authored event instead.
+`fact_endings` selects a current `fact_handle`, explicit `end_tick` and author
+`reason` to end an authored calendar interval, preserving support before the end.
+`fact_withdrawals` selects a current handle and reason to remove support entirely
+from the new revision, without asserting the opposite. Both require exact private
+source review and approval. Submit only one edit per fact; dependent actions are
+rechecked. Any replacement claim must be explicitly submitted in the same delta.
 
 `universe_read_contracts` presents visible action roles, requirements and effects,
 knowledge policies, channel chronology and attributed communications. Event

@@ -410,8 +410,8 @@ impl Workflow<'_> {
             if let DomainOperation::AddName {record,expected_version,..}=op {
                 return !originals.iter().any(|r|r.identity.record_id==record.record && &r.record_version_id==expected_version && matches!(r.payload,Payload::Entity(_)));
             }
-            if let DomainOperation::EndAssertionAt { record, expected_version, .. } = op {
-                return !originals.iter().any(|r| r.identity.record_id==record.record && &r.record_version_id==expected_version && matches!(&r.payload,Payload::Assertion(a) if super::writing_relations::correctable(a) && originals.iter().any(|p|p.identity.record_id==a.proposition.record && matches!(&p.payload,Payload::Proposition(p) if originals.iter().any(|d|d.identity.record_id==p.predicate.record && matches!(d.payload,Payload::Relation(_)))))));
+            if let DomainOperation::EndAssertionAt { record, expected_version, .. } | DomainOperation::RetractAssertion { record, expected_version, .. } = op {
+                return !originals.iter().any(|r| r.identity.record_id==record.record && &r.record_version_id==expected_version && matches!(&r.payload,Payload::Assertion(a) if a.established_by.is_none() && originals.iter().any(|p|p.identity.record_id==a.proposition.record && matches!(&p.payload,Payload::Proposition(p) if originals.iter().any(|d|d.identity.record_id==p.predicate.record && (matches!(d.payload,Payload::Property(_)) || (matches!(op,DomainOperation::EndAssertionAt{..}) && super::writing_relations::correctable(a) && matches!(d.payload,Payload::Relation(_)))))))));
             }
             if let DomainOperation::SetCompleteness { record, .. } = op {
                 return !contracts
@@ -451,6 +451,7 @@ impl Workflow<'_> {
                     | DomainOperation::RecordCommunication { .. }
                     | DomainOperation::AddBelief { .. }
                     | DomainOperation::EndAssertionAt { .. }
+                    | DomainOperation::RetractAssertion { .. }
                     | DomainOperation::SupersedeAssertion { .. }
             )
         }) {
