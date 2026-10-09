@@ -104,6 +104,8 @@ fn time_text(v: &Value) -> String {
     match v["kind"].as_str() {
         Some("timeless") => "All authored validities; no temporal claim".into(),
         Some("at") => time_text(&v["time"]),
+        Some("instant") => format!("At {}", time_text(&v["at"])),
+        Some("unknown") => "Time unknown".into(),
         Some("exact") => format!("{} in calendar {}", text(&v["value"]), text(&v["calendar"])),
         Some("calendar_interval") | Some("interval") => format!(
             "{} to {} (end exclusive) in calendar {}",
@@ -150,6 +152,14 @@ fn ObjectView(object: Value) -> Element {
     }
     rsx! {article{class:"panel",h3{{name(&object["identity"])}}
         p{{format!("Object coverage: {}",caption(text(&object["coverage"])))}}
+        for (heading,status) in [("Active names",Some(true)),("Names not active at selected time",Some(false)),("Names with unresolved applicability",None)] {
+            section{h4{"{heading}"}
+                for row in object["contextual_names"].as_array().into_iter().flatten().filter(|r|r["applicability"].as_bool()==status){
+                    p{{format!("{} · language: {} · community: {} · role: {}",text(&row["name"]["text"]),row["name"]["language"].as_str().unwrap_or("Unspecified"),row["name"]["community"].as_str().unwrap_or("Unspecified"),row["name"]["role"].as_str().unwrap_or("Unspecified"))}}
+                    p{{time_text(&row["name"]["validity"])}}
+                }
+            }
+        }
         section{h4{"Identity and classification"}
             if object["identity"]["payload"]["record_kind"]=="entity_type" {
                 p{{format!("Reusable definition: {}; parent: {}",name(&object["identity"]),caption(text(&object["identity"]["payload"]["parentResolution"])))}}

@@ -87,6 +87,55 @@ pub(super) fn operation(
     serde_json::to_value(typed).map_err(|e| e.to_string())
 }
 
+#[derive(Clone, Default, PartialEq)]
+pub(super) struct NameForm {
+    pub text: String,
+    pub language: String,
+    pub community: String,
+    pub role: String,
+    pub validity: String,
+    pub start: String,
+    pub end: String,
+    pub end_kind: String,
+}
+pub(super) fn name_operation(
+    frame: &Frame,
+    selected: &Value,
+    form: &NameForm,
+    clock: Option<&Chronology>,
+) -> Result<Value, String> {
+    if selected["payload"]["record_kind"] != "entity" || form.text.trim().is_empty() {
+        return Err("Inspect an existing entity and enter its name.".into());
+    }
+    let validity = match form.validity.as_str() {
+        "unspecified" | "unknown" => json!({"kind":form.validity}),
+        "instant" | "interval" => {
+            let clock = clock.ok_or("Select an authored clock before dating a name.")?;
+            let start = clock.coordinate(&form.start)?;
+            if form.validity == "instant" {
+                json!({"kind":"instant","at":{"kind":"exact","calendar":clock.calendar,"value":start}})
+            } else {
+                let end = match form.end_kind.as_str() {
+                    "exact" => json!({"kind":"exact","value":clock.coordinate(&form.end)?}),
+                    "unknown" | "unbounded" => json!({"kind":form.end_kind}),
+                    _ => return Err("Choose an explicit end meaning.".into()),
+                };
+                json!({"kind":"calendar_interval","calendar":clock.calendar,"start":{"kind":"exact","value":start},"end":end})
+            }
+        }
+        _ => return Err("Choose the name's temporal meaning.".into()),
+    };
+    let optional = |v: &str| {
+        if v.trim().is_empty() {
+            None
+        } else {
+            Some(v.trim().to_string())
+        }
+    };
+    let typed: DomainOperation = serde_json::from_value(json!({"kind":"add_name","record":{"universe":frame.universe,"record":selected["identity"]["record_id"]},"expected_version":selected["record_version_id"],"name":{"text":form.text.trim(),"language":optional(&form.language),"community":optional(&form.community),"role":optional(&form.role),"validity":validity}})).map_err(|e|e.to_string())?;
+    serde_json::to_value(typed).map_err(|e| e.to_string())
+}
+
 /// Patches only one explicitly selected role/limit field, retaining all other metadata.
 pub(super) fn contract_operation(
     frame: &Frame,
@@ -178,6 +227,7 @@ pub fn InspectorEditor(
     let mut reason = use_signal(String::new);
     let mut error = use_signal(String::new);
     let mut role = use_signal(String::new);
+    let mut name = use_signal(NameForm::default);
     if selected["payload"]["record_kind"] == "assertion"
         && !selected["payload"]["establishedBy"].is_null()
     {
@@ -236,8 +286,26 @@ pub fn InspectorEditor(
     };
     rsx! {details{summary{"Change the inspected record"}
         p{"Changes enter the draft and require validation, exact approval and commit. Earlier revisions remain available."}
-        super::select::RichSelect{id:"inspector-action",disabled,value:action(),options:super::select::choices(&options),onchange:move|e:super::select::SelectionEvent|{action.set(e.value());value.set(String::new());role.set(String::new());reason.set(String::new());error.set(String::new());}}
-        if action().starts_with("role_") {
+        super::select::RichSelect{id:"inspector-action",disabled,value:action(),options:super::select::choices(&options),onchange:move|e:super::select::SelectionEvent|{action.set(e.value());name.set(NameForm::default());value.set(String::new());role.set(String::new());reason.set(String::new());error.set(String::new());}}
+        if action()=="add_name" {
+            p{"This adds a name to the selected identity; it does not merge identities or establish who knows the name."}
+            label{r#for:"inspector-name-text","Name"}input{id:"inspector-name-text",disabled,value:name.read().text.clone(),oninput:move|e|name.write().text=e.value()}
+            label{r#for:"inspector-name-language","Language (optional)"}input{id:"inspector-name-language",disabled,value:name.read().language.clone(),oninput:move|e|name.write().language=e.value()}
+            label{r#for:"inspector-name-community","Community (optional)"}input{id:"inspector-name-community",disabled,value:name.read().community.clone(),oninput:move|e|name.write().community=e.value()}
+            label{r#for:"inspector-name-role","Name role (optional)"}input{id:"inspector-name-role",disabled,value:name.read().role.clone(),oninput:move|e|name.write().role=e.value()}
+            label{r#for:"inspector-name-validity","When this name applies"}
+            super::select::RichSelect{id:"inspector-name-validity",disabled,value:name.read().validity.clone(),options:super::select::choices(&[("","Choose temporal meaning"),("unspecified","No temporal claim"),("unknown","Time unknown"),("instant","Named-calendar instant"),("interval","Explicit interval")]),onchange:move|e:super::select::SelectionEvent|name.write().validity=e.value()}
+            if ["instant","interval"].contains(&name.read().validity.as_str()){
+                p{{clock.as_ref().map(|c|match &c.system {universe_domain::chronology::ClockSystem::Fictional{tick_label,..}=>format!("Use exact {tick_label} in the selected authored clock."),universe_domain::chronology::ClockSystem::Gregorian{..}=>"Use an exact dated timestamp in the selected authored clock.".into()}).unwrap_or("No authored clock selected.".into())}}
+                label{r#for:"inspector-name-start","Start / instant"}input{id:"inspector-name-start",disabled,value:name.read().start.clone(),oninput:move|e|name.write().start=e.value()}
+            }
+            if name.read().validity=="interval"{
+                p{"Intervals include the start and exclude the end. Unknown is different from unbounded."}
+                label{r#for:"inspector-name-end-kind","End meaning"}
+                super::select::RichSelect{id:"inspector-name-end-kind",disabled,value:name.read().end_kind.clone(),options:super::select::choices(&[("","Choose end"),("exact","Exact end"),("unknown","Unknown end"),("unbounded","No end")]),onchange:move|e:super::select::SelectionEvent|name.write().end_kind=e.value()}
+                if name.read().end_kind=="exact"{label{r#for:"inspector-name-end","Exclusive end"}input{id:"inspector-name-end",disabled,value:name.read().end.clone(),oninput:move|e|name.write().end=e.value()}}
+            }
+        }else if action().starts_with("role_") {
             p{"Only this selected field changes. Other roles, types, order, scope and time stay authored. Local multiplicity is separate from cross-occurrence maxima."}
             label{r#for:"inspector-relation-role","Declared role"}
             super::select::RichSelect{id:"inspector-relation-role",disabled,value:role(),options:{let mut options=vec![super::select::Choice::new("","Choose role")];for r in selected["payload"]["roles"].as_array().into_iter().flatten(){if let Some(name)=r["name"].as_str(){options.push(super::select::Choice::new(name,name));}}options},onchange:move|e:super::select::SelectionEvent|role.set(e.value())}
@@ -273,7 +341,7 @@ pub fn InspectorEditor(
         if ["end_assertion_at","retract_assertion"].contains(&action().as_str()){
             label{r#for:"inspector-reason","Reason"}textarea{id:"inspector-reason",disabled,value:reason,oninput:move|e|reason.set(e.value())}
         }
-        button{class:"secondary",disabled:disabled||action().is_empty(),onclick:move|_|match if action().starts_with("role_")||action().starts_with("relation_"){contract_operation(&frame,&selected,&action(),&role(),&value())}else{operation(&frame,&selected,&action(),&value(),&reason(),clock.as_ref())}{Ok(op)=>{onadd.call(op);error.set(String::new());},Err(e)=>error.set(e)},"Add inspected change to draft"}
+        button{class:"secondary",disabled:disabled||action().is_empty(),onclick:move|_|match if action()=="add_name"{name_operation(&frame,&selected,&name(),clock.as_ref())}else if action().starts_with("role_")||action().starts_with("relation_"){contract_operation(&frame,&selected,&action(),&role(),&value())}else{operation(&frame,&selected,&action(),&value(),&reason(),clock.as_ref())}{Ok(op)=>{onadd.call(op);error.set(String::new());},Err(e)=>error.set(e)},"Add inspected change to draft"}
         if !error().is_empty(){p{role:"alert","{error}"}}
     }}
 }

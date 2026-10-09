@@ -169,6 +169,11 @@ fn assemble_impl(
             };
             let mut object = EffectiveObject {
                 identity: identity.clone(),
+                contextual_names: if matches!(frame.perspective, universe_domain::frame::Perspective::Author) {
+                    if let Payload::Entity(entity) = &identity.payload {
+                        entity.names.iter().map(|name| ContextualNameEvidence { name: name.clone(), applicability: universe_rules::events::applies(&name.validity, &frame.time, records) }).collect()
+                    } else { vec![] }
+                } else { vec![] },
                 ancestry,
                 ancestry_complete: chain.complete,
                 shared_attributes: vec![],

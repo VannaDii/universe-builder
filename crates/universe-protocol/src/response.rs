@@ -165,8 +165,17 @@ pub struct ObjectConflict {
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+pub struct ContextualNameEvidence {
+    pub name: universe_domain::records::ContextualName,
+    pub applicability: Option<bool>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct EffectiveObject {
     pub identity: RecordVersion,
+    /// Empty can mean this projection is unavailable, not that names are absent.
+    #[serde(default)]
+    pub contextual_names: Vec<ContextualNameEvidence>,
     pub ancestry: Vec<RecordVersion>,
     pub ancestry_complete: bool,
     pub shared_attributes: Vec<ObjectEvidence>,

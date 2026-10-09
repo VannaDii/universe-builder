@@ -17113,6 +17113,14 @@
             "identity": {
               "$ref": "#/$defs/RecordVersion"
             },
+            "contextual_names": {
+              "description": "Empty can mean this projection is unavailable, not that names are absent.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ContextualNameEvidence"
+              },
+              "default": []
+            },
             "ancestry": {
               "type": "array",
               "items": {
@@ -22025,6 +22033,24 @@
         "PayloadDigest": {
           "description": "SHA-256 digest of the canonical serialized payload and its schema\ndiscriminator (spec §27.8).",
           "type": "string"
+        },
+        "ContextualNameEvidence": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "$ref": "#/$defs/ContextualName"
+            },
+            "applicability": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ]
         },
         "ObjectEvidence": {
           "description": "A visible authored candidate, never a selected or materialized value.",

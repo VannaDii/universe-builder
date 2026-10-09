@@ -217,6 +217,98 @@ async fn native_forms_create_refine_reject_and_recover_stable_identity() {
         read(&mut c, &opened, &minimal["client_ref"]).await,
         mara_child
     );
+    // The actual inspector name form preserves identity and classification across publication.
+    let clock: universe_domain::chronology::Chronology = serde_json::from_value(
+        read(&mut c, &opened, &u["context_id"]).await["payload"]["chronology"].clone(),
+    )
+    .unwrap();
+    let form = crate::inspector_editor::NameForm {
+        text: "Garden Fox".into(),
+        language: "en".into(),
+        community: "Garden".into(),
+        role: "nickname".into(),
+        validity: "interval".into(),
+        start: "5".into(),
+        end: "10".into(),
+        end_kind: "exact".into(),
+    };
+    assert!(crate::inspector_editor::name_operation(
+        &frame,
+        &mara_child,
+        &crate::inspector_editor::NameForm {
+            text: "Fox".into(),
+            ..Default::default()
+        },
+        Some(&clock)
+    )
+    .is_err());
+    assert!(crate::inspector_editor::name_operation(&frame, &mara_child, &form, None).is_err());
+    let alias =
+        crate::inspector_editor::name_operation(&frame, &mara_child, &form, Some(&clock)).unwrap();
+    let before_alias = opened["frame"]["revision"].clone();
+    publish(&mut c, &opened, json!([alias]), "contextual-name").await;
+    let fresh = open(&mut c, &u).await;
+    let named = read(&mut c, &fresh, &minimal["client_ref"]).await;
+    assert_eq!(named["identity"], mara_child["identity"]);
+    assert_eq!(
+        named["payload"]["classification"],
+        mara_child["payload"]["classification"]
+    );
+    assert_eq!(
+        named["payload"]["names"][0],
+        mara_child["payload"]["names"][0]
+    );
+    assert_eq!(named["payload"]["names"][1]["community"], "Garden");
+    for (revision, tick, expected) in [
+        (json!({"kind":"head"}), "5", Some(true)),
+        (json!({"kind":"head"}), "10", Some(false)),
+        (json!({"kind":"head"}), "4", Some(false)),
+        (
+            json!({"kind":"exact","revision_id":before_alias}),
+            "5",
+            None,
+        ),
+    ] {
+        let at = tool(&mut c,"universe_open_context",json!({"universe":"Alpha","continuity_id":u["continuity_id"],"revision":revision,"represented_context":u["context_id"],"temporal_query":{"kind":"at","time":{"kind":"exact","calendar":clock.calendar,"value":tick}},"temporal_systems":[],"perspective":"author"})).await;
+        let state = tool(&mut c,"universe_get_state",json!({"universe":"Alpha","context_id":at["result"]["context_id"],"entity_ids":[minimal["client_ref"]],"predicate_filters":[]})).await;
+        let names = state["result"]["objects"][0]["contextual_names"]
+            .as_array()
+            .unwrap();
+        let found = names.iter().find(|n| n["name"]["text"] == "Garden Fox");
+        match expected {
+            Some(applies) => assert_eq!(found.unwrap()["applicability"], applies),
+            None => assert!(found.is_none()),
+        }
+        let html = crate::effective_object_view::tests::render(state);
+        assert!(html.contains("Names with unresolved applicability"));
+    }
+    let current = open(&mut c, &u).await;
+    let nera = read(&mut c, &current, &another["client_ref"]).await;
+    let current_frame: Frame = serde_json::from_value(current["frame"].clone()).unwrap();
+    let same_alias =
+        crate::inspector_editor::name_operation(&current_frame, &nera, &form, Some(&clock))
+            .unwrap();
+    publish(
+        &mut c,
+        &current,
+        json!([same_alias]),
+        "second-contextual-name",
+    )
+    .await;
+    let at = tool(&mut c,"universe_open_context",json!({"universe":"Alpha","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":u["context_id"],"temporal_query":{"kind":"at","time":{"kind":"exact","calendar":clock.calendar,"value":"5"}},"temporal_systems":[],"perspective":"author"})).await;
+    let lookup = tool(&mut c,"universe_read_facts",json!({"universe":"Alpha","context_id":at["result"]["context_id"],"object_names":["Garden Fox"]})).await;
+    assert_eq!(
+        lookup["result"]["objects"][0]["identity"], "ambiguous",
+        "{lookup}"
+    );
+    assert_eq!(
+        read(&mut c, &at, &minimal["client_ref"]).await["identity"],
+        mara_child["identity"]
+    );
+    assert_eq!(
+        read(&mut c, &at, &another["client_ref"]).await["identity"],
+        nera["identity"]
+    );
     drop(c);
     stop.cancel();
     server.await.unwrap().unwrap();

@@ -581,6 +581,15 @@ fn possession_grants_cannot_choose_over_a_conflicting_shared_definition() {
 #[test]
 fn object_retrieval_retains_unresolved_definition_endpoint_and_source() {
     let mut rows = fixture();
+    if let Payload::Entity(entity) = &mut rows[3].payload {
+        entity.names.push(ContextualName {
+            text: "Cedar".into(),
+            language: None,
+            community: None,
+            role: None,
+            validity: universe_domain::Validity::Unknown,
+        });
+    }
     if let Payload::EntityType(t) = &mut rows[0].payload {
         t.parent_resolution = ParentResolution::Ambiguous;
     }
@@ -594,6 +603,24 @@ fn object_retrieval_retains_unresolved_definition_endpoint_and_source() {
         false,
     )
     .remove(0);
+    assert_eq!(object.contextual_names[0].applicability, None);
+    let mut character_frame = frame.clone();
+    character_frame.perspective =
+        universe_domain::frame::Perspective::Character(RecordId::parse(&id(4)).unwrap());
+    let character = crate::objects::assemble(
+        &rows,
+        &[RecordId::parse(&id(4)).unwrap()],
+        &[],
+        &character_frame,
+        None,
+        true,
+    )
+    .remove(0);
+    assert!(character.contextual_names.is_empty());
+    assert_eq!(
+        serde_json::to_value(character.identity.payload).unwrap(),
+        serde_json::to_value(&object.identity.payload).unwrap()
+    );
     let reference = crate::objects::assemble_reference(
         &rows,
         &[RecordId::parse(&id(4)).unwrap()],

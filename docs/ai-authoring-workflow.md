@@ -865,3 +865,11 @@ validity; author views return visible contextual names separately from facts.
 Non-author views omit contextual-name metadata and retain restricted coverage. Search remains
 generic evidence discovery; a search hit does not establish current alias validity.
 No world or observer scope is inferred from language/community/role metadata.
+
+The existing inspector's **Add a contextual name** control accepts optional
+language, community and name role, and requires an explicit temporal choice.
+Dated names use the selected authored clock; no date is inferred. The state view
+separates names active at its pinned time, names not active there, and names whose
+applicability is unresolved, using the engine's returned applicability. This new
+name projection is available only in author perspectives. The selected entity
+remains the same identity, and the change follows draft/source/review/approval.
