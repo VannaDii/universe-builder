@@ -202,11 +202,22 @@ impl Workflow<'_> {
                 facts: d.shared_attributes.clone(),
             })
             .collect();
-        for (object, shared) in input
+        let initial_objects: Vec<_> = input
+            .definitions
+            .iter()
+            .map(|d| universe_protocol::writing::ObjectChange {
+                name: d.name.clone(),
+                introduce: false,
+                classification: None,
+                facts: d.initial_values.clone(),
+            })
+            .collect();
+        for (object, shared, initial) in input
             .changes
             .iter()
-            .map(|o| (o, false))
-            .chain(shared_objects.iter().map(|o| (o, true)))
+            .map(|o| (o, false, false))
+            .chain(shared_objects.iter().map(|o| (o, true, false)))
+            .chain(initial_objects.iter().map(|o| (o, true, true)))
         {
             if object.name.trim().is_empty() {
                 return Err(ProtocolError::invalid_argument(
@@ -509,10 +520,18 @@ impl Workflow<'_> {
                     universe_domain::scope::Polarity::Support
                 };
                 let already = records.iter().any(|r| if let Payload::Proposition(p) = &r.payload {
-                    p.subject.record == subject && p.predicate.record == property.0 && p.value.as_ref() == Some(&value_typed) && p.context == ctx.frame.context && records.iter().any(|a| matches!(&a.payload, Payload::Assertion(a) if a.proposition.record == r.identity.record_id && a.attribute_mode == if shared { universe_domain::records::AttributeMode::Shared } else { universe_domain::records::AttributeMode::Instance } && a.polarity == polarity && a.precision == universe_domain::scope::Precision::Exact && a.alternatives.is_empty() && a.scope == scope && (a.validity == validity || matches!(&fact_time, FrameTime::At {..}) && universe_rules::time::applies(&a.validity, &fact_time) == Some(true))))
+                    p.subject.record == subject && p.predicate.record == property.0 && p.value.as_ref() == Some(&value_typed) && p.context == ctx.frame.context && records.iter().any(|a| matches!(&a.payload, Payload::Assertion(a) if a.proposition.record == r.identity.record_id && a.attribute_mode == if initial { universe_domain::records::AttributeMode::InitialValue } else if shared { universe_domain::records::AttributeMode::Shared } else { universe_domain::records::AttributeMode::Instance } && a.polarity == polarity && a.precision == universe_domain::scope::Precision::Exact && a.alternatives.is_empty() && a.scope == scope && (a.validity == validity || matches!(&fact_time, FrameTime::At {..}) && universe_rules::time::applies(&a.validity, &fact_time) == Some(true))))
                 } else { false });
-                let assertion_binding =
-                    hash(&(&subject, &property.0, &value, &scope, &validity, &polarity));
+                let assertion_binding = hash(&(
+                    &subject,
+                    &property.0,
+                    &value,
+                    &scope,
+                    &validity,
+                    &polarity,
+                    &initial,
+                    &shared,
+                ));
                 if already || !assertions.insert(assertion_binding) {
                     result
                         .unchanged
@@ -537,9 +556,9 @@ impl Workflow<'_> {
                 }
                 let proposition = RecordId::generate(&mut rand::rng());
                 if shared && new_properties.contains_key(&property.0) {
-                    operations.push(json!({"kind":"add_named_attribute","client_ref":proposition,"subject":{"universe":self.kernel.universe(),"record":subject},"namespace":property.1.namespace,"key":property.1.key,"value_shape":property.1.value,"subject_types":property.1.subject_types,"multiplicity":property.1.multiplicity,"value":value,"evidence":{"attributeMode":"shared","polarity":polarity,"scope":scope,"validity":validity,"persistence":property.1.persistence,"precision":"exact","basis":{"kind":"imported_claim"}}}));
+                    operations.push(json!({"kind":"add_named_attribute","client_ref":proposition,"subject":{"universe":self.kernel.universe(),"record":subject},"namespace":property.1.namespace,"key":property.1.key,"value_shape":property.1.value,"subject_types":property.1.subject_types,"multiplicity":property.1.multiplicity,"value":value,"evidence":{"attributeMode":if initial {"initial_value"}else{"shared"},"polarity":polarity,"scope":scope,"validity":validity,"persistence":property.1.persistence,"precision":"exact","basis":{"kind":"imported_claim"}}}));
                 } else {
-                    operations.push(json!({"kind":"assert_proposition","client_ref":proposition,"proposition":{"subject":{"universe":self.kernel.universe(),"record":subject},"predicate":{"universe":self.kernel.universe(),"record":property.0},"value":value,"context":ctx.frame.context,"quantification":"particular"},"assertion":{"attributeMode":if shared {"shared"}else{"instance"},"proposition":{"universe":self.kernel.universe(),"record":proposition},"polarity":polarity,"scope":scope,"validity":validity,"persistence":property.1.persistence,"precision":"exact","basis":{"kind":"imported_claim"}}}));
+                    operations.push(json!({"kind":"assert_proposition","client_ref":proposition,"proposition":{"subject":{"universe":self.kernel.universe(),"record":subject},"predicate":{"universe":self.kernel.universe(),"record":property.0},"value":value,"context":ctx.frame.context,"quantification":"particular"},"assertion":{"attributeMode":if initial {"initial_value"}else if shared {"shared"}else{"instance"},"proposition":{"universe":self.kernel.universe(),"record":proposition},"polarity":polarity,"scope":scope,"validity":validity,"persistence":property.1.persistence,"precision":"exact","basis":{"kind":"imported_claim"}}}));
                 }
                 result.additions.push(format!(
                     "{}: {} {}",
@@ -554,6 +573,13 @@ impl Workflow<'_> {
             }
         }
         self.writing_contracts(
+            &input,
+            &ctx,
+            &records.iter().map(|r| (*r).clone()).collect::<Vec<_>>(),
+            &mut operations,
+            &mut result,
+        )?;
+        self.writing_initializations(
             &input,
             &ctx,
             &records.iter().map(|r| (*r).clone()).collect::<Vec<_>>(),
@@ -689,6 +715,7 @@ impl Workflow<'_> {
                         .cloned()
                         .or_else(|| e.names.first().map(|n| n.text.clone())),
                     Payload::EntityType(t) => Some(t.name.clone()),
+                    Payload::ActionDefinition(a) => Some(a.key.clone()),
                     Payload::World(w) => Some(w.selector.clone()),
                     Payload::Calendar(c) => Some(
                         c.labels
@@ -772,7 +799,7 @@ impl Workflow<'_> {
                         .conflicts
                         .iter()
                         .filter(|c| {
-                            !c.initial_values
+                            c.initial_values == (group == "initial_candidate")
                                 && c.assertions.contains(&row.record.record_version_id)
                         })
                         .collect();
@@ -830,7 +857,10 @@ impl Workflow<'_> {
                     facts.push(json!({"property":property.key,"state":if value.is_some(){"supported"}else{"unknown"},"value":value,"value_type":serde_json::to_value(&property.value)?["kind"],"unit":match &derived.value{universe_domain::value::Value::Quantity{unit,..}=>Some(unit),_=>None},"unsupported_plain_value":value.is_none(),"group":"derived","scope":"pinned research context","time":plain_time(&serde_json::to_value(&ctx.frame.time)?,&label),"unknowns":if value.is_some(){vec![]}else{vec!["plain value presentation unavailable"]}}));
                 }
             }
-            objects.push(json!({"name":name,"identity":"resolved","kind":if matches!(matches[0].payload,Payload::EntityType(_)){"definition"}else{"instance"},"classification":object.ancestry.first().and_then(|r|label(&r.identity.record_id)),"ancestry":object.ancestry.iter().filter_map(|r|label(&r.identity.record_id)).collect::<Vec<_>>(),"ancestry_complete":object.ancestry_complete,"facts":facts,"inherited_attributes":inherited,"initial_value_candidates":initial,"coverage":object.coverage,"unknowns":object.unknowns,"state_coverage":state.coverage,"limitations":state.unsupported_capabilities}));
+            let occurred_events:Vec<_>=records.iter().filter_map(|r|if let Payload::Event(e)=&r.payload {
+                (e.occurrence==universe_domain::records::OccurrenceMode::Occurred && e.participants.iter().any(|p|p.record.record==matches[0].identity.record_id)).then(||json!({"handle":r.identity.record_id,"time":plain_time(&json!(e.time),&label),"action":e.action.as_ref().and_then(|a|label(&a.record)),"worlds":e.worlds.iter().filter_map(|w|RecordId::parse(&w.as_str().replacen("wld_","rec_",1)).ok().and_then(|id|label(&id))).collect::<Vec<_>>()}))
+            }else{None}).collect();
+            objects.push(json!({"name":name,"identity":"resolved","kind":if matches!(matches[0].payload,Payload::EntityType(_)){"definition"}else{"instance"},"classification":object.ancestry.first().and_then(|r|label(&r.identity.record_id)),"ancestry":object.ancestry.iter().filter_map(|r|label(&r.identity.record_id)).collect::<Vec<_>>(),"ancestry_complete":object.ancestry_complete,"facts":facts,"occurred_events":occurred_events,"inherited_attributes":inherited,"initial_value_candidates":initial,"coverage":object.coverage,"unknowns":object.unknowns,"state_coverage":state.coverage,"limitations":state.unsupported_capabilities}));
         }
         self.wrap(&args,Some(ctx.frame.clone()),None,true,None,json!({"objects":objects,"clocks":clocks,"research_time":plain_time(&serde_json::to_value(&ctx.frame.time)?,&label),"coverage":if self.scope.is_some() || !matches!(ctx.frame.perspective,Perspective::Author){"restricted"}else{"bounded"},"limitation":"Plain projection of existing effective evidence; absence is unknown, initial candidates are not current facts, and bounded evidence is not universal prose completeness."}))
     }

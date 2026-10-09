@@ -304,6 +304,19 @@ visibility and unknown coverage still apply. Shared attributes do not create
 instance-owned ammunition or other stock. Source preparation and exact approval
 remain required before any definition/refinement becomes canon.
 
+`definitions.initial_values` declares starting-value candidates using the same plain
+property/value/scope/time fields. Approve and publish these definitions before using
+returned `initial_value_candidates.fact_handle` values in `initializations`.
+Each initialization names its own instance, selected approved source handles,
+explicit jurisdiction and interval lifetime. Its `start` either explicitly asserts
+an occurred event using the ordinary declared action, participant roles and scene
+time/world, or selects an existing pinned event handle from `occurred_events`.
+The instance must actually participate. First mention, classification and process
+restart never create a start or initial stock. Existing once-only receipts prevent
+refill by initialization, including after renaming or classification refinement.
+Values are taken from exact approved definitions; callers cannot override them.
+Missing, conflicting, unapproved or inapplicable sources remain unresolved.
+
 Ordinary changes can explicitly declare `properties` with value type, `single_value`
 and persistence, introduce named `actions` with role/property/value requirements
 and set or bounded integer-delta effects, and add `resource_accounting` or

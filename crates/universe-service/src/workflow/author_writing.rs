@@ -123,6 +123,7 @@ impl Workflow<'_> {
                             | DomainOperation::DefineProperty { .. }
                             | DomainOperation::AssertProposition { .. }
                             | DomainOperation::DefineProposition { .. }
+                            | DomainOperation::InitializeInstance { .. }
                             | DomainOperation::RecordEvent { .. }
                             | DomainOperation::RecordCommunication { .. }
                             | DomainOperation::AddBelief { .. }

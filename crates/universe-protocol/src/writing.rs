@@ -90,6 +90,9 @@ pub struct DefinitionChange {
     pub scope: String,
     #[serde(default)]
     pub shared_attributes: Vec<FactChange>,
+    /// Starting-value definitions only; never current instance state. Publish before explicit instance initialization.
+    #[serde(default)]
+    pub initial_values: Vec<FactChange>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -113,6 +116,9 @@ pub struct CheckChanges {
     /// Finite supported policies. Separate private author contract review is required before publication.
     #[serde(default)]
     pub constraints: Vec<WritingConstraint>,
+    /// Apply selected approved initial values once at an explicitly occurred instance start.
+    #[serde(default)]
+    pub initializations: Vec<WritingInitialization>,
     #[serde(default)]
     pub events: Vec<WritingEvent>,
     #[serde(default)]
@@ -353,4 +359,25 @@ pub enum WritingConstraint {
         property: String,
         scope: String,
     },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum WritingInstanceStart {
+    /// Explicit author assertion of an occurred start, not first mention or classification.
+    Occurred { event: WritingEvent },
+    /// Opaque pinned occurred-event handle returned by factual research.
+    Existing { handle: String },
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingInitialization {
+    pub instance: String,
+    /// Selected approved initial-value handles from universe_read_facts. No value overrides.
+    pub initial_value_handles: Vec<String>,
+    pub start: WritingInstanceStart,
+    /// universe or an authored world name; no inferred jurisdiction.
+    pub scope: String,
+    /// Explicit interval end or until_changed. An instant cannot initialize stock.
+    pub lifetime: FactLifetime,
 }

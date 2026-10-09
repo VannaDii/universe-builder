@@ -18,6 +18,7 @@ mod author_writing;
 mod writing;
 mod writing_connected;
 mod writing_contracts;
+mod writing_initialization;
 use universe_protocol::validation_scope::*;
 use validation_binding::ValidationCapture;
 pub(crate) fn hash<T: Serialize>(v: &T) -> String {

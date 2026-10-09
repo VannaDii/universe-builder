@@ -174,6 +174,28 @@ fn separate_instances_retry_restart_correction_and_retraction_keep_receipts() {
     let mut k = Kernel::open(&path).unwrap();
     assert_eq!(k.initialization_receipts().unwrap(), receipts);
     assert_eq!(k.commit(&second).unwrap(), b);
+    // Renaming the same identity cannot turn initialization into a refill.
+    let entity = k
+        .records(&cont(), &k.head(&cont()).unwrap())
+        .unwrap()
+        .into_iter()
+        .find(|r| r.identity.record_id.as_str() == id("rec", 7))
+        .unwrap();
+    let mut renamed = entity.payload.clone();
+    if let Payload::Entity(e) = &mut renamed {
+        e.labels.insert("en".into(), "Renamed pistol".into());
+    }
+    let renamed = RecordVersion::build(
+        RecordVersionId::parse(&id("ver", 30)).unwrap(),
+        entity.identity,
+        renamed,
+    )
+    .unwrap();
+    k.commit(&input(&k, vec![renamed], "rename")).unwrap();
+    assert!(k
+        .commit(&initial(&k, 7, 35, "refill-after-rename"))
+        .is_err());
+    assert_eq!(k.initialization_receipts().unwrap(), receipts);
     // Correct the initial proposition through an authored historical change.
     k.commit(&input(&k, vec![proposition(11, 31, 7, "7")], "correction"))
         .unwrap();
