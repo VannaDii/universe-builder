@@ -62,6 +62,101 @@ impl Workflow<'_> {
             }
             names.insert(object.name.clone(), RecordId::generate(&mut rand::rng()));
         }
+        let mut definition_ids = BTreeMap::new();
+        let mut ambiguous_definitions = BTreeSet::new();
+        for definition in input.definitions.iter().filter(|d| d.introduce) {
+            if definition.name.trim().is_empty() {
+                return Err(ProtocolError::invalid_argument(
+                    "definitions.name",
+                    "nonempty definition name required",
+                )
+                .into());
+            }
+            if definition_ids
+                .insert(
+                    definition.name.clone(),
+                    RecordId::generate(&mut rand::rng()),
+                )
+                .is_some()
+            {
+                ambiguous_definitions.insert(definition.name.clone());
+                result.clarifications.push(format!(
+                    "Are the repeated definitions '{}' the same type?",
+                    definition.name
+                ));
+            }
+        }
+        let resolve_definition = |name: &str| -> Option<RecordId> {
+            if ambiguous_definitions.contains(name) {
+                return None;
+            }
+            let mut ids: BTreeSet<_> = records
+                .iter()
+                .filter_map(|r| match &r.payload {
+                    Payload::EntityType(t)
+                        if t.name == name
+                            || t.key == name
+                            || t.labels.values().any(|v| v == name) =>
+                    {
+                        Some(r.identity.record_id.clone())
+                    }
+                    _ => None,
+                })
+                .collect();
+            if let Some(id) = definition_ids.get(name) {
+                ids.insert(id.clone());
+            }
+            (ids.len() == 1).then(|| ids.into_iter().next().unwrap())
+        };
+        for definition in &input.definitions {
+            let Some(id) = resolve_definition(&definition.name) else {
+                result.clarifications.push(format!("Which exact reusable definition is '{}', or is it an explicitly new definition?", definition.name));
+                continue;
+            };
+            if definition.introduce {
+                let parent = if let Some(name) = &definition.parent {
+                    let Some(parent) = resolve_definition(name) else {
+                        result
+                            .clarifications
+                            .push(format!("Which exact parent definition is '{}'?", name));
+                        continue;
+                    };
+                    Some(parent)
+                } else {
+                    None
+                };
+                let applicability = match definition.scope.as_str() {
+                    "universe" => Applicability::UniverseWide,
+                    "unspecified" => Applicability::Unspecified,
+                    world => match self
+                        .focus(&json!({"world":world}), &base)
+                        .and_then(|id| id.ok_or_else(denied))
+                    {
+                        Ok(id) => Applicability::Worlds {
+                            world_ids: vec![id],
+                        },
+                        Err(_) => {
+                            result
+                                .clarifications
+                                .push(format!("Which accessible authored world is '{}'?", world));
+                            continue;
+                        }
+                    },
+                };
+                if definition.scope == "unspecified" {
+                    result.unknowns.push(format!(
+                        "The applicability of definition '{}' remains unspecified.",
+                        definition.name
+                    ));
+                }
+                operations.push(json!({"kind":"introduce_definition","client_ref":id,"namespace":"authoring","key":definition.name,"name":definition.name,"parent":parent,"applicability":applicability,"classification_executable":true}));
+                result
+                    .additions
+                    .push(format!("New reusable definition: {}", definition.name));
+            } else if definition.parent.is_some() {
+                result.clarifications.push("Changing an existing definition's ancestry requires an explicit definition revision, not classification refinement.".into());
+            }
+        }
         let resolve = |name: &str| -> Option<RecordId> {
             if ambiguous_new.contains(name) {
                 return None;
@@ -89,7 +184,22 @@ impl Workflow<'_> {
             }
             (ids.len() == 1).then(|| ids.into_iter().next().unwrap())
         };
-        for object in &input.changes {
+        let shared_objects: Vec<_> = input
+            .definitions
+            .iter()
+            .map(|d| universe_protocol::writing::ObjectChange {
+                name: d.name.clone(),
+                introduce: false,
+                classification: None,
+                facts: d.shared_attributes.clone(),
+            })
+            .collect();
+        for (object, shared) in input
+            .changes
+            .iter()
+            .map(|o| (o, false))
+            .chain(shared_objects.iter().map(|o| (o, true)))
+        {
             if object.name.trim().is_empty() {
                 return Err(ProtocolError::invalid_argument(
                     "changes.name",
@@ -124,11 +234,28 @@ impl Workflow<'_> {
             if ambiguous_new.contains(&object.name) {
                 continue;
             }
-            let subject = if object.introduce {
+            let classification = if let Some(name) = &object.classification {
+                let Some(id) = resolve_definition(name) else {
+                    result.clarifications.push(format!(
+                        "Which exact classification definition is '{}'?",
+                        name
+                    ));
+                    continue;
+                };
+                Some(id)
+            } else {
+                None
+            };
+            let subject = if shared {
+                let Some(id) = resolve_definition(&object.name) else {
+                    continue;
+                };
+                id
+            } else if object.introduce {
                 let id = names.get(&object.name).cloned().ok_or_else(|| {
                     ProtocolError::invalid_argument("introduce", "ambiguous new identity")
                 })?;
-                operations.push(json!({"kind":"introduce_instance","client_ref":id,"name":{"text":object.name,"validity":{"kind":"unspecified"}},"world_associations":[]}));
+                operations.push(json!({"kind":"introduce_instance","client_ref":id,"name":{"text":object.name,"validity":{"kind":"unspecified"}},"classification":classification,"world_associations":[]}));
                 result
                     .additions
                     .push(format!("New object: {}", object.name));
@@ -142,6 +269,25 @@ impl Workflow<'_> {
                 ));
                 continue;
             };
+            if !shared && !object.introduce {
+                if let Some(classification) = classification {
+                    let current = records
+                        .iter()
+                        .find(|r| r.identity.record_id == subject)
+                        .ok_or_else(denied)?;
+                    if matches!(&current.payload, Payload::Entity(e) if e.classification.as_ref() == Some(&classification) && e.classification_resolution == universe_domain::records::ClassificationResolution::Resolved)
+                    {
+                        result
+                            .unchanged
+                            .push(format!("{}: classification", object.name));
+                    } else {
+                        operations.push(json!({"kind":"refine_classification","record":{"universe":self.kernel.universe(),"record":subject},"expected_version":current.record_version_id,"entity_type":classification}));
+                        result
+                            .additions
+                            .push(format!("Refined classification: {}", object.name));
+                    }
+                }
+            }
             for fact in &object.facts {
                 if !matches!(
                     fact.statement.as_str(),
@@ -355,7 +501,7 @@ impl Workflow<'_> {
                     universe_domain::scope::Polarity::Support
                 };
                 let already = records.iter().any(|r| if let Payload::Proposition(p) = &r.payload {
-                    p.subject.record == subject && p.predicate.record == property.0 && p.value.as_ref() == Some(&value_typed) && p.context == ctx.frame.context && records.iter().any(|a| matches!(&a.payload, Payload::Assertion(a) if a.proposition.record == r.identity.record_id && a.polarity == polarity && a.precision == universe_domain::scope::Precision::Exact && a.alternatives.is_empty() && a.scope == scope && (a.validity == validity || matches!(&fact_time, FrameTime::At {..}) && universe_rules::time::applies(&a.validity, &fact_time) == Some(true))))
+                    p.subject.record == subject && p.predicate.record == property.0 && p.value.as_ref() == Some(&value_typed) && p.context == ctx.frame.context && records.iter().any(|a| matches!(&a.payload, Payload::Assertion(a) if a.proposition.record == r.identity.record_id && a.attribute_mode == if shared { universe_domain::records::AttributeMode::Shared } else { universe_domain::records::AttributeMode::Instance } && a.polarity == polarity && a.precision == universe_domain::scope::Precision::Exact && a.alternatives.is_empty() && a.scope == scope && (a.validity == validity || matches!(&fact_time, FrameTime::At {..}) && universe_rules::time::applies(&a.validity, &fact_time) == Some(true))))
                 } else { false });
                 let assertion_binding =
                     hash(&(&subject, &property.0, &value, &scope, &validity, &polarity));
@@ -382,7 +528,11 @@ impl Workflow<'_> {
                     }
                 }
                 let proposition = RecordId::generate(&mut rand::rng());
-                operations.push(json!({"kind":"assert_proposition","client_ref":proposition,"proposition":{"subject":{"universe":self.kernel.universe(),"record":subject},"predicate":{"universe":self.kernel.universe(),"record":property.0},"value":value,"context":ctx.frame.context,"quantification":"particular"},"assertion":{"attributeMode":"instance","proposition":{"universe":self.kernel.universe(),"record":proposition},"polarity":polarity,"scope":scope,"validity":validity,"persistence":property.1.persistence,"precision":"exact","basis":{"kind":"imported_claim"}}}));
+                if shared && new_properties.contains_key(&property.0) {
+                    operations.push(json!({"kind":"add_named_attribute","client_ref":proposition,"subject":{"universe":self.kernel.universe(),"record":subject},"namespace":property.1.namespace,"key":property.1.key,"value_shape":property.1.value,"subject_types":property.1.subject_types,"multiplicity":property.1.multiplicity,"value":value,"evidence":{"attributeMode":"shared","polarity":polarity,"scope":scope,"validity":validity,"persistence":property.1.persistence,"precision":"exact","basis":{"kind":"imported_claim"}}}));
+                } else {
+                    operations.push(json!({"kind":"assert_proposition","client_ref":proposition,"proposition":{"subject":{"universe":self.kernel.universe(),"record":subject},"predicate":{"universe":self.kernel.universe(),"record":property.0},"value":value,"context":ctx.frame.context,"quantification":"particular"},"assertion":{"attributeMode":if shared {"shared"}else{"instance"},"proposition":{"universe":self.kernel.universe(),"record":proposition},"polarity":polarity,"scope":scope,"validity":validity,"persistence":property.1.persistence,"precision":"exact","basis":{"kind":"imported_claim"}}}));
+                }
                 result.additions.push(format!(
                     "{}: {} {}",
                     object.name,
@@ -523,6 +673,7 @@ impl Workflow<'_> {
                         .next()
                         .cloned()
                         .or_else(|| e.names.first().map(|n| n.text.clone())),
+                    Payload::EntityType(t) => Some(t.name.clone()),
                     Payload::World(w) => Some(w.selector.clone()),
                     Payload::Calendar(c) => Some(
                         c.labels
@@ -539,7 +690,26 @@ impl Workflow<'_> {
         } else { None }).collect();
         let mut objects = vec![];
         for name in &input.object_names {
-            let matches:Vec<_>=records.iter().filter(|r| matches!(&r.payload,Payload::Entity(e) if e.labels.values().any(|v|v==name)||e.names.iter().any(|n|n.text==*name && universe_rules::events::applies(&n.validity,&ctx.frame.time,&records)!=Some(false)))).collect();
+            let matches: Vec<_> = records
+                .iter()
+                .filter(|r| match &r.payload {
+                    Payload::Entity(e) => {
+                        e.labels.values().any(|v| v == name)
+                            || e.names.iter().any(|n| {
+                                n.text == *name
+                                    && universe_rules::events::applies(
+                                        &n.validity,
+                                        &ctx.frame.time,
+                                        &records,
+                                    ) != Some(false)
+                            })
+                    }
+                    Payload::EntityType(t) => {
+                        t.name == *name || t.key == *name || t.labels.values().any(|v| v == name)
+                    }
+                    _ => false,
+                })
+                .collect();
             if matches.len() != 1 {
                 objects.push(json!({"name":name,"identity":if matches.is_empty(){"not_found"}else{"ambiguous"},"matches":matches.len(),"coverage":if self.scope.is_some() || !matches!(ctx.frame.perspective,Perspective::Author){"restricted"}else{"complete"},"facts":[],"unknowns":["No unique visible identity established; this does not introduce an object."]}));
                 continue;
@@ -549,6 +719,7 @@ impl Workflow<'_> {
             let object = state.objects.first().ok_or_else(denied)?;
             let mut facts = vec![];
             let mut initial = vec![];
+            let mut inherited = vec![];
             for (group, rows) in [
                 ("instance", &object.instance_facts),
                 ("shared", &object.shared_attributes),
@@ -623,6 +794,8 @@ impl Workflow<'_> {
                     let item = json!({"fact_handle":if assertion.established_by.is_none(){Some(row.record.identity.record_id.to_string())}else{None},"property":property.key,"value":value,"state":outcome,"group":group,"scope":scope,"time":plain_time(&serde_json::to_value(&assertion.validity)?,&label),"unknowns":row.unknowns,"value_type":serde_json::to_value(&property.value)?["kind"],"unit":match proposition.value.as_ref(){Some(universe_domain::value::Value::Quantity{unit,..})=>Some(unit),_=>None},"unsupported_plain_value":value.is_none(),"multiple_values_allowed":property.multiplicity==universe_domain::records::Multiplicity::Multiple,"exclusive":property.exclusive});
                     if group == "initial_candidate" {
                         initial.push(item)
+                    } else if group == "shared" {
+                        inherited.push(item)
                     } else {
                         facts.push(item)
                     }
@@ -642,7 +815,7 @@ impl Workflow<'_> {
                     facts.push(json!({"property":property.key,"state":if value.is_some(){"supported"}else{"unknown"},"value":value,"value_type":serde_json::to_value(&property.value)?["kind"],"unit":match &derived.value{universe_domain::value::Value::Quantity{unit,..}=>Some(unit),_=>None},"unsupported_plain_value":value.is_none(),"group":"derived","scope":"pinned research context","time":plain_time(&serde_json::to_value(&ctx.frame.time)?,&label),"unknowns":if value.is_some(){vec![]}else{vec!["plain value presentation unavailable"]}}));
                 }
             }
-            objects.push(json!({"name":name,"identity":"resolved","facts":facts,"initial_value_candidates":initial,"coverage":object.coverage,"unknowns":object.unknowns,"state_coverage":state.coverage,"limitations":state.unsupported_capabilities}));
+            objects.push(json!({"name":name,"identity":"resolved","kind":if matches!(matches[0].payload,Payload::EntityType(_)){"definition"}else{"instance"},"classification":object.ancestry.first().and_then(|r|label(&r.identity.record_id)),"ancestry":object.ancestry.iter().filter_map(|r|label(&r.identity.record_id)).collect::<Vec<_>>(),"ancestry_complete":object.ancestry_complete,"facts":facts,"inherited_attributes":inherited,"initial_value_candidates":initial,"coverage":object.coverage,"unknowns":object.unknowns,"state_coverage":state.coverage,"limitations":state.unsupported_capabilities}));
         }
         self.wrap(&args,Some(ctx.frame.clone()),None,true,None,json!({"objects":objects,"clocks":clocks,"research_time":plain_time(&serde_json::to_value(&ctx.frame.time)?,&label),"coverage":if self.scope.is_some() || !matches!(ctx.frame.perspective,Perspective::Author){"restricted"}else{"bounded"},"limitation":"Plain projection of existing effective evidence; absence is unknown, initial candidates are not current facts, and bounded evidence is not universal prose completeness."}))
     }

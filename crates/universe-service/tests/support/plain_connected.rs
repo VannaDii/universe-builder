@@ -466,6 +466,129 @@ async fn ordinary_connected_changes_preserve_events_attribution_retcons_and_auth
     let failed_knowledge=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":at,"attitudes":[{"holder":"Recipient","claim":false_claim,"attitude":"knows"}]}))).await.unwrap();
     assert_eq!(failed_knowledge["result"]["status"], "needs_clarification");
     assert!(failed_knowledge["result"]["candidate_handle"].is_null());
+    let pinned = c.call(open("7")).await.unwrap();
+    let definitions = c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":pinned["result"]["context_id"],"definitions":[{"name":"Weapon","introduce":true,"scope":"universe","shared_attributes":[{"property":"material","value":"steel","scope":"universe","at_tick":"7","lifetime":{"kind":"until_changed"}}]},{"name":"Pistol kind","introduce":true,"parent":"Weapon","scope":"universe"}],"changes":[{"name":"Pistol","classification":"Pistol kind"},{"name":"Spare pistol","introduce":true,"classification":"Pistol kind"}]}))).await.unwrap();
+    assert_eq!(
+        definitions["result"]["status"], "checked_candidate",
+        "{definitions}"
+    );
+    let reviewed = c.call(EngineRequest::AuthorWriting {
+        universe: Selector("Alpha".into()), action: AuthorWritingAction::Prepare {
+            candidate: serde_json::from_value(definitions["result"]["candidate_handle"].clone()).unwrap(),
+            label: "Reusable definitions".into(), text: "Weapons are made of steel from day 7 onward. Pistols are weapons. The existing Pistol is a pistol, as is a separate Spare pistol.".into(),
+        },
+    }).await.unwrap();
+    assert_eq!(reviewed["publishable"], true, "{reviewed}");
+    c.call(EngineRequest::AuthorWriting {
+        universe: Selector("Alpha".into()),
+        action: AuthorWritingAction::Publish {
+            candidate: serde_json::from_value(reviewed["candidate"].clone()).unwrap(),
+            validation_run: serde_json::from_value(
+                reviewed["validation"]["execution"]["run_id"].clone(),
+            )
+            .unwrap(),
+            idempotency_key: "classified-instances".into(),
+        },
+    })
+    .await
+    .unwrap();
+    let pinned = c.call(open("8")).await.unwrap();
+    let typed = c.call(tool("universe_read_facts",json!({"universe":"Alpha","context_id":pinned["result"]["context_id"],"object_names":["Pistol","Spare pistol","Weapon","Pistol kind"]}))).await.unwrap();
+    for row in typed["result"]["objects"].as_array().unwrap() {
+        assert_eq!(row["identity"], "resolved", "{typed}");
+        assert!(
+            row["inherited_attributes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|f| f["property"] == "material"
+                    && f["value"] == "steel"
+                    && f["state"] == "supported"),
+            "{typed}"
+        );
+        assert!(row["facts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|f| f["property"] != "material"));
+    }
+    assert_eq!(
+        typed["result"]["objects"][0]["ancestry"],
+        json!(["Pistol kind", "Weapon"])
+    );
+    assert!(typed["result"]["objects"][0]["facts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|f| f["property"] == "rounds" && f["value"] == 2));
+    assert!(typed["result"]["objects"][1]["facts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|f| f["property"] != "rounds"));
+    assert_eq!(typed["result"]["objects"][2]["kind"], "definition");
+    let before = c.call(tool("universe_get",json!({"universe":"Alpha","context_id":pinned["result"]["context_id"],"record_ids":[id(1)],"field_groups":["payload"]}))).await.unwrap();
+    let refinement=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":pinned["result"]["context_id"],"definitions":[{"name":"Ornate pistol","introduce":true,"parent":"Pistol kind","scope":"universe"}],"changes":[{"name":"Pistol","classification":"Ornate pistol"}]}))).await.unwrap();
+    assert_eq!(
+        refinement["result"]["status"], "checked_candidate",
+        "{refinement}"
+    );
+    let reviewed = c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::Prepare {
+                candidate: serde_json::from_value(refinement["result"]["candidate_handle"].clone())
+                    .unwrap(),
+                label: "Classification refinement".into(),
+                text: "The same Pistol is specifically an ornate pistol, a subtype of pistol."
+                    .into(),
+            },
+        })
+        .await
+        .unwrap();
+    assert_eq!(reviewed["publishable"], true, "{reviewed}");
+    c.call(EngineRequest::AuthorWriting {
+        universe: Selector("Alpha".into()),
+        action: AuthorWritingAction::Publish {
+            candidate: serde_json::from_value(reviewed["candidate"].clone()).unwrap(),
+            validation_run: serde_json::from_value(
+                reviewed["validation"]["execution"]["run_id"].clone(),
+            )
+            .unwrap(),
+            idempotency_key: "refined-same-pistol".into(),
+        },
+    })
+    .await
+    .unwrap();
+    let pinned = c.call(open("8")).await.unwrap();
+    let after=c.call(tool("universe_get",json!({"universe":"Alpha","context_id":pinned["result"]["context_id"],"record_ids":[id(1)],"field_groups":["payload"]}))).await.unwrap();
+    assert_eq!(
+        before["result"]["records"][0]["identity"],
+        after["result"]["records"][0]["identity"]
+    );
+    assert_eq!(
+        before["result"]["records"][0]["payload"]["names"],
+        after["result"]["records"][0]["payload"]["names"]
+    );
+    let refined=c.call(tool("universe_read_facts",json!({"universe":"Alpha","context_id":pinned["result"]["context_id"],"object_names":["Pistol"]}))).await.unwrap();
+    assert_eq!(
+        refined["result"]["objects"][0]["classification"],
+        "Ornate pistol"
+    );
+    assert_eq!(
+        refined["result"]["objects"][0]["ancestry"],
+        json!(["Ornate pistol", "Pistol kind", "Weapon"])
+    );
+    assert!(refined["result"]["objects"][0]["facts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|f| f["property"] == "rounds" && f["value"] == 2));
+    let unchanged=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":pinned["result"]["context_id"],"changes":[{"name":"Pistol","classification":"Ornate pistol"}],"definitions":[{"name":"Weapon","shared_attributes":[{"property":"material","value":"steel","scope":"universe","at_tick":"8"}]}]}))).await.unwrap();
+    assert_eq!(unchanged["result"]["status"], "no_changes", "{unchanged}");
+    let unknown=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":pinned["result"]["context_id"],"changes":[{"name":"Spare pistol","classification":"Missing type"}]}))).await.unwrap();
+    assert_eq!(unknown["result"]["status"], "needs_clarification");
+    assert!(unknown["result"]["candidate_handle"].is_null());
     stop.cancel();
     server.await.unwrap().unwrap();
 }

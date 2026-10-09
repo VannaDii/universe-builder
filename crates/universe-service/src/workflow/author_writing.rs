@@ -93,6 +93,9 @@ impl Workflow<'_> {
                     !matches!(
                         op,
                         DomainOperation::IntroduceInstance { .. }
+                            | DomainOperation::IntroduceDefinition { .. }
+                            | DomainOperation::AddNamedAttribute { .. }
+                            | DomainOperation::RefineClassification { .. }
                             | DomainOperation::DefineProperty { .. }
                             | DomainOperation::AssertProposition { .. }
                             | DomainOperation::DefineProposition { .. }
@@ -150,6 +153,9 @@ impl Workflow<'_> {
                         }
                         DomainOperation::SupersedeAssertion { replacement, .. } => {
                             replacement.basis = basis.clone()
+                        }
+                        DomainOperation::AddNamedAttribute { evidence, .. } => {
+                            evidence.basis = basis.clone()
                         }
                         DomainOperation::AddBelief { record, .. } => record.basis = basis.clone(),
                         _ => (),
@@ -290,6 +296,7 @@ impl Workflow<'_> {
                         .next()
                         .cloned()
                         .or_else(|| e.names.first().map(|n| n.text.clone())),
+                    Payload::EntityType(t) => Some(t.name.clone()),
                     Payload::Property(d) => Some(d.key.clone()),
                     Payload::ActionDefinition(d) => Some(d.key.clone()),
                     _ => None,
@@ -301,11 +308,13 @@ impl Workflow<'_> {
         let mut summary = vec![];
         for row in stored.changes.iter().filter_map(|c| c.next.as_ref()) {
             match &row.payload {
-                Payload::Entity(_) => summary.push(format!(
-                    "Proposed identity: {}",
+                Payload::Entity(e) => summary.push(format!(
+                    "Proposed identity: {}; classification {}",
                     label(&row.identity.record_id)
-                        .unwrap_or_else(|| row.identity.record_id.to_string())
+                        .unwrap_or_else(|| row.identity.record_id.to_string()),
+                    e.classification.as_ref().map(|id| label(id).unwrap_or_else(|| "unresolved".into())).unwrap_or_else(|| "unclassified".into())
                 )),
+                Payload::EntityType(t) => summary.push(format!("Proposed reusable definition: {}; parent {}; applicability {}",t.name,t.parent.as_ref().map(|id|label(id).unwrap_or_else(|| "unresolved".into())).unwrap_or_else(|| "root".into()),serde_json::to_value(&t.applicability)?)),
                 Payload::Assertion(a) => {
                     if let Some(proposition) = records
                         .iter()
@@ -319,7 +328,7 @@ impl Workflow<'_> {
                         })
                     {
                         summary.push(format!(
-                            "Proposed fact: {} — {} = {}; polarity {:?}; validity {}; scope {}",
+                            "Proposed fact: {} — {} = {}; mode {:?}; polarity {:?}; validity {}; scope {}",
                             label(&proposition.subject.record)
                                 .unwrap_or_else(|| proposition.subject.record.to_string()),
                             label(&proposition.predicate.record)
@@ -329,6 +338,7 @@ impl Workflow<'_> {
                                 .as_ref()
                                 .and_then(|v| writing::plain_value(v, &label))
                                 .unwrap_or(Value::Null),
+                            a.attribute_mode,
                             a.polarity,
                             writing::plain_time(&serde_json::to_value(&a.validity)?, &label),
                             serde_json::to_value(&a.scope.applicability)?

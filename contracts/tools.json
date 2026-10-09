@@ -1082,7 +1082,7 @@
   },
   {
     "name": "universe_read_facts",
-    "description": "Read plain effective facts for named objects in a pinned context. Returns exact authored property names and plain values, support/refutation/conflicts/unknowns, scope, time and actual coverage. Shared facts and initial-value candidates remain distinct. Missing or ambiguous identities never imply a new identity. Reuse returned property names for deltas. Source records are resolved by the engine; no internal schemas or ID joins required.",
+    "description": "Read plain effective facts for named objects in a pinned context. Returns exact authored property names and plain values, support/refutation/conflicts/unknowns, scope, time and actual coverage. Inherited attributes are returned separately from instance facts and initial-value candidates, with named classification/ancestry. Reusable definitions can also be researched by name. Missing or ambiguous identities never imply a new identity. Reuse returned property names for deltas. Source records are resolved by the engine; no internal schemas or ID joins required.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ReadFacts",
@@ -1095,7 +1095,7 @@
           "$ref": "#/$defs/ContextId"
         },
         "object_names": {
-          "description": "Exact object names to research. A missing or ambiguous match remains explicit.",
+          "description": "Exact instance or reusable definition names to research. A missing or ambiguous match remains explicit.",
           "type": "array",
           "items": {
             "type": "string"
@@ -2165,7 +2165,7 @@
   },
   {
     "name": "universe_check_changes",
-    "description": "Check plain factual deltas from author writing against pinned canon. Resolve existing objects by their exact visible names; introduce new identities only explicitly. Preserve dialogue, beliefs, plans, hypothetical and figurative claims as non-objective. The engine constructs canonical records, creates a provisional candidate, validates it and inspects impact. It returns a candidate handle, findings and material clarifications; it never approves or publishes. Scope/time/ownership ambiguities remain unresolved. New scalar properties impose no single-value constraint; existing authored property semantics and resource accounting remain enforced.",
+    "description": "Check plain factual deltas from author writing against pinned canon. Resolve existing objects by their exact visible names; introduce new identities only explicitly. Preserve dialogue, beliefs, plans, hypothetical and figurative claims as non-objective. The engine constructs canonical records, creates a provisional candidate, validates it and inspects impact. It returns a candidate handle, findings and material clarifications; it never approves or publishes. Scope/time/ownership ambiguities remain unresolved. Named definitions introduce reusable types/parent relationships/shared attributes; classification introduces or refines an instance without replacing identity. Shared attributes never become initial stock. New scalar properties impose no single-value constraint; existing authored property semantics and resource accounting remain enforced.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "CheckChanges",
@@ -2183,6 +2183,15 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/ObjectChange"
+          },
+          "maxItems": 100,
+          "default": []
+        },
+        "definitions": {
+          "description": "Explicit reusable definitions, subtype introductions and shared attributes. Independent stock belongs in changes, not here.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DefinitionChange"
           },
           "maxItems": 100,
           "default": []
@@ -2251,6 +2260,14 @@
               "description": "Explicit author intent to introduce a new independent identity. A mention is not introduction. First resolve each name using universe_read_facts; an empty literal text search does not establish identity absence. False reuses existing visible canon.",
               "type": "boolean",
               "default": false
+            },
+            "classification": {
+              "description": "Exact reusable definition name. On an existing object this refines classification without changing identity; it cannot replace an unrelated type.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
             },
             "facts": {
               "type": "array",
@@ -2404,6 +2421,43 @@
                 "end_tick"
               ]
             }
+          ]
+        },
+        "DefinitionChange": {
+          "description": "Reusable classification and shared characteristics; never an independent instance or initial stock.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "introduce": {
+              "type": "boolean",
+              "default": false
+            },
+            "parent": {
+              "description": "Exact parent definition name for a newly introduced subtype. Absence explicitly introduces a root.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "scope": {
+              "description": "universe, a retrieved world name, or unspecified. Applies to the new definition; shared facts retain their own scope/time.",
+              "type": "string",
+              "default": "unspecified"
+            },
+            "shared_attributes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/FactChange"
+              },
+              "default": []
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name"
           ]
         },
         "WritingEvent": {

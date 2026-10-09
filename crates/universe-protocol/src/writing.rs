@@ -69,8 +69,27 @@ pub struct ObjectChange {
     /// Explicit author intent to introduce a new independent identity. A mention is not introduction. First resolve each name using universe_read_facts; an empty literal text search does not establish identity absence. False reuses existing visible canon.
     #[serde(default)]
     pub introduce: bool,
+    /// Exact reusable definition name. On an existing object this refines classification without changing identity; it cannot replace an unrelated type.
+    #[serde(default)]
+    pub classification: Option<String>,
     #[serde(default)]
     pub facts: Vec<FactChange>,
+}
+/// Reusable classification and shared characteristics; never an independent instance or initial stock.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DefinitionChange {
+    pub name: String,
+    #[serde(default)]
+    pub introduce: bool,
+    /// Exact parent definition name for a newly introduced subtype. Absence explicitly introduces a root.
+    #[serde(default)]
+    pub parent: Option<String>,
+    /// universe, a retrieved world name, or unspecified. Applies to the new definition; shared facts retain their own scope/time.
+    #[serde(default = "unspecified")]
+    pub scope: String,
+    #[serde(default)]
+    pub shared_attributes: Vec<FactChange>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -82,6 +101,10 @@ pub struct CheckChanges {
     #[schemars(length(max = 100))]
     #[serde(default)]
     pub changes: Vec<ObjectChange>,
+    /// Explicit reusable definitions, subtype introductions and shared attributes. Independent stock belongs in changes, not here.
+    #[serde(default)]
+    #[schemars(length(max = 100))]
+    pub definitions: Vec<DefinitionChange>,
     #[serde(default)]
     pub events: Vec<WritingEvent>,
     #[serde(default)]
@@ -114,7 +137,7 @@ pub struct WritingCheck {
 pub struct ReadFacts {
     pub universe: Selector,
     pub context_id: ContextId,
-    /// Exact object names to research. A missing or ambiguous match remains explicit.
+    /// Exact instance or reusable definition names to research. A missing or ambiguous match remains explicit.
     #[schemars(length(min = 1, max = 100))]
     pub object_names: Vec<String>,
 }

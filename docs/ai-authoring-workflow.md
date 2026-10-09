@@ -288,6 +288,22 @@ and 32,768 context tokens including the next generation. Configure them with
 responses stop the passage check promptly. Limits and transport errors
 leave checking incomplete; a context limit requires a fresh session.
 
+Ordinary `universe_check_changes` also accepts `definitions` with an exact name,
+explicit `introduce`, optional parent name, scope and `shared_attributes`. These
+introduce reusable classifications; an omitted parent on a new type means a root.
+`changes.classification` names the definition for a new instance or refines an
+existing instance into an authored subtype, preserving its identity and state.
+Existing ancestry cannot be rewritten through refinement. Unknown or ambiguous
+names hold the delta for clarification. New scalar properties allow multiple
+values; existing property definitions retain their authored semantics.
+
+`universe_read_facts` accepts instance and definition names. It returns named
+classification and ancestry, `inherited_attributes` separately from instance
+`facts`, and initial-value candidates separately from both. Scope, time, restricted
+visibility and unknown coverage still apply. Shared attributes do not create
+instance-owned ammunition or other stock. Source preparation and exact approval
+remain required before any definition/refinement becomes canon.
+
 The local session also accepts private author commands. `/review` stages the exact
 submitted passage (including any author clarification), binds its UTF-8 source
 anchor to the factual candidate, and shows the actual compiled changes and fresh
