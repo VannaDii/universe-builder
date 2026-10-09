@@ -1016,8 +1016,26 @@ async fn ordinary_perspective_changes_do_not_reveal_hidden_identities() {
     let id = |n| format!("rec_{n:024x}");
     let rr = |n| json!({"universe":u["universe_id"],"record":id(n)});
     admit(&mut c,&ctx,vec![entity("Mara",&id(101)),entity("Hidden citizen",&id(102)),json!({"kind":"record_narrative_reference","client_ref":id(103),"record":"represented_context","payload":{"record_kind":"represented_context","universe":u["universe_id"],"kind":{"kind":"character","holder":rr(101)},"labels":{}}})],"perspective-setup").await;
+    let ctx=c.call(tool("universe_open_context",json!({"universe":"Alpha","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":id(103),"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"}))).await.unwrap()["result"]["context_id"].clone();
+    admit(&mut c,&ctx,vec![
+        json!({"kind":"define_relation","client_ref":id(104),"record":{"namespace":"private","key":"ownership","labels":{},"roles":[{"name":"owner","participantTypes":[],"multiplicity":"single","ordered":false}]}}),
+        json!({"kind":"record_relation","client_ref":id(105),"proposition":{"subject":rr(101),"predicate":rr(104),"roles":[{"role":"owner","participant":rr(101)}],"quantification":"particular","context":rr(103)},"assertion":{"attributeMode":"instance","proposition":rr(105),"polarity":"support","scope":{"context":rr(103),"applicability":{"kind":"universe_wide"}},"validity":{"kind":"unspecified"},"persistence":"unspecified","precision":"exact","basis":{"kind":"author_decision","note":"Attributed relationship fixture"}}})
+    ],"perspective-relationship").await;
     let opened=c.call(tool("universe_open_context",json!({"universe":"Alpha","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":id(103),"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":{"character":id(101)}}))).await.unwrap();
     let selected = opened["result"]["context_id"].clone();
+    let restricted = c
+        .call(tool(
+            "universe_read_contracts",
+            json!({"universe":"Alpha","context_id":selected}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(restricted["result"]["coverage"], "restricted");
+    assert_eq!(restricted["result"]["relationships"], json!([]));
+    assert!(
+        !restricted.to_string().contains("Hidden citizen"),
+        "{restricted}"
+    );
     let read = c
         .call(tool(
             "universe_read_facts",
@@ -1394,6 +1412,217 @@ async fn ordinary_exhaustive_sets_preserve_open_history_and_protect_declarations
     );
     let empty=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":current,"exhaustive_sets":[{"subject":"Courtyard","property":"entrance","members":[],"scope":"universe","at_tick":"11"}]}))).await.unwrap();
     assert_eq!(empty["result"]["status"], "checked_candidate", "{empty}");
+    stop.cancel();
+    server.await.unwrap().unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn ordinary_relationship_limits_check_ownership_time_scope_and_review() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("install");
+    let author = runtime::initialize(&root).unwrap();
+    let stop = CancellationToken::new();
+    let (r, s) = (root.clone(), stop.clone());
+    let server = tokio::spawn(async move { runtime::serve(&r, s).await });
+    let mut c = connect(&root, &author).await;
+    let u = c
+        .call(EngineRequest::CreateUniverse {
+            name: "Alpha".into(),
+            start: universe_domain::chronology::UniverseStart::Fictional {
+                calendar_name: "Days".into(),
+                initial_tick: "0".into(),
+                tick_label: "days".into(),
+                ticks_per_month: None,
+            },
+        })
+        .await
+        .unwrap();
+    let ctx = context(&mut c, &u, "Alpha").await;
+    admit(
+        &mut c,
+        &ctx,
+        vec![
+            world("North", &format!("rec_{:024x}", 90001)),
+            world("South", &format!("rec_{:024x}", 90002)),
+        ],
+        "relationship-worlds",
+    )
+    .await;
+    let ctx = context(&mut c, &u, "Alpha").await;
+    let setup=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":ctx,
+        "changes":[{"name":"Pistol","introduce":true},{"name":"Mara","introduce":true},{"name":"Leon","introduce":true}],
+        "relation_definitions":[{"name":"ownership","introduce":true,"roles":[{"name":"item","multiple":false},{"name":"owner","multiple":false}]}],
+        "relation_limits":[{"name":"one owner in North","relation":"ownership","grouping":{"kind":"role","role":"item"},"counted_role":"owner","maximum":1,"scope":"North","at_tick":"0","lifetime":{"kind":"until","end_tick":"20"}}],
+        "relationships":[{"relation":"ownership","subject":"Pistol","participants":{"item":["Pistol"],"owner":["Mara"]},"scope":"North","at_tick":"0","lifetime":{"kind":"until","end_tick":"10"}}]
+    }))).await.unwrap();
+    assert_eq!(setup["result"]["status"], "checked_candidate", "{setup}");
+    let handle: ProposalId =
+        serde_json::from_value(setup["result"]["candidate_handle"].clone()).unwrap();
+    assert!(c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::Prepare {
+                candidate: handle.clone(),
+                label: "Ownership".into(),
+                text: "Ownership declaration".into()
+            }
+        })
+        .await
+        .is_err());
+    let review=c.call(EngineRequest::AuthorWriting{universe:Selector("Alpha".into()),action:AuthorWritingAction::PrepareContracts{candidate:handle,label:"Ownership".into(),text:"In North only one owner may hold a pistol at a time through day 20. Mara owns this pistol before day 10.".into()}}).await.unwrap();
+    assert_eq!(review["publishable"], true, "{review}");
+    assert!(
+        review["summary"].as_array().unwrap().iter().any(|s| s
+            .as_str()
+            .is_some_and(|s| s.contains("Mara") && s.contains("owner"))),
+        "{review}"
+    );
+    let publish = EngineRequest::AuthorWriting {
+        universe: Selector("Alpha".into()),
+        action: AuthorWritingAction::Publish {
+            candidate: serde_json::from_value(review["candidate"].clone()).unwrap(),
+            validation_run: serde_json::from_value(
+                review["validation"]["execution"]["run_id"].clone(),
+            )
+            .unwrap(),
+            idempotency_key: "ownership-declarations".into(),
+        },
+    };
+    let receipt = c.call(publish.clone()).await.unwrap();
+    assert_eq!(c.call(publish).await.unwrap()["result"], receipt["result"]);
+    let old = context(&mut c, &u, "Alpha").await;
+    let read = c
+        .call(tool(
+            "universe_read_contracts",
+            json!({"universe":"Alpha","context_id":old}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(read["result"]["relations"][0]["name"], "ownership");
+    assert_eq!(read["result"]["relation_limits"][0]["maximum"], 1);
+    assert_eq!(
+        read["result"]["relationships"][0]["participants"][1]["object"], "Mara",
+        "{read}"
+    );
+    let same = json!({"universe":"Alpha","context_id":old,"relationships":[{"relation":"ownership","subject":"Pistol","participants":{"item":["Pistol"],"owner":["Mara"]},"scope":"North","at_tick":"0","lifetime":{"kind":"until","end_tick":"10"}}]});
+    let unchanged = c.call(tool("universe_check_changes", same)).await.unwrap();
+    assert_eq!(unchanged["result"]["status"], "no_changes", "{unchanged}");
+    let mut next = json!({"universe":"Alpha","context_id":old,"relationships":[{"relation":"ownership","subject":"Pistol","participants":{"item":["Pistol"],"owner":["Leon"]},"scope":"North","at_tick":"5","lifetime":{"kind":"until","end_tick":"15"}}]});
+    let conflicting = c
+        .call(tool("universe_check_changes", next.clone()))
+        .await
+        .unwrap();
+    assert_eq!(conflicting["result"]["status"], "conflict", "{conflicting}");
+    assert!(
+        conflicting["result"]["validation"]["execution"]["findings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["outcome"] == "refuted"),
+        "{conflicting}"
+    );
+    next["relationships"][0]["participants"]["undeclared"] = json!(["Mara"]);
+    let held = c
+        .call(tool("universe_check_changes", next.clone()))
+        .await
+        .unwrap();
+    assert!(held["result"]["candidate_handle"].is_null(), "{held}");
+    next["relationships"][0]["participants"]
+        .as_object_mut()
+        .unwrap()
+        .remove("undeclared");
+    next["relationships"][0]["scope"] = json!("South");
+    let scoped = c
+        .call(tool("universe_check_changes", next.clone()))
+        .await
+        .unwrap();
+    assert_eq!(scoped["result"]["status"], "checked_candidate", "{scoped}");
+    next["relationships"][0]["scope"] = json!("North");
+    next["relationships"][0]["at_tick"] = json!("10");
+    next["relationships"][0]["lifetime"]["end_tick"] = json!("20");
+    let sequential = c.call(tool("universe_check_changes", next)).await.unwrap();
+    assert_eq!(
+        sequential["result"]["status"], "checked_candidate",
+        "{sequential}"
+    );
+    let library = c
+        .call(EngineRequest::Library {
+            universe: Selector("Alpha".into()),
+        })
+        .await
+        .unwrap();
+    assert!(
+        library["writing"]["proposals"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(
+                |p| p["candidate"]["proposal_id"] == sequential["result"]["candidate_handle"]
+                    && p["label"]
+                        .as_str()
+                        .is_some_and(|label| label.contains("Pistol — ownership"))
+            ),
+        "{library}"
+    );
+    publish_plain(
+        &mut c,
+        &sequential,
+        "In North Leon owns the pistol from day 10 until day 20.",
+        "sequential-owner",
+    )
+    .await;
+    let current = context(&mut c, &u, "Alpha").await;
+    let after = c
+        .call(tool(
+            "universe_read_contracts",
+            json!({"universe":"Alpha","context_id":current}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(
+        after["result"]["relationships"].as_array().unwrap().len(),
+        2,
+        "{after}"
+    );
+    let history = c
+        .call(tool(
+            "universe_read_contracts",
+            json!({"universe":"Alpha","context_id":old}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(
+        history["result"]["relationships"].as_array().unwrap().len(),
+        1
+    );
+    let clocks = c
+        .call(tool(
+            "universe_read_facts",
+            json!({"universe":"Alpha","context_id":current,"object_names":["Pistol"]}),
+        ))
+        .await
+        .unwrap();
+    let dated=c.call(tool("universe_open_context",json!({"universe":"Alpha","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":u["context_id"],"temporal_query":{"kind":"at","time":{"kind":"exact","calendar":clocks["result"]["clocks"][0]["calendar_id"],"value":"15"}},"temporal_systems":[],"perspective":"author"}))).await.unwrap();
+    let dated = c
+        .call(tool(
+            "universe_read_contracts",
+            json!({"universe":"Alpha","context_id":dated["result"]["context_id"]}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(
+        dated["result"]["relationships"].as_array().unwrap().len(),
+        1,
+        "{dated}"
+    );
+    assert!(
+        dated["result"]["relationships"][0]["participants"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|p| p["role"] == "owner" && p["object"] == "Leon"),
+        "{dated}"
+    );
     stop.cancel();
     server.await.unwrap().unwrap();
 }

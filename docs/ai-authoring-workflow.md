@@ -793,3 +793,25 @@ members, objective versus observer-known kind, scope/time and applicability.
 Observer-known collections do not close objective reality. Existing engine checks
 reject out-of-set member facts only where the authored boundary applies; no world
 or story time is inferred.
+
+
+Ordinary relationship authoring uses `relation_definitions` for explicit names and
+roles with local single/multiple multiplicity, and `relation_limits` for authored
+cross-occurrence maxima. A limit selects an exact relationship, subject or named
+role grouping, counted role, maximum, scope and story time/lifetime. Both require
+private contract review and exact approval; violations always block publication.
+No limit means no inferred exclusivity, minimum or ownership rule. New finite
+relation declarations have unordered roles without type restrictions; existing
+contracts preserve their actual participant types and order.
+
+`relationships` supplies an exact relation name, subject and participant-name
+lists by declared role, with authored scope/time/lifetime. Ordinary factual source
+review publishes legal occurrences. Dialogue and other nonobjective claims stay
+excluded; unknown names or undeclared roles hold the delta. Missing grouping or
+counted participants leave applicable engine checks unresolved, never certified.
+`universe_read_contracts` returns named definitions, limits and authored occurrence
+polarity/scope/time; occurrence values are omitted in restricted perspectives.
+Temporal queries omit inactive occurrences; historical contexts retain their
+pinned revision. These are authored claims, not inferred relationship truth.
+Relation corrections and definition revisions remain advanced operations. This
+ordinary path provides no scoped waivers or automatic downstream repair.

@@ -386,7 +386,12 @@ impl Workflow<'_> {
                 return !contracts
                     || !matches!(record.completeness, CompletenessKind::ObjectiveReality);
             }
-            if contracts && matches!(op, DomainOperation::DefineAction { .. }) {
+            if contracts
+                && matches!(
+                    op,
+                    DomainOperation::DefineAction { .. } | DomainOperation::DefineRelation { .. }
+                )
+            {
                 return false;
             }
             if let DomainOperation::DefineUnit { record, .. } = op {
@@ -395,7 +400,8 @@ impl Workflow<'_> {
             if let DomainOperation::DefineRule { record, .. } = op {
                 return !contracts
                     || !(super::writing_contracts::supported_policy(record)
-                        || super::writing_contracts::supported_knowledge_policy(record));
+                        || super::writing_contracts::supported_knowledge_policy(record)
+                        || super::writing_relations::supported_limit(record));
             }
             !matches!(
                 op,
@@ -404,6 +410,7 @@ impl Workflow<'_> {
                     | DomainOperation::AddNamedAttribute { .. }
                     | DomainOperation::RefineClassification { .. }
                     | DomainOperation::DefineProperty { .. }
+                    | DomainOperation::RecordRelation { .. }
                     | DomainOperation::AssertProposition { .. }
                     | DomainOperation::DefineProposition { .. }
                     | DomainOperation::InitializeInstance { .. }
@@ -549,6 +556,8 @@ impl Workflow<'_> {
                         .or_else(|| e.names.first().map(|n| n.text.clone())),
                     Payload::EntityType(t) => Some(t.name.clone()),
                     Payload::Property(d) => Some(d.key.clone()),
+                    Payload::Relation(d) => Some(d.key.clone()),
+                    Payload::Realm(r) => r.labels.values().next().cloned(),
                     Payload::ActionDefinition(d) => Some(d.key.clone()),
                     Payload::Rule(d) => Some(d.key.clone()),
                     Payload::World(d) => Some(d.selector.clone()),
@@ -592,7 +601,7 @@ impl Workflow<'_> {
                                 .value
                                 .as_ref()
                                 .and_then(|v| writing::plain_value(v, &label))
-                                .unwrap_or(Value::Null),
+                                .unwrap_or_else(|| json!({"participants":proposition.roles.iter().map(|r|json!({"role":r.role,"object":label(&r.participant.record)})).collect::<Vec<_>>()})),
                             a.attribute_mode,
                             a.polarity,
                             writing::plain_time(&serde_json::to_value(&a.validity)?, &label),
@@ -610,6 +619,8 @@ impl Workflow<'_> {
                 Payload::EpistemicAttitude(a) => {if let universe_domain::scope::EvidenceBasis::AuthorDecision{note}=&a.basis {summary.push(format!("Explicit author knowledge decision: {note}; attributed knowledge only, no objective fact asserted"));} summary.push(format!("Proposed attitude: {} {:?}; claim {}; acquisition {}; validity {}",label(&a.holder.record).unwrap_or_default(),a.attitude,describe_claim(&a.proposition),serde_json::to_value(&a.acquisition)?,serde_json::to_value(&a.validity)?));},
                 Payload::Unit(d) => summary.push(format!("Author unit declaration: {}; dimension {}; symbol {}; no conversion declared",d.key,d.dimension,d.symbol)),
                 Payload::Property(d) => summary.push(format!("Proposed property: {}; values {:?}; persistence {:?}",d.key,d.multiplicity,d.persistence)),
+                Payload::Relation(d)=>summary.push(format!("Author relationship declaration: {}; roles {}",d.key,d.roles.iter().map(|r|format!("{} ({:?})",r.name,r.multiplicity)).collect::<Vec<_>>().join(", "))),
+                Payload::Rule(d) if d.relation_cardinality.is_some()=>{let c=d.relation_cardinality.as_ref().unwrap();summary.push(format!("Author relationship limit: {}; relationship {}; counted role {}; maximum {}; grouping {}; scope {}; time {}",d.key,label(&c.relation.record).unwrap_or_else(||"unresolved".into()),c.counted_role,c.maximum,serde_json::to_value(&c.grouping)?,super::writing_connected::plain_scope(&c.scope,&label),writing::plain_time(&serde_json::to_value(&c.validity)?,&label)));},
                 Payload::Completeness(c) => summary.push(format!("Author exhaustive set: {}; property {}; members {}",label(&c.subject.record).unwrap_or_else(||"unresolved".into()),c.predicate,c.members.iter().map(|m|label(&m.record).unwrap_or_else(||"unresolved".into())).collect::<Vec<_>>().join(", "))),
                 Payload::ActionDefinition(d) => summary.push(format!("Author action declaration: {}",super::writing_connected::plain_action(d,&label))),
                 Payload::Rule(d) if d.knowledge_policy.is_some()=>{let policy=d.knowledge_policy.as_ref().unwrap();summary.push(format!("Author knowledge policy: {}; selected context {}; mode {:?}; no automatic understanding or objective truth",d.key,label(&policy.context.record).unwrap_or_else(||"selected context".into()),policy.mode));},

@@ -425,6 +425,7 @@ impl Runtime {
                         let name = |id: &RecordId| rows.iter().find(|r| &r.identity.record_id == id).and_then(|r| match &r.payload {
                             Payload::Entity(e) => e.labels.values().next().cloned().or_else(|| e.names.first().map(|n| n.text.clone())),
                             Payload::Property(p) => Some(p.key.clone()),
+                            Payload::Relation(r) => Some(r.key.clone()),
                             Payload::ActionDefinition(a) => Some(a.key.clone()),
                             _ => None,
                         });
@@ -432,6 +433,7 @@ impl Runtime {
                             Payload::Entity(e)=>e.names.first().map(|n|n.text.clone()),
                             Payload::Source(s)=>Some(s.label.clone()),
                             Payload::Property(p)=>Some(p.key.clone()),
+                            Payload::Relation(r)=>Some(r.key.clone()),
                             Payload::EntityType(t)=>Some(t.name.clone()),
                             Payload::ActionDefinition(a)=>Some(a.key.clone()),
                             Payload::Event(e) => e.action.as_ref().and_then(|a| name(&a.record)).map(|action| format!("Occurred action: {action}")),

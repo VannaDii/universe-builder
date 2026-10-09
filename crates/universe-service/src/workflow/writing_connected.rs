@@ -563,6 +563,9 @@ impl Workflow<'_> {
                         .cloned()
                         .or_else(|| e.names.first().map(|n| n.text.clone())),
                     Payload::Property(p) => Some(p.key.clone()),
+                    Payload::Relation(r) => Some(r.key.clone()),
+                    Payload::EntityType(t) => Some(t.name.clone()),
+                    Payload::Realm(r) => r.labels.values().next().cloned(),
                     Payload::Unit(u) => Some(u.key.clone()),
                     Payload::World(w) => Some(w.selector.clone()),
                     Payload::Calendar(c) => Some(c.key.clone()),
@@ -576,12 +579,16 @@ impl Workflow<'_> {
         let mut attitudes = vec![];
         let mut constraints = vec![];
         let mut exhaustive_sets = vec![];
+        let mut relations = vec![];
+        let mut relation_limits = vec![];
+        let mut relationships = vec![];
         let units:Vec<_>=rows.iter().filter_map(|r|if let Payload::Unit(u)=&r.payload {Some(json!({"name":u.key,"symbol":u.symbol,"dimension":u.dimension,"conversion_declared":u.base.is_some() || u.scale_to_base.is_some(),"time":plain_time(&json!(u.validity),&name)}))}else{None}).collect();
         for row in &rows {
             match &row.payload{
             Payload::ActionDefinition(a)if a.scope.context==ctx.frame.context&&(input.action_names.is_empty()||input.action_names.iter().any(|n|n==&a.key||a.labels.values().any(|v|v==n)))=>{
                 actions.push(plain_action(a, &name));
             },Payload::Rule(r)=>{
+            if let Some(c)=&r.relation_cardinality {if c.scope.context==ctx.frame.context {relation_limits.push(json!({"name":r.key,"relation":name(&c.relation.record),"grouping":c.grouping,"counted_role":c.counted_role,"maximum":c.maximum,"scope":plain_scope(&c.scope,&name),"time":plain_time(&json!(c.validity),&name),"time_applicable":universe_rules::events::applies(&c.validity,&ctx.frame.time,&rows),"policy":"always_block","limitation":"Distinct authored participants across overlapping relation occurrences; no inferred minimum/exclusivity, conversion or ordinary exception."}));}}
             if super::writing_contracts::supported_policy(r) {
                 let target=r.target_predicates.first().and_then(|key|rows.iter().find_map(|row|if let Payload::Property(p)=&row.payload { (format!("{}:{}",p.namespace,p.key)==*key).then(||p.key.clone()) }else{None}));
                 let scope=match &r.applicability {Applicability::UniverseWide=>json!("universe"),Applicability::Worlds{world_ids}=>json!({"worlds":world_ids.iter().filter_map(|w|RecordId::parse(&w.as_str().replacen("wld_","rec_",1)).ok().and_then(|id|name(&id))).collect::<Vec<_>>()}),_=>json!("unresolved")};
@@ -593,6 +600,14 @@ impl Workflow<'_> {
             }
 if let Some(p)=&r.knowledge_policy{if p.context==ctx.frame.context{policies.push(json!({"name":r.key,"mode":p.mode,"limitation":if p.mode==KnowledgeMode::AuthorEstablished{"Use the separate private establish_knowledge author action with selected claim, time, lifetime and rationale, followed by exact approval; source text or ordinary approval cannot manufacture it."}else{"Requires actual receipt, explicit interpretation, authored channel chronology, and objective truth."}}))}}
             if let Some(c)=&r.channel_chronology{channels.push(json!({"name":r.key,"channel":c.channel,"forward_only":c.forward_only,"minimum_delay":c.minimum_delay,"maximum_delay":c.maximum_delay}))}},
+            Payload::Relation(d)=>relations.push(json!({"name":d.key,"roles":d.roles.iter().map(|role|json!({"name":role.name,"multiple":role.multiplicity==Multiplicity::Multiple,"ordered":role.ordered,"participant_types":role.participant_types.iter().map(&name).collect::<Vec<_>>()})).collect::<Vec<_>>() })),
+            Payload::Assertion(a) if matches!(ctx.frame.perspective,Perspective::Author) && a.scope.context==ctx.frame.context && universe_rules::events::applies(&a.validity,&ctx.frame.time,&rows)!=Some(false)=>{
+                if let Some(p)=rows.iter().find_map(|r|if r.identity.record_id==a.proposition.record{if let Payload::Proposition(p)=&r.payload {Some(p)}else{None}}else{None}) {
+                    if rows.iter().any(|r|r.identity.record_id==p.predicate.record&&matches!(r.payload,Payload::Relation(_))){
+                        relationships.push(json!({"relation":name(&p.predicate.record),"subject":name(&p.subject.record),"participants":p.roles.iter().map(|role|json!({"role":role.role,"object":name(&role.participant.record)})).collect::<Vec<_>>(),"polarity":a.polarity,"scope":plain_scope(&a.scope,&name),"time":plain_time(&json!(a.validity),&name),"time_applicable":universe_rules::events::applies(&a.validity,&ctx.frame.time,&rows),"limitation":"Authored assertion; cross-occurrence limits are checked by the engine, not inferred from these declarations."}));
+                    }
+                }
+            },
             Payload::Completeness(c) if c.scope.context==ctx.frame.context => {
                 let property=rows.iter().find_map(|r|if let Payload::Property(p)=&r.payload {(format!("{}:{}",p.namespace,p.key)==c.predicate).then(||p.key.clone())}else{None});
                 let scope=match &c.scope.applicability {Applicability::UniverseWide=>json!("universe"),Applicability::Worlds{world_ids}=>json!({"worlds":world_ids.iter().filter_map(|w|RecordId::parse(&w.as_str().replacen("wld_","rec_",1)).ok().and_then(|id|name(&id))).collect::<Vec<_>>()}),_=>json!("unresolved")};
@@ -605,6 +620,23 @@ if let Some(p)=&r.knowledge_policy{if p.context==ctx.frame.context{policies.push
             Payload::Communication(c)=>messages.push(json!({"message_handle":row.identity.record_id,"from":name(&c.sender.record),"received_by":c.actual_recipients.iter().filter_map(|r|name(&r.record)).collect::<Vec<_>>(),"sent_at":plain_time(&json!(c.sent_at),&name),"received_at":c.received_at.as_ref().map(|t|plain_time(&json!(t),&name)),"distorted":c.distorted,"claims":c.content.iter().filter_map(|p|rows.iter().find(|r|r.identity.record_id==p.record)).filter_map(|r|if let Payload::Proposition(p)=&r.payload{Some(json!({"subject":name(&p.subject.record),"property":name(&p.predicate.record),"value":p.value.as_ref().and_then(|v|plain_value(v,&name))}))}else{None}).collect::<Vec<_>>()})),_=>()
         }
         }
-        self.wrap(&args,Some(ctx.frame.clone()),None,true,None,json!({"actions":actions,"units":units,"knowledge_policies":policies,"channels":channels,"communications":messages,"attitudes":attitudes,"constraints":constraints,"exhaustive_sets":exhaustive_sets,"coverage":if self.scope.is_some() || !matches!(ctx.frame.perspective,Perspective::Author){"restricted"}else{"bounded"},"limitation":"Visible pinned authored declarations; absent contracts are unknown. Effects are computed and checked by the engine. Interpretation alone does not establish knowledge."}))
+        self.wrap(&args,Some(ctx.frame.clone()),None,true,None,json!({"actions":actions,"units":units,"knowledge_policies":policies,"channels":channels,"communications":messages,"attitudes":attitudes,"constraints":constraints,"exhaustive_sets":exhaustive_sets,"relations":relations,"relation_limits":relation_limits,"relationships":relationships,"coverage":if self.scope.is_some() || !matches!(ctx.frame.perspective,Perspective::Author){"restricted"}else{"bounded"},"limitation":"Visible pinned authored declarations; absent contracts are unknown. Effects are computed and checked by the engine. Interpretation alone does not establish knowledge."}))
+    }
+}
+
+pub(super) fn plain_scope(
+    scope: &universe_domain::scope::Scope,
+    name: &impl Fn(&RecordId) -> Option<String>,
+) -> Value {
+    let applicability = match &scope.applicability {
+        Applicability::UniverseWide => json!("universe"),
+        Applicability::Worlds { world_ids } => {
+            json!({"worlds":world_ids.iter().map(|w|RecordId::parse(&w.as_str().replacen("wld_","rec_",1)).ok().and_then(|id|name(&id))).collect::<Vec<_>>()})
+        }
+        _ => json!("unresolved"),
+    };
+    match &scope.realm {
+        Some(realm) => json!({"applicability":applicability,"realm":name(&realm.record)}),
+        None => applicability,
     }
 }

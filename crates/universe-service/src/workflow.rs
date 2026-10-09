@@ -20,6 +20,7 @@ mod writing_connected;
 mod writing_contracts;
 mod writing_event_corrections;
 mod writing_initialization;
+mod writing_relations;
 mod writing_units;
 use universe_protocol::validation_scope::*;
 use validation_binding::ValidationCapture;
@@ -1521,7 +1522,7 @@ impl Workflow<'_> {
         let result = match request {
             Request::ReadContracts(a) => return self.read_writing_contracts(a),
             Request::ReadFacts(a) => return self.read_writing_facts(a),
-            Request::CheckChanges(a) => return self.check_writing_changes(a),
+            Request::CheckChanges(a) => return self.check_writing_changes(*a),
             Request::OpenContext(a) => {
                 if let FrameTime::At { ref time } = a.temporal_query {
                     if universe_rules::time::relation(

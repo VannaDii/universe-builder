@@ -135,6 +135,15 @@ pub struct CheckChanges {
     /// Explicit objective exhaustive object collections. Absence of a declaration stays open/unknown; private contract review required.
     #[serde(default)]
     pub exhaustive_sets: Vec<WritingExhaustiveSet>,
+    /// Explicit finite named relation contracts; requires private contract review.
+    #[serde(default)]
+    pub relation_definitions: Vec<WritingRelationDefinition>,
+    /// Authored cross-occurrence maxima, separate from local role multiplicity; private contract review required.
+    #[serde(default)]
+    pub relation_limits: Vec<WritingRelationLimit>,
+    /// Objective named relationship deltas using actual declared roles and authored participants.
+    #[serde(default)]
+    pub relationships: Vec<WritingRelationship>,
     /// Explicit context knowledge modes or communication chronology; private contract review required.
     #[serde(default)]
     pub knowledge_policies: Vec<WritingKnowledgePolicy>,
@@ -530,4 +539,57 @@ pub struct WritingExhaustiveSet {
     pub at_tick: Option<String>,
     #[serde(default)]
     pub lifetime: FactLifetime,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingRelationDefinition {
+    pub name: String,
+    pub introduce: bool,
+    pub roles: Vec<WritingRelationRole>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingRelationRole {
+    pub name: String,
+    /// Only local multiplicity, never a cross-occurrence maximum.
+    pub multiple: bool,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum WritingRelationGrouping {
+    Subject,
+    Role { role: String },
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingRelationLimit {
+    pub name: String,
+    pub relation: String,
+    pub grouping: WritingRelationGrouping,
+    pub counted_role: String,
+    pub maximum: u32,
+    pub scope: String,
+    #[serde(default)]
+    pub at_tick: Option<String>,
+    #[serde(default)]
+    pub lifetime: FactLifetime,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingRelationship {
+    pub relation: String,
+    pub subject: String,
+    /// Actual authored participant names by declared role; preserves list order for ordered roles.
+    pub participants: std::collections::BTreeMap<String, Vec<String>>,
+    pub scope: String,
+    #[serde(default)]
+    pub at_tick: Option<String>,
+    #[serde(default)]
+    pub lifetime: FactLifetime,
+    #[serde(default)]
+    pub negated: bool,
+    #[serde(default = "objective")]
+    #[schemars(with = "StatementIntent")]
+    pub statement: String,
 }

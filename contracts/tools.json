@@ -1,7 +1,7 @@
 [
   {
     "name": "universe_read_contracts",
-    "description": "Read plain pinned, visible action roles/requirements/consequences and authored knowledge/channel contracts and named exhaustive object collections. Objective and observer-known sets remain distinct; absent declarations are open/unknown. Exact action names; empty discovers names. No missing contract implies a default rule. No internal record joins required.",
+    "description": "Read plain pinned, visible action roles/requirements/consequences and authored knowledge/channel contracts and named exhaustive object collections, relationship roles, authored cross-occurrence maxima and visible author-perspective relationship assertions. Restricted perspectives omit occurrence values. Objective and observer-known sets remain distinct; absent declarations are open/unknown. Exact action names; empty discovers names. No missing contract implies a default rule. No internal record joins required.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "ReadContracts",
@@ -2169,7 +2169,7 @@
   },
   {
     "name": "universe_check_changes",
-    "description": "Check plain factual deltas from author writing against pinned canon. An explicitly selected authorized author perspective is required; other perspectives are research only. Resolve existing objects by their exact visible names; introduce new identities only explicitly. Preserve dialogue, beliefs, plans, hypothetical and figurative claims as non-objective. The engine constructs canonical records, creates a provisional candidate, validates it and inspects impact. It returns a candidate handle, findings and material clarifications; it never approves or publishes. Scope/time/ownership ambiguities remain unresolved. Named definitions introduce reusable types/parent relationships/shared attributes; classification introduces or refines an instance without replacing identity. Shared attributes never become initial stock. definitions.initial_values declare starting candidates, which must be approved before explicit initializations select their opaque handles. Each initialization requires an explicit occurred start using a declared action/participants/time/world, or a retrieved pinned occurred-event handle, and an authored interval. First mention, classification and restart never initialize or refill. event_corrections use pinned occurred-event handles and changed named fields; omitted fields retain canon. Participants explicitly replace all bindings; empty requires_knowledge explicitly clears direct Knows preconditions. Effects are recalculated from authored contracts, never editable stock facts. Manual effects outside declared slots require advanced correction. Later events are checked but never automatically rewritten. New scalar properties impose no single-value constraint; explicit properties declare type, multiplicity and persistence without revising existing definitions. definition_corrections revise named type ancestry/applicability without reclassifying instances; an explicit root parent removes ancestry. action_corrections replace only supplied requirements/effects/applicability or explicit tick plus lifetime; omitted fields retain canon. Both require private contract review, preserve history and recheck affected instances/events. Supplied action lists replace the complete selected field; custom legacy effect slots require advanced editing. Shared attribute values use pinned factual correction handles. Named actions support role/property/value requirements, set or bounded integer-delta effects and authored lifetimes. Constraints support resource_accounting or no_opposing_evidence. Explicit exhaustive_sets declare all named members of an object-valued property for authored subject/scope/time/lifetime; required members=[] deliberately declares none. Absence never implies completeness. Exhaustive declarations require private contract review; member facts are checked against applicable objective boundaries. knowledge_policies explicitly declare author_established or justified mode on the selected context, or named channel forward/delay timing; no delivery or understanding is inferred. Contracts require separate private author declaration review and exact approval. Author-established knows remains held until the separate private establish_knowledge decision selecting holder/claim/time/lifetime/rationale and exact author approval; neither source review nor generic approval creates the decision. Explicit quantities use {amount,unit} with exact authored numbers and named units. Quantity properties require a unit. Visible unit metadata is returned by read_contracts; explicit no-conversion unit declarations require private contract review. Never infer dimension, symbol, unit conversion or physics. Quantity deltas require integer amounts/bounds with the exact declared unit; decimal resource arithmetic remains unsupported. Existing authored property semantics and resource accounting remain enforced.",
+    "description": "Check plain factual deltas from author writing against pinned canon. An explicitly selected authorized author perspective is required; other perspectives are research only. Resolve existing objects by their exact visible names; introduce new identities only explicitly. Preserve dialogue, beliefs, plans, hypothetical and figurative claims as non-objective. The engine constructs canonical records, creates a provisional candidate, validates it and inspects impact. It returns a candidate handle, findings and material clarifications; it never approves or publishes. Scope/time/ownership ambiguities remain unresolved. Named definitions introduce reusable types/parent relationships/shared attributes; classification introduces or refines an instance without replacing identity. Shared attributes never become initial stock. definitions.initial_values declare starting candidates, which must be approved before explicit initializations select their opaque handles. Each initialization requires an explicit occurred start using a declared action/participants/time/world, or a retrieved pinned occurred-event handle, and an authored interval. First mention, classification and restart never initialize or refill. event_corrections use pinned occurred-event handles and changed named fields; omitted fields retain canon. Participants explicitly replace all bindings; empty requires_knowledge explicitly clears direct Knows preconditions. Effects are recalculated from authored contracts, never editable stock facts. Manual effects outside declared slots require advanced correction. Later events are checked but never automatically rewritten. New scalar properties impose no single-value constraint; explicit properties declare type, multiplicity and persistence without revising existing definitions. definition_corrections revise named type ancestry/applicability without reclassifying instances; an explicit root parent removes ancestry. action_corrections replace only supplied requirements/effects/applicability or explicit tick plus lifetime; omitted fields retain canon. Both require private contract review, preserve history and recheck affected instances/events. Supplied action lists replace the complete selected field; custom legacy effect slots require advanced editing. Shared attribute values use pinned factual correction handles. Named actions support role/property/value requirements, set or bounded integer-delta effects and authored lifetimes. Constraints support resource_accounting or no_opposing_evidence. Explicit exhaustive_sets declare all named members of an object-valued property for authored subject/scope/time/lifetime; required members=[] deliberately declares none. Absence never implies completeness. Exhaustive declarations require private contract review; member facts are checked against applicable objective boundaries. relation_definitions explicitly introduce named unordered, unrestricted-type roles with single/multiple local multiplicity. relation_limits declare actual subject-or-role grouping, counted role and maximum in authored scope/time; limits require private contract review and always block violations. relationships submit objective subject/participant names using existing roles; type restrictions and ordering remain authored, missing names/undeclared roles require clarification. No limit implies exclusivity, no minimum is inferred, and ordinary scoped waivers are unsupported. knowledge_policies explicitly declare author_established or justified mode on the selected context, or named channel forward/delay timing; no delivery or understanding is inferred. Contracts require separate private author declaration review and exact approval. Author-established knows remains held until the separate private establish_knowledge decision selecting holder/claim/time/lifetime/rationale and exact author approval; neither source review nor generic approval creates the decision. Explicit quantities use {amount,unit} with exact authored numbers and named units. Quantity properties require a unit. Visible unit metadata is returned by read_contracts; explicit no-conversion unit declarations require private contract review. Never infer dimension, symbol, unit conversion or physics. Quantity deltas require integer amounts/bounds with the exact declared unit; decimal resource arithmetic remains unsupported. Existing authored property semantics and resource accounting remain enforced.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "CheckChanges",
@@ -2252,6 +2252,30 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/WritingExhaustiveSet"
+          },
+          "default": []
+        },
+        "relation_definitions": {
+          "description": "Explicit finite named relation contracts; requires private contract review.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingRelationDefinition"
+          },
+          "default": []
+        },
+        "relation_limits": {
+          "description": "Authored cross-occurrence maxima, separate from local role multiplicity; private contract review required.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingRelationLimit"
+          },
+          "default": []
+        },
+        "relationships": {
+          "description": "Objective named relationship deltas using actual declared roles and authored participants.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingRelationship"
           },
           "default": []
         },
@@ -3074,6 +3098,179 @@
             "subject",
             "property",
             "members",
+            "scope"
+          ]
+        },
+        "WritingRelationDefinition": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "introduce": {
+              "type": "boolean"
+            },
+            "roles": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/WritingRelationRole"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "introduce",
+            "roles"
+          ]
+        },
+        "WritingRelationRole": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "multiple": {
+              "description": "Only local multiplicity, never a cross-occurrence maximum.",
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "multiple"
+          ]
+        },
+        "WritingRelationLimit": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "relation": {
+              "type": "string"
+            },
+            "grouping": {
+              "$ref": "#/$defs/WritingRelationGrouping"
+            },
+            "counted_role": {
+              "type": "string"
+            },
+            "maximum": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "scope": {
+              "type": "string"
+            },
+            "at_tick": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "lifetime": {
+              "$ref": "#/$defs/FactLifetime",
+              "default": {
+                "kind": "unspecified"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "relation",
+            "grouping",
+            "counted_role",
+            "maximum",
+            "scope"
+          ]
+        },
+        "WritingRelationGrouping": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "subject"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "role"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "role"
+              ]
+            }
+          ]
+        },
+        "WritingRelationship": {
+          "type": "object",
+          "properties": {
+            "relation": {
+              "type": "string"
+            },
+            "subject": {
+              "type": "string"
+            },
+            "participants": {
+              "description": "Actual authored participant names by declared role; preserves list order for ordered roles.",
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "scope": {
+              "type": "string"
+            },
+            "at_tick": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "lifetime": {
+              "$ref": "#/$defs/FactLifetime",
+              "default": {
+                "kind": "unspecified"
+              }
+            },
+            "negated": {
+              "type": "boolean",
+              "default": false
+            },
+            "statement": {
+              "$ref": "#/$defs/StatementIntent",
+              "default": "objective"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "relation",
+            "subject",
+            "participants",
             "scope"
           ]
         },

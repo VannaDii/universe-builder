@@ -612,6 +612,13 @@ impl Workflow<'_> {
             &mut operations,
             &mut result,
         )?;
+        self.writing_relations(
+            &input,
+            &ctx,
+            &records.iter().map(|r| (*r).clone()).collect::<Vec<_>>(),
+            &mut operations,
+            &mut result,
+        )?;
         self.writing_initializations(
             &input,
             &ctx,

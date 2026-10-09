@@ -21,7 +21,7 @@ fn property<'a>(
         _ => anyhow::bail!("Which exact authored property is '{name}'?"),
     }
 }
-fn applicability(
+pub(super) fn applicability(
     w: &Workflow<'_>,
     text: &str,
     rows: &[RecordVersion],
