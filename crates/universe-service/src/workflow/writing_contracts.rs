@@ -54,7 +54,7 @@ impl Workflow<'_> {
     pub(super) fn writing_properties(
         &self,
         input: &CheckChanges,
-        rows: &[&RecordVersion],
+        rows: &[RecordVersion],
         properties: &mut BTreeMap<String, (RecordId, PropertyDef)>,
         ops: &mut Vec<Value>,
         result: &mut WritingCheck,
@@ -67,12 +67,39 @@ impl Workflow<'_> {
                 )
                 .into());
             }
+            if d.unit.is_some() && !matches!(d.value_type, PlainPropertyType::Quantity) {
+                result.clarifications.push(format!(
+                    "Property '{}' supplies a unit without explicitly declaring quantity values.",
+                    d.name
+                ));
+                continue;
+            }
             let shape = match d.value_type {
                 PlainPropertyType::Text => json!({"kind":"text"}),
                 PlainPropertyType::Boolean => json!({"kind":"boolean"}),
                 PlainPropertyType::Integer => json!({"kind":"integer"}),
                 PlainPropertyType::Decimal => json!({"kind":"decimal"}),
                 PlainPropertyType::Object => json!({"kind":"entity_ref","subject_types":[]}),
+                PlainPropertyType::Quantity => {
+                    let unit = match d
+                        .unit
+                        .as_ref()
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "What authored unit applies to quantity property '{}' ?",
+                                d.name
+                            )
+                        })
+                        .and_then(|name| super::writing_units::unit(rows, name))
+                    {
+                        Ok(unit) => unit,
+                        Err(e) => {
+                            result.clarifications.push(e.to_string());
+                            continue;
+                        }
+                    };
+                    json!({"kind":"quantity","unit":unit})
+                }
             };
             let persistence = match d.persistence {
                 PlainPersistence::Unspecified => "unspecified",
@@ -149,11 +176,18 @@ impl Workflow<'_> {
                             amount,
                             minimum,
                             maximum,
+                            unit,
                         } => {
-                            if d.value != ValueShape::Integer {
-                                anyhow::bail!("Plain delta effects require an authored integer property; units/quantities need advanced explicit contracts.");
-                            }
-                            json!({"kind":"delta","delta":integer(amount)?,"minimum":integer(minimum)?,"maximum":integer(maximum)?,"unit":null})
+                            let bound_unit=match &d.value {
+                                ValueShape::Integer if unit.is_none()=>None,
+                                ValueShape::Quantity{unit:expected}=> {
+                                    let actual=super::writing_units::unit(&rows,unit.as_ref().ok_or_else(||anyhow::anyhow!("Specify the quantity delta's authored unit."))?)?;
+                                    if &actual!=expected {anyhow::bail!("Quantity delta unit does not match its authored property; no conversion is inferred.");}
+                                    Some(actual)
+                                },
+                                _=>anyhow::bail!("Delta effects require integer magnitudes with the exact authored property unit; no conversion or rounding."),
+                            };
+                            json!({"kind":"delta","delta":integer(amount)?,"minimum":integer(minimum)?,"maximum":integer(maximum)?,"unit":bound_unit})
                         }
                         WritingEffectChange::Set { value, negated } => {
                             json!({"kind":"set","value":super::writing_connected::fact_value(u,&rows,&ctx.frame,value)?,"polarity":if *negated{"refutation"}else{"support"}})
@@ -215,9 +249,10 @@ impl Workflow<'_> {
                 let predicate = format!("{}:{}", p.namespace, p.key);
                 let (expression, capabilities, policy) = match c {
                     WritingConstraint::ResourceAccounting { .. } => {
-                        if p.value != ValueShape::Integer || p.multiplicity != Multiplicity::Single
+                        if !matches!(p.value, ValueShape::Integer | ValueShape::Quantity { .. })
+                            || p.multiplicity != Multiplicity::Single
                         {
-                            anyhow::bail!("Resource accounting requires an explicitly authored single integer property.");
+                            anyhow::bail!("Resource accounting requires an explicitly authored single integer/quantity property.");
                         }
                         (
                             json!({"kind":"lit","value":true}),

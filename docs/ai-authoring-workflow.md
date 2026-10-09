@@ -330,6 +330,24 @@ and may block the correction; they are never automatically rewritten. Explicit
 corrections to multiple events can share one atomic reviewed candidate. Exact
 source review and author approval remain required, and old revisions remain intact.
 
+Ordinary quantity values use `{ "amount": 1.2300, "unit": "metre" }`. Exact
+integer/decimal digits and the named authored unit survive reading, source review,
+publication and history. Quantity properties explicitly name their unit;
+incompatible units remain clarification, including distinct units of the same
+dimension. No conversion, rounding or physical rule is inferred. Absent or
+ambiguous names require resolution; rational/complex values remain explicitly
+unsupported by this plain numeric shape.
+
+`universe_read_contracts.units` discovers permission-filtered unit names, symbols,
+authored dimensions and whether conversion metadata exists. Ordinary `units`
+declarations require explicit name, dimension and symbol and create no conversion
+relationship. These protected declarations require `/review-contracts`; general
+`/review` cannot adopt them. Existing units and their metadata are reused intact.
+Quantity delta contracts require explicit matching unit and integer amount/bounds,
+reusing existing resource checks; decimal quantity resource arithmetic remains
+unsupported. Shared attributes, starting values and action requirements/set effects
+use the same quantity shape, without initializing or consuming stock implicitly.
+
 Ordinary changes can explicitly declare `properties` with value type, `single_value`
 and persistence, introduce named `actions` with role/property/value requirements
 and set or bounded integer-delta effects, and add `resource_accounting` or

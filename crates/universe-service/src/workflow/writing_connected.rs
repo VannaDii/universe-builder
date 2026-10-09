@@ -12,7 +12,7 @@ pub(super) fn plain_action(
     let requirements:Vec<_>=a.requirements.iter().map(|r|json!({"role":r.role,"property":name(&r.predicate.record),"value":plain_value(&r.value,name)})).collect();
     let effects:Vec<_>=a.consequence_contract.iter().flat_map(|c|&c.slots).map(|s|{
                     use universe_domain::consequences::*;
-                    let change=match &s.change{EffectChange::Set{polarity,value}=>json!({"kind":"set","value":plain_value(value,name),"negated":*polarity==Polarity::Refutation}),EffectChange::Delta{delta,minimum,maximum,unit}=>json!({"kind":"delta","amount":delta.get(),"minimum":minimum.get(),"maximum":maximum.get(),"unit":unit})};
+                    let change=match &s.change{EffectChange::Set{polarity,value}=>json!({"kind":"set","value":plain_value(value,name),"negated":*polarity==Polarity::Refutation}),EffectChange::Delta{delta,minimum,maximum,unit}=>json!({"kind":"delta","amount":delta.get(),"minimum":minimum.get(),"maximum":maximum.get(),"unit":unit.as_ref().and_then(|u|u.to_record_id().ok()).and_then(|id|name(&id))})};
                     let condition=match &s.condition{EffectCondition::Always{}=>Value::Null,EffectCondition::AttributeEquals{role,predicate,value}=>json!({"role":role,"property":name(&predicate.record),"value":plain_value(value,name)})};
                     let lifetime=match &s.lifetime {EffectLifetime::UntilChanged{}=>json!({"kind":"until_changed"}),EffectLifetime::Ticks{count}=>json!({"kind":"ticks","count":count.get()})};
                     json!({"role":s.target.role,"property":name(&s.target.predicate.record),"change":change,"condition":condition,"optional":s.presence==EffectPresence::Optional,"lifetime":lifetime})}).collect();
@@ -90,6 +90,15 @@ pub(super) fn fact_value(
         }
         FactValue::Number(v) => DomainValue::Decimal {
             digits: v.to_string(),
+        },
+        FactValue::Quantity { amount, unit } => DomainValue::Quantity {
+            value: Box::new(fact_value(
+                u,
+                records,
+                frame,
+                &FactValue::Number(amount.clone()),
+            )?),
+            unit: super::writing_units::unit(records, unit)?,
         },
         FactValue::Object { object: name } => DomainValue::EntityRef {
             record: reference(
@@ -554,6 +563,7 @@ impl Workflow<'_> {
                         .cloned()
                         .or_else(|| e.names.first().map(|n| n.text.clone())),
                     Payload::Property(p) => Some(p.key.clone()),
+                    Payload::Unit(u) => Some(u.key.clone()),
                     Payload::World(w) => Some(w.selector.clone()),
                     Payload::Calendar(c) => Some(c.key.clone()),
                     _ => None,
@@ -565,6 +575,7 @@ impl Workflow<'_> {
         let mut messages = vec![];
         let mut attitudes = vec![];
         let mut constraints = vec![];
+        let units:Vec<_>=rows.iter().filter_map(|r|if let Payload::Unit(u)=&r.payload {Some(json!({"name":u.key,"symbol":u.symbol,"dimension":u.dimension,"conversion_declared":u.base.is_some() || u.scale_to_base.is_some(),"time":plain_time(&json!(u.validity),&name)}))}else{None}).collect();
         for row in &rows {
             match &row.payload{
             Payload::ActionDefinition(a)if a.scope.context==ctx.frame.context&&(input.action_names.is_empty()||input.action_names.iter().any(|n|n==&a.key||a.labels.values().any(|v|v==n)))=>{
@@ -588,6 +599,6 @@ if let Some(p)=&r.knowledge_policy{if p.context==ctx.frame.context{policies.push
             Payload::Communication(c)=>messages.push(json!({"message_handle":row.identity.record_id,"from":name(&c.sender.record),"received_by":c.actual_recipients.iter().filter_map(|r|name(&r.record)).collect::<Vec<_>>(),"sent_at":plain_time(&json!(c.sent_at),&name),"received_at":c.received_at.as_ref().map(|t|plain_time(&json!(t),&name)),"distorted":c.distorted,"claims":c.content.iter().filter_map(|p|rows.iter().find(|r|r.identity.record_id==p.record)).filter_map(|r|if let Payload::Proposition(p)=&r.payload{Some(json!({"subject":name(&p.subject.record),"property":name(&p.predicate.record),"value":p.value.as_ref().and_then(|v|plain_value(v,&name))}))}else{None}).collect::<Vec<_>>()})),_=>()
         }
         }
-        self.wrap(&args,Some(ctx.frame),None,true,None,json!({"actions":actions,"knowledge_policies":policies,"channels":channels,"communications":messages,"attitudes":attitudes,"constraints":constraints,"coverage":if self.scope.is_some(){"restricted"}else{"bounded"},"limitation":"Visible pinned authored declarations; absent contracts are unknown. Effects are computed and checked by the engine. Interpretation alone does not establish knowledge."}))
+        self.wrap(&args,Some(ctx.frame),None,true,None,json!({"actions":actions,"units":units,"knowledge_policies":policies,"channels":channels,"communications":messages,"attitudes":attitudes,"constraints":constraints,"coverage":if self.scope.is_some(){"restricted"}else{"bounded"},"limitation":"Visible pinned authored declarations; absent contracts are unknown. Effects are computed and checked by the engine. Interpretation alone does not establish knowledge."}))
     }
 }

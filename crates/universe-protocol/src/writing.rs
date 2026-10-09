@@ -4,14 +4,21 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use universe_domain::ids::ContextId;
 
-/// Ordinary JSON scalar (text string, boolean or number), or an exact object-name reference. No internal typed value wrappers; communication labels are not object identities.
+/// Ordinary JSON scalar, exact object-name reference, or explicit amount with an authored unit. No internal typed value wrappers; communication labels are not object identities.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
 pub enum FactValue {
     Text(String),
     Boolean(bool),
     Number(serde_json::Number),
-    Object { object: String },
+    Object {
+        object: String,
+    },
+    /// Exact authored amount and named unit. No implicit conversion.
+    Quantity {
+        amount: serde_json::Number,
+        unit: String,
+    },
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -111,6 +118,9 @@ pub struct CheckChanges {
     /// Explicit property declarations; never inferred single-value resources. Existing definitions cannot be silently changed.
     #[serde(default)]
     pub properties: Vec<WritingProperty>,
+    /// Explicit unit declarations without inferred conversion/scale; private contract review required.
+    #[serde(default)]
+    pub units: Vec<WritingUnit>,
     #[serde(default)]
     pub actions: Vec<WritingAction>,
     /// Finite supported policies. Separate private author contract review is required before publication.
@@ -274,6 +284,7 @@ pub enum PlainPropertyType {
     Integer,
     Decimal,
     Object,
+    Quantity,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -289,6 +300,9 @@ pub struct WritingProperty {
     #[serde(default)]
     pub introduce: bool,
     pub value_type: PlainPropertyType,
+    /// Required for quantity properties; exact authored unit name.
+    #[serde(default)]
+    pub unit: Option<String>,
     pub single_value: bool,
     pub persistence: PlainPersistence,
 }
@@ -306,6 +320,9 @@ pub enum WritingEffectChange {
         amount: serde_json::Number,
         minimum: serde_json::Number,
         maximum: serde_json::Number,
+        /// Required for quantity deltas; matches the property unit exactly. Integer properties omit it.
+        #[serde(default)]
+        unit: Option<String>,
     },
     Set {
         value: FactValue,
@@ -404,4 +421,14 @@ pub struct WritingEventCorrection {
     /// Omitted retains all authored dependencies; empty explicitly clears direct Knows preconditions only.
     #[serde(default)]
     pub requires_knowledge: Option<Vec<WritingKnowledgeRequirement>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingUnit {
+    pub name: String,
+    #[serde(default)]
+    pub introduce: bool,
+    pub dimension: String,
+    pub symbol: String,
 }

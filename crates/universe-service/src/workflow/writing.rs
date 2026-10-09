@@ -51,9 +51,21 @@ impl Workflow<'_> {
         let mut ambiguous_new = BTreeSet::new();
         let mut new_properties = BTreeMap::new();
         let mut emitted_properties = BTreeSet::new();
+        self.writing_units(
+            &input,
+            &records.iter().map(|r| (*r).clone()).collect::<Vec<_>>(),
+            &mut operations,
+            &mut result,
+        )?;
+        let property_records = super::writing_connected::candidate_records(
+            self.kernel.universe(),
+            &ctx,
+            &records.iter().map(|r| (*r).clone()).collect::<Vec<_>>(),
+            &operations,
+        )?;
         self.writing_properties(
             &input,
-            &records,
+            &property_records,
             &mut properties,
             &mut operations,
             &mut result,
@@ -346,6 +358,24 @@ impl Workflow<'_> {
                             json!({"kind":kind,"digits":n.to_string()}),
                             json!({"kind":kind}),
                         )
+                    }
+                    FactValue::Quantity { .. } => {
+                        let typed = match super::writing_connected::fact_value(
+                            self.kernel.universe(),
+                            &property_records,
+                            &ctx.frame,
+                            &fact.value,
+                        ) {
+                            Ok(value) => value,
+                            Err(e) => {
+                                result.clarifications.push(e.to_string());
+                                continue;
+                            }
+                        };
+                        let universe_domain::value::Value::Quantity { unit, .. } = &typed else {
+                            unreachable!()
+                        };
+                        (json!(typed), json!({"kind":"quantity","unit":unit}))
                     }
                     FactValue::Object { object: name } => {
                         let Some(id) = resolve(name) else {
@@ -724,6 +754,7 @@ impl Workflow<'_> {
                     Payload::EntityType(t) => Some(t.name.clone()),
                     Payload::ActionDefinition(a) => Some(a.key.clone()),
                     Payload::Property(p) => Some(p.key.clone()),
+                    Payload::Unit(u) => Some(u.key.clone()),
                     Payload::World(w) => Some(w.selector.clone()),
                     Payload::Calendar(c) => Some(
                         c.labels
@@ -841,7 +872,7 @@ impl Workflow<'_> {
                             .collect::<Vec<_>>()
                             .join(", "),
                     };
-                    let item = json!({"fact_handle":if assertion.established_by.is_none(){Some(row.record.identity.record_id.to_string())}else{None},"property":property.key,"value":value,"state":outcome,"group":group,"scope":scope,"time":plain_time(&serde_json::to_value(&assertion.validity)?,&label),"unknowns":row.unknowns,"value_type":serde_json::to_value(&property.value)?["kind"],"unit":match proposition.value.as_ref(){Some(universe_domain::value::Value::Quantity{unit,..})=>Some(unit),_=>None},"unsupported_plain_value":value.is_none(),"multiple_values_allowed":property.multiplicity==universe_domain::records::Multiplicity::Multiple,"exclusive":property.exclusive});
+                    let item = json!({"fact_handle":if assertion.established_by.is_none(){Some(row.record.identity.record_id.to_string())}else{None},"property":property.key,"value":value,"state":outcome,"group":group,"scope":scope,"time":plain_time(&serde_json::to_value(&assertion.validity)?,&label),"unknowns":row.unknowns,"value_type":serde_json::to_value(&property.value)?["kind"],"unit":match proposition.value.as_ref(){Some(universe_domain::value::Value::Quantity{unit,..})=>unit.to_record_id().ok().and_then(|id|label(&id)),_=>None},"unsupported_plain_value":value.is_none(),"multiple_values_allowed":property.multiplicity==universe_domain::records::Multiplicity::Multiple,"exclusive":property.exclusive});
                     if group == "initial_candidate" {
                         initial.push(item)
                     } else if group == "shared" {
@@ -862,7 +893,7 @@ impl Workflow<'_> {
                     .map(|r| &r.payload)
                 {
                     let value = plain_value(&derived.value, &label);
-                    facts.push(json!({"property":property.key,"state":if value.is_some(){"supported"}else{"unknown"},"value":value,"value_type":serde_json::to_value(&property.value)?["kind"],"unit":match &derived.value{universe_domain::value::Value::Quantity{unit,..}=>Some(unit),_=>None},"unsupported_plain_value":value.is_none(),"group":"derived","scope":"pinned research context","time":plain_time(&serde_json::to_value(&ctx.frame.time)?,&label),"unknowns":if value.is_some(){vec![]}else{vec!["plain value presentation unavailable"]}}));
+                    facts.push(json!({"property":property.key,"state":if value.is_some(){"supported"}else{"unknown"},"value":value,"value_type":serde_json::to_value(&property.value)?["kind"],"unit":match &derived.value{universe_domain::value::Value::Quantity{unit,..}=>unit.to_record_id().ok().and_then(|id|label(&id)),_=>None},"unsupported_plain_value":value.is_none(),"group":"derived","scope":"pinned research context","time":plain_time(&serde_json::to_value(&ctx.frame.time)?,&label),"unknowns":if value.is_some(){vec![]}else{vec!["plain value presentation unavailable"]}}));
                 }
             }
             let occurred_events:Vec<_>=records.iter().filter_map(|r|if let Payload::Event(e)=&r.payload {
@@ -886,6 +917,9 @@ pub(super) fn plain_value(
             .ok()
             .filter(Value::is_number)?,
         V::EntityRef { record } => json!({"object":label(&record.record)?}),
+        V::Quantity { value, unit } => {
+            json!({"amount":plain_value(value,label)?.as_number()?,"unit":label(&unit.to_record_id().ok()?)?})
+        }
         _ => return None,
     })
 }

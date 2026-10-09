@@ -468,3 +468,177 @@ async fn publish_plain(c: &mut EngineClient, checked: &Value, text: &str, key: &
     .await
     .unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn ordinary_quantities_keep_exact_authored_units_and_history() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("install");
+    let author = runtime::initialize(&root).unwrap();
+    let stop = CancellationToken::new();
+    let (r, s) = (root.clone(), stop.clone());
+    let server = tokio::spawn(async move { runtime::serve(&r, s).await });
+    let mut c = connect(&root, &author).await;
+    let u = c
+        .call(EngineRequest::CreateUniverse {
+            name: "Alpha".into(),
+            start: universe_domain::chronology::UniverseStart::Fictional {
+                calendar_name: "Days".into(),
+                initial_tick: "0".into(),
+                tick_label: "days".into(),
+                ticks_per_month: None,
+            },
+        })
+        .await
+        .unwrap();
+    let ctx = context(&mut c, &u, "Alpha").await;
+    let exact: serde_json::Number = serde_json::from_str("1.2300").unwrap();
+    let args = json!({"universe":"Alpha","context_id":ctx,
+        "units":[{"name":"metre","introduce":true,"dimension":"length","symbol":"m"},{"name":"litre","introduce":true,"dimension":"volume","symbol":"L"},{"name":"other length","introduce":true,"dimension":"length","symbol":"m"}],
+        "properties":[{"name":"height","introduce":true,"value_type":"quantity","unit":"metre","single_value":true,"persistence":"until_changed"},{"name":"fuel","introduce":true,"value_type":"quantity","unit":"litre","single_value":true,"persistence":"explicit_interval"}],
+        "changes":[{"name":"Craft","introduce":true,"facts":[{"property":"height","value":{"amount":exact,"unit":"metre"},"scope":"universe","at_tick":"0","lifetime":{"kind":"until_changed"}},{"property":"fuel","value":{"amount":10,"unit":"litre"},"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"4"}}]}],
+        "actions":[{"name":"burn fuel","introduce":true,"scope":"universe","effects":[{"role":"craft","property":"fuel","change":{"kind":"delta","amount":-2,"minimum":0,"maximum":20,"unit":"litre"},"lifetime":{"kind":"until_changed"}}]}],
+        "constraints":[{"kind":"resource_accounting","name":"fuel accounting","property":"fuel","scope":"universe"}]
+    });
+    let checked = c.call(tool("universe_check_changes", args)).await.unwrap();
+    assert_eq!(
+        checked["result"]["status"], "checked_candidate",
+        "{checked}"
+    );
+    let candidate: ProposalId =
+        serde_json::from_value(checked["result"]["candidate_handle"].clone()).unwrap();
+    assert!(c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::Prepare {
+                candidate: candidate.clone(),
+                label: "Units".into(),
+                text: "The author declares units and fuel mechanics.".into()
+            }
+        })
+        .await
+        .is_err());
+    let review=c.call(EngineRequest::AuthorWriting{universe:Selector("Alpha".into()),action:AuthorWritingAction::PrepareContracts{candidate,label:"Explicit unit declarations".into(),text:"Metre and other length have length dimension and m symbol; litre has volume dimension and L symbol, with no conversions. Craft is 1.2300 metres high and has ten litres until day 4; burning consumes two litres within zero to twenty.".into()}}).await.unwrap();
+    assert_eq!(review["publishable"], true, "{review}");
+    c.call(EngineRequest::AuthorWriting {
+        universe: Selector("Alpha".into()),
+        action: AuthorWritingAction::Publish {
+            candidate: serde_json::from_value(review["candidate"].clone()).unwrap(),
+            validation_run: serde_json::from_value(
+                review["validation"]["execution"]["run_id"].clone(),
+            )
+            .unwrap(),
+            idempotency_key: "quantity-contracts".into(),
+        },
+    })
+    .await
+    .unwrap();
+    let old_context = context(&mut c, &u, "Alpha").await;
+    let read = c
+        .call(tool(
+            "universe_read_facts",
+            json!({"universe":"Alpha","context_id":old_context,"object_names":["Craft"]}),
+        ))
+        .await
+        .unwrap();
+    let height = read["result"]["objects"][0]["facts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["property"] == "height")
+        .unwrap();
+    assert_eq!(height["value"]["amount"].to_string(), "1.2300");
+    assert_eq!(height["value"]["unit"], "metre");
+    assert_eq!(height["unit"], "metre");
+    assert_eq!(height["unsupported_plain_value"], false);
+    let roundtrip: universe_protocol::writing::FactValue =
+        serde_json::from_value(height["value"].clone()).unwrap();
+    assert!(matches!(
+        roundtrip,
+        universe_protocol::writing::FactValue::Quantity { .. }
+    ));
+    let unchanged=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":old_context,"changes":[{"name":"Craft","facts":[{"property":"height","value":height["value"],"scope":"universe","at_tick":"0","lifetime":{"kind":"until_changed"}}]}]}))).await.unwrap();
+    assert_eq!(unchanged["result"]["status"], "no_changes", "{unchanged}");
+    for unit in ["litre", "other length", "m", "missing unit"] {
+        let held=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":old_context,"changes":[{"name":"Craft","facts":[{"property":"height","value":{"amount":2,"unit":unit},"scope":"universe"}]}]}))).await.unwrap();
+        assert_eq!(held["result"]["status"], "needs_clarification", "{held}");
+        assert!(held["result"]["candidate_handle"].is_null());
+    }
+    let metadata = c
+        .call(tool(
+            "universe_read_contracts",
+            json!({"universe":"Alpha","context_id":old_context}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(metadata["result"]["units"].as_array().unwrap().len(), 3);
+    assert!(metadata["result"]["units"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|u| u["conversion_declared"] == false));
+    assert_eq!(
+        metadata["result"]["actions"][0]["effects"][0]["change"]["unit"],
+        "litre"
+    );
+    let corrected=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":old_context,"corrections":[{"fact_handle":height["fact_handle"],"value":{"amount":serde_json::from_str::<serde_json::Number>("1.2500").unwrap(),"unit":"metre"},"reason":"Author corrects the height measurement."}]}))).await.unwrap();
+    assert_eq!(
+        corrected["result"]["status"], "checked_candidate",
+        "{corrected}"
+    );
+    publish_plain(
+        &mut c,
+        &corrected,
+        "Correction: Craft's height was 1.2500 metres.",
+        "height-correction",
+    )
+    .await;
+    let old = c
+        .call(tool(
+            "universe_read_facts",
+            json!({"universe":"Alpha","context_id":old_context,"object_names":["Craft"]}),
+        ))
+        .await
+        .unwrap();
+    assert!(old["result"]["objects"][0]["facts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|f| f["property"] == "height"
+            && f["value"]["amount"].as_number().unwrap().as_str() == "1.2300"));
+    let fresh = context(&mut c, &u, "Alpha").await;
+    let burned=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":fresh,"events":[{"action":"burn fuel","participants":{"craft":"Craft"},"at_tick":"4"}]}))).await.unwrap();
+    assert_eq!(burned["result"]["status"], "checked_candidate", "{burned}");
+    publish_plain(
+        &mut c,
+        &burned,
+        "At day 4 Craft burned two litres of fuel.",
+        "quantity-consumption",
+    )
+    .await;
+    let at=c.call(tool("universe_open_context",json!({"universe":"Alpha","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":u["context_id"],"temporal_query":{"kind":"at","time":{"kind":"exact","calendar":read["result"]["clocks"][0]["calendar_id"],"value":"5"}},"temporal_systems":[],"perspective":"author"}))).await.unwrap();
+    let now=c.call(tool("universe_read_facts",json!({"universe":"Alpha","context_id":at["result"]["context_id"],"object_names":["Craft"]}))).await.unwrap();
+    assert!(
+        now["result"]["objects"][0]["facts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["property"] == "height"
+                && f["value"]["amount"].as_number().unwrap().as_str() == "1.2500"
+                && f["value"]["unit"] == "metre"
+                && f["state"] == "supported"),
+        "{now}"
+    );
+    assert!(
+        now["result"]["objects"][0]["facts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["property"] == "fuel"
+                && f["value"]["amount"] == 8
+                && f["value"]["unit"] == "litre"
+                && f["state"] == "supported"),
+        "{now}"
+    );
+    stop.cancel();
+    server.await.unwrap().unwrap();
+}
