@@ -642,7 +642,13 @@ remove and replace the affected draft operation, then revise and validate again.
 A canon correction requires reopening the current context and rebasing the draft;
 old approval does not carry over. Restricted validation shows only fixed guidance
 for requesting authorized author review. Automated form and connected service
-checks do not qualify manual native interaction, which remains pending.
+checks alone do not qualify manual native interaction. The local author interface
+has separately exercised exact writing review, approval/publication, fresh state,
+correction history, dependent-action denial and restart-before-publication recovery.
+The packaged public MCP launcher and author interface have also completed the
+ordinary candidate-to-publication-to-fresh-retrieval path. This is a bounded local
+development result, not exhaustive interface, accessibility or prose-interpretation
+qualification; it does not establish mid-transaction crash recovery or release acceptance.
 
 The native type form introduces a reusable definition with an explicitly selected
 parent (or no parent), applicability and executable classification setting.
