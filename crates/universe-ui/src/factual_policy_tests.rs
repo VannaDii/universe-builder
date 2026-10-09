@@ -420,6 +420,162 @@ async fn factual_policy_forms_recover_review_approve_and_publish() {
     );
     let ended = read(&mut c, &opened, &original["identity"]["record_id"]).await;
     assert_eq!(ended["payload"]["validity"]["end"]["value"], "10");
+    // The actual item-power and property inspector builders share the exact author review path.
+    let id = |n: u32| format!("rec_{n:024x}");
+    let property = |n, key, shape| json!({"kind":"define_property","client_ref":id(n),"record":{"namespace":"manual","key":key,"labels":{},"subjectTypes":[],"value":shape,"multiplicity":"multiple","persistence":"explicit_interval","exclusive":false,"symmetric":false,"transitive":false}});
+    let mut holder = property(
+        0xbd01,
+        "holder",
+        json!({"kind":"entity_ref","subject_types":[]}),
+    );
+    holder["record"]["multiplicity"] = json!("single");
+    publish(
+        &mut c,
+        &opened,
+        json!([
+            holder,
+            property(0xbd02, "strength", json!({"kind":"integer"})),
+            property(0xbd03, "tag", json!({"kind":"text"}))
+        ]),
+        "manual-power-properties",
+    )
+    .await;
+    let opened = open(&mut c, &u).await;
+    let frame: Frame = serde_json::from_value(opened["frame"].clone()).unwrap();
+    let fact = |predicate: String, kind: &str, value: &str| {
+        crate::claim_editor::Form {
+            attribute_mode: "instance".into(),
+            subject: "rec_00000000000000000000bc03".into(),
+            predicate,
+            kind: kind.into(),
+            value: value.into(),
+            precision: "exact".into(),
+            polarity: "support".into(),
+            applicability: "universe_wide".into(),
+            validity: "interval".into(),
+            start_kind: "exact".into(),
+            end_kind: "exact".into(),
+            calendar: clock.calendar.to_string(),
+            when: "0".into(),
+            until: "20".into(),
+            note: "Explicit author value".into(),
+            ..Default::default()
+        }
+        .build(&frame, Some(&clock))
+        .unwrap()
+    };
+    let power = crate::event_editor::PowerForm {
+        item: "rec_00000000000000000000bc03".into(),
+        holder: id(0xbd01),
+        power: id(0xbd02),
+        start: "0".into(),
+        duration: "timer".into(),
+        ticks: "10".into(),
+        value: crate::claim_editor::Form {
+            kind: "integer".into(),
+            value: "7".into(),
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+    .build(&frame, Some(&clock))
+    .unwrap();
+    assert_eq!(
+        power["record"]["value"],
+        json!({"kind":"integer","digits":"7"})
+    );
+    publish(
+        &mut c,
+        &opened,
+        json!([
+            power,
+            fact(id(0xbd01), "entity_ref", "rec_00000000000000000000bc04"),
+            fact(id(0xbd03), "text", "red"),
+            fact(id(0xbd03), "text", "blue")
+        ]),
+        "manual-typed-power",
+    )
+    .await;
+    let opened = open(&mut c, &u).await;
+    let at_five=tool(&mut c,"universe_open_context",json!({"universe":"Alpha","continuity_id":frame.continuity,"represented_context":frame.context.record,"temporal_systems":[],"revision":{"kind":"head"},"perspective":"author","temporal_query":{"kind":"at","time":{"kind":"exact","calendar":clock.calendar,"value":"5"}}})).await;
+    let state=tool(&mut c,"universe_get_state",json!({"universe":"Alpha","context_id":at_five["result"]["context_id"],"entity_ids":["rec_00000000000000000000bc04"],"predicate_filters":[]})).await;
+    assert!(
+        state["result"]["derived"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["predicate"]["record"] == id(0xbd02)
+                && f["value"] == json!({"kind":"integer","digits":"7"})),
+        "{state}"
+    );
+    let rendered = crate::effective_object_view::tests::render(state);
+    assert!(rendered.contains("7"), "{rendered}");
+    let row = read(&mut c, &opened, &json!(id(0xbd02))).await;
+    let persistence = crate::inspector_editor::operation(
+        &frame,
+        &row,
+        "property_persistence",
+        "persistent_until_changed",
+        "",
+        Some(&clock),
+    )
+    .unwrap();
+    let mut expected = row["payload"].clone();
+    expected["persistence"] = json!("persistent_until_changed");
+    assert_eq!(persistence["replacement"], expected);
+    publish(
+        &mut c,
+        &opened,
+        json!([persistence]),
+        "manual-property-persistence",
+    )
+    .await;
+    let opened = open(&mut c, &u).await;
+    assert_eq!(
+        read(&mut c, &opened, &json!(id(0xbd02))).await["payload"]["persistence"],
+        "persistent_until_changed"
+    );
+    assert_eq!(
+        read(&mut c, &at_five, &json!(id(0xbd02))).await["payload"]["persistence"],
+        "explicit_interval"
+    );
+    let row = read(&mut c, &opened, &json!(id(0xbd03))).await;
+    let invalid = crate::inspector_editor::operation(
+        &frame,
+        &row,
+        "property_multiplicity",
+        "single",
+        "",
+        Some(&clock),
+    )
+    .unwrap();
+    let checked_proposal=tool(&mut c,"universe_propose",json!({"action":"create","universe":"Alpha","context_id":opened["result"]["context_id"],"operations":[invalid],"submission":"submitted","rationale":"Explicit multiplicity edit","idempotency_key":"manual-property-denied"})).await["result"].clone();
+    let reference = json!({"proposal_id":checked_proposal["proposal_id"],"version":checked_proposal["version"],"digest":checked_proposal["digest"]});
+    let checked=tool(&mut c,"universe_validate",json!({"mode":"proposal","universe":"Alpha","context_id":opened["result"]["context_id"],"proposal_reference":reference,"check_scope":"universe"})).await;
+    assert!(checked["result"]["execution"]["findings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|f| f["outcome"] == "conflicting" || f["outcome"] == "refuted"));
+    let denied = c
+        .call(EngineRequest::Approve {
+            universe: universe_protocol::request::Selector("Alpha".into()),
+            proposal_reference: serde_json::from_value(reference).unwrap(),
+            validation_run: serde_json::from_value(
+                checked["result"]["execution"]["run_id"].clone(),
+            )
+            .unwrap(),
+        })
+        .await
+        .unwrap_err();
+    assert!(
+        denied.to_string().contains("validation blocks approval"),
+        "{denied}"
+    );
+    assert_eq!(
+        read(&mut c, &opened, &json!(id(0xbd03))).await["payload"]["multiplicity"],
+        "multiple"
+    );
     let tightened = crate::inspector_editor::contract_operation(
         &frame,
         &relation_row,

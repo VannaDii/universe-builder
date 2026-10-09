@@ -24,7 +24,10 @@ pub(super) fn operation(
     }
     let mut op = json!({"kind":action,"record":{"universe":frame.universe,"record":selected["identity"]["record_id"]},"expected_version":selected["record_version_id"]});
     match action {
-        "definition_label" | "property_multiplicity" | "definition_parent" => {
+        "definition_label"
+        | "property_multiplicity"
+        | "property_persistence"
+        | "definition_parent" => {
             op["kind"] = json!("revise_definition");
             let mut replacement = selected["payload"].clone();
             if action == "definition_label" {
@@ -40,8 +43,22 @@ pub(super) fn operation(
                 };
                 replacement["parentResolution"] =
                     json!(if value == "none" { "root" } else { "resolved" });
+            } else if action == "property_persistence" {
+                if selected["payload"]["record_kind"] != "property"
+                    || ![
+                        "unspecified",
+                        "persistent_until_changed",
+                        "explicit_interval",
+                    ]
+                    .contains(&value)
+                {
+                    return Err("Choose a supported property persistence setting.".into());
+                }
+                replacement["persistence"] = json!(value);
             } else {
-                if !["single", "multiple"].contains(&value) {
+                if selected["payload"]["record_kind"] != "property"
+                    || !["single", "multiple"].contains(&value)
+                {
                     return Err("Choose a multiplicity.".into());
                 }
                 replacement["multiplicity"] = json!(value);
@@ -251,6 +268,7 @@ pub fn InspectorEditor(
             ("", "Choose a change"),
             ("definition_label", "Revise display label"),
             ("property_multiplicity", "Revise multiplicity"),
+            ("property_persistence", "Revise persistence"),
         ],
         "entity_type" => vec![
             ("", "Choose a change"),
@@ -331,6 +349,10 @@ pub fn InspectorEditor(
             p{"This revises the type's ancestry; it does not reclassify or replace its instances. Existing inheritance, initialization and action constraints are rechecked."}
             label{r#for:"inspector-parent","Authored parent"}
             super::select::RichSelect{id:"inspector-parent",disabled,value:value(),options:{let mut options=super::select::record_choices(&choices,&["entity_type"],"Choose explicitly");options.insert(1,super::select::Choice::new("none","Explicit root — no parent"));options},onchange:move|e:super::select::SelectionEvent|value.set(e.value())}
+        }else if action()=="property_persistence"{
+            p{"Only the default for new facts changes. Existing assertion lifetimes and other property settings stay authored; affected facts and events are rechecked."}
+            label{r#for:"inspector-persistence","Persistence"}
+            super::select::RichSelect{id:"inspector-persistence",disabled,value:value(),options:super::select::choices(&[("","Keep until selected"),("unspecified","Unspecified"),("persistent_until_changed","Until changed"),("explicit_interval","Explicit interval")]),onchange:move|e:super::select::SelectionEvent|value.set(e.value())}
         }else if action()=="property_multiplicity"{
             label{r#for:"inspector-multiplicity","Multiplicity"}
             super::select::RichSelect{id:"inspector-multiplicity",disabled,value:value(),options:super::select::choices(&[("","Choose multiplicity"),("single","Single value"),("multiple","Multiple values")]),onchange:move|e:super::select::SelectionEvent|value.set(e.value())}

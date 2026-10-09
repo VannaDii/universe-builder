@@ -30,21 +30,11 @@ pub(super) struct Form {
     pub(super) note: String,
 }
 impl Form {
-    pub(super) fn build(
+    pub(super) fn typed_value(
         &self,
         frame: &Frame,
         clock: Option<&universe_domain::chronology::Chronology>,
-    ) -> Result<DomainOperation, String> {
-        if !["instance", "shared", "initial_value"].contains(&self.attribute_mode.as_str()) {
-            return Err(
-                "Choose an instance fact, shared attribute or initial-value attribute.".into(),
-            );
-        }
-        if self.kind == "relationship" && self.attribute_mode != "instance" {
-            return Err(
-                "Definition-owned attributes require a property value, not a relationship.".into(),
-            );
-        }
+    ) -> Result<Value, String> {
         let rr = |s: &str| -> Result<Value, String> {
             let id = RecordId::parse(s.trim()).map_err(|e| e.to_string())?;
             Ok(json!({"universe":frame.universe,"record":id}))
@@ -95,6 +85,42 @@ impl Form {
                 serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
             validate_value(&typed).map_err(|e| e.to_string())?;
         }
+        Ok(value)
+    }
+    pub(super) fn build(
+        &self,
+        frame: &Frame,
+        clock: Option<&universe_domain::chronology::Chronology>,
+    ) -> Result<DomainOperation, String> {
+        if !["instance", "shared", "initial_value"].contains(&self.attribute_mode.as_str()) {
+            return Err(
+                "Choose an instance fact, shared attribute or initial-value attribute.".into(),
+            );
+        }
+        if self.kind == "relationship" && self.attribute_mode != "instance" {
+            return Err(
+                "Definition-owned attributes require a property value, not a relationship.".into(),
+            );
+        }
+        let rr = |s: &str| -> Result<Value, String> {
+            let id = RecordId::parse(s.trim()).map_err(|e| e.to_string())?;
+            Ok(json!({"universe":frame.universe,"record":id}))
+        };
+        let coordinate = |value: &str| -> Result<String, String> {
+            if let Some(c) = clock.filter(|c| c.calendar.as_str() == self.calendar.trim()) {
+                c.coordinate(value)
+            } else {
+                Ok(value.into())
+            }
+        };
+        let time = |value: &str| -> Result<Value, String> {
+            let calendar = CalendarId::parse(self.calendar.trim()).map_err(|e| e.to_string())?;
+            if value.trim().is_empty() {
+                return Err("Enter a fictional-time value; an empty field is not zero.".into());
+            }
+            Ok(json!({"kind":"exact","calendar":calendar,"value":coordinate(value)?}))
+        };
+        let value = self.typed_value(frame, clock)?;
         let mut roles = Vec::new();
         if self.kind == "relationship" {
             if self.roles.is_empty() {

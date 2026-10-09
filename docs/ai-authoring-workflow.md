@@ -140,6 +140,10 @@ approval publish the declaration; ordinary factual review cannot adopt it.
 returns actual derived holder abilities only while both possession evidence and
 the declaration apply. Transfer, loss and expiry do not create permanent facts.
 Item-power revisions remain unsupported; no conversion or physics is inferred.
+In the interface, “Define a possession-dependent item power” offers Boolean,
+text, integer, decimal, object and quantity values matching the selected power
+property. Quantities retain that property's authored unit. Add the declaration
+to the draft, then use the existing exact author review and approval controls.
 
 `property_corrections` changes only an existing named property's explicitly
 supplied `single_value` and/or `persistence`, with a reason. Omitted settings,
@@ -150,6 +154,9 @@ and persistence. New facts follow the revised default, including facts in the
 same delta; an unspecified default never invents continuing duration.
 `universe_read_contracts` returns named property settings for authorized author
 research. Earlier revisions retain their original settings and evidence.
+The property inspector offers “Revise multiplicity” and “Revise persistence”.
+Only the selected setting changes; the existing draft review displays blocking
+findings before approval.
 
 An initial-value definition is only a candidate. Publish it first, then use plain
 `initializations` with its returned handle, an explicitly occurred declared start
