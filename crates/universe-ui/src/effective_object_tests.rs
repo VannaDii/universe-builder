@@ -157,19 +157,34 @@ fn missing_and_qualified_evidence_stays_unresolved_without_selecting_values() {
     assert!(s.contains("Ancestry complete: No"));
     assert!(s.contains("Applicability unresolved"));
     assert!(!s.contains("Declared value: 2"));
-    assert_eq!(value_text(&json!({"kind":"integer","digits":"0"})), "0");
     assert_eq!(
-        value_text(&json!({"kind":"boolean","value":false})),
+        value_text(&json!({"kind":"integer","digits":"0"}), &Value::Null),
+        "0"
+    );
+    assert_eq!(
+        value_text(&json!({"kind":"boolean","value":false}), &Value::Null),
         "False"
     );
     assert_eq!(
-        value_text(&json!({"kind":"decimal","digits":"3.0010"})),
+        value_text(&json!({"kind":"decimal","digits":"3.0010"}), &Value::Null),
         "3.0010"
     );
     assert_eq!(
         value_text(
-            &json!({"kind":"range","lower":{"kind":"integer","digits":"0"},"upper":{"kind":"integer","digits":"5"},"lower_inclusive":true,"upper_inclusive":false})
+            &json!({"kind":"range","lower":{"kind":"integer","digits":"0"},"upper":{"kind":"integer","digits":"5"},"lower_inclusive":true,"upper_inclusive":false}),
+            &Value::Null
         ),
         "[0 to 5)"
+    );
+}
+
+#[test]
+fn quantity_labels_use_only_returned_units_and_preserve_exact_amounts() {
+    let object = json!({"dependencies":[{"identity":{"record_id":"rec_000000000000000000000017"},"payload":{"record_kind":"unit","key":"authored metres","symbol":"m"}}]});
+    let value = json!({"kind":"quantity","value":{"kind":"decimal","digits":"1.2300"},"unit":"unit_000000000000000000000017"});
+    assert_eq!(value_text(&value, &object), "1.2300 authored metres");
+    assert_eq!(
+        value_text(&value, &Value::Null),
+        "1.2300 unit_000000000000000000000017"
     );
 }

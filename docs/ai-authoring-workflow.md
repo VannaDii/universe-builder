@@ -753,3 +753,15 @@ a selected finding and reason and runs fresh review before separate approval.
 After reopening, load existing approval choices to recover an interrupted publication
 using its original exact binding and stable publication key. Recovery cannot create
 a new approval. Open the current revision before continuing after publication.
+
+Manual management uses the existing draft and inspector controls. Inspect a type
+and choose **Correct type ancestry**, including an explicit root choice; this
+changes the definition, not the identities or classification of its instances.
+Inspect an action to correct its requirements or consequence contract. **Keep**
+preserves the complete authored field. Selecting a replacement changes that entire
+field while retaining the action's identity, metadata, scope and validity. Existing
+instances and occurred events are rechecked before exact approval/publication.
+The state inspector accepts instances and reusable definitions. It separates shared
+attributes, instance facts, starting candidates, initialization history, conflicts
+and unknowns. Quantity labels use only returned authored units and retain exact
+amounts; the interface performs no unit conversion.

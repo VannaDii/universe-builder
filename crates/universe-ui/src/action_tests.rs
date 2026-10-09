@@ -366,6 +366,50 @@ async fn definitions_recover_require_approval_publish_and_drive_a_consuming_even
         read(&mut c, &opened, &json!(id(9))).await["payload"]["effects"][0]["slot"],
         "stock-actor"
     );
+    let original = read(&mut c, &opened, &consume["client_ref"]).await;
+    let frame: Frame = serde_json::from_value(opened["frame"].clone()).unwrap();
+    let mut changed = ActionForm {
+        mode: "keep".into(),
+        consequences: "declared".into(),
+        slots: vec![delta("actor", 1, "-2", "0")],
+        ..Default::default()
+    };
+    let incompatible = changed.revise(&frame, &choices(), &original).unwrap();
+    assert_eq!(
+        incompatible["replacement"]["scope"],
+        original["payload"]["scope"]
+    );
+    assert_eq!(
+        incompatible["replacement"]["requirements"],
+        original["payload"]["requirements"]
+    );
+    let p=tool(&mut c,"universe_propose",json!({"action":"create","universe":"Alpha","context_id":opened["result"]["context_id"],"operations":[incompatible],"submission":"submitted","rationale":"Explicit correction conflicts with committed consumption","idempotency_key":"revise-consuming-contract"})).await["result"].clone();
+    let reference =
+        json!({"proposal_id":p["proposal_id"],"version":p["version"],"digest":p["digest"]});
+    let denied=c.call(crate::author::tool("universe_validate",json!({"mode":"proposal","universe":"Alpha","context_id":opened["result"]["context_id"],"proposal_reference":reference,"check_scope":"universe"})).unwrap()).await;
+    assert!(
+        denied.is_err(),
+        "Past occurred effect must constrain contract correction: {denied:?}"
+    );
+    assert_eq!(
+        read(&mut c, &opened, &consume["client_ref"]).await,
+        original
+    );
+    changed.slots[0].delta = "-1".into();
+    changed.slots[0].maximum = "11".into();
+    let legal = changed.revise(&frame, &choices(), &original).unwrap();
+    publish(&mut c, &opened, json!([legal]), "legal-contract-correction").await;
+    let fresh = open(&mut c, &u).await;
+    let corrected = read(&mut c, &fresh, &consume["client_ref"]).await;
+    assert_eq!(corrected["identity"], original["identity"]);
+    assert_eq!(
+        corrected["payload"]["consequenceContract"]["slots"][0]["change"]["maximum"],
+        "11"
+    );
+    assert_eq!(
+        read(&mut c, &opened, &consume["client_ref"]).await,
+        original
+    );
     drop(c);
     stop.cancel();
     server.await.unwrap().unwrap();

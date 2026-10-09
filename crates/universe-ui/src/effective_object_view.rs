@@ -39,7 +39,7 @@ fn applicability(v: &Value) -> &'static str {
         None => "Applicability unresolved",
     }
 }
-fn value_text(v: &Value) -> String {
+fn value_text(v: &Value, object: &Value) -> String {
     match v["kind"].as_str().unwrap_or_default() {
         "integer" | "decimal" => text(&v["digits"]).into(),
         "text" => text(&v["text"]).into(),
@@ -50,7 +50,15 @@ fn value_text(v: &Value) -> String {
         }
         .into(),
         "rational" => format!("{}/{}", text(&v["numerator"]), text(&v["denominator"])),
-        "quantity" => format!("{} · unit {}", value_text(&v["value"]), text(&v["unit"])),
+        "quantity" => {
+            let unit = v["unit"]
+                .as_str()
+                .and_then(|unit| unit.strip_prefix("unit_"))
+                .map(|suffix| json!(format!("rec_{suffix}")))
+                .and_then(|id| dependency(object, &id).map(name))
+                .unwrap_or_else(|| text(&v["unit"]).into());
+            format!("{} {unit}", value_text(&v["value"], object))
+        }
         "range" => format!(
             "{}{} to {}{}",
             if v["lower_inclusive"] == true {
@@ -58,8 +66,8 @@ fn value_text(v: &Value) -> String {
             } else {
                 "("
             },
-            value_text(&v["lower"]),
-            value_text(&v["upper"]),
+            value_text(&v["lower"], object),
+            value_text(&v["upper"], object),
             if v["upper_inclusive"] == true {
                 "]"
             } else {
@@ -77,7 +85,7 @@ fn value_text(v: &Value) -> String {
                 .as_array()
                 .into_iter()
                 .flatten()
-                .map(value_text)
+                .map(|v| value_text(v, object))
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
@@ -119,11 +127,11 @@ fn EvidenceLane(title: String, note: String, rows: Value, object: Value) -> Elem
         for (i,row) in rows.as_array().into_iter().flatten().enumerate(){article{key:"{i}",
             if row["record"]["payload"]["record_kind"]=="assertion"{
                 h5{{reference_name(&object,&dependency(&object,&row["record"]["payload"]["proposition"]["record"]).map(|r|r["payload"]["predicate"]["record"].clone()).unwrap_or(Value::Null))}}
-                if let Some(p)=dependency(&object,&row["record"]["payload"]["proposition"]["record"]){p{{format!("Declared value: {}",value_text(&p["payload"]["value"]))}}}
+                if let Some(p)=dependency(&object,&row["record"]["payload"]["proposition"]["record"]){p{{format!("Declared value: {}",value_text(&p["payload"]["value"],&object))}}}
                 else{p{"Proposition details were not returned; value remains unavailable."}}
                 p{{format!("{} evidence · precision {}",caption(text(&row["record"]["payload"]["polarity"])),caption(text(&row["record"]["payload"]["precision"])))}}
                 p{{format!("Validity: {}",time_text(&row["record"]["payload"]["validity"]))}}
-                if row["record"]["payload"]["alternatives"].as_array().is_some_and(|a|!a.is_empty()){p{{format!("Authored alternatives: {}",row["record"]["payload"]["alternatives"].as_array().unwrap().iter().map(value_text).collect::<Vec<_>>().join("; "))}}}
+                if row["record"]["payload"]["alternatives"].as_array().is_some_and(|a|!a.is_empty()){p{{format!("Authored alternatives: {}",row["record"]["payload"]["alternatives"].as_array().unwrap().iter().map(|v|value_text(v,&object)).collect::<Vec<_>>().join("; "))}}}
             }else{
                 h5{{name(&row["record"])}}
                 if row["record"]["payload"]["record_kind"]=="rule"{p{{format!("{} · publication policy {}",caption(text(&row["record"]["payload"]["kind"])),caption(text(&row["record"]["payload"]["commitPolicy"])))}}}
@@ -143,7 +151,10 @@ fn ObjectView(object: Value) -> Element {
     rsx! {article{class:"panel",h3{{name(&object["identity"])}}
         p{{format!("Object coverage: {}",caption(text(&object["coverage"])))}}
         section{h4{"Identity and classification"}
-            p{{format!("Classification: {}",caption(text(&object["identity"]["payload"]["classificationResolution"])))}}
+            if object["identity"]["payload"]["record_kind"]=="entity_type" {
+                p{{format!("Reusable definition: {}; parent: {}",name(&object["identity"]),caption(text(&object["identity"]["payload"]["parentResolution"])))}}
+                if !object["identity"]["payload"]["parent"].is_null(){p{{reference_name(&object,&object["identity"]["payload"]["parent"])}}}
+            }else{p{{format!("Classification: {}",caption(text(&object["identity"]["payload"]["classificationResolution"])))}}}
             if !object["identity"]["payload"]["classification"].is_null(){p{{reference_name(&object,&object["identity"]["payload"]["classification"])}}}
             details{summary{"Exact identity and classification record"}ReadValue{value:object["identity"].clone()}}
         }

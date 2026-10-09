@@ -165,6 +165,49 @@ pub(super) struct ActionForm {
     pub(super) slots: Vec<SlotForm>,
 }
 impl ActionForm {
+    pub(super) fn revise(
+        &self,
+        frame: &Frame,
+        choices: &[Value],
+        original: &Value,
+    ) -> Result<Value, String> {
+        if original["payload"]["record_kind"] != "action_definition"
+            || original["identity"]["universe_id"] != json!(frame.universe)
+        {
+            return Err(
+                "Inspect an action from the pinned universe before correcting its contract.".into(),
+            );
+        }
+        if self.mode == "keep" && self.consequences == "keep" {
+            return Err("Select an explicit requirements or effects correction.".into());
+        }
+        let mut edited = self.clone();
+        edited.namespace = original["payload"]["namespace"]
+            .as_str()
+            .ok_or("Missing action namespace")?
+            .into();
+        edited.key = original["payload"]["key"]
+            .as_str()
+            .ok_or("Missing action name")?
+            .into();
+        if edited.mode == "keep" {
+            edited.mode = "ordinary".into();
+        }
+        if edited.consequences == "keep" {
+            edited.consequences = "none".into();
+            edited.slots.clear();
+        }
+        let generated = edited.build(frame, choices)?;
+        let mut replacement = original["payload"].clone();
+        if self.mode != "keep" {
+            replacement["requirements"] = generated["record"]["requirements"].clone();
+        }
+        if self.consequences != "keep" {
+            replacement["consequenceContract"] = generated["record"]["consequenceContract"].clone();
+        }
+        let op: DomainOperation = serde_json::from_value(json!({"kind":"revise_definition","record":{"universe":frame.universe,"record":original["identity"]["record_id"]},"expected_version":original["record_version_id"],"replacement":replacement})).map_err(|e|e.to_string())?;
+        serde_json::to_value(op).map_err(|e| e.to_string())
+    }
     pub(super) fn build(&self, frame: &Frame, choices: &[Value]) -> Result<Value, String> {
         if self.namespace.trim().is_empty() || self.key.trim().is_empty() {
             return Err("Name the action and its namespace.".into());
@@ -284,29 +327,54 @@ pub(super) fn ActionEditor(
     choices: Vec<Value>,
     disabled: bool,
     onadd: EventHandler<Value>,
+    #[props(default)] original: Value,
 ) -> Element {
-    let mut form = use_signal(ActionForm::default);
-    let mut error = use_signal(String::new);
-    rsx! {details{summary{"Declare an action, requirements and consequences"}
-        p{"Definitions enter protected review. Requirements and consequences are separate: an ordinary action may explicitly declare no effects. Labels never assign resource behavior."}
-        label{r#for:"action-namespace","Namespace"}input{id:"action-namespace",disabled,value:form.read().namespace.clone(),oninput:move|e|form.write().namespace=e.value()}
-        label{r#for:"action-key","Action name"}input{id:"action-key",disabled,value:form.read().key.clone(),oninput:move|e|form.write().key=e.value()}
-        label{r#for:"action-mode","Requirements"}super::select::RichSelect{id:"action-mode",disabled,value:form.read().mode.clone(),options:super::select::choices(&[("","Choose explicitly"),("ordinary","Ordinary action, no special requirement"),("attribute","Requires an attribute or power")]),onchange:move|e:super::select::SelectionEvent|form.write().mode=e.value()}
-        if form.read().mode=="attribute"{
-            label{r#for:"action-role","Role requiring the attribute"}input{id:"action-role",disabled,value:form.read().role.clone(),oninput:move|e|form.write().role=e.value()}
-            label{r#for:"action-property","Required attribute"}super::select::RichSelect{id:"action-property",disabled,value:form.read().predicate.clone(),options:super::select::record_choices(&choices,&["property"],"Choose an attribute"),onchange:move|e:super::select::SelectionEvent|form.write().predicate=e.value()}
-            ValueControls{id:"action-required-value",value:form.read().value.clone(),predicate:form.read().predicate.clone(),choices:choices.clone(),disabled,onchange:move|v|form.write().value=v}
+    let revision = !original.is_null();
+    let prefix = if revision {
+        "action-revision"
+    } else {
+        "action"
+    };
+    let seed = if revision {
+        ActionForm {
+            namespace: original["payload"]["namespace"]
+                .as_str()
+                .unwrap_or_default()
+                .into(),
+            key: original["payload"]["key"]
+                .as_str()
+                .unwrap_or_default()
+                .into(),
+            mode: "keep".into(),
+            consequences: "keep".into(),
+            ..Default::default()
         }
-        label{r#for:"action-consequences","Consequence contract"}super::select::RichSelect{id:"action-consequences",disabled,value:form.read().consequences.clone(),options:super::select::choices(&[("","Choose explicitly"),("none","No permitted effects"),("declared","Declare effect slots")]),onchange:move|e:super::select::SelectionEvent|form.write().consequences=e.value()}
+    } else {
+        ActionForm::default()
+    };
+    let mut form = use_signal(move || seed);
+    let mut error = use_signal(String::new);
+    rsx! {details{summary{if revision{"Correct inspected action requirements and consequences"}else{"Declare an action, requirements and consequences"}}
+        p{"Definitions enter protected review. Requirements and consequences are separate: an ordinary action may explicitly declare no effects. Labels never assign resource behavior."}
+        if revision {p{"Keep retains the complete authored field, including unsupported legacy forms. A selected correction replaces the entire requirements or effects field; other metadata, scope and validity remain unchanged. Affected past events are rechecked before publication."}super::readable::ReadValue{value:original["payload"].clone()}}
+        label{r#for:"{prefix}-namespace","Namespace"}input{id:"{prefix}-namespace",disabled:disabled||revision,value:form.read().namespace.clone(),oninput:move|e|form.write().namespace=e.value()}
+        label{r#for:"{prefix}-key","Action name"}input{id:"{prefix}-key",disabled:disabled||revision,value:form.read().key.clone(),oninput:move|e|form.write().key=e.value()}
+        label{r#for:"{prefix}-mode","Requirements"}super::select::RichSelect{id:"{prefix}-mode",disabled,value:form.read().mode.clone(),options:{let mut options=super::select::choices(&[("","Choose explicitly"),("ordinary","Ordinary action, no special requirement"),("attribute","Requires an attribute or power")]);if revision{options.insert(1,super::select::Choice::new("keep","Keep authored requirements"));}options},onchange:move|e:super::select::SelectionEvent|form.write().mode=e.value()}
+        if form.read().mode=="attribute"{
+            label{r#for:"{prefix}-role","Role requiring the attribute"}input{id:"{prefix}-role",disabled,value:form.read().role.clone(),oninput:move|e|form.write().role=e.value()}
+            label{r#for:"{prefix}-property","Required attribute"}super::select::RichSelect{id:"{prefix}-property",disabled,value:form.read().predicate.clone(),options:super::select::record_choices(&choices,&["property"],"Choose an attribute"),onchange:move|e:super::select::SelectionEvent|form.write().predicate=e.value()}
+            ValueControls{id:"{prefix}-required-value",value:form.read().value.clone(),predicate:form.read().predicate.clone(),choices:choices.clone(),disabled,onchange:move|v|form.write().value=v}
+        }
+        label{r#for:"{prefix}-consequences","Consequence contract"}super::select::RichSelect{id:"{prefix}-consequences",disabled,value:form.read().consequences.clone(),options:{let mut options=super::select::choices(&[("","Choose explicitly"),("none","No permitted effects"),("declared","Declare effect slots")]);if revision{options.insert(1,super::select::Choice::new("keep","Keep authored effects"));}options},onchange:move|e:super::select::SelectionEvent|form.write().consequences=e.value()}
         if form.read().consequences=="declared"{
             for (i,slot) in form.read().slots.clone().into_iter().enumerate(){section{key:"{i}",
-                SlotControls{id:format!("action-slot-{i}"),slot,choices:choices.clone(),disabled,onchange:move|s|form.write().slots[i]=s}
+                SlotControls{id:format!("{prefix}-slot-{i}"),slot,choices:choices.clone(),disabled,onchange:move|s|form.write().slots[i]=s}
                 button{class:"secondary",disabled,onclick:move|_|{form.write().slots.remove(i);},"Remove this slot"}
             }}
             button{class:"secondary",disabled:disabled||form.read().slots.len()>=64,onclick:move|_|form.write().slots.push(SlotForm::default()),"Add effect slot"}
         }
         if !error().is_empty(){p{role:"alert","{error}"}}
-        button{disabled,onclick:move|_|match form.read().build(&frame,&choices){Ok(op)=>{onadd.call(op);error.set(String::new());},Err(e)=>error.set(e)},"Add action definition to draft"}
+        button{disabled,onclick:move|_|match if revision{form.read().revise(&frame,&choices,&original)}else{form.read().build(&frame,&choices)}{Ok(op)=>{onadd.call(op);error.set(String::new());},Err(e)=>error.set(e)},if revision{"Add contract correction to draft"}else{"Add action definition to draft"}}
     }}
 }
 #[cfg(test)]

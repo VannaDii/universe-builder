@@ -324,6 +324,9 @@ pub fn AuthorApp() -> Element {
                         if !inspected().is_null(){super::readable::ReadValue{value:inspected()} super::history::History{records:inspected(),disabled:busy(),onadd:move|op:Value|{if let Ok(mut ops)=serde_json::from_str::<Vec<Value>>(&operations()){ops.push(op);operations.set(serde_json::to_string(&ops).unwrap());proposal.set(Value::Null);validation.set(Value::Null);review.set(Value::Null);approved.set(false);}}}}
                         if let Ok(frame)=serde_json::from_value::<universe_domain::Frame>(ctx()["frame"].clone()){
                             div{key:"{inspector_key}",
+                            if inspected()["records"][0]["payload"]["record_kind"]=="action_definition"{
+                                super::action_editor::ActionEditor{frame:frame.clone(),choices:choices(&hits(),&definitions(),&operations()),original:inspected()["records"][0].clone(),disabled:busy(),onadd:move|op:Value|{if let Ok(mut ops)=serde_json::from_str::<Vec<Value>>(&operations()){ops.push(op);operations.set(serde_json::to_string(&ops).unwrap());proposal.set(Value::Null);validation.set(Value::Null);review.set(Value::Null);approved.set(false);}}}
+                            }
                             if inspected()["records"][0]["payload"]["record_kind"]=="event"{
                                 super::event_correction::EventCorrection{root:root(),profile:profile(),universe:selected(),context:ctx()["context_id"].clone(),frame:frame.clone(),original:inspected()["records"][0].clone(),clock:serde_json::from_value(clock_record()["payload"]["chronology"].clone()).ok(),disabled:busy(),onadd:move|added:Vec<Value>|{if let Ok(mut ops)=serde_json::from_str::<Vec<Value>>(&operations()){ops.extend(added);operations.set(serde_json::to_string(&ops).unwrap());proposal.set(Value::Null);validation.set(Value::Null);review.set(Value::Null);approved.set(false);}}}
                             }

@@ -321,6 +321,54 @@ async fn native_definitions_attributes_admit_inherit_conflict_and_recover() {
             .await
             .is_err());
     }
+    let opened = open(&mut c, &u).await;
+    let frame: Frame = serde_json::from_value(opened["frame"].clone()).unwrap();
+    let original = read(&mut c, &opened, &child["client_ref"]).await;
+    let root = crate::inspector_editor::operation(
+        &frame,
+        &original,
+        "definition_parent",
+        "none",
+        "",
+        Some(&clock),
+    )
+    .unwrap();
+    assert_eq!(
+        root["replacement"]["applicability"],
+        original["payload"]["applicability"]
+    );
+    assert!(root["replacement"]["parent"].is_null());
+    assert_eq!(root["replacement"]["parentResolution"], "root");
+    let parent_record = read(&mut c, &opened, &parent["client_ref"]).await;
+    let cycle = crate::inspector_editor::operation(
+        &frame,
+        &parent_record,
+        "definition_parent",
+        child_id,
+        "",
+        Some(&clock),
+    )
+    .unwrap();
+    assert!(c.call(crate::author::tool("universe_propose",json!({"action":"create","universe":"Alpha","context_id":opened["result"]["context_id"],"operations":[cycle],"submission":"submitted","rationale":"Cycle must not publish","idempotency_key":"type-cycle-correction"})).unwrap()).await.is_err());
+    publish(&mut c, &opened, json!([root]), "type-root-correction").await;
+    let fresh = open(&mut c, &u).await;
+    let corrected = read(&mut c, &fresh, &child["client_ref"]).await;
+    assert_eq!(corrected["identity"], original["identity"]);
+    assert!(corrected["payload"]["parent"].is_null());
+    assert_eq!(read(&mut c, &opened, &child["client_ref"]).await, original);
+    assert_eq!(
+        read(&mut c, &fresh, &json!(id(10))).await["payload"]["classification"],
+        child["client_ref"]
+    );
+    let definition_state=tool(&mut c,"universe_get_state",json!({"universe":"Alpha","context_id":fresh["result"]["context_id"],"entity_ids":[child["client_ref"]],"predicate_filters":[]})).await;
+    assert_eq!(
+        definition_state["result"]["objects"][0]["identity"]["payload"]["record_kind"],
+        "entity_type"
+    );
+    assert!(
+        crate::effective_object_view::tests::render(definition_state)
+            .contains("Reusable definition")
+    );
     drop(c);
     stop.cancel();
     server.await.unwrap().unwrap();
