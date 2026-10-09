@@ -248,6 +248,14 @@ pub enum AuthorWritingAction {
         label: String,
         text: String,
     },
+    /// Explicit author-selected knowledge decision, followed by exact review/approval; never model-visible.
+    EstablishKnowledge {
+        context_id: ContextId,
+        declaration: crate::writing::AuthorKnowledgeDeclaration,
+        rationale: String,
+        label: String,
+        text: String,
+    },
     Reject {
         candidate: ProposalId,
     },

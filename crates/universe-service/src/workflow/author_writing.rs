@@ -53,193 +53,142 @@ impl Workflow<'_> {
                 let result = self.execute(Request::from_tool("universe_propose", json!({"action":"withdraw","universe":universe,"context_id":ctx,"proposal_reference":candidate,"idempotency_key":key}))?)?;
                 Ok(result["result"].clone())
             }
-            action @ (AuthorWritingAction::Prepare { .. }
-            | AuthorWritingAction::PrepareContracts { .. }) => {
-                let (candidate, label, text, contracts) = match action {
-                    AuthorWritingAction::Prepare {
-                        candidate,
-                        label,
-                        text,
-                    } => (candidate, label, text, false),
-                    AuthorWritingAction::PrepareContracts {
-                        candidate,
-                        label,
-                        text,
-                    } => (candidate, label, text, true),
-                    _ => unreachable!(),
-                };
-                if text.trim().is_empty() {
+            AuthorWritingAction::Prepare {
+                candidate,
+                label,
+                text,
+            } => self.prepare_writing_source(universe, candidate, label, text, false, None),
+            AuthorWritingAction::PrepareContracts {
+                candidate,
+                label,
+                text,
+            } => self.prepare_writing_source(universe, candidate, label, text, true, None),
+            AuthorWritingAction::EstablishKnowledge {
+                context_id,
+                declaration,
+                rationale,
+                label,
+                text,
+            } => {
+                if rationale.trim().is_empty() || text.trim().is_empty() {
                     return Err(ProtocolError::invalid_argument(
-                        "text",
-                        "author source must not be empty",
+                        "rationale/text",
+                        "Explicit author rationale and source required",
                     )
                     .into());
                 }
-                let key = format!(
-                    "{}:{}",
-                    if contracts {
-                        "writing-contracts-prepare"
-                    } else {
-                        "writing-prepare"
-                    },
-                    hash(&(&candidate, &label, &text))
-                );
-                let receipt = self.operation_key("propose", &key);
-                if self.kernel.workflow_get(&receipt)?.is_some() {
-                    let p = self
-                        .operation(&receipt)?
-                        .status
-                        .proposal
-                        .ok_or_else(denied)?;
-                    return self.writing_author_review(&universe, &p);
+                let selected: Context = self.load(&format!("context:{context_id}"))?;
+                if selected.expires < now() {
+                    return Err(ProtocolError::ContextExpired.into());
                 }
-                let keys = self
-                    .kernel
-                    .workflow_keys(&format!("proposal:{candidate}:"))?;
-                let stored: StoredProposal = self.load(keys.last().ok_or_else(denied)?)?;
-                let candidate = ProposalRef {
-                    proposal_id: stored.proposal.proposal_id.clone(),
-                    version: stored.proposal.version,
-                    digest: stored.proposal.digest.clone(),
-                };
-                let p = self.proposal(&candidate)?;
-                self.writing_author_current(&p.proposal)?;
-                if !matches!(p.proposal.submission, Submission::Draft) {
+                if self.kernel.head(&selected.frame.continuity)? != selected.frame.revision {
                     return Err(ProtocolError::ApprovalStale.into());
                 }
-                let originals = self.kernel.records(
-                    &p.proposal.base_frame.continuity,
-                    &p.proposal.base_frame.revision,
-                )?;
-                if p.proposal.operations.iter().any(|op| {
-                    if let DomainOperation::ReviseDefinition {
-                        record,
-                        expected_version,
-                        replacement,
-                    } = op
-                    {
-                        if !contracts {
-                            return true;
-                        }
-                        let Some(original) = originals.iter().find(|r| {
-                            r.identity.record_id == record.record
-                                && &r.record_version_id == expected_version
-                        }) else {
-                            return true;
-                        };
-                        return match (&original.payload, replacement.as_ref()) {
-                            (Payload::EntityType(old), Payload::EntityType(new)) => {
-                                let mut permitted = old.clone();
-                                permitted.parent = new.parent.clone();
-                                permitted.parent_resolution = new.parent_resolution;
-                                permitted.applicability = new.applicability.clone();
-                                &permitted != new
-                            }
-                            (Payload::ActionDefinition(old), Payload::ActionDefinition(new)) => {
-                                let mut permitted = old.clone();
-                                permitted.requirements = new.requirements.clone();
-                                permitted.consequence_contract = new.consequence_contract.clone();
-                                permitted.scope.applicability = new.scope.applicability.clone();
-                                permitted.validity = new.validity.clone();
-                                &permitted != new
-                            }
-                            _ => true,
-                        };
-                    }
-                    if contracts && matches!(op, DomainOperation::DefineAction { .. }) {
-                        return false;
-                    }
-                    if let DomainOperation::DefineUnit { record, .. } = op {
-                        return !contracts
-                            || record.base.is_some()
-                            || record.scale_to_base.is_some();
-                    }
-                    if let DomainOperation::DefineRule { record, .. } = op {
-                        return !contracts || !super::writing_contracts::supported_policy(record);
-                    }
-                    !matches!(
-                        op,
-                        DomainOperation::IntroduceInstance { .. }
-                            | DomainOperation::IntroduceDefinition { .. }
-                            | DomainOperation::AddNamedAttribute { .. }
-                            | DomainOperation::RefineClassification { .. }
-                            | DomainOperation::DefineProperty { .. }
-                            | DomainOperation::AssertProposition { .. }
-                            | DomainOperation::DefineProposition { .. }
-                            | DomainOperation::InitializeInstance { .. }
-                            | DomainOperation::ReviseEvent { .. }
-                            | DomainOperation::RecordEvent { .. }
-                            | DomainOperation::RecordCommunication { .. }
-                            | DomainOperation::AddBelief { .. }
-                            | DomainOperation::SupersedeAssertion { .. }
-                    )
-                }) {
-                    return Err(ProtocolError::PolicyDenied{message:"Source preparation accepts agent factual deltas only; protected contracts require explicit author contract review; creative acceptance requires a separate explicit author decision.".into()}.into());
-                }
-                let mut ops = p.proposal.operations.clone();
-                // Exact staged bytes are author input; no model-authored source or approval.
-                let staged = self.stage_source(label, text.clone())?;
-                let mut source_ops: Vec<DomainOperation> = field(&staged, "operations")?;
-                let source_version = source_ops
+                let reopened = self.writing_author_context_frame(&universe, &selected.frame)?;
+                let ctx = self.context(&reopened)?;
+                let base = self
+                    .kernel
+                    .records(&ctx.frame.continuity, &ctx.frame.revision)?;
+                let visible = self.visible_ids(&base)?;
+                let rows: Vec<_> = base
+                    .into_iter()
+                    .filter(|r| visible.contains(&r.identity.record_id))
+                    .collect();
+                let policies: Vec<_> = rows
                     .iter()
-                    .find_map(|op| match op {
-                        DomainOperation::RecordNarrativeReference {
-                            client_ref,
-                            payload: Payload::SourceVersion(_),
-                            ..
-                        } => RecordId::parse(client_ref).ok(),
-                        _ => None,
+                    .filter_map(|r| {
+                        if let Payload::Rule(r) = &r.payload {
+                            r.knowledge_policy
+                                .as_ref()
+                                .filter(|p| p.context == ctx.frame.context)
+                        } else {
+                            None
+                        }
                     })
-                    .ok_or_else(denied)?;
-                let version = RecordVersionId::generate(&mut rand::rng());
-                let anchor = RecordId::generate(&mut rand::rng());
-                source_ops.push(DomainOperation::AddSourceAnchor {
-                    client_ref: anchor.to_string(),
-                    record: Anchor {
-                        source_version: universe_domain::value::VersionRef {
-                            universe: Some(self.kernel.universe().clone()),
-                            record: source_version.clone(),
-                            version: version.clone(),
-                        },
-                        locator: AnchorLocator::ByteRange {
-                            start: 0,
-                            end: text.len() as u64,
-                        },
-                        excerpt_digest: hex::encode(Sha256::digest(text.as_bytes())),
-                        excerpt: text,
-                        context: Some(p.proposal.base_frame.context.clone()),
-                    },
-                });
-                let basis = universe_domain::scope::EvidenceBasis::SourceAnchor {
-                    anchor: RecordRef::new(self.kernel.universe().clone(), anchor),
-                    verified: true,
-                };
-                for op in &mut ops {
-                    match op {
-                        DomainOperation::AssertProposition { assertion, .. }
-                        | DomainOperation::RecordRelation { assertion, .. } => {
-                            assertion.basis = basis.clone()
-                        }
-                        DomainOperation::SupersedeAssertion { replacement, .. } => {
-                            replacement.basis = basis.clone()
-                        }
-                        DomainOperation::AddNamedAttribute { evidence, .. } => {
-                            evidence.basis = basis.clone()
-                        }
-                        DomainOperation::AddBelief { record, .. } => record.basis = basis.clone(),
-                        _ => (),
-                    }
+                    .collect();
+                if policies.len() != 1 || policies[0].mode != KnowledgeMode::AuthorEstablished {
+                    return Err(ProtocolError::invalid_argument(
+                        "knowledge policy",
+                        "Select the exact authored author-established context policy.",
+                    )
+                    .into());
                 }
-                source_ops.extend(ops);
-                let ctx = self.writing_author_context(&universe, &p.proposal)?;
-                let request = Request::from_tool(
-                    "universe_propose",
-                    json!({"action":"revise","universe":universe,"context_id":ctx,"proposal_reference":candidate,"operations":source_ops,"submission":"submitted","rationale":if contracts {"Author explicitly declared these supported contracts/policies with exact source; separate approval still required."}else{"Author selected exact source passage for factual review; publication still requires separate exact approval."},"idempotency_key":key}),
+                let holder =
+                    super::writing_connected::object(&rows, &declaration.holder, &ctx.frame)
+                        .ok_or_else(|| {
+                            ProtocolError::invalid_argument(
+                                "holder",
+                                "Resolve the exact authored holder.",
+                            )
+                        })?;
+                let claim = super::writing_connected::claim(
+                    self.kernel.universe(),
+                    &rows,
+                    &ctx.frame,
+                    &declaration.claim,
                 )?;
-                let proposed =
-                    self.execute_allocated(request, &BTreeMap::from([(source_version, version)]))?;
-                let p: Proposal = field(&proposed, "result")?;
-                self.writing_author_review(&universe, &p)
+                let at = super::writing_connected::time(
+                    &ctx.frame,
+                    &rows,
+                    &Some(declaration.at_tick.clone()),
+                )?;
+                let world = self
+                    .focus(&json!({"world":declaration.world}), &rows)?
+                    .map(|id| {
+                        RecordRef::new(
+                            self.kernel.universe().clone(),
+                            RecordId::parse(&id.as_str().replacen("wld_", "rec_", 1))
+                                .expect("validated world ID"),
+                        )
+                    });
+                let key = format!(
+                    "author-knowledge:{}",
+                    hash(&(&ctx.frame, &declaration, &rationale, &label, &text))
+                );
+                let receipt = self.operation_key("propose", &key);
+                let candidate = if self.kernel.workflow_get(&receipt)?.is_some() {
+                    self.operation(&receipt)?
+                        .status
+                        .proposal
+                        .ok_or_else(denied)?
+                } else {
+                    let mut ops = vec![];
+                    let prop = super::writing_connected::define(
+                        &mut ops,
+                        self.kernel.universe(),
+                        &claim,
+                        &rows,
+                    );
+                    let attitude = EpistemicAttitude {
+                        holder: RecordRef::new(self.kernel.universe().clone(), holder),
+                        proposition: prop,
+                        attitude: EpistemicAttitudeKind::Knows,
+                        certainty: None,
+                        validity: super::writing_contracts::validity(&at, &declaration.lifetime)?,
+                        basis: universe_domain::scope::EvidenceBasis::AuthorDecision {
+                            note: rationale.clone(),
+                        },
+                        acquisition: Some(KnowledgeAcquisition {
+                            truth_context: ctx.frame.context.clone(),
+                            time: at,
+                            world,
+                            basis: KnowledgeBasis::AuthorEstablished,
+                        }),
+                    };
+                    ops.push(json!({"kind":"add_belief","client_ref":RecordId::generate(&mut rand::rng()),"record":attitude}));
+                    let admission = self.writing_author_context_frame(&universe, &ctx.frame)?;
+                    let proposed=self.execute(Request::from_tool("universe_propose",json!({"action":"create","universe":universe,"context_id":admission,"operations":ops,"submission":"draft","rationale":rationale,"idempotency_key":key}))?)?;
+                    let p: Proposal = field(&proposed, "result")?;
+                    p
+                };
+                self.prepare_writing_source(
+                    universe,
+                    candidate.proposal_id,
+                    label,
+                    text,
+                    false,
+                    Some(rationale),
+                )
             }
             AuthorWritingAction::Accept {
                 candidate,
@@ -308,6 +257,215 @@ impl Workflow<'_> {
                 self.writing_author_review(&universe, &field(&proposed, "result")?)
             }
         }
+    }
+    fn prepare_writing_source(
+        &mut self,
+        universe: Selector,
+        candidate: ProposalId,
+        label: String,
+        text: String,
+        contracts: bool,
+        knowledge_rationale: Option<String>,
+    ) -> anyhow::Result<Value> {
+        if text.trim().is_empty() {
+            return Err(
+                ProtocolError::invalid_argument("text", "author source must not be empty").into(),
+            );
+        }
+        let key = format!(
+            "{}:{}",
+            if contracts {
+                "writing-contracts-prepare"
+            } else {
+                "writing-prepare"
+            },
+            if knowledge_rationale.is_some() {
+                hash(&(&candidate, &label, &text, &knowledge_rationale))
+            } else {
+                hash(&(&candidate, &label, &text))
+            }
+        );
+        let receipt = self.operation_key("propose", &key);
+        if self.kernel.workflow_get(&receipt)?.is_some() {
+            let p = self
+                .operation(&receipt)?
+                .status
+                .proposal
+                .ok_or_else(denied)?;
+            return self.writing_author_review(&universe, &p);
+        }
+        let keys = self
+            .kernel
+            .workflow_keys(&format!("proposal:{candidate}:"))?;
+        let stored: StoredProposal = self.load(keys.last().ok_or_else(denied)?)?;
+        let candidate = ProposalRef {
+            proposal_id: stored.proposal.proposal_id.clone(),
+            version: stored.proposal.version,
+            digest: stored.proposal.digest.clone(),
+        };
+        let p = self.proposal(&candidate)?;
+        self.writing_author_current(&p.proposal)?;
+        if !matches!(p.proposal.submission, Submission::Draft) {
+            return Err(ProtocolError::ApprovalStale.into());
+        }
+        let originals = self.kernel.records(
+            &p.proposal.base_frame.continuity,
+            &p.proposal.base_frame.revision,
+        )?;
+        if p.proposal.operations.iter().any(|op| {
+            if let DomainOperation::AddBelief { record, .. } = op {
+                if record
+                    .acquisition
+                    .as_ref()
+                    .is_some_and(|a| matches!(a.basis, KnowledgeBasis::AuthorEstablished))
+                {
+                    return knowledge_rationale.as_ref().is_none_or(|rationale| {
+                        !p.author_origin
+                            || record.basis
+                                != universe_domain::scope::EvidenceBasis::AuthorDecision {
+                                    note: rationale.clone(),
+                                }
+                    });
+                }
+            }
+            if let DomainOperation::ReviseDefinition {
+                record,
+                expected_version,
+                replacement,
+            } = op
+            {
+                if !contracts {
+                    return true;
+                }
+                let Some(original) = originals.iter().find(|r| {
+                    r.identity.record_id == record.record
+                        && &r.record_version_id == expected_version
+                }) else {
+                    return true;
+                };
+                return match (&original.payload, replacement.as_ref()) {
+                    (Payload::EntityType(old), Payload::EntityType(new)) => {
+                        let mut permitted = old.clone();
+                        permitted.parent = new.parent.clone();
+                        permitted.parent_resolution = new.parent_resolution;
+                        permitted.applicability = new.applicability.clone();
+                        &permitted != new
+                    }
+                    (Payload::ActionDefinition(old), Payload::ActionDefinition(new)) => {
+                        let mut permitted = old.clone();
+                        permitted.requirements = new.requirements.clone();
+                        permitted.consequence_contract = new.consequence_contract.clone();
+                        permitted.scope.applicability = new.scope.applicability.clone();
+                        permitted.validity = new.validity.clone();
+                        &permitted != new
+                    }
+                    _ => true,
+                };
+            }
+            if contracts && matches!(op, DomainOperation::DefineAction { .. }) {
+                return false;
+            }
+            if let DomainOperation::DefineUnit { record, .. } = op {
+                return !contracts || record.base.is_some() || record.scale_to_base.is_some();
+            }
+            if let DomainOperation::DefineRule { record, .. } = op {
+                return !contracts
+                    || !(super::writing_contracts::supported_policy(record)
+                        || super::writing_contracts::supported_knowledge_policy(record));
+            }
+            !matches!(
+                op,
+                DomainOperation::IntroduceInstance { .. }
+                    | DomainOperation::IntroduceDefinition { .. }
+                    | DomainOperation::AddNamedAttribute { .. }
+                    | DomainOperation::RefineClassification { .. }
+                    | DomainOperation::DefineProperty { .. }
+                    | DomainOperation::AssertProposition { .. }
+                    | DomainOperation::DefineProposition { .. }
+                    | DomainOperation::InitializeInstance { .. }
+                    | DomainOperation::ReviseEvent { .. }
+                    | DomainOperation::RecordEvent { .. }
+                    | DomainOperation::RecordCommunication { .. }
+                    | DomainOperation::AddBelief { .. }
+                    | DomainOperation::SupersedeAssertion { .. }
+            )
+        }) {
+            return Err(ProtocolError::PolicyDenied{message:"Source preparation accepts agent factual deltas only; protected contracts require explicit author contract review; creative acceptance requires a separate explicit author decision.".into()}.into());
+        }
+        let mut ops = p.proposal.operations.clone();
+        // Exact staged bytes are author input; no model-authored source or approval.
+        let staged = self.stage_source(label, text.clone())?;
+        let mut source_ops: Vec<DomainOperation> = field(&staged, "operations")?;
+        let source_version = source_ops
+            .iter()
+            .find_map(|op| match op {
+                DomainOperation::RecordNarrativeReference {
+                    client_ref,
+                    payload: Payload::SourceVersion(_),
+                    ..
+                } => RecordId::parse(client_ref).ok(),
+                _ => None,
+            })
+            .ok_or_else(denied)?;
+        let version = RecordVersionId::generate(&mut rand::rng());
+        let anchor = RecordId::generate(&mut rand::rng());
+        source_ops.push(DomainOperation::AddSourceAnchor {
+            client_ref: anchor.to_string(),
+            record: Anchor {
+                source_version: universe_domain::value::VersionRef {
+                    universe: Some(self.kernel.universe().clone()),
+                    record: source_version.clone(),
+                    version: version.clone(),
+                },
+                locator: AnchorLocator::ByteRange {
+                    start: 0,
+                    end: text.len() as u64,
+                },
+                excerpt_digest: hex::encode(Sha256::digest(text.as_bytes())),
+                excerpt: text,
+                context: Some(p.proposal.base_frame.context.clone()),
+            },
+        });
+        let basis = universe_domain::scope::EvidenceBasis::SourceAnchor {
+            anchor: RecordRef::new(self.kernel.universe().clone(), anchor),
+            verified: true,
+        };
+        for op in &mut ops {
+            match op {
+                DomainOperation::AssertProposition { assertion, .. }
+                | DomainOperation::RecordRelation { assertion, .. } => {
+                    assertion.basis = basis.clone()
+                }
+                DomainOperation::SupersedeAssertion { replacement, .. } => {
+                    replacement.basis = basis.clone()
+                }
+                DomainOperation::AddNamedAttribute { evidence, .. } => {
+                    evidence.basis = basis.clone()
+                }
+                DomainOperation::AddBelief { record, .. } if knowledge_rationale.is_none() => {
+                    record.basis = basis.clone()
+                }
+                _ => (),
+            }
+        }
+        source_ops.extend(ops);
+        let ctx = self.writing_author_context(&universe, &p.proposal)?;
+        let request = Request::from_tool(
+            "universe_propose",
+            json!({"action":"revise","universe":universe,"context_id":ctx,"proposal_reference":candidate,"operations":source_ops,"submission":"submitted","rationale":if let Some(rationale)=&knowledge_rationale {rationale.as_str()}else if contracts {"Author explicitly declared these supported contracts/policies with exact source; separate approval still required."}else{"Author selected exact source passage for factual review; publication still requires separate exact approval."},"idempotency_key":key}),
+        )?;
+        let proposed =
+            self.execute_allocated(request, &BTreeMap::from([(source_version, version)]))?;
+        let p: Proposal = field(&proposed, "result")?;
+        self.writing_author_review(&universe, &p)
+    }
+    fn writing_author_context_frame(
+        &mut self,
+        universe: &Selector,
+        frame: &Frame,
+    ) -> anyhow::Result<ContextId> {
+        let opened=self.execute(Request::from_tool("universe_open_context",json!({"universe":universe,"continuity_id":frame.continuity,"revision":{"kind":"exact","revision_id":frame.revision},"represented_context":frame.context.record,"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"}))?)?;
+        field(&opened["result"], "context_id")
     }
     fn writing_author_current(&self, p: &Proposal) -> anyhow::Result<()> {
         if !self.latest(p)?
@@ -425,10 +583,12 @@ impl Workflow<'_> {
                 )),
                 Payload::Event(e) => summary.push(format!("Proposed occurred action: {}; time {}; participants {}; preconditions {}; effects {}. Exact source shares this reviewed editorial commit; no direct event anchor link.", e.action.as_ref().and_then(|r|label(&r.record)).unwrap_or_default(), serde_json::to_value(&e.time)?, serde_json::to_value(&e.participants)?, serde_json::to_value(&e.preconditions)?, serde_json::to_value(&e.effects)?)),
                 Payload::Communication(c) => summary.push(format!("Proposed communication: sender {}; actual recipients {}; claims {}; receipt {}; distorted {}. Content alone is not objective truth; exact source shares this reviewed editorial commit without a direct message anchor link.", label(&c.sender.record).unwrap_or_default(), c.actual_recipients.iter().filter_map(|r|label(&r.record)).collect::<Vec<_>>().join(", "), serde_json::to_value(c.content.iter().map(&describe_claim).collect::<Vec<_>>())?, serde_json::to_value(&c.received_at)?, c.distorted)),
-                Payload::EpistemicAttitude(a) => summary.push(format!("Proposed attitude: {} {:?}; claim {}; acquisition {}; validity {}",label(&a.holder.record).unwrap_or_default(),a.attitude,describe_claim(&a.proposition),serde_json::to_value(&a.acquisition)?,serde_json::to_value(&a.validity)?)),
+                Payload::EpistemicAttitude(a) => {if let universe_domain::scope::EvidenceBasis::AuthorDecision{note}=&a.basis {summary.push(format!("Explicit author knowledge decision: {note}; attributed knowledge only, no objective fact asserted"));} summary.push(format!("Proposed attitude: {} {:?}; claim {}; acquisition {}; validity {}",label(&a.holder.record).unwrap_or_default(),a.attitude,describe_claim(&a.proposition),serde_json::to_value(&a.acquisition)?,serde_json::to_value(&a.validity)?));},
                 Payload::Unit(d) => summary.push(format!("Author unit declaration: {}; dimension {}; symbol {}; no conversion declared",d.key,d.dimension,d.symbol)),
                 Payload::Property(d) => summary.push(format!("Proposed property: {}; values {:?}; persistence {:?}",d.key,d.multiplicity,d.persistence)),
                 Payload::ActionDefinition(d) => summary.push(format!("Author action declaration: {}",super::writing_connected::plain_action(d,&label))),
+                Payload::Rule(d) if d.knowledge_policy.is_some()=>{let policy=d.knowledge_policy.as_ref().unwrap();summary.push(format!("Author knowledge policy: {}; selected context {}; mode {:?}; no automatic understanding or objective truth",d.key,label(&policy.context.record).unwrap_or_else(||"selected context".into()),policy.mode));},
+                Payload::Rule(d) if d.channel_chronology.is_some()=>{let channel=d.channel_chronology.as_ref().unwrap();summary.push(format!("Author channel policy: {}; channel {}; forward-only {}; minimum delay {:?}; maximum delay {:?} authored ticks",d.key,channel.channel,channel.forward_only,channel.minimum_delay,channel.maximum_delay));},
                 Payload::Rule(d) => {
                     let targets:Vec<_>=d.target_predicates.iter().map(|key|records.iter().find_map(|r| if let Payload::Property(p)=&r.payload { (format!("{}:{}",p.namespace,p.key)==*key).then(||p.key.clone()) }else{None}).unwrap_or_else(||"unresolved property".into())).collect();
                     let scope=match &d.applicability { Applicability::UniverseWide=>json!("universe"),Applicability::Worlds{world_ids}=>json!({"worlds":world_ids.iter().filter_map(|w|RecordId::parse(&w.as_str().replacen("wld_","rec_",1)).ok().and_then(|id|label(&id))).collect::<Vec<_>>()}),_=>json!("unresolved") };

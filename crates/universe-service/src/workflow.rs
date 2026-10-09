@@ -922,6 +922,17 @@ impl Workflow<'_> {
             &p.proposal.base_frame,
         )?;
         for changed in p.changes.iter().filter_map(|c| c.next.as_ref()) {
+            if let Payload::EpistemicAttitude(attitude) = &changed.payload {
+                if !p.author_origin
+                    && attitude.attitude == EpistemicAttitudeKind::Knows
+                    && attitude
+                        .acquisition
+                        .as_ref()
+                        .is_some_and(|a| matches!(a.basis, KnowledgeBasis::AuthorEstablished))
+                {
+                    return Err(ProtocolError::PolicyDenied{message:"Author-established knowledge requires actual author-origin establishment; inline evidence or ordinary approval cannot manufacture it.".into()}.into());
+                }
+            }
             if let Payload::IssueDecision(decision) = &changed.payload {
                 if !p.author_origin
                     || decision.principal.as_str()

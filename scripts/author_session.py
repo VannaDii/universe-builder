@@ -347,6 +347,18 @@ class AuthorDecisions:
                     "label":"Author selected passage", "text":self.session.last_passage})
                 self.publish_key = "author-publish:" + uuid.uuid4().hex
             self.show_review()
+        elif command == "/establish-knowledge":
+            self.review, self.publish_key = None, None
+            chosen = json.loads(rest)
+            rationale = chosen.pop("rationale")
+            contexts = [args["context_id"] for name, args, result in self.session.tool_calls
+                if name == "universe_check_changes" and args.get("context_id") and not result.get("isError")]
+            if not contexts:
+                raise ValueError("Check the writing in a selected context before explicitly establishing knowledge.")
+            self.review = self.action({"action":"establish_knowledge", "context_id":contexts[-1],
+                "declaration":chosen, "rationale":rationale, "label":"Author knowledge decision", "text":self.session.last_passage})
+            self.publish_key = "author-publish:" + uuid.uuid4().hex
+            self.show_review()
         elif command == "/reject":
             candidate = self.review["candidate"]["proposal_id"] if self.review else self.candidate()
             self.action({"action":"reject", "candidate":candidate})
@@ -385,7 +397,7 @@ class AuthorDecisions:
             self.published(receipt, arguments["candidate"])
             return receipt
         else:
-            raise ValueError("Commands: /review, /review-contracts, /approve, /retry, /recover TOKEN, /reject, /accept FINDING RESOURCE_SCOPE reason, /quit.")
+            raise ValueError("Commands: /review, /review-contracts, /establish-knowledge JSON, /approve, /retry, /recover TOKEN, /reject, /accept FINDING RESOURCE_SCOPE reason, /quit.")
 
     def published(self, receipt, candidate):
         result = receipt.get("result", {})

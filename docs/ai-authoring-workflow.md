@@ -516,9 +516,10 @@ Use an explicit context `knowledgePolicy` on a blocking rule to choose
 with its truth context and exact authored time. Direct author establishment uses
 its distinct typed basis and an attributable author decision. Justified receipt
 names a communication and an explicit interpreted proposition; provide an actual
-holder recipient, content, receipt and matching channel chronology rule. The
-service checks supported truth at acquisition and acquisition before or at knowledge
-onset. Receipt alone does not infer understanding, and false belief stays belief.
+holder recipient, content, receipt and matching channel chronology rule. For justified receipt, the
+service checks supported truth at acquisition. Both modes check acquisition before
+or at knowledge onset; author establishment attributes knowledge without
+establishing objective truth. Receipt alone does not infer understanding, and false belief stays belief.
 
 Unknown truth, interpretation, policy or comparable clocks stays unresolved;
 refuted acquisition cannot be approved into publication. Correct earlier facts
@@ -689,7 +690,7 @@ missing lifetime is not an invented stock interval. An explicit `at_tick` suppli
 authored scene time on the selected context's declared calendar, including when
 the research frame is timeless; no missing tick defaults to the current time. Interpretation alone never
 establishes knowledge. The ordinary path supports justified communication receipt;
-author-established knowledge still needs its separate actual author decision.
+author-established knowledge requires the separate private author decision described below.
 
 Private source preparation admits these factual operation kinds, preserves
 `source_anchor` evidence on assertions/attitudes/corrections and `event_effect`
@@ -713,3 +714,22 @@ ordinary `/review` cannot adopt them. Validation rechecks affected authored
 instances and events, impact remains bounded to the engine's dependency coverage,
 and pinned older revisions remain readable. Revisions do not repair later actions
 automatically.
+
+`knowledge_policies` declares the selected context's `author_established` or
+`justified` knowledge mode, or a channel's explicit forward-only and minimum/
+maximum tick delays. Private contract review and exact approval publish these
+existing policies; no timing, recipients, understanding or truth is inferred.
+Justified acquisition continues to require the existing interpreted receipt path.
+
+The author may explicitly choose `/establish-knowledge JSON` with `holder`,
+`claim` (subject/property/value), `at_tick`, `lifetime`, optional `world`, and
+`rationale`. It uses the already-selected writing context, rejects stale contexts,
+and requires an author-established policy. The private `establish_knowledge`
+action creates the existing authored acquisition with an actual AuthorDecision
+basis. This changes attributed knowledge only; it does not establish the claim as
+objective truth. The existing justified mode separately requires objective truth
+and receipt. Exact source bytes are staged in the same reviewed proposal; the attitude's
+decision basis is preserved rather than replaced with a source anchor. There is
+no direct per-attitude source anchor for this decision. Separate `/approve` is
+still required. The calling model cannot invoke this private decision; ordinary
+review/approval cannot turn its acquisition request into authored knowledge.

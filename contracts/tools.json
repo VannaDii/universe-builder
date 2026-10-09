@@ -2165,7 +2165,7 @@
   },
   {
     "name": "universe_check_changes",
-    "description": "Check plain factual deltas from author writing against pinned canon. Resolve existing objects by their exact visible names; introduce new identities only explicitly. Preserve dialogue, beliefs, plans, hypothetical and figurative claims as non-objective. The engine constructs canonical records, creates a provisional candidate, validates it and inspects impact. It returns a candidate handle, findings and material clarifications; it never approves or publishes. Scope/time/ownership ambiguities remain unresolved. Named definitions introduce reusable types/parent relationships/shared attributes; classification introduces or refines an instance without replacing identity. Shared attributes never become initial stock. definitions.initial_values declare starting candidates, which must be approved before explicit initializations select their opaque handles. Each initialization requires an explicit occurred start using a declared action/participants/time/world, or a retrieved pinned occurred-event handle, and an authored interval. First mention, classification and restart never initialize or refill. event_corrections use pinned occurred-event handles and changed named fields; omitted fields retain canon. Participants explicitly replace all bindings; empty requires_knowledge explicitly clears direct Knows preconditions. Effects are recalculated from authored contracts, never editable stock facts. Manual effects outside declared slots require advanced correction. Later events are checked but never automatically rewritten. New scalar properties impose no single-value constraint; explicit properties declare type, multiplicity and persistence without revising existing definitions. definition_corrections revise named type ancestry/applicability without reclassifying instances; an explicit root parent removes ancestry. action_corrections replace only supplied requirements/effects/applicability or explicit tick plus lifetime; omitted fields retain canon. Both require private contract review, preserve history and recheck affected instances/events. Supplied action lists replace the complete selected field; custom legacy effect slots require advanced editing. Shared attribute values use pinned factual correction handles. Named actions support role/property/value requirements, set or bounded integer-delta effects and authored lifetimes. Constraints support resource_accounting or no_opposing_evidence. Contracts require separate private author declaration review and exact approval. Explicit quantities use {amount,unit} with exact authored numbers and named units. Quantity properties require a unit. Visible unit metadata is returned by read_contracts; explicit no-conversion unit declarations require private contract review. Never infer dimension, symbol, unit conversion or physics. Quantity deltas require integer amounts/bounds with the exact declared unit; decimal resource arithmetic remains unsupported. Existing authored property semantics and resource accounting remain enforced.",
+    "description": "Check plain factual deltas from author writing against pinned canon. Resolve existing objects by their exact visible names; introduce new identities only explicitly. Preserve dialogue, beliefs, plans, hypothetical and figurative claims as non-objective. The engine constructs canonical records, creates a provisional candidate, validates it and inspects impact. It returns a candidate handle, findings and material clarifications; it never approves or publishes. Scope/time/ownership ambiguities remain unresolved. Named definitions introduce reusable types/parent relationships/shared attributes; classification introduces or refines an instance without replacing identity. Shared attributes never become initial stock. definitions.initial_values declare starting candidates, which must be approved before explicit initializations select their opaque handles. Each initialization requires an explicit occurred start using a declared action/participants/time/world, or a retrieved pinned occurred-event handle, and an authored interval. First mention, classification and restart never initialize or refill. event_corrections use pinned occurred-event handles and changed named fields; omitted fields retain canon. Participants explicitly replace all bindings; empty requires_knowledge explicitly clears direct Knows preconditions. Effects are recalculated from authored contracts, never editable stock facts. Manual effects outside declared slots require advanced correction. Later events are checked but never automatically rewritten. New scalar properties impose no single-value constraint; explicit properties declare type, multiplicity and persistence without revising existing definitions. definition_corrections revise named type ancestry/applicability without reclassifying instances; an explicit root parent removes ancestry. action_corrections replace only supplied requirements/effects/applicability or explicit tick plus lifetime; omitted fields retain canon. Both require private contract review, preserve history and recheck affected instances/events. Supplied action lists replace the complete selected field; custom legacy effect slots require advanced editing. Shared attribute values use pinned factual correction handles. Named actions support role/property/value requirements, set or bounded integer-delta effects and authored lifetimes. Constraints support resource_accounting or no_opposing_evidence. knowledge_policies explicitly declare author_established or justified mode on the selected context, or named channel forward/delay timing; no delivery or understanding is inferred. Contracts require separate private author declaration review and exact approval. Author-established knows remains held until the separate private establish_knowledge decision selecting holder/claim/time/lifetime/rationale and exact author approval; neither source review nor generic approval creates the decision. Explicit quantities use {amount,unit} with exact authored numbers and named units. Quantity properties require a unit. Visible unit metadata is returned by read_contracts; explicit no-conversion unit declarations require private contract review. Never infer dimension, symbol, unit conversion or physics. Quantity deltas require integer amounts/bounds with the exact declared unit; decimal resource arithmetic remains unsupported. Existing authored property semantics and resource accounting remain enforced.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "CheckChanges",
@@ -2240,6 +2240,14 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/WritingConstraint"
+          },
+          "default": []
+        },
+        "knowledge_policies": {
+          "description": "Explicit context knowledge modes or communication chronology; private contract review required.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingKnowledgePolicy"
           },
           "default": []
         },
@@ -3011,6 +3019,75 @@
                 "scope"
               ]
             }
+          ]
+        },
+        "WritingKnowledgePolicy": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "mode": {
+                  "$ref": "#/$defs/KnowledgeMode"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "knowledge"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "name",
+                "mode"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "string"
+                },
+                "forward_only": {
+                  "type": "boolean"
+                },
+                "minimum_delay": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "maximum_delay": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "channel"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "name",
+                "channel",
+                "forward_only"
+              ]
+            }
+          ]
+        },
+        "KnowledgeMode": {
+          "type": "string",
+          "enum": [
+            "author_established",
+            "justified"
           ]
         },
         "WritingInitialization": {

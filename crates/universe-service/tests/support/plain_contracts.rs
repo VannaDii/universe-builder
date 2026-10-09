@@ -778,3 +778,215 @@ async fn ordinary_quantities_keep_exact_authored_units_and_history() {
     stop.cancel();
     server.await.unwrap().unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn ordinary_knowledge_policies_and_explicit_author_decision() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("install");
+    let author = runtime::initialize(&root).unwrap();
+    let stop = CancellationToken::new();
+    let (r, s) = (root.clone(), stop.clone());
+    let server = tokio::spawn(async move { runtime::serve(&r, s).await });
+    let mut c = connect(&root, &author).await;
+    let u = c
+        .call(EngineRequest::CreateUniverse {
+            name: "Alpha".into(),
+            start: universe_domain::chronology::UniverseStart::Fictional {
+                calendar_name: "Days".into(),
+                initial_tick: "0".into(),
+                tick_label: "days".into(),
+                ticks_per_month: None,
+            },
+        })
+        .await
+        .unwrap();
+    let ctx = context(&mut c, &u, "Alpha").await;
+    let setup=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":ctx,"changes":[{"name":"Holder","introduce":true},{"name":"Office","introduce":true,"facts":[{"property":"code","value":"green","scope":"universe","at_tick":"0","lifetime":{"kind":"until_changed"}},{"property":"locked","value":true,"negated":true,"scope":"universe","at_tick":"0","lifetime":{"kind":"until_changed"}}]}],"actions":[{"name":"open","introduce":true,"scope":"universe"}],"knowledge_policies":[{"kind":"knowledge","name":"Authored knowledge","mode":"author_established"},{"kind":"channel","name":"Radio timing","channel":"radio","forward_only":true,"minimum_delay":"0","maximum_delay":"10"}]}))).await.unwrap();
+    assert_eq!(setup["result"]["status"], "checked_candidate", "{setup}");
+    let candidate: ProposalId =
+        serde_json::from_value(setup["result"]["candidate_handle"].clone()).unwrap();
+    assert!(c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::Prepare {
+                candidate: candidate.clone(),
+                label: "policy".into(),
+                text: "Declared policy".into()
+            }
+        })
+        .await
+        .is_err());
+    let review=c.call(EngineRequest::AuthorWriting{universe:Selector("Alpha".into()),action:AuthorWritingAction::PrepareContracts{candidate,label:"policy".into(),text:"The author explicitly establishes knowledge in this context. Radio receipt takes zero to ten forward ticks.".into()}}).await.unwrap();
+    assert_eq!(review["publishable"], true, "{review}");
+    c.call(EngineRequest::AuthorWriting {
+        universe: Selector("Alpha".into()),
+        action: AuthorWritingAction::Publish {
+            candidate: serde_json::from_value(review["candidate"].clone()).unwrap(),
+            validation_run: serde_json::from_value(
+                review["validation"]["execution"]["run_id"].clone(),
+            )
+            .unwrap(),
+            idempotency_key: "knowledge-policy".into(),
+        },
+    })
+    .await
+    .unwrap();
+    let agent: ProfileId =
+        serde_json::from_value(c.call(EngineRequest::Enroll).await.unwrap()["profile_id"].clone())
+            .unwrap();
+    c.call(EngineRequest::Grant {
+        grant: GrantSpec {
+            profile_id: agent.clone(),
+            universe_id: serde_json::from_value(u["universe_id"].clone()).unwrap(),
+            worlds: None,
+            propose: true,
+            edit: true,
+            protected: true,
+            limits: GrantLimits {
+                allow_shared: true,
+                ..Default::default()
+            },
+        },
+    })
+    .await
+    .unwrap();
+    let mut a = connect(&root, &agent).await;
+    let selected = context(&mut a, &u, "Alpha").await;
+    let ordinary=a.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":selected,"attitudes":[{"holder":"Holder","claim":{"subject":"Office","property":"code","value":"green"},"attitude":"knows","at_tick":"1","lifetime":{"kind":"until_changed"}}]}))).await.unwrap();
+    assert_eq!(ordinary["result"]["status"], "needs_clarification");
+    assert!(ordinary["result"]["candidate_handle"].is_null());
+    let declaration=serde_json::from_value(json!({"holder":"Holder","claim":{"subject":"Office","property":"code","value":"green"},"at_tick":"1","lifetime":{"kind":"until","end_tick":"10"}})).unwrap();
+    let decision=EngineRequest::AuthorWriting{universe:Selector("Alpha".into()),action:AuthorWritingAction::EstablishKnowledge{context_id:serde_json::from_value(selected.clone()).unwrap(),declaration,rationale:"I explicitly establish that Holder knows this code from tick one through before ten.".into(),label:"Author knowledge".into(),text:"Holder knows the office code is green during that interval.".into()}};
+    assert!(a.call(decision.clone()).await.is_err());
+    let established = c.call(decision.clone()).await.unwrap();
+    assert_eq!(established["publishable"], true, "{established}");
+    assert_eq!(
+        c.call(decision).await.unwrap()["candidate"],
+        established["candidate"]
+    );
+    let raw=c.call(tool("universe_get_proposal",json!({"universe":"Alpha","proposal_id":established["candidate"]["proposal_id"],"version":established["candidate"]["version"]}))).await.unwrap();
+    let mut invented = raw["result"]["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|op| op["kind"] == "add_belief")
+        .unwrap()
+        .clone();
+    invented["client_ref"] = json!("rec_999999999999999999999999");
+    let forged=a.call(tool("universe_propose",json!({"action":"create","universe":"Alpha","context_id":selected,"operations":[invented],"submission":"submitted","rationale":"Agent inline author decision is not a private author establishment.","idempotency_key":"forged-knowledge"}))).await.unwrap()["result"].clone();
+    let forged_validation=a.call(tool("universe_validate",json!({"mode":"proposal","universe":"Alpha","context_id":selected,"proposal_reference":reference(&forged),"check_scope":"universe"}))).await;
+    assert!(
+        forged_validation
+            .as_ref()
+            .is_err_and(|e| e.to_string().contains("author-origin")),
+        "{forged_validation:?}"
+    );
+    let forged_publication = c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::Publish {
+                candidate: reference(&forged),
+                validation_run: serde_json::from_value(
+                    established["validation"]["execution"]["run_id"].clone(),
+                )
+                .unwrap(),
+                idempotency_key: "forged-knowledge-publish".into(),
+            },
+        })
+        .await;
+    assert!(forged_publication.is_err(),"Agent-authored knowledge must not publish through ordinary approval: {forged_publication:?}");
+    invented["client_ref"] = json!("rec_888888888888888888888888");
+    let draft=a.call(tool("universe_propose",json!({"action":"create","universe":"Alpha","context_id":selected,"operations":[invented],"submission":"draft","rationale":"Unsubmitted inline author decision","idempotency_key":"raw-knowledge-draft"}))).await.unwrap()["result"].clone();
+    let raw_prepare = c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::Prepare {
+                candidate: serde_json::from_value(draft["proposal_id"].clone()).unwrap(),
+                label: "Agent's request".into(),
+                text: "An agent supplies inline author basis.".into(),
+            },
+        })
+        .await;
+    assert!(
+        raw_prepare
+            .as_ref()
+            .is_err_and(|e| e.to_string().contains("Source preparation")),
+        "{raw_prepare:?}"
+    );
+    let before=a.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":selected,"events":[{"action":"open","participants":{"actor":"Holder"},"at_tick":"2","requires_knowledge":[{"holder":"Holder","claim":{"subject":"Office","property":"code","value":"green"}}]}]}))).await.unwrap();
+    assert_ne!(before["result"]["status"], "checked_candidate", "{before}");
+    c.call(EngineRequest::AuthorWriting {
+        universe: Selector("Alpha".into()),
+        action: AuthorWritingAction::Publish {
+            candidate: serde_json::from_value(established["candidate"].clone()).unwrap(),
+            validation_run: serde_json::from_value(
+                established["validation"]["execution"]["run_id"].clone(),
+            )
+            .unwrap(),
+            idempotency_key: "author-knows".into(),
+        },
+    })
+    .await
+    .unwrap();
+    let fresh = context(&mut a, &u, "Alpha").await;
+    let after=a.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":fresh,"events":[{"action":"open","participants":{"actor":"Holder"},"at_tick":"2","requires_knowledge":[{"holder":"Holder","claim":{"subject":"Office","property":"code","value":"green"}}]}]}))).await.unwrap();
+    assert_eq!(after["result"]["status"], "checked_candidate", "{after}");
+    let expired=a.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":fresh,"events":[{"action":"open","participants":{"actor":"Holder"},"at_tick":"11","requires_knowledge":[{"holder":"Holder","claim":{"subject":"Office","property":"code","value":"green"}}]}]}))).await.unwrap();
+    assert_ne!(
+        expired["result"]["status"], "checked_candidate",
+        "{expired}"
+    );
+    // An author-established attitude does not assert its content as objective truth.
+    let contrary=c.call(EngineRequest::AuthorWriting{universe:Selector("Alpha".into()),action:AuthorWritingAction::EstablishKnowledge{context_id:serde_json::from_value(fresh.clone()).unwrap(),declaration:serde_json::from_value(json!({"holder":"Holder","claim":{"subject":"Office","property":"locked","value":true},"at_tick":"2","lifetime":{"kind":"until_changed"}})).unwrap(),rationale:"I explicitly establish this attitude, without changing the objective locked evidence.".into(),label:"Separate attitude".into(),text:"Holder is attributed knowledge that the office is locked; objective narration still refutes that claim.".into()}}).await.unwrap();
+    assert_eq!(contrary["publishable"], true, "{contrary}");
+    c.call(EngineRequest::AuthorWriting {
+        universe: Selector("Alpha".into()),
+        action: AuthorWritingAction::Publish {
+            candidate: serde_json::from_value(contrary["candidate"].clone()).unwrap(),
+            validation_run: serde_json::from_value(
+                contrary["validation"]["execution"]["run_id"].clone(),
+            )
+            .unwrap(),
+            idempotency_key: "attributed-not-objective".into(),
+        },
+    })
+    .await
+    .unwrap();
+    let head = context(&mut a, &u, "Alpha").await;
+    let truth = a
+        .call(tool(
+            "universe_read_facts",
+            json!({"universe":"Alpha","context_id":head,"object_names":["Office"]}),
+        ))
+        .await
+        .unwrap();
+    assert!(
+        truth["result"]["objects"][0]["facts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["property"] == "locked" && f["value"] == true && f["state"] == "refuted"),
+        "{truth}"
+    );
+    assert!(
+        !truth["result"]["objects"][0]["facts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["property"] == "locked" && f["value"] == true && f["state"] == "supported"),
+        "{truth}"
+    );
+    let read = a
+        .call(tool(
+            "universe_read_contracts",
+            json!({"universe":"Alpha","context_id":fresh}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(
+        read["result"]["knowledge_policies"][0]["mode"], "author_established",
+        "{read}"
+    );
+    stop.cancel();
+    server.await.unwrap().unwrap();
+}

@@ -132,6 +132,9 @@ pub struct CheckChanges {
     /// Finite supported policies. Separate private author contract review is required before publication.
     #[serde(default)]
     pub constraints: Vec<WritingConstraint>,
+    /// Explicit context knowledge modes or communication chronology; private contract review required.
+    #[serde(default)]
+    pub knowledge_policies: Vec<WritingKnowledgePolicy>,
     /// Apply selected approved initial values once at an explicitly occurred instance start.
     #[serde(default)]
     pub initializations: Vec<WritingInitialization>,
@@ -472,4 +475,31 @@ pub struct WritingActionCorrection {
     pub at_tick: Option<String>,
     #[serde(default)]
     pub lifetime: Option<FactLifetime>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum WritingKnowledgePolicy {
+    Knowledge {
+        name: String,
+        mode: universe_domain::records::KnowledgeMode,
+    },
+    Channel {
+        name: String,
+        channel: String,
+        forward_only: bool,
+        minimum_delay: Option<String>,
+        maximum_delay: Option<String>,
+    },
+}
+/// Private author-selected knowledge declaration, not an agent acquisition or an implied consequence.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AuthorKnowledgeDeclaration {
+    pub holder: String,
+    pub claim: WritingClaim,
+    pub at_tick: String,
+    pub lifetime: FactLifetime,
+    #[serde(default)]
+    pub world: Option<String>,
 }

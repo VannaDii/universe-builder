@@ -157,6 +157,7 @@ impl Workflow<'_> {
             && input.constraints.is_empty()
             && input.action_corrections.is_empty()
             && input.definition_corrections.is_empty()
+            && input.knowledge_policies.is_empty()
         {
             return Ok(());
         }
@@ -290,6 +291,7 @@ impl Workflow<'_> {
                     lifetime: patch.lifetime.clone().unwrap_or(FactLifetime::Unspecified),
                 }];
                 declaration.constraints.clear();
+                declaration.knowledge_policies.clear();
                 declaration.action_corrections.clear();
                 declaration.definition_corrections.clear();
                 let mut generated = vec![];
@@ -394,6 +396,45 @@ impl Workflow<'_> {
                 Err(e) => result.clarifications.push(e.to_string()),
             }
         }
+        for policy in &input.knowledge_policies {
+            let build = || -> anyhow::Result<Value> {
+                let name = match policy {
+                    WritingKnowledgePolicy::Knowledge { name, .. }
+                    | WritingKnowledgePolicy::Channel { name, .. } => name,
+                };
+                if name.trim().is_empty() || rows.iter().any(|r|matches!(&r.payload,Payload::Rule(d)if d.key==*name||d.labels.values().any(|n|n==name))) {anyhow::bail!("Explicitly declare a uniquely named knowledge/communication policy; revisions require advanced review.");}
+                let mut rule = json!({"namespace":"authoring","key":name,"labels":{},"kind":"physical_constraint","commitPolicy":"always_block","applicability":{"kind":"universe_wide"},"subjectTypes":[],"targetPredicates":[],"expression":{"kind":"lit","value":true},"executable":true,"validity":{"kind":"unspecified"}});
+                match policy {
+                    WritingKnowledgePolicy::Knowledge { mode, .. } => {
+                        rule["knowledgePolicy"] = json!({"context":ctx.frame.context,"mode":mode});
+                        rule["capabilities"] = json!([crate::knowledge::CAPABILITY]);
+                    }
+                    WritingKnowledgePolicy::Channel {
+                        channel,
+                        forward_only,
+                        minimum_delay,
+                        maximum_delay,
+                        ..
+                    } => {
+                        rule["channelChronology"] = json!({"channel":channel,"forwardOnly":forward_only,"minimumDelay":minimum_delay,"maximumDelay":maximum_delay});
+                        rule["capabilities"] = json!([crate::communications::CAPABILITY]);
+                    }
+                }
+                let r: Rule = serde_json::from_value(rule.clone())?;
+                crate::knowledge::validate_rule(&r)?;
+                crate::communications::validate_rule(&r)?;
+                Ok(
+                    json!({"kind":"define_rule","client_ref":RecordId::generate(&mut rand::rng()),"record":r}),
+                )
+            };
+            match build() {
+                Ok(op) => {
+                    ops.push(op);
+                    result.additions.push("Explicit knowledge/communication policy; separate author contract review required.".into());
+                }
+                Err(e) => result.clarifications.push(e.to_string()),
+            }
+        }
         for c in &input.constraints {
             let (name, key, scope) = match c {
                 WritingConstraint::ResourceAccounting {
@@ -457,7 +498,7 @@ impl Workflow<'_> {
     }
 }
 
-fn validity(
+pub(super) fn validity(
     time: &universe_domain::temporal::TemporalExpression,
     lifetime: &FactLifetime,
 ) -> anyhow::Result<universe_domain::scope::Validity> {
@@ -501,4 +542,11 @@ pub(super) fn supported_policy(r: &Rule) -> bool {
                     predicate,
                     context: universe_domain::expr::Operand::Record { .. }
                 } if predicate == &r.target_predicates[0]))
+}
+
+pub(super) fn supported_knowledge_policy(r: &Rule) -> bool {
+    (r.knowledge_policy.is_some() || r.channel_chronology.is_some())
+        && crate::knowledge::validate_rule(r).is_ok()
+        && crate::communications::validate_rule(r).is_ok()
+        && r.relation_cardinality.is_none()
 }

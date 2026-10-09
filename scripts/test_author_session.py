@@ -180,6 +180,22 @@ class AuthorDecisionTests(unittest.TestCase):
         controller.show_review()
         self.assertIn("Impact unresolved: coverage unavailable; affected dependencies may be incomplete.",output)
 
+    def test_knowledge_decision_is_private_explicit_and_not_published(self):
+        import json
+        controller,session,calls,_=self.controller()
+        session.tool_calls=[("universe_check_changes",{"context_id":"selected"},{"isError":False})]
+        session.last_check={"clarifications":["Explicit author decision needed"],"candidate_handle":None}
+        controller.action=lambda args: calls.append(args) or {"candidate":{"proposal_id":"knowledge-candidate","digest":"exact"},"publishable":False,"summary":[]}
+        original=copy.deepcopy(session.messages)
+        controller.handle('/establish-knowledge '+json.dumps({"holder":"Reader","claim":{"subject":"Door","property":"code","value":"blue"},"at_tick":"2","lifetime":{"kind":"until_changed"},"rationale":"My explicit decision"}))
+        self.assertEqual(calls[0]["action"],"establish_knowledge")
+        self.assertEqual(calls[0]["context_id"],"selected")
+        self.assertEqual(calls[0]["text"],session.last_passage)
+        self.assertEqual(calls[0]["rationale"],"My explicit decision")
+        self.assertEqual(session.messages,original)
+        self.assertNotIn("publish",[c["action"] for c in calls])
+        with self.assertRaises(ValueError):controller.handle("/approve")
+
     def test_contract_declaration_review_is_explicit_and_approval_is_separate(self):
         controller,session,calls,_=self.controller()
         session.last_check={"candidate_handle":"contract-candidate","clarifications":[]}
