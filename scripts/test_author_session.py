@@ -319,10 +319,19 @@ class ConnectedWritingTests(unittest.TestCase):
                 updated=client.call("universe_read_facts",{"universe":"Story","context_id":after,"object_names":["Courtyard"]})["result"]["objects"][0]
                 self.assertTrue(any(f["property"]=="locked" and f["value"] is True and f["state"]=="supported" for f in updated["facts"]))
                 self.assertTrue(any(e["action"]=="knock" for e in updated["occurred_events"]))
+                current_locked=next(f for f in updated["facts"] if f["property"]=="locked")
+                self.assertNotEqual(current_locked["fact_handle"],locked["fact_handle"])
+                stale_fact=check(after,corrections=[correction])
+                self.assertEqual(stale_fact["status"],"needs_clarification",stale_fact)
+                for field in ("candidate_handle","validation","impact"):
+                    self.assertIsNone(stale_fact[field],stale_fact)
+                current_correction=check(after,corrections=[{"fact_handle":current_locked["fact_handle"],"value":False,"reason":"An explicit correction uses the newly researched version."}])
+                self.assertEqual(current_correction["status"],"checked_candidate",current_correction)
                 historical=context(5,{"kind":"exact","revision_id":action_revision})
                 old=client.call("universe_read_facts",{"universe":"Story","context_id":historical,"object_names":["Courtyard"]})["result"]["objects"][0]
                 self.assertTrue(any(f["property"]=="locked" and f["value"] is False and f["state"]=="supported" for f in old["facts"]))
                 self.assertTrue(any(e["action"]=="enter" for e in old["occurred_events"]))
+                self.assertEqual(next(f for f in old["facts"] if f["property"]=="locked")["fact_handle"],locked["fact_handle"])
                 expired=check(context(),events=[{"action":"knock","participants":{"place":"Courtyard"},"at_tick":"11","requires_knowledge":[{"holder":"Mara","claim":claim}]}])
                 self.assertNotEqual(expired["status"],"checked_candidate",expired)
                 self.assertEqual(expired["validation"]["kind"],"evaluated",expired)

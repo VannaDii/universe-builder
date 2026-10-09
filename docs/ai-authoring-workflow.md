@@ -731,7 +731,14 @@ available. Draft save/recovery, review, validation, approval and publication use
 the same workflow throughout.
 
 The ordinary writing tools also accept occurred actions, attributed messages,
-separate epistemic attitudes, and corrections to pinned authored fact handles.
+separate epistemic attitudes, and corrections to pinned authored
+assertion-version handles.
+
+An edit handle identifies the exact authored assertion version. After a correction,
+retrieve its new handle; opening a fresh context does not make an old handle editable.
+Historical research retains the original handle and facts. Generated event facts
+remain non-editable; correct their authored event instead.
+
 `universe_read_contracts` presents visible action roles, requirements and effects,
 knowledge policies, channel chronology and attributed communications. Event
 balances use the existing consequence evaluator; callers supply factual intent,

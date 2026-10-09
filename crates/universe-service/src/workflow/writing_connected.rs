@@ -454,9 +454,11 @@ impl Workflow<'_> {
                 }
                 let row = base
                     .iter()
-                    .find(|r| r.identity.record_id.as_str() == correction.fact_handle)
+                    .find(|r| r.record_version_id.as_str() == correction.fact_handle)
                     .ok_or_else(|| {
-                        anyhow::anyhow!("Retrieve the exact pinned authored fact to correct")
+                        anyhow::anyhow!(
+                            "Retrieve the current pinned authored fact handle before editing it"
+                        )
                     })?;
                 let Payload::Assertion(old) = &row.payload else {
                     anyhow::bail!("Correction handle is not an authored assertion")

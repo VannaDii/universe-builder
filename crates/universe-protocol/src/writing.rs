@@ -326,7 +326,7 @@ pub struct WritingAttitude {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct WritingCorrection {
-    /// Opaque authored fact handle returned by plain factual research. Generated event facts cannot be corrected directly.
+    /// Opaque authored assertion-version handle returned by plain factual research. Retrieve the current handle after a correction; generated event facts cannot be corrected directly.
     pub fact_handle: String,
     pub value: FactValue,
     pub reason: String,
@@ -468,7 +468,7 @@ pub enum WritingInstanceStart {
 #[serde(deny_unknown_fields)]
 pub struct WritingInitialization {
     pub instance: String,
-    /// Selected approved initial-value handles from universe_read_facts. No value overrides.
+    /// Selected approved assertion-version handles from universe_read_facts initial-value candidates. No value overrides.
     pub initial_value_handles: Vec<String>,
     pub start: WritingInstanceStart,
     /// universe or an authored world name; no inferred jurisdiction.

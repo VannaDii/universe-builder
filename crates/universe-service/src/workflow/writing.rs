@@ -897,7 +897,7 @@ impl Workflow<'_> {
                             .collect::<Vec<_>>()
                             .join(", "),
                     };
-                    let item = json!({"fact_handle":if assertion.established_by.is_none(){Some(row.record.identity.record_id.to_string())}else{None},"property":property.key,"value":value,"state":outcome,"group":group,"scope":scope,"time":plain_time(&serde_json::to_value(&assertion.validity)?,&label),"unknowns":row.unknowns,"value_type":serde_json::to_value(&property.value)?["kind"],"unit":match proposition.value.as_ref(){Some(universe_domain::value::Value::Quantity{unit,..})=>unit.to_record_id().ok().and_then(|id|label(&id)),_=>None},"unsupported_plain_value":value.is_none(),"multiple_values_allowed":property.multiplicity==universe_domain::records::Multiplicity::Multiple,"exclusive":property.exclusive});
+                    let item = json!({"fact_handle":if assertion.established_by.is_none(){Some(row.record.record_version_id.to_string())}else{None},"property":property.key,"value":value,"state":outcome,"group":group,"scope":scope,"time":plain_time(&serde_json::to_value(&assertion.validity)?,&label),"unknowns":row.unknowns,"value_type":serde_json::to_value(&property.value)?["kind"],"unit":match proposition.value.as_ref(){Some(universe_domain::value::Value::Quantity{unit,..})=>unit.to_record_id().ok().and_then(|id|label(&id)),_=>None},"unsupported_plain_value":value.is_none(),"multiple_values_allowed":property.multiplicity==universe_domain::records::Multiplicity::Multiple,"exclusive":property.exclusive});
                     if group == "initial_candidate" {
                         initial.push(item)
                     } else if group == "shared" {

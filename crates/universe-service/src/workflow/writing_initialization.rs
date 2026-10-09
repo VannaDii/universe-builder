@@ -91,7 +91,7 @@ impl Workflow<'_> {
                     end,
                 };
                 for handle in &request.initial_value_handles {
-                    let source=base.iter().find(|r|r.identity.record_id.as_str()==handle).ok_or_else(||anyhow::anyhow!("Publish and retrieve the approved initial-value definition before initialization."))?;
+                    let source=base.iter().find(|r|r.record_version_id.as_str()==handle).ok_or_else(||anyhow::anyhow!("Publish and retrieve the approved initial-value definition before initialization."))?;
                     if !matches!(&source.payload,Payload::Assertion(a)if a.attribute_mode==AttributeMode::InitialValue)
                     {
                         anyhow::bail!(
