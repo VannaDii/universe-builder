@@ -407,6 +407,26 @@ class ConnectedWritingTests(unittest.TestCase):
                 self.assertIsNone(ambiguous["candidate_handle"])
                 historical=client.call("universe_read_facts",{"universe":"Story","context_id":context(11,{"kind":"exact","revision_id":alias_revision}),"object_names":["Garden"]})["result"]["objects"]
                 self.assertEqual(historical[0]["facts"],aliased[0]["facts"])
+                names=[{"object":"Mara","text":"Red Fox"},{"object":"Leon","text":"Silver Fox"},{"object":"Key","text":"Golden Key"}]
+                named_revision=publish(check(context(),aliases=names),"Mara is Red Fox; Leon is Silver Fox; the key is Golden Key. These aliases establish no communication or knowledge.","connected-relationship-aliases")
+                joint=next(r for r in client.call("universe_read_contracts",{"universe":"Story","context_id":context(25)})["result"]["relationships"] if r["subject"]=="Key")
+                patch={"relationship_handle":joint["relationship_handle"],"participants":{"owner":["Silver Fox"]},"reason":"The author explicitly clarifies that Leon alone owned the key during the original interval."}
+                held=check(context(25),questions=["Which established owner is intended?"],relationship_corrections=[patch])
+                self.assertEqual(held["status"],"needs_clarification",held)
+                self.assertIsNone(held["candidate_handle"]);self.assertIsNone(held["validation"]);self.assertIsNone(held["impact"])
+                publish(check(context(25),relationship_corrections=[patch]),"Author clarification: Silver Fox, meaning Leon, alone owned Golden Key from day twenty to thirty.","connected-clarified-alias-correction")
+                corrected=next(r for r in client.call("universe_read_contracts",{"universe":"Story","context_id":context(25)})["result"]["relationships"] if r["subject"]=="Key")
+                self.assertEqual(corrected["time"],joint["time"]);self.assertEqual(corrected["scope"],joint["scope"])
+                self.assertEqual([p["object"] for p in corrected["participants"] if p["role"]=="owner"],["Leon"])
+                transferred=check(context(25),relationship_endings=[{"relationship_handle":corrected["relationship_handle"],"end_tick":"25","reason":"Explicit authored transfer to Red Fox at day twenty-five."}],relationships=[{"relation":"ownership","subject":"Golden Key","participants":{"item":["Golden Key"],"owner":["Red Fox"]},"scope":"universe","at_tick":"25","lifetime":{"kind":"until","end_tick":"30"}}])
+                publish(transferred,"At day twenty-five Silver Fox's ownership ends and Red Fox, meaning Mara, owns Golden Key until day thirty.","connected-alias-transfer")
+                for tick,owner in ((24,"Leon"),(26,"Mara")):
+                    current=next(r for r in client.call("universe_read_contracts",{"universe":"Story","context_id":context(tick)})["result"]["relationships"] if r["subject"]=="Key")
+                    self.assertEqual([p["object"] for p in current["participants"] if p["role"]=="owner"],[owner])
+                    self.assertEqual([p["object"] for p in current["participants"] if p["role"]=="item"],["Key"])
+                original=next(r for r in client.call("universe_read_contracts",{"universe":"Story","context_id":context(26,{"kind":"exact","revision_id":named_revision})})["result"]["relationships"] if r["subject"]=="Key")
+                self.assertEqual({p["object"] for p in original["participants"] if p["role"]=="owner"},{"Mara","Leon"})
+
 
 
             finally:
