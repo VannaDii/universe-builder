@@ -63,6 +63,8 @@ impl Workflow<'_> {
         if input.relation_definitions.is_empty()
             && input.relation_limits.is_empty()
             && input.relationships.is_empty()
+            && input.relationship_corrections.is_empty()
+            && input.relationship_endings.is_empty()
         {
             return Ok(());
         }
@@ -126,6 +128,102 @@ impl Workflow<'_> {
                     ops.push(op);
                     rows = super::writing_connected::candidate_records(u, ctx, base, ops)?;
                     result.additions.push(format!("Author relationship limit: {}; maximum {}; private contract review required.",l.name,l.maximum));
+                }
+                Err(e) => result.clarifications.push(e.to_string()),
+            }
+        }
+        let mut edited = BTreeSet::new();
+        for correction in &input.relationship_corrections {
+            let mut build = || -> anyhow::Result<Vec<Value>> {
+                if correction.reason.trim().is_empty() {
+                    anyhow::bail!("Explain the author's relationship correction.")
+                }
+                let (record, assertion, proposition, definition) =
+                    authored(base, &correction.relationship_handle, &ctx.frame)?;
+                if !edited.insert(record.identity.record_id.clone()) {
+                    anyhow::bail!(
+                        "Submit only one correction or ending for each relationship in a delta."
+                    )
+                }
+                let mut replacement = proposition.clone();
+                for (role, participants) in &correction.participants {
+                    let def = definition
+                        .roles
+                        .iter()
+                        .find(|r| &r.name == role)
+                        .ok_or_else(|| {
+                            anyhow::anyhow!("'{role}' is not a declared role of this relationship.")
+                        })?;
+                    if def.multiplicity == Multiplicity::Single && participants.len() > 1 {
+                        anyhow::bail!("Role '{role}' permits only one participant per occurrence.")
+                    }
+                    replacement.roles.retain(|r| &r.role != role);
+                    for name in participants {
+                        replacement.roles.push(PropositionRole {
+                            role: role.clone(),
+                            participant: RecordRef::new(
+                                u.clone(),
+                                object(&rows, name, &ctx.frame)?,
+                            ),
+                        });
+                    }
+                }
+                if replacement == *proposition {
+                    return Ok(vec![]);
+                }
+                let id = RecordId::generate(&mut rand::rng());
+                let mut next = assertion.clone();
+                next.proposition = RecordRef::new(u.clone(), id.clone());
+                next.basis = universe_domain::scope::EvidenceBasis::ImportedClaim;
+                Ok(vec![
+                    json!({"kind":"define_proposition","client_ref":id,"record":replacement}),
+                    json!({"kind":"supersede_assertion","record":{"universe":u,"record":record.identity.record_id},"expected_version":record.record_version_id,"replacement":next,"rationale":correction.reason}),
+                ])
+            };
+            match build() {
+                Ok(changes) if changes.is_empty() => result
+                    .unchanged
+                    .push("Relationship participants unchanged.".into()),
+                Ok(changes) => {
+                    ops.extend(changes);
+                    rows = super::writing_connected::candidate_records(u, ctx, base, ops)?;
+                    result.additions.push(format!(
+                        "Authored relationship participant correction: {}",
+                        correction.reason
+                    ));
+                }
+                Err(e) => result.clarifications.push(e.to_string()),
+            }
+        }
+        for ending in &input.relationship_endings {
+            let mut build = || -> anyhow::Result<Value> {
+                if ending.reason.trim().is_empty() {
+                    anyhow::bail!("Explain the author's relationship ending.")
+                }
+                let (record, assertion, _, _) =
+                    authored(base, &ending.relationship_handle, &ctx.frame)?;
+                if !edited.insert(record.identity.record_id.clone()) {
+                    anyhow::bail!(
+                        "Submit only one correction or ending for each relationship in a delta."
+                    )
+                }
+                let universe_domain::scope::Validity::CalendarInterval { calendar, .. } =
+                    &assertion.validity
+                else {
+                    anyhow::bail!("Ending requires an authored calendar interval; instant or unspecified relationships require explicit historical correction.")
+                };
+                Ok(
+                    json!({"kind":"end_assertion_at","record":{"universe":u,"record":record.identity.record_id},"expected_version":record.record_version_id,"at":{"kind":"exact","calendar":calendar,"value":ending.end_tick},"basis":{"kind":"imported_claim"}}),
+                )
+            };
+            match build() {
+                Ok(op) => {
+                    ops.push(op);
+                    rows = super::writing_connected::candidate_records(u, ctx, base, ops)?;
+                    result.additions.push(format!(
+                        "Authored relationship ends at {}: {}",
+                        ending.end_tick, ending.reason
+                    ));
                 }
                 Err(e) => result.clarifications.push(e.to_string()),
             }
@@ -201,4 +299,63 @@ impl Workflow<'_> {
         }
         Ok(())
     }
+}
+
+pub(super) fn correctable(a: &Assertion) -> bool {
+    a.established_by.is_none() && a.attribute_mode == AttributeMode::Instance
+}
+fn authored<'a>(
+    rows: &'a [RecordVersion],
+    handle: &str,
+    frame: &Frame,
+) -> anyhow::Result<(
+    &'a RecordVersion,
+    &'a Assertion,
+    &'a Proposition,
+    &'a RelationDef,
+)> {
+    let missing = || {
+        anyhow::anyhow!(
+            "Retrieve the current pinned authored relationship handle before editing it."
+        )
+    };
+    let record = rows
+        .iter()
+        .find(|r| r.record_version_id.as_str() == handle)
+        .ok_or_else(missing)?;
+    let Payload::Assertion(a) = &record.payload else {
+        return Err(missing());
+    };
+    if !correctable(a) || a.scope.context != frame.context {
+        return Err(missing());
+    }
+    let p = rows
+        .iter()
+        .find_map(|r| {
+            if r.identity.record_id == a.proposition.record {
+                if let Payload::Proposition(p) = &r.payload {
+                    Some(p)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .ok_or_else(missing)?;
+    let d = rows
+        .iter()
+        .find_map(|r| {
+            if r.identity.record_id == p.predicate.record {
+                if let Payload::Relation(d) = &r.payload {
+                    Some(d)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .ok_or_else(missing)?;
+    Ok((record, a, p, d))
 }

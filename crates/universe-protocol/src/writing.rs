@@ -144,6 +144,12 @@ pub struct CheckChanges {
     /// Objective named relationship deltas using actual declared roles and authored participants.
     #[serde(default)]
     pub relationships: Vec<WritingRelationship>,
+    /// Correct only supplied participant roles on a pinned authored relationship; omitted roles and original scope/time remain unchanged.
+    #[serde(default)]
+    pub relationship_corrections: Vec<WritingRelationshipCorrection>,
+    /// Explicit exclusive end of an authored interval relationship; distinct from historical participant correction.
+    #[serde(default)]
+    pub relationship_endings: Vec<WritingRelationshipEnding>,
     /// Explicit context knowledge modes or communication chronology; private contract review required.
     #[serde(default)]
     pub knowledge_policies: Vec<WritingKnowledgePolicy>,
@@ -592,4 +598,21 @@ pub struct WritingRelationship {
     #[serde(default = "objective")]
     #[schemars(with = "StatementIntent")]
     pub statement: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingRelationshipCorrection {
+    pub relationship_handle: String,
+    /// Changed roles only; each supplied list replaces that role. [] explicitly clears it; omitted roles stay unchanged.
+    pub participants: std::collections::BTreeMap<String, Vec<String>>,
+    pub reason: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingRelationshipEnding {
+    pub relationship_handle: String,
+    /// Exclusive end on the relationship's original authored interval calendar. No clock conversion.
+    pub end_tick: String,
+    pub reason: String,
 }

@@ -382,6 +382,9 @@ impl Workflow<'_> {
                     _ => true,
                 };
             }
+            if let DomainOperation::EndAssertionAt { record, expected_version, .. } = op {
+                return !originals.iter().any(|r| r.identity.record_id==record.record && &r.record_version_id==expected_version && matches!(&r.payload,Payload::Assertion(a) if super::writing_relations::correctable(a) && originals.iter().any(|p|p.identity.record_id==a.proposition.record && matches!(&p.payload,Payload::Proposition(p) if originals.iter().any(|d|d.identity.record_id==p.predicate.record && matches!(d.payload,Payload::Relation(_)))))));
+            }
             if let DomainOperation::SetCompleteness { record, .. } = op {
                 return !contracts
                     || !matches!(record.completeness, CompletenessKind::ObjectiveReality);
@@ -418,6 +421,7 @@ impl Workflow<'_> {
                     | DomainOperation::RecordEvent { .. }
                     | DomainOperation::RecordCommunication { .. }
                     | DomainOperation::AddBelief { .. }
+                    | DomainOperation::EndAssertionAt { .. }
                     | DomainOperation::SupersedeAssertion { .. }
             )
         }) {
@@ -467,6 +471,9 @@ impl Workflow<'_> {
                 | DomainOperation::RecordRelation { assertion, .. } => {
                     assertion.basis = basis.clone()
                 }
+                DomainOperation::EndAssertionAt {
+                    basis: end_basis, ..
+                } => *end_basis = basis.clone(),
                 DomainOperation::SupersedeAssertion { replacement, .. } => {
                     replacement.basis = basis.clone()
                 }

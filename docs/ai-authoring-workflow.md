@@ -813,5 +813,18 @@ counted participants leave applicable engine checks unresolved, never certified.
 polarity/scope/time; occurrence values are omitted in restricted perspectives.
 Temporal queries omit inactive occurrences; historical contexts retain their
 pinned revision. These are authored claims, not inferred relationship truth.
-Relation corrections and definition revisions remain advanced operations. This
-ordinary path provides no scoped waivers or automatic downstream repair.
+Authored instance relationship occurrences expose an opaque immutable-version
+`relationship_handle`; generated facts and restricted occurrences do not.
+`relationship_corrections` takes that handle, a reason and changed participant
+roles. Each supplied list replaces that role; `[]` explicitly clears it. Omitted
+roles, subject, relation, scope and validity remain unchanged. These are historical
+corrections, not transfers inferred from new evidence.
+
+`relationship_endings` takes a current handle, reason and exclusive `end_tick` on
+the original authored interval calendar. Instants and unspecified validity cannot
+be ended through this finite path. An explicit end plus a new occurrence in one
+delta can record a transfer; overlap still fails authored maxima. Private factual
+review stages exact author source and approval. Historical revisions preserve
+previous participants/intervals; stale version handles require fresh retrieval.
+Relationship definition revisions remain advanced. No scoped waiver or automatic
+downstream rewrite is provided.

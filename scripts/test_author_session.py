@@ -327,6 +327,34 @@ class ConnectedWritingTests(unittest.TestCase):
                 self.assertNotEqual(expired["status"],"checked_candidate",expired)
                 self.assertEqual(expired["validation"]["kind"],"evaluated",expired)
                 self.assertTrue(any(f["outcome"] in {"refuted","conflicting","not_established"} for f in expired["validation"]["execution"]["findings"]),expired)
+                relationships=client.call("universe_read_contracts",{"universe":"Story","context_id":context()})["result"]["relationships"]
+                original=next(r for r in relationships if r["subject"]=="Key")["relationship_handle"]
+                new_owner={"relation":"ownership","subject":"Key","participants":{"item":["Key"],"owner":["Leon"]},"scope":"universe","at_tick":"10","lifetime":{"kind":"until","end_tick":"20"}}
+                overlapping=check(context(),relationships=[new_owner])
+                self.assertEqual(overlapping["status"],"conflict",overlapping)
+                transfer=check(context(),relationship_endings=[{"relationship_handle":original,"end_tick":"10","reason":"Mara's ownership ends at the explicitly authored transfer."}],relationships=[new_owner])
+                transfer_revision=publish(transfer,"At day ten Mara's ownership of the key ends and Leon owns it until day twenty.","connected-transfer")
+                transferred=context()
+                stale=check(transferred,relationship_endings=[{"relationship_handle":original,"end_tick":"9","reason":"An old handle must not edit the newer relationship."}])
+                self.assertIsNone(stale["candidate_handle"],stale)
+                self.assertEqual(stale["status"],"needs_clarification")
+                rows=client.call("universe_read_contracts",{"universe":"Story","context_id":context(15)})["result"]["relationships"]
+                current_owner=next(r for r in rows if r["subject"]=="Key")
+                self.assertTrue(any(p["role"]=="owner" and p["object"]=="Leon" for p in current_owner["participants"]))
+                correction=check(context(),relationship_corrections=[{"relationship_handle":current_owner["relationship_handle"],"participants":{"owner":["Mara"]},"reason":"The historical recipient was Mara rather than Leon."}])
+                publish(correction,"The author corrects the recorded day-ten recipient to Mara; the key and interval are unchanged.","connected-owner-correction")
+                rows=client.call("universe_read_contracts",{"universe":"Story","context_id":context(15)})["result"]["relationships"]
+                corrected_owner=next(r for r in rows if r["subject"]=="Key")
+                self.assertEqual(corrected_owner["scope"],current_owner["scope"])
+                self.assertEqual(corrected_owner["time"],current_owner["time"])
+                self.assertTrue(any(p["role"]=="owner" and p["object"]=="Mara" for p in corrected_owner["participants"]))
+                self.assertTrue(any(p["role"]=="item" and p["object"]=="Key" for p in corrected_owner["participants"]))
+                old=client.call("universe_read_contracts",{"universe":"Story","context_id":context(15,{"kind":"exact","revision_id":transfer_revision})})["result"]["relationships"]
+                self.assertTrue(any(p["role"]=="owner" and p["object"]=="Leon" for r in old for p in r["participants"]))
+                ended=check(context(),relationship_endings=[{"relationship_handle":corrected_owner["relationship_handle"],"end_tick":"15","reason":"The relationship explicitly ends at day fifteen."}])
+                publish(ended,"Mara's ownership of the key ends at day fifteen.","connected-owner-ending")
+                final=client.call("universe_read_contracts",{"universe":"Story","context_id":context(16)})["result"]["relationships"]
+                self.assertFalse(any(r["subject"]=="Key" for r in final),final)
             finally:
                 if client: client.close()
                 cli("shutdown",profile=author)
