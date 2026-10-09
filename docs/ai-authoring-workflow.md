@@ -239,7 +239,14 @@ between passages exits. The model uses the installed tokenizer's native tool cal
 with canonical serving instructions and ordinary public MCP tools. It researches
 pinned canon, then sends only plain factual deltas to `universe_check_changes`.
 `universe_read_facts` returns named effective facts, exact property names, conflicts,
-unknowns and authored clock metadata from the existing pinned state engine.
+unknowns and authored clock metadata from the existing pinned state engine. Its optional
+`world` selects an exact authored world; omission does not infer a world from the
+universe name. Story-time reads retain the selected calendar, tick and revision,
+including flashbacks. Old revision views remain readable; new changes and publication
+never silently rebase them to the current head.
+Canon changes require an explicitly selected authorized author-perspective context.
+Character, narrator and reader contexts remain restricted research views; all change
+requests from those views return the same neutral held result before identity lookup.
 A successfully checked candidate ends the checking turn immediately; the session
 returns the actual backend result without waiting for another model response.
 The session renders actual checking results, including proposed additions, exclusions,

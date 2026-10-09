@@ -173,6 +173,14 @@ pub struct WritingCheck {
 pub struct ReadFacts {
     pub universe: Selector,
     pub context_id: ContextId,
+    /// Explicit authored world name; absence does not select or infer a world.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::request::present"
+    )]
+    #[schemars(with = "crate::request::Selector")]
+    pub world: Option<String>,
     /// Exact instance or reusable definition names to research. A missing or ambiguous match remains explicit.
     #[schemars(length(min = 1, max = 100))]
     pub object_names: Vec<String>,

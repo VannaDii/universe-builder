@@ -990,3 +990,227 @@ async fn ordinary_knowledge_policies_and_explicit_author_decision() {
     stop.cancel();
     server.await.unwrap().unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn ordinary_perspective_changes_do_not_reveal_hidden_identities() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("install");
+    let author = runtime::initialize(&root).unwrap();
+    let stop = CancellationToken::new();
+    let (r, s) = (root.clone(), stop.clone());
+    let server = tokio::spawn(async move { runtime::serve(&r, s).await });
+    let mut c = connect(&root, &author).await;
+    let u = c
+        .call(EngineRequest::CreateUniverse {
+            name: "Alpha".into(),
+            start: universe_domain::chronology::UniverseStart::Fictional {
+                calendar_name: "Days".into(),
+                initial_tick: "0".into(),
+                tick_label: "days".into(),
+                ticks_per_month: None,
+            },
+        })
+        .await
+        .unwrap();
+    let ctx = context(&mut c, &u, "Alpha").await;
+    let id = |n| format!("rec_{n:024x}");
+    let rr = |n| json!({"universe":u["universe_id"],"record":id(n)});
+    admit(&mut c,&ctx,vec![entity("Mara",&id(101)),entity("Hidden citizen",&id(102)),json!({"kind":"record_narrative_reference","client_ref":id(103),"record":"represented_context","payload":{"record_kind":"represented_context","universe":u["universe_id"],"kind":{"kind":"character","holder":rr(101)},"labels":{}}})],"perspective-setup").await;
+    let opened=c.call(tool("universe_open_context",json!({"universe":"Alpha","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":id(103),"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":{"character":id(101)}}))).await.unwrap();
+    let selected = opened["result"]["context_id"].clone();
+    let read = c
+        .call(tool(
+            "universe_read_facts",
+            json!({"universe":"Alpha","context_id":selected,"object_names":["Hidden citizen"]}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(read["result"]["objects"][0]["identity"], "not_found");
+    let check = c
+        .call(tool(
+            "universe_check_changes",
+            json!({"universe":"Alpha","context_id":selected,"changes":[{"name":"Hidden citizen"}]}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(check["result"]["status"], "needs_clarification", "{check}");
+    assert!(check["result"]["candidate_handle"].is_null());
+    let absent=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":selected,"changes":[{"name":"Never authored"}],"properties":[{"name":"Secret guessed key","value_type":"text","single_value":false,"persistence":"unspecified"}]}))).await.unwrap();
+    assert_eq!(
+        check["result"], absent["result"],
+        "Hidden and absent identities/fields must produce the same neutral held result."
+    );
+    assert!(check["result"]["validation"].is_null() && check["result"]["impact"].is_null());
+    let contracts = c
+        .call(tool(
+            "universe_read_contracts",
+            json!({"universe":"Alpha","context_id":selected}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(contracts["result"]["coverage"], "restricted", "{contracts}");
+    stop.cancel();
+    server.await.unwrap().unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn ordinary_world_flashback_and_stale_publication_keep_exact_frames() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("install");
+    let author = runtime::initialize(&root).unwrap();
+    let stop = CancellationToken::new();
+    let (r, s) = (root.clone(), stop.clone());
+    let server = tokio::spawn(async move { runtime::serve(&r, s).await });
+    let mut c = connect(&root, &author).await;
+    let u = c
+        .call(EngineRequest::CreateUniverse {
+            name: "Alpha".into(),
+            start: universe_domain::chronology::UniverseStart::Fictional {
+                calendar_name: "Days".into(),
+                initial_tick: "0".into(),
+                tick_label: "days".into(),
+                ticks_per_month: None,
+            },
+        })
+        .await
+        .unwrap();
+    let ctx = context(&mut c, &u, "Alpha").await;
+    let clock=c.call(tool("universe_get",json!({"universe":"Alpha","context_id":ctx,"record_ids":[u["context_id"]],"field_groups":[]}))).await.unwrap();
+    let cal = clock["result"]["records"][0]["payload"]["chronology"]["calendar"].clone();
+    let id = |n| format!("rec_{n:024x}");
+    let rr = |n| json!({"universe":u["universe_id"],"record":id(n)});
+    let mut traveler = entity("Traveler", &id(101));
+    traveler["record"]["worldAssociations"] = json!([{"world":format!("wld_{:024x}",130),"role":"setting","validity":{"kind":"unspecified"},"qualifiers":{}}]);
+    let mut hidden = entity("Lunar resident", &id(102));
+    hidden["record"]["worldAssociations"] = json!([{"world":format!("wld_{:024x}",131),"role":"setting","validity":{"kind":"unspecified"},"qualifiers":{}}]);
+    let fact = |n, world, value: &str, start: &str, end: &str| json!({"kind":"assert_proposition","client_ref":id(n),"proposition":{"subject":rr(101),"predicate":rr(103),"value":{"kind":"text","text":value},"context":{"universe":u["universe_id"],"record":u["context_id"]},"quantification":"particular"},"assertion":{"attributeMode":"instance","proposition":rr(n),"polarity":"support","scope":{"context":{"universe":u["universe_id"],"record":u["context_id"]},"applicability":{"kind":"worlds","world_ids":[format!("wld_{world:024x}")]}},"validity":{"kind":"calendar_interval","calendar":cal,"start":{"kind":"exact","value":start},"end":{"kind":"exact","value":end}},"persistence":"explicit_interval","precision":"exact","basis":{"kind":"author_decision","note":"Explicit scoped timeline"}}});
+    admit(&mut c,&ctx,vec![world("Terra",&id(130)),world("Luna",&id(131)),traveler,hidden,json!({"kind":"define_property","client_ref":id(103),"record":{"namespace":"story","key":"colour","labels":{},"subjectTypes":[],"value":{"kind":"text"},"multiplicity":"multiple","persistence":"explicit_interval","exclusive":false,"symmetric":false,"transitive":false}}),fact(110,130,"old red","0","5"),fact(112,130,"present blue","5","20"),fact(114,131,"lunar silver","0","20")],"scoped-timeline").await;
+    let open = |revision: Value, tick: &str| {
+        tool(
+            "universe_open_context",
+            json!({"universe":"Alpha","continuity_id":u["continuity_id"],"revision":revision,"represented_context":u["context_id"],"temporal_query":{"kind":"at","time":{"kind":"exact","calendar":cal,"value":tick}},"temporal_systems":[],"perspective":"author"}),
+        )
+    };
+    let flash = c.call(open(json!({"kind":"head"}), "2")).await.unwrap();
+    let now = c.call(open(json!({"kind":"head"}), "6")).await.unwrap();
+    let read = |context: &Value, world: &str| {
+        tool(
+            "universe_read_facts",
+            json!({"universe":"Alpha","context_id":context,"world":world,"object_names":["Traveler"]}),
+        )
+    };
+    let old = c
+        .call(read(&flash["result"]["context_id"], "Terra"))
+        .await
+        .unwrap();
+    let current = c
+        .call(read(&now["result"]["context_id"], "Terra"))
+        .await
+        .unwrap();
+    let lunar = c
+        .call(read(&now["result"]["context_id"], "Luna"))
+        .await
+        .unwrap();
+    let supported = |r: &Value, value: &str| {
+        r["result"]["objects"][0]["facts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["property"] == "colour" && f["value"] == value && f["state"] == "supported")
+    };
+    assert!(supported(&old, "old red"), "{old}");
+    assert!(!supported(&old, "present blue"));
+    assert!(supported(&current, "present blue"), "{current}");
+    assert!(supported(&lunar, "lunar silver"), "{lunar}");
+    assert_eq!(old["world_focus"], format!("wld_{:024x}", 130));
+    assert!(
+        c.call(read(&now["result"]["context_id"], "Alpha"))
+            .await
+            .is_err(),
+        "Universe name must not imply a world."
+    );
+    let edit=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":flash["result"]["context_id"],"changes":[{"name":"Traveler","facts":[{"property":"remembered","value":true,"scope":"Terra","when":"scene","lifetime":{"kind":"until","end_tick":"3"}}]}]}))).await.unwrap();
+    assert_eq!(edit["result"]["status"], "checked_candidate", "{edit}");
+    let review = c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::Prepare {
+                candidate: serde_json::from_value(edit["result"]["candidate_handle"].clone())
+                    .unwrap(),
+                label: "Flashback".into(),
+                text: "At tick two in Terra the Traveler remembered.".into(),
+            },
+        })
+        .await
+        .unwrap();
+    assert_eq!(review["publishable"], true, "{review}");
+    let fresh = context(&mut c, &u, "Alpha").await;
+    let advance=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":fresh,"changes":[{"name":"Witness","introduce":true}]}))).await.unwrap();
+    publish_plain(
+        &mut c,
+        &advance,
+        "A new witness is established.",
+        "advance-head",
+    )
+    .await;
+    let stale = c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::Publish {
+                candidate: serde_json::from_value(review["candidate"].clone()).unwrap(),
+                validation_run: serde_json::from_value(
+                    review["validation"]["execution"]["run_id"].clone(),
+                )
+                .unwrap(),
+                idempotency_key: "stale-flashback".into(),
+            },
+        })
+        .await;
+    assert!(stale.is_err());
+    let retained = c
+        .call(read(&flash["result"]["context_id"], "Terra"))
+        .await
+        .unwrap();
+    assert!(supported(&retained, "old red"));
+    assert_eq!(retained["frame"]["revision"], old["frame"]["revision"]);
+    let historical=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":flash["result"]["context_id"],"changes":[{"name":"Traveler","facts":[{"property":"another memory","value":true,"scope":"Terra","when":"scene"}]}]}))).await;
+    assert!(
+        historical.is_err(),
+        "Old revision must not silently rebase a new candidate."
+    );
+    let agent: ProfileId =
+        serde_json::from_value(c.call(EngineRequest::Enroll).await.unwrap()["profile_id"].clone())
+            .unwrap();
+    c.call(EngineRequest::Grant {
+        grant: GrantSpec {
+            profile_id: agent.clone(),
+            universe_id: serde_json::from_value(u["universe_id"].clone()).unwrap(),
+            worlds: Some(vec![WorldId::parse(&format!("wld_{:024x}", 130)).unwrap()]),
+            propose: true,
+            edit: true,
+            protected: true,
+            limits: GrantLimits {
+                allow_shared: true,
+                ..Default::default()
+            },
+        },
+    })
+    .await
+    .unwrap();
+    let mut a = connect(&root, &agent).await;
+    let selected = a.call(open(json!({"kind":"head"}), "6")).await.unwrap();
+    let scoped = a
+        .call(read(&selected["result"]["context_id"], "Terra"))
+        .await
+        .unwrap();
+    assert_eq!(scoped["result"]["coverage"], "restricted");
+    assert!(!scoped.to_string().contains("lunar silver"));
+    assert!(a
+        .call(read(&selected["result"]["context_id"], "Luna"))
+        .await
+        .is_err());
+    let unseen=a.call(tool("universe_read_facts",json!({"universe":"Alpha","context_id":selected["result"]["context_id"],"world":"Terra","object_names":["Lunar resident"]}))).await.unwrap();
+    assert_eq!(unseen["result"]["objects"][0]["identity"], "not_found");
+    stop.cancel();
+    server.await.unwrap().unwrap();
+}

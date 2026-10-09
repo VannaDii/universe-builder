@@ -7,6 +7,9 @@ impl Workflow<'_> {
     pub(super) fn check_writing_changes(&mut self, input: CheckChanges) -> anyhow::Result<Value> {
         let ctx = self.context(&input.context_id)?;
         let args = serde_json::to_value(&input)?;
+        if !matches!(ctx.frame.perspective, Perspective::Author) {
+            return self.wrap(&args,Some(ctx.frame),None,true,None,json!(WritingCheck{status:"needs_clarification".into(),candidate_handle:None,additions:vec![],unchanged:vec![],clarifications:vec!["Canon changes require an explicitly selected authorized author-perspective context; this restricted view is research only.".into()],excluded:vec![],unknowns:vec![],validation:None,impact:None}));
+        }
         let base = self
             .kernel
             .records(&ctx.frame.continuity, &ctx.frame.revision)?;
@@ -740,6 +743,10 @@ impl Workflow<'_> {
             .into_iter()
             .filter(|r| visible.contains(&r.identity.record_id))
             .collect();
+        let world_focus = match &input.world {
+            Some(world) => self.focus(&json!({"world":world}), &records)?,
+            None => None,
+        };
         let label = |id: &RecordId| {
             records
                 .iter()
@@ -795,7 +802,11 @@ impl Workflow<'_> {
                 objects.push(json!({"name":name,"identity":if matches.is_empty(){"not_found"}else{"ambiguous"},"matches":matches.len(),"coverage":if self.scope.is_some() || !matches!(ctx.frame.perspective,Perspective::Author){"restricted"}else{"complete"},"facts":[],"unknowns":["No unique visible identity established; this does not introduce an object."]}));
                 continue;
             }
-            let state=self.execute(Request::from_tool("universe_get_state",json!({"universe":input.universe,"context_id":input.context_id,"entity_ids":[matches[0].identity.record_id],"predicate_filters":[]}))?)?;
+            let mut state_args = json!({"universe":input.universe,"context_id":input.context_id,"entity_ids":[matches[0].identity.record_id],"predicate_filters":[]});
+            if let Some(world) = &input.world {
+                state_args["world"] = json!(world);
+            }
+            let state = self.execute(Request::from_tool("universe_get_state", state_args)?)?;
             let state: State = serde_json::from_value(state["result"].clone())?;
             let object = state.objects.first().ok_or_else(denied)?;
             let mut facts = vec![];
@@ -901,7 +912,7 @@ impl Workflow<'_> {
             }else{None}).collect();
             objects.push(json!({"name":name,"identity":"resolved","kind":if matches!(matches[0].payload,Payload::EntityType(_)){"definition"}else{"instance"},"classification":object.ancestry.first().and_then(|r|label(&r.identity.record_id)),"ancestry":object.ancestry.iter().filter_map(|r|label(&r.identity.record_id)).collect::<Vec<_>>(),"ancestry_complete":object.ancestry_complete,"facts":facts,"occurred_events":occurred_events,"inherited_attributes":inherited,"initial_value_candidates":initial,"coverage":object.coverage,"unknowns":object.unknowns,"state_coverage":state.coverage,"limitations":state.unsupported_capabilities}));
         }
-        self.wrap(&args,Some(ctx.frame.clone()),None,true,None,json!({"objects":objects,"clocks":clocks,"research_time":plain_time(&serde_json::to_value(&ctx.frame.time)?,&label),"coverage":if self.scope.is_some() || !matches!(ctx.frame.perspective,Perspective::Author){"restricted"}else{"bounded"},"limitation":"Plain projection of existing effective evidence; absence is unknown, initial candidates are not current facts, and bounded evidence is not universal prose completeness."}))
+        self.wrap(&args,Some(ctx.frame.clone()),world_focus,true,None,json!({"objects":objects,"clocks":clocks,"research_time":plain_time(&serde_json::to_value(&ctx.frame.time)?,&label),"coverage":if self.scope.is_some() || !matches!(ctx.frame.perspective,Perspective::Author){"restricted"}else{"bounded"},"limitation":"Plain projection of existing effective evidence; absence is unknown, initial candidates are not current facts, and bounded evidence is not universal prose completeness."}))
     }
 }
 
