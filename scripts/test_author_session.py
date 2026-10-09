@@ -489,6 +489,28 @@ class ConnectedWritingTests(unittest.TestCase):
                 self.assertEqual(current_property["persistence"],"unspecified")
                 self.assertEqual(current_property["value_type"],"text")
                 self.assertTrue(property_settings(context(None,{"kind":"exact","revision_id":continued}))["single_value"])
+                # A property approval cannot survive a changed head; restart recovery keeps its original key.
+                staged=decisions.action({"action":"prepare_contracts","candidate":check(context(),property_corrections=[{"name":"code","persistence":"until_changed","reason":"Explicit continuing future values."}])["candidate_handle"],"label":"Property approval","text":"Future code values persist until changed."})
+                ref=staged["candidate"]
+                cli("approve","Story",ref["proposal_id"],str(ref["version"]),ref["digest"],staged["validation"]["execution"]["run_id"],profile=author)
+                before_advance=client.call("universe_read_contracts",{"universe":"Story","context_id":context()})["frame"]["revision"]
+                publish(check(context(),changes=[{"name":"Key","facts":[{"property":"tags","value":"yellow","scope":"universe","at_tick":"60","lifetime":{"kind":"until","end_tick":"61"}}]}]),"The key has a yellow tag from sixty until sixty-one.","connected-property-advance")
+                with self.assertRaisesRegex(RuntimeError,"approval stale"):
+                    decisions.action({"action":"publish","candidate":ref,"validation_run":staged["validation"]["execution"]["run_id"],"idempotency_key":"connected-stale-property"})
+                self.assertEqual(property_settings(context())["persistence"],"unspecified")
+                staged=decisions.action({"action":"prepare_contracts","candidate":check(context(),property_corrections=[{"name":"code","persistence":"until_changed","reason":"Fresh explicit correction after research."}])["candidate_handle"],"label":"Fresh property approval","text":"Future code values persist until changed."})
+                ref=staged["candidate"]
+                cli("approve","Story",ref["proposal_id"],str(ref["version"]),ref["digest"],staged["validation"]["execution"]["run_id"],profile=author)
+                recovery={"action":"publish","candidate":ref,"validation_run":staged["validation"]["execution"]["run_id"],"idempotency_key":"connected-property-recovery"}
+                client.close();client=None
+                cli("shutdown",profile=author)
+                decisions=AuthorDecisions(SimpleNamespace(universe="Story"),binaries/"universe",installation,author,output=lambda _:None)
+                receipt=decisions.action(recovery)
+                self.assertEqual(decisions.action(recovery)["result"],receipt["result"])
+                client=MCP(binaries/"universe-mcp",installation=installation,profile=agent)
+                self.assertEqual(property_settings(context())["persistence"],"until_changed")
+                self.assertFalse(property_settings(context())["single_value"])
+                self.assertEqual(property_settings(context(None,{"kind":"exact","revision_id":before_advance}))["persistence"],"unspecified")
 
 
 
