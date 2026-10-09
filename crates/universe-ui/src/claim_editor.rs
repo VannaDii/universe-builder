@@ -436,3 +436,161 @@ mod timer_tests {
 #[cfg(test)]
 #[path = "definition_workflow.rs"]
 mod definition_workflow;
+
+/// Correct one declared role, or explicitly end and replace this authored occurrence.
+pub(super) fn relationship_operations(
+    frame: &Frame,
+    original: &Value,
+    choices: &[Value],
+    role: &str,
+    participants: &[String],
+    reason: &str,
+    transfer: Option<(&str, Option<&universe_domain::chronology::Chronology>)>,
+) -> Result<Vec<Value>, String> {
+    let mut assertion = original["payload"].clone();
+    if assertion["record_kind"] != "assertion"
+        || !assertion["establishedBy"].is_null()
+        || assertion["attributeMode"] != "instance"
+    {
+        return Err(
+            "Select an authored instance relationship; generated effects require event correction."
+                .into(),
+        );
+    }
+    if reason.trim().is_empty() {
+        return Err("Explain this explicit relationship correction or transfer.".into());
+    }
+    let mut proposition = choices
+        .iter()
+        .find(|r| r["record_id"] == assertion["proposition"]["record"])
+        .map(|r| r["definition"].clone())
+        .ok_or("Load the pinned relationship references first.")?;
+    let definition = choices
+        .iter()
+        .find(|r| r["record_id"] == proposition["predicate"]["record"] && r["kind"] == "relation")
+        .ok_or("This assertion is not a loaded relationship.")?;
+    let declared = definition["definition"]["roles"]
+        .as_array()
+        .ok_or("Relationship roles unavailable.")?;
+    let contract = declared
+        .iter()
+        .find(|r| r["name"] == role)
+        .ok_or("Choose a declared role.")?;
+    if contract["multiplicity"] == "single" && participants.len() > 1 {
+        return Err("This role allows only one participant per occurrence.".into());
+    }
+    let roles = proposition["roles"]
+        .as_array_mut()
+        .ok_or("Relationship participant bindings unavailable.")?;
+    roles.retain(|r| r["role"] != role);
+    for id in participants {
+        let id = RecordId::parse(id).map_err(|e| e.to_string())?;
+        if !choices
+            .iter()
+            .any(|r| r["record_id"] == id.as_str() && r["kind"] == "entity")
+        {
+            return Err("Choose participants from the loaded authored entities.".into());
+        }
+        roles.push(json!({"role":role,"participant":{"universe":frame.universe,"record":id}}));
+    }
+    let id = RecordId::generate(&mut rand::rng());
+    assertion["proposition"] = json!({"universe":frame.universe,"record":id});
+    assertion["basis"] = json!({"kind":"author_decision","note":reason});
+    assertion.as_object_mut().unwrap().remove("record_kind");
+    proposition.as_object_mut().unwrap().remove("record_kind");
+    let ops = if let Some((end, clock)) = transfer {
+        if assertion["polarity"] != "support" {
+            return Err("Explicit transfers require a supported authored relationship.".into());
+        }
+        let ending = crate::inspector_editor::operation(
+            frame,
+            original,
+            "end_assertion_at",
+            end,
+            reason,
+            clock,
+        )?;
+        assertion["validity"]["start"] = json!({"kind":"exact","value":ending["at"]["value"]});
+        vec![
+            ending,
+            json!({"kind":"record_relation","client_ref":id,"proposition":proposition,"assertion":assertion}),
+        ]
+    } else {
+        vec![
+            json!({"kind":"define_proposition","client_ref":id,"record":proposition}),
+            json!({"kind":"supersede_assertion","record":{"universe":frame.universe,"record":original["identity"]["record_id"]},"expected_version":original["record_version_id"],"replacement":assertion,"rationale":reason}),
+        ]
+    };
+    ops.into_iter()
+        .map(|op| {
+            serde_json::from_value::<DomainOperation>(op)
+                .and_then(serde_json::to_value)
+                .map_err(|e| e.to_string())
+        })
+        .collect()
+}
+
+#[component]
+pub(super) fn RelationshipCorrection(
+    root: String,
+    profile: String,
+    universe: String,
+    context: Value,
+    frame: Frame,
+    original: Value,
+    clock: Option<universe_domain::chronology::Chronology>,
+    available: Vec<Value>,
+    generation: Signal<u64>,
+    disabled: bool,
+    onadd: EventHandler<Vec<Value>>,
+) -> Element {
+    let mut loaded = use_signal(Vec::<Value>::new);
+    let mut review = use_signal(Value::default);
+    let mut busy = use_signal(|| false);
+    let mut error = use_signal(String::new);
+    let mut mode = use_signal(String::new);
+    let mut role = use_signal(String::new);
+    let mut participant = use_signal(String::new);
+    let mut participants = use_signal(Vec::<String>::new);
+    let mut reason = use_signal(String::new);
+    let mut end = use_signal(String::new);
+    if !original["payload"]["establishedBy"].is_null()
+        || original["payload"]["attributeMode"] != "instance"
+    {
+        return rsx! {};
+    }
+    let mut choices = available;
+    for row in loaded() {
+        choices.retain(|r| r["record_id"] != row["record_id"]);
+        choices.push(row);
+    }
+    let proposition = choices
+        .iter()
+        .find(|r| r["record_id"] == original["payload"]["proposition"]["record"]);
+    let definition = proposition.and_then(|p| {
+        choices.iter().find(|r| {
+            r["record_id"] == p["definition"]["predicate"]["record"] && r["kind"] == "relation"
+        })
+    });
+    let declared = definition
+        .and_then(|r| r["definition"]["roles"].as_array())
+        .cloned()
+        .unwrap_or_default();
+    rsx! {details{summary{"Correct relationship participants or explicitly transfer"}
+        p{"Load this pinned assertion. Replace only one role's participants; other roles, subject, scope and history stay unchanged. An explicit transfer ends this occurrence and starts the replacement at your chosen time, retaining its original end. Nothing is ended automatically. Participant choices include loaded explorer entities; load any additional explorer pages before selecting a replacement."}
+        button{disabled:disabled||busy(),onclick:{let(root,profile,universe,context,original)=(root.clone(),profile.clone(),universe.clone(),context.clone(),original.clone());move|_|{busy.set(true);let g=generation();let(root,profile,universe,context,original)=(root.clone(),profile.clone(),universe.clone(),context.clone(),original.clone());spawn(async move{let result=crate::event_correction::load(root,profile,universe,context,&original).await;if generation()!=g{return;}match result{Ok((c,r))=>{loaded.set(c);review.set(r);error.set(String::new());},Err(e)=>error.set(e)}busy.set(false);});}},"Load relationship for correction"}
+        if !declared.is_empty() && !review().is_null(){
+            details{summary{"Related authored records and coverage"}crate::readable::ReadValue{value:review()}}
+            label{r#for:"relationship-change-mode","Explicit change"}crate::select::RichSelect{id:"relationship-change-mode",disabled,value:mode(),options:crate::select::choices(&[("","Keep relationship"),("correct","Correct historical participants"),("transfer","End and transfer at an authored time")]),onchange:move|e:crate::select::SelectionEvent|mode.set(e.value())}
+            label{r#for:"relationship-change-role","Declared role to replace"}crate::select::RichSelect{id:"relationship-change-role",disabled,value:role(),options:{let mut options=vec![crate::select::Choice::new("","Keep until role selected")];for r in &declared{if let Some(name)=r["name"].as_str(){options.push(crate::select::Choice::new(name,name));}}options},onchange:move|e:crate::select::SelectionEvent|{role.set(e.value());participants.set(vec![]);}}
+            label{r#for:"relationship-change-participant","New participant"}crate::select::RichSelect{id:"relationship-change-participant",disabled,value:participant(),options:crate::select::record_choices(&choices,&["entity"],"Choose participant"),onchange:move|e:crate::select::SelectionEvent|participant.set(e.value())}
+            button{class:"secondary",disabled:disabled||participant().is_empty(),onclick:move|_|{participants.write().push(participant());participant.set(String::new());},"Add to replacement list"}
+            ul{for (i,id) in participants().into_iter().enumerate(){li{ {choices.iter().find(|r|r["record_id"]==id).and_then(|r|r["label"].as_str()).unwrap_or("Unavailable participant").to_owned()}button{class:"secondary",disabled,onclick:move|_|{participants.write().remove(i);},"Remove"}}}}
+            p{"An empty replacement list explicitly clears only the chosen role. Ordered roles use this list order."}
+            if mode()=="transfer"{label{r#for:"relationship-transfer-time","Exclusive old end and new start"}input{id:"relationship-transfer-time",disabled,value:end,oninput:move|e|end.set(e.value())}}
+            label{r#for:"relationship-change-reason","Author reason"}textarea{id:"relationship-change-reason",disabled,value:reason,oninput:move|e|reason.set(e.value())}
+            button{disabled:disabled||busy()||mode().is_empty()||role().is_empty(),onclick:{let original=original.clone();move|_|{let end_value=end();match relationship_operations(&frame,&original,&choices,&role(),&participants(),&reason(),if mode()=="transfer"{Some((&end_value,clock.as_ref()))}else{None}){Ok(ops)=>{onadd.call(ops);error.set(String::new());},Err(e)=>error.set(e)}}},"Add explicit relationship change to draft"}
+        }
+        if !error().is_empty(){p{role:"alert","{error}"}}
+    }}
+}

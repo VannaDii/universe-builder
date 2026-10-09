@@ -121,7 +121,7 @@ pub(super) fn choices(hits: &[Value], definitions: &[Value], operations: &str) -
             id
         };
         options.retain(|o| o["record_id"] != *id);
-        options.push(json!({"kind":p["record_kind"],"record_id":id,"label":if p["record_kind"]=="communication" {super::communication_editor::label(p,id)}else{p["labels"]["en"].as_str().or_else(||p["name"].as_str()).or_else(||p["key"].as_str()).unwrap_or("Definition").to_string()},"definition":p}));
+        options.push(json!({"kind":p["record_kind"],"record_id":id,"label":if p["record_kind"]=="communication" {super::communication_editor::label(p,id)}else{p["labels"]["en"].as_str().or_else(||p["name"].as_str()).or_else(||p["key"].as_str()).or_else(||p["names"][0]["text"].as_str()).unwrap_or("Definition").to_string()},"definition":p}));
     }
     for op in serde_json::from_str::<Vec<Value>>(operations).unwrap_or_default() {
         let kind = match op["kind"].as_str().unwrap_or_default() {
@@ -329,6 +329,9 @@ pub fn AuthorApp() -> Element {
                             }
                             if inspected()["records"][0]["payload"]["record_kind"]=="event"{
                                 super::event_correction::EventCorrection{root:root(),profile:profile(),universe:selected(),context:ctx()["context_id"].clone(),frame:frame.clone(),original:inspected()["records"][0].clone(),clock:serde_json::from_value(clock_record()["payload"]["chronology"].clone()).ok(),disabled:busy(),onadd:move|added:Vec<Value>|{if let Ok(mut ops)=serde_json::from_str::<Vec<Value>>(&operations()){ops.extend(added);operations.set(serde_json::to_string(&ops).unwrap());proposal.set(Value::Null);validation.set(Value::Null);review.set(Value::Null);approved.set(false);}}}
+                            }
+                            if inspected()["records"][0]["payload"]["record_kind"]=="assertion"{
+                                super::claim_editor::RelationshipCorrection{root:root(),profile:profile(),universe:selected(),context:ctx()["context_id"].clone(),frame:frame.clone(),original:inspected()["records"][0].clone(),available:choices(&hits(),&definitions(),&operations()),generation,clock:serde_json::from_value(clock_record()["payload"]["chronology"].clone()).ok(),disabled:busy(),onadd:move|added:Vec<Value>|{if let Ok(mut ops)=serde_json::from_str::<Vec<Value>>(&operations()){ops.extend(added);operations.set(serde_json::to_string(&ops).unwrap());proposal.set(Value::Null);validation.set(Value::Null);review.set(Value::Null);approved.set(false);}}}
                             }
                             super::inspector_editor::InspectorEditor{frame,selected:inspected()["records"][0].clone(),choices:choices(&hits(),&definitions(),&operations()),clock:serde_json::from_value(clock_record()["payload"]["chronology"].clone()).ok(),disabled:busy(),onadd:move|op:Value|{let Ok(mut ops)=serde_json::from_str::<Vec<Value>>(&operations())else{status.set("The recovered draft cannot be decoded. It has been preserved.".into());return;};ops.push(op);operations.set(serde_json::to_string(&ops).unwrap());proposal.set(Value::Null);validation.set(Value::Null);review.set(Value::Null);approved.set(false);}}
                             }

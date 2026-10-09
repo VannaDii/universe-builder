@@ -776,6 +776,18 @@ Inspect an action to correct its requirements or consequence contract. **Keep**
 preserves the complete authored field. Selecting a replacement changes that entire
 field while retaining the action's identity, metadata, scope and validity. Existing
 instances and occurred events are rechecked before exact approval/publication.
+Inspect a relationship definition to change one declared role's local multiplicity,
+ordering or participant-type restrictions; other fields stay unchanged. Inspect a
+cardinality policy to change its maximum, grouping or counted role, retaining scope
+and validity. Inspect an authored relationship assertion and load its pinned
+references to replace one role's participant list, or explicitly end and transfer
+at a chosen time. The transfer enters the draft as one atomic pair of operations;
+it preserves the original scope and exclusive end. An empty replacement list
+explicitly clears the chosen role. Use loaded explorer entities as participants.
+Stage exact author source through the existing source controls and review/validate
+the complete draft before approval. Blocking findings cannot be waived. Generated
+assertions still require correction of their establishing event.
+
 The state inspector accepts instances and reusable definitions. It separates shared
 attributes, instance facts, starting candidates, initialization history, conflicts
 and unknowns. Quantity labels use only returned authored units and retain exact

@@ -275,6 +275,179 @@ async fn factual_policy_forms_recover_review_approve_and_publish() {
         .unwrap()
         .iter()
         .any(|f| f["rule_id"] == chronology["client_ref"] && f["outcome"] == "refuted"));
+    // The inspected contract controls preserve untouched metadata and publish exact revisions.
+    let opened = open(&mut c, &u).await;
+    let relation_row = read(&mut c, &opened, &json!(relation)).await;
+    let role_edit = crate::inspector_editor::contract_operation(
+        &frame,
+        &relation_row,
+        "role_ordered",
+        "successor",
+        "true",
+    )
+    .unwrap();
+    assert_eq!(
+        role_edit["replacement"]["roles"][0],
+        relation_row["payload"]["roles"][0]
+    );
+    publish(&mut c, &opened, json!([role_edit]), "native-role-edit").await;
+    let opened = open(&mut c, &u).await;
+    let limit_row = read(&mut c, &opened, &cardinality["client_ref"]).await;
+    let max_edit = crate::inspector_editor::contract_operation(
+        &frame,
+        &limit_row,
+        "relation_maximum",
+        "",
+        "1",
+    )
+    .unwrap();
+    assert_eq!(
+        max_edit["replacement"]["relationCardinality"]["scope"],
+        limit_row["payload"]["relationCardinality"]["scope"]
+    );
+    assert_eq!(
+        max_edit["replacement"]["relationCardinality"]["validity"],
+        limit_row["payload"]["relationCardinality"]["validity"]
+    );
+    publish(&mut c, &opened, json!([max_edit]), "native-maximum-edit").await;
+    let opened = open(&mut c, &u).await;
+    let claim = crate::claim_editor::Form {
+        attribute_mode: "instance".into(),
+        subject: "rec_00000000000000000000bc03".into(),
+        predicate: relation.into(),
+        kind: "relationship".into(),
+        roles: vec![
+            ("office".into(), "rec_00000000000000000000bc03".into()),
+            ("successor".into(), "rec_00000000000000000000bc04".into()),
+        ],
+        precision: "exact".into(),
+        polarity: "support".into(),
+        applicability: "worlds".into(),
+        worlds: world.replacen("rec_", "wld_", 1),
+        validity: "interval".into(),
+        start_kind: "exact".into(),
+        end_kind: "exact".into(),
+        calendar: clock.calendar.to_string(),
+        when: "0".into(),
+        until: "20".into(),
+        note: "Explicit authored successor".into(),
+        ..Default::default()
+    }
+    .build(&frame, Some(&clock))
+    .unwrap();
+    let claim = serde_json::to_value(claim).unwrap();
+    publish(&mut c, &opened, json!([claim]), "native-relationship").await;
+    let opened = open(&mut c, &u).await;
+    let hits=tool(&mut c,"universe_search",json!({"universe":"Alpha","context_id":opened["result"]["context_id"],"query":"","typed_filters":{"record_kinds":["assertion"]},"limit":100})).await;
+    let mut original = Value::Null;
+    for hit in hits["result"]["hits"].as_array().unwrap() {
+        let row = read(&mut c, &opened, &hit["record_id"]).await;
+        if row["payload"]["proposition"]["record"] == claim["client_ref"] {
+            original = row;
+        }
+    }
+    assert!(!original.is_null());
+    let prop = read(&mut c, &opened, &claim["client_ref"]).await;
+    let relation_row = read(&mut c, &opened, &json!(relation)).await;
+    let sender = read(&mut c, &opened, &json!("rec_00000000000000000000bc03")).await;
+    let recipient = read(&mut c, &opened, &json!("rec_00000000000000000000bc04")).await;
+    let selected =
+        crate::author::choices(&[], &[prop, relation_row.clone(), sender, recipient], "[]");
+    let correction = crate::claim_editor::relationship_operations(
+        &frame,
+        &original,
+        &selected,
+        "successor",
+        &["rec_00000000000000000000bc03".into()],
+        "Explicit historical correction",
+        None,
+    )
+    .unwrap();
+    assert_eq!(
+        correction[1]["replacement"]["validity"],
+        original["payload"]["validity"]
+    );
+    assert_eq!(correction[0]["record"]["roles"][0]["role"], "office");
+    publish(
+        &mut c,
+        &opened,
+        json!(correction),
+        "native-participant-correction",
+    )
+    .await;
+    let opened = open(&mut c, &u).await;
+    let original = read(&mut c, &opened, &original["identity"]["record_id"]).await;
+    let prop = read(
+        &mut c,
+        &opened,
+        &original["payload"]["proposition"]["record"],
+    )
+    .await;
+    let mut selected = selected;
+    selected.push(json!({"kind":"proposition","record_id":prop["identity"]["record_id"],"definition":prop["payload"]}));
+    let transfer = crate::claim_editor::relationship_operations(
+        &frame,
+        &original,
+        &selected,
+        "successor",
+        &["rec_00000000000000000000bc04".into()],
+        "Explicit transfer at day ten",
+        Some(("10", Some(&clock))),
+    )
+    .unwrap();
+    assert_eq!(transfer.len(), 2);
+    assert_eq!(transfer[0]["kind"], "end_assertion_at");
+    assert_eq!(transfer[1]["kind"], "record_relation");
+    let replacement = transfer[1].clone();
+    publish(
+        &mut c,
+        &opened,
+        json!(transfer),
+        "native-relationship-transfer",
+    )
+    .await;
+    let opened = open(&mut c, &u).await;
+    let ended = read(&mut c, &opened, &original["identity"]["record_id"]).await;
+    assert_eq!(ended["payload"]["validity"]["end"]["value"], "10");
+    let tightened = crate::inspector_editor::contract_operation(
+        &frame,
+        &relation_row,
+        "role_multiple",
+        "successor",
+        "single",
+    )
+    .unwrap();
+    assert_eq!(tightened["replacement"]["roles"][1]["ordered"], true);
+    let limit_row = read(&mut c, &opened, &cardinality["client_ref"]).await;
+    let invalid = crate::inspector_editor::contract_operation(
+        &frame,
+        &limit_row,
+        "relation_maximum",
+        "",
+        "0",
+    )
+    .unwrap();
+    let p=tool(&mut c,"universe_propose",json!({"action":"create","universe":"Alpha","context_id":opened["result"]["context_id"],"operations":[invalid],"submission":"submitted","rationale":"Explicit proposed tightening","idempotency_key":"native-limit-denial"})).await["result"].clone();
+    let reference =
+        json!({"proposal_id":p["proposal_id"],"version":p["version"],"digest":p["digest"]});
+    let checked=tool(&mut c,"universe_validate",json!({"mode":"proposal","universe":"Alpha","context_id":opened["result"]["context_id"],"proposal_reference":reference,"check_scope":"universe"})).await;
+    assert!(checked["result"]["execution"]["findings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|f| f["outcome"] == "refuted"));
+    assert!(c
+        .call(EngineRequest::Approve {
+            universe: universe_protocol::request::Selector("Alpha".into()),
+            proposal_reference: serde_json::from_value(reference).unwrap(),
+            validation_run: serde_json::from_value(
+                checked["result"]["execution"]["run_id"].clone()
+            )
+            .unwrap()
+        })
+        .await
+        .is_err());
+    assert!(read(&mut c, &opened, &replacement["client_ref"]).await["payload"].is_object());
     drop(c);
     stop.cancel();
     server.await.unwrap().unwrap();
@@ -300,4 +473,67 @@ fn resource_policy_requires_a_single_supported_stock_property() {
     c.last_mut().unwrap()["definition"]["multiplicity"] = json!("single");
     c.last_mut().unwrap()["definition"]["value"]["kind"] = json!("text");
     assert!(f.build("resources", &frame(), None, &c).is_err());
+}
+
+#[test]
+fn inspected_relationship_fields_preserve_other_role_and_policy_metadata() {
+    let relation = json!({"identity":{"record_id":"rec_000000000000000000000002"},"record_version_id":"ver_000000000000000000000002","payload":{"record_kind":"relation","namespace":"authored","key":"ownership","labels":{},"roles":[{"name":"item","participantTypes":[],"multiplicity":"single","ordered":false},{"name":"owner","participantTypes":["rec_000000000000000000000003"],"multiplicity":"multiple","ordered":true}]}});
+    let op = crate::inspector_editor::contract_operation(
+        &frame(),
+        &relation,
+        "role_multiple",
+        "owner",
+        "single",
+    )
+    .unwrap();
+    assert_eq!(op["expected_version"], relation["record_version_id"]);
+    assert_eq!(
+        op["replacement"]["roles"][0],
+        relation["payload"]["roles"][0]
+    );
+    assert_eq!(
+        op["replacement"]["roles"][1]["participantTypes"],
+        relation["payload"]["roles"][1]["participantTypes"]
+    );
+    assert_eq!(op["replacement"]["roles"][1]["ordered"], true);
+    assert!(crate::inspector_editor::contract_operation(
+        &frame(),
+        &relation,
+        "role_ordered",
+        "missing",
+        "true"
+    )
+    .is_err());
+    assert!(crate::inspector_editor::contract_operation(
+        &frame(),
+        &relation,
+        "role_multiple",
+        "owner",
+        ""
+    )
+    .is_err());
+    let cleared = crate::inspector_editor::contract_operation(
+        &frame(),
+        &relation,
+        "role_type_clear",
+        "owner",
+        "",
+    )
+    .unwrap();
+    assert_eq!(
+        cleared["replacement"]["roles"][1]["participantTypes"],
+        json!([])
+    );
+    assert_eq!(cleared["replacement"]["roles"][1]["ordered"], true);
+}
+
+#[test]
+fn relationship_inspector_controls_mount_without_shared_editor_ids() {
+    fn fixture() -> Element {
+        let generation = use_signal(|| 0);
+        let original = json!({"identity":{"record_id":"rec_000000000000000000000002"},"record_version_id":"ver_000000000000000000000002","payload":{"record_kind":"assertion","attributeMode":"instance"}});
+        rsx! {crate::claim_editor::RelationshipCorrection{root:"unused".to_string(),profile:"unused".to_string(),universe:"Alpha".to_string(),context:Value::Null,frame:frame(),original,clock:Some(clock()),available:vec![],generation,disabled:false,onadd:move |_|{}} crate::inspector_editor::InspectorEditor{frame:frame(),selected:json!({"payload":{"record_kind":"relation","roles":[{"name":"owner"}]}}),choices:choices(),clock:Some(clock()),disabled:false,onadd:move |_|{}}}
+    }
+    let mut dom = dioxus::core::VirtualDom::new(fixture);
+    assert!(!dom.rebuild_to_vec().edits.is_empty());
 }

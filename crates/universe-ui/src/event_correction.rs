@@ -70,7 +70,7 @@ pub(super) async fn load(
         }
         seen.extend(pending);
     }
-    let review=crate::author::send(root,profile,crate::author::tool("universe_get_context",json!({"universe":universe,"context_id":context,"focus_ids":[original["identity"]["record_id"]],"purpose":"Review event correction and affected authored dependencies","byte_budget":65536}))?).await?;
+    let review=crate::author::send(root,profile,crate::author::tool("universe_get_context",json!({"universe":universe,"context_id":context,"focus_ids":[original["identity"]["record_id"]],"purpose":"Review correction and affected authored dependencies","byte_budget":65536}))?).await?;
     Ok((crate::author::choices(&[], &records, "[]"), review))
 }
 #[component]
