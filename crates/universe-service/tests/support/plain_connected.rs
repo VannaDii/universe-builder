@@ -192,7 +192,21 @@ async fn ordinary_connected_changes_preserve_events_attribution_retcons_and_auth
         .any(|f| f["rule_id"] == id(52) && f["outcome"] == "not_established"));
     let false_claim = json!({"subject":"Office","property":"code","value":"red"});
     let true_claim = json!({"subject":"Office","property":"code","value":"green"});
-    let connected=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":at,"messages":[{"label":"Lie","from":"Sender","to":["Recipient"],"received_by":["Recipient"],"understood_by":["Recipient"],"channel":"radio","claim":false_claim},{"label":"Truth","from":"Sender","to":["Recipient"],"received_by":["Recipient"],"understood_by":["Recipient"],"channel":"radio","claim":true_claim}],"attitudes":[{"holder":"Recipient","claim":true_claim,"attitude":"knows","message":"Truth","lifetime":{"kind":"until_changed"}}],"events":[{"action":"open-office","participants":{"actor":"Recipient"},"at_tick":"6","requires_knowledge":[{"holder":"Recipient","claim":true_claim}]}]}))).await.unwrap();
+    let connected_args = json!({"universe":"Alpha","context_id":at,"messages":[{"label":"Lie","from":"Sender","to":["Recipient"],"received_by":["Recipient"],"understood_by":["Recipient"],"channel":"radio","claim":false_claim},{"label":"Truth","from":"Sender","to":["Recipient"],"received_by":["Recipient"],"understood_by":["Recipient"],"channel":"radio","claim":true_claim}],"attitudes":[{"holder":"Recipient","claim":true_claim,"attitude":"knows","message":"Truth","lifetime":{"kind":"until_changed"}}],"events":[{"action":"open-office","participants":{"actor":"Recipient"},"at_tick":"6","requires_knowledge":[{"holder":"Recipient","claim":true_claim}]}]});
+    let mut instantaneous_args = connected_args.clone();
+    instantaneous_args["attitudes"][0]["lifetime"] = json!({"kind":"unspecified"});
+    let instantaneous = c
+        .call(tool("universe_check_changes", instantaneous_args))
+        .await
+        .unwrap();
+    assert_ne!(
+        instantaneous["result"]["status"], "checked_candidate",
+        "Instant knowledge satisfied a later action: {instantaneous}"
+    );
+    let connected = c
+        .call(tool("universe_check_changes", connected_args))
+        .await
+        .unwrap();
     assert_eq!(
         connected["result"]["status"], "checked_candidate",
         "{connected}"

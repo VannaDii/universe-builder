@@ -4,6 +4,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use universe_domain::ids::ContextId;
 
+/// Ordinary JSON scalar (text string, boolean or number), or an exact object-name reference. No internal typed value wrappers; communication labels are not object identities.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
 pub enum FactValue {
@@ -65,7 +66,7 @@ fn unspecified() -> String {
 #[serde(deny_unknown_fields)]
 pub struct ObjectChange {
     pub name: String,
-    /// Explicit intent to introduce a new independent identity. False resolves existing visible canon.
+    /// Explicit author intent to introduce a new independent identity. A mention is not introduction. First resolve each name using universe_read_facts; an empty literal text search does not establish identity absence. False reuses existing visible canon.
     #[serde(default)]
     pub introduce: bool,
     #[serde(default)]
@@ -91,6 +92,7 @@ pub struct CheckChanges {
     pub corrections: Vec<WritingCorrection>,
     /// Material ambiguities identified in the writing. Any unresolved question holds the entire delta without creating a candidate.
     #[serde(default)]
+    /// Neutral material questions only. Do not propose a guessed owner/identity as fact while asking who is intended.
     pub questions: Vec<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -140,14 +142,14 @@ pub struct WritingClaim {
 pub struct WritingEvent {
     /// Exact action name returned by universe_read_contracts. Discover the contract before submitting an event; a prose verb is not necessarily its action name. Effects and balances come from that contract.
     pub action: String,
-    /// Keys are exact roles returned by that action contract; values are exact object names. Do not substitute guessed role names.
+    /// Reuse required/consequence role keys from the action contract exactly. Additional explicitly depicted narrative participants may have ordinary role labels. No declared role alone is not a missing requirement; values are exact object names.
     pub participants: std::collections::BTreeMap<String, String>,
     /// Explicit tick on the selected context's authored calendar; omit only when research pins an exact scene time.
     #[serde(default)]
     pub at_tick: Option<String>,
     #[serde(default)]
     pub world: Option<String>,
-    /// Additional knowledge explicitly required by this depicted action, never inferred physics.
+    /// Knowledge the author explicitly says this action relies on, even when the action contract has no knowledge requirement. Include its holder and exact claim so the dependency is checked at action time; omission does not check it. Never infer physics or automatic knowledge.
     #[serde(default)]
     pub requires_knowledge: Vec<WritingKnowledgeRequirement>,
 }
@@ -160,9 +162,10 @@ pub struct WritingKnowledgeRequirement {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct WritingMessage {
-    /// Local label for an explicitly depicted communication, usable by attitudes in this delta.
+    /// Local label for an explicitly depicted communication, usable by attitudes in this delta. This label does not introduce a world object.
     pub label: String,
     pub from: String,
+    /// Explicit intended recipients only; empty when no audience is established. Do not invent a recipient from the speaker.
     pub to: Vec<String>,
     /// Actual recipients, not merely intended recipients.
     pub received_by: Vec<String>,
@@ -177,6 +180,7 @@ pub struct WritingMessage {
     #[serde(default)]
     pub received_tick: Option<String>,
     #[serde(default)]
+    /// Actual distortion of the communication, not merely a deliberately false claim.
     pub distorted: bool,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -190,11 +194,12 @@ pub enum WritingAttitudeKind {
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+/// Attributed belief/knowledge belongs here, not in substitute boolean properties. Preserve an explicitly stated continuing lifetime; omitted lifetime establishes only an instant.
 pub struct WritingAttitude {
     pub holder: String,
     pub claim: WritingClaim,
     pub attitude: WritingAttitudeKind,
-    /// Local communication label or pinned opaque message handle. Knowledge requires explicit interpretation/receipt and authored policy.
+    /// Required for communication-based knows: the matching local message label from this same delta, or a retrieved opaque message handle. Links actual receipt/interpretation, not a new object or assumed knowledge.
     #[serde(default)]
     pub message: Option<String>,
     #[serde(default)]

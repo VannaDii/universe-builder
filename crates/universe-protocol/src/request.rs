@@ -950,7 +950,7 @@ pub fn tool_schemas() -> Vec<ToolSchema> {
         },
         ToolSchema {
             name: "universe_search".into(),
-            description: "Search: explicit universe required; fixture mode has no canon writes."
+            description: "Literal text search: query is one literal string, not an object-name list or inferred sentence. Resolve named objects with universe_read_facts object_names; an empty search does not establish identity absence. Search: explicit universe required; fixture mode has no canon writes."
                 .into(),
             input_schema: augment_schema(
                 serde_json::to_value(schemars::schema_for!(Search)).expect("schema"),
