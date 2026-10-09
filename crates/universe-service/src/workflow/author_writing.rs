@@ -124,6 +124,7 @@ impl Workflow<'_> {
                             | DomainOperation::AssertProposition { .. }
                             | DomainOperation::DefineProposition { .. }
                             | DomainOperation::InitializeInstance { .. }
+                            | DomainOperation::ReviseEvent { .. }
                             | DomainOperation::RecordEvent { .. }
                             | DomainOperation::RecordCommunication { .. }
                             | DomainOperation::AddBelief { .. }

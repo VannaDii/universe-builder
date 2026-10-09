@@ -41,7 +41,7 @@ pub(super) fn object(records: &[RecordVersion], name: &str, frame: &Frame) -> Op
         .collect();
     (ids.len() == 1).then(|| ids.into_iter().next().unwrap())
 }
-fn claim(
+pub(super) fn claim(
     u: &UniverseId,
     records: &[RecordVersion],
     frame: &Frame,
@@ -135,7 +135,7 @@ pub(super) fn time(
     )
 }
 
-fn define(
+pub(super) fn define(
     operations: &mut Vec<Value>,
     u: &UniverseId,
     p: &Proposition,

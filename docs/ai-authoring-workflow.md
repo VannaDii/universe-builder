@@ -317,6 +317,19 @@ refill by initialization, including after renaming or classification refinement.
 Values are taken from exact approved definitions; callers cannot override them.
 Missing, conflicting, unapproved or inapplicable sources remain unresolved.
 
+`event_corrections` accepts a pinned `occurred_events.handle`, author reason and
+changed action, tick, world, participants or knowledge dependencies. Omitted fields
+retain the original event's identity, calendar, scope and authored prerequisites.
+`participants` explicitly replaces all participant bindings; omitted preserves them.
+`requires_knowledge: []` explicitly clears direct Knows preconditions; omitted
+preserves them, and other authored prerequisites stay intact. Consequences are
+recalculated by the existing action engine; manual effects outside declared slots
+and legacy events without a contract require advanced correction.
+Generated balance facts cannot be edited directly. Later actions are rechecked,
+and may block the correction; they are never automatically rewritten. Explicit
+corrections to multiple events can share one atomic reviewed candidate. Exact
+source review and author approval remain required, and old revisions remain intact.
+
 Ordinary changes can explicitly declare `properties` with value type, `single_value`
 and persistence, introduce named `actions` with role/property/value requirements
 and set or bounded integer-delta effects, and add `resource_accounting` or

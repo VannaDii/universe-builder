@@ -119,6 +119,9 @@ pub struct CheckChanges {
     /// Apply selected approved initial values once at an explicitly occurred instance start.
     #[serde(default)]
     pub initializations: Vec<WritingInitialization>,
+    /// Incremental occurred-event corrections; omitted fields preserve canon. Effects remain engine-derived.
+    #[serde(default)]
+    pub event_corrections: Vec<WritingEventCorrection>,
     #[serde(default)]
     pub events: Vec<WritingEvent>,
     #[serde(default)]
@@ -380,4 +383,25 @@ pub struct WritingInitialization {
     pub scope: String,
     /// Explicit interval end or until_changed. An instant cannot initialize stock.
     pub lifetime: FactLifetime,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingEventCorrection {
+    pub event_handle: String,
+    pub reason: String,
+    #[serde(default)]
+    pub action: Option<String>,
+    /// Explicit replacement participants; omitted preserves all, empty replaces with none.
+    #[serde(default)]
+    pub participants: Option<std::collections::BTreeMap<String, String>>,
+    /// Changed coordinate on the event's original authored calendar.
+    #[serde(default)]
+    pub at_tick: Option<String>,
+    /// Replace the event's world with this exact authored world; omitted retains original worlds.
+    #[serde(default)]
+    pub world: Option<String>,
+    /// Omitted retains all authored dependencies; empty explicitly clears direct Knows preconditions only.
+    #[serde(default)]
+    pub requires_knowledge: Option<Vec<WritingKnowledgeRequirement>>,
 }

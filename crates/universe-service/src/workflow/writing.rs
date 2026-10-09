@@ -586,6 +586,13 @@ impl Workflow<'_> {
             &mut operations,
             &mut result,
         )?;
+        self.writing_event_corrections(
+            &input,
+            &ctx,
+            &records.iter().map(|r| (*r).clone()).collect::<Vec<_>>(),
+            &mut operations,
+            &mut result,
+        )?;
         self.connected_writing(
             &input,
             &ctx,
@@ -716,6 +723,7 @@ impl Workflow<'_> {
                         .or_else(|| e.names.first().map(|n| n.text.clone())),
                     Payload::EntityType(t) => Some(t.name.clone()),
                     Payload::ActionDefinition(a) => Some(a.key.clone()),
+                    Payload::Property(p) => Some(p.key.clone()),
                     Payload::World(w) => Some(w.selector.clone()),
                     Payload::Calendar(c) => Some(
                         c.labels
@@ -858,7 +866,7 @@ impl Workflow<'_> {
                 }
             }
             let occurred_events:Vec<_>=records.iter().filter_map(|r|if let Payload::Event(e)=&r.payload {
-                (e.occurrence==universe_domain::records::OccurrenceMode::Occurred && e.participants.iter().any(|p|p.record.record==matches[0].identity.record_id)).then(||json!({"handle":r.identity.record_id,"time":plain_time(&json!(e.time),&label),"action":e.action.as_ref().and_then(|a|label(&a.record)),"worlds":e.worlds.iter().filter_map(|w|RecordId::parse(&w.as_str().replacen("wld_","rec_",1)).ok().and_then(|id|label(&id))).collect::<Vec<_>>()}))
+                (e.occurrence==universe_domain::records::OccurrenceMode::Occurred && e.participants.iter().any(|p|p.record.record==matches[0].identity.record_id)).then(||json!({"handle":r.identity.record_id,"time":plain_time(&json!(e.time),&label),"action":e.action.as_ref().and_then(|a|label(&a.record)),"participants":e.participants.iter().map(|p|json!({"role":p.role,"object":label(&p.record.record)})).collect::<Vec<_>>(),"requires_knowledge":e.preconditions.iter().filter_map(|condition|if let universe_domain::expr::Expr::Attitude{holder,proposition,attitude:EpistemicAttitudeKind::Knows}=condition {records.iter().find(|r|r.identity.record_id==proposition.record).and_then(|r|if let Payload::Proposition(p)=&r.payload {Some(json!({"holder":label(&holder.record),"claim":{"subject":label(&p.subject.record),"property":label(&p.predicate.record),"value":p.value.as_ref().and_then(|v|plain_value(v,&label))}}))}else{None})}else{None}).collect::<Vec<_>>(),"worlds":e.worlds.iter().filter_map(|w|RecordId::parse(&w.as_str().replacen("wld_","rec_",1)).ok().and_then(|id|label(&id))).collect::<Vec<_>>()}))
             }else{None}).collect();
             objects.push(json!({"name":name,"identity":"resolved","kind":if matches!(matches[0].payload,Payload::EntityType(_)){"definition"}else{"instance"},"classification":object.ancestry.first().and_then(|r|label(&r.identity.record_id)),"ancestry":object.ancestry.iter().filter_map(|r|label(&r.identity.record_id)).collect::<Vec<_>>(),"ancestry_complete":object.ancestry_complete,"facts":facts,"occurred_events":occurred_events,"inherited_attributes":inherited,"initial_value_candidates":initial,"coverage":object.coverage,"unknowns":object.unknowns,"state_coverage":state.coverage,"limitations":state.unsupported_capabilities}));
         }

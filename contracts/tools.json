@@ -2165,7 +2165,7 @@
   },
   {
     "name": "universe_check_changes",
-    "description": "Check plain factual deltas from author writing against pinned canon. Resolve existing objects by their exact visible names; introduce new identities only explicitly. Preserve dialogue, beliefs, plans, hypothetical and figurative claims as non-objective. The engine constructs canonical records, creates a provisional candidate, validates it and inspects impact. It returns a candidate handle, findings and material clarifications; it never approves or publishes. Scope/time/ownership ambiguities remain unresolved. Named definitions introduce reusable types/parent relationships/shared attributes; classification introduces or refines an instance without replacing identity. Shared attributes never become initial stock. definitions.initial_values declare starting candidates, which must be approved before explicit initializations select their opaque handles. Each initialization requires an explicit occurred start using a declared action/participants/time/world, or a retrieved pinned occurred-event handle, and an authored interval. First mention, classification and restart never initialize or refill. New scalar properties impose no single-value constraint; explicit properties declare type, multiplicity and persistence without revising existing definitions. Named actions support role/property/value requirements, set or bounded integer-delta effects and authored lifetimes. Constraints support resource_accounting or no_opposing_evidence. Contracts require separate private author declaration review and exact approval. Existing authored property semantics and resource accounting remain enforced.",
+    "description": "Check plain factual deltas from author writing against pinned canon. Resolve existing objects by their exact visible names; introduce new identities only explicitly. Preserve dialogue, beliefs, plans, hypothetical and figurative claims as non-objective. The engine constructs canonical records, creates a provisional candidate, validates it and inspects impact. It returns a candidate handle, findings and material clarifications; it never approves or publishes. Scope/time/ownership ambiguities remain unresolved. Named definitions introduce reusable types/parent relationships/shared attributes; classification introduces or refines an instance without replacing identity. Shared attributes never become initial stock. definitions.initial_values declare starting candidates, which must be approved before explicit initializations select their opaque handles. Each initialization requires an explicit occurred start using a declared action/participants/time/world, or a retrieved pinned occurred-event handle, and an authored interval. First mention, classification and restart never initialize or refill. event_corrections use pinned occurred-event handles and changed named fields; omitted fields retain canon. Participants explicitly replace all bindings; empty requires_knowledge explicitly clears direct Knows preconditions. Effects are recalculated from authored contracts, never editable stock facts. Manual effects outside declared slots require advanced correction. Later events are checked but never automatically rewritten. New scalar properties impose no single-value constraint; explicit properties declare type, multiplicity and persistence without revising existing definitions. Named actions support role/property/value requirements, set or bounded integer-delta effects and authored lifetimes. Constraints support resource_accounting or no_opposing_evidence. Contracts require separate private author declaration review and exact approval. Existing authored property semantics and resource accounting remain enforced.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "CheckChanges",
@@ -2224,6 +2224,14 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/WritingInitialization"
+          },
+          "default": []
+        },
+        "event_corrections": {
+          "description": "Incremental occurred-event corrections; omitted fields preserve canon. Effects remain engine-derived.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingEventCorrection"
           },
           "default": []
         },
@@ -2956,6 +2964,67 @@
             "subject",
             "property",
             "value"
+          ]
+        },
+        "WritingEventCorrection": {
+          "type": "object",
+          "properties": {
+            "event_handle": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "action": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "participants": {
+              "description": "Explicit replacement participants; omitted preserves all, empty replaces with none.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": {
+                "type": "string"
+              },
+              "default": null
+            },
+            "at_tick": {
+              "description": "Changed coordinate on the event's original authored calendar.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "world": {
+              "description": "Replace the event's world with this exact authored world; omitted retains original worlds.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "requires_knowledge": {
+              "description": "Omitted retains all authored dependencies; empty explicitly clears direct Knows preconditions only.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/$defs/WritingKnowledgeRequirement"
+              },
+              "default": null
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "event_handle",
+            "reason"
           ]
         },
         "WritingMessage": {

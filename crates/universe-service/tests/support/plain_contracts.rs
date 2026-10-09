@@ -313,6 +313,129 @@ async fn ordinary_contracts_setup_requires_explicit_author_declaration_and_check
         "existing-start-initialize",
     )
     .await;
+
+    // A later committed shot makes the earlier consequence correction consequential.
+    let fresh = context(&mut c, &u, "Alpha").await;
+    let history = c
+        .call(tool(
+            "universe_read_facts",
+            json!({"universe":"Alpha","context_id":fresh,"object_names":["First pistol"]}),
+        ))
+        .await
+        .unwrap();
+    let first_shot = history["result"]["objects"][0]["occurred_events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["action"] == "fire")
+        .unwrap()["handle"]
+        .clone();
+    let later=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":fresh,"events":[{"action":"fire","participants":{"pistol":"First pistol"},"at_tick":"12"}]}))).await.unwrap();
+    assert_eq!(later["result"]["status"], "checked_candidate", "{later}");
+    publish_plain(
+        &mut c,
+        &later,
+        "At day 12 the first pistol fired its remaining round.",
+        "later-shot",
+    )
+    .await;
+    let old_context = context(&mut c, &u, "Alpha").await;
+    let history = c
+        .call(tool(
+            "universe_read_facts",
+            json!({"universe":"Alpha","context_id":old_context,"object_names":["First pistol"]}),
+        ))
+        .await
+        .unwrap();
+    let later_shot = history["result"]["objects"][0]["occurred_events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["action"] == "fire" && e["handle"] != first_shot)
+        .unwrap()["handle"]
+        .clone();
+    let denied=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":old_context,"event_corrections":[{"event_handle":first_shot,"reason":"The day 11 action was replenishment, not firing.","action":"replenish"}]}))).await;
+    let denial = denied.unwrap_err().to_string();
+    assert!(
+        denial.contains("resource post-value does not equal pre-value plus declared change"),
+        "{denial}"
+    );
+    let unchanged = c
+        .call(tool(
+            "universe_read_facts",
+            json!({"universe":"Alpha","context_id":old_context,"object_names":["First pistol"]}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(
+        unchanged["result"]["objects"][0]["occurred_events"],
+        history["result"]["objects"][0]["occurred_events"]
+    );
+    let repaired=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":old_context,"event_corrections":[{"event_handle":first_shot,"reason":"The day 11 action was replenishment.","action":"replenish"},{"event_handle":later_shot,"reason":"Recheck the author's retained day 12 shot against the corrected earlier action."}]}))).await.unwrap();
+    assert_eq!(
+        repaired["result"]["status"], "checked_candidate",
+        "{repaired}"
+    );
+    assert_eq!(repaired["result"]["impact"]["coverage"], "complete");
+    publish_plain(&mut c,&repaired,"Correction: day 11 replenished one round; the day 12 shot still occurred and leaves two rounds.","atomic-event-correction").await;
+    let old = c
+        .call(tool(
+            "universe_read_facts",
+            json!({"universe":"Alpha","context_id":old_context,"object_names":["First pistol"]}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(
+        old["result"]["objects"][0]["occurred_events"],
+        history["result"]["objects"][0]["occurred_events"]
+    );
+    let fresh = context(&mut c, &u, "Alpha").await;
+    let new = c
+        .call(tool(
+            "universe_read_facts",
+            json!({"universe":"Alpha","context_id":fresh,"object_names":["First pistol"]}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(
+        new["result"]["objects"][0]["occurred_events"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| e["handle"] == first_shot)
+            .unwrap()["action"],
+        "replenish"
+    );
+    let after=c.call(tool("universe_open_context",json!({"universe":"Alpha","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":u["context_id"],"temporal_query":{"kind":"at","time":{"kind":"exact","calendar":clocks["result"]["clocks"][0]["calendar_id"],"value":"14"}},"temporal_systems":[],"perspective":"author"}))).await.unwrap();
+    let balance=c.call(tool("universe_read_facts",json!({"universe":"Alpha","context_id":after["result"]["context_id"],"object_names":["First pistol"]}))).await.unwrap();
+    assert!(
+        balance["result"]["objects"][0]["facts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["property"] == "rounds" && f["value"] == 2 && f["state"] == "supported"),
+        "{balance}"
+    );
+
+    assert!(
+        balance["result"]["objects"][0]["facts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|f| f["property"] == "rounds")
+            .all(|f| f["fact_handle"].is_null()),
+        "Generated balance must not be an editable factual correction handle: {balance}"
+    );
+    let before=c.call(tool("universe_open_context",json!({"universe":"Alpha","continuity_id":u["continuity_id"],"revision":{"kind":"exact","revision_id":history["frame"]["revision"]},"represented_context":u["context_id"],"temporal_query":{"kind":"at","time":{"kind":"exact","calendar":clocks["result"]["clocks"][0]["calendar_id"],"value":"14"}},"temporal_systems":[],"perspective":"author"}))).await.unwrap();
+    let former=c.call(tool("universe_read_facts",json!({"universe":"Alpha","context_id":before["result"]["context_id"],"object_names":["First pistol"]}))).await.unwrap();
+    assert!(
+        former["result"]["objects"][0]["facts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["property"] == "rounds" && f["value"] == 0 && f["state"] == "supported"),
+        "{former}"
+    );
     stop.cancel();
     server.await.unwrap().unwrap();
 }
