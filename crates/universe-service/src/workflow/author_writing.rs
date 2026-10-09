@@ -364,6 +364,12 @@ impl Workflow<'_> {
                     return true;
                 };
                 return match (&original.payload, replacement.as_ref()) {
+                    (Payload::Property(old), Payload::Property(new)) => {
+                        let mut permitted = old.clone();
+                        permitted.multiplicity = new.multiplicity;
+                        permitted.persistence = new.persistence;
+                        &permitted != new
+                    }
                     (Payload::EntityType(old), Payload::EntityType(new)) => {
                         let mut permitted = old.clone();
                         permitted.parent = new.parent.clone();

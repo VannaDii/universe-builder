@@ -143,6 +143,56 @@ impl Workflow<'_> {
                 result.clarifications.push(format!("Resolve property '{}' or explicitly revise its existing definition; this declaration cannot duplicate or change it.",d.name));
             }
         }
+        for patch in &input.property_corrections {
+            let build = || -> anyhow::Result<(Value, RecordId, PropertyDef)> {
+                if patch.reason.trim().is_empty()
+                    || (patch.single_value.is_none() && patch.persistence.is_none())
+                {
+                    anyhow::bail!("Specify the property settings to correct and a reason; omitted settings stay unchanged.");
+                }
+                let (original, definition) = property(rows, &patch.name)?;
+                let mut replacement = definition.clone();
+                if let Some(single) = patch.single_value {
+                    replacement.multiplicity = if single {
+                        Multiplicity::Single
+                    } else {
+                        Multiplicity::Multiple
+                    };
+                }
+                if let Some(persistence) = &patch.persistence {
+                    replacement.persistence = match persistence {
+                        PlainPersistence::Unspecified => {
+                            universe_domain::scope::PersistenceSemantics::Unspecified
+                        }
+                        PlainPersistence::UntilChanged => {
+                            universe_domain::scope::PersistenceSemantics::PersistentUntilChanged
+                        }
+                        PlainPersistence::ExplicitInterval => {
+                            universe_domain::scope::PersistenceSemantics::ExplicitInterval
+                        }
+                    };
+                }
+                Ok((
+                    json!({"kind":"revise_definition","record":{"universe":self.kernel.universe(),"record":original.identity.record_id},"expected_version":original.record_version_id,"replacement":Payload::Property(replacement.clone())}),
+                    original.identity.record_id.clone(),
+                    replacement,
+                ))
+            };
+            match build() {
+                Ok((operation, id, definition)) => {
+                    for name in std::iter::once(&definition.key).chain(definition.labels.values()) {
+                        properties.insert(name.clone(), (id.clone(), definition.clone()));
+                    }
+                    properties.insert(patch.name.clone(), (id, definition));
+                    ops.push(operation);
+                    result.additions.push(format!(
+                        "Property rule correction: {} — {}",
+                        patch.name, patch.reason
+                    ));
+                }
+                Err(error) => result.clarifications.push(error.to_string()),
+            }
+        }
         Ok(())
     }
     pub(super) fn writing_contracts(
@@ -374,6 +424,7 @@ impl Workflow<'_> {
                 declaration.knowledge_policies.clear();
                 declaration.action_corrections.clear();
                 declaration.definition_corrections.clear();
+                declaration.property_corrections.clear();
                 let mut generated = vec![];
                 let mut feedback = result.clone();
                 feedback.clarifications.clear();

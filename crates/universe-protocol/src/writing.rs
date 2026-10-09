@@ -121,6 +121,9 @@ pub struct CheckChanges {
     /// Explicit property declarations; never inferred single-value resources. Existing definitions cannot be silently changed.
     #[serde(default)]
     pub properties: Vec<WritingProperty>,
+    /// Explicit multiplicity/persistence corrections to existing named properties; omitted fields retain authored settings. Private contract review required; types and units cannot change.
+    #[serde(default)]
+    pub property_corrections: Vec<WritingPropertyCorrection>,
     /// Explicit unit declarations without inferred conversion/scale; private contract review required.
     #[serde(default)]
     pub units: Vec<WritingUnit>,
@@ -367,6 +370,16 @@ pub struct WritingProperty {
     pub unit: Option<String>,
     pub single_value: bool,
     pub persistence: PlainPersistence,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingPropertyCorrection {
+    pub name: String,
+    #[serde(default)]
+    pub single_value: Option<bool>,
+    #[serde(default)]
+    pub persistence: Option<PlainPersistence>,
+    pub reason: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

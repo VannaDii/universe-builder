@@ -141,6 +141,16 @@ returns actual derived holder abilities only while both possession evidence and
 the declaration apply. Transfer, loss and expiry do not create permanent facts.
 Item-power revisions remain unsupported; no conversion or physics is inferred.
 
+`property_corrections` changes only an existing named property's explicitly
+supplied `single_value` and/or `persistence`, with a reason. Omitted settings,
+value types, units and metadata remain unchanged. Exact private contract review
+rechecks affected facts and events; tighter multiplicity cannot override
+conflicting existing values. Existing assertions retain their authored validity
+and persistence. New facts follow the revised default, including facts in the
+same delta; an unspecified default never invents continuing duration.
+`universe_read_contracts` returns named property settings for authorized author
+research. Earlier revisions retain their original settings and evidence.
+
 An initial-value definition is only a candidate. Publish it first, then use plain
 `initializations` with its returned handle, an explicitly occurred declared start
 or pinned event handle, and the requested scope/interval. Private review and exact

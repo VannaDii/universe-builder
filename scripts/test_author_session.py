@@ -454,6 +454,43 @@ class ConnectedWritingTests(unittest.TestCase):
                 self.assertIsNone(unknown["candidate_handle"])
 
 
+                property_base=publish(check(context(),properties=[{"name":"tags","introduce":True,"value_type":"text","single_value":False,"persistence":"explicit_interval"}],changes=[{"name":"Key","facts":[{"property":"tags","value":value,"scope":"universe","at_tick":"30","lifetime":{"kind":"until","end_tick":"40"}} for value in ("red","blue")]}]),"The key has red and blue tags during thirty to forty.","connected-property-tags",contracts=True)
+                denied=client.request("tools/call",{"name":"universe_check_changes","arguments":{"universe":"Story","context_id":context(),"property_corrections":[{"name":"tags","single_value":True,"reason":"Proposed single tag limit."}]}})
+                conflict=denied["structuredContent"]["result"]
+                self.assertEqual(conflict["status"],"conflict")
+                self.assertTrue(any(f["outcome"]=="conflicting" for f in conflict["validation"]["execution"]["findings"]))
+                review=decisions.action({"action":"prepare_contracts","candidate":conflict["candidate_handle"],"label":"Blocked multiplicity","text":"The key must have one tag during thirty to forty."})
+                self.assertFalse(review["publishable"])
+                self.assertEqual(client.call("universe_read_contracts",{"universe":"Story","context_id":context()})["frame"]["revision"],property_base)
+                patch=check(context(),property_corrections=[{"name":"code","persistence":"until_changed","reason":"Explicitly declare continuing future code facts."}],changes=[{"name":"Key","facts":[{"property":"code","value":"gold","scope":"universe","at_tick":"30"}]}])
+                with self.assertRaisesRegex(RuntimeError,"protected contracts require explicit author contract review"):
+                    decisions.action({"action":"prepare","candidate":patch["candidate_handle"],"label":"Forbidden property edit","text":"Code facts continue until changed."})
+                continued=publish(patch,"Code facts continue until explicitly changed. The key's code is gold from thirty.","connected-property-persistence",contracts=True)
+                def property_settings(ctx):
+                    return next(p for p in client.call("universe_read_contracts",{"universe":"Story","context_id":ctx})["result"]["properties"] if p["name"]=="code")
+                self.assertEqual(property_settings(context())["persistence"],"until_changed")
+                self.assertTrue(property_settings(context())["single_value"])
+                self.assertEqual(property_settings(context())["value_type"],"text")
+                old=property_settings(context(None,{"kind":"exact","revision_id":property_base}))
+                self.assertEqual(old["persistence"],"explicit_interval")
+                key=client.call("universe_read_facts",{"universe":"Story","context_id":context(31),"object_names":["Key"]})["result"]["objects"][0]
+                self.assertTrue(any(f["property"]=="code" and f["value"]=="gold" and f["state"]=="supported" for f in key["facts"]))
+                retained=client.call("universe_read_facts",{"universe":"Story","context_id":context(5),"object_names":["Courtyard"]})["result"]["objects"][0]
+                self.assertTrue(any(e["action"]=="knock" for e in retained["occurred_events"]))
+                self.assertTrue(any(f["property"]=="code" and f["value"]=="green" and f["state"]=="supported" for f in retained["facts"]))
+                publish(check(context(),property_corrections=[{"name":"code","persistence":"unspecified","reason":"Future code observations have no continuing duration."}],changes=[{"name":"Mara","facts":[{"property":"code","value":"amber","scope":"universe","at_tick":"40"}]}]),"Future code observations have no continuing duration. Mara's code is amber at forty.","connected-property-observation",contracts=True)
+                for tick,expected in ((40,True),(41,False)):
+                    obj=client.call("universe_read_facts",{"universe":"Story","context_id":context(tick),"object_names":["Mara"]})["result"]["objects"][0]
+                    self.assertEqual(any(f["property"]=="code" and f["value"]=="amber" and f["state"]=="supported" for f in obj["facts"]),expected)
+                self.assertEqual(property_settings(context(None,{"kind":"exact","revision_id":continued}))["persistence"],"until_changed")
+                publish(check(context(),property_corrections=[{"name":"code","single_value":False,"reason":"Explicitly allow multiple code values."}]),"Code may have multiple values; persistence remains unspecified.","connected-property-multiplicity",contracts=True)
+                current_property=property_settings(context())
+                self.assertFalse(current_property["single_value"])
+                self.assertEqual(current_property["persistence"],"unspecified")
+                self.assertEqual(current_property["value_type"],"text")
+                self.assertTrue(property_settings(context(None,{"kind":"exact","revision_id":continued}))["single_value"])
+
+
 
             finally:
                 if client: client.close()
