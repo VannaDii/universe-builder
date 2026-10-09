@@ -225,4 +225,110 @@ class AuthorDecisionTests(unittest.TestCase):
         self.assertEqual(controller.review["candidate"]["digest"],"exact")
         self.assertTrue(output[0].startswith("If interrupted"))
 
+class ConnectedWritingTests(unittest.TestCase):
+    def test_default_mcp_story_review_history_and_dependent_correction(self):
+        """Real ordinary MCP calls and separate authenticated author decisions; no inference."""
+        import os
+        import subprocess
+        import tempfile
+        from pathlib import Path
+        from types import SimpleNamespace
+        from mcp_smoke import MCP
+        binaries=Path(os.environ.get("UB_TEST_BIN_DIR",Path(__file__).resolve().parents[1]/"target/debug")).resolve()
+        if not all((binaries/name).is_file() for name in ("universe","universe-engine","universe-mcp")):
+            self.skipTest("Build existing CLI/engine/MCP binaries for installed integration")
+        with tempfile.TemporaryDirectory(prefix="ub-connected-writing-",dir="/tmp") as temp:
+            installation=Path(temp)/"installation"
+            def cli(*args,profile=None):
+                argv=[str(binaries/"universe"),"--installation",str(installation)]
+                if profile: argv.extend(["--profile",profile])
+                result=subprocess.run([*argv,*args],capture_output=True,text=True,timeout=30)
+                self.assertEqual(result.returncode,0,result.stderr)
+                return result.stdout.strip()
+            author=cli("init");client=None
+            try:
+                universe=json.loads(cli("create","Story","--first-time","0","--calendar","Days","--tick-label","days",profile=author))
+                agent=json.loads(cli("enroll",profile=author))["profile_id"]
+                cli("grant",agent,universe["universe_id"],"--propose","--edit","--protected",profile=author)
+                client=MCP(binaries/"universe-mcp",installation=installation,profile=agent)
+                tools={t["name"] for t in client.request("tools/list",{})["tools"]}
+                self.assertEqual(len(tools),11)
+                self.assertTrue({"universe_check_changes","universe_read_facts","universe_read_contracts"}<=tools)
+                self.assertTrue({"universe_propose","universe_validate","universe_get"}.isdisjoint(tools))
+                decisions=AuthorDecisions(SimpleNamespace(universe="Story"),binaries/"universe",installation,author,output=lambda _:None)
+                def context(tick=None,revision=None):
+                    temporal={"kind":"timeless"} if tick is None else {"kind":"at","time":{"kind":"exact","calendar":calendar,"value":str(tick)}}
+                    return client.call("universe_open_context",{"universe":"Story","continuity_id":universe["continuity_id"],"revision":revision or {"kind":"head"},"represented_context":universe["context_id"],"temporal_query":temporal,"temporal_systems":[],"perspective":"author"})["result"]["context_id"]
+                def check(ctx,**delta):
+                    return client.call("universe_check_changes",{"universe":"Story","context_id":ctx,**delta})["result"]
+                def publish(checked,text,key,contracts=False):
+                    self.assertEqual(checked["status"],"checked_candidate",checked)
+                    reviewed=decisions.action({"action":"prepare_contracts" if contracts else "prepare","candidate":checked["candidate_handle"],"label":"Story passage","text":text})
+                    self.assertTrue(reviewed["publishable"],reviewed)
+                    args={"action":"publish","candidate":reviewed["candidate"],"validation_run":reviewed["validation"]["execution"]["run_id"],"idempotency_key":key}
+                    receipt=decisions.action(args)
+                    self.assertEqual(decisions.action(args)["result"],receipt["result"])
+                    return receipt["result"]["revision"]
+                initial=context()
+                setup=check(initial,
+                    properties=[{"name":"code","introduce":True,"value_type":"text","single_value":True,"persistence":"explicit_interval"},{"name":"locked","introduce":True,"value_type":"boolean","single_value":True,"persistence":"explicit_interval"},{"name":"entrance","introduce":True,"value_type":"object","single_value":False,"persistence":"unspecified"}],
+                    changes=[{"name":name,"introduce":True,"facts":([{ "property":"code","value":"green","scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"20"}},{"property":"locked","value":False,"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"20"}}] if name=="Courtyard" else [])} for name in ("Courtyard","Main gate","Side gate","Key","Mara","Leon")],
+                    exhaustive_sets=[{"subject":"Courtyard","property":"entrance","members":["Main gate"],"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"20"}}],
+                    relation_definitions=[{"name":"ownership","introduce":True,"roles":[{"name":"item","multiple":False},{"name":"owner","multiple":False}]}],
+                    relation_limits=[{"name":"one key owner","relation":"ownership","grouping":{"kind":"role","role":"item"},"counted_role":"owner","maximum":1,"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"20"}}],
+                    relationships=[{"relation":"ownership","subject":"Key","participants":{"item":["Key"],"owner":["Mara"]},"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"20"}}],
+                    actions=[{"name":"enter","introduce":True,"scope":"universe","requirements":[{"role":"place","property":"locked","value":False}]},{"name":"knock","introduce":True,"scope":"universe"}],
+                    knowledge_policies=[{"kind":"knowledge","name":"interpreted messages","mode":"justified"},{"kind":"channel","name":"spoken timing","channel":"speech","forward_only":True,"minimum_delay":"0","maximum_delay":"3"}])
+                publish(setup,"Before day twenty the courtyard's green code and unlocked gate apply. The main gate is its only entrance. Mara owns the key, with one owner at a time. Enter requires an unlocked place; knock has no such requirement. Knowledge requires justified interpreted messages. Spoken messages move forward with zero to three authored days of delay.","connected-setup",contracts=True)
+                current=context()
+                facts=client.call("universe_read_facts",{"universe":"Story","context_id":current,"object_names":["Courtyard"]})["result"]
+                calendar=facts["clocks"][0]["calendar_id"]
+                canon=context(5)
+                limits=client.call("universe_read_contracts",{"universe":"Story","context_id":canon})["result"]
+                self.assertEqual(limits["exhaustive_sets"][0]["members"],["Main gate"])
+                self.assertEqual(limits["relation_limits"][0]["maximum"],1)
+                boundary=check(canon,changes=[{"name":"Courtyard","facts":[{"property":"entrance","value":{"object":"Side gate"},"scope":"universe","at_tick":"5"}]}])
+                self.assertEqual(boundary["status"],"conflict",boundary)
+                ownership=check(canon,relationships=[{"relation":"ownership","subject":"Key","participants":{"item":["Key"],"owner":["Leon"]},"scope":"universe","at_tick":"5","lifetime":{"kind":"until","end_tick":"10"}}])
+                self.assertEqual(ownership["status"],"conflict",ownership)
+                claim={"subject":"Courtyard","property":"code","value":"green"}
+                speech=check(context(),messages=[{"label":"true code","from":"Leon","to":["Mara"],"received_by":["Mara"],"understood_by":["Mara"],"claim":claim,"channel":"speech","sent_tick":"1","received_tick":"2"},{"label":"lie","from":"Leon","to":["Mara"],"received_by":["Mara"],"claim":{**claim,"value":"red"},"channel":"speech","sent_tick":"3","received_tick":"3"}],attitudes=[{"holder":"Mara","attitude":"knows","claim":claim,"message":"true code","at_tick":"2","lifetime":{"kind":"until","end_tick":"10"}},{"holder":"Mara","attitude":"believes","claim":{**claim,"value":"red"},"at_tick":"3","lifetime":{"kind":"until","end_tick":"10"}}])
+                publish(speech,"Leon tells Mara the green code at day one; she receives and understands it at day two and knows it until day ten. At day three he falsely says red, which she believes.","connected-speech")
+                pre_action=context(5)
+                truth=client.call("universe_read_facts",{"universe":"Story","context_id":pre_action,"object_names":["Courtyard"]})["result"]["objects"][0]
+                self.assertTrue(any(f["property"]=="code" and f["value"]=="green" and f["state"]=="supported" for f in truth["facts"]))
+                self.assertFalse(any(f["property"]=="code" and f["value"]=="red" and f["state"]=="supported" for f in truth["facts"]))
+                entered=check(context(),events=[{"action":"enter","participants":{"place":"Courtyard"},"at_tick":"5","requires_knowledge":[{"holder":"Mara","claim":claim}]}])
+                action_revision=publish(entered,"At day five Mara enters the courtyard, relying on her knowledge of the code.","connected-enter")
+                fresh=context(5)
+                obj=client.call("universe_read_facts",{"universe":"Story","context_id":fresh,"object_names":["Courtyard"]})["result"]["objects"][0]
+                locked=next(f for f in obj["facts"] if f["property"]=="locked")
+                event=next(e for e in obj["occurred_events"] if e["action"]=="enter")
+                attributed=client.call("universe_read_contracts",{"universe":"Story","context_id":fresh})["result"]["attitudes"]
+                self.assertTrue(any(a["holder"]=="Mara" and a["attitude"]=="believes" and a["claim"]["value"]=="red" for a in attributed),attributed)
+                self.assertTrue(any(a["holder"]=="Mara" and a["attitude"]=="knows" and a["claim"]["value"]=="green" for a in attributed),attributed)
+                correction={"fact_handle":locked["fact_handle"],"value":True,"reason":"The courtyard was locked during the same authored interval."}
+                denied=client.request("tools/call",{"name":"universe_check_changes","arguments":{"universe":"Story","context_id":fresh,"corrections":[correction]}})
+                self.assertTrue(denied.get("isError"),denied)
+                self.assertIn("requirement",str(denied).lower())
+                unchanged=client.call("universe_read_facts",{"universe":"Story","context_id":context(5),"object_names":["Courtyard"]})
+                self.assertEqual(unchanged["frame"]["revision"],action_revision)
+                corrected=check(fresh,corrections=[correction],event_corrections=[{"event_handle":event["handle"],"action":"knock","reason":"The author corrects the dependent action to knocking; retained knowledge remains attributed."}])
+                publish(corrected,"The courtyard was locked; at day five Mara knocked instead of entering, still relying on her code knowledge.","connected-correction")
+                after=context(5)
+                updated=client.call("universe_read_facts",{"universe":"Story","context_id":after,"object_names":["Courtyard"]})["result"]["objects"][0]
+                self.assertTrue(any(f["property"]=="locked" and f["value"] is True and f["state"]=="supported" for f in updated["facts"]))
+                self.assertTrue(any(e["action"]=="knock" for e in updated["occurred_events"]))
+                historical=context(5,{"kind":"exact","revision_id":action_revision})
+                old=client.call("universe_read_facts",{"universe":"Story","context_id":historical,"object_names":["Courtyard"]})["result"]["objects"][0]
+                self.assertTrue(any(f["property"]=="locked" and f["value"] is False and f["state"]=="supported" for f in old["facts"]))
+                self.assertTrue(any(e["action"]=="enter" for e in old["occurred_events"]))
+                expired=check(context(),events=[{"action":"knock","participants":{"place":"Courtyard"},"at_tick":"11","requires_knowledge":[{"holder":"Mara","claim":claim}]}])
+                self.assertNotEqual(expired["status"],"checked_candidate",expired)
+                self.assertEqual(expired["validation"]["kind"],"evaluated",expired)
+                self.assertTrue(any(f["outcome"] in {"refuted","conflicting","not_established"} for f in expired["validation"]["execution"]["findings"]),expired)
+            finally:
+                if client: client.close()
+                cli("shutdown",profile=author)
+
 if __name__=="__main__": unittest.main()
