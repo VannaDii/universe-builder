@@ -429,7 +429,7 @@ impl Runtime {
                             Payload::ActionDefinition(a) => Some(a.key.clone()),
                             _ => None,
                         });
-                        let names: Vec<String> = stored.changes.iter().filter_map(|c|c.next.as_ref()).filter_map(|r|match &r.payload {
+                        let names: Vec<String> = stored.changes.iter().filter_map(|c|c.next.as_ref().or_else(|| rows.iter().find(|r|r.identity.record_id==c.record_id))).filter_map(|r|match &r.payload {
                             Payload::Entity(e)=>e.names.first().map(|n|n.text.clone()),
                             Payload::Source(s)=>Some(s.label.clone()),
                             Payload::Property(p)=>Some(p.key.clone()),

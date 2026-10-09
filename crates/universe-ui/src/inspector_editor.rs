@@ -297,8 +297,14 @@ pub fn InspectorEditor(
         ],
         "assertion" => vec![
             ("", "Choose a change"),
-            ("end_assertion_at", "End this assertion at a time"),
-            ("retract_assertion", "Retract this assertion"),
+            (
+                "end_assertion_at",
+                "End fact duration; retain earlier support",
+            ),
+            (
+                "retract_assertion",
+                "Withdraw fact support; do not assert the opposite",
+            ),
         ],
         _ => return rsx! {},
     };
@@ -360,6 +366,8 @@ pub fn InspectorEditor(
             label{r#for:"inspector-value",if action()=="end_assertion_at"{"Exclusive end in this assertion’s calendar"}else{"Name or alias"}}
             input{id:"inspector-value",disabled,value,oninput:move|e|value.set(e.value())}
         }
+        if action()=="end_assertion_at"{p{"This ends the authored interval; support before the end remains."}}
+        if action()=="retract_assertion"{p{"This withdraws the assertion from the new revision. It does not claim the opposite; earlier revisions remain available."}}
         if ["end_assertion_at","retract_assertion"].contains(&action().as_str()){
             label{r#for:"inspector-reason","Reason"}textarea{id:"inspector-reason",disabled,value:reason,oninput:move|e|reason.set(e.value())}
         }

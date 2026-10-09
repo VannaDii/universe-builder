@@ -742,8 +742,10 @@ remain non-editable; correct their authored event instead.
 `reason` to end an authored calendar interval, preserving support before the end.
 `fact_withdrawals` selects a current handle and reason to remove support entirely
 from the new revision, without asserting the opposite. Both require exact private
-source review and approval. Submit only one edit per fact; dependent actions are
-rechecked. Any replacement claim must be explicitly submitted in the same delta.
+source review and approval. Review names the targeted fact, distinguishes correction
+from duration ending or support withdrawal, and retains the proposed reason.
+Validation findings remain visible before approval. Submit only one edit per fact;
+dependent actions are rechecked. Any replacement claim must be explicitly submitted in the same delta.
 
 `universe_read_contracts` presents visible action roles, requirements and effects,
 knowledge policies, channel chronology and attributed communications. Event

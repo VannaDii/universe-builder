@@ -156,7 +156,7 @@ mod tests {
             .await
             .unwrap();
         let opened = open(&mut c, &u).await;
-        let check=call(&mut c,"universe_check_changes",json!({"universe":"Alpha","context_id":opened["result"]["context_id"],"changes":[{"name":"Mara","introduce":true,"facts":[{"property":"age","value":30}]}]})).await;
+        let check=call(&mut c,"universe_check_changes",json!({"universe":"Alpha","context_id":opened["result"]["context_id"],"changes":[{"name":"Mara","introduce":true,"facts":[{"property":"age","value":30,"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"20"}}]}]})).await;
         let lib = c
             .call(EngineRequest::Library {
                 universe: Selector("Alpha".into()),
@@ -171,7 +171,7 @@ mod tests {
             .unwrap();
         assert!(row["label"].as_str().unwrap().contains("Mara"));
         let candidate = serde_json::from_value(row["candidate"]["proposal_id"].clone()).unwrap();
-        let source = "Mara is thirty.\nExact UTF-8: café.";
+        let source = "Mara is thirty from day zero until day twenty.\nExact UTF-8: café.";
         let prepared = c
             .call(action(
                 "Alpha",
@@ -302,6 +302,38 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("Mara — age"));
+        let correction_review = c
+            .call(action(
+                "Alpha",
+                AuthorWritingAction::Prepare {
+                    candidate: serde_json::from_value(
+                        pending["result"]["candidate_handle"].clone(),
+                    )
+                    .unwrap(),
+                    label: "Age correction".into(),
+                    text: "Correct Mara's age from thirty to thirty-one for the original interval."
+                        .into(),
+                },
+            ))
+            .await
+            .unwrap();
+        let summary = correction_review["summary"].to_string();
+        assert!(
+            summary.contains("Correct earlier fact")
+                && summary.contains("Mara")
+                && summary.contains("age")
+                && summary.contains("30")
+                && summary.contains("31")
+                && summary.contains("Correct original age"),
+            "{summary}"
+        );
+        assert!(correction_review["validation"]["execution"]["findings"].is_array());
+        assert_eq!(
+            crate::readable::operation_summary(
+                &json!({"kind":"supersede_assertion","rationale":"Correct original age"})
+            ),
+            "Correct an earlier fact — reason: Correct original age"
+        );
         c.call(action(
             "Alpha",
             AuthorWritingAction::Reject {
@@ -322,6 +354,88 @@ mod tests {
             .unwrap()
             .iter()
             .any(|r| r["candidate"]["proposal_id"] == pending["result"]["candidate_handle"]));
+
+        for (field, delta, expected, source) in [
+            (
+                "fact_endings",
+                json!({"fact_handle":facts["result"]["objects"][0]["facts"][0]["fact_handle"],"end_tick":"8","reason":"Mara's age claim ends at the authored day eight."}),
+                "End fact duration",
+                "Mara's age claim ends at day eight; earlier support remains.",
+            ),
+            (
+                "fact_withdrawals",
+                json!({"fact_handle":facts["result"]["objects"][0]["facts"][0]["fact_handle"],"reason":"Withdraw unsupported age, without claiming another age."}),
+                "Withdraw fact support",
+                "Withdraw Mara's age assertion without asserting its opposite.",
+            ),
+        ] {
+            let checked=call(&mut c,"universe_check_changes",json!({"universe":"Alpha","context_id":current["result"]["context_id"],field:[delta]})).await;
+            let candidate: universe_domain::ids::ProposalId =
+                serde_json::from_value(checked["result"]["candidate_handle"].clone()).unwrap();
+            let lib = c
+                .call(EngineRequest::Library {
+                    universe: Selector("Alpha".into()),
+                })
+                .await
+                .unwrap();
+            assert!(lib["writing"]["proposals"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(
+                    |p| p["candidate"]["proposal_id"] == checked["result"]["candidate_handle"]
+                        && p["label"].as_str().unwrap().contains("Mara — age")
+                ));
+            let reviewed = c
+                .call(action(
+                    "Alpha",
+                    AuthorWritingAction::Prepare {
+                        candidate: candidate.clone(),
+                        label: expected.into(),
+                        text: source.into(),
+                    },
+                ))
+                .await
+                .unwrap();
+            let summary = reviewed["summary"].to_string();
+            assert!(
+                summary.contains(expected)
+                    && summary.contains("Mara")
+                    && summary.contains("age")
+                    && summary.contains(delta["reason"].as_str().unwrap()),
+                "{summary}"
+            );
+            assert_eq!(reviewed["publishable"], true);
+            assert!(reviewed["review"]["proposal"]["operations"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|op| op["kind"] == "add_source_anchor" && op["record"]["excerpt"] == source));
+            assert!(reviewed["validation"]["execution"]["findings"].is_array());
+            let kind = if field == "fact_endings" {
+                "end_assertion_at"
+            } else {
+                "retract_assertion"
+            };
+            let op = reviewed["review"]["proposal"]["operations"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|op| op["kind"] == kind)
+                .unwrap();
+            let title = crate::readable::operation_summary(op);
+            assert!(
+                title.contains(if field == "fact_endings" {
+                    "retain earlier support"
+                } else {
+                    "no opposite claim"
+                }),
+                "{title}"
+            );
+            c.call(action("Alpha", AuthorWritingAction::Reject { candidate }))
+                .await
+                .unwrap();
+        }
 
         stop.cancel();
         server.await.unwrap().unwrap();

@@ -53,6 +53,20 @@ pub fn ReadValue(value: Value) -> Element {
 }
 pub(super) fn operation_summary(op: &Value) -> String {
     match op["kind"].as_str().unwrap_or_default() {
+        "supersede_assertion" => format!(
+            "Correct an earlier fact — reason: {}",
+            op["rationale"].as_str().unwrap_or("not stated")
+        ),
+        "end_assertion_at" => format!(
+            "End fact duration at {}; retain earlier support",
+            op["at"]["value"]
+                .as_str()
+                .unwrap_or("unknown authored time")
+        ),
+        "retract_assertion" => format!(
+            "Withdraw fact support; no opposite claim — reason: {}",
+            op["rationale"].as_str().unwrap_or("not stated")
+        ),
         "define_rule"
             if [
                 "channelChronology",

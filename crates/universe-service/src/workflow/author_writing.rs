@@ -518,9 +518,20 @@ impl Workflow<'_> {
         }
         source_ops.extend(ops);
         let ctx = self.writing_author_context(&universe, &p.proposal)?;
+        let rationale = format!(
+            "{}\n{}",
+            if let Some(rationale) = &knowledge_rationale {
+                rationale.as_str()
+            } else if contracts {
+                "Author explicitly declared these supported contracts/policies with exact source; separate approval still required."
+            } else {
+                "Author selected exact source passage for factual review; publication still requires separate exact approval."
+            },
+            p.proposal.rationale
+        );
         let request = Request::from_tool(
             "universe_propose",
-            json!({"action":"revise","universe":universe,"context_id":ctx,"proposal_reference":candidate,"operations":source_ops,"submission":"submitted","rationale":if let Some(rationale)=&knowledge_rationale {rationale.as_str()}else if contracts {"Author explicitly declared these supported contracts/policies with exact source; separate approval still required."}else{"Author selected exact source passage for factual review; publication still requires separate exact approval."},"idempotency_key":key}),
+            json!({"action":"revise","universe":universe,"context_id":ctx,"proposal_reference":candidate,"operations":source_ops,"submission":"submitted","rationale":rationale,"idempotency_key":key}),
         )?;
         let proposed =
             self.execute_allocated(request, &BTreeMap::from([(source_version, version)]))?;
@@ -576,6 +587,7 @@ impl Workflow<'_> {
         let mut records = self
             .kernel
             .records(&p.base_frame.continuity, &p.base_frame.revision)?;
+        let originals = records.clone();
         for change in &stored.changes {
             records.retain(|r| r.identity.record_id != change.record_id);
             records.extend(change.next.clone());
@@ -604,9 +616,53 @@ impl Workflow<'_> {
                 })
         };
         let describe_claim = |reference: &RecordRef| {
-            records.iter().find(|r|r.identity.record_id==reference.record).and_then(|r| if let Payload::Proposition(p)=&r.payload {Some(json!({"subject":label(&p.subject.record),"property":label(&p.predicate.record),"value":p.value.as_ref().and_then(|v|writing::plain_value(v,&label))}))}else{None}).unwrap_or(json!({"unknown_claim":reference.record}))
+            records.iter().find(|r|r.identity.record_id==reference.record).and_then(|r| if let Payload::Proposition(p)=&r.payload {Some(json!({"subject":label(&p.subject.record),"property":label(&p.predicate.record),"value":p.value.as_ref().and_then(|v|writing::plain_value(v,&label)).unwrap_or_else(||json!({"participants":p.roles.iter().map(|r|json!({"role":r.role,"object":label(&r.participant.record)})).collect::<Vec<_>>()}))}))}else{None}).unwrap_or(json!({"unknown_claim":reference.record}))
         };
         let mut summary = vec![];
+        let mut factual_edits = BTreeSet::new();
+        for op in &p.operations {
+            let target = match op {
+                DomainOperation::SupersedeAssertion { record, .. }
+                | DomainOperation::EndAssertionAt { record, .. }
+                | DomainOperation::RetractAssertion { record, .. } => record,
+                _ => continue,
+            };
+            let Some(Payload::Assertion(original)) = originals
+                .iter()
+                .find(|r| r.identity.record_id == target.record)
+                .map(|r| &r.payload)
+            else {
+                continue;
+            };
+            factual_edits.insert(target.record.clone());
+            let old = describe_claim(&original.proposition);
+            let line = match op {
+                DomainOperation::SupersedeAssertion {
+                    replacement,
+                    rationale,
+                    ..
+                } => format!(
+                    "Correct earlier fact: {old}; replacement {}; reason: {rationale}",
+                    describe_claim(&replacement.proposition)
+                ),
+                DomainOperation::EndAssertionAt { at, .. } => format!(
+                    "End fact duration: {old}; end {}; earlier support remains",
+                    writing::plain_time(&serde_json::to_value(at)?, &label)
+                ),
+                DomainOperation::RetractAssertion { rationale, .. } => format!(
+                    "Withdraw fact support: {old}; no opposite claim asserted; reason: {rationale}"
+                ),
+                _ => unreachable!(),
+            };
+            summary.push(line);
+        }
+        for line in p
+            .rationale
+            .lines()
+            .filter(|l| l.starts_with("Proposed fact ending reason:"))
+        {
+            summary.push(line.to_string());
+        }
         for row in stored.changes.iter().filter_map(|c| c.next.as_ref()) {
             match &row.payload {
                 Payload::Entity(e) => summary.push(format!(
@@ -617,7 +673,7 @@ impl Workflow<'_> {
                     e.names.iter().map(|n|json!({"text":n.text,"language":n.language,"community":n.community,"role":n.role,"time":writing::plain_time(&json!(n.validity),&label)})).collect::<Vec<_>>().iter().map(|n|n.to_string()).collect::<Vec<_>>().join(", ")
                 )),
                 Payload::EntityType(t) => summary.push(format!("Proposed reusable definition: {}; parent {}; applicability {}",t.name,t.parent.as_ref().map(|id|label(id).unwrap_or_else(|| "unresolved".into())).unwrap_or_else(|| "root".into()),serde_json::to_value(&t.applicability)?)),
-                Payload::Assertion(a) => {
+                Payload::Assertion(a) if !factual_edits.contains(&row.identity.record_id) => {
                     if let Some(proposition) = records
                         .iter()
                         .find(|r| r.identity.record_id == a.proposition.record)
