@@ -2,6 +2,24 @@
 
 Two modes are available: the disposable read/propose fixture and a persistent authenticated engine for author-defined factual universes. Persistent mode supports incremental definitions and instances, scoped factual constraints, retrieval, declared knowledge acquisition, scoped cross-instance cardinality, exact approval, atomic publication, history and recovery. The external writer interprets prose and asks for author clarification; the MCP validates supported factual declarations. Assessments remain optional attributed domain records. The connected writing workflow has been exercised through the native author interface and local packaged launcher. Prose interpretation remains fallible; release acceptance remains open.
 
+## Approved logo and application icon
+
+The **only approved Universe Builder (UB) logo** is
+[the 4096 × 4096 transparent master](assets/branding/universe-builder-symbol-4k.png).
+It **MUST** be used for the application icon and anywhere the UB logo is presented,
+including the desktop, Finder/Dock shortcuts, documentation and distribution materials.
+Use scaled copies of this master; preserve its colors, proportions, transparency
+and centered composition. Do not redraw, recolor, stretch, crop the symbol or
+substitute an earlier concept. Scale its margins with the image; add transparent
+padding when a nonsquare destination requires it.
+
+All other PNGs in `assets/branding/` are size-matched derivatives of this master,
+including files retaining historical concept filenames. Those filenames do not
+indicate alternative approved designs. `assets/branding/universe-builder.icns`
+contains the scaled macOS icon representations used by both packaged apps and
+generated Finder/Dock shortcuts. Regenerate derivatives from the master when
+changing sizes; the master remains the source of truth.
+
 ## Homebrew and the desktop launcher
 
 The public command is `multiverse-mcp`. The release workflow builds a complete

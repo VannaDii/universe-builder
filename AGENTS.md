@@ -1,5 +1,14 @@
 # Workspace instructions
 
+## Approved Universe Builder branding
+
+`assets/branding/universe-builder-symbol-4k.png` is the only approved UB logo.
+It MUST be used for the application icon and anywhere the UB logo is presented.
+Use scaled derivatives, preserving colors, proportions, transparency and centered
+composition. Do not substitute, redraw or revive earlier concepts. The macOS
+icon is `assets/branding/universe-builder.icns`; both packaged apps and generated
+Finder/Dock shortcuts must use it. See README.md for the branding rules.
+
 ## No substantiating artifacts
 
 Do not create proof reports, evidence bundles, verification documents, audit

@@ -4,6 +4,15 @@ The fixture and preview distribution procedures below do not satisfy clean-machi
 
 ## Homebrew preview distribution
 
+Both fixture and release bundles use `assets/branding/universe-builder.icns`,
+derived from the only approved logo, `assets/branding/universe-builder-symbol-4k.png`.
+The bundle includes it in `Contents/Resources` and declares it through
+`CFBundleIconFile`. Generated Finder/Dock shortcuts embed the same icon.
+The approved logo MUST be used anywhere UB branding appears; see the
+[branding rules](../README.md#approved-logo-and-application-icon).
+Existing installed bundles and shortcuts retain their old icon until replaced
+using the normal whole-bundle update or explicit shortcut recreation procedure.
+
 `cargo run --locked -p xtask -- package-release` builds
 `target/distribution/Multiverse MCP.app`, including the public `multiverse-mcp`
 launcher. Its default desktop is the persistent author workspace. The bundle is

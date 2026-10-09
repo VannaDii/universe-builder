@@ -120,9 +120,15 @@ fn create_shortcut(destination: &Path, launcher: &Path, args: &[OsString]) -> Re
         fs::create_dir_all(&bin)?;
         fs::write(bin.join("launch"), script)?;
         fs::set_permissions(bin.join("launch"), fs::Permissions::from_mode(0o755))?;
+        let resources = app.join("Contents/Resources");
+        fs::create_dir_all(&resources)?;
+        fs::write(
+            resources.join("universe-builder.icns"),
+            include_bytes!("../../../assets/branding/universe-builder.icns"),
+        )?;
         fs::write(
             app.join("Contents/Info.plist"),
-            r#"<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>launch</string><key>CFBundleIdentifier</key><string>local.multiverse-mcp.shortcut</string><key>CFBundleName</key><string>Multiverse MCP</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>"#,
+            r#"<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>launch</string><key>CFBundleIdentifier</key><string>local.multiverse-mcp.shortcut</string><key>CFBundleName</key><string>Multiverse MCP</string><key>CFBundleIconFile</key><string>universe-builder.icns</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>"#,
         )?;
         Ok(())
     })();

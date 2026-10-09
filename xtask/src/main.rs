@@ -83,6 +83,12 @@ fn package(release: bool) -> Result<()> {
     }
     let bin = app.join("Contents/MacOS");
     fs::create_dir_all(&bin)?;
+    let resources = app.join("Contents/Resources");
+    fs::create_dir_all(&resources)?;
+    fs::copy(
+        root().join("assets/branding/universe-builder.icns"),
+        resources.join("universe-builder.icns"),
+    )?;
     for name in [
         "universe-builder",
         "universe-engine",
@@ -95,7 +101,7 @@ fn package(release: bool) -> Result<()> {
     fs::write(
         app.join("Contents/Info.plist"),
         format!(
-            r#"<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleExecutable</key><string>universe-builder</string><key>CFBundleIdentifier</key><string>local.multiverse-mcp{suffix}</string><key>CFBundleName</key><string>{name}</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleShortVersionString</key><string>{version}</string><key>CFBundleVersion</key><string>{version}</string><key>LSMinimumSystemVersion</key><string>15.0</string><key>NSHighResolutionCapable</key><true/></dict></plist>"#,
+            r#"<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleExecutable</key><string>universe-builder</string><key>CFBundleIdentifier</key><string>local.multiverse-mcp{suffix}</string><key>CFBundleName</key><string>{name}</string><key>CFBundleIconFile</key><string>universe-builder.icns</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleShortVersionString</key><string>{version}</string><key>CFBundleVersion</key><string>{version}</string><key>LSMinimumSystemVersion</key><string>15.0</string><key>NSHighResolutionCapable</key><true/></dict></plist>"#,
             suffix = if release { "" } else { ".fixture" },
             name = if release {
                 "Multiverse MCP"
