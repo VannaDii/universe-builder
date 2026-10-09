@@ -414,7 +414,7 @@ impl Workflow<'_> {
             if contracts
                 && matches!(
                     op,
-                    DomainOperation::DefineAction { .. } | DomainOperation::DefineRelation { .. }
+                    DomainOperation::DefineAction { .. } | DomainOperation::DefineRelation { .. } | DomainOperation::DefineItemPower { .. }
                 )
             {
                 return false;
@@ -653,6 +653,7 @@ impl Workflow<'_> {
                 Payload::Relation(d)=>summary.push(format!("Author relationship declaration: {}; roles {}",d.key,d.roles.iter().map(|r|format!("{} ({:?}, ordered {}, participant types {})",r.name,r.multiplicity,r.ordered,if r.participant_types.is_empty(){"unrestricted".into()}else{r.participant_types.iter().map(|id|label(id).unwrap_or_else(||"unresolved".into())).collect::<Vec<_>>().join(", ")})).collect::<Vec<_>>().join(", "))),
                 Payload::Rule(d) if d.relation_cardinality.is_some()=>{let c=d.relation_cardinality.as_ref().unwrap();summary.push(format!("Author relationship limit: {}; relationship {}; counted role {}; maximum {}; grouping {}; scope {}; time {}",d.key,label(&c.relation.record).unwrap_or_else(||"unresolved".into()),c.counted_role,c.maximum,serde_json::to_value(&c.grouping)?,super::writing_connected::plain_scope(&c.scope,&label),writing::plain_time(&serde_json::to_value(&c.validity)?,&label)));},
                 Payload::Completeness(c) => summary.push(format!("Author exhaustive set: {}; property {}; members {}",label(&c.subject.record).unwrap_or_else(||"unresolved".into()),c.predicate,c.members.iter().map(|m|label(&m.record).unwrap_or_else(||"unresolved".into())).collect::<Vec<_>>().join(", "))),
+                Payload::ItemPower(p) => summary.push(format!("Author possession-dependent ability: {}; holder property {}; ability {}; value {}; scope {}; time {}. Ownership relations do not establish possession.",label(&p.item.record).unwrap_or_else(||"unresolved".into()),label(&p.holder_predicate.record).unwrap_or_else(||"unresolved".into()),label(&p.power_predicate.record).unwrap_or_else(||"unresolved".into()),writing::plain_value(&p.value,&label).unwrap_or(Value::Null),super::writing_connected::plain_scope(&p.scope,&label),writing::plain_time(&serde_json::to_value(&p.validity)?,&label))),
                 Payload::ActionDefinition(d) => summary.push(format!("Author action declaration: {}",super::writing_connected::plain_action(d,&label))),
                 Payload::Rule(d) if d.knowledge_policy.is_some()=>{let policy=d.knowledge_policy.as_ref().unwrap();summary.push(format!("Author knowledge policy: {}; selected context {}; mode {:?}; no automatic understanding or objective truth",d.key,label(&policy.context.record).unwrap_or_else(||"selected context".into()),policy.mode));},
                 Payload::Rule(d) if d.channel_chronology.is_some()=>{let channel=d.channel_chronology.as_ref().unwrap();summary.push(format!("Author channel policy: {}; channel {}; forward-only {}; minimum delay {:?}; maximum delay {:?} authored ticks",d.key,channel.channel,channel.forward_only,channel.minimum_delay,channel.maximum_delay));},

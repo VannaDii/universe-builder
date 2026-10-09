@@ -130,6 +130,17 @@ Supported revisions use `definition_corrections`, `action_corrections`, factual
 `corrections` and `event_corrections`; unsupported forms stay held or require
 explicit advanced editing.
 
+`item_powers` declares a possession-dependent ability using `item`,
+`holder_property`, `ability_property`, `value`, explicit `scope`, and authored
+`at_tick`/`lifetime`. The holder property must already be declared as a
+single-valued object reference on the item. Ownership relationships, mentions
+and names do not establish possession. Private contract review and exact author
+approval publish the declaration; ordinary factual review cannot adopt it.
+`universe_read_contracts` returns named declarations, while `universe_read_facts`
+returns actual derived holder abilities only while both possession evidence and
+the declaration apply. Transfer, loss and expiry do not create permanent facts.
+Item-power revisions remain unsupported; no conversion or physics is inferred.
+
 An initial-value definition is only a candidate. Publish it first, then use plain
 `initializations` with its returned handle, an explicitly occurred declared start
 or pinned event handle, and the requested scope/interval. Private review and exact

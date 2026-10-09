@@ -126,6 +126,9 @@ pub struct CheckChanges {
     pub units: Vec<WritingUnit>,
     #[serde(default)]
     pub actions: Vec<WritingAction>,
+    /// Explicit possession-dependent abilities; private contract review required. Possession is the named single-valued object holder property on this item, never inferred from an ownership relation.
+    #[serde(default)]
+    pub item_powers: Vec<WritingItemPower>,
     /// Incremental ancestry/applicability revisions; omitted fields keep authored metadata. Requires private contract review.
     #[serde(default)]
     pub definition_corrections: Vec<WritingDefinitionCorrection>,
@@ -180,6 +183,21 @@ pub struct CheckChanges {
     #[serde(default)]
     /// Neutral material questions only. Do not propose a guessed owner/identity as fact while asking who is intended.
     pub questions: Vec<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingItemPower {
+    pub item: String,
+    pub holder_property: String,
+    pub ability_property: String,
+    pub value: FactValue,
+    /// Explicit universe or authored world name.
+    pub scope: String,
+    #[serde(default)]
+    pub at_tick: Option<String>,
+    /// Unspecified means the exact instant; a longer duration must be authored explicitly.
+    #[serde(default)]
+    pub lifetime: FactLifetime,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

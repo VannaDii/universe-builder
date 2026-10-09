@@ -159,12 +159,43 @@ impl Workflow<'_> {
             && input.definition_corrections.is_empty()
             && input.knowledge_policies.is_empty()
             && input.exhaustive_sets.is_empty()
+            && input.item_powers.is_empty()
         {
             return Ok(());
         }
         let rows =
             super::writing_connected::candidate_records(self.kernel.universe(), ctx, base, ops)?;
         let u = self.kernel.universe();
+        for power in &input.item_powers {
+            let build = || -> anyhow::Result<Value> {
+                let item = super::writing_connected::object(&rows, &power.item, &ctx.frame)
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("Which exact authored item is '{}' ?", power.item)
+                    })?;
+                let (holder, definition) = property(&rows, &power.holder_property)?;
+                if !matches!(definition.value, ValueShape::EntityRef { .. })
+                    || definition.multiplicity != Multiplicity::Single
+                {
+                    anyhow::bail!("Possession requires an explicitly authored single-valued object holder property on the item; ownership relations are not possession evidence.");
+                }
+                let (ability, _) = property(&rows, &power.ability_property)?;
+                let time = super::writing_connected::time(&ctx.frame, &rows, &power.at_tick)?;
+                let scope = applicability(self, &power.scope, &rows)?;
+                if matches!(scope, Applicability::Unspecified) {
+                    anyhow::bail!("Which authored world or universe scope applies to this possession-dependent ability?");
+                }
+                Ok(
+                    json!({"kind":"define_item_power","client_ref":RecordId::generate(&mut rand::rng()),"record":{"item":{"universe":u,"record":item},"holderPredicate":{"universe":u,"record":holder.identity.record_id},"powerPredicate":{"universe":u,"record":ability.identity.record_id},"value":super::writing_connected::fact_value(u,&rows,&ctx.frame,&power.value)?,"scope":{"context":ctx.frame.context,"applicability":scope},"validity":validity(&time,&power.lifetime)?}}),
+                )
+            };
+            match build() {
+                Ok(operation) => {
+                    ops.push(operation);
+                    result.additions.push(format!("Possession-dependent ability: {} grants {}; requires private contract review.", power.item, power.ability_property));
+                }
+                Err(error) => result.clarifications.push(error.to_string()),
+            }
+        }
         for boundary in &input.exhaustive_sets {
             let build = || -> anyhow::Result<Value> {
                 let subject =

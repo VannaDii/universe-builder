@@ -436,6 +436,7 @@ impl Runtime {
                             Payload::Relation(r)=>Some(r.key.clone()),
                             Payload::EntityType(t)=>Some(t.name.clone()),
                             Payload::ActionDefinition(a)=>Some(a.key.clone()),
+                            Payload::ItemPower(p) => Some(format!("{} — {}", name(&p.item.record)?, name(&p.power_predicate.record)?)),
                             Payload::Event(e) => e.action.as_ref().and_then(|a| name(&a.record)).map(|action| format!("Occurred action: {action}")),
                             Payload::Assertion(a) => rows.iter().find(|r| r.identity.record_id == a.proposition.record).and_then(|r| if let Payload::Proposition(p) = &r.payload { Some(format!("{} — {}", name(&p.subject.record)?, name(&p.predicate.record)?)) } else { None }),
                             _=>None,

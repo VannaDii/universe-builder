@@ -651,6 +651,7 @@ impl Workflow<'_> {
         let mut relations = vec![];
         let mut relation_limits = vec![];
         let mut relationships = vec![];
+        let mut item_powers = vec![];
         let units:Vec<_>=rows.iter().filter_map(|r|if let Payload::Unit(u)=&r.payload {Some(json!({"name":u.key,"symbol":u.symbol,"dimension":u.dimension,"conversion_declared":u.base.is_some() || u.scale_to_base.is_some(),"time":plain_time(&json!(u.validity),&name)}))}else{None}).collect();
         for row in &rows {
             match &row.payload{
@@ -669,6 +670,9 @@ impl Workflow<'_> {
             }
 if let Some(p)=&r.knowledge_policy{if p.context==ctx.frame.context{policies.push(json!({"name":r.key,"mode":p.mode,"limitation":if p.mode==KnowledgeMode::AuthorEstablished{"Use the separate private establish_knowledge author action with selected claim, time, lifetime and rationale, followed by exact approval; source text or ordinary approval cannot manufacture it."}else{"Requires actual receipt, explicit interpretation, authored channel chronology, and objective truth."}}))}}
             if let Some(c)=&r.channel_chronology{channels.push(json!({"name":r.key,"channel":c.channel,"forward_only":c.forward_only,"minimum_delay":c.minimum_delay,"maximum_delay":c.maximum_delay}))}},
+            Payload::ItemPower(p) if matches!(ctx.frame.perspective,Perspective::Author) && p.scope.context==ctx.frame.context => {
+                item_powers.push(json!({"item":name(&p.item.record),"holder_property":name(&p.holder_predicate.record),"ability_property":name(&p.power_predicate.record),"value":plain_value(&p.value,&name),"scope":plain_scope(&p.scope,&name),"time":plain_time(&json!(p.validity),&name),"time_applicable":universe_rules::events::applies(&p.validity,&ctx.frame.time,&rows),"limitation":"Declaration only; the ability applies to the holder only while explicit holder-property evidence and this declaration both apply. Ownership relations do not establish possession."}));
+            },
             Payload::Relation(d)=>relations.push(json!({"name":d.key,"roles":d.roles.iter().map(|role|json!({"name":role.name,"multiple":role.multiplicity==Multiplicity::Multiple,"ordered":role.ordered,"participant_types":role.participant_types.iter().map(&name).collect::<Vec<_>>()})).collect::<Vec<_>>() })),
             Payload::Assertion(a) if matches!(ctx.frame.perspective,Perspective::Author) && a.scope.context==ctx.frame.context && universe_rules::events::applies(&a.validity,&ctx.frame.time,&rows)!=Some(false)=>{
                 if let Some(p)=rows.iter().find_map(|r|if r.identity.record_id==a.proposition.record{if let Payload::Proposition(p)=&r.payload {Some(p)}else{None}}else{None}) {
@@ -689,7 +693,7 @@ if let Some(p)=&r.knowledge_policy{if p.context==ctx.frame.context{policies.push
             Payload::Communication(c)=>messages.push(json!({"message_handle":row.identity.record_id,"from":name(&c.sender.record),"received_by":c.actual_recipients.iter().filter_map(|r|name(&r.record)).collect::<Vec<_>>(),"sent_at":plain_time(&json!(c.sent_at),&name),"received_at":c.received_at.as_ref().map(|t|plain_time(&json!(t),&name)),"distorted":c.distorted,"claims":c.content.iter().filter_map(|p|rows.iter().find(|r|r.identity.record_id==p.record)).filter_map(|r|if let Payload::Proposition(p)=&r.payload{Some(json!({"subject":name(&p.subject.record),"property":name(&p.predicate.record),"value":p.value.as_ref().and_then(|v|plain_value(v,&name))}))}else{None}).collect::<Vec<_>>()})),_=>()
         }
         }
-        self.wrap(&args,Some(ctx.frame.clone()),None,true,None,json!({"actions":actions,"units":units,"knowledge_policies":policies,"channels":channels,"communications":messages,"attitudes":attitudes,"constraints":constraints,"exhaustive_sets":exhaustive_sets,"relations":relations,"relation_limits":relation_limits,"relationships":relationships,"coverage":if self.scope.is_some() || !matches!(ctx.frame.perspective,Perspective::Author){"restricted"}else{"bounded"},"limitation":"Visible pinned authored declarations; absent contracts are unknown. Effects are computed and checked by the engine. Interpretation alone does not establish knowledge."}))
+        self.wrap(&args,Some(ctx.frame.clone()),None,true,None,json!({"actions":actions,"units":units,"knowledge_policies":policies,"channels":channels,"communications":messages,"attitudes":attitudes,"constraints":constraints,"exhaustive_sets":exhaustive_sets,"relations":relations,"relation_limits":relation_limits,"relationships":relationships,"item_powers":item_powers,"coverage":if self.scope.is_some() || !matches!(ctx.frame.perspective,Perspective::Author){"restricted"}else{"bounded"},"limitation":"Visible pinned authored declarations; absent contracts are unknown. Effects are computed and checked by the engine. Interpretation alone does not establish knowledge."}))
     }
 }
 
