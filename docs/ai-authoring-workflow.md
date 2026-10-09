@@ -273,6 +273,15 @@ cannot approve, stage source bytes or publish canon; those author actions remain
 unavailable. A candidate remains uncommitted, and the model's bounded interpretation
 does not guarantee extraction of every implication in prose.
 
+Local-model testing exception: the selected Qwen3.6 MLX model can guess ambiguous
+owners, duplicate established identities, mishandle attribution and omit authored
+knowledge dependencies even after canon retrieval. One bounded native reasoning-enabled
+trial did not resolve these failures. These interpretation failures are accepted as
+a testing exception for continued engine work; they are not passing model results,
+product correctness claims or fictional resource/constraint exceptions. Full native
+writing-loop qualification remains incomplete. Engine validation, permissions,
+exact author approval and source provenance remain required.
+
 Default limits are 20 model turns per passage, 3,000 generated tokens per turn
 and 32,768 context tokens including the next generation. Configure them with
 `--max-steps`, `--max-tokens` and `--max-context-tokens`. Two identical invalid

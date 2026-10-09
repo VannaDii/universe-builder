@@ -641,5 +641,65 @@ mod tests {
             rejected
         );
         assert_eq!(workflow.kernel.head(&c).unwrap(), before_rejection);
+        // Creative acceptance permits only its exact resource issue, after fresh review.
+        for (op, n) in ops.iter_mut().zip([110_u64, 112]) {
+            op["client_ref"] = json!(format!("rec_{n:024x}"));
+            op["assertion"]["proposition"]["record"] = json!(format!("rec_{n:024x}"));
+        }
+        let retry=workflow.execute(Request::from_tool("universe_propose",json!({"action":"create","universe":"Writing","context_id":fresh["result"]["context_id"],"operations":ops,"submission":"draft","rationale":"Authored nonoverlapping stock history","idempotency_key":"stock-accepted-publication"})).unwrap()).unwrap();
+        let retry: Proposal = field(&retry, "result").unwrap();
+        let review = workflow
+            .author_writing(
+                Selector("Writing".into()),
+                AuthorWritingAction::Prepare {
+                    candidate: retry.proposal_id,
+                    label: "Stock passage".into(),
+                    text: "The reserve had one round earlier and two rounds later.".into(),
+                },
+            )
+            .unwrap();
+        let option = &review["acceptance_options"][0];
+        let accepted = workflow
+            .author_writing(
+                Selector("Writing".into()),
+                AuthorWritingAction::Accept {
+                    candidate: field(&review, "candidate").unwrap(),
+                    fingerprint: field(option, "fingerprint").unwrap(),
+                    scope: field(option, "scope").unwrap(),
+                    rationale: "Author explicitly accepts this unexplained arrival.".into(),
+                },
+            )
+            .unwrap();
+        assert_eq!(accepted["publishable"], true, "{accepted}");
+        let published = workflow
+            .author_writing(
+                Selector("Writing".into()),
+                AuthorWritingAction::Publish {
+                    candidate: field(&accepted, "candidate").unwrap(),
+                    validation_run: serde_json::from_value(
+                        accepted["validation"]["execution"]["run_id"].clone(),
+                    )
+                    .unwrap(),
+                    idempotency_key: "accepted-stock-publication".into(),
+                },
+            )
+            .unwrap();
+        assert!(published["result"]["revision"].is_string(), "{published}");
+        let at=workflow.execute(Request::from_tool("universe_open_context",json!({"universe":"Writing","continuity_id":c,"revision":{"kind":"head"},"represented_context":context,"temporal_query":{"kind":"at","time":{"kind":"exact","calendar":"cal_000000000000000000000006","value":"6"}},"temporal_systems":[],"perspective":"author"})).unwrap()).unwrap();
+        let read=workflow.execute(Request::from_tool("universe_read_facts",json!({"universe":"Writing","context_id":at["result"]["context_id"],"object_names":["Reserve"]})).unwrap()).unwrap();
+        assert!(
+            read["result"]["objects"][0]["facts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|f| f["property"] == "rounds"
+                    && f["value"] == 2
+                    && f["state"] == "unknown"
+                    && f["unknowns"].as_array().unwrap().iter().any(|u| u
+                        .as_str()
+                        .unwrap()
+                        .starts_with("resource_arrival_unexplained"))),
+            "{read}"
+        );
     }
 }

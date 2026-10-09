@@ -190,6 +190,98 @@ async fn ordinary_connected_changes_preserve_events_attribution_retcons_and_auth
         .unwrap()
         .iter()
         .any(|f| f["rule_id"] == id(52) && f["outcome"] == "not_established"));
+    let resource_review = c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::Prepare {
+                candidate: serde_json::from_value(
+                    unexplained["result"]["candidate_handle"].clone(),
+                )
+                .unwrap(),
+                label: "Unexplained stock".into(),
+                text: "At day 5 the pistol had two rounds, with no explained arrival.".into(),
+            },
+        })
+        .await
+        .unwrap();
+    assert_eq!(resource_review["publishable"], false, "{resource_review}");
+    let option = &resource_review["acceptance_options"][0];
+    let accepted = c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::Accept {
+                candidate: serde_json::from_value(resource_review["candidate"].clone()).unwrap(),
+                fingerprint: serde_json::from_value(option["fingerprint"].clone()).unwrap(),
+                scope: serde_json::from_value(option["scope"].clone()).unwrap(),
+                rationale: "The author explicitly accepts this unexplained stock change.".into(),
+            },
+        })
+        .await
+        .unwrap();
+    assert_eq!(accepted["publishable"], false, "{accepted}");
+    assert!(accepted["validation"]["execution"]["findings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|f| f["outcome"] == "conflicting"));
+    assert!(c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::Publish {
+                candidate: serde_json::from_value(accepted["candidate"].clone()).unwrap(),
+                validation_run: serde_json::from_value(
+                    accepted["validation"]["execution"]["run_id"].clone()
+                )
+                .unwrap(),
+                idempotency_key: "overlapping-stock-denied".into(),
+            },
+        })
+        .await
+        .is_err());
+    c.call(EngineRequest::AuthorWriting {
+        universe: Selector("Alpha".into()),
+        action: AuthorWritingAction::Reject {
+            candidate: serde_json::from_value(accepted["candidate"]["proposal_id"].clone())
+                .unwrap(),
+        },
+    })
+    .await
+    .unwrap();
+    let corrected = c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::Prepare {
+                candidate: serde_json::from_value(
+                    replenished["result"]["candidate_handle"].clone(),
+                )
+                .unwrap(),
+                label: "Authored replenishment".into(),
+                text: "At day 5 the pistol received one additional round.".into(),
+            },
+        })
+        .await
+        .unwrap();
+    assert_eq!(corrected["publishable"], true, "{corrected}");
+    c.call(EngineRequest::AuthorWriting {
+        universe: Selector("Alpha".into()),
+        action: AuthorWritingAction::Publish {
+            candidate: serde_json::from_value(corrected["candidate"].clone()).unwrap(),
+            validation_run: serde_json::from_value(
+                corrected["validation"]["execution"]["run_id"].clone(),
+            )
+            .unwrap(),
+            idempotency_key: "authored-replenishment".into(),
+        },
+    })
+    .await
+    .unwrap();
+    let later = c.call(open("6")).await.unwrap()["result"]["context_id"].clone();
+    let after_correction = c.call(tool("universe_check_changes", json!({"universe":"Alpha","context_id":later,"events":[{"action":"fire","participants":{"pistol":"Pistol"}}]}))).await.unwrap();
+    assert_eq!(
+        after_correction["result"]["status"], "checked_candidate",
+        "{after_correction}"
+    );
+    let at = c.call(open("5")).await.unwrap()["result"]["context_id"].clone();
     let false_claim = json!({"subject":"Office","property":"code","value":"red"});
     let true_claim = json!({"subject":"Office","property":"code","value":"green"});
     let connected_args = json!({"universe":"Alpha","context_id":at,"messages":[{"label":"Lie","from":"Sender","to":["Recipient"],"received_by":["Recipient"],"understood_by":["Recipient"],"channel":"radio","claim":false_claim},{"label":"Truth","from":"Sender","to":["Recipient"],"received_by":["Recipient"],"understood_by":["Recipient"],"channel":"radio","claim":true_claim}],"attitudes":[{"holder":"Recipient","claim":true_claim,"attitude":"knows","message":"Truth","lifetime":{"kind":"until_changed"}}],"events":[{"action":"open-office","participants":{"actor":"Recipient"},"at_tick":"6","requires_knowledge":[{"holder":"Recipient","claim":true_claim}]}]});
