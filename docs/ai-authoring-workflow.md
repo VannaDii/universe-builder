@@ -826,5 +826,14 @@ be ended through this finite path. An explicit end plus a new occurrence in one
 delta can record a transfer; overlap still fails authored maxima. Private factual
 review stages exact author source and approval. Historical revisions preserve
 previous participants/intervals; stale version handles require fresh retrieval.
-Relationship definition revisions remain advanced. No scoped waiver or automatic
-downstream rewrite is provided.
+`relation_corrections` names an existing relationship and patches only named
+roles' optional `multiple`, `ordered` or `participant_types` fields, plus a reason.
+A supplied type list replaces that restriction; `[]` explicitly removes it.
+Omitted roles/metadata remain unchanged; this path does not add/remove/rename roles.
+`relation_limit_corrections` names an existing supported maximum and patches only
+supplied `maximum`, `grouping`, `counted_role`, `scope` or paired `at_tick`/`lifetime`.
+The relation identity and omitted scope/time remain unchanged. Both require
+private contract review, exact source and fresh approval. Existing occurrences
+are rechecked; invalid tightening and stale publication are denied. Historical
+revisions keep the old contracts. Unsupported legacy limits require advanced
+review. No scoped waiver or automatic downstream rewrite is provided.

@@ -379,6 +379,25 @@ impl Workflow<'_> {
                         permitted.validity = new.validity.clone();
                         &permitted != new
                     }
+                    (Payload::Relation(old), Payload::Relation(new)) => {
+                        let mut permitted = old.clone();
+                        if old.roles.len()!=new.roles.len() {return true;}
+                        for (before,after) in permitted.roles.iter_mut().zip(&new.roles) {
+                            if before.name!=after.name {return true;}
+                            before.multiplicity=after.multiplicity;
+                            before.ordered=after.ordered;
+                            before.participant_types=after.participant_types.clone();
+                        }
+                        &permitted != new
+                    }
+                    (Payload::Rule(old), Payload::Rule(new)) if super::writing_relations::supported_limit(old) && super::writing_relations::supported_limit(new) => {
+                        let mut permitted=old.clone();
+                        let before=permitted.relation_cardinality.as_mut().unwrap();
+                        let after=new.relation_cardinality.as_ref().unwrap();
+                        before.maximum=after.maximum; before.grouping=after.grouping.clone(); before.counted_role=after.counted_role.clone();
+                        before.scope.applicability=after.scope.applicability.clone();before.validity=after.validity.clone();
+                        &permitted != new
+                    }
                     _ => true,
                 };
             }
@@ -626,7 +645,7 @@ impl Workflow<'_> {
                 Payload::EpistemicAttitude(a) => {if let universe_domain::scope::EvidenceBasis::AuthorDecision{note}=&a.basis {summary.push(format!("Explicit author knowledge decision: {note}; attributed knowledge only, no objective fact asserted"));} summary.push(format!("Proposed attitude: {} {:?}; claim {}; acquisition {}; validity {}",label(&a.holder.record).unwrap_or_default(),a.attitude,describe_claim(&a.proposition),serde_json::to_value(&a.acquisition)?,serde_json::to_value(&a.validity)?));},
                 Payload::Unit(d) => summary.push(format!("Author unit declaration: {}; dimension {}; symbol {}; no conversion declared",d.key,d.dimension,d.symbol)),
                 Payload::Property(d) => summary.push(format!("Proposed property: {}; values {:?}; persistence {:?}",d.key,d.multiplicity,d.persistence)),
-                Payload::Relation(d)=>summary.push(format!("Author relationship declaration: {}; roles {}",d.key,d.roles.iter().map(|r|format!("{} ({:?})",r.name,r.multiplicity)).collect::<Vec<_>>().join(", "))),
+                Payload::Relation(d)=>summary.push(format!("Author relationship declaration: {}; roles {}",d.key,d.roles.iter().map(|r|format!("{} ({:?}, ordered {}, participant types {})",r.name,r.multiplicity,r.ordered,if r.participant_types.is_empty(){"unrestricted".into()}else{r.participant_types.iter().map(|id|label(id).unwrap_or_else(||"unresolved".into())).collect::<Vec<_>>().join(", ")})).collect::<Vec<_>>().join(", "))),
                 Payload::Rule(d) if d.relation_cardinality.is_some()=>{let c=d.relation_cardinality.as_ref().unwrap();summary.push(format!("Author relationship limit: {}; relationship {}; counted role {}; maximum {}; grouping {}; scope {}; time {}",d.key,label(&c.relation.record).unwrap_or_else(||"unresolved".into()),c.counted_role,c.maximum,serde_json::to_value(&c.grouping)?,super::writing_connected::plain_scope(&c.scope,&label),writing::plain_time(&serde_json::to_value(&c.validity)?,&label)));},
                 Payload::Completeness(c) => summary.push(format!("Author exhaustive set: {}; property {}; members {}",label(&c.subject.record).unwrap_or_else(||"unresolved".into()),c.predicate,c.members.iter().map(|m|label(&m.record).unwrap_or_else(||"unresolved".into())).collect::<Vec<_>>().join(", "))),
                 Payload::ActionDefinition(d) => summary.push(format!("Author action declaration: {}",super::writing_connected::plain_action(d,&label))),

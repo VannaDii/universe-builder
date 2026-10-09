@@ -355,6 +355,39 @@ class ConnectedWritingTests(unittest.TestCase):
                 publish(ended,"Mara's ownership of the key ends at day fifteen.","connected-owner-ending")
                 final=client.call("universe_read_contracts",{"universe":"Story","context_id":context(16)})["result"]["relationships"]
                 self.assertFalse(any(r["subject"]=="Key" for r in final),final)
+                tightened=check(context(),relation_limit_corrections=[{"name":"one key owner","maximum":0,"reason":"Explicit proposed tightening."}])
+                self.assertEqual(tightened["status"],"conflict",tightened)
+                self.assertEqual(tightened["validation"]["kind"],"evaluated",tightened)
+                self.assertTrue(any(f["outcome"]=="refuted" for f in tightened["validation"]["execution"]["findings"]),tightened)
+                role_edit=check(context(),relation_corrections=[{"name":"ownership","roles":[{"name":"owner","ordered":True}],"reason":"Explicitly order owner participants."}])
+                with self.assertRaises(RuntimeError):
+                    decisions.action({"action":"prepare","candidate":role_edit["candidate_handle"],"label":"Role edit","text":"Owners are ordered."})
+                staged=decisions.action({"action":"prepare_contracts","candidate":role_edit["candidate_handle"],"label":"Role edit","text":"Owners are ordered."})
+                self.assertTrue(any("owner (Single, ordered true, participant types unrestricted)" in line for line in staged["summary"]),staged["summary"])
+                limit_edit=check(context(),relation_limit_corrections=[{"name":"one key owner","maximum":2,"reason":"Explicitly allow two owners."}])
+                limit_revision=publish(limit_edit,"A key may have two owners during the same authored interval.","connected-limit-revision",contracts=True)
+                with self.assertRaises(RuntimeError):
+                    decisions.action({"action":"publish","candidate":staged["candidate"],"validation_run":staged["validation"]["execution"]["run_id"],"idempotency_key":"stale-role-publication"})
+                publish(check(context(),relation_corrections=[{"name":"ownership","roles":[{"name":"owner","ordered":True,"multiple":True}],"reason":"Explicitly order multiple owners."}]),"The owner role is multiple and ordered; the item role is unchanged.","connected-role-revision",contracts=True)
+                updated=client.call("universe_read_contracts",{"universe":"Story","context_id":context()})["result"]
+                definition=next(r for r in updated["relations"] if r["name"]=="ownership")
+                item=next(r for r in definition["roles"] if r["name"]=="item")
+                owner=next(r for r in definition["roles"] if r["name"]=="owner")
+                self.assertFalse(item["multiple"]);self.assertFalse(item["ordered"]);self.assertEqual(item["participant_types"],[])
+                self.assertTrue(owner["multiple"]);self.assertTrue(owner["ordered"])
+                limit=next(r for r in updated["relation_limits"] if r["name"]=="one key owner")
+                self.assertEqual(limit["maximum"],2);self.assertEqual(limit["grouping"],{"kind":"role","role":"item"});self.assertEqual(limit["counted_role"],"owner");self.assertEqual(limit["scope"],limits["relation_limits"][0]["scope"]);self.assertEqual(limit["time"],limits["relation_limits"][0]["time"])
+                historical=client.call("universe_read_contracts",{"universe":"Story","context_id":context(revision={"kind":"exact","revision_id":limit_revision})})["result"]
+                historical_owner=next(r for r in historical["relations"] if r["name"]=="ownership")["roles"][1]
+                self.assertFalse(historical_owner["ordered"]);self.assertFalse(historical_owner["multiple"])
+                joint=check(context(),relationships=[{**new_owner,"at_tick":"20","lifetime":{"kind":"until","end_tick":"30"},"participants":{"item":["Key"],"owner":["Mara","Leon"]}}])
+                publish(joint,"Mara and Leon jointly own the key from day twenty to thirty.","connected-joint")
+                denied=client.call("universe_check_changes",{"universe":"Story","context_id":context(),"relation_corrections":[{"name":"ownership","roles":[{"name":"owner","multiple":False}],"reason":"Proposed single-owner role contradicts committed joint ownership."}]},error=True)
+                self.assertEqual(denied["code"],"INVALID_ARGUMENT",denied)
+                self.assertIn("single role has multiple participants",denied["message"])
+                preserved=client.call("universe_read_contracts",{"universe":"Story","context_id":context()})["result"]
+                self.assertTrue(next(r for r in preserved["relations"] if r["name"]=="ownership")["roles"][1]["multiple"])
+
             finally:
                 if client: client.close()
                 cli("shutdown",profile=author)

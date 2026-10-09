@@ -63,6 +63,8 @@ impl Workflow<'_> {
         if input.relation_definitions.is_empty()
             && input.relation_limits.is_empty()
             && input.relationships.is_empty()
+            && input.relation_corrections.is_empty()
+            && input.relation_limit_corrections.is_empty()
             && input.relationship_corrections.is_empty()
             && input.relationship_endings.is_empty()
         {
@@ -128,6 +130,172 @@ impl Workflow<'_> {
                     ops.push(op);
                     rows = super::writing_connected::candidate_records(u, ctx, base, ops)?;
                     result.additions.push(format!("Author relationship limit: {}; maximum {}; private contract review required.",l.name,l.maximum));
+                }
+                Err(e) => result.clarifications.push(e.to_string()),
+            }
+        }
+        let mut revised = BTreeSet::new();
+        for patch in &input.relation_corrections {
+            let build = || -> anyhow::Result<Value> {
+                if patch.reason.trim().is_empty() || patch.roles.is_empty() {
+                    anyhow::bail!("Specify changed role fields and the author's reason; omitted fields stay unchanged.")
+                }
+                let (original, definition) = relation(base, &patch.name)?;
+                let mut replacement = definition.clone();
+                let mut seen = BTreeSet::new();
+                for role in &patch.roles {
+                    if !seen.insert(&role.name)
+                        || (role.multiple.is_none()
+                            && role.ordered.is_none()
+                            && role.participant_types.is_none())
+                    {
+                        anyhow::bail!(
+                            "Specify each changed declared role once with explicit changed fields."
+                        )
+                    }
+                    let target = replacement
+                        .roles
+                        .iter_mut()
+                        .find(|r| r.name == role.name)
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "'{}' is not a declared role of this relationship.",
+                                role.name
+                            )
+                        })?;
+                    if let Some(multiple) = role.multiple {
+                        target.multiplicity = if multiple {
+                            Multiplicity::Multiple
+                        } else {
+                            Multiplicity::Single
+                        };
+                    }
+                    if let Some(ordered) = role.ordered {
+                        target.ordered = ordered;
+                    }
+                    if let Some(types) = &role.participant_types {
+                        target.participant_types=types.iter().map(|name| {
+                            let matches:Vec<_>=rows.iter().filter(|r|matches!(&r.payload,Payload::EntityType(d) if d.key==*name||d.name==*name||d.labels.values().any(|v|v==name))).collect();
+                            let [record]=matches.as_slice() else { anyhow::bail!("Which exact participant type is '{}' ?",name); };
+                            Ok(record.identity.record_id.clone())
+                        }).collect::<anyhow::Result<Vec<_>>>()?;
+                    }
+                }
+                Ok(
+                    json!({"kind":"revise_definition","record":{"universe":u,"record":original.identity.record_id},"expected_version":original.record_version_id,"replacement":Payload::Relation(replacement)}),
+                )
+            };
+            match build() {
+                Ok(op) => {
+                    if !revised.insert(op["record"]["record"].clone().to_string()) {
+                        result
+                            .clarifications
+                            .push("Revise each relationship contract only once per delta.".into());
+                        continue;
+                    }
+                    ops.push(op);
+                    rows = super::writing_connected::candidate_records(u, ctx, base, ops)?;
+                    result.additions.push(format!("Relationship contract correction: {} — {}; private contract review required.",patch.name,patch.reason));
+                }
+                Err(e) => result.clarifications.push(e.to_string()),
+            }
+        }
+        for patch in &input.relation_limit_corrections {
+            let build = || -> anyhow::Result<Value> {
+                if patch.reason.trim().is_empty()
+                    || (patch.maximum.is_none()
+                        && patch.grouping.is_none()
+                        && patch.counted_role.is_none()
+                        && patch.scope.is_none()
+                        && patch.at_tick.is_none()
+                        && patch.lifetime.is_none())
+                {
+                    anyhow::bail!("Specify changed limit fields and the author's reason.")
+                }
+                let matches: Vec<_> = base
+                    .iter()
+                    .filter_map(|r| match &r.payload {
+                        Payload::Rule(d)
+                            if d.key == patch.name
+                                || d.labels.values().any(|v| v == &patch.name) =>
+                        {
+                            Some((r, d))
+                        }
+                        _ => None,
+                    })
+                    .collect();
+                let [(original, rule)] = matches.as_slice() else {
+                    anyhow::bail!(
+                        "Which exact authored relationship limit is '{}' ?",
+                        patch.name
+                    );
+                };
+                if !supported_limit(rule) {
+                    anyhow::bail!("This legacy relationship limit requires advanced contract review; its metadata will not be discarded.")
+                }
+                let mut replacement = (*rule).clone();
+                let limit = replacement.relation_cardinality.as_mut().unwrap();
+                let def = rows
+                    .iter()
+                    .find_map(|r| {
+                        if r.identity.record_id == limit.relation.record {
+                            if let Payload::Relation(d) = &r.payload {
+                                Some(d)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "Retrieve the relationship definition before changing its limit."
+                        )
+                    })?;
+                if let Some(max) = patch.maximum {
+                    limit.maximum = max;
+                }
+                if let Some(grouping) = &patch.grouping {
+                    limit.grouping = serde_json::from_value(serde_json::to_value(grouping)?)?;
+                }
+                if let Some(role) = &patch.counted_role {
+                    limit.counted_role = role.clone();
+                }
+                if !def.roles.iter().any(|r| r.name == limit.counted_role)
+                    || matches!(&limit.grouping,universe_domain::records::CardinalityKey::Role{role}if !def.roles.iter().any(|r|&r.name==role))
+                {
+                    anyhow::bail!(
+                        "Grouping and counted roles must be actual declared relationship roles."
+                    )
+                }
+                if let Some(text) = &patch.scope {
+                    limit.scope.applicability =
+                        super::writing_contracts::applicability(self, text, &rows)?;
+                }
+                match (&patch.at_tick,&patch.lifetime) {
+                    (None,None)=>{},
+                    (Some(_),Some(lifetime))=>{let time=super::writing_connected::time(&ctx.frame,&rows,&patch.at_tick)?;limit.validity=super::writing_contracts::validity(&time,lifetime)?;},
+                    _=>anyhow::bail!("Time correction requires both explicit tick and lifetime; omission preserves existing validity."),
+                }
+                Ok(
+                    json!({"kind":"revise_definition","record":{"universe":u,"record":original.identity.record_id},"expected_version":original.record_version_id,"replacement":Payload::Rule(replacement)}),
+                )
+            };
+            match build() {
+                Ok(op) => {
+                    if !revised.insert(op["record"]["record"].clone().to_string()) {
+                        result
+                            .clarifications
+                            .push("Revise each relationship contract only once per delta.".into());
+                        continue;
+                    }
+                    ops.push(op);
+                    rows = super::writing_connected::candidate_records(u, ctx, base, ops)?;
+                    result.additions.push(format!(
+                        "Relationship limit correction: {} — {}; private contract review required.",
+                        patch.name, patch.reason
+                    ));
                 }
                 Err(e) => result.clarifications.push(e.to_string()),
             }

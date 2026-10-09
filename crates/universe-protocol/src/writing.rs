@@ -141,6 +141,12 @@ pub struct CheckChanges {
     /// Authored cross-occurrence maxima, separate from local role multiplicity; private contract review required.
     #[serde(default)]
     pub relation_limits: Vec<WritingRelationLimit>,
+    /// Incremental edits to existing role metadata; omitted roles/fields stay unchanged. Private contract review required.
+    #[serde(default)]
+    pub relation_corrections: Vec<WritingRelationCorrection>,
+    /// Incremental existing maximum/grouping/scope/time edits; omitted fields stay unchanged. Private contract review required.
+    #[serde(default)]
+    pub relation_limit_corrections: Vec<WritingRelationLimitCorrection>,
     /// Objective named relationship deltas using actual declared roles and authored participants.
     #[serde(default)]
     pub relationships: Vec<WritingRelationship>,
@@ -614,5 +620,44 @@ pub struct WritingRelationshipEnding {
     pub relationship_handle: String,
     /// Exclusive end on the relationship's original authored interval calendar. No clock conversion.
     pub end_tick: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingRelationCorrection {
+    pub name: String,
+    pub roles: Vec<WritingRelationRoleCorrection>,
+    pub reason: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingRelationRoleCorrection {
+    pub name: String,
+    #[serde(default)]
+    pub multiple: Option<bool>,
+    #[serde(default)]
+    pub ordered: Option<bool>,
+    /// Supplied list explicitly replaces this role's type restrictions; [] removes them. Omission preserves them.
+    #[serde(default)]
+    pub participant_types: Option<Vec<String>>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingRelationLimitCorrection {
+    pub name: String,
+    #[serde(default)]
+    pub maximum: Option<u32>,
+    #[serde(default)]
+    pub grouping: Option<WritingRelationGrouping>,
+    #[serde(default)]
+    pub counted_role: Option<String>,
+    #[serde(default)]
+    pub scope: Option<String>,
+    /// Time edit requires both explicit tick and lifetime; omission preserves existing validity.
+    #[serde(default)]
+    pub at_tick: Option<String>,
+    #[serde(default)]
+    pub lifetime: Option<FactLifetime>,
     pub reason: String,
 }

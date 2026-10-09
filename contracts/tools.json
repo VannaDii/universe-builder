@@ -2271,6 +2271,22 @@
           },
           "default": []
         },
+        "relation_corrections": {
+          "description": "Incremental edits to existing role metadata; omitted roles/fields stay unchanged. Private contract review required.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingRelationCorrection"
+          },
+          "default": []
+        },
+        "relation_limit_corrections": {
+          "description": "Incremental existing maximum/grouping/scope/time edits; omitted fields stay unchanged. Private contract review required.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingRelationLimitCorrection"
+          },
+          "default": []
+        },
         "relationships": {
           "description": "Objective named relationship deltas using actual declared roles and authored participants.",
           "type": "array",
@@ -3236,6 +3252,135 @@
                 "role"
               ]
             }
+          ]
+        },
+        "WritingRelationCorrection": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "roles": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/WritingRelationRoleCorrection"
+              }
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "roles",
+            "reason"
+          ]
+        },
+        "WritingRelationRoleCorrection": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "multiple": {
+              "type": [
+                "boolean",
+                "null"
+              ],
+              "default": null
+            },
+            "ordered": {
+              "type": [
+                "boolean",
+                "null"
+              ],
+              "default": null
+            },
+            "participant_types": {
+              "description": "Supplied list explicitly replaces this role's type restrictions; [] removes them. Omission preserves them.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              },
+              "default": null
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ]
+        },
+        "WritingRelationLimitCorrection": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "maximum": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0,
+              "default": null
+            },
+            "grouping": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/WritingRelationGrouping"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "counted_role": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "scope": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "at_tick": {
+              "description": "Time edit requires both explicit tick and lifetime; omission preserves existing validity.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "lifetime": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FactLifetime"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "reason"
           ]
         },
         "WritingRelationship": {
