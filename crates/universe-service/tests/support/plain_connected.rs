@@ -281,6 +281,21 @@ async fn ordinary_connected_changes_preserve_events_attribution_retcons_and_auth
         after_correction["result"]["status"], "checked_candidate",
         "{after_correction}"
     );
+    let stale_review = c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::Prepare {
+                candidate: serde_json::from_value(
+                    after_correction["result"]["candidate_handle"].clone(),
+                )
+                .unwrap(),
+                label: "Later firing".into(),
+                text: "At day 6 the pistol fired once.".into(),
+            },
+        })
+        .await
+        .unwrap();
+    assert_eq!(stale_review["publishable"], true, "{stale_review}");
     let at = c.call(open("5")).await.unwrap()["result"]["context_id"].clone();
     let false_claim = json!({"subject":"Office","property":"code","value":"red"});
     let true_claim = json!({"subject":"Office","property":"code","value":"green"});
@@ -305,7 +320,7 @@ async fn ordinary_connected_changes_preserve_events_attribution_retcons_and_auth
     );
     let prepared=c.call(EngineRequest::AuthorWriting{universe:Selector("Alpha".into()),action:AuthorWritingAction::Prepare{candidate:serde_json::from_value(connected["result"]["candidate_handle"].clone()).unwrap(),label:"Message".into(),text:"The sender lied about red, then explained green. The recipient understood green and retained this knowledge, using it the next day.".into()}}).await.unwrap();
     assert_eq!(prepared["publishable"], true, "{prepared}");
-    c.call(EngineRequest::AuthorWriting {
+    let publication = EngineRequest::AuthorWriting {
         universe: Selector("Alpha".into()),
         action: AuthorWritingAction::Publish {
             candidate: serde_json::from_value(prepared["candidate"].clone()).unwrap(),
@@ -315,9 +330,33 @@ async fn ordinary_connected_changes_preserve_events_attribution_retcons_and_auth
             .unwrap(),
             idempotency_key: "plain-message".into(),
         },
-    })
-    .await
-    .unwrap();
+    };
+    let message_receipt = c.call(publication.clone()).await.unwrap();
+    // A lost publication response is recovered with the original operation after restart.
+    drop(c);
+    stop.cancel();
+    server.await.unwrap().unwrap();
+    let stop = CancellationToken::new();
+    let (r, s) = (root.clone(), stop.clone());
+    let server = tokio::spawn(async move { runtime::serve(&r, s).await });
+    let mut c = connect(&root, &author).await;
+    let recovered = c.call(publication).await.unwrap();
+    assert_eq!(recovered["result"], message_receipt["result"]);
+    assert_eq!(recovered["frame"], message_receipt["frame"]);
+    assert!(c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::Publish {
+                candidate: serde_json::from_value(stale_review["candidate"].clone()).unwrap(),
+                validation_run: serde_json::from_value(
+                    stale_review["validation"]["execution"]["run_id"].clone()
+                )
+                .unwrap(),
+                idempotency_key: "stale-head-firing".into(),
+            },
+        })
+        .await
+        .is_err());
     let at = c.call(open("7")).await.unwrap()["result"]["context_id"].clone();
     let contracts = c
         .call(tool(
@@ -326,6 +365,15 @@ async fn ordinary_connected_changes_preserve_events_attribution_retcons_and_auth
         ))
         .await
         .unwrap();
+    assert!(contracts["result"]["attitudes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|a| a["attitude"] == "knows" && a["claim"]["value"] == "green"));
+    let committed = c.call(tool("universe_get", json!({"universe":"Alpha","context_id":at,"record_ids":connected["result"]["impact"]["records"],"field_groups":["payload"]}))).await.unwrap();
+    let committed: Vec<universe_domain::records::RecordVersion> =
+        serde_json::from_value(committed["result"]["records"].clone()).unwrap();
+    assert!(committed.iter().any(|r| matches!(&r.payload, universe_domain::records::Payload::Event(e) if e.action.as_ref().is_some_and(|a| a.record.as_str() == id(32)) && !e.preconditions.is_empty())));
     assert_eq!(
         contracts["result"]["communications"]
             .as_array()
@@ -354,6 +402,67 @@ async fn ordinary_connected_changes_preserve_events_attribution_retcons_and_auth
         "Retcon failed to invalidate later knowledge/action: {corrected}"
     );
     assert!(corrected["result"]["impact"].is_object());
+    assert_eq!(
+        corrected["frame"]["revision"],
+        message_receipt["result"]["revision"]
+    );
+    let retcon_review = c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::Prepare {
+                candidate: serde_json::from_value(corrected["result"]["candidate_handle"].clone())
+                    .unwrap(),
+                label: "Retcon".into(),
+                text: "The original office code was blue.".into(),
+            },
+        })
+        .await
+        .unwrap();
+    assert_eq!(retcon_review["publishable"], false, "{retcon_review}");
+    assert!(
+        retcon_review["validation"]["execution"]["findings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["rule_id"] == id(50) && f["outcome"] == "not_established"),
+        "{retcon_review}"
+    );
+    assert!(c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::Publish {
+                candidate: serde_json::from_value(retcon_review["candidate"].clone()).unwrap(),
+                validation_run: serde_json::from_value(
+                    retcon_review["validation"]["execution"]["run_id"].clone()
+                )
+                .unwrap(),
+                idempotency_key: "blocked-dependent-retcon".into(),
+            },
+        })
+        .await
+        .is_err());
+    let fresh = c.call(open("7")).await.unwrap();
+    assert_eq!(
+        fresh["frame"]["revision"],
+        message_receipt["result"]["revision"]
+    );
+    let retained = c.call(tool("universe_read_facts", json!({"universe":"Alpha","context_id":fresh["result"]["context_id"],"object_names":["Office"]}))).await.unwrap();
+    assert!(retained["result"]["objects"][0]["facts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|f| f["value"] == "green"));
+    assert!(retained["result"]["objects"][0]["facts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|f| f["value"] != "blue"));
+
+    let continuation = c.call(tool("universe_check_changes", json!({"universe":"Alpha","context_id":fresh["result"]["context_id"],"events":[{"action":"fire","participants":{"pistol":"Pistol"}}]}))).await.unwrap();
+    assert_eq!(
+        continuation["result"]["status"], "checked_candidate",
+        "{continuation}"
+    );
     let failed_knowledge=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":at,"attitudes":[{"holder":"Recipient","claim":false_claim,"attitude":"knows"}]}))).await.unwrap();
     assert_eq!(failed_knowledge["result"]["status"], "needs_clarification");
     assert!(failed_knowledge["result"]["candidate_handle"].is_null());

@@ -291,7 +291,9 @@ leave checking incomplete; a context limit requires a fresh session.
 The local session also accepts private author commands. `/review` stages the exact
 submitted passage (including any author clarification), binds its UTF-8 source
 anchor to the factual candidate, and shows the actual compiled changes and fresh
-engine findings. `/approve` explicitly approves and publishes only that exact
+engine findings, actual impact coverage and any validation limitations. Impact is
+a conservative dependency closure; it does not identify every affected prose passage.
+`/approve` explicitly approves and publishes only that exact
 review. `/reject` withdraws the candidate without changing canon. Questions hold
 the entire delta; answering in ordinary language triggers a fresh corrected check.
 

@@ -319,6 +319,15 @@ class AuthorDecisions:
         self.output("Ready for exact approval." if self.review.get("publishable") else "Publication blocked by the engine; correct the writing or explicitly resolve a supported finding.")
         for finding in self.review.get("validation", {}).get("execution", {}).get("findings", []):
             self.output(f"Finding {finding['fingerprint']}: {finding.get('message') or finding['outcome']}")
+        impact = self.review.get("impact") or {}
+        coverage = impact.get("coverage", "unavailable")
+        records = impact.get("records")
+        if coverage == "complete" and isinstance(records, list):
+            self.output(f"Impact coverage: complete; {len(records)} related records.")
+        else:
+            self.output(f"Impact unresolved: coverage {coverage}; affected dependencies may be incomplete.")
+        for capability in self.review.get("validation", {}).get("execution", {}).get("unsupported_capabilities", []):
+            self.output(f"Validation limitation: {capability}")
         for option in self.review.get("acceptance_options", []):
             self.output(f"Creative acceptance option: {option['fingerprint']} {option['scope']}; requires your explicit reason.")
         self.output(f"Exact review: {self.review['candidate']['digest']}")

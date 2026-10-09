@@ -164,6 +164,22 @@ class AuthorDecisionTests(unittest.TestCase):
         self.assertNotIn("version",calls[0])
         with self.assertRaises(ValueError): controller.handle("/approve")
 
+    def test_review_reports_actual_impact_and_validation_limits(self):
+        controller,_,_,output=self.controller()
+        controller.review={"candidate":{"digest":"exact"},"publishable":False,
+            "impact":{"coverage":"restricted","records":["visible"]},
+            "validation":{"execution":{"findings":[],"unsupported_capabilities":["unmapped chronology"]}}}
+        controller.show_review()
+        self.assertIn("Impact unresolved: coverage restricted; affected dependencies may be incomplete.",output)
+        self.assertIn("Validation limitation: unmapped chronology",output)
+        self.assertNotIn("Ready for exact approval.",output)
+        output.clear(); controller.review["impact"]={"coverage":"complete","records":["one","two"]}
+        controller.show_review()
+        self.assertIn("Impact coverage: complete; 2 related records.",output)
+        output.clear(); controller.review.pop("impact")
+        controller.show_review()
+        self.assertIn("Impact unresolved: coverage unavailable; affected dependencies may be incomplete.",output)
+
     def test_missing_receipt_never_claims_publication(self):
         controller,session,_,output=self.controller()
         controller.review={"publishable":True,"candidate":{"proposal_id":"prp_"+"2"*24},"validation":{"execution":{"run_id":"run"}}}
