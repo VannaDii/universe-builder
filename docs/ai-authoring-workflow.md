@@ -9,13 +9,16 @@ forget a continuing attribute merely because it was not mentioned in the last
 scene. A canonical change must explicitly end, replace or refute the old value.
 Expired or unknown evidence is unresolved, rather than proof of suppression.
 
-Every new or revised event names an `action_definition`. Use `define_action`
-to declare mandatory `requirements`: each contains a participant `role`, typed
-property `predicate` reference and required `value`. Definitions require existing
-protected authority. Each required role must resolve to exactly one individual
-or object; optional event prerequisites cannot replace that owner's requirement.
-Ordinary actions explicitly have an empty requirement list. Never classify wall
-traversal as ordinary just to avoid its declared phase-power requirement.
+Every new or revised event names an authored action. Ordinary callers discover
+its exact name and roles through `universe_read_contracts`, then submit named
+participants and explicit story time through `universe_check_changes`. Plain
+`actions` declarations express supported role/property/value requirements and
+consequences; protected contracts require explicit private author contract review.
+The advanced `define_action` operation remains available with `--advanced-tools`.
+Each required role must resolve to exactly one individual or object; optional
+event prerequisites cannot replace that owner's requirement. A contract without
+requirements creates no missing-role requirement. Never classify wall traversal
+as ordinary just to avoid its declared phase-power requirement.
 
 The engine checks the pre-event state before applying effects. Direct attribute
 assertions and explicit possession-dependent grants use the same evaluator.
@@ -58,60 +61,59 @@ historical records and current time-scoped state when assembling model input.
 
 ## The authoring loop
 
-1. **Research before accepting prose.** Name the universe on every call. Open a
-   context pinned to the intended continuity and revision. Retrieve relevant
-   entities, rules, boundaries, negative evidence, appearances and dependencies
-   with `universe_search`, `universe_get` and `universe_get_context`. Follow every
-   required page. Read `universe_get_state` at the scene's authored story time.
-   Choose the correct represented context and author, character, narrator or
-   reader perspective; author knowledge is not automatically character knowledge.
-2. **Express the continuity consequences.** Draft externally, then create
-   structured operations for the material facts and changes in the prose. This
-   can include identity, attributes, relationships, possession, occurred events,
-   event prerequisites/effects, time, knowledge acquisition, narrative references
-   and reader disclosure. An unchanged established fact can simply be checked
-   against its evidence; it does not need a duplicate assertion. Unestablished
-   material facts need an explicit proposal or author decision, not invention
-   presented as existing canon. Dialogue, reports, lies, beliefs and hypotheticals
-   keep their represented context and do not automatically become objective facts.
-3. **Validate the candidate.** Submit the exact operations with
-   `universe_propose`, then use `universe_validate`. Proposal admission uses an
-   author-perspective, timeless/all-validities frame; this prevents a scene-time
-   filter from hiding contradictions elsewhere. Scene research still uses the
-   intended story time. Inspect findings, coverage and unsupported capabilities.
-   A complete evaluation can contain a blocking conflict. Correct contradictions
-   or use the existing explicit, scoped author-decision/exception mechanism.
-   Do not call a candidate continuity-verified while a material gap is unresolved.
-4. **Check impact.** Use `universe_get_impact` for the same proposal. Consider its
-   dependency footprint before using it. Current impact is conservative across
-   the universe; it is not a manuscript editor that automatically rewrites earlier
-   chapters. Keep affected passages and changes visible to the author.
-5. **Commit selected prose's changes.** Once the author chooses to use the
-   verified prose, call `universe_commit` with its exact proposal reference,
-   expected base revision, validation run and a stable idempotency key. The engine
-   requires current edit authority and either exact author approval or an existing
-   bounded delegated-commit grant. An ordinary edit grant is not delegation.
-   The AI cannot manufacture approval. This is the existing engine boundary,
-   not a new review requirement added by these instructions.
-6. **Confirm and continue from canon.** Keep the successful receipt, reopen
-   context at the committed revision, and re-query the affected state. Future
-   writing must use that revision so the committed changes carry forward.
-   If a commit response is lost, use `universe_get_operation` and the original
-   idempotency key; do not invent a receipt or blindly submit a new mutation.
-   A changed proposal or canon head requires fresh validation and the applicable
-   approval. A candidate awaiting approval is still a candidate.
+1. **Start with author writing.** Prose is provisional. Distinguish objective
+   narration from attributed dialogue, belief, plans, hypotheticals and metaphor.
+   Identify material implications without inventing physics, identities or intent.
+2. **Research pinned canon.** Name the universe on every call. Use
+   `universe_describe` summary to discover authorized continuities and contexts,
+   then `universe_open_context` to pin the intended revision, story time and
+   perspective. Use `universe_read_facts` for exact object names and
+   `universe_read_contracts` for actions, units and policies. Follow
+   relevant pinned pages. Preserve unknown, restricted and historical coverage;
+   an empty search is not proof of absence. Author knowledge is not character knowledge.
+3. **Check only the delta.** Send material factual changes through
+   `universe_check_changes` with the returned authorized author context handle.
+   Reuse existing names/property keys and opaque correction handles; unchanged
+   facts need no duplicate assertions. The engine builds internal records and
+   checks candidate state with all-validities admission at the same revision.
+   Its response includes actual validation/impact, conflicts, exclusions and
+   limitations. Complete execution remains a bounded check, not exhaustive prose
+   certification. Any material question holds the whole delta before candidate
+   creation; ask the author neutrally and submit a corrected delta after the answer.
+4. **Private author review.** Select the candidate by description in the native
+   **Writing proposals** panel or use the author session's `/review`. Attach exact
+   passage bytes and review the changes, source, findings and impact. Protected
+   declarations/revisions use explicit contract review. Scoped unexplained-resource
+   acceptance and author-established knowledge require their separate private
+   author decisions; model calls and general approval cannot manufacture them.
+   Reject or correct blocked changes. Prepared source/candidate bindings cannot
+   silently adopt edits, and a candidate remains uncommitted throughout review.
+5. **Approve and publish.** Native approval and publication use separate controls.
+   In the author session, `/approve` explicitly approves and publishes the prepared
+   review. Publication enforces current authority, exact source,
+   validation and approval bindings. Only a successful commit receipt establishes
+   canon. The model cannot grant itself approval or treat a draft/check as publication.
+6. **Recover and continue.** Recover an uncertain publication with its original
+   operation key and approval; do not fabricate a receipt or retry under a new key.
+   Reopen context at the committed revision and read affected facts/contracts
+   before dependent writing. A changed candidate or canon head requires fresh
+   research, validation and applicable author review/approval; never silently rebase.
+
+Raw record reads, `universe_propose`, `universe_validate` and explicit version
+bindings are advanced, opt-in workflows. They are not prerequisites for the
+ordinary authoring loop above. Existing delegated commit authority remains an
+explicit engine capability, never a permission inferred from model input.
 
 ## Retrieve and record factual state
 
-For an object-level question, use `universe_get_state` at the scene's intended
-time and represented context. Inspect the returned object evidence, including
-ancestry, shared attributes, instance facts, initial-value candidates, behavior
-requirements, dependencies, conflicts, unknowns, and coverage. Follow every
-page. A proposition is claimable vocabulary, not proof that its value is true;
-check the supporting assertions, polarity, scope, validity, provenance, and
-unresolved evidence. Restricted or incomplete coverage does not establish
-absence. Request authorized access or ask the author before relying on missing
-evidence.
+For an object-level question, use `universe_read_facts` at the scene's intended
+time and represented context. Read named facts, property semantics, ancestry,
+inherited attributes, initial candidates, occurred-event handles, conflicts,
+unknowns and coverage. Use `universe_read_contracts` for action requirements,
+consequences and applicable policy declarations. These plain views reuse the
+pinned engine evidence; callers need no raw assertion/proposition joins.
+Restricted or incomplete coverage does not establish absence. Request authorized
+access or ask the author before relying on missing evidence.
 
 The native state inspector presents these returned evidence lanes separately,
 with the queried revision, represented context, world focus, time and coverage.
@@ -119,27 +121,27 @@ Shared definition attributes and initial-value candidates are not current stock.
 Initialization history is shown with its own coverage; restricted receipts stay
 concealed. Expand a row to inspect exact records, qualifications and references.
 
-For genuinely new facts, `universe_propose` supports `introduce_definition`,
-`introduce_instance`, `add_named_attribute`, and `refine_classification`.
-Supply only known identity, names, scope, time, precision, and evidence basis;
-unknown values remain unknown. Shared definition attributes and instance facts
-are distinct. Classification refinement retains identity and is not a physical
-transformation. Existing advanced record operations remain available for
-explicit corrections and event-linked changes.
+For genuinely new facts, ordinary `universe_check_changes` accepts explicit
+`definitions`, independent `changes`, named attributes and classification
+refinement. Supply only known identity, scope and story time; unknown values stay
+unknown. Shared definition attributes and instance state remain separate, and
+classification refinement preserves identity rather than depicting transformation.
+Supported revisions use `definition_corrections`, `action_corrections`, factual
+`corrections` and `event_corrections`; unsupported forms stay held or require
+explicit advanced editing.
 
-An initial-value definition is only a candidate. To establish starting state,
-use `initialize_instance` with its exact assertion version, an occurred start,
-and the requested scope and interval. Review, validate, approve, and commit it
-through the same publication path. The resulting instance assertion and durable
-receipt are separate from the definition candidate. Mentions, renames, holder
-changes, definition edits, and process restarts do not initialize again. A
-conflicting or unresolved applicable candidate requires an author resolution.
+An initial-value definition is only a candidate. Publish it first, then use plain
+`initializations` with its returned handle, an explicitly occurred declared start
+or pinned event handle, and the requested scope/interval. Private review and exact
+publication create separate instance facts and a durable once-only receipt.
+Mentions, renames, holder changes, classification and restarts never refill it.
+Conflicting or unresolved applicable candidates require author resolution.
 
 When an opted-in `resources.accounting.v1` rule finds a stock change without a
 declared event or a coherent correction, keep the clarification unresolved and
 ask the author. Do not invent an event or infer a cause. If the author explicitly
-accepts the unexplained count, record an `IssueDecision` for the exact finding
-fingerprint and `resource:<proposition record ID>` scope. This scoped creative
+accepts the unexplained count, use the private scoped acceptance control selecting
+the exact returned finding and scope with the author's rationale. This scoped creative
 decision permits the count while retaining its unexplained marker; ordinary
 proposal approval does not answer the factual question. If the claim or its
 predecessor evidence changes, retrieve and validate again and obtain a fresh
@@ -157,7 +159,13 @@ revision and retrieve the affected object again before writing dependent prose.
 Stale context or validation requires fresh retrieval, validation, and approval
 as applicable.
 
-## Prose and evidence
+## Advanced source and assessment records (opt-in)
+
+The ordinary private writing workflow stages exact source and semantic changes
+atomically. Assertions receive supported source anchors; event/message operations
+share that reviewed editorial commit but have no direct anchor link. It does not
+claim complete affected-passage mapping. The raw record/source/assessment mechanisms
+below remain opt-in capabilities, not required model instructions.
 
 Source assessment attachments now participate in the complete publication path.
 After freezing a submitted proposal, attach/select its exact assessment and review
@@ -499,7 +507,7 @@ The pilot saves reports and transcripts. Execute its report-producing commands
 only on an explicit request for those artifacts. Pure extraction regressions
 remain available without a model or saved substantiation.
 
-## Exact source assessment review
+## Advanced exact source assessment review (opt-in)
 
 After attaching or selecting an assessment, retrieve `universe_get_proposal`
 with the frozen proposal ID/version and `view_group:"assessment"`. Selection and
@@ -516,7 +524,7 @@ Historical attachments remain exact history; their declared conclusion does not
 certify current canon or promote the existing record-only validation result into
 assessed prose. See retrieval proofs.
 
-## Declared knowledge acquisition: Goal 40
+## Advanced declared knowledge acquisition (opt-in)
 
 Use an explicit context `knowledgePolicy` on a blocking rule to choose
 `author_established` or `justified`. A `knows` attitude then declares `acquisition`
@@ -528,13 +536,14 @@ service checks supported truth at acquisition. Both modes check acquisition befo
 or at knowledge onset; author establishment attributes knowledge without
 establishing objective truth. Receipt alone does not infer understanding, and false belief stays belief.
 
-Unknown truth, interpretation, policy or comparable clocks stays unresolved;
-refuted acquisition cannot be approved into publication. Correct earlier facts
+Unknown required truth, interpretation, policy or comparable clocks stays unresolved;
+refuted justified acquisition cannot be approved into publication. Author-established
+acquisition still requires actual author origin and its separate explicit decision. Correct earlier facts
 with exact version bindings and resolve dependent knowledge in the same candidate.
 Historical reads retain the old facts. See the contract and executed proofs
 for supported shapes, legacy behavior and native editing limits.
 
-## Repairing factual constraint proposals
+## Advanced factual constraint proposal repair (opt-in)
 
 Retrieve the applicable policies and evidence before proposing changes. Use
 `universe_describe` for capabilities, `universe_search` for authored rule names,
