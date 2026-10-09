@@ -407,6 +407,17 @@ async fn factual_policy_forms_recover_review_approve_and_publish() {
     )
     .await;
     let opened = open(&mut c, &u).await;
+    let state=tool(&mut c,"universe_get_state",json!({"universe":"Alpha","context_id":opened["result"]["context_id"],"entity_ids":["rec_00000000000000000000bc03"],"predicate_filters":[]})).await;
+    assert!(state["result"]["objects"][0]["dependencies"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|r| r["identity"]["record_id"] == "rec_00000000000000000000bc04"));
+    let rendered = crate::effective_object_view::tests::render(state);
+    assert!(
+        rendered.contains("Declared participants: office: Sender; successor: Recipient"),
+        "{rendered}"
+    );
     let ended = read(&mut c, &opened, &original["identity"]["record_id"]).await;
     assert_eq!(ended["payload"]["validity"]["end"]["value"], "10");
     let tightened = crate::inspector_editor::contract_operation(
@@ -436,17 +447,21 @@ async fn factual_policy_forms_recover_review_approve_and_publish() {
         .unwrap()
         .iter()
         .any(|f| f["outcome"] == "refuted"));
-    assert!(c
+    let denied = c
         .call(EngineRequest::Approve {
             universe: universe_protocol::request::Selector("Alpha".into()),
             proposal_reference: serde_json::from_value(reference).unwrap(),
             validation_run: serde_json::from_value(
-                checked["result"]["execution"]["run_id"].clone()
+                checked["result"]["execution"]["run_id"].clone(),
             )
-            .unwrap()
+            .unwrap(),
         })
         .await
-        .is_err());
+        .unwrap_err();
+    assert!(
+        denied.to_string().contains("validation blocks approval"),
+        "{denied}"
+    );
     assert!(read(&mut c, &opened, &replacement["client_ref"]).await["payload"].is_object());
     drop(c);
     stop.cancel();

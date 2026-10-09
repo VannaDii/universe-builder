@@ -273,6 +273,7 @@ fn assemble_impl(
                         }
                         dependencies.insert(p.predicate.record.clone());
                         dependencies.insert(a.proposition.record.clone());
+                        dependencies.extend(p.roles.iter().map(|role| role.participant.record.clone()));
                         match a.attribute_mode {
                             AttributeMode::Instance => object.instance_facts.push(row),
                             AttributeMode::Shared => object.shared_attributes.push(row),

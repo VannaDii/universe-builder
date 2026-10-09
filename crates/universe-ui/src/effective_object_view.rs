@@ -129,7 +129,11 @@ fn EvidenceLane(title: String, note: String, rows: Value, object: Value) -> Elem
         for (i,row) in rows.as_array().into_iter().flatten().enumerate(){article{key:"{i}",
             if row["record"]["payload"]["record_kind"]=="assertion"{
                 h5{{reference_name(&object,&dependency(&object,&row["record"]["payload"]["proposition"]["record"]).map(|r|r["payload"]["predicate"]["record"].clone()).unwrap_or(Value::Null))}}
-                if let Some(p)=dependency(&object,&row["record"]["payload"]["proposition"]["record"]){p{{format!("Declared value: {}",value_text(&p["payload"]["value"],&object))}}}
+                if let Some(p)=dependency(&object,&row["record"]["payload"]["proposition"]["record"]){
+                    if dependency(&object,&p["payload"]["predicate"]["record"]).is_some_and(|r|r["payload"]["record_kind"]=="relation") {
+                        p{{format!("Declared participants: {}",p["payload"]["roles"].as_array().map(|roles|if roles.is_empty(){"None declared".into()}else{roles.iter().map(|role|format!("{}: {}",text(&role["role"]),reference_name(&object,&role["participant"]["record"]))).collect::<Vec<_>>().join("; ")}).unwrap_or("Not returned".into()))}}
+                    }else{p{{format!("Declared value: {}",value_text(&p["payload"]["value"],&object))}}}
+                }
                 else{p{"Proposition details were not returned; value remains unavailable."}}
                 p{{format!("{} evidence · precision {}",caption(text(&row["record"]["payload"]["polarity"])),caption(text(&row["record"]["payload"]["precision"])))}}
                 p{{format!("Validity: {}",time_text(&row["record"]["payload"]["validity"]))}}

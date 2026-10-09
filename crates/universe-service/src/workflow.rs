@@ -1476,11 +1476,16 @@ impl Workflow<'_> {
             || !matches!(p.proposal.submission, Submission::Submitted)
             || checked.proposal_digest != r.digest
             || checked.validation.evaluator_version != EVALUATOR
-            || !checked.admissible
             || self.kernel.head(&p.proposal.base_frame.continuity)?
                 != p.proposal.base_frame.revision
         {
             return Err(ProtocolError::ApprovalStale.into());
+        }
+        if !checked.admissible {
+            return Err(ProtocolError::PolicyDenied {
+                message: "validation blocks approval; review the blocking findings".into(),
+            }
+            .into());
         }
         let capture = self.publication_capture(&p, &checked)?;
         let authority = self.authority.clone();
