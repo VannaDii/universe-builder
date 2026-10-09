@@ -35,7 +35,7 @@ manifest = {
     'assets': 'Embedded in the desktop executable; no runtime asset server',
     'update_protocol': 'Stop the engine with authenticated shutdown, preserve installation data, replace the entire verified app bundle, restart explicitly. Never replace live helpers piecemeal.',
     'release_accepted': False,
-    'pending_gates': ['Native/VoiceOver verification paused by author', 'LM Studio blocked while Bionic remains open', 'Clean-machine offline verification', 'Developer ID signing and notarization', 'Full release workload/security acceptance'],
+    'pending_gates': ['Full native interaction and VoiceOver coverage', 'LM Studio host qualification', 'Clean-machine offline verification', 'Developer ID signing and notarization', 'Full release workload/security acceptance'],
 }
 (resources / 'release-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
 print(f'Recorded {len(components)} components and {len(files)} executable digests')
