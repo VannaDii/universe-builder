@@ -2581,3 +2581,6 @@ mod writer_constraints;
 
 #[path = "support/plain_connected.rs"]
 mod plain_connected;
+
+#[path = "support/plain_contracts.rs"]
+mod plain_contracts;

@@ -105,6 +105,14 @@ pub struct CheckChanges {
     #[serde(default)]
     #[schemars(length(max = 100))]
     pub definitions: Vec<DefinitionChange>,
+    /// Explicit property declarations; never inferred single-value resources. Existing definitions cannot be silently changed.
+    #[serde(default)]
+    pub properties: Vec<WritingProperty>,
+    #[serde(default)]
+    pub actions: Vec<WritingAction>,
+    /// Finite supported policies. Separate private author contract review is required before publication.
+    #[serde(default)]
+    pub constraints: Vec<WritingConstraint>,
     #[serde(default)]
     pub events: Vec<WritingEvent>,
     #[serde(default)]
@@ -247,4 +255,102 @@ pub struct ReadContracts {
     /// Exact action names. Empty returns visible action names plus relevant knowledge/channel contracts.
     #[serde(default)]
     pub action_names: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PlainPropertyType {
+    Text,
+    Boolean,
+    Integer,
+    Decimal,
+    Object,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PlainPersistence {
+    Unspecified,
+    UntilChanged,
+    ExplicitInterval,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingProperty {
+    pub name: String,
+    #[serde(default)]
+    pub introduce: bool,
+    pub value_type: PlainPropertyType,
+    pub single_value: bool,
+    pub persistence: PlainPersistence,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RoleValue {
+    pub role: String,
+    pub property: String,
+    pub value: FactValue,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum WritingEffectChange {
+    Delta {
+        amount: serde_json::Number,
+        minimum: serde_json::Number,
+        maximum: serde_json::Number,
+    },
+    Set {
+        value: FactValue,
+        #[serde(default)]
+        negated: bool,
+    },
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum WritingEffectLifetime {
+    UntilChanged,
+    Ticks { count: serde_json::Number },
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingEffect {
+    pub role: String,
+    pub property: String,
+    pub change: WritingEffectChange,
+    pub lifetime: WritingEffectLifetime,
+    #[serde(default)]
+    pub optional: bool,
+    #[serde(default)]
+    pub condition: Option<RoleValue>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingAction {
+    pub name: String,
+    #[serde(default)]
+    pub introduce: bool,
+    #[serde(default)]
+    pub requirements: Vec<RoleValue>,
+    #[serde(default)]
+    pub effects: Vec<WritingEffect>,
+    #[serde(default = "unspecified")]
+    pub scope: String,
+    #[serde(default)]
+    pub at_tick: Option<String>,
+    #[serde(default)]
+    pub lifetime: FactLifetime,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum WritingConstraint {
+    ResourceAccounting {
+        name: String,
+        property: String,
+        scope: String,
+    },
+    NoOpposingEvidence {
+        name: String,
+        object: String,
+        property: String,
+        scope: String,
+    },
 }

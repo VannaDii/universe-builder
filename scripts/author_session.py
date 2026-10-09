@@ -341,9 +341,9 @@ class AuthorDecisions:
             self.review, self.publish_key = None, None
             return self.session.respond(passage)
         command, _, rest = passage.partition(" ")
-        if command == "/review":
+        if command in {"/review", "/review-contracts"}:
             if self.review is None:
-                self.review = self.action({"action":"prepare", "candidate":self.candidate(),
+                self.review = self.action({"action":"prepare_contracts" if command == "/review-contracts" else "prepare", "candidate":self.candidate(),
                     "label":"Author selected passage", "text":self.session.last_passage})
                 self.publish_key = "author-publish:" + uuid.uuid4().hex
             self.show_review()
@@ -385,7 +385,7 @@ class AuthorDecisions:
             self.published(receipt, arguments["candidate"])
             return receipt
         else:
-            raise ValueError("Commands: /review, /approve, /retry, /recover TOKEN, /reject, /accept FINDING RESOURCE_SCOPE reason, /quit.")
+            raise ValueError("Commands: /review, /review-contracts, /approve, /retry, /recover TOKEN, /reject, /accept FINDING RESOURCE_SCOPE reason, /quit.")
 
     def published(self, receipt, candidate):
         result = receipt.get("result", {})

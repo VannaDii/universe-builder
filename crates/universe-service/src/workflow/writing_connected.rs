@@ -5,10 +5,24 @@ use std::collections::BTreeMap;
 use universe_domain::{scope::*, temporal::TemporalExpression, value::Value as DomainValue};
 use universe_protocol::writing::*;
 
+pub(super) fn plain_action(
+    a: &ActionDefinition,
+    name: &impl Fn(&RecordId) -> Option<String>,
+) -> Value {
+    let requirements:Vec<_>=a.requirements.iter().map(|r|json!({"role":r.role,"property":name(&r.predicate.record),"value":plain_value(&r.value,name)})).collect();
+    let effects:Vec<_>=a.consequence_contract.iter().flat_map(|c|&c.slots).map(|s|{
+                    use universe_domain::consequences::*;
+                    let change=match &s.change{EffectChange::Set{polarity,value}=>json!({"kind":"set","value":plain_value(value,name),"negated":*polarity==Polarity::Refutation}),EffectChange::Delta{delta,minimum,maximum,unit}=>json!({"kind":"delta","amount":delta.get(),"minimum":minimum.get(),"maximum":maximum.get(),"unit":unit})};
+                    let condition=match &s.condition{EffectCondition::Always{}=>Value::Null,EffectCondition::AttributeEquals{role,predicate,value}=>json!({"role":role,"property":name(&predicate.record),"value":plain_value(value,name)})};
+                    let lifetime=match &s.lifetime {EffectLifetime::UntilChanged{}=>json!({"kind":"until_changed"}),EffectLifetime::Ticks{count}=>json!({"kind":"ticks","count":count.get()})};
+                    json!({"role":s.target.role,"property":name(&s.target.predicate.record),"change":change,"condition":condition,"optional":s.presence==EffectPresence::Optional,"lifetime":lifetime})}).collect();
+    json!({"name":a.key,"requirements":requirements,"effects":effects,"scope":match &a.scope.applicability { Applicability::UniverseWide=>json!("universe"),Applicability::Worlds{world_ids}=>json!({"worlds":world_ids.iter().map(|id|RecordId::parse(&id.as_str().replacen("wld_","rec_",1)).ok().and_then(|id|name(&id))).collect::<Vec<_>>()}),_=>json!("unresolved") },"time":plain_time(&json!(a.validity),name),"contract_declared":a.consequence_contract.is_some()})
+}
+
 fn reference(u: &UniverseId, id: &RecordId) -> RecordRef {
     RecordRef::new(u.clone(), id.clone())
 }
-fn object(records: &[RecordVersion], name: &str, frame: &Frame) -> Option<RecordId> {
+pub(super) fn object(records: &[RecordVersion], name: &str, frame: &Frame) -> Option<RecordId> {
     let ids: BTreeSet<_> = records
         .iter()
         .filter_map(|r| match &r.payload {
@@ -60,7 +74,7 @@ fn claim(
         json!({"subject":reference(u,&subject),"predicate":reference(u,&r.identity.record_id),"value":value,"context":frame.context,"quantification":"particular"}),
     )?)
 }
-fn fact_value(
+pub(super) fn fact_value(
     u: &UniverseId,
     records: &[RecordVersion],
     frame: &Frame,
@@ -137,7 +151,7 @@ fn define(
     operations.push(json!({"kind":"define_proposition","client_ref":id,"record":p}));
     reference(u, &id)
 }
-fn candidate_records(
+pub(super) fn candidate_records(
     u: &UniverseId,
     ctx: &Context,
     base: &[RecordVersion],
@@ -533,7 +547,12 @@ impl Workflow<'_> {
             rows.iter()
                 .find(|r| &r.identity.record_id == id)
                 .and_then(|r| match &r.payload {
-                    Payload::Entity(e) => e.names.first().map(|n| n.text.clone()),
+                    Payload::Entity(e) => e
+                        .labels
+                        .values()
+                        .next()
+                        .cloned()
+                        .or_else(|| e.names.first().map(|n| n.text.clone())),
                     Payload::Property(p) => Some(p.key.clone()),
                     Payload::World(w) => Some(w.selector.clone()),
                     Payload::Calendar(c) => Some(c.key.clone()),
@@ -545,17 +564,22 @@ impl Workflow<'_> {
         let mut channels = vec![];
         let mut messages = vec![];
         let mut attitudes = vec![];
+        let mut constraints = vec![];
         for row in &rows {
             match &row.payload{
             Payload::ActionDefinition(a)if a.scope.context==ctx.frame.context&&(input.action_names.is_empty()||input.action_names.iter().any(|n|n==&a.key||a.labels.values().any(|v|v==n)))=>{
-                let requirements:Vec<_>=a.requirements.iter().map(|r|json!({"role":r.role,"property":name(&r.predicate.record),"value":plain_value(&r.value,&name)})).collect();
-                let effects:Vec<_>=a.consequence_contract.iter().flat_map(|c|&c.slots).map(|s|{
-                    use universe_domain::consequences::*;
-                    let change=match &s.change{EffectChange::Set{polarity,value}=>json!({"set":plain_value(value,&name),"polarity":polarity}),EffectChange::Delta{delta,minimum,maximum,unit}=>json!({"change":delta.get().to_string(),"minimum":minimum.get().to_string(),"maximum":maximum.get().to_string(),"unit":unit})};
-                    let condition=match &s.condition{EffectCondition::Always{}=>json!("always"),EffectCondition::AttributeEquals{role,predicate,value}=>json!({"role":role,"property":name(&predicate.record),"equals":plain_value(value,&name)})};
-                    json!({"role":s.target.role,"property":name(&s.target.predicate.record),"change":change,"condition":condition,"presence":s.presence,"lifetime":s.lifetime})}).collect();
-                actions.push(json!({"name":a.key,"requirements":requirements,"effects":effects,"scope":match &a.scope.applicability { Applicability::UniverseWide=>json!("universe"),Applicability::Worlds{world_ids}=>json!({"worlds":world_ids.iter().map(|id|RecordId::parse(&id.as_str().replacen("wld_","rec_",1)).ok().and_then(|id|name(&id))).collect::<Vec<_>>()}),_=>json!("unresolved") },"time":plain_time(&json!(a.validity),&name),"contract_declared":a.consequence_contract.is_some()}));
-            },Payload::Rule(r)=>{if let Some(p)=&r.knowledge_policy{if p.context==ctx.frame.context{policies.push(json!({"mode":p.mode,"limitation":if p.mode==KnowledgeMode::AuthorEstablished{"Requires a separate actual author decision; source text or ordinary approval cannot manufacture it."}else{"Requires actual receipt, explicit interpretation, authored channel chronology, and objective truth."}}))}}
+                actions.push(plain_action(a, &name));
+            },Payload::Rule(r)=>{
+            if super::writing_contracts::supported_policy(r) {
+                let target=r.target_predicates.first().and_then(|key|rows.iter().find_map(|row|if let Payload::Property(p)=&row.payload { (format!("{}:{}",p.namespace,p.key)==*key).then(||p.key.clone()) }else{None}));
+                let scope=match &r.applicability {Applicability::UniverseWide=>json!("universe"),Applicability::Worlds{world_ids}=>json!({"worlds":world_ids.iter().filter_map(|w|RecordId::parse(&w.as_str().replacen("wld_","rec_",1)).ok().and_then(|id|name(&id))).collect::<Vec<_>>()}),_=>json!("unresolved")};
+                if r.capabilities==["resources.accounting.v1"] {
+                    constraints.push(json!({"name":r.key,"kind":"resource_accounting","property":target,"scope":scope,"time":plain_time(&json!(r.validity),&name),"limitation":"Exact interval stock; acceptance retains unexplained arrival and needs a separate real author decision."}));
+                } else if let universe_domain::expr::Expr::NoOpposingEvidence{subject:universe_domain::expr::Operand::Record{record},..}=&r.expression {
+                    constraints.push(json!({"name":r.key,"kind":"no_opposing_evidence","property":target,"object":name(&record.record),"scope":scope,"time":plain_time(&json!(r.validity),&name)}));
+                }
+            }
+if let Some(p)=&r.knowledge_policy{if p.context==ctx.frame.context{policies.push(json!({"mode":p.mode,"limitation":if p.mode==KnowledgeMode::AuthorEstablished{"Requires a separate actual author decision; source text or ordinary approval cannot manufacture it."}else{"Requires actual receipt, explicit interpretation, authored channel chronology, and objective truth."}}))}}
             if let Some(c)=&r.channel_chronology{channels.push(json!(c))}},
             Payload::EpistemicAttitude(a) => {
                 let p=rows.iter().find(|r|r.identity.record_id==a.proposition.record).and_then(|r|if let Payload::Proposition(p)=&r.payload{Some(p)}else{None});
@@ -564,6 +588,6 @@ impl Workflow<'_> {
             Payload::Communication(c)=>messages.push(json!({"message_handle":row.identity.record_id,"from":name(&c.sender.record),"received_by":c.actual_recipients.iter().filter_map(|r|name(&r.record)).collect::<Vec<_>>(),"sent_at":plain_time(&json!(c.sent_at),&name),"received_at":c.received_at.as_ref().map(|t|plain_time(&json!(t),&name)),"distorted":c.distorted,"claims":c.content.iter().filter_map(|p|rows.iter().find(|r|r.identity.record_id==p.record)).filter_map(|r|if let Payload::Proposition(p)=&r.payload{Some(json!({"subject":name(&p.subject.record),"property":name(&p.predicate.record),"value":p.value.as_ref().and_then(|v|plain_value(v,&name))}))}else{None}).collect::<Vec<_>>()})),_=>()
         }
         }
-        self.wrap(&args,Some(ctx.frame),None,true,None,json!({"actions":actions,"knowledge_policies":policies,"channels":channels,"communications":messages,"attitudes":attitudes,"coverage":if self.scope.is_some(){"restricted"}else{"bounded"},"limitation":"Visible pinned authored declarations; absent contracts are unknown. Effects are computed and checked by the engine. Interpretation alone does not establish knowledge."}))
+        self.wrap(&args,Some(ctx.frame),None,true,None,json!({"actions":actions,"knowledge_policies":policies,"channels":channels,"communications":messages,"attitudes":attitudes,"constraints":constraints,"coverage":if self.scope.is_some(){"restricted"}else{"bounded"},"limitation":"Visible pinned authored declarations; absent contracts are unknown. Effects are computed and checked by the engine. Interpretation alone does not establish knowledge."}))
     }
 }

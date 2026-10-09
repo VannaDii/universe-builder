@@ -304,6 +304,21 @@ visibility and unknown coverage still apply. Shared attributes do not create
 instance-owned ammunition or other stock. Source preparation and exact approval
 remain required before any definition/refinement becomes canon.
 
+Ordinary changes can explicitly declare `properties` with value type, `single_value`
+and persistence, introduce named `actions` with role/property/value requirements
+and set or bounded integer-delta effects, and add `resource_accounting` or
+`no_opposing_evidence` constraints. Effect lifetimes and integer bounds are authored;
+no units or physics are inferred. Existing property definitions must match the
+explicit declaration and retain their metadata. Other contract forms and existing
+contract revisions remain advanced authoring operations. `universe_read_contracts`
+returns these named requirements, effects and supported constraints from pinned canon.
+
+`/review-contracts` is a separate private author declaration action: it stages exact
+source and reviews supported contracts/policies plus their factual setup. General
+`/review` cannot adopt action or rule declarations. Neither review grants approval;
+`/approve` still publishes only the exact reviewed candidate. Creative acceptance
+remains its separate scoped action; contract review cannot create acceptance decisions.
+
 The local session also accepts private author commands. `/review` stages the exact
 submitted passage (including any author clarification), binds its UTF-8 source
 anchor to the factual candidate, and shows the actual compiled changes and fresh

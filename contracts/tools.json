@@ -2165,7 +2165,7 @@
   },
   {
     "name": "universe_check_changes",
-    "description": "Check plain factual deltas from author writing against pinned canon. Resolve existing objects by their exact visible names; introduce new identities only explicitly. Preserve dialogue, beliefs, plans, hypothetical and figurative claims as non-objective. The engine constructs canonical records, creates a provisional candidate, validates it and inspects impact. It returns a candidate handle, findings and material clarifications; it never approves or publishes. Scope/time/ownership ambiguities remain unresolved. Named definitions introduce reusable types/parent relationships/shared attributes; classification introduces or refines an instance without replacing identity. Shared attributes never become initial stock. New scalar properties impose no single-value constraint; existing authored property semantics and resource accounting remain enforced.",
+    "description": "Check plain factual deltas from author writing against pinned canon. Resolve existing objects by their exact visible names; introduce new identities only explicitly. Preserve dialogue, beliefs, plans, hypothetical and figurative claims as non-objective. The engine constructs canonical records, creates a provisional candidate, validates it and inspects impact. It returns a candidate handle, findings and material clarifications; it never approves or publishes. Scope/time/ownership ambiguities remain unresolved. Named definitions introduce reusable types/parent relationships/shared attributes; classification introduces or refines an instance without replacing identity. Shared attributes never become initial stock. New scalar properties impose no single-value constraint; explicit properties declare type, multiplicity and persistence without revising existing definitions. Named actions support role/property/value requirements, set or bounded integer-delta effects and authored lifetimes. Constraints support resource_accounting or no_opposing_evidence. Contracts require separate private author declaration review and exact approval. Existing authored property semantics and resource accounting remain enforced.",
     "input_schema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "CheckChanges",
@@ -2194,6 +2194,29 @@
             "$ref": "#/$defs/DefinitionChange"
           },
           "maxItems": 100,
+          "default": []
+        },
+        "properties": {
+          "description": "Explicit property declarations; never inferred single-value resources. Existing definitions cannot be silently changed.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingProperty"
+          },
+          "default": []
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingAction"
+          },
+          "default": []
+        },
+        "constraints": {
+          "description": "Finite supported policies. Separate private author contract review is required before publication.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingConstraint"
+          },
           "default": []
         },
         "events": {
@@ -2458,6 +2481,300 @@
           "additionalProperties": false,
           "required": [
             "name"
+          ]
+        },
+        "WritingProperty": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "introduce": {
+              "type": "boolean",
+              "default": false
+            },
+            "value_type": {
+              "$ref": "#/$defs/PlainPropertyType"
+            },
+            "single_value": {
+              "type": "boolean"
+            },
+            "persistence": {
+              "$ref": "#/$defs/PlainPersistence"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "value_type",
+            "single_value",
+            "persistence"
+          ]
+        },
+        "PlainPropertyType": {
+          "type": "string",
+          "enum": [
+            "text",
+            "boolean",
+            "integer",
+            "decimal",
+            "object"
+          ]
+        },
+        "PlainPersistence": {
+          "type": "string",
+          "enum": [
+            "unspecified",
+            "until_changed",
+            "explicit_interval"
+          ]
+        },
+        "WritingAction": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "introduce": {
+              "type": "boolean",
+              "default": false
+            },
+            "requirements": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RoleValue"
+              },
+              "default": []
+            },
+            "effects": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/WritingEffect"
+              },
+              "default": []
+            },
+            "scope": {
+              "type": "string",
+              "default": "unspecified"
+            },
+            "at_tick": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "lifetime": {
+              "$ref": "#/$defs/FactLifetime",
+              "default": {
+                "kind": "unspecified"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ]
+        },
+        "RoleValue": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "property": {
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/$defs/FactValue"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "property",
+            "value"
+          ]
+        },
+        "WritingEffect": {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "property": {
+              "type": "string"
+            },
+            "change": {
+              "$ref": "#/$defs/WritingEffectChange"
+            },
+            "lifetime": {
+              "$ref": "#/$defs/WritingEffectLifetime"
+            },
+            "optional": {
+              "type": "boolean",
+              "default": false
+            },
+            "condition": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RoleValue"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "role",
+            "property",
+            "change",
+            "lifetime"
+          ]
+        },
+        "WritingEffectChange": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "type": "number"
+                },
+                "minimum": {
+                  "type": "number"
+                },
+                "maximum": {
+                  "type": "number"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "delta"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "amount",
+                "minimum",
+                "maximum"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "$ref": "#/$defs/FactValue"
+                },
+                "negated": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "set"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "value"
+              ]
+            }
+          ]
+        },
+        "WritingEffectLifetime": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "until_changed"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "type": "number"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "ticks"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "count"
+              ]
+            }
+          ]
+        },
+        "WritingConstraint": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "property": {
+                  "type": "string"
+                },
+                "scope": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "resource_accounting"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "name",
+                "property",
+                "scope"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "object": {
+                  "type": "string"
+                },
+                "property": {
+                  "type": "string"
+                },
+                "scope": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "no_opposing_evidence"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "name",
+                "object",
+                "property",
+                "scope"
+              ]
+            }
           ]
         },
         "WritingEvent": {

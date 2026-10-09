@@ -242,6 +242,12 @@ pub enum AuthorWritingAction {
         label: String,
         text: String,
     },
+    /// Explicit private author declaration of supported action contracts/policies; separate approval still required.
+    PrepareContracts {
+        candidate: ProposalId,
+        label: String,
+        text: String,
+    },
     Reject {
         candidate: ProposalId,
     },

@@ -51,6 +51,14 @@ impl Workflow<'_> {
         let mut ambiguous_new = BTreeSet::new();
         let mut new_properties = BTreeMap::new();
         let mut emitted_properties = BTreeSet::new();
+        self.writing_properties(
+            &input,
+            &records,
+            &mut properties,
+            &mut operations,
+            &mut result,
+        )?;
+
         for object in input.changes.iter().filter(|o| {
             o.introduce
                 && (o.facts.is_empty() || o.facts.iter().any(|f| f.statement == "objective"))
@@ -545,6 +553,13 @@ impl Workflow<'_> {
                 ));
             }
         }
+        self.writing_contracts(
+            &input,
+            &ctx,
+            &records.iter().map(|r| (*r).clone()).collect::<Vec<_>>(),
+            &mut operations,
+            &mut result,
+        )?;
         self.connected_writing(
             &input,
             &ctx,

@@ -180,6 +180,15 @@ class AuthorDecisionTests(unittest.TestCase):
         controller.show_review()
         self.assertIn("Impact unresolved: coverage unavailable; affected dependencies may be incomplete.",output)
 
+    def test_contract_declaration_review_is_explicit_and_approval_is_separate(self):
+        controller,session,calls,_=self.controller()
+        session.last_check={"candidate_handle":"contract-candidate","clarifications":[]}
+        controller.action=lambda args: calls.append(args) or {"candidate":{"proposal_id":"contract-candidate","digest":"exact"},"publishable":False,"summary":[]}
+        controller.handle("/review-contracts")
+        self.assertEqual(calls[0]["action"],"prepare_contracts")
+        self.assertEqual(calls[0]["text"],session.last_passage)
+        with self.assertRaises(ValueError): controller.handle("/approve")
+
     def test_missing_receipt_never_claims_publication(self):
         controller,session,_,output=self.controller()
         controller.review={"publishable":True,"candidate":{"proposal_id":"prp_"+"2"*24},"validation":{"execution":{"run_id":"run"}}}

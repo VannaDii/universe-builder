@@ -17,6 +17,7 @@ const EVALUATOR: &str = "finite-policy-v15-writer-constraint-diagnostics";
 mod author_writing;
 mod writing;
 mod writing_connected;
+mod writing_contracts;
 use universe_protocol::validation_scope::*;
 use validation_binding::ValidationCapture;
 pub(crate) fn hash<T: Serialize>(v: &T) -> String {

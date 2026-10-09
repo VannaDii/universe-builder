@@ -53,11 +53,21 @@ impl Workflow<'_> {
                 let result = self.execute(Request::from_tool("universe_propose", json!({"action":"withdraw","universe":universe,"context_id":ctx,"proposal_reference":candidate,"idempotency_key":key}))?)?;
                 Ok(result["result"].clone())
             }
-            AuthorWritingAction::Prepare {
-                candidate,
-                label,
-                text,
-            } => {
+            action @ (AuthorWritingAction::Prepare { .. }
+            | AuthorWritingAction::PrepareContracts { .. }) => {
+                let (candidate, label, text, contracts) = match action {
+                    AuthorWritingAction::Prepare {
+                        candidate,
+                        label,
+                        text,
+                    } => (candidate, label, text, false),
+                    AuthorWritingAction::PrepareContracts {
+                        candidate,
+                        label,
+                        text,
+                    } => (candidate, label, text, true),
+                    _ => unreachable!(),
+                };
                 if text.trim().is_empty() {
                     return Err(ProtocolError::invalid_argument(
                         "text",
@@ -65,7 +75,15 @@ impl Workflow<'_> {
                     )
                     .into());
                 }
-                let key = format!("writing-prepare:{}", hash(&(&candidate, &label, &text)));
+                let key = format!(
+                    "{}:{}",
+                    if contracts {
+                        "writing-contracts-prepare"
+                    } else {
+                        "writing-prepare"
+                    },
+                    hash(&(&candidate, &label, &text))
+                );
                 let receipt = self.operation_key("propose", &key);
                 if self.kernel.workflow_get(&receipt)?.is_some() {
                     let p = self
@@ -90,6 +108,12 @@ impl Workflow<'_> {
                     return Err(ProtocolError::ApprovalStale.into());
                 }
                 if p.proposal.operations.iter().any(|op| {
+                    if contracts && matches!(op, DomainOperation::DefineAction { .. }) {
+                        return false;
+                    }
+                    if let DomainOperation::DefineRule { record, .. } = op {
+                        return !contracts || !super::writing_contracts::supported_policy(record);
+                    }
                     !matches!(
                         op,
                         DomainOperation::IntroduceInstance { .. }
@@ -105,7 +129,7 @@ impl Workflow<'_> {
                             | DomainOperation::SupersedeAssertion { .. }
                     )
                 }) {
-                    return Err(ProtocolError::PolicyDenied{message:"Source preparation accepts agent factual deltas only; creative acceptance requires a separate explicit author decision.".into()}.into());
+                    return Err(ProtocolError::PolicyDenied{message:"Source preparation accepts agent factual deltas only; protected contracts require explicit author contract review; creative acceptance requires a separate explicit author decision.".into()}.into());
                 }
                 let mut ops = p.proposal.operations.clone();
                 // Exact staged bytes are author input; no model-authored source or approval.
@@ -165,7 +189,7 @@ impl Workflow<'_> {
                 let ctx = self.writing_author_context(&universe, &p.proposal)?;
                 let request = Request::from_tool(
                     "universe_propose",
-                    json!({"action":"revise","universe":universe,"context_id":ctx,"proposal_reference":candidate,"operations":source_ops,"submission":"submitted","rationale":"Author selected exact source passage for factual review; publication still requires separate exact approval.","idempotency_key":key}),
+                    json!({"action":"revise","universe":universe,"context_id":ctx,"proposal_reference":candidate,"operations":source_ops,"submission":"submitted","rationale":if contracts {"Author explicitly declared these supported contracts/policies with exact source; separate approval still required."}else{"Author selected exact source passage for factual review; publication still requires separate exact approval."},"idempotency_key":key}),
                 )?;
                 let proposed =
                     self.execute_allocated(request, &BTreeMap::from([(source_version, version)]))?;
@@ -299,6 +323,9 @@ impl Workflow<'_> {
                     Payload::EntityType(t) => Some(t.name.clone()),
                     Payload::Property(d) => Some(d.key.clone()),
                     Payload::ActionDefinition(d) => Some(d.key.clone()),
+                    Payload::Rule(d) => Some(d.key.clone()),
+                    Payload::World(d) => Some(d.selector.clone()),
+                    Payload::Calendar(d) => Some(d.key.clone()),
                     _ => None,
                 })
         };
@@ -353,6 +380,13 @@ impl Workflow<'_> {
                 Payload::Event(e) => summary.push(format!("Proposed occurred action: {}; time {}; participants {}; preconditions {}; effects {}. Exact source shares this reviewed editorial commit; no direct event anchor link.", e.action.as_ref().and_then(|r|label(&r.record)).unwrap_or_default(), serde_json::to_value(&e.time)?, serde_json::to_value(&e.participants)?, serde_json::to_value(&e.preconditions)?, serde_json::to_value(&e.effects)?)),
                 Payload::Communication(c) => summary.push(format!("Proposed communication: sender {}; actual recipients {}; claims {}; receipt {}; distorted {}. Content alone is not objective truth; exact source shares this reviewed editorial commit without a direct message anchor link.", label(&c.sender.record).unwrap_or_default(), c.actual_recipients.iter().filter_map(|r|label(&r.record)).collect::<Vec<_>>().join(", "), serde_json::to_value(c.content.iter().map(&describe_claim).collect::<Vec<_>>())?, serde_json::to_value(&c.received_at)?, c.distorted)),
                 Payload::EpistemicAttitude(a) => summary.push(format!("Proposed attitude: {} {:?}; claim {}; acquisition {}; validity {}",label(&a.holder.record).unwrap_or_default(),a.attitude,describe_claim(&a.proposition),serde_json::to_value(&a.acquisition)?,serde_json::to_value(&a.validity)?)),
+                Payload::Property(d) => summary.push(format!("Proposed property: {}; values {:?}; persistence {:?}",d.key,d.multiplicity,d.persistence)),
+                Payload::ActionDefinition(d) => summary.push(format!("Author action declaration: {}",super::writing_connected::plain_action(d,&label))),
+                Payload::Rule(d) => {
+                    let targets:Vec<_>=d.target_predicates.iter().map(|key|records.iter().find_map(|r| if let Payload::Property(p)=&r.payload { (format!("{}:{}",p.namespace,p.key)==*key).then(||p.key.clone()) }else{None}).unwrap_or_else(||"unresolved property".into())).collect();
+                    let scope=match &d.applicability { Applicability::UniverseWide=>json!("universe"),Applicability::Worlds{world_ids}=>json!({"worlds":world_ids.iter().filter_map(|w|RecordId::parse(&w.as_str().replacen("wld_","rec_",1)).ok().and_then(|id|label(&id))).collect::<Vec<_>>()}),_=>json!("unresolved") };
+                    summary.push(format!("Author constraint declaration: {}; properties {}; policy {:?}; scope {}",d.key,targets.join(", "),d.commit_policy,scope));
+                },
                 Payload::IssueDecision(d) => summary.push(format!(
                     "Author creative acceptance: {}; reason {}",
                     d.scope, d.rationale
@@ -577,8 +611,18 @@ mod tests {
             .author_writing(
                 Selector("Writing".into()),
                 AuthorWritingAction::Prepare {
-                    candidate: forbidden.proposal_id,
+                    candidate: forbidden.proposal_id.clone(),
                     label: "Forbidden preparation".into(),
+                    text: "Author prose".into()
+                }
+            )
+            .is_err());
+        assert!(workflow
+            .author_writing(
+                Selector("Writing".into()),
+                AuthorWritingAction::PrepareContracts {
+                    candidate: forbidden.proposal_id,
+                    label: "Forbidden contract preparation".into(),
                     text: "Author prose".into()
                 }
             )
