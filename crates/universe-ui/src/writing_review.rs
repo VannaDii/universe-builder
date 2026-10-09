@@ -282,7 +282,26 @@ mod tests {
             .is_err());
         assert!(receipt(&json!({"approved":true}), candidate).is_err());
         let current = open(&mut c, &u).await;
-        let pending=call(&mut c,"universe_check_changes",json!({"universe":"Alpha","context_id":current["result"]["context_id"],"changes":[{"name":"Rejected identity","introduce":true}]})).await;
+        let named = call(&mut c, "universe_search", json!({"universe":"Alpha","context_id":current["result"]["context_id"],"query":"Mara","typed_filters":{"record_kinds":["entity"]},"limit":100})).await;
+        assert_eq!(named["result"]["hits"][0]["label"], "Mara");
+        let facts = call(&mut c, "universe_read_facts", json!({"universe":"Alpha","context_id":current["result"]["context_id"],"object_names":["Mara"]})).await;
+        let pending=call(&mut c,"universe_check_changes",json!({"universe":"Alpha","context_id":current["result"]["context_id"],"corrections":[{"fact_handle":facts["result"]["objects"][0]["facts"][0]["fact_handle"],"value":31,"reason":"Correct original age"}]})).await;
+        let pending_library = c
+            .call(EngineRequest::Library {
+                universe: Selector("Alpha".into()),
+            })
+            .await
+            .unwrap();
+        let named_correction = pending_library["writing"]["proposals"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["candidate"]["proposal_id"] == pending["result"]["candidate_handle"])
+            .unwrap();
+        assert!(named_correction["label"]
+            .as_str()
+            .unwrap()
+            .contains("Mara — age"));
         c.call(action(
             "Alpha",
             AuthorWritingAction::Reject {

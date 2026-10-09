@@ -2993,6 +2993,7 @@ fn label(r: &RecordVersion) -> String {
             .values()
             .next()
             .cloned()
+            .or_else(|| e.names.first().map(|name| name.text.clone()))
             .unwrap_or_else(|| r.identity.record_id.0.clone()),
         Payload::World(w) => w.selector.clone(),
         Payload::Work(w) => w.title.clone(),

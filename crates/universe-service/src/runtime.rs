@@ -417,12 +417,25 @@ impl Runtime {
                     let mut latest = std::collections::BTreeMap::new();
                     for key in kernel.workflow_keys("proposal:")? {
                         let stored: crate::workflow::StoredProposal = serde_json::from_value(kernel.workflow_get(&key)?.ok_or_else(|| ProtocolError::not_found("proposal"))?)?;
+                        let mut rows = kernel.records(&stored.proposal.base_frame.continuity, &stored.proposal.base_frame.revision)?;
+                        for changed in stored.changes.iter().filter_map(|c| c.next.as_ref()) {
+                            rows.retain(|r| r.identity.record_id != changed.identity.record_id);
+                            rows.push(changed.clone());
+                        }
+                        let name = |id: &RecordId| rows.iter().find(|r| &r.identity.record_id == id).and_then(|r| match &r.payload {
+                            Payload::Entity(e) => e.labels.values().next().cloned().or_else(|| e.names.first().map(|n| n.text.clone())),
+                            Payload::Property(p) => Some(p.key.clone()),
+                            Payload::ActionDefinition(a) => Some(a.key.clone()),
+                            _ => None,
+                        });
                         let names: Vec<String> = stored.changes.iter().filter_map(|c|c.next.as_ref()).filter_map(|r|match &r.payload {
                             Payload::Entity(e)=>e.names.first().map(|n|n.text.clone()),
                             Payload::Source(s)=>Some(s.label.clone()),
                             Payload::Property(p)=>Some(p.key.clone()),
                             Payload::EntityType(t)=>Some(t.name.clone()),
                             Payload::ActionDefinition(a)=>Some(a.key.clone()),
+                            Payload::Event(e) => e.action.as_ref().and_then(|a| name(&a.record)).map(|action| format!("Occurred action: {action}")),
+                            Payload::Assertion(a) => rows.iter().find(|r| r.identity.record_id == a.proposition.record).and_then(|r| if let Payload::Proposition(p) = &r.payload { Some(format!("{} — {}", name(&p.subject.record)?, name(&p.predicate.record)?)) } else { None }),
                             _=>None,
                         }).collect();
                         let p = stored.proposal;
