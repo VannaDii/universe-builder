@@ -132,6 +132,9 @@ pub struct CheckChanges {
     /// Finite supported policies. Separate private author contract review is required before publication.
     #[serde(default)]
     pub constraints: Vec<WritingConstraint>,
+    /// Explicit objective exhaustive object collections. Absence of a declaration stays open/unknown; private contract review required.
+    #[serde(default)]
+    pub exhaustive_sets: Vec<WritingExhaustiveSet>,
     /// Explicit context knowledge modes or communication chronology; private contract review required.
     #[serde(default)]
     pub knowledge_policies: Vec<WritingKnowledgePolicy>,
@@ -510,4 +513,21 @@ pub struct AuthorKnowledgeDeclaration {
     pub lifetime: FactLifetime,
     #[serde(default)]
     pub world: Option<String>,
+}
+
+/// An authored exhaustive collection, never inferred from listed facts.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingExhaustiveSet {
+    pub subject: String,
+    pub property: String,
+    /// Exact existing object names. Required; [] explicitly declares an empty collection.
+    pub members: Vec<String>,
+    /// Explicit "universe" or authored world name. Unknown scope requires clarification.
+    pub scope: String,
+    /// Explicit tick on the selected context's authored calendar, or use its pinned scene time.
+    #[serde(default)]
+    pub at_tick: Option<String>,
+    #[serde(default)]
+    pub lifetime: FactLifetime,
 }

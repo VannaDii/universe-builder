@@ -382,6 +382,10 @@ impl Workflow<'_> {
                     _ => true,
                 };
             }
+            if let DomainOperation::SetCompleteness { record, .. } = op {
+                return !contracts
+                    || !matches!(record.completeness, CompletenessKind::ObjectiveReality);
+            }
             if contracts && matches!(op, DomainOperation::DefineAction { .. }) {
                 return false;
             }
@@ -606,6 +610,7 @@ impl Workflow<'_> {
                 Payload::EpistemicAttitude(a) => {if let universe_domain::scope::EvidenceBasis::AuthorDecision{note}=&a.basis {summary.push(format!("Explicit author knowledge decision: {note}; attributed knowledge only, no objective fact asserted"));} summary.push(format!("Proposed attitude: {} {:?}; claim {}; acquisition {}; validity {}",label(&a.holder.record).unwrap_or_default(),a.attitude,describe_claim(&a.proposition),serde_json::to_value(&a.acquisition)?,serde_json::to_value(&a.validity)?));},
                 Payload::Unit(d) => summary.push(format!("Author unit declaration: {}; dimension {}; symbol {}; no conversion declared",d.key,d.dimension,d.symbol)),
                 Payload::Property(d) => summary.push(format!("Proposed property: {}; values {:?}; persistence {:?}",d.key,d.multiplicity,d.persistence)),
+                Payload::Completeness(c) => summary.push(format!("Author exhaustive set: {}; property {}; members {}",label(&c.subject.record).unwrap_or_else(||"unresolved".into()),c.predicate,c.members.iter().map(|m|label(&m.record).unwrap_or_else(||"unresolved".into())).collect::<Vec<_>>().join(", "))),
                 Payload::ActionDefinition(d) => summary.push(format!("Author action declaration: {}",super::writing_connected::plain_action(d,&label))),
                 Payload::Rule(d) if d.knowledge_policy.is_some()=>{let policy=d.knowledge_policy.as_ref().unwrap();summary.push(format!("Author knowledge policy: {}; selected context {}; mode {:?}; no automatic understanding or objective truth",d.key,label(&policy.context.record).unwrap_or_else(||"selected context".into()),policy.mode));},
                 Payload::Rule(d) if d.channel_chronology.is_some()=>{let channel=d.channel_chronology.as_ref().unwrap();summary.push(format!("Author channel policy: {}; channel {}; forward-only {}; minimum delay {:?}; maximum delay {:?} authored ticks",d.key,channel.channel,channel.forward_only,channel.minimum_delay,channel.maximum_delay));},

@@ -1214,3 +1214,186 @@ async fn ordinary_world_flashback_and_stale_publication_keep_exact_frames() {
     stop.cancel();
     server.await.unwrap().unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn ordinary_exhaustive_sets_preserve_open_history_and_protect_declarations() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("install");
+    let author = runtime::initialize(&root).unwrap();
+    let stop = CancellationToken::new();
+    let (r, s) = (root.clone(), stop.clone());
+    let server = tokio::spawn(async move { runtime::serve(&r, s).await });
+    let mut c = connect(&root, &author).await;
+    let u = c
+        .call(EngineRequest::CreateUniverse {
+            name: "Alpha".into(),
+            start: universe_domain::chronology::UniverseStart::Fictional {
+                calendar_name: "Days".into(),
+                initial_tick: "0".into(),
+                tick_label: "days".into(),
+                ticks_per_month: None,
+            },
+        })
+        .await
+        .unwrap();
+    let ctx = context(&mut c, &u, "Alpha").await;
+    let initial=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":ctx,"properties":[{"name":"entrance","introduce":true,"value_type":"object","single_value":false,"persistence":"unspecified"}],"changes":[{"name":"Courtyard","introduce":true},{"name":"Main gate","introduce":true},{"name":"Side gate","introduce":true}]}))).await.unwrap();
+    assert_eq!(
+        initial["result"]["status"], "checked_candidate",
+        "{initial}"
+    );
+    publish_plain(
+        &mut c,
+        &initial,
+        "A courtyard and two distinct gates exist.",
+        "boundary-identities",
+    )
+    .await;
+    let old = context(&mut c, &u, "Alpha").await;
+    let clocks = c
+        .call(tool(
+            "universe_read_facts",
+            json!({"universe":"Alpha","context_id":old,"object_names":["Courtyard"]}),
+        ))
+        .await
+        .unwrap();
+    let at=c.call(tool("universe_open_context",json!({"universe":"Alpha","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":u["context_id"],"temporal_query":{"kind":"at","time":{"kind":"exact","calendar":clocks["result"]["clocks"][0]["calendar_id"],"value":"5"}},"temporal_systems":[],"perspective":"author"}))).await.unwrap();
+    let member = json!({"universe":"Alpha","context_id":at["result"]["context_id"],"changes":[{"name":"Courtyard","facts":[{"property":"entrance","value":{"object":"Side gate"},"scope":"universe","at_tick":"5"}]}]});
+    let open = c
+        .call(tool("universe_check_changes", member.clone()))
+        .await
+        .unwrap();
+    assert_eq!(open["result"]["status"], "checked_candidate", "{open}");
+    let declaration = json!({"universe":"Alpha","context_id":at["result"]["context_id"],"exhaustive_sets":[{"subject":"Courtyard","property":"entrance","members":["Main gate"],"scope":"universe","at_tick":"5","lifetime":{"kind":"until","end_tick":"10"}}]});
+    let mut unknown = declaration.clone();
+    unknown["exhaustive_sets"][0]["members"] = json!(["Unknown gate"]);
+    let held = c
+        .call(tool("universe_check_changes", unknown))
+        .await
+        .unwrap();
+    assert!(held["result"]["candidate_handle"].is_null(), "{held}");
+    for (field, value) in [
+        ("scope", json!("Missing world")),
+        ("scope", json!("unspecified")),
+    ] {
+        let mut unresolved = declaration.clone();
+        unresolved["exhaustive_sets"][0][field] = value;
+        let held = c
+            .call(tool("universe_check_changes", unresolved))
+            .await
+            .unwrap();
+        assert_eq!(held["result"]["status"], "needs_clarification", "{held}");
+        assert!(held["result"]["candidate_handle"].is_null(), "{held}");
+    }
+    let mut omitted = declaration.clone();
+    omitted["exhaustive_sets"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("members");
+    assert!(Request::from_tool("universe_check_changes", omitted).is_err());
+    let checked = c
+        .call(tool("universe_check_changes", declaration))
+        .await
+        .unwrap();
+    assert_eq!(
+        checked["result"]["status"], "checked_candidate",
+        "{checked}"
+    );
+    let candidate: ProposalId =
+        serde_json::from_value(checked["result"]["candidate_handle"].clone()).unwrap();
+    assert!(c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::Prepare {
+                candidate: candidate.clone(),
+                label: "Boundary".into(),
+                text: "Only the main gate is an entrance from day 5 until day 10.".into()
+            }
+        })
+        .await
+        .is_err());
+    let review = c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::PrepareContracts {
+                candidate,
+                label: "Boundary".into(),
+                text: "Only the main gate is an entrance from day 5 until day 10.".into(),
+            },
+        })
+        .await
+        .unwrap();
+    assert_eq!(review["publishable"], true, "{review}");
+    c.call(EngineRequest::AuthorWriting {
+        universe: Selector("Alpha".into()),
+        action: AuthorWritingAction::Publish {
+            candidate: serde_json::from_value(review["candidate"].clone()).unwrap(),
+            validation_run: serde_json::from_value(
+                review["validation"]["execution"]["run_id"].clone(),
+            )
+            .unwrap(),
+            idempotency_key: "boundary-publication".into(),
+        },
+    })
+    .await
+    .unwrap();
+    let current = context(&mut c, &u, "Alpha").await;
+    let read = c
+        .call(tool(
+            "universe_read_contracts",
+            json!({"universe":"Alpha","context_id":current}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(
+        read["result"]["exhaustive_sets"][0]["members"],
+        json!(["Main gate"]),
+        "{read}"
+    );
+    assert_eq!(read["result"]["exhaustive_sets"][0]["kind"], "objective");
+    let historical = c
+        .call(tool(
+            "universe_read_contracts",
+            json!({"universe":"Alpha","context_id":old}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(historical["result"]["exhaustive_sets"], json!([]));
+    let current_at=c.call(tool("universe_open_context",json!({"universe":"Alpha","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":u["context_id"],"temporal_query":{"kind":"at","time":{"kind":"exact","calendar":clocks["result"]["clocks"][0]["calendar_id"],"value":"5"}},"temporal_systems":[],"perspective":"author"}))).await.unwrap();
+    let mut closed = member;
+    closed["context_id"] = current_at["result"]["context_id"].clone();
+    match c.call(tool("universe_check_changes", closed)).await {
+        Ok(result) => {
+            assert_eq!(result["result"]["status"], "conflict", "{result}");
+            assert!(
+                result["result"]["validation"]["execution"]["findings"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|finding| finding["outcome"] == "conflicting"),
+                "{result}"
+            );
+        }
+        Err(error) => panic!("Expected actual checked conflict, got {error}"),
+    }
+    let mut allowed = json!({"universe":"Alpha","context_id":current_at["result"]["context_id"],"changes":[{"name":"Courtyard","facts":[{"property":"entrance","value":{"object":"Main gate"},"scope":"universe","at_tick":"5"}]}]});
+    let legal = c
+        .call(tool("universe_check_changes", allowed.clone()))
+        .await
+        .unwrap();
+    assert_eq!(legal["result"]["status"], "checked_candidate", "{legal}");
+    allowed["changes"][0]["facts"][0]["value"] = json!({"object":"Side gate"});
+    allowed["changes"][0]["facts"][0]["at_tick"] = json!("11");
+    let outside = c
+        .call(tool("universe_check_changes", allowed))
+        .await
+        .unwrap();
+    assert_eq!(
+        outside["result"]["status"], "checked_candidate",
+        "{outside}"
+    );
+    let empty=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":current,"exhaustive_sets":[{"subject":"Courtyard","property":"entrance","members":[],"scope":"universe","at_tick":"11"}]}))).await.unwrap();
+    assert_eq!(empty["result"]["status"], "checked_candidate", "{empty}");
+    stop.cancel();
+    server.await.unwrap().unwrap();
+}

@@ -158,12 +158,61 @@ impl Workflow<'_> {
             && input.action_corrections.is_empty()
             && input.definition_corrections.is_empty()
             && input.knowledge_policies.is_empty()
+            && input.exhaustive_sets.is_empty()
         {
             return Ok(());
         }
         let rows =
             super::writing_connected::candidate_records(self.kernel.universe(), ctx, base, ops)?;
         let u = self.kernel.universe();
+        for boundary in &input.exhaustive_sets {
+            let build = || -> anyhow::Result<Value> {
+                let subject =
+                    super::writing_connected::object(&rows, &boundary.subject, &ctx.frame)
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "Which exact authored object is '{}'?",
+                                boundary.subject
+                            )
+                        })?;
+                let (_, property) = property(&rows, &boundary.property)?;
+                if !matches!(property.value, ValueShape::EntityRef { .. }) {
+                    anyhow::bail!("Exhaustive sets require an authored object-valued property.");
+                }
+                if boundary.scope == "unspecified" {
+                    anyhow::bail!(
+                        "Which authored world or universe scope applies to this exhaustive set?"
+                    );
+                }
+                let members = boundary
+                    .members
+                    .iter()
+                    .map(|member| {
+                        super::writing_connected::object(&rows, member, &ctx.frame)
+                            .map(|record| json!({"universe":u,"record":record}))
+                            .ok_or_else(|| {
+                                anyhow::anyhow!("Which exact authored member is '{member}'?")
+                            })
+                    })
+                    .collect::<anyhow::Result<Vec<_>>>()?;
+                let time = super::writing_connected::time(&ctx.frame, &rows, &boundary.at_tick)?;
+                Ok(
+                    json!({"kind":"set_completeness","client_ref":RecordId::generate(&mut rand::rng()),"record":{
+                        "subject":{"universe":u,"record":subject},
+                        "predicate":format!("{}:{}",property.namespace,property.key),"members":members,
+                        "completeness":"objective_reality", "scope":{"context":ctx.frame.context,"applicability":applicability(self,&boundary.scope,&rows)?},
+                        "validity":validity(&time,&boundary.lifetime)?
+                    }}),
+                )
+            };
+            match build() {
+                Ok(operation) => {
+                    ops.push(operation);
+                    result.additions.push(format!("Authored exhaustive set: {} — {}; {} members; requires private contract review.",boundary.subject,boundary.property,boundary.members.len()));
+                }
+                Err(error) => result.clarifications.push(error.to_string()),
+            }
+        }
         let mut names = BTreeSet::new();
         for a in &input.actions {
             let mut build = || -> anyhow::Result<Value> {

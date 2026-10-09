@@ -780,3 +780,16 @@ The state inspector accepts instances and reusable definitions. It separates sha
 attributes, instance facts, starting candidates, initialization history, conflicts
 and unknowns. Quantity labels use only returned authored units and retain exact
 amounts; the interface performs no unit conversion.
+
+
+Ordinary `exhaustive_sets` explicitly declares a complete object-valued collection
+using exact subject, property and member names, authored scope and scene tick (or
+pinned scene time), and lifetime. `members` is required: `[]` deliberately declares
+an empty set. Omitted declarations leave collections open/unknown; listed facts
+alone never establish completeness. Unknown names or required scope/time hold the
+delta for clarification. Use private contract review, then exact source approval
+and publication. `universe_read_contracts.exhaustive_sets` returns visible named
+members, objective versus observer-known kind, scope/time and applicability.
+Observer-known collections do not close objective reality. Existing engine checks
+reject out-of-set member facts only where the authored boundary applies; no world
+or story time is inferred.

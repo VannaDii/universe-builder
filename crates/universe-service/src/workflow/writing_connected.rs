@@ -575,6 +575,7 @@ impl Workflow<'_> {
         let mut messages = vec![];
         let mut attitudes = vec![];
         let mut constraints = vec![];
+        let mut exhaustive_sets = vec![];
         let units:Vec<_>=rows.iter().filter_map(|r|if let Payload::Unit(u)=&r.payload {Some(json!({"name":u.key,"symbol":u.symbol,"dimension":u.dimension,"conversion_declared":u.base.is_some() || u.scale_to_base.is_some(),"time":plain_time(&json!(u.validity),&name)}))}else{None}).collect();
         for row in &rows {
             match &row.payload{
@@ -592,6 +593,11 @@ impl Workflow<'_> {
             }
 if let Some(p)=&r.knowledge_policy{if p.context==ctx.frame.context{policies.push(json!({"name":r.key,"mode":p.mode,"limitation":if p.mode==KnowledgeMode::AuthorEstablished{"Use the separate private establish_knowledge author action with selected claim, time, lifetime and rationale, followed by exact approval; source text or ordinary approval cannot manufacture it."}else{"Requires actual receipt, explicit interpretation, authored channel chronology, and objective truth."}}))}}
             if let Some(c)=&r.channel_chronology{channels.push(json!({"name":r.key,"channel":c.channel,"forward_only":c.forward_only,"minimum_delay":c.minimum_delay,"maximum_delay":c.maximum_delay}))}},
+            Payload::Completeness(c) if c.scope.context==ctx.frame.context => {
+                let property=rows.iter().find_map(|r|if let Payload::Property(p)=&r.payload {(format!("{}:{}",p.namespace,p.key)==c.predicate).then(||p.key.clone())}else{None});
+                let scope=match &c.scope.applicability {Applicability::UniverseWide=>json!("universe"),Applicability::Worlds{world_ids}=>json!({"worlds":world_ids.iter().filter_map(|w|RecordId::parse(&w.as_str().replacen("wld_","rec_",1)).ok().and_then(|id|name(&id))).collect::<Vec<_>>()}),_=>json!("unresolved")};
+                exhaustive_sets.push(json!({"subject":name(&c.subject.record),"property":property,"members":c.members.iter().map(|m|name(&m.record)).collect::<Vec<_>>(),"kind":match &c.completeness{CompletenessKind::ObjectiveReality=>"objective",CompletenessKind::ObserverKnown{..}=>"observer_known"},"scope":scope,"time":plain_time(&json!(c.validity),&name),"time_applicable":universe_rules::events::applies(&c.validity,&ctx.frame.time,&rows)}));
+            },
             Payload::EpistemicAttitude(a) => {
                 let p=rows.iter().find(|r|r.identity.record_id==a.proposition.record).and_then(|r|if let Payload::Proposition(p)=&r.payload{Some(p)}else{None});
                 attitudes.push(json!({"holder":name(&a.holder.record),"attitude":a.attitude,"claim":p.map(|p|json!({"subject":name(&p.subject.record),"property":name(&p.predicate.record),"value":p.value.as_ref().and_then(|v|plain_value(v,&name))})),"time":plain_time(&json!(a.validity),&name),"applicable":universe_rules::events::applies(&a.validity,&ctx.frame.time,&rows),"message_handle":a.acquisition.as_ref().and_then(|a|if let KnowledgeBasis::CommunicationReceipt{communication,..}=&a.basis{Some(communication.record.clone())}else{None}),"limitation":"Attributed attitude; knowledge eligibility remains subject to existing truth/acquisition evaluator."}));
@@ -599,6 +605,6 @@ if let Some(p)=&r.knowledge_policy{if p.context==ctx.frame.context{policies.push
             Payload::Communication(c)=>messages.push(json!({"message_handle":row.identity.record_id,"from":name(&c.sender.record),"received_by":c.actual_recipients.iter().filter_map(|r|name(&r.record)).collect::<Vec<_>>(),"sent_at":plain_time(&json!(c.sent_at),&name),"received_at":c.received_at.as_ref().map(|t|plain_time(&json!(t),&name)),"distorted":c.distorted,"claims":c.content.iter().filter_map(|p|rows.iter().find(|r|r.identity.record_id==p.record)).filter_map(|r|if let Payload::Proposition(p)=&r.payload{Some(json!({"subject":name(&p.subject.record),"property":name(&p.predicate.record),"value":p.value.as_ref().and_then(|v|plain_value(v,&name))}))}else{None}).collect::<Vec<_>>()})),_=>()
         }
         }
-        self.wrap(&args,Some(ctx.frame.clone()),None,true,None,json!({"actions":actions,"units":units,"knowledge_policies":policies,"channels":channels,"communications":messages,"attitudes":attitudes,"constraints":constraints,"coverage":if self.scope.is_some() || !matches!(ctx.frame.perspective,Perspective::Author){"restricted"}else{"bounded"},"limitation":"Visible pinned authored declarations; absent contracts are unknown. Effects are computed and checked by the engine. Interpretation alone does not establish knowledge."}))
+        self.wrap(&args,Some(ctx.frame.clone()),None,true,None,json!({"actions":actions,"units":units,"knowledge_policies":policies,"channels":channels,"communications":messages,"attitudes":attitudes,"constraints":constraints,"exhaustive_sets":exhaustive_sets,"coverage":if self.scope.is_some() || !matches!(ctx.frame.perspective,Perspective::Author){"restricted"}else{"bounded"},"limitation":"Visible pinned authored declarations; absent contracts are unknown. Effects are computed and checked by the engine. Interpretation alone does not establish knowledge."}))
     }
 }
