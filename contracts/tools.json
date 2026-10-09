@@ -2191,6 +2191,14 @@
           "maxItems": 100,
           "default": []
         },
+        "aliases": {
+          "description": "Explicit contextual names for existing identities, not new objects or inferred knowledge. One new alias per entity per delta.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingAlias"
+          },
+          "default": []
+        },
         "definitions": {
           "description": "Explicit reusable definitions, subtype introductions and shared attributes. Independent stock belongs in changes, not here.",
           "type": "array",
@@ -2576,6 +2584,62 @@
                 "end_tick"
               ]
             }
+          ]
+        },
+        "WritingAlias": {
+          "type": "object",
+          "properties": {
+            "object": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            },
+            "language": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "community": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "role": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "at_tick": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "lifetime": {
+              "description": "Omission leaves validity unspecified; explicit lifetime/tick uses the selected authored calendar.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FactLifetime"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "object",
+            "text"
           ]
         },
         "DefinitionChange": {

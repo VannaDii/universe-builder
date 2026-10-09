@@ -837,3 +837,19 @@ private contract review, exact source and fresh approval. Existing occurrences
 are rechecked; invalid tightening and stale publication are denied. Historical
 revisions keep the old contracts. Unsupported legacy limits require advanced
 review. No scoped waiver or automatic downstream rewrite is provided.
+
+### Explicit aliases for existing identities
+
+`universe_check_changes.aliases` supplies an exact existing `object`, explicit
+`text`, optional `language`, `community`, `role`, and authored `at_tick`/`lifetime`.
+No time leaves validity unspecified; an explicit tick alone declares an instant.
+One new alias per entity per delta is supported. Identical declarations are
+unchanged. Names never merge identities, introduce an entity, announce a reveal,
+or establish anyone's knowledge. Ambiguous target names hold the entire delta.
+Private factual review stages exact author source before approval/publication.
+Original names, classification and state remain unchanged; historical revisions
+retain prior names. Plain factual reads resolve aliases only within their authored
+validity; author views return visible contextual names separately from facts.
+Non-author views omit contextual-name metadata and retain restricted coverage. Search remains
+generic evidence discovery; a search hit does not establish current alias validity.
+No world or observer scope is inferred from language/community/role metadata.

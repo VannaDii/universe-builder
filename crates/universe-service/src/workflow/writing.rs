@@ -605,6 +605,13 @@ impl Workflow<'_> {
                 ));
             }
         }
+        self.writing_aliases(
+            &input,
+            &ctx,
+            &records.iter().map(|r| (*r).clone()).collect::<Vec<_>>(),
+            &mut operations,
+            &mut result,
+        )?;
         self.writing_contracts(
             &input,
             &ctx,
@@ -917,7 +924,7 @@ impl Workflow<'_> {
             let occurred_events:Vec<_>=records.iter().filter_map(|r|if let Payload::Event(e)=&r.payload {
                 (e.occurrence==universe_domain::records::OccurrenceMode::Occurred && e.participants.iter().any(|p|p.record.record==matches[0].identity.record_id)).then(||json!({"handle":r.identity.record_id,"time":plain_time(&json!(e.time),&label),"action":e.action.as_ref().and_then(|a|label(&a.record)),"participants":e.participants.iter().map(|p|json!({"role":p.role,"object":label(&p.record.record)})).collect::<Vec<_>>(),"requires_knowledge":e.preconditions.iter().filter_map(|condition|if let universe_domain::expr::Expr::Attitude{holder,proposition,attitude:EpistemicAttitudeKind::Knows}=condition {records.iter().find(|r|r.identity.record_id==proposition.record).and_then(|r|if let Payload::Proposition(p)=&r.payload {Some(json!({"holder":label(&holder.record),"claim":{"subject":label(&p.subject.record),"property":label(&p.predicate.record),"value":p.value.as_ref().and_then(|v|plain_value(v,&label))}}))}else{None})}else{None}).collect::<Vec<_>>(),"worlds":e.worlds.iter().filter_map(|w|RecordId::parse(&w.as_str().replacen("wld_","rec_",1)).ok().and_then(|id|label(&id))).collect::<Vec<_>>()}))
             }else{None}).collect();
-            objects.push(json!({"name":name,"identity":"resolved","kind":if matches!(matches[0].payload,Payload::EntityType(_)){"definition"}else{"instance"},"classification":object.ancestry.first().and_then(|r|label(&r.identity.record_id)),"ancestry":object.ancestry.iter().filter_map(|r|label(&r.identity.record_id)).collect::<Vec<_>>(),"ancestry_complete":object.ancestry_complete,"facts":facts,"occurred_events":occurred_events,"inherited_attributes":inherited,"initial_value_candidates":initial,"coverage":object.coverage,"unknowns":object.unknowns,"state_coverage":state.coverage,"limitations":state.unsupported_capabilities}));
+            objects.push(json!({"name":name,"identity":"resolved","kind":if matches!(matches[0].payload,Payload::EntityType(_)){"definition"}else{"instance"},"classification":object.ancestry.first().and_then(|r|label(&r.identity.record_id)),"ancestry":object.ancestry.iter().filter_map(|r|label(&r.identity.record_id)).collect::<Vec<_>>(),"ancestry_complete":object.ancestry_complete,"names":match &matches[0].payload {Payload::Entity(e) if matches!(ctx.frame.perspective,Perspective::Author)=>e.names.iter().filter(|n|universe_rules::events::applies(&n.validity,&ctx.frame.time,&records)!=Some(false)).map(|n|json!({"text":n.text,"language":n.language,"community":n.community,"role":n.role,"time":plain_time(&json!(n.validity),&label),"time_applicable":universe_rules::events::applies(&n.validity,&ctx.frame.time,&records)})).collect::<Vec<_>>(),_=>vec![]},"facts":facts,"occurred_events":occurred_events,"inherited_attributes":inherited,"initial_value_candidates":initial,"coverage":object.coverage,"unknowns":object.unknowns,"state_coverage":state.coverage,"limitations":state.unsupported_capabilities}));
         }
         self.wrap(&args,Some(ctx.frame.clone()),world_focus,true,None,json!({"objects":objects,"clocks":clocks,"research_time":plain_time(&serde_json::to_value(&ctx.frame.time)?,&label),"coverage":if self.scope.is_some() || !matches!(ctx.frame.perspective,Perspective::Author){"restricted"}else{"bounded"},"limitation":"Plain projection of existing effective evidence; absence is unknown, initial candidates are not current facts, and bounded evidence is not universal prose completeness."}))
     }

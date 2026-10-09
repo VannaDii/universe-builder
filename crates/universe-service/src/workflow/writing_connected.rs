@@ -183,6 +183,75 @@ pub(super) fn candidate_records(
     Ok(rows.into_values().collect())
 }
 impl Workflow<'_> {
+    pub(super) fn writing_aliases(
+        &self,
+        input: &CheckChanges,
+        ctx: &Context,
+        base: &[RecordVersion],
+        ops: &mut Vec<Value>,
+        result: &mut WritingCheck,
+    ) -> anyhow::Result<()> {
+        let mut targets = BTreeSet::new();
+        for alias in &input.aliases {
+            let build = || -> anyhow::Result<Option<Value>> {
+                if alias.text.trim().is_empty() {
+                    anyhow::bail!("Supply the author's explicit nonempty alias text.")
+                }
+                let id = object(base, &alias.object, &ctx.frame).ok_or_else(|| {
+                    anyhow::anyhow!("Which exact existing identity is '{}' ?", alias.object)
+                })?;
+                let original = base
+                    .iter()
+                    .find(|r| r.identity.record_id == id)
+                    .ok_or_else(denied)?;
+                let Payload::Entity(e) = &original.payload else {
+                    return Err(denied());
+                };
+                let validity = match (&alias.at_tick, &alias.lifetime) {
+                    (None, None) => Validity::Unspecified,
+                    (Some(_), None) => super::writing_contracts::validity(
+                        &time(&ctx.frame, base, &alias.at_tick)?,
+                        &FactLifetime::Unspecified,
+                    )?,
+                    (_, Some(lifetime)) => super::writing_contracts::validity(
+                        &time(&ctx.frame, base, &alias.at_tick)?,
+                        lifetime,
+                    )?,
+                };
+                let name = ContextualName {
+                    text: alias.text.clone(),
+                    language: alias.language.clone(),
+                    community: alias.community.clone(),
+                    role: alias.role.clone(),
+                    validity,
+                };
+                if e.names.contains(&name) {
+                    return Ok(None);
+                }
+                Ok(Some(
+                    json!({"kind":"add_name","record":{"universe":self.kernel.universe(),"record":id},"expected_version":original.record_version_id,"name":name}),
+                ))
+            };
+            match build() {
+                Ok(None) => result
+                    .unchanged
+                    .push(format!("Existing alias: {} — {}", alias.object, alias.text)),
+                Ok(Some(op)) => {
+                    if !targets.insert(op["record"]["record"].to_string()) {
+                        result.clarifications.push("Add only one new alias per identity per delta; existing aliases stay unchanged.".into());
+                        continue;
+                    }
+                    ops.push(op);
+                    result.additions.push(format!(
+                        "Explicit alias: {} — {}; no knowledge or communication inferred.",
+                        alias.object, alias.text
+                    ));
+                }
+                Err(error) => result.clarifications.push(error.to_string()),
+            }
+        }
+        Ok(())
+    }
     pub(super) fn connected_writing(
         &self,
         input: &CheckChanges,

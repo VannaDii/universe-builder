@@ -387,6 +387,27 @@ class ConnectedWritingTests(unittest.TestCase):
                 self.assertIn("single role has multiple participants",denied["message"])
                 preserved=client.call("universe_read_contracts",{"universe":"Story","context_id":context()})["result"]
                 self.assertTrue(next(r for r in preserved["relations"] if r["name"]=="ownership")["roles"][1]["multiple"])
+                alias={"object":"Courtyard","text":"Garden","language":"en","community":"locals","role":"nickname","at_tick":"10","lifetime":{"kind":"until","end_tick":"12"}}
+                alias_revision=publish(check(context(),aliases=[alias]),"Locals call the courtyard Garden from day ten until day twelve.","connected-alias")
+                aliased=client.call("universe_read_facts",{"universe":"Story","context_id":context(11),"object_names":["Courtyard","Garden"]})["result"]["objects"]
+                self.assertEqual(aliased[0]["names"],aliased[1]["names"])
+                self.assertEqual(aliased[0]["facts"],aliased[1]["facts"])
+                self.assertTrue(any(n["text"]=="Garden" and n["community"]=="locals" and n["role"]=="nickname" for n in aliased[1]["names"]))
+                repeated=check(context(),aliases=[alias])
+                self.assertEqual(repeated["status"],"no_changes",repeated)
+                self.assertIsNone(repeated["candidate_handle"])
+                expired=client.call("universe_read_facts",{"universe":"Story","context_id":context(13),"object_names":["Garden","Courtyard"]})["result"]["objects"]
+                self.assertEqual(expired[0]["identity"],"not_found")
+                self.assertFalse(any(n["text"]=="Garden" for n in expired[1]["names"]))
+                earlier=client.call("universe_read_facts",{"universe":"Story","context_id":context(11,{"kind":"exact","revision_id":limit_revision}),"object_names":["Garden"]})["result"]["objects"]
+                self.assertEqual(earlier[0]["identity"],"not_found")
+                publish(check(context(),aliases=[{**alias,"object":"Key"}]),"Locals also call the key Garden during that same interval.","connected-ambiguous-alias")
+                ambiguous=check(context(11),aliases=[{"object":"Garden","text":"Guess"}])
+                self.assertEqual(ambiguous["status"],"needs_clarification",ambiguous)
+                self.assertIsNone(ambiguous["candidate_handle"])
+                historical=client.call("universe_read_facts",{"universe":"Story","context_id":context(11,{"kind":"exact","revision_id":alias_revision}),"object_names":["Garden"]})["result"]["objects"]
+                self.assertEqual(historical[0]["facts"],aliased[0]["facts"])
+
 
             finally:
                 if client: client.close()

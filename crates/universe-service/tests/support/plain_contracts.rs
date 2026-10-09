@@ -1059,6 +1059,11 @@ async fn ordinary_perspective_changes_do_not_reveal_hidden_identities() {
         "Hidden and absent identities/fields must produce the same neutral held result."
     );
     assert!(check["result"]["validation"].is_null() && check["result"]["impact"].is_null());
+    let hidden_alias=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":selected,"aliases":[{"object":"Hidden citizen","text":"Secret alias"}]}))).await.unwrap();
+    let absent_alias=c.call(tool("universe_check_changes",json!({"universe":"Alpha","context_id":selected,"aliases":[{"object":"Never authored","text":"Secret alias"}]}))).await.unwrap();
+    assert_eq!(hidden_alias["result"], absent_alias["result"]);
+    assert!(hidden_alias["result"]["candidate_handle"].is_null());
+    assert!(read["result"]["objects"][0].get("names").is_none());
     let contracts = c
         .call(tool(
             "universe_read_contracts",

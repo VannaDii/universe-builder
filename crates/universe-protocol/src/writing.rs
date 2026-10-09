@@ -111,6 +111,9 @@ pub struct CheckChanges {
     #[schemars(length(max = 100))]
     #[serde(default)]
     pub changes: Vec<ObjectChange>,
+    /// Explicit contextual names for existing identities, not new objects or inferred knowledge. One new alias per entity per delta.
+    #[serde(default)]
+    pub aliases: Vec<WritingAlias>,
     /// Explicit reusable definitions, subtype introductions and shared attributes. Independent stock belongs in changes, not here.
     #[serde(default)]
     #[schemars(length(max = 100))]
@@ -660,4 +663,22 @@ pub struct WritingRelationLimitCorrection {
     #[serde(default)]
     pub lifetime: Option<FactLifetime>,
     pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingAlias {
+    pub object: String,
+    pub text: String,
+    #[serde(default)]
+    pub language: Option<String>,
+    #[serde(default)]
+    pub community: Option<String>,
+    #[serde(default)]
+    pub role: Option<String>,
+    #[serde(default)]
+    pub at_tick: Option<String>,
+    /// Omission leaves validity unspecified; explicit lifetime/tick uses the selected authored calendar.
+    #[serde(default)]
+    pub lifetime: Option<FactLifetime>,
 }

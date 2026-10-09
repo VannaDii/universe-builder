@@ -401,6 +401,9 @@ impl Workflow<'_> {
                     _ => true,
                 };
             }
+            if let DomainOperation::AddName {record,expected_version,..}=op {
+                return !originals.iter().any(|r|r.identity.record_id==record.record && &r.record_version_id==expected_version && matches!(r.payload,Payload::Entity(_)));
+            }
             if let DomainOperation::EndAssertionAt { record, expected_version, .. } = op {
                 return !originals.iter().any(|r| r.identity.record_id==record.record && &r.record_version_id==expected_version && matches!(&r.payload,Payload::Assertion(a) if super::writing_relations::correctable(a) && originals.iter().any(|p|p.identity.record_id==a.proposition.record && matches!(&p.payload,Payload::Proposition(p) if originals.iter().any(|d|d.identity.record_id==p.predicate.record && matches!(d.payload,Payload::Relation(_)))))));
             }
@@ -430,6 +433,7 @@ impl Workflow<'_> {
                 DomainOperation::IntroduceInstance { .. }
                     | DomainOperation::IntroduceDefinition { .. }
                     | DomainOperation::AddNamedAttribute { .. }
+                    | DomainOperation::AddName { .. }
                     | DomainOperation::RefineClassification { .. }
                     | DomainOperation::DefineProperty { .. }
                     | DomainOperation::RecordRelation { .. }
@@ -599,10 +603,11 @@ impl Workflow<'_> {
         for row in stored.changes.iter().filter_map(|c| c.next.as_ref()) {
             match &row.payload {
                 Payload::Entity(e) => summary.push(format!(
-                    "Proposed identity: {}; classification {}",
+                    "Proposed identity: {}; classification {}; authored names {}",
                     label(&row.identity.record_id)
                         .unwrap_or_else(|| row.identity.record_id.to_string()),
-                    e.classification.as_ref().map(|id| label(id).unwrap_or_else(|| "unresolved".into())).unwrap_or_else(|| "unclassified".into())
+                    e.classification.as_ref().map(|id| label(id).unwrap_or_else(|| "unresolved".into())).unwrap_or_else(|| "unclassified".into()),
+                    e.names.iter().map(|n|json!({"text":n.text,"language":n.language,"community":n.community,"role":n.role,"time":writing::plain_time(&json!(n.validity),&label)})).collect::<Vec<_>>().iter().map(|n|n.to_string()).collect::<Vec<_>>().join(", ")
                 )),
                 Payload::EntityType(t) => summary.push(format!("Proposed reusable definition: {}; parent {}; applicability {}",t.name,t.parent.as_ref().map(|id|label(id).unwrap_or_else(|| "unresolved".into())).unwrap_or_else(|| "root".into()),serde_json::to_value(&t.applicability)?)),
                 Payload::Assertion(a) => {
