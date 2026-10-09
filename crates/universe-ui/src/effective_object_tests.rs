@@ -188,3 +188,18 @@ fn quantity_labels_use_only_returned_units_and_preserve_exact_amounts() {
         "1.2300 unit_000000000000000000000017"
     );
 }
+
+#[test]
+fn derived_values_are_named_separate_and_restricted() {
+    let mut response = fixture();
+    response["result"]["derived"] = json!([{"subject":{"record":id(1)},"predicate":{"record":id(21)},"value":{"kind":"integer","digits":"3"},"evidence":["derived-evidence"],"rule":id(50)}]);
+    let rendered = render(response.clone());
+    assert!(rendered.contains("Derived Rounds: 3"));
+    assert!(rendered.contains("Declared value: 2"));
+    assert!(rendered.contains("Partial") && rendered.contains("Resource arrival unexplained"));
+    assert!(rendered.contains("derived-evidence"));
+    response["result"]["coverage"] = json!("restricted");
+    let restricted = render(response);
+    assert!(!restricted.contains("Derived Rounds: 3"));
+    assert!(!restricted.contains("derived-evidence"));
+}

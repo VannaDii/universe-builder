@@ -405,6 +405,9 @@ mod tests {
                     && summary.contains(delta["reason"].as_str().unwrap()),
                 "{summary}"
             );
+            if field == "fact_endings" {
+                assert!(summary.contains("end Days: 8"), "{summary}");
+            }
             assert_eq!(reviewed["publishable"], true);
             assert!(reviewed["review"]["proposal"]["operations"]
                 .as_array()

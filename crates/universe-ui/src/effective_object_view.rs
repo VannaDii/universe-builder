@@ -150,7 +150,7 @@ fn EvidenceLane(title: String, note: String, rows: Value, object: Value) -> Elem
     }}
 }
 #[component]
-fn ObjectView(object: Value) -> Element {
+fn ObjectView(object: Value, derived: Value) -> Element {
     if object["coverage"] == "restricted" {
         return rsx! {p{"Object evidence is restricted in this view."}};
     }
@@ -177,6 +177,14 @@ fn ObjectView(object: Value) -> Element {
         }
         EvidenceLane{title:"Shared definition attributes",note:"Continuing definition evidence, kept separate from instance stock.",rows:object["shared_attributes"].clone(),object:object.clone()}
         EvidenceLane{title:"Instance facts",note:"Asserted instance state. Qualified, opposing or unresolved evidence is not collapsed to a single current value.",rows:object["instance_facts"].clone(),object:object.clone()}
+        section{h4{"Derived abilities and state"}
+            p{"Returned derived values apply to this query; they remain separate from authored facts. Review coverage, conflicts and unknowns."}
+            if derived.as_array().is_none_or(|rows|rows.is_empty()){p{"No visible derived values returned. This does not establish absence."}}
+            for row in derived.as_array().into_iter().flatten(){article{
+                p{{format!("Derived {}: {}",reference_name(&object,&row["predicate"]["record"]),value_text(&row["value"],&object))}}
+                details{summary{"Exact derivation and evidence"}ReadValue{value:row.clone()}}
+            }}
+        }
         EvidenceLane{title:"Initial-value candidates",note:"Authored starting candidates; these are not current stock and do not refill an instance.",rows:object["initial_value_candidates"].clone(),object:object.clone()}
         section{class:"panel",h4{"Initialization history"}p{{format!("History coverage: {}",caption(text(&object["initialization_history_coverage"])))}}
             if object["initialization_history_coverage"]=="restricted"{p{"Initialization history is restricted. No receipt details are shown."}}
@@ -212,7 +220,7 @@ pub fn EffectiveState(response: Value) -> Element {
         if state["coverage"]=="restricted"{p{"State evidence is restricted in this view."}}
         else{
             if state["objects"].as_array().is_none_or(|o|o.is_empty()){p{"No visible effective objects returned."}}
-            for object in state["objects"].as_array().into_iter().flatten(){ObjectView{object:object.clone()}}
+            for object in state["objects"].as_array().into_iter().flatten(){ObjectView{object:object.clone(),derived:Value::Array(state["derived"].as_array().into_iter().flatten().filter(|row|row["subject"]["record"]==object["identity"]["identity"]["record_id"]).cloned().collect())}}
             if !state["unsupported_capabilities"].is_null(){section{h4{"State limitations"}ReadValue{value:state["unsupported_capabilities"].clone()}}}
             details{summary{"Other returned state evidence and exact references"}ReadValue{value:json!({"derived":state["derived"],"epistemic":state["epistemic"],"chronology":state["chronology"],"unresolved_assertion_ids":state["unresolved_assertion_ids"],"assertions":state["assertions"],"propositions":state["propositions"],"completeness":state["completeness"]})}}
         }

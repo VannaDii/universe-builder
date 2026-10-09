@@ -439,12 +439,12 @@ class ConnectedWritingTests(unittest.TestCase):
 
 
                 # Possession powers use an authored holder property, not ownership relations.
-                power=check(context(),properties=[{"name":"holder","introduce":True,"value_type":"object","single_value":True,"persistence":"explicit_interval"},{"name":"night_sight","introduce":True,"value_type":"boolean","single_value":True,"persistence":"explicit_interval"}],changes=[{"name":"Staff","introduce":True,"facts":[{"property":"holder","value":{"object":"Mara"},"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"10"}}]}],relationships=[{"relation":"ownership","subject":"Staff","participants":{"item":["Staff"],"owner":["Leon"]},"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"30"}}],item_powers=[{"item":"Staff","holder_property":"holder","ability_property":"night_sight","value":True,"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"20"}}])
+                power=check(context(),properties=[{"name":"holder","introduce":True,"value_type":"object","single_value":True,"persistence":"explicit_interval"},{"name":"night_sight","introduce":True,"value_type":"boolean","single_value":True,"persistence":"explicit_interval"}],changes=[{"name":"Staff","introduce":True,"facts":[{"property":"holder","value":{"object":"Mara"},"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"10"}}]}],relationships=[{"relation":"ownership","subject":"Staff","participants":{"item":["Staff"],"owner":["Leon"]},"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"30"}}],item_powers=[{"item":"Staff","holder_property":"holder","ability_property":"night_sight","value":True,"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"20"}}],actions=[{"name":"see in darkness","introduce":True,"scope":"universe","requirements":[{"role":"actor","property":"night_sight","value":True}]}])
                 pending=json.loads(cli("library","Story",profile=author))["writing"]["proposals"]
                 self.assertTrue(any("Staff — night_sight" in p["label"] for p in pending))
                 with self.assertRaisesRegex(RuntimeError,"protected contracts require explicit author contract review"):
                     decisions.action({"action":"prepare","candidate":power["candidate_handle"],"label":"Forbidden factual review","text":"Holding this staff grants night sight."})
-                power_revision=publish(power,"From zero until twenty, the Staff grants night sight to its explicit holder. Mara holds it from zero until ten; Leon owns it throughout zero to thirty, which does not establish possession.","connected-item-power",contracts=True)
+                power_revision=publish(power,"From zero until twenty, the Staff grants night sight to its explicit holder. Mara holds it from zero until ten; Leon owns it throughout zero to thirty, which does not establish possession. Seeing in darkness requires the actor to have night sight.","connected-item-power",contracts=True)
                 declaration=client.call("universe_read_contracts",{"universe":"Story","context_id":context(5)})["result"]["item_powers"]
                 self.assertEqual(len(declaration),1)
                 self.assertEqual((declaration[0]["item"],declaration[0]["holder_property"],declaration[0]["ability_property"]),("Staff","holder","night_sight"))
@@ -452,6 +452,16 @@ class ConnectedWritingTests(unittest.TestCase):
                     objects=client.call("universe_read_facts",{"universe":"Story","context_id":context(tick,revision),"object_names":["Mara","Leon"]})["result"]["objects"]
                     return {obj["name"] for obj in objects if any(f["property"]=="night_sight" and f["group"]=="derived" and f["state"]=="supported" and f["value"] is True for f in obj["facts"])}
                 self.assertEqual(powers(5),{"Mara"})
+                sight=check(context(),events=[{"action":"see in darkness","participants":{"actor":"Mara"},"at_tick":"5"}])
+                publish(sight,"At day five Mara sees in darkness using the Staff's granted night sight.","connected-power-action")
+                staff=client.call("universe_read_facts",{"universe":"Story","context_id":context(5),"object_names":["Staff"]})["result"]["objects"][0]
+                holder=next(f for f in staff["facts"] if f["property"]=="holder")
+                denied=client.request("tools/call",{"name":"universe_check_changes","arguments":{"universe":"Story","context_id":context(5),"fact_endings":[{"fact_handle":holder["fact_handle"],"end_tick":"4","reason":"This early loss must invalidate the committed later action."}]}})
+                self.assertTrue(denied.get("isError"),denied)
+                self.assertIn("requirement",str(denied).lower())
+                end=check(context(5),fact_endings=[{"fact_handle":holder["fact_handle"],"end_tick":"8","reason":"Mara loses the Staff after her day-five action."}])
+                publish(end,"Mara's holding of the Staff ends at eight; her day-five action remains valid.","connected-power-end")
+                self.assertEqual(powers(8),set())
                 transfer_power=check(context(),changes=[{"name":"Staff","facts":[{"property":"holder","value":{"object":"Leon"},"scope":"universe","at_tick":"10","lifetime":{"kind":"until","end_tick":"15"}},{"property":"holder","value":{"object":"Mara"},"scope":"universe","at_tick":"20","lifetime":{"kind":"until","end_tick":"30"}}]}])
                 publish(transfer_power,"Leon holds the Staff from ten until fifteen. Nobody is established as holder from fifteen until twenty. Mara holds it again from twenty until thirty, after its night-sight grant expires.","connected-power-transfer")
                 self.assertEqual(powers(12),{"Leon"})

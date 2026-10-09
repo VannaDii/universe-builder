@@ -610,7 +610,13 @@ impl Workflow<'_> {
                     Payload::ActionDefinition(d) => Some(d.key.clone()),
                     Payload::Rule(d) => Some(d.key.clone()),
                     Payload::World(d) => Some(d.selector.clone()),
-                    Payload::Calendar(d) => Some(d.key.clone()),
+                    Payload::Calendar(d) => Some(
+                        d.labels
+                            .values()
+                            .next()
+                            .cloned()
+                            .unwrap_or_else(|| d.key.clone()),
+                    ),
                     Payload::Unit(d) => Some(d.key.clone()),
                     _ => None,
                 })
