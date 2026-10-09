@@ -237,6 +237,10 @@ pub struct EngineReply {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 pub enum AuthorWritingAction {
+    /// Reopen an existing exact source-bound review without staging new source.
+    Inspect {
+        candidate: crate::request::ProposalRef,
+    },
     Prepare {
         candidate: ProposalId,
         label: String,

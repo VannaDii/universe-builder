@@ -111,6 +111,7 @@ pub fn App() -> Element {
 }
 
 mod author;
+mod writing_review;
 pub use author::AuthorApp as EngineApp;
 
 mod identity_editor;

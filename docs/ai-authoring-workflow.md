@@ -740,3 +740,16 @@ decision basis is preserved rather than replaced with a source anchor. There is
 no direct per-attitude source anchor for this decision. Separate `/approve` is
 still required. The calling model cannot invoke this private decision; ordinary
 review/approval cannot turn its acquisition request into authored knowledge.
+
+The native author workspace has a **Writing proposals** panel. Load proposal choices,
+select writing by its description, and attach the exact passage for factual review.
+Use the separate contract declaration button for protected contracts and policies.
+Prepared reviews reopen with fresh validation without restaging source; edits to the
+passage clear the displayed review and approval. Submitted source changes require a
+new corrected writing candidate rather than changing the frozen review.
+Review the staged passage, changes, findings and impact, then approve and publish
+separately. Rejection leaves canon unchanged. Scoped resource acceptance requires
+a selected finding and reason and runs fresh review before separate approval.
+After reopening, load existing approval choices to recover an interrupted publication
+using its original exact binding and stable publication key. Recovery cannot create
+a new approval. Open the current revision before continuing after publication.

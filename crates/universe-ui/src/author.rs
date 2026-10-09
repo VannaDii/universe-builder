@@ -312,6 +312,7 @@ pub fn AuthorApp() -> Element {
                     super::timeline::Timeline{key:"{frame.universe}-{frame.revision}",root:root(),profile:profile(),universe:selected(),context:ctx()["context_id"].clone(),frame,choices:choices(&hits(),&definitions(),"[]"),clock:serde_json::from_value(clock_record()["payload"]["chronology"].clone()).ok()}
                 }
                 div{class:"workspace",
+                    for writing_key in [format!("{}:{}:{}",root(),profile(),selected())] { div {key:"{writing_key}", super::writing_review::WritingReview { root:root(), profile:profile(), universe:selected() }}}
                     section{class:"panel","aria-label":"Explorer",h2{"Canon explorer"}
                         label{r#for:"author-world","World focus"}super::select::RichSelect {id:"author-world",value:focus(),disabled:busy()||saving(),onchange:move|e: crate::select::SelectionEvent|{focus.set(e.value());next_page.set(Value::Null);},options:std::iter::once(super::select::Choice::described("", "All worlds · shared · unassigned", "Search the whole universe, including records without world associations.")).chain(worlds().into_iter().map(|name|super::select::Choice::described(name.clone(),name,"Focus on this world’s explicitly associated records."))).collect()}
                         label{r#for:"explorer-query","Search canon"}input{id:"explorer-query",disabled:busy(),value:search_text,oninput:move|e|{search_text.set(e.value());next_page.set(Value::Null);}}

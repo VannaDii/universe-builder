@@ -13,6 +13,26 @@ impl Workflow<'_> {
             return Err(denied());
         }
         match action {
+            AuthorWritingAction::Inspect { candidate } => {
+                let p = self.proposal(&candidate)?;
+                if !matches!(p.proposal.submission, Submission::Submitted) {
+                    return Err(ProtocolError::ApprovalStale.into());
+                }
+                if !p.author_origin
+                    || !p
+                        .proposal
+                        .operations
+                        .iter()
+                        .any(|op| matches!(op, DomainOperation::AddSourceAnchor { .. }))
+                {
+                    return Err(ProtocolError::PolicyDenied {
+                        message: "Reopen requires an author-prepared exact-source writing review."
+                            .into(),
+                    }
+                    .into());
+                }
+                self.writing_author_review(&universe, &p.proposal)
+            }
             AuthorWritingAction::Publish {
                 candidate,
                 validation_run,

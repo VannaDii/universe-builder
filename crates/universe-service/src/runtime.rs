@@ -410,7 +410,50 @@ impl Runtime {
                 Registry::require_author(&current)?;
                 let u = registry.resolve(&current, &universe.0)?;
                 drop(registry);
-                self.worker(&u.universe_id, &u.path)?.describe()?
+                let worker = self.worker(&u.universe_id, &u.path)?;
+                let mut library = worker.describe()?;
+                let author = current.id.clone();
+                let writing = worker.run(move |kernel| {
+                    let mut latest = std::collections::BTreeMap::new();
+                    for key in kernel.workflow_keys("proposal:")? {
+                        let stored: crate::workflow::StoredProposal = serde_json::from_value(kernel.workflow_get(&key)?.ok_or_else(|| ProtocolError::not_found("proposal"))?)?;
+                        let names: Vec<String> = stored.changes.iter().filter_map(|c|c.next.as_ref()).filter_map(|r|match &r.payload {
+                            Payload::Entity(e)=>e.names.first().map(|n|n.text.clone()),
+                            Payload::Source(s)=>Some(s.label.clone()),
+                            Payload::Property(p)=>Some(p.key.clone()),
+                            Payload::EntityType(t)=>Some(t.name.clone()),
+                            Payload::ActionDefinition(a)=>Some(a.key.clone()),
+                            _=>None,
+                        }).collect();
+                        let p = stored.proposal;
+                        let label = if names.is_empty(){p.rationale.clone()}else{names.join(" · ")};
+                        let entry = latest.entry(p.proposal_id.clone()).or_insert((p.clone(), label.clone()));
+                        if p.version > entry.0.version { *entry = (p,label); }
+                    }
+                    let mut published = std::collections::BTreeSet::new();
+                    for key in kernel.workflow_keys("operation:")? {
+                        if let Some(operation) = kernel.workflow_get(&key)? {
+                            if !operation["input"].is_null() {
+                                let input: universe_store::kernel::CommitInput = serde_json::from_value(operation["input"].clone())?;
+                                if kernel.receipt(&input)?.is_some() {
+                                    if let Some(digest) = operation["status"]["proposal"]["digest"].as_str() { published.insert(digest.to_owned()); }
+                                }
+                            }
+                        }
+                    }
+                    let proposals: Vec<_> = latest.values().filter(|(p,_)| !p.withdrawn && !published.contains(&p.digest)).map(|(p,label)| json!({"candidate":{"proposal_id":p.proposal_id,"version":p.version,"digest":p.digest},"label":label,"submission":p.submission,"base_revision":p.base_frame.revision,"continuity":p.base_frame.continuity})).collect();
+                    let mut approvals = vec![];
+                    for key in kernel.workflow_keys(&format!("approval:{author}:"))? {
+                        if let Some(value) = kernel.workflow_get(&key)? {
+                            if value["author"] == author.as_str() {
+                                approvals.push(json!({"candidate":value["proposal"],"validation_run":key.rsplit(':').next().unwrap_or_default(),"label":value["proposal"]["proposal_id"].as_str().and_then(|id|latest.iter().find(|(key,_)|key.as_str()==id).map(|(_,(_,label))|label.clone())).unwrap_or_else(||"Approved writing".into())}));
+                            }
+                        }
+                    }
+                    Ok(json!({"proposals":proposals,"approved":approvals}))
+                })?;
+                library["writing"] = writing;
+                library
             }
             EngineRequest::ForkContinuity {
                 universe,
