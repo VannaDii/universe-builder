@@ -46,11 +46,11 @@ class SessionTests(unittest.TestCase):
         self.assertIn("no completed change check",session.respond("prose")); self.assertEqual(client.calls,[])
         self.assertIn("session universe",model.inputs[2][-1]["content"])
     def test_checked_status_is_engine_result_and_failed_recheck_clears_it(self):
-        client=Client(); client.results=iter([{"structuredContent":{"result":{"status":"checked_candidate"}},"content":[]},ProtocolError({"message":"stale context"})])
-        model=Model(call("universe_check_changes"),call("universe_check_changes"),"Everything consistent.")
+        client=Client(); client.results=iter([{"structuredContent":{"result":{"status":"checked_candidate","candidate_handle":"opaque"}},"content":[]},ProtocolError({"message":"stale context"})])
+        model=Model(Generation("native checks",0,0,False,call("universe_check_changes").tool_calls*2),"Everything consistent.")
         session=self.session(model,client)
         self.assertIn("no completed change check",session.respond("prose"))
-        self.assertIn("stale context",model.inputs[2][-1]["content"])
+        self.assertIn("stale context",model.inputs[1][-1]["content"])
     def test_absent_check_gets_one_procedural_reminder_without_supplied_delta(self):
         model=Model(call(),"Already unchanged.",call("universe_check_changes"),"Checked.")
         session=self.session(model)
@@ -72,7 +72,7 @@ class SessionTests(unittest.TestCase):
         self.assertNotIn("Canon updated",reply);self.assertNotIn("Mara introduced",reply);self.assertIn("Which owner?",reply)
     def test_empty_delta_cannot_hide_prior_pending_candidate(self):
         client=Client(); client.results=iter([{"structuredContent":{"result":{"status":"checked_candidate","candidate_handle":"opaque"}},"content":[]},{"structuredContent":{"result":{"status":"no_changes"}},"content":[]}])
-        session=self.session(Model(call("universe_check_changes"),call("universe_check_changes"),"No changes."),client)
+        session=self.session(Model(Generation("native checks",0,0,False,call("universe_check_changes").tool_calls*2),"No changes."),client)
         self.assertIn("no completed change check",session.respond("prose"))
         self.assertIn("prior uncommitted candidate",session.messages[-2]["content"])
     def test_success_conflict_and_unknown_status_labels(self):
@@ -80,6 +80,31 @@ class SessionTests(unittest.TestCase):
             client=Client(); client.results=iter([{"structuredContent":{"result":{"status":status}},"content":[]}])
             session=self.session(Model(call("universe_check_changes"),"Bounded result."),client)
             self.assertIn(label,session.respond("prose"))
+    def test_completed_candidate_returns_backend_report_without_more_generation(self):
+        client=Client(); client.results=iter([{"structuredContent":{"result":{"status":"checked_candidate","candidate_handle":"opaque","additions":["Occurred action: authored action"],"validation":{"execution":{"coverage":"complete"}},"impact":{"coverage":"complete"}}},"content":[]}])
+        model=Model(call("universe_check_changes"))
+        session=self.session(model,client)
+        reply=session.respond("Author passage")
+        self.assertIn("Candidate checked; not published",reply)
+        self.assertIn("Occurred action: authored action",reply)
+        self.assertEqual(len(model.inputs),1)
+        self.assertEqual(session.last_check["candidate_handle"],"opaque")
+        self.assertEqual(len(client.calls),1)
+
+    def test_completed_batch_reports_the_latest_changed_delta(self):
+        client=Client()
+        shape=next(t["inputSchema"] for t in client.tools if t["name"]=="universe_check_changes")
+        shape["properties"]["changes"]={"type":"array","items":{"type":"object"}}
+        client.results=iter([{"structuredContent":{"result":{"status":"checked_candidate","candidate_handle":handle}},"content":[]} for handle in ("earlier","latest")])
+        first=call("universe_check_changes",{"universe":"Story","changes":[{"name":"Object","facts":[{"property":"colour","value":"green"}]}]})
+        second=call("universe_check_changes",{"universe":"Story","changes":[{"name":"Object","facts":[{"property":"colour","value":"blue"}]}]})
+        model=Model(Generation("native checks",0,0,False,first.tool_calls+second.tool_calls))
+        session=self.session(model,client)
+        self.assertIn("Candidate checked",session.respond("Author passage"))
+        self.assertEqual(session.last_check["candidate_handle"],"latest")
+        self.assertEqual(client.calls[-1]["arguments"],second.tool_calls[0]["arguments"])
+        self.assertEqual(len(model.inputs),1)
+
     def test_repeated_error_stops_without_publication(self):
         session=self.session(Model(call("universe_commit"),call("universe_commit")))
         self.assertIsNone(session.respond("prose")); self.assertEqual(session.client.calls,[])

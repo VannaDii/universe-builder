@@ -262,6 +262,13 @@ class AuthorSession:
                                 self.messages[-1]["content"] = json.dumps(result)
                             else:
                                 pending_candidate |= bool(checked.get("candidate_handle"))
+                if checked and checked.get("status") == "checked_candidate" and checked.get("candidate_handle"):
+                    # The engine has finished this candidate. Waiting for a free-text
+                    # model ending can turn successful checks into a retry loop.
+                    self.last_check = checked
+                    reply = self.check_report(checked)
+                    self.output(reply)
+                    return reply
                 if repeats >= 2:
                     stop_reason = "the model repeated the same tool error"
                     break

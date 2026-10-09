@@ -240,6 +240,8 @@ with canonical serving instructions and ordinary public MCP tools. It researches
 pinned canon, then sends only plain factual deltas to `universe_check_changes`.
 `universe_read_facts` returns named effective facts, exact property names, conflicts,
 unknowns and authored clock metadata from the existing pinned state engine.
+A successfully checked candidate ends the checking turn immediately; the session
+returns the actual backend result without waiting for another model response.
 The session renders actual checking results, including proposed additions, exclusions,
 material questions and coverage; generated explanations cannot claim publication.
 The engine resolves existing identities and property definitions, allocates new

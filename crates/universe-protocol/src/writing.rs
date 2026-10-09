@@ -138,9 +138,9 @@ pub struct WritingClaim {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct WritingEvent {
-    /// Exact authored action name; effects and balances come from its existing contract.
+    /// Exact action name returned by universe_read_contracts. Discover the contract before submitting an event; a prose verb is not necessarily its action name. Effects and balances come from that contract.
     pub action: String,
-    /// Authored action role to exact object name.
+    /// Keys are exact roles returned by that action contract; values are exact object names. Do not substitute guessed role names.
     pub participants: std::collections::BTreeMap<String, String>,
     /// Explicit tick on the selected context's authored calendar; omit only when research pins an exact scene time.
     #[serde(default)]
