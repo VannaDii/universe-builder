@@ -750,6 +750,31 @@ class ConnectedWritingTests(unittest.TestCase):
                 publish(moved,"The final burn was a small burn at five, leaving exactly 0.1 litres.","connected-fractional-retcon")
                 self.assertEqual([f["value"]["amount"] for f in fuel_facts(5)["Tank"]],[0.1])
                 self.assertEqual([f["value"]["amount"] for f in fuel_facts(5,{"kind":"exact","revision_id":refilled_revision})["Tank"]],[0.025])
+                # Moving an occurrence rebuilds earlier generated interval stops,
+                # but never changes independently authored stock or later events.
+                later=check(context(),event_corrections=[{"event_handle":last["handle"],"at_tick":"6","reason":"The final small burn occurred a day later."}])
+                later_revision=publish(later,"The small burn occurred at six, leaving 0.1 litres.","connected-resource-move-later")
+                self.assertEqual([f["value"]["amount"] for f in fuel_facts(5)["Tank"]],[0.125])
+                self.assertEqual([f["value"]["amount"] for f in fuel_facts(6)["Tank"]],[0.1])
+                # A later authored spend depends on this corrected balance.
+                publish(check(context(),events=[{"action":"burn fuel","participants":{"tank":"Tank"},"at_tick":"8"}]),"Tank spends its remaining 0.1 at eight.","connected-resource-dependent-spend")
+                earlier=check(context(),event_corrections=[{"event_handle":last["handle"],"at_tick":"5","reason":"Correct the same small burn to five, preserving the later spend."}])
+                publish(earlier,"The small burn occurred at five; the day-eight spend remains unchanged.","connected-resource-move-earlier")
+                self.assertEqual([f["value"]["amount"] for f in fuel_facts(8)["Tank"]],[0])
+                crossed=check(context(),event_corrections=[{"event_handle":last["handle"],"at_tick":"9","reason":"A crossed sequence cannot spend stock already consumed at eight."}])
+                self.assertIsNone(crossed["candidate_handle"],crossed)
+                self.assertTrue(any("resource" in q for q in crossed["clarifications"]),crossed)
+                underfunded=check(context(),event_corrections=[{"event_handle":last["handle"],"at_tick":"4","reason":"The burn cannot spend the replenishment before its simultaneous arrival."}])
+                self.assertIsNone(underfunded["candidate_handle"],underfunded)
+                self.assertTrue(any("underflow" in q for q in underfunded["clarifications"]),underfunded)
+                events=client.call("universe_read_facts",{"universe":"Story","context_id":context(8),"object_names":["Tank"]})["result"]["objects"][0]["occurred_events"]
+                successor=next(e for e in events if e["time"].endswith(": 8"))
+                atomic=check(context(),event_corrections=[{"event_handle":last["handle"],"at_tick":"6","reason":"Explicitly correct the first time."},{"event_handle":successor["handle"],"at_tick":"9","reason":"Explicitly correct the dependent time in the same delta."}])
+                publish(atomic,"The small burn was at six; the final spend was at nine.","connected-resource-atomic-times")
+                self.assertEqual([f["value"]["amount"] for f in fuel_facts(8)["Tank"]],[0.1])
+                self.assertEqual([f["value"]["amount"] for f in fuel_facts(9)["Tank"]],[0])
+                self.assertEqual([f["value"]["amount"] for f in fuel_facts(5,{"kind":"exact","revision_id":refilled_revision})["Tank"]],[0.025])
+                self.assertEqual([f["value"]["amount"] for f in fuel_facts(5,{"kind":"exact","revision_id":later_revision})["Tank"]],[0.125])
             finally:
                 if client: client.close()
                 cli("shutdown",profile=author)

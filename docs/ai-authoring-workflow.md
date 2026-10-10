@@ -372,6 +372,9 @@ Generated balance facts cannot be edited directly. Later actions are rechecked,
 and may block the correction; they are never automatically rewritten. Explicit
 corrections to multiple events can share one atomic reviewed candidate. Exact
 source review and author approval remain required, and old revisions remain intact.
+Moving a resource event rebuilds the interval boundaries of earlier generated
+stock before deriving its new balance. Authored starting intervals stay unchanged;
+missing stock, overspending and inconsistent later actions still block the edit.
 
 Ordinary quantity values use `{ "amount": 1.2300, "unit": "metre" }`. Exact
 integer/decimal digits and the named authored unit survive reading, source review,

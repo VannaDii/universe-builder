@@ -127,6 +127,19 @@ impl Workflow<'_> {
                     })?;
                 // Exclude only this event's obsolete generated evidence before deriving its new effects.
                 rows.retain(|r|r.identity.record_id!=original.identity.record_id && !matches!(&r.payload,Payload::Assertion(a)if a.established_by.as_ref().is_some_and(|e|e.event.record==original.identity.record_id)));
+                // Removing the old occurrence also removes its boundary on earlier
+                // generated stock. Derive against the remaining authored events,
+                // not intervals frozen while the old occurrence still existed.
+                let expanded = universe_rules::events::expand(&rows)
+                    .map_err(|e| anyhow::anyhow!(e))?;
+                rows.retain(|r| !matches!(&r.payload,Payload::Assertion(a)if a.established_by.is_some()));
+                for (id, assertion) in expanded {
+                    rows.push(RecordVersion::build(
+                        universe_domain::ids::RecordVersionId::generate(&mut rand::rng()),
+                        RecordIdentity::new(u.clone(), id, RecordKind::Assertion),
+                        Payload::Assertion(assertion),
+                    )?);
+                }
                 replacement.effects.clear();
                 for (id, proposition, effect) in crate::consequences::author_effects(
                     &rows,

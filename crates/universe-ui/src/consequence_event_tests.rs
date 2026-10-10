@@ -601,6 +601,17 @@ async fn version_bound_corrections_recompile_dependents_and_preserve_history() {
     )
     .await;
     assert_eq!(after["payload"]["value"]["digits"], "2");
+    // The time control cannot extend independently authored starting stock.
+    let (timed_choices, _) = crate::event_correction::load(
+        root.to_string_lossy().into(), author.to_string(), "Alpha".into(),
+        current["result"]["context_id"].clone(), &new_second,
+    ).await.unwrap();
+    let mut timed = Form::load(new_second.clone(), &f, Some(&clock), &timed_choices).unwrap();
+    timed.start = "3".into();
+    reject(&mut c, &current, timed.build(&f, Some(&clock), &timed_choices).unwrap(), "reviewed-event-time", "resource pre-event balance missing").await;
+    let latest = open(&mut c, &u).await;
+    assert_eq!(read(&mut c, &latest, &second_id).await, new_second);
+    assert_eq!(read(&mut c, &current, &second_id).await, new_second);
     drop(c);
     stop.cancel();
     server.await.unwrap().unwrap();
