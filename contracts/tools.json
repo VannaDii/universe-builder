@@ -2182,6 +2182,14 @@
           "description": "Opaque context handle returned by research. The engine pins author admission to the same revision.",
           "$ref": "#/$defs/ContextId"
         },
+        "worlds": {
+          "description": "Explicit named worlds. Introduce only with author intent; existing visible names reuse their identity. No default world, location or entity association is inferred.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingWorld"
+          },
+          "default": []
+        },
         "changes": {
           "description": "Only factual deltas; do not restate the universe or unchanged facts.",
           "type": "array",
@@ -2464,6 +2472,22 @@
           "description": "Opaque application context handle (frame pin, not a grant).",
           "type": "string",
           "pattern": "^ctx_[0-9a-f]{24}$"
+        },
+        "WritingWorld": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "introduce": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ]
         },
         "ObjectChange": {
           "type": "object",

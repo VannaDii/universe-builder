@@ -72,6 +72,17 @@ async fn native_forms_create_refine_reject_and_recover_stable_identity() {
         .await
         .unwrap();
     let opened = open(&mut c, &u).await;
+    let world = Form {
+        kind: "world".into(),
+        name: "Garden world".into(),
+        ..Default::default()
+    }
+    .create(&serde_json::from_value(opened["frame"].clone()).unwrap())
+    .unwrap();
+    publish(&mut c, &opened, json!([world]), "native-world-introduction").await;
+    let opened = open(&mut c, &u).await;
+    let authored = read(&mut c, &opened, &world["client_ref"]).await;
+    assert_eq!(authored["payload"]["selector"], "Garden world");
     let parent = "rec_00000000000000000000ab01";
     let child = "rec_00000000000000000000ab02";
     let unrelated = "rec_00000000000000000000ab03";

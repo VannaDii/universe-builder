@@ -2943,10 +2943,10 @@ impl Workflow<'_> {
         };
         let key = universe_store::selector::selector_key(name)?;
         let visibility = self.visible_ids(records)?;
-        let world = records
+        let worlds: Vec<_> = records
             .iter()
             .filter(|r| visibility.contains(&r.identity.record_id))
-            .find(|r| {
+            .filter(|r| {
                 if let Payload::World(w) = &r.payload {
                     std::iter::once(&w.selector)
                         .chain(w.aliases.iter())
@@ -2957,7 +2957,10 @@ impl Workflow<'_> {
                     false
                 }
             })
-            .ok_or_else(denied)?;
+            .collect();
+        let [world] = worlds.as_slice() else {
+            return Err(denied());
+        };
         let id = universe_store::kernel::record_world(&world.identity.record_id);
         if args
             .get("world_id")

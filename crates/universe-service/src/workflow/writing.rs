@@ -49,11 +49,33 @@ impl Workflow<'_> {
         }
         let mut names = BTreeMap::<String, RecordId>::new();
         let mut properties = BTreeMap::<String, (RecordId, PropertyDef)>::new();
-        let mut operations = vec![];
+        let mut operations = Vec::<Value>::new();
         let mut assertions = BTreeSet::new();
         let mut ambiguous_new = BTreeSet::new();
         let mut new_properties = BTreeMap::new();
         let mut emitted_properties = BTreeSet::new();
+        for world in &input.worlds {
+            let key = universe_store::selector::selector_key(&world.name)?;
+            let matches: Vec<_> = records.iter().filter(|r| matches!(&r.payload, Payload::World(w) if std::iter::once(&w.selector).chain(w.aliases.iter()).any(|n| universe_store::selector::selector_key(n).ok().as_ref() == Some(&key)))).collect();
+            match matches.as_slice() {
+                [_] => result.unchanged.push(format!("Existing world: {}", world.name)),
+                [] if world.introduce && self.scope.is_none() => {
+                    if operations.iter().any(|op| op["kind"] == "create_world" && op["record"]["selector"].as_str().and_then(|n| universe_store::selector::selector_key(n).ok()).as_ref() == Some(&key)) {
+                        result.unchanged.push(format!("World already introduced in this delta: {}", world.name));
+                    } else {
+                        operations.push(json!({"kind":"create_world","client_ref":RecordId::generate(&mut rand::rng()),"record":{"selector":world.name,"labels":{},"metadata":{}}}));
+                        result.additions.push(format!("New world: {}", world.name));
+                    }
+                }
+                _ => result.clarifications.push(format!("Select one accessible authored world named '{}', or explicitly introduce it with universe-wide authoring access.", world.name)),
+            }
+        }
+        let world_records = super::writing_connected::candidate_records(
+            self.kernel.universe(),
+            &ctx,
+            &base,
+            &operations,
+        )?;
         self.writing_units(
             &input,
             &records.iter().map(|r| (*r).clone()).collect::<Vec<_>>(),
@@ -152,7 +174,7 @@ impl Workflow<'_> {
                     "universe" => Applicability::UniverseWide,
                     "unspecified" => Applicability::Unspecified,
                     world => match self
-                        .focus(&json!({"world":world}), &base)
+                        .focus(&json!({"world":world}), &world_records)
                         .and_then(|id| id.ok_or_else(denied))
                     {
                         Ok(id) => Applicability::Worlds {
@@ -441,7 +463,7 @@ impl Workflow<'_> {
                     "universe" => Applicability::UniverseWide,
                     "unspecified" => Applicability::Unspecified,
                     world => match self
-                        .focus(&json!({"world":world}), &base)
+                        .focus(&json!({"world":world}), &world_records)
                         .and_then(|id| id.ok_or_else(denied))
                     {
                         Ok(id) => Applicability::Worlds {
@@ -1040,6 +1062,45 @@ mod tests {
             name: "Writing".into(),
         };
         let opened=workflow.execute(Request::from_tool("universe_open_context",json!({"universe":"Writing","continuity_id":c,"revision":{"kind":"head"},"represented_context":context,"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"})).unwrap()).unwrap();
+        let world_ops = vec![
+            json!({"kind":"create_world","client_ref":"rec_00000000000000000000aa01","record":{"selector":"First","aliases":["Shared label"],"labels":{},"metadata":{}}}),
+            json!({"kind":"create_world","client_ref":"rec_00000000000000000000aa02","record":{"selector":"Second","aliases":["Shared label"],"labels":{},"metadata":{}}}),
+        ];
+        let ctx = workflow
+            .context(&serde_json::from_value(opened["result"]["context_id"].clone()).unwrap())
+            .unwrap();
+        let original_rows = workflow.kernel.records(&c, &revision).unwrap();
+        let world_rows = super::writing_connected::candidate_records(
+            workflow.kernel.universe(),
+            &ctx,
+            &original_rows,
+            &world_ops,
+        )
+        .unwrap();
+        assert!(workflow
+            .focus(&json!({"world":"Shared label"}), &world_rows)
+            .is_err());
+        assert!(workflow
+            .focus(&json!({"world":"First"}), &world_rows)
+            .unwrap()
+            .is_some());
+        workflow.scope = Some(BTreeSet::from([universe_store::kernel::record_world(
+            &RecordId::parse("rec_00000000000000000000aa01").unwrap(),
+        )]));
+        assert!(workflow
+            .focus(&json!({"world":"Second"}), &world_rows)
+            .is_err());
+        assert!(workflow
+            .focus(&json!({"world":"Absent"}), &world_rows)
+            .is_err());
+        let scoped=workflow.execute(Request::from_tool("universe_open_context",json!({"universe":"Writing","continuity_id":c,"revision":{"kind":"head"},"represented_context":context,"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"})).unwrap()).unwrap();
+        for name in ["Second", "Absent"] {
+            let held=workflow.execute(Request::from_tool("universe_check_changes",json!({"universe":"Writing","context_id":scoped["result"]["context_id"],"worlds":[{"name":name,"introduce":true}]})).unwrap()).unwrap();
+            assert_eq!(held["result"]["status"], "needs_clarification");
+            assert!(held["result"]["candidate_handle"].is_null());
+            assert!(held["result"]["validation"].is_null());
+        }
+        workflow.scope = None;
         let args = json!({"universe":"Writing","context_id":opened["result"]["context_id"],"changes":[{"name":"Mara","introduce":true,"facts":[{"property":"age","value":30,"scope":"universe"}]},{"name":"Blue pistol","introduce":true,"facts":[{"property":"owner","value":{"object":"Mara"}}]},{"name":"Imagined dragon","facts":[{"property":"colour","value":"red","statement":"belief"}]}]});
         let result = workflow
             .execute(Request::from_tool("universe_check_changes", args.clone()).unwrap())

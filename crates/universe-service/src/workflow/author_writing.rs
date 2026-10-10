@@ -510,6 +510,7 @@ impl Workflow<'_> {
             !matches!(
                 op,
                 DomainOperation::IntroduceInstance { .. }
+                    | DomainOperation::CreateWorld { .. }
                     | DomainOperation::IntroduceDefinition { .. }
                     | DomainOperation::AddNamedAttribute { .. }
                     | DomainOperation::AddName { .. }

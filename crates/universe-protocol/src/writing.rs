@@ -107,6 +107,9 @@ pub struct CheckChanges {
     pub universe: Selector,
     /// Opaque context handle returned by research. The engine pins author admission to the same revision.
     pub context_id: ContextId,
+    /// Explicit named worlds. Introduce only with author intent; existing visible names reuse their identity. No default world, location or entity association is inferred.
+    #[serde(default)]
+    pub worlds: Vec<WritingWorld>,
     /// Only factual deltas; do not restate the universe or unchanged facts.
     #[schemars(length(max = 100))]
     #[serde(default)]
@@ -203,6 +206,13 @@ pub struct CheckChanges {
     #[serde(default)]
     /// Neutral material questions only. Do not propose a guessed owner/identity as fact while asking who is intended.
     pub questions: Vec<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingWorld {
+    pub name: String,
+    #[serde(default)]
+    pub introduce: bool,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

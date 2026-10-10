@@ -284,6 +284,20 @@ class ConnectedWritingTests(unittest.TestCase):
                 current=context()
                 facts=client.call("universe_read_facts",{"universe":"Story","context_id":current,"object_names":["Courtyard"]})["result"]
                 calendar=facts["clocks"][0]["calendar_id"]
+                before_worlds=client.call("universe_read_contracts",{"universe":"Story","context_id":context()})["frame"]["revision"]
+                world_delta=check(context(),worlds=[{"name":"Dawn","introduce":True},{"name":"Dusk","introduce":True}],changes=[{"name":"Lantern","introduce":True,"facts":[{"property":"colour","value":"red","scope":"Dawn","at_tick":"0","lifetime":{"kind":"until","end_tick":"20"}},{"property":"colour","value":"blue","scope":"Dusk","at_tick":"0","lifetime":{"kind":"until","end_tick":"20"}}]}])
+                world_revision=publish(world_delta,"Dawn and Dusk are distinct worlds. The same lantern is red in Dawn and blue in Dusk from zero until twenty.","connected-worlds")
+                for world,colour in (("Dawn","red"),("Dusk","blue")):
+                    scoped=client.call("universe_read_facts",{"universe":"Story","context_id":context(5),"object_names":["Lantern"],"world":world})["result"]["objects"][0]
+                    self.assertEqual([f["value"] for f in scoped["facts"]],[colour],scoped)
+                repeated=check(context(),worlds=[{"name":"dawn","introduce":True},{"name":"Dusk"}])
+                self.assertEqual(repeated["status"],"no_changes",repeated)
+                self.assertIsNone(repeated["candidate_handle"])
+                missing=check(context(),worlds=[{"name":"Unknown world"}])
+                self.assertEqual(missing["status"],"needs_clarification")
+                self.assertIsNone(missing["candidate_handle"])
+                historic=client.call("universe_read_facts",{"universe":"Story","context_id":context(5,{"kind":"exact","revision_id":before_worlds}),"object_names":["Lantern"]})["result"]["objects"][0]
+                self.assertNotEqual(historic["identity"],"resolved")
                 canon=context(5)
                 limits=client.call("universe_read_contracts",{"universe":"Story","context_id":canon})["result"]
                 self.assertEqual(limits["exhaustive_sets"][0]["members"],["Main gate"])
