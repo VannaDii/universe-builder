@@ -305,9 +305,11 @@ impl Form {
                     if p["definition"]["subject"]!=rr(frame,&owner.1)?||p["definition"]["predicate"]!=slot["target"]["predicate"]||p["definition"]["context"]!=context||p["definition"]["value"].is_null(){return Err("Effect proposition must have this owner, property, context and an explicit value.".into());}rr(frame,&input.proposition)?},
                 "new"=>{
                     let value=if slot["change"]["kind"]=="delta"{
-                        let typed:universe_domain::consequences::ConsequenceInteger=serde_json::from_value(json!(input.balance)).map_err(|e|e.to_string())?;
-                        let integer=json!({"kind":"integer","digits":typed.get().to_string()});
-                        if slot["change"]["unit"].is_null(){integer}else{json!({"kind":"quantity","value":integer,"unit":slot["change"]["unit"]})}
+                        let _:universe_domain::consequences::ConsequenceDecimal=serde_json::from_value(json!(input.balance)).map_err(|e|e.to_string())?;
+                        let target=choices.iter().find(|c|c["kind"]=="property"&&c["record_id"]==predicate).ok_or("Choose the returned resource property.")?;
+                        let kind=if target["definition"]["value"]["kind"]=="decimal"||input.balance.contains('.') {"decimal"}else{"integer"};
+                        let number=json!({"kind":kind,"digits":input.balance});
+                        if slot["change"]["unit"].is_null(){number}else{json!({"kind":"quantity","value":number,"unit":slot["change"]["unit"]})}
                     }else{input.value.build(frame,choices,predicate)?};
                     let id=RecordId::generate(&mut rand::rng());ops.push(json!({"kind":"define_proposition","client_ref":id,"record":{"subject":rr(frame,&owner.1)?,"predicate":slot["target"]["predicate"],"value":value,"context":context,"quantification":"particular"}}));rr(frame,id.as_str())?
                 },_=>return Err("Choose a new explicit value or existing proposition for every included effect.".into())};
@@ -406,7 +408,7 @@ fn EffectControls(
     if input.source=="new"{
     if slot["change"]["kind"]=="delta"{
     p{"Enter the post-event balance from authored facts. No balance is computed or filled in. Quantity values retain the contract’s exact unit."}
-    label{r#for:"{id}-balance","Proposed post-event whole-number balance"}input{id:"{id}-balance",disabled,value:input.balance.clone(),oninput:{let v=input.clone();move|e|{let mut v=v.clone();v.balance=e.value();onchange.call(v);}}}
+    label{r#for:"{id}-balance","Proposed post-event exact balance"}input{id:"{id}-balance",disabled,value:input.balance.clone(),oninput:{let v=input.clone();move|e|{let mut v=v.clone();v.balance=e.value();onchange.call(v);}}}
     }else{ValueControls{id:format!("{id}-value"),value:input.value.clone(),predicate,choices:choices.clone(),disabled,onchange:{let v=input.clone();move|value|{let mut v=v.clone();v.value=value;onchange.call(v);}}}}
     }
     label{r#for:"{id}-polarity","Effect evidence"}super::select::RichSelect{id:format!("{id}-polarity"),disabled,value:input.polarity.clone(),options:super::select::choices(&[("","Choose polarity"),("support","Support"),("refutation","Refutation")]),onchange:{let v=input.clone();move|e:super::select::SelectionEvent|{let mut v=v.clone();v.polarity=e.value();onchange.call(v);}}}

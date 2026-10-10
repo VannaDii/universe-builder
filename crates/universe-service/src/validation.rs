@@ -75,16 +75,24 @@ fn validate_action_contract(
                     ));
                 }
             }
-            EffectChange::Delta { unit, .. } => {
+            EffectChange::Delta {
+                unit,
+                delta,
+                minimum,
+                maximum,
+            } => {
                 let matches = match (&target.value, unit) {
-                    (ValueShape::Integer, None) => true,
+                    (ValueShape::Integer, None) => {
+                        [delta, minimum, maximum].iter().all(|n| n.get().1 == 0)
+                    }
+                    (ValueShape::Decimal, None) => true,
                     (ValueShape::Quantity { unit: expected }, Some(unit)) if expected == unit => {
                         matches!(map.get(&unit.to_record_id()?), Some(Payload::Unit(_)))
                     }
                     _ => false,
                 };
                 if target.multiplicity != Multiplicity::Single || !matches {
-                    return Err(invalid("consequence delta requires a single integer or exact-unit quantity property"));
+                    return Err(invalid("consequence delta requires a single integer/decimal or exact-unit quantity property"));
                 }
             }
         }

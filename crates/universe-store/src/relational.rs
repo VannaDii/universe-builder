@@ -66,6 +66,12 @@ fn scalar(m: &Model) -> bool {
 // These are the complete pattern forms in the normative catalog. Reject an
 // unrecognized software contract instead of quietly skipping its constraint.
 fn pattern_matches(pattern: &str, text: &str) -> bool {
+    if pattern == r"^(0|-?[1-9][0-9]{0,38}|-?(0|[1-9][0-9]*)\.[0-9]+)$" {
+        return serde_json::from_value::<universe_domain::consequences::ConsequenceDecimal>(
+            serde_json::json!(text),
+        )
+        .is_ok();
+    }
     if pattern == "^(0|-?[1-9][0-9]{0,38})$" {
         let digits = text.strip_prefix('-').unwrap_or(text);
         return text == "0"
@@ -566,6 +572,19 @@ mod tests {
                 &serde_json::json!({"kind":"integer","digits":"9007199254740993"}),
             )
             .unwrap();
+            for digits in ["-0.125000000000000001", "1.2300"] {
+                let input = serde_json::json!(digits);
+                let row = put(&tx, "ConsequenceDecimal", &input).unwrap();
+                assert_eq!(get(&tx, "ConsequenceDecimal", row).unwrap(), input);
+            }
+            for digits in [
+                "1e2",
+                "00.1",
+                "0.000000000000000000000000000000000000001",
+                "170141183460469231731687303715884105728",
+            ] {
+                assert!(put(&tx, "ConsequenceDecimal", &serde_json::json!(digits)).is_err());
+            }
             assert!(put(
                 &tx,
                 "Value",

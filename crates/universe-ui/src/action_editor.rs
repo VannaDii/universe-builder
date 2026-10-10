@@ -129,15 +129,15 @@ impl SlotForm {
                         target["multiplicity"].as_str(),
                         target["value"]["kind"].as_str(),
                     ) {
-                        (Some("single"), Some("integer")) => json!("none"),
+                        (Some("single"), Some("integer" | "decimal")) => json!("none"),
                         (Some("single"), Some("quantity")) => target["value"]["unit"].clone(),
                         _ => return Err(
-                            "A delta requires a single integer or exact-unit quantity property."
+                            "A delta requires a single integer/decimal or exact-unit quantity property."
                                 .into(),
                         ),
                     };
                 if json!(self.unit) != expected {
-                    return Err("Choose the target property's exact unit, or explicitly choose unitless for an integer. No conversion is inferred.".into());
+                    return Err("Choose the target property's exact unit, or explicitly choose unitless for a numeric property. No conversion is inferred.".into());
                 }
                 json!({"kind":"delta","delta":self.delta,"minimum":self.minimum,"maximum":self.maximum,"unit":if self.unit=="none"{Value::Null}else{json!(self.unit)}})
             }
@@ -309,11 +309,11 @@ fn SlotControls(
     ValueControls{id:format!("{id}-fixed-value"),value:slot.value.clone(),predicate:slot.predicate.clone(),choices:choices.clone(),disabled,onchange:{let s=slot.clone();move|v|{let mut s=s.clone();s.value=v;onchange.call(s);}}}
     }
     if slot.change=="delta"{
-    p{"Use exact whole-number strings. Negative consumes; positive replenishes. Bounds constrain the resulting stock. No unit conversion or transfer balancing is inferred."}
+    p{"Use exact finite decimal strings (no exponent). Negative consumes; positive replenishes. Bounds constrain the resulting stock. No unit conversion or transfer balancing is inferred."}
     label{r#for:"{id}-delta","Nonzero signed delta"}input{id:"{id}-delta",disabled,value:slot.delta.clone(),oninput:{let s=slot.clone();move|e|{let mut s=s.clone();s.delta=e.value();onchange.call(s);}}}
     label{r#for:"{id}-minimum","Minimum resulting stock"}input{id:"{id}-minimum",disabled,value:slot.minimum.clone(),oninput:{let s=slot.clone();move|e|{let mut s=s.clone();s.minimum=e.value();onchange.call(s);}}}
     label{r#for:"{id}-maximum","Maximum resulting stock"}input{id:"{id}-maximum",disabled,value:slot.maximum.clone(),oninput:{let s=slot.clone();move|e|{let mut s=s.clone();s.maximum=e.value();onchange.call(s);}}}
-    label{r#for:"{id}-unit","Exact resource unit"}super::select::RichSelect{id:format!("{id}-unit"),disabled,value:slot.unit.clone(),options:{let mut units=super::select::typed_id_choices(&choices,"unit","unit_","Choose explicitly");units.insert(1,super::select::Choice::new("none","Unitless integer"));units},onchange:{let s=slot.clone();move|e:super::select::SelectionEvent|{let mut s=s.clone();s.unit=e.value();onchange.call(s);}}}
+    label{r#for:"{id}-unit","Exact resource unit"}super::select::RichSelect{id:format!("{id}-unit"),disabled,value:slot.unit.clone(),options:{let mut units=super::select::typed_id_choices(&choices,"unit","unit_","Choose explicitly");units.insert(1,super::select::Choice::new("none","Unitless number"));units},onchange:{let s=slot.clone();move|e:super::select::SelectionEvent|{let mut s=s.clone();s.unit=e.value();onchange.call(s);}}}
     }
     label{r#for:"{id}-lifetime","Effect lifetime"}super::select::RichSelect{id:format!("{id}-lifetime"),disabled,value:slot.lifetime.clone(),options:super::select::choices(&[("","Choose lifetime"),("until_changed","Until explicitly changed"),("ticks","Positive number of calendar ticks (fixed assignments only)")]),onchange:{let s=slot.clone();move|e:super::select::SelectionEvent|{let mut s=s.clone();s.lifetime=e.value();onchange.call(s);}}}
     if slot.lifetime=="ticks"{

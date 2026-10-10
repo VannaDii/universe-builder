@@ -147,7 +147,6 @@ fn invalid_numbers_bounds_names_and_duplicates_fail() {
         "+1",
         "01",
         " 1",
-        "1.0",
         "1e2",
         "",
         "170141183460469231731687303715884105728",
@@ -233,4 +232,15 @@ fn supported_extreme_numbers_and_maximum_slots_round_trip() {
     payload["consequenceContract"]["slots"] = json!(slots);
     let decoded: Payload = decode(&serde_json::to_vec(&payload).unwrap()).unwrap();
     assert_eq!(serde_json::to_value(decoded).unwrap(), payload);
+}
+
+#[test]
+fn fractional_contract_digits_are_exact_and_tick_counts_remain_integer() {
+    let mut payload = fire();
+    payload["consequenceContract"]["slots"][0]["change"]["delta"] = json!("-0.125000000000000001");
+    payload["consequenceContract"]["slots"][0]["change"]["minimum"] = json!("0.000000000000000001");
+    let parsed: universe_domain::Payload = serde_json::from_value(payload.clone()).unwrap();
+    assert_eq!(serde_json::to_value(parsed).unwrap(), payload);
+    payload["consequenceContract"]["slots"][0]["lifetime"] = json!({"kind":"ticks","count":"0.1"});
+    rejects(payload);
 }

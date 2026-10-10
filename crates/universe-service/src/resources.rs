@@ -115,11 +115,11 @@ pub(crate) fn assess(records: &[RecordVersion], base: &Frame) -> anyhow::Result<
             if property.multiplicity != Multiplicity::Single
                 || !matches!(
                     property.value,
-                    ValueShape::Integer | ValueShape::Quantity { .. }
+                    ValueShape::Integer | ValueShape::Decimal | ValueShape::Quantity { .. }
                 )
             {
                 return Err(invalid(
-                    "accounting requires a single integer or exact-unit quantity property",
+                    "accounting requires a single integer/decimal or exact-unit quantity property",
                 ));
             }
             for row in records {
@@ -285,7 +285,7 @@ fn check_claim(
         }
         // A first authored observation establishes a baseline. A later observation
         // corroborates it only if it preserves the last known stock value.
-        if prior.is_empty() || prior.iter().all(|(_, _, pp)| pp.value == p.value) {
+        if prior.is_empty() || prior.iter().all(|(_, _, pp)| pp.value == p.value || matches!((&pp.value,&p.value),(Some(a),Some(b)) if universe_rules::basic::compare(a,universe_domain::expr::Comparator::Eq,b)==Some(true))) {
             continue;
         }
         prior.sort_by_key(|(r, _, _)| &r.identity.record_id);

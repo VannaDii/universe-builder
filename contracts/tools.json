@@ -3062,7 +3062,7 @@
                   "type": "number"
                 },
                 "unit": {
-                  "description": "Required for quantity deltas; matches the property unit exactly. Integer properties omit it.",
+                  "description": "Required for quantity deltas; matches the property unit exactly. Unitless integer/decimal properties omit it.",
                   "type": [
                     "string",
                     "null"
@@ -16109,13 +16109,13 @@
               "type": "object",
               "properties": {
                 "delta": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "minimum": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "maximum": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "unit": {
                   "anyOf": [
@@ -16143,11 +16143,10 @@
             }
           ]
         },
-        "ConsequenceInteger": {
-          "description": "Exact bounded decimal string; never converted through a host float.",
+        "ConsequenceDecimal": {
           "type": "string",
-          "maxLength": 40,
-          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
+          "maxLength": 80,
+          "pattern": "^(0|-?[1-9][0-9]{0,38}|-?(0|[1-9][0-9]*)\\.[0-9]+)$"
         },
         "EffectLifetime": {
           "oneOf": [
@@ -16182,6 +16181,12 @@
               ]
             }
           ]
+        },
+        "ConsequenceInteger": {
+          "description": "Exact bounded decimal string; never converted through a host float.",
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
         },
         "KnowledgeAcquisition": {
           "type": "object",
@@ -22333,13 +22338,13 @@
               "type": "object",
               "properties": {
                 "delta": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "minimum": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "maximum": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "unit": {
                   "anyOf": [
@@ -22367,11 +22372,10 @@
             }
           ]
         },
-        "ConsequenceInteger": {
-          "description": "Exact bounded decimal string; never converted through a host float.",
+        "ConsequenceDecimal": {
           "type": "string",
-          "maxLength": 40,
-          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
+          "maxLength": 80,
+          "pattern": "^(0|-?[1-9][0-9]{0,38}|-?(0|[1-9][0-9]*)\\.[0-9]+)$"
         },
         "EffectLifetime": {
           "oneOf": [
@@ -22406,6 +22410,12 @@
               ]
             }
           ]
+        },
+        "ConsequenceInteger": {
+          "description": "Exact bounded decimal string; never converted through a host float.",
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
         },
         "KnowledgeAcquisition": {
           "type": "object",
@@ -28465,13 +28475,13 @@
               "type": "object",
               "properties": {
                 "delta": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "minimum": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "maximum": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "unit": {
                   "anyOf": [
@@ -28499,11 +28509,10 @@
             }
           ]
         },
-        "ConsequenceInteger": {
-          "description": "Exact bounded decimal string; never converted through a host float.",
+        "ConsequenceDecimal": {
           "type": "string",
-          "maxLength": 40,
-          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
+          "maxLength": 80,
+          "pattern": "^(0|-?[1-9][0-9]{0,38}|-?(0|[1-9][0-9]*)\\.[0-9]+)$"
         },
         "EffectLifetime": {
           "oneOf": [
@@ -28538,6 +28547,12 @@
               ]
             }
           ]
+        },
+        "ConsequenceInteger": {
+          "description": "Exact bounded decimal string; never converted through a host float.",
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
         },
         "KnowledgeAcquisition": {
           "type": "object",
@@ -32678,13 +32693,13 @@
               "type": "object",
               "properties": {
                 "delta": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "minimum": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "maximum": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "unit": {
                   "anyOf": [
@@ -32712,11 +32727,10 @@
             }
           ]
         },
-        "ConsequenceInteger": {
-          "description": "Exact bounded decimal string; never converted through a host float.",
+        "ConsequenceDecimal": {
           "type": "string",
-          "maxLength": 40,
-          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
+          "maxLength": 80,
+          "pattern": "^(0|-?[1-9][0-9]{0,38}|-?(0|[1-9][0-9]*)\\.[0-9]+)$"
         },
         "EffectLifetime": {
           "oneOf": [
@@ -32751,6 +32765,12 @@
               ]
             }
           ]
+        },
+        "ConsequenceInteger": {
+          "description": "Exact bounded decimal string; never converted through a host float.",
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
         },
         "Event": {
           "description": "A canonical event record (spec §7.3, §27.5).\n\nA plan or hypothetical is not an actual occurrence, even when its\nexistence as a plan is canon (S32).",
@@ -44818,13 +44838,13 @@
               "type": "object",
               "properties": {
                 "delta": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "minimum": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "maximum": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "unit": {
                   "anyOf": [
@@ -44852,11 +44872,10 @@
             }
           ]
         },
-        "ConsequenceInteger": {
-          "description": "Exact bounded decimal string; never converted through a host float.",
+        "ConsequenceDecimal": {
           "type": "string",
-          "maxLength": 40,
-          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
+          "maxLength": 80,
+          "pattern": "^(0|-?[1-9][0-9]{0,38}|-?(0|[1-9][0-9]*)\\.[0-9]+)$"
         },
         "EffectLifetime": {
           "oneOf": [
@@ -44891,6 +44910,12 @@
               ]
             }
           ]
+        },
+        "ConsequenceInteger": {
+          "description": "Exact bounded decimal string; never converted through a host float.",
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
         },
         "Event": {
           "description": "A canonical event record (spec §7.3, §27.5).\n\nA plan or hypothetical is not an actual occurrence, even when its\nexistence as a plan is canon (S32).",
@@ -53735,13 +53760,13 @@
               "type": "object",
               "properties": {
                 "delta": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "minimum": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "maximum": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "unit": {
                   "anyOf": [
@@ -53769,11 +53794,10 @@
             }
           ]
         },
-        "ConsequenceInteger": {
-          "description": "Exact bounded decimal string; never converted through a host float.",
+        "ConsequenceDecimal": {
           "type": "string",
-          "maxLength": 40,
-          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
+          "maxLength": 80,
+          "pattern": "^(0|-?[1-9][0-9]{0,38}|-?(0|[1-9][0-9]*)\\.[0-9]+)$"
         },
         "EffectLifetime": {
           "oneOf": [
@@ -53808,6 +53832,12 @@
               ]
             }
           ]
+        },
+        "ConsequenceInteger": {
+          "description": "Exact bounded decimal string; never converted through a host float.",
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
         },
         "Event": {
           "description": "A canonical event record (spec §7.3, §27.5).\n\nA plan or hypothetical is not an actual occurrence, even when its\nexistence as a plan is canon (S32).",
@@ -62872,13 +62902,13 @@
               "type": "object",
               "properties": {
                 "delta": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "minimum": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "maximum": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "unit": {
                   "anyOf": [
@@ -62906,11 +62936,10 @@
             }
           ]
         },
-        "ConsequenceInteger": {
-          "description": "Exact bounded decimal string; never converted through a host float.",
+        "ConsequenceDecimal": {
           "type": "string",
-          "maxLength": 40,
-          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
+          "maxLength": 80,
+          "pattern": "^(0|-?[1-9][0-9]{0,38}|-?(0|[1-9][0-9]*)\\.[0-9]+)$"
         },
         "EffectLifetime": {
           "oneOf": [
@@ -62945,6 +62974,12 @@
               ]
             }
           ]
+        },
+        "ConsequenceInteger": {
+          "description": "Exact bounded decimal string; never converted through a host float.",
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
         },
         "Event": {
           "description": "A canonical event record (spec §7.3, §27.5).\n\nA plan or hypothetical is not an actual occurrence, even when its\nexistence as a plan is canon (S32).",
@@ -76356,13 +76391,13 @@
               "type": "object",
               "properties": {
                 "delta": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "minimum": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "maximum": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "unit": {
                   "anyOf": [
@@ -76390,11 +76425,10 @@
             }
           ]
         },
-        "ConsequenceInteger": {
-          "description": "Exact bounded decimal string; never converted through a host float.",
+        "ConsequenceDecimal": {
           "type": "string",
-          "maxLength": 40,
-          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
+          "maxLength": 80,
+          "pattern": "^(0|-?[1-9][0-9]{0,38}|-?(0|[1-9][0-9]*)\\.[0-9]+)$"
         },
         "EffectLifetime": {
           "oneOf": [
@@ -76429,6 +76463,12 @@
               ]
             }
           ]
+        },
+        "ConsequenceInteger": {
+          "description": "Exact bounded decimal string; never converted through a host float.",
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
         },
         "Event": {
           "description": "A canonical event record (spec §7.3, §27.5).\n\nA plan or hypothetical is not an actual occurrence, even when its\nexistence as a plan is canon (S32).",
@@ -86285,13 +86325,13 @@
               "type": "object",
               "properties": {
                 "delta": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "minimum": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "maximum": {
-                  "$ref": "#/$defs/ConsequenceInteger"
+                  "$ref": "#/$defs/ConsequenceDecimal"
                 },
                 "unit": {
                   "anyOf": [
@@ -86319,11 +86359,10 @@
             }
           ]
         },
-        "ConsequenceInteger": {
-          "description": "Exact bounded decimal string; never converted through a host float.",
+        "ConsequenceDecimal": {
           "type": "string",
-          "maxLength": 40,
-          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
+          "maxLength": 80,
+          "pattern": "^(0|-?[1-9][0-9]{0,38}|-?(0|[1-9][0-9]*)\\.[0-9]+)$"
         },
         "EffectLifetime": {
           "oneOf": [
@@ -86358,6 +86397,12 @@
               ]
             }
           ]
+        },
+        "ConsequenceInteger": {
+          "description": "Exact bounded decimal string; never converted through a host float.",
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(0|-?[1-9][0-9]{0,38})$"
         },
         "Event": {
           "description": "A canonical event record (spec §7.3, §27.5).\n\nA plan or hypothetical is not an actual occurrence, even when its\nexistence as a plan is canon (S32).",

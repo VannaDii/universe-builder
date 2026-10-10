@@ -715,6 +715,41 @@ class ConnectedWritingTests(unittest.TestCase):
                     self.assertIn("70",after["time"])
                 historical_policies=client.call("universe_read_contracts",{"universe":"Story","context_id":context(5,{"kind":"exact","revision_id":protection_revision})})["result"]["constraints"]
                 self.assertEqual(next(p for p in historical_policies if p["name"]=="reserve accounting")["time"],"no temporal claim stated")
+                # Exact fractional resource accounting uses ordinary named contracts and calls.
+                fuel=check(context(),units=[{"name":"litre","introduce":True,"dimension":"volume","symbol":"L"}],properties=[{"name":"fuel","introduce":True,"value_type":"quantity","unit":"litre","single_value":True,"persistence":"explicit_interval"}],changes=[{"name":"Tank","introduce":True,"facts":[{"property":"fuel","value":{"amount":0.3,"unit":"litre"},"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"1"}}]},{"name":"Other tank","introduce":True,"facts":[{"property":"fuel","value":{"amount":2,"unit":"litre"},"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"20"}}]},{"name":"Empty tank","introduce":True}],actions=[{"name":name,"introduce":True,"scope":"universe","effects":[{"role":"tank","property":"fuel","change":{"kind":"delta","amount":amount,"minimum":0,"maximum":3.5,"unit":"litre"},"lifetime":{"kind":"until_changed"}}]} for name,amount in (("burn fuel",-0.1),("add fuel",0.125),("small burn",-0.025))],constraints=[{"kind":"resource_accounting","name":"fuel accounting","property":"fuel","scope":"universe"}])
+                fuel_revision=publish(fuel,"Tank has 0.3 litres until day one; Other tank has 2 litres until twenty. Burning uses exactly 0.1 litres, a small burn uses 0.025 and refilling adds exactly 0.125, within zero to 3.5 litres.","connected-fractional-contracts",contracts=True)
+                contract=next(a for a in client.call("universe_read_contracts",{"universe":"Story","context_id":context()})["result"]["actions"] if a["name"]=="burn fuel")
+                self.assertEqual(contract["effects"][0]["change"]["amount"],-0.1,contract)
+                wrong_unit=check(context(),actions=[{"name":"wrong fuel unit","introduce":True,"scope":"universe","effects":[{"role":"tank","property":"fuel","change":{"kind":"delta","amount":-0.1,"minimum":0,"maximum":3.5},"lifetime":{"kind":"until_changed"}}]}])
+                self.assertIsNone(wrong_unit["candidate_handle"])
+                unknown=check(context(),events=[{"action":"burn fuel","participants":{"tank":"Empty tank"},"at_tick":"1"}])
+                self.assertNotEqual(unknown["status"],"checked_candidate",unknown)
+                consumed=check(context(),events=[{"action":"burn fuel","participants":{"tank":"Tank"},"at_tick":str(t)} for t in (1,2,3)])
+                consumed_revision=publish(consumed,"Tank burns exactly 0.1 litres at one, two and three, leaving zero.","connected-fractional-spends")
+                def fuel_facts(tick,revision=None):
+                    objects=client.call("universe_read_facts",{"universe":"Story","context_id":context(tick,revision),"object_names":["Tank","Other tank"]})["result"]["objects"]
+                    return {o["name"]:[f for f in o["facts"] if f["property"]=="fuel" and f["state"]=="supported"] for o in objects}
+                current=fuel_facts(3)
+                self.assertEqual([f["value"]["amount"] for f in current["Tank"]],[0],current)
+                self.assertEqual([f["value"]["amount"] for f in current["Other tank"]],[2],current)
+                overdraw=check(context(),events=[{"action":"burn fuel","participants":{"tank":"Tank"},"at_tick":"4"}])
+                self.assertNotEqual(overdraw["status"],"checked_candidate",overdraw)
+                refilled=check(context(),events=[{"action":"add fuel","participants":{"tank":"Tank"},"at_tick":"4"},{"action":"burn fuel","participants":{"tank":"Tank"},"at_tick":"5"}])
+                refilled_revision=publish(refilled,"Tank receives exactly 0.125 litres at four and burns 0.1 at five, leaving 0.025 litres.","connected-fractional-refill")
+                self.assertEqual([f["value"]["amount"] for f in fuel_facts(5)["Tank"]],[0.025])
+                initial_fact=next(f for f in client.call("universe_read_facts",{"universe":"Story","context_id":context(0),"object_names":["Tank"]})["result"]["objects"][0]["facts"] if f.get("fact_handle"))
+                insufficient=client.request("tools/call",{"name":"universe_check_changes","arguments":{"universe":"Story","context_id":context(),"corrections":[{"fact_handle":initial_fact["fact_handle"],"value":{"amount":0.2,"unit":"litre"},"reason":"A correction that cannot fund the committed later burns."}]}})
+                if insufficient.get("isError"):
+                    self.assertEqual(insufficient["structuredContent"]["code"],"INVALID_ARGUMENT",insufficient)
+                    self.assertIn("resource",insufficient["structuredContent"]["message"],insufficient)
+                else:
+                    self.assertNotEqual(insufficient["structuredContent"]["result"]["status"],"checked_candidate",insufficient)
+                events=client.call("universe_read_facts",{"universe":"Story","context_id":context(5),"object_names":["Tank"]})["result"]["objects"][0]["occurred_events"]
+                last=next(e for e in events if e["action"]=="burn fuel" and e["time"].endswith(": 5"))
+                moved=check(context(),event_corrections=[{"event_handle":last["handle"],"action":"small burn","reason":"The final burn used the explicitly authored smaller amount."}])
+                publish(moved,"The final burn was a small burn at five, leaving exactly 0.1 litres.","connected-fractional-retcon")
+                self.assertEqual([f["value"]["amount"] for f in fuel_facts(5)["Tank"]],[0.1])
+                self.assertEqual([f["value"]["amount"] for f in fuel_facts(5,{"kind":"exact","revision_id":refilled_revision})["Tank"]],[0.025])
             finally:
                 if client: client.close()
                 cli("shutdown",profile=author)

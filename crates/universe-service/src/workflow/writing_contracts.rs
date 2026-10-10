@@ -39,6 +39,11 @@ fn integer(
 ) -> anyhow::Result<universe_domain::consequences::ConsequenceInteger> {
     Ok(serde_json::from_value(json!(n.to_string()))?)
 }
+fn decimal(
+    n: &serde_json::Number,
+) -> anyhow::Result<universe_domain::consequences::ConsequenceDecimal> {
+    Ok(serde_json::from_value(json!(n.to_string()))?)
+}
 fn role_value(
     u: &UniverseId,
     rows: &[RecordVersion],
@@ -525,15 +530,15 @@ impl Workflow<'_> {
                             unit,
                         } => {
                             let bound_unit=match &d.value {
-                                ValueShape::Integer if unit.is_none()=>None,
+                                ValueShape::Integer | ValueShape::Decimal if unit.is_none()=>None,
                                 ValueShape::Quantity{unit:expected}=> {
                                     let actual=super::writing_units::unit(&rows,unit.as_ref().ok_or_else(||anyhow::anyhow!("Specify the quantity delta's authored unit."))?)?;
                                     if &actual!=expected {anyhow::bail!("Quantity delta unit does not match its authored property; no conversion is inferred.");}
                                     Some(actual)
                                 },
-                                _=>anyhow::bail!("Delta effects require integer magnitudes with the exact authored property unit; no conversion or rounding."),
+                                _=>anyhow::bail!("Delta effects require finite decimal magnitudes with the exact authored property unit; no conversion or rounding."),
                             };
-                            json!({"kind":"delta","delta":integer(amount)?,"minimum":integer(minimum)?,"maximum":integer(maximum)?,"unit":bound_unit})
+                            json!({"kind":"delta","delta":decimal(amount)?,"minimum":decimal(minimum)?,"maximum":decimal(maximum)?,"unit":bound_unit})
                         }
                         WritingEffectChange::Set { value, negated } => {
                             json!({"kind":"set","value":super::writing_connected::fact_value(u,&rows,&ctx.frame,value)?,"polarity":if *negated{"refutation"}else{"support"}})
@@ -800,10 +805,12 @@ impl Workflow<'_> {
                 let predicate = format!("{}:{}", p.namespace, p.key);
                 let (expression, capabilities, policy) = match c {
                     WritingConstraint::ResourceAccounting { .. } => {
-                        if !matches!(p.value, ValueShape::Integer | ValueShape::Quantity { .. })
-                            || p.multiplicity != Multiplicity::Single
+                        if !matches!(
+                            p.value,
+                            ValueShape::Integer | ValueShape::Decimal | ValueShape::Quantity { .. }
+                        ) || p.multiplicity != Multiplicity::Single
                         {
-                            anyhow::bail!("Resource accounting requires an explicitly authored single integer/quantity property.");
+                            anyhow::bail!("Resource accounting requires an explicitly authored single integer/decimal/quantity property.");
                         }
                         (
                             json!({"kind":"lit","value":true}),

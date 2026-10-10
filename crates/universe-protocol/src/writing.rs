@@ -565,7 +565,7 @@ pub enum WritingEffectChange {
         amount: serde_json::Number,
         minimum: serde_json::Number,
         maximum: serde_json::Number,
-        /// Required for quantity deltas; matches the property unit exactly. Integer properties omit it.
+        /// Required for quantity deltas; matches the property unit exactly. Unitless integer/decimal properties omit it.
         #[serde(default)]
         unit: Option<String>,
     },

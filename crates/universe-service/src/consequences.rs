@@ -47,9 +47,9 @@ fn owner<'a>(
 
 /// Resolve stock only from explicit direct/generated assertions. Possession powers
 /// and unasserted propositions cannot establish a spendable balance.
-fn magnitude(value: &Value, unit: &Option<UnitId>) -> anyhow::Result<i128> {
+fn magnitude(value: &Value, unit: &Option<UnitId>) -> anyhow::Result<ExactAmount> {
     let value = match (value, unit) {
-        (Value::Integer { .. }, None) => value,
+        (Value::Integer { .. } | Value::Decimal { .. }, None) => value,
         (
             Value::Quantity {
                 value,
@@ -59,18 +59,26 @@ fn magnitude(value: &Value, unit: &Option<UnitId>) -> anyhow::Result<i128> {
         ) if actual == expected => value,
         _ => {
             return Err(invalid(
-                "resource requires an integer in the exact declared unit",
+                "resource requires an exact numeric amount in the declared unit",
             ))
         }
     };
-    let Value::Integer { digits } = value else {
+    let (Value::Integer { digits } | Value::Decimal { digits }) = value else {
         return Err(invalid(
-            "resource magnitude must be an exact bounded integer",
+            "resource magnitude must be an exact bounded integer or finite decimal",
         ));
     };
-    digits
-        .parse()
-        .map_err(|_| invalid("resource magnitude outside supported integer bounds"))
+    exact_amount(digits)
+        .ok_or_else(|| invalid("resource amount exceeds supported exact decimal precision"))
+}
+
+fn outside_bounds(value: ExactAmount, min: ExactAmount, max: ExactAmount) -> anyhow::Result<bool> {
+    Ok(compare_amount(value, min)
+        .ok_or_else(|| invalid("resource comparison exceeds exact decimal bounds"))?
+        == std::cmp::Ordering::Less
+        || compare_amount(value, max)
+            .ok_or_else(|| invalid("resource comparison exceeds exact decimal bounds"))?
+            == std::cmp::Ordering::Greater)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -82,7 +90,7 @@ fn balance_after(
     frame: &Frame,
     worlds: &[Vec<RecordId>],
     charge: &mut impl FnMut(usize) -> anyhow::Result<()>,
-) -> anyhow::Result<i128> {
+) -> anyhow::Result<ExactAmount> {
     let EffectChange::Delta {
         delta,
         minimum,
@@ -162,15 +170,14 @@ fn balance_after(
             ));
         }
         let before = *supported.first().expect("one supported balance");
-        if before < minimum.get() || before > maximum.get() {
+        if outside_bounds(before, minimum.get(), maximum.get())? {
             return Err(invalid(
                 "resource pre-event balance outside declared bounds",
             ));
         }
-        let after = before
-            .checked_add(delta.get())
+        let after = add_amount(before, delta.get())
             .ok_or_else(|| invalid("resource arithmetic overflow"))?;
-        if after < minimum.get() || after > maximum.get() {
+        if outside_bounds(after, minimum.get(), maximum.get())? {
             return Err(invalid(
                 "resource transition underflow or overflow of declared bounds",
             ));
@@ -662,8 +669,21 @@ pub(crate) fn author_effects(
                     &worlds,
                     &mut charge,
                 )?;
-                let v = Value::Integer {
-                    digits: n.to_string(),
+                let decimal = matches!(
+                    by_id.get(&slot.target.predicate.record).map(|r| &r.payload),
+                    Some(Payload::Property(PropertyDef {
+                        value: ValueShape::Decimal,
+                        ..
+                    }))
+                );
+                let v = if n.1 == 0 && !decimal {
+                    Value::Integer {
+                        digits: amount_digits(n),
+                    }
+                } else {
+                    Value::Decimal {
+                        digits: amount_digits(n),
+                    }
                 };
                 (
                     Polarity::Support,
@@ -731,10 +751,12 @@ mod tests {
     }
     #[test]
     fn cumulative_resource_fixtures() {
-        let fixture: Value = serde_json::from_str(include_str!(
+        cumulative(include_str!(
             "../../../fixtures/resource-transitions/cumulative.json"
-        ))
-        .unwrap();
+        ));
+    }
+    fn cumulative(raw: &str) {
+        let fixture: Value = serde_json::from_str(raw).unwrap();
         for case in fixture["cases"].as_array().unwrap() {
             let universe = UniverseId::parse("unv_000000000000000000000001").unwrap();
             let mut rows: Vec<_> = case["records"]
@@ -776,6 +798,86 @@ mod tests {
                 result
             );
         }
+    }
+    #[test]
+    fn fractional_balances_units_and_cumulative_spends() {
+        fn scale(v: &mut Value) {
+            match v {
+                Value::Object(m) => {
+                    if m.get("kind").and_then(Value::as_str) == Some("integer") {
+                        m.insert("kind".into(), json!("decimal"));
+                        if let Some(Value::String(d)) = m.get_mut("digits") {
+                            *d = universe_domain::consequences::amount_digits((
+                                d.parse().unwrap(),
+                                1,
+                            ));
+                        }
+                    }
+                    if m.get("kind").and_then(Value::as_str) == Some("delta") {
+                        for key in ["delta", "minimum", "maximum"] {
+                            let n = m[key].as_str().unwrap().parse().unwrap();
+                            m.insert(
+                                key.into(),
+                                json!(universe_domain::consequences::amount_digits((n, 1))),
+                            );
+                        }
+                    }
+                    for child in m.values_mut() {
+                        scale(child);
+                    }
+                }
+                Value::Array(a) => {
+                    for child in a {
+                        scale(child);
+                    }
+                }
+                _ => {}
+            }
+        }
+        let mut single: Value = serde_json::from_str(include_str!(
+            "../../../fixtures/resource-transitions/expected.json"
+        ))
+        .unwrap();
+        single["cases"].as_array_mut().unwrap().retain(|c| {
+            matches!(
+                c["id"].as_str().unwrap(),
+                "consumption"
+                    | "replenishment"
+                    | "last_round"
+                    | "underflow"
+                    | "wrong_owner_evidence"
+                    | "missing_evidence"
+                    | "exact_unit"
+                    | "wrong_unit"
+                    | "wrong_post_unit"
+            )
+        });
+        for case in single["cases"].as_array_mut().unwrap() {
+            for mutation in case["mutations"].as_array_mut().unwrap() {
+                if mutation["path"]
+                    .as_str()
+                    .unwrap()
+                    .ends_with(".change.delta")
+                {
+                    let n = mutation["value"].as_str().unwrap().parse().unwrap();
+                    mutation["value"] = json!(universe_domain::consequences::amount_digits((n, 1)));
+                }
+            }
+        }
+        scale(&mut single);
+        fixtures(&single.to_string());
+        let mut multiple: Value = serde_json::from_str(include_str!(
+            "../../../fixtures/resource-transitions/cumulative.json"
+        ))
+        .unwrap();
+        multiple["cases"].as_array_mut().unwrap().retain(|c| {
+            matches!(
+                c["id"].as_str().unwrap(),
+                "twelve_shots_zero" | "thirteenth_underflow" | "earlier_retcon_stale_successors"
+            )
+        });
+        scale(&mut multiple);
+        cumulative(&multiple.to_string());
     }
     fn fixtures(raw: &str) {
         let fixture: Value = serde_json::from_str(raw).unwrap();

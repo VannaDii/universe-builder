@@ -129,6 +129,34 @@ fn fixed_existing_quantity_values_and_ordinary_actions_preserve_contracts() {
         quantity[0]["record"]["value"],
         json!({"kind":"quantity","value":{"kind":"integer","digits":"9007199254740993"},"unit":unit})
     );
+    c[4]["definition"]["consequenceContract"]["slots"][0]["change"]["delta"] =
+        json!("-0.125000000000000001");
+    let quantity = form(&f, &c, 20, "2", &["0.874999999999999999"])
+        .build(&f, Some(&clock), &c)
+        .unwrap();
+    assert_eq!(
+        quantity[0]["record"]["value"],
+        json!({"kind":"quantity","value":{"kind":"decimal","digits":"0.874999999999999999"},"unit":unit})
+    );
+    let authored_slot = crate::action_editor::SlotForm {
+        slot: "consume".into(),
+        order: "0".into(),
+        presence: "required".into(),
+        role: "weapon".into(),
+        predicate: id(1),
+        change: "delta".into(),
+        delta: "-0.125000000000000001".into(),
+        minimum: "0".into(),
+        maximum: "3.5".into(),
+        unit: unit.into(),
+        condition: "always".into(),
+        lifetime: "until_changed".into(),
+        ..Default::default()
+    }
+    .build(&f, &c)
+    .unwrap();
+    assert_eq!(authored_slot["change"]["delta"], "-0.125000000000000001");
+    assert_eq!(authored_slot["change"]["maximum"], "3.5");
     let ordinary = form(&f, &c, 23, "1", &[])
         .build(&f, Some(&clock), &c)
         .unwrap();

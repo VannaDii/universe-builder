@@ -702,8 +702,8 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `EffectChange` | `r_effect_change` | EffectChange_v0, EffectChange_v1 |
 | `EffectChange_v0` | `r_effect_change_v0` | polarity → Polarity, value → Value, kind → EffectChange_v0_kind |
 | `EffectChange_v0_kind` | `r_effect_change_v0_kind` (scalar column) | string |
-| `EffectChange_v1` | `r_effect_change_v1` | delta → ConsequenceInteger, minimum → ConsequenceInteger, maximum → ConsequenceInteger, unit → EffectChange_v1_unit, kind → EffectChange_v1_kind |
-| `ConsequenceInteger` | `r_consequence_integer` (scalar column) | string |
+| `EffectChange_v1` | `r_effect_change_v1` | delta → ConsequenceDecimal, minimum → ConsequenceDecimal, maximum → ConsequenceDecimal, unit → EffectChange_v1_unit, kind → EffectChange_v1_kind |
+| `ConsequenceDecimal` | `r_consequence_decimal` (scalar column) | string |
 | `EffectChange_v1_unit` | `r_effect_change_v1_unit` | UnitId, EffectChange_v1_unit_v1 |
 | `EffectChange_v1_unit_v1` | `r_effect_change_v1_unit_v1` (scalar column) | null |
 | `EffectChange_v1_kind` | `r_effect_change_v1_kind` (scalar column) | string |
@@ -711,6 +711,7 @@ Generated from current domain schemas and checked-in public contracts. The repla
 | `EffectLifetime_v0` | `r_effect_lifetime_v0` | kind → EffectLifetime_v0_kind |
 | `EffectLifetime_v0_kind` | `r_effect_lifetime_v0_kind` (scalar column) | string |
 | `EffectLifetime_v1` | `r_effect_lifetime_v1` | count → ConsequenceInteger, kind → EffectLifetime_v1_kind |
+| `ConsequenceInteger` | `r_consequence_integer` (scalar column) | string |
 | `EffectLifetime_v1_kind` | `r_effect_lifetime_v1_kind` (scalar column) | string |
 | `Payload_v26_record_kind` | `r_payload_v26_record_kind` (scalar column) | string |
 | `Payload_v27` | `r_payload_v27` | acquisition → Payload_v27_acquisition, holder → RecordRef, proposition → RecordRef, attitude → EpistemicAttitudeKind, certainty → Payload_v27_certainty, validity → Validity, basis → EvidenceBasis, record_kind → Payload_v27_record_kind |

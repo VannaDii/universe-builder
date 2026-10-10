@@ -386,15 +386,18 @@ authored dimensions and whether conversion metadata exists. Ordinary `units`
 declarations require explicit name, dimension and symbol and create no conversion
 relationship. These protected declarations require `/review-contracts`; general
 `/review` cannot adopt them. Existing units and their metadata are reused intact.
-Quantity delta contracts require explicit matching unit and integer amount/bounds,
-reusing existing resource checks; decimal quantity resource arithmetic remains
-unsupported. Shared attributes, starting values and action requirements/set effects
+Quantity delta contracts require the explicit matching unit. Deltas and bounds accept
+exact finite decimal numbers (no exponent notation or conversion). The existing
+resource checks use checked i128 coefficients and decimal scales; unsupported
+precision or overflow is rejected without rounding. Integer properties still require
+whole amounts. Authored delta digits survive review, publication and history.
+Shared attributes, starting values and action requirements/set effects
 use the same quantity shape, without initializing or consuming stock implicitly.
 
 Ordinary changes can explicitly declare `properties` with value type, `single_value`
 and persistence, introduce named `actions` with role/property/value requirements
-and set or bounded integer-delta effects, and add `resource_accounting` or
-`no_opposing_evidence` constraints. Effect lifetimes and integer bounds are authored;
+and set or bounded exact decimal-delta effects, and add `resource_accounting` or
+`no_opposing_evidence` constraints. Effect lifetimes and exact bounds are authored;
 no units or physics are inferred. Existing property definitions must match the
 explicit declaration and retain their metadata. Other contract forms and existing
 contract revisions remain advanced authoring operations. `universe_read_contracts`
@@ -647,7 +650,7 @@ Knowledge basis selects an existing truth context and author-established or
 justified interpreted-receipt knowledge. Maximum cardinality selects a relation,
 its declared grouping/counting roles (or subject grouping), an unsigned maximum,
 world/context/optional realm scope, and unrestricted, instant or interval validity.
-Resource accounting selects a single integer or exact-unit quantity property and
+Resource accounting selects a single integer, decimal or exact-unit quantity property and
 requires accounted transitions or exact author acceptance of unexplained changes.
 It applies to that property across the universe and infers no arrival or cost.
 Exact validity uses the selected context's authored clock. These forms keep the
