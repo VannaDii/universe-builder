@@ -1753,7 +1753,11 @@ impl Workflow<'_> {
                                 SearchHit {
                                     record_id: r.identity.record_id.clone(),
                                     kind: r.identity.record_kind,
-                                    label: label(r),
+                                    label: research_label(
+                                        r,
+                                        &accessible,
+                                        matches!(ctx.frame.perspective, Perspective::Author),
+                                    ),
                                     world_ids: ws.iter().cloned().collect(),
                                     scope_category: if ws.is_empty() {
                                         ScopeCategory::Unassigned
@@ -2991,6 +2995,20 @@ impl Workflow<'_> {
         )?;
         Ok(id)
     }
+}
+fn research_label(r: &RecordVersion, visible: &[RecordVersion], author: bool) -> String {
+    if let (true, Payload::ItemPower(power)) = (author, &r.payload) {
+        let item = visible
+            .iter()
+            .find(|row| row.identity.record_id == power.item.record);
+        let ability = visible
+            .iter()
+            .find(|row| row.identity.record_id == power.power_predicate.record);
+        if let (Some(item), Some(ability)) = (item, ability) {
+            return format!("{} — {}", label(item), label(ability));
+        }
+    }
+    label(r)
 }
 fn label(r: &RecordVersion) -> String {
     match &r.payload {

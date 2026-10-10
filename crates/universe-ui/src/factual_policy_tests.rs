@@ -484,6 +484,7 @@ async fn factual_policy_forms_recover_review_approve_and_publish() {
         power["record"]["value"],
         json!({"kind":"integer","digits":"7"})
     );
+    let power_id = power["client_ref"].clone();
     publish(
         &mut c,
         &opened,
@@ -510,6 +511,56 @@ async fn factual_policy_forms_recover_review_approve_and_publish() {
     );
     let rendered = crate::effective_object_view::tests::render(state);
     assert!(rendered.contains("7"), "{rendered}");
+    let grant = read(&mut c, &opened, &power_id).await;
+    let edit = crate::inspector_editor::operation(
+        &frame,
+        &grant,
+        "power_value",
+        "8",
+        "Correct the explicit grant",
+        Some(&clock),
+    )
+    .unwrap();
+    assert_eq!(edit["replacement"]["item"], grant["payload"]["item"]);
+    assert_eq!(
+        edit["replacement"]["validity"],
+        grant["payload"]["validity"]
+    );
+    publish(
+        &mut c,
+        &opened,
+        json!([edit]),
+        "manual-power-value-correction",
+    )
+    .await;
+    let opened = open(&mut c, &u).await;
+    let current = read(&mut c, &opened, &power_id).await;
+    assert_eq!(current["payload"]["value"]["digits"], "8");
+    assert_eq!(
+        read(&mut c, &at_five, &power_id).await["payload"]["value"]["digits"],
+        "7"
+    );
+    let end = crate::inspector_editor::operation(
+        &frame,
+        &current,
+        "power_end",
+        "7",
+        "Explicitly end this grant",
+        Some(&clock),
+    )
+    .unwrap();
+    publish(
+        &mut c,
+        &opened,
+        json!([end]),
+        "manual-power-duration-ending",
+    )
+    .await;
+    let opened = open(&mut c, &u).await;
+    assert_eq!(
+        read(&mut c, &opened, &power_id).await["payload"]["validity"]["end"]["value"],
+        "7"
+    );
     let row = read(&mut c, &opened, &json!(id(0xbd02))).await;
     let persistence = crate::inspector_editor::operation(
         &frame,

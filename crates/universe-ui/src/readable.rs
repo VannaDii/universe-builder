@@ -53,6 +53,10 @@ pub fn ReadValue(value: Value) -> Element {
 }
 pub(super) fn operation_summary(op: &Value) -> String {
     match op["kind"].as_str().unwrap_or_default() {
+        "revise_item_power" => format!(
+            "Correct item grant — reason: {}",
+            op["rationale"].as_str().unwrap_or("not stated")
+        ),
         "supersede_assertion" => format!(
             "Correct an earlier fact — reason: {}",
             op["rationale"].as_str().unwrap_or("not stated")

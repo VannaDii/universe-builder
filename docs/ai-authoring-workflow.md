@@ -916,3 +916,7 @@ separates names active at its pinned time, names not active there, and names who
 applicability is unresolved, using the engine's returned applicability. This new
 name projection is available only in author perspectives. The selected entity
 remains the same identity, and the change follows draft/source/review/approval.
+
+Item grants returned by `universe_read_contracts` include an author-visible `grant_handle` tied to the exact declaration version. Use `item_power_corrections` with that handle, an author reason, and only changed `value`, `scope`, `at_tick`/`lifetime`, or an explicit `end_tick`. Endings shorten an existing calendar interval; omitted fields retain their authored meaning. The item, holder property, ability property, represented context and authored calendar cannot change. Stale handles require fresh research. Both corrections and endings require private contract review and separate exact approval; they never directly edit derived abilities. The inspector provides grant value, scope, interval-start and duration-ending controls. Other legacy temporal forms remain available only through advanced authoring.
+
+This typed operation updates the normative pre-release package schema. Packages made with an earlier schema require separately authorized conversion; opening them never silently migrates their data.

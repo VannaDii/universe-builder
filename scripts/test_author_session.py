@@ -448,12 +448,32 @@ class ConnectedWritingTests(unittest.TestCase):
                 declaration=client.call("universe_read_contracts",{"universe":"Story","context_id":context(5)})["result"]["item_powers"]
                 self.assertEqual(len(declaration),1)
                 self.assertEqual((declaration[0]["item"],declaration[0]["holder_property"],declaration[0]["ability_property"]),("Staff","holder","night_sight"))
+                grants=client.call("universe_search",{"universe":"Story","context_id":context(5),"query":"","typed_filters":{"record_kinds":["item_power"]},"limit":100})["result"]["hits"]
+                self.assertEqual([g["label"] for g in grants],["Staff — night_sight"])
                 def powers(tick,revision=None):
                     objects=client.call("universe_read_facts",{"universe":"Story","context_id":context(tick,revision),"object_names":["Mara","Leon"]})["result"]["objects"]
                     return {obj["name"] for obj in objects if any(f["property"]=="night_sight" and f["group"]=="derived" and f["state"]=="supported" and f["value"] is True for f in obj["facts"])}
                 self.assertEqual(powers(5),{"Mara"})
                 sight=check(context(),events=[{"action":"see in darkness","participants":{"actor":"Mara"},"at_tick":"5"}])
                 publish(sight,"At day five Mara sees in darkness using the Staff's granted night sight.","connected-power-action")
+                grant=client.call("universe_read_contracts",{"universe":"Story","context_id":context(5)})["result"]["item_powers"][0]
+                for patch in [{"value":False},{"end_tick":"4"}]:
+                    denied=client.request("tools/call",{"name":"universe_check_changes","arguments":{"universe":"Story","context_id":context(5),"item_power_corrections":[{"grant_handle":grant["grant_handle"],"reason":"This would remove the ability needed by the committed action.",**patch}]}})
+                    self.assertTrue(denied.get("isError"),denied)
+                    self.assertIn("requirement",str(denied).lower())
+                legal=check(context(5),item_power_corrections=[{"grant_handle":grant["grant_handle"],"end_tick":"18","reason":"Explicitly end the Staff grant at eighteen, preserving earlier actions."}])
+                with self.assertRaisesRegex(RuntimeError,"protected contracts require explicit author contract review"):
+                    decisions.action({"action":"prepare","candidate":legal["candidate_handle"],"label":"Forbidden grant edit","text":"The Staff grant ends at eighteen."})
+                publish(legal,"The Staff's night-sight grant ends at eighteen. Its earlier grant value, holder property and item remain unchanged.","connected-power-ending",contracts=True)
+                current_grant=client.call("universe_read_contracts",{"universe":"Story","context_id":context(5)})["result"]["item_powers"][0]
+                self.assertNotEqual(current_grant["grant_handle"],grant["grant_handle"])
+                self.assertEqual((current_grant["item"],current_grant["holder_property"],current_grant["ability_property"],current_grant["value"]),("Staff","holder","night_sight",True))
+                self.assertIn("18",current_grant["time"])
+                stale=check(context(5),item_power_corrections=[{"grant_handle":grant["grant_handle"],"value":False,"reason":"Old versions cannot edit a changed grant."}])
+                self.assertIsNone(stale["candidate_handle"])
+                historic=client.call("universe_read_contracts",{"universe":"Story","context_id":context(5,{"kind":"exact","revision_id":power_revision})})["result"]["item_powers"][0]
+                self.assertEqual(historic["grant_handle"],grant["grant_handle"])
+                self.assertIn("20",historic["time"])
                 staff=client.call("universe_read_facts",{"universe":"Story","context_id":context(5),"object_names":["Staff"]})["result"]["objects"][0]
                 holder=next(f for f in staff["facts"] if f["property"]=="holder")
                 denied=client.request("tools/call",{"name":"universe_check_changes","arguments":{"universe":"Story","context_id":context(5),"fact_endings":[{"fact_handle":holder["fact_handle"],"end_tick":"4","reason":"This early loss must invalidate the committed later action."}]}})

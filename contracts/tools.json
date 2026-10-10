@@ -2247,6 +2247,14 @@
           },
           "default": []
         },
+        "item_power_corrections": {
+          "description": "Version-bound grant corrections/endings. Omitted fields retain authored values; targets cannot change. Private contract review required.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingItemPowerCorrection"
+          },
+          "default": []
+        },
         "definition_corrections": {
           "description": "Incremental ancestry/applicability revisions; omitted fields keep authored metadata. Requires private contract review.",
           "type": "array",
@@ -3071,6 +3079,67 @@
             "ability_property",
             "value",
             "scope"
+          ]
+        },
+        "WritingItemPowerCorrection": {
+          "type": "object",
+          "properties": {
+            "grant_handle": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FactValue"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "scope": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "at_tick": {
+              "description": "Explicit new start in the original authored calendar; omitted start stays unchanged.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "lifetime": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FactLifetime"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "end_tick": {
+              "description": "Explicitly shorten an existing interval; separate from historical validity correction.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "grant_handle",
+            "reason"
           ]
         },
         "WritingDefinitionCorrection": {
@@ -29622,6 +29691,36 @@
               ]
             },
             {
+              "description": "Version-bound grant correction; item, possession predicate, ability predicate and represented context remain unchanged.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/ItemPower"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_item_power"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
+              ]
+            },
+            {
               "type": "object",
               "properties": {
                 "record": {
@@ -42422,6 +42521,36 @@
               ]
             },
             {
+              "description": "Version-bound grant correction; item, possession predicate, ability predicate and represented context remain unchanged.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/ItemPower"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_item_power"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
+              ]
+            },
+            {
               "type": "object",
               "properties": {
                 "record": {
@@ -51219,6 +51348,36 @@
                 "kind",
                 "client_ref",
                 "record"
+              ]
+            },
+            {
+              "description": "Version-bound grant correction; item, possession predicate, ability predicate and represented context remain unchanged.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/ItemPower"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_item_power"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
               ]
             },
             {
@@ -60230,6 +60389,36 @@
                 "kind",
                 "client_ref",
                 "record"
+              ]
+            },
+            {
+              "description": "Version-bound grant correction; item, possession predicate, ability predicate and represented context remain unchanged.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/ItemPower"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_item_power"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
               ]
             },
             {
@@ -73904,6 +74093,36 @@
               ]
             },
             {
+              "description": "Version-bound grant correction; item, possession predicate, ability predicate and represented context remain unchanged.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/ItemPower"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_item_power"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
+              ]
+            },
+            {
               "type": "object",
               "properties": {
                 "record": {
@@ -83704,6 +83923,36 @@
                 "kind",
                 "client_ref",
                 "record"
+              ]
+            },
+            {
+              "description": "Version-bound grant correction; item, possession predicate, ability predicate and represented context remain unchanged.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/ItemPower"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_item_power"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
               ]
             },
             {

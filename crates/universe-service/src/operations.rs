@@ -529,6 +529,7 @@ pub(crate) fn compile_allocated(
             InitializeInstance { .. }
             | ReviseAppearance { .. }
             | ReviseDefinition { .. }
+            | ReviseItemPower { .. }
             | AdoptRecordVersion { .. }
             | ReviseEvent { .. }
             | UpgradePack { .. }
@@ -614,6 +615,47 @@ pub(crate) fn compile_allocated(
                 let mut e = replacement.clone();
                 e.expansion_version = Some(universe_rules::events::EXPANSION.into());
                 (record, expected_version, Some(Payload::Event(e)))
+            }
+            ReviseItemPower {
+                record,
+                expected_version,
+                replacement,
+                rationale,
+            } => {
+                let Payload::ItemPower(old) =
+                    &current(&records, u, record, expected_version)?.payload
+                else {
+                    return Err(invalid("expected item-power declaration"));
+                };
+                if rationale.trim().is_empty()
+                    || old.item != replacement.item
+                    || old.holder_predicate != replacement.holder_predicate
+                    || old.power_predicate != replacement.power_predicate
+                    || old.scope.context != replacement.scope.context
+                {
+                    return Err(invalid("item-power correction requires a reason and must retain item, holder property, ability property and represented context"));
+                }
+                let calendar = |v: &universe_domain::scope::Validity| match v {
+                    universe_domain::scope::Validity::CalendarInterval { calendar, .. } => {
+                        Some(calendar.clone())
+                    }
+                    universe_domain::scope::Validity::Instant {
+                        at: universe_domain::temporal::TemporalExpression::Exact { calendar, .. },
+                    } => Some(calendar.clone()),
+                    _ => None,
+                };
+                if calendar(&old.validity).is_some()
+                    && calendar(&old.validity) != calendar(&replacement.validity)
+                {
+                    return Err(invalid(
+                        "item-power correction must retain its authored calendar",
+                    ));
+                }
+                (
+                    record,
+                    expected_version,
+                    Some(Payload::ItemPower(replacement.clone())),
+                )
             }
             ReviseDefinition {
                 record,
@@ -1025,6 +1067,39 @@ mod incremental_tests {
                 .map(|op| serde_json::from_value(op).unwrap())
                 .collect::<Vec<_>>(),
         )
+    }
+    #[test]
+    fn item_power_revision_is_version_and_target_bound() {
+        let mut rows = fixture();
+        rows.push(record(5,json!({"record_kind":"item_power","item":rr(4),"holderPredicate":rr(1),"powerPredicate":rr(2),"value":{"kind":"boolean","value":true},"scope":{"context":rr(3),"applicability":{"kind":"universe_wide"}},"validity":{"kind":"calendar_interval","calendar":"cal_000000000000000000000001","start":{"kind":"exact","value":"0"},"end":{"kind":"exact","value":"20"}}})));
+        let mut replacement = serde_json::to_value(&rows[4].payload).unwrap();
+        replacement.as_object_mut().unwrap().remove("record_kind");
+        replacement["value"] = json!({"kind":"boolean","value":false});
+        let op = json!({"kind":"revise_item_power","record":rr(5),"expected_version":rows[4].record_version_id,"replacement":replacement,"rationale":"Explicit author correction"});
+        assert!(compile_json(&rows, vec![op.clone()]).is_ok());
+        for field in ["item", "holderPredicate", "powerPredicate"] {
+            let mut bad = op.clone();
+            bad["replacement"][field] = rr(3);
+            assert!(compile_json(&rows, vec![bad])
+                .unwrap_err()
+                .to_string()
+                .contains("retain item"));
+        }
+        let mut bad = op.clone();
+        bad["replacement"]["scope"]["context"] = rr(4);
+        assert!(compile_json(&rows, vec![bad])
+            .unwrap_err()
+            .to_string()
+            .contains("represented context"));
+        let mut bad = op.clone();
+        bad["replacement"]["validity"]["calendar"] = json!("cal_000000000000000000000002");
+        assert!(compile_json(&rows, vec![bad])
+            .unwrap_err()
+            .to_string()
+            .contains("authored calendar"));
+        let mut stale = op;
+        stale["expected_version"] = json!("ver_000000000000000000000006");
+        assert!(compile_json(&rows, vec![stale]).is_err());
     }
     #[test]
     fn candidate_reparenting_cannot_bypass_descendant_refinement() {

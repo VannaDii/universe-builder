@@ -2204,6 +2204,13 @@ pub enum DomainOperation {
         client_ref: String,
         record: DomainPack,
     },
+    /// Version-bound grant correction; item, possession predicate, ability predicate and represented context remain unchanged.
+    ReviseItemPower {
+        record: RecordRef,
+        expected_version: RecordVersionId,
+        replacement: ItemPower,
+        rationale: String,
+    },
     ReviseDefinition {
         record: RecordRef,
         expected_version: RecordVersionId,
@@ -2305,6 +2312,7 @@ impl DomainOperation {
             IntroduceDefinition { .. }
             | AddNamedAttribute { .. }
             | DefineItemPower { .. }
+            | ReviseItemPower { .. }
             | DefineAction { .. }
             | DefineType { .. }
             | DefineProperty { .. }

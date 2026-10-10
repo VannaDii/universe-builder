@@ -348,6 +348,9 @@ impl Workflow<'_> {
                     });
                 }
             }
+            if let DomainOperation::ReviseItemPower {record,expected_version,replacement,rationale}=op {
+                return !contracts || rationale.trim().is_empty() || !originals.iter().any(|r|r.identity.record_id==record.record && &r.record_version_id==expected_version && matches!(&r.payload,Payload::ItemPower(old) if old.item==replacement.item && old.holder_predicate==replacement.holder_predicate && old.power_predicate==replacement.power_predicate && old.scope.context==replacement.scope.context));
+            }
             if let DomainOperation::ReviseDefinition {
                 record,
                 expected_version,
@@ -626,6 +629,23 @@ impl Workflow<'_> {
         };
         let mut summary = vec![];
         let mut factual_edits = BTreeSet::new();
+        for op in &p.operations {
+            if let DomainOperation::ReviseItemPower {
+                record,
+                replacement,
+                rationale,
+                ..
+            } = op
+            {
+                if let Some(Payload::ItemPower(old)) = originals
+                    .iter()
+                    .find(|r| r.identity.record_id == record.record)
+                    .map(|r| &r.payload)
+                {
+                    summary.push(format!("Correct item grant: {} — {}; original value {}, time {}; proposed value {}, time {}, scope {}; reason: {}",label(&old.item.record).unwrap_or_else(||"unresolved".into()),label(&old.power_predicate.record).unwrap_or_else(||"unresolved".into()),writing::plain_value(&old.value,&label).unwrap_or(Value::Null),writing::plain_time(&json!(old.validity),&label),writing::plain_value(&replacement.value,&label).unwrap_or(Value::Null),writing::plain_time(&json!(replacement.validity),&label),super::writing_connected::plain_scope(&replacement.scope,&label),rationale));
+                }
+            }
+        }
         for op in &p.operations {
             let target = match op {
                 DomainOperation::SupersedeAssertion { record, .. }

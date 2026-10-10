@@ -110,6 +110,10 @@ def contracts():
         kind={'type':'string','const':'initialize_instance'}, client_ref=S,
         instance=ref('RecordRef'), start=ref('RecordRef'), definition=ref('VersionRef'),
         scope=ref('Scope'), validity=ref('Validity')))
+    # Append the new closed mutation without renumbering historical operation branches.
+    defs['DomainOperation']['oneOf'].append(obj(
+        kind={'type':'string','const':'revise_item_power'},record=ref('RecordRef'),
+        expected_version=ref('RecordVersionId'),replacement=ref('ItemPower'),rationale=S))
     return defs
 
 

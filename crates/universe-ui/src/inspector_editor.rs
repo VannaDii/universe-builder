@@ -65,6 +65,67 @@ pub(super) fn operation(
             }
             op["replacement"] = replacement;
         }
+        "power_value" | "power_scope" | "power_start" | "power_end" => {
+            if selected["payload"]["record_kind"] != "item_power" || reason.trim().is_empty() {
+                return Err("Inspect a grant and explain the correction; its item and property targets stay unchanged.".into());
+            }
+            op["kind"] = json!("revise_item_power");
+            let mut replacement = selected["payload"].clone();
+            replacement.as_object_mut().unwrap().remove("record_kind");
+            if action == "power_value" {
+                let original = &selected["payload"]["value"];
+                let form = super::claim_editor::Form {
+                    kind: original["kind"].as_str().unwrap_or("").into(),
+                    value: value.into(),
+                    unit: original["unit"].as_str().unwrap_or("").into(),
+                    ..Default::default()
+                };
+                replacement["value"] = form.typed_value(frame, clock)?;
+            } else if action == "power_scope" {
+                replacement["scope"]["applicability"] = if value == "universe" {
+                    json!({"kind":"universe_wide"})
+                } else {
+                    json!({"kind":"worlds","world_ids":[universe_domain::ids::WorldId::parse(value).map_err(|e|e.to_string())?]})
+                };
+            } else {
+                let validity = &mut replacement["validity"];
+                if validity["kind"] != "calendar_interval" {
+                    return Err("Inspect a grant with an authored calendar interval to edit its start or end.".into());
+                }
+                let coordinate = if let Some(c) =
+                    clock.filter(|c| validity["calendar"] == c.calendar.as_str())
+                {
+                    c.coordinate(value)?
+                } else {
+                    value
+                        .parse::<i128>()
+                        .map_err(|_| "Enter an exact tick in the grant's calendar")?
+                        .to_string()
+                };
+                if action == "power_end" {
+                    let n = coordinate
+                        .parse::<i128>()
+                        .map_err(|_| "Invalid grant end")?;
+                    if validity["end"]["kind"] == "exact"
+                        && n > validity["end"]["value"]
+                            .as_str()
+                            .unwrap_or("")
+                            .parse::<i128>()
+                            .map_err(|_| "Unresolved original end")?
+                    {
+                        return Err(
+                            "Ending cannot extend this grant; use an explicit validity correction."
+                                .into(),
+                        );
+                    }
+                    validity["end"] = json!({"kind":"exact","value":coordinate});
+                } else {
+                    validity["start"] = json!({"kind":"exact","value":coordinate});
+                }
+            }
+            op["replacement"] = replacement;
+            op["rationale"] = json!(reason);
+        }
         "add_name" => {
             op["name"] = json!({"text":value,"language":null,"community":null,"role":null,"validity":{"kind":"unspecified"}})
         }
@@ -264,6 +325,13 @@ pub fn InspectorEditor(
             ("rename_world_selector", "Rename this world"),
             ("add_world_alias", "Add a world alias"),
         ],
+        "item_power" => vec![
+            ("", "Keep grant"),
+            ("power_value", "Correct granted value"),
+            ("power_scope", "Correct grant scope"),
+            ("power_start", "Correct interval start"),
+            ("power_end", "End grant duration"),
+        ],
         "property" => vec![
             ("", "Choose a change"),
             ("definition_label", "Revise display label"),
@@ -355,6 +423,18 @@ pub fn InspectorEditor(
             p{"This revises the type's ancestry; it does not reclassify or replace its instances. Existing inheritance, initialization and action constraints are rechecked."}
             label{r#for:"inspector-parent","Authored parent"}
             super::select::RichSelect{id:"inspector-parent",disabled,value:value(),options:{let mut options=super::select::record_choices(&choices,&["entity_type"],"Choose explicitly");options.insert(1,super::select::Choice::new("none","Explicit root — no parent"));options},onchange:move|e:super::select::SelectionEvent|value.set(e.value())}
+        }else if action().starts_with("power_"){
+            p{"Only the selected grant field changes. Item, holder property, ability property, represented context and calendar stay unchanged; author contract review and separate approval are required."}
+            if action()=="power_scope"{
+                label{r#for:"inspector-power-scope","Explicit grant scope"}
+                super::select::RichSelect{id:"inspector-power-scope",disabled,value:value(),options:{let mut c=super::select::typed_id_choices(&choices,"world","wld_","Choose scope");c.insert(1,super::select::Choice::new("universe","Universe wide"));c},onchange:move|e:super::select::SelectionEvent|value.set(e.value())}
+            }else if action()=="power_value" && selected["payload"]["value"]["kind"]=="boolean"{
+                label{r#for:"inspector-power-value","Granted value"}
+                super::select::RichSelect{id:"inspector-power-value",disabled,value:value(),options:super::select::choices(&[("","Keep until selected"),("true","True"),("false","False")]),onchange:move|e:super::select::SelectionEvent|value.set(e.value())}
+            }else if action()=="power_value" && selected["payload"]["value"]["kind"]=="entity_ref"{
+                label{r#for:"inspector-power-object","Granted object"}
+                super::select::RichSelect{id:"inspector-power-object",disabled,value:value(),options:super::select::record_choices(&choices,&["entity"],"Choose object"),onchange:move|e:super::select::SelectionEvent|value.set(e.value())}
+            }else{label{r#for:"inspector-power-value",if action()=="power_value"{"Granted value"}else{"Explicit date or tick in the grant's calendar"}}input{id:"inspector-power-value",disabled,value,oninput:move|e|value.set(e.value())}}
         }else if action()=="property_persistence"{
             p{"Only the default for new facts changes. Existing assertion lifetimes and other property settings stay authored; affected facts and events are rechecked."}
             label{r#for:"inspector-persistence","Persistence"}
@@ -368,7 +448,7 @@ pub fn InspectorEditor(
         }
         if action()=="end_assertion_at"{p{"This ends the authored interval; support before the end remains."}}
         if action()=="retract_assertion"{p{"This withdraws the assertion from the new revision. It does not claim the opposite; earlier revisions remain available."}}
-        if ["end_assertion_at","retract_assertion"].contains(&action().as_str()){
+        if action().starts_with("power_") || ["end_assertion_at","retract_assertion"].contains(&action().as_str()){
             label{r#for:"inspector-reason","Reason"}textarea{id:"inspector-reason",disabled,value:reason,oninput:move|e|reason.set(e.value())}
         }
         button{class:"secondary",disabled:disabled||action().is_empty(),onclick:move|_|match if action()=="add_name"{name_operation(&frame,&selected,&name(),clock.as_ref())}else if action().starts_with("role_")||action().starts_with("relation_"){contract_operation(&frame,&selected,&action(),&role(),&value())}else{operation(&frame,&selected,&action(),&value(),&reason(),clock.as_ref())}{Ok(op)=>{onadd.call(op);error.set(String::new());},Err(e)=>error.set(e)},"Add inspected change to draft"}

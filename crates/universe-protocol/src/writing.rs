@@ -132,6 +132,9 @@ pub struct CheckChanges {
     /// Explicit possession-dependent abilities; private contract review required. Possession is the named single-valued object holder property on this item, never inferred from an ownership relation.
     #[serde(default)]
     pub item_powers: Vec<WritingItemPower>,
+    /// Version-bound grant corrections/endings. Omitted fields retain authored values; targets cannot change. Private contract review required.
+    #[serde(default)]
+    pub item_power_corrections: Vec<WritingItemPowerCorrection>,
     /// Incremental ancestry/applicability revisions; omitted fields keep authored metadata. Requires private contract review.
     #[serde(default)]
     pub definition_corrections: Vec<WritingDefinitionCorrection>,
@@ -207,6 +210,24 @@ pub struct WritingItemPower {
     /// Unspecified means the exact instant; a longer duration must be authored explicitly.
     #[serde(default)]
     pub lifetime: FactLifetime,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingItemPowerCorrection {
+    pub grant_handle: String,
+    pub reason: String,
+    #[serde(default)]
+    pub value: Option<FactValue>,
+    #[serde(default)]
+    pub scope: Option<String>,
+    /// Explicit new start in the original authored calendar; omitted start stays unchanged.
+    #[serde(default)]
+    pub at_tick: Option<String>,
+    #[serde(default)]
+    pub lifetime: Option<FactLifetime>,
+    /// Explicitly shorten an existing interval; separate from historical validity correction.
+    #[serde(default)]
+    pub end_tick: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

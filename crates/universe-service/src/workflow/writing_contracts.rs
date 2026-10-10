@@ -210,12 +210,119 @@ impl Workflow<'_> {
             && input.knowledge_policies.is_empty()
             && input.exhaustive_sets.is_empty()
             && input.item_powers.is_empty()
+            && input.item_power_corrections.is_empty()
         {
             return Ok(());
         }
         let rows =
             super::writing_connected::candidate_records(self.kernel.universe(), ctx, base, ops)?;
         let u = self.kernel.universe();
+        let mut edited = std::collections::BTreeSet::new();
+        for patch in &input.item_power_corrections {
+            let build = || -> anyhow::Result<Value> {
+                let original = rows.iter().find(|r| r.record_version_id.as_str()==patch.grant_handle && matches!(&r.payload,Payload::ItemPower(p) if p.scope.context==ctx.frame.context)).ok_or_else(||anyhow::anyhow!("Retrieve the current pinned author-visible grant handle before correcting it"))?;
+                let Payload::ItemPower(old) = &original.payload else {
+                    unreachable!()
+                };
+                if patch.reason.trim().is_empty()
+                    || (patch.value.is_none()
+                        && patch.scope.is_none()
+                        && patch.at_tick.is_none()
+                        && patch.lifetime.is_none()
+                        && patch.end_tick.is_none())
+                {
+                    anyhow::bail!(
+                        "Choose grant fields to change and explain the author correction"
+                    );
+                }
+                if patch.end_tick.is_some() && (patch.at_tick.is_some() || patch.lifetime.is_some())
+                {
+                    anyhow::bail!("Choose an explicit ending or a validity correction, not both");
+                }
+                let mut replacement = old.clone();
+                if let Some(v) = &patch.value {
+                    replacement.value =
+                        super::writing_connected::fact_value(u, &rows, &ctx.frame, v)?;
+                }
+                if let Some(scope) = &patch.scope {
+                    replacement.scope.applicability = applicability(self, scope, &rows)?;
+                }
+                if patch.at_tick.is_some() || patch.lifetime.is_some() {
+                    use universe_domain::{
+                        scope::Validity,
+                        temporal::{TemporalBound, TemporalExpression},
+                    };
+                    let (calendar,start,end)=match &old.validity {
+                        Validity::CalendarInterval{calendar,start,end}=>(calendar.clone(),start.clone(),Some(end.clone())),
+                        Validity::Instant{at:TemporalExpression::Exact{calendar,value}}=>(calendar.clone(),TemporalBound::Exact{value:value.clone()},None),
+                        _=>anyhow::bail!("This grant has no supported exact authored calendar validity; use advanced authoring"),
+                    };
+                    let start = patch
+                        .at_tick
+                        .as_ref()
+                        .map(|value| TemporalBound::Exact {
+                            value: value.clone(),
+                        })
+                        .unwrap_or(start);
+                    replacement.validity = if let Some(lifetime) = &patch.lifetime {
+                        let TemporalBound::Exact { value } = start else {
+                            anyhow::bail!("Supply an explicit start for this unresolved grant")
+                        };
+                        validity(&TemporalExpression::Exact { calendar, value }, lifetime)?
+                    } else if let Some(end) = end {
+                        Validity::CalendarInterval {
+                            calendar,
+                            start,
+                            end,
+                        }
+                    } else {
+                        let TemporalBound::Exact { value } = start else {
+                            unreachable!()
+                        };
+                        Validity::Instant {
+                            at: TemporalExpression::Exact { calendar, value },
+                        }
+                    };
+                }
+                if let Some(end_tick) = &patch.end_tick {
+                    use universe_domain::{scope::Validity, temporal::TemporalBound};
+                    let Validity::CalendarInterval { start, end, .. } = &mut replacement.validity
+                    else {
+                        anyhow::bail!("Ending requires an existing authored calendar interval")
+                    };
+                    let coordinate = end_tick.parse::<i128>()?;
+                    if matches!(start,TemporalBound::Exact{value} if coordinate<=value.parse::<i128>().unwrap_or(i128::MAX))
+                        || matches!(end,TemporalBound::Exact{value} if coordinate>value.parse::<i128>().unwrap_or(i128::MIN))
+                    {
+                        anyhow::bail!(
+                            "End the grant after its start and no later than its authored end"
+                        );
+                    }
+                    *end = TemporalBound::Exact {
+                        value: end_tick.clone(),
+                    };
+                }
+                Ok(
+                    json!({"kind":"revise_item_power","record":{"universe":u,"record":original.identity.record_id},"expected_version":original.record_version_id,"replacement":replacement,"rationale":patch.reason}),
+                )
+            };
+            if !edited.insert(&patch.grant_handle) {
+                result
+                    .clarifications
+                    .push("Correct each grant once in a delta".into());
+                continue;
+            }
+            match build() {
+                Ok(op) => {
+                    ops.push(op);
+                    result.additions.push(format!(
+                        "Item-power correction: {}; private contract review required",
+                        patch.reason
+                    ));
+                }
+                Err(e) => result.clarifications.push(e.to_string()),
+            }
+        }
         for power in &input.item_powers {
             let build = || -> anyhow::Result<Value> {
                 let item = super::writing_connected::object(&rows, &power.item, &ctx.frame)
@@ -425,6 +532,8 @@ impl Workflow<'_> {
                 declaration.action_corrections.clear();
                 declaration.definition_corrections.clear();
                 declaration.property_corrections.clear();
+                declaration.item_powers.clear();
+                declaration.item_power_corrections.clear();
                 let mut generated = vec![];
                 let mut feedback = result.clone();
                 feedback.clarifications.clear();
