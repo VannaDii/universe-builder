@@ -393,6 +393,9 @@ impl Workflow<'_> {
             &p.proposal.base_frame.revision,
         )?;
         if p.proposal.operations.iter().any(|op| {
+            if let DomainOperation::RecordNarrativeReference{record:RecordKind::RepresentedContext,payload:Payload::RepresentedContext(c),..}=op {
+                return !contracts || !matches!(c.kind,RepresentedContextKind::Authored{..}) || c.parent.is_none() || c.chronology.is_none();
+            }
             if let DomainOperation::AddBelief { record, .. } = op {
                 if record
                     .acquisition

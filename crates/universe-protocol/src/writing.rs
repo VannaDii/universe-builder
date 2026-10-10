@@ -110,6 +110,9 @@ pub struct CheckChanges {
     /// Explicit named worlds. Introduce only with author intent; existing visible names reuse their identity. No default world, location or entity association is inferred.
     #[serde(default)]
     pub worlds: Vec<WritingWorld>,
+    /// Explicit dreams, accounts or embedded stories. Publish then open by name before adding local facts; parent structure never copies facts.
+    #[serde(default)]
+    pub story_contexts: Vec<WritingStoryContext>,
     /// Only factual deltas; do not restate the universe or unchanged facts.
     #[schemars(length(max = 100))]
     #[serde(default)]
@@ -213,6 +216,25 @@ pub struct WritingWorld {
     pub name: String,
     #[serde(default)]
     pub introduce: bool,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingStoryContext {
+    pub name: String,
+    #[serde(default)]
+    pub introduce: bool,
+    pub kind: StoryContextKind,
+    pub parent: String,
+    pub calendar: String,
+    /// Exact fictional coordinate or Gregorian timestamp in the selected authored clock.
+    pub story_time: String,
+}
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum StoryContextKind {
+    Dream,
+    Account,
+    Embedded,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

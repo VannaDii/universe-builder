@@ -13,12 +13,53 @@ pub(super) struct Form {
     pub(super) work: String,
     pub(super) order: String,
     pub(super) binding: String,
+    pub(super) context_kind: String,
+    pub(super) parent_context: String,
+    pub(super) calendar: String,
+    pub(super) story_time: String,
 }
 fn checked(value: Value) -> Result<Value, String> {
     let operation: DomainOperation = serde_json::from_value(value).map_err(|e| e.to_string())?;
     serde_json::to_value(operation).map_err(|e| e.to_string())
 }
 impl Form {
+    pub(super) fn create_context(&self, frame: &Frame, choices: &[Value]) -> Result<Value, String> {
+        if self.name.trim().is_empty()
+            || !["dream", "account", "embedded"].contains(&self.context_kind.as_str())
+        {
+            return Err("Name the context and choose dream, account or embedded story.".into());
+        }
+        let parent = RecordId::parse(&self.parent_context)
+            .map_err(|_| "Choose an existing parent context.")?;
+        if !choices
+            .iter()
+            .any(|c| c["kind"] == "represented_context" && c["record_id"] == self.parent_context)
+        {
+            return Err("Choose an existing parent context.".into());
+        }
+        let calendar =
+            CalendarId::parse(&self.calendar).map_err(|_| "Choose an authored calendar.")?;
+        let clocks: Vec<universe_domain::chronology::Chronology> = choices
+            .iter()
+            .filter(|c| c["kind"] == "represented_context")
+            .filter_map(|c| serde_json::from_value(c["definition"]["chronology"].clone()).ok())
+            .filter(|c: &universe_domain::chronology::Chronology| c.calendar == calendar)
+            .collect();
+        let Some(clock) = clocks.first() else {
+            return Err("Load an existing context with this authored clock system.".into());
+        };
+        if clocks.iter().any(|other| other.system != clock.system) {
+            return Err("The calendar has conflicting authored clock systems.".into());
+        }
+        let mut chronology = clock.clone();
+        let time = chronology.coordinate(&self.story_time)?;
+        chronology.first_interaction = time.clone();
+        chronology.current = time;
+        chronology.validate()?;
+        checked(
+            json!({"kind":"record_narrative_reference","client_ref":RecordId::generate(&mut rand::rng()),"record":"represented_context","payload":{"record_kind":"represented_context","universe":frame.universe,"kind":{"kind":"authored","label":format!("{}: {}",self.context_kind,self.name)},"parent":{"universe":frame.universe,"record":parent},"chronology":chronology,"labels":{"en":self.name}}}),
+        )
+    }
     pub(super) fn create(&self, frame: &Frame) -> Result<Value, String> {
         if self.name.trim().is_empty() {
             return Err("Enter a name.".into());
@@ -111,8 +152,8 @@ pub fn IdentityEditor(
         .collect();
     let selected = inspected["records"][0].clone();
     rsx! {details{open:true,
-        summary{"Create an entity, world, work or saga"}
-        label{r#for:"draft-kind","Record kind"}super::select::RichSelect {id:"draft-kind",disabled,value:form.read().kind.clone(),onchange:move|e: crate::select::SelectionEvent|form.write().kind=e.value(),options:super::select::choices(&[("","Choose a kind"),("entity","Character or entity"),("world","World"),("work","Narrative work"),("saga","Saga or series"),("work_version","Version of a narrative work")])}
+        summary{"Create an entity, world, work, saga or story context"}
+        label{r#for:"draft-kind","Record kind"}super::select::RichSelect {id:"draft-kind",disabled,value:form.read().kind.clone(),onchange:move|e: crate::select::SelectionEvent|form.write().kind=e.value(),options:super::select::choices(&[("","Choose a kind"),("entity","Character or entity"),("world","World"),("story_context","Authored story context"),("work","Narrative work"),("saga","Saga or series"),("work_version","Version of a narrative work")])}
         label{r#for:"draft-name","Name or version label"}input{id:"draft-name",disabled,value:form.read().name.clone(),oninput:move|e|form.write().name=e.value()}
         if form.read().kind=="entity"{
             label{r#for:"instance-classification","Classification (optional)"}
@@ -130,7 +171,14 @@ pub fn IdentityEditor(
             label{r#for:"version-work","Parent work"}super::select::RichSelect {id:"version-work",disabled,value:form.read().work.clone(),onchange:move|e: crate::select::SelectionEvent|form.write().work=e.value(),options:super::select::record_choices(&works, &["work"], "Choose a work")}
             label{r#for:"work-binding","Canon binding"}super::select::RichSelect {id:"work-binding",disabled,value:form.read().binding.clone(),onchange:move|e: crate::select::SelectionEvent|form.write().binding=e.value(),options:super::select::choices(&[("","Choose explicitly"),("current","The currently pinned continuity and revision"),("unbound","Explicitly unbound / under review")])}
         }
-        button{class:"secondary",disabled,onclick:{let frame=frame.clone();move|_|match form.read().create(&frame){Ok(op)=>{onadd.call(op);error.set(String::new());},Err(e)=>error.set(e)}},"Add to draft"}
+        if form.read().kind=="story_context" {
+            p{"Parentage does not copy facts or make this context objective reality. Publish it before selecting it for local writing."}
+            label{r#for:"context-kind","Context kind"}super::select::RichSelect{id:"context-kind",disabled,value:form.read().context_kind.clone(),options:super::select::choices(&[("","Choose explicitly"),("dream","Dream"),("account","Account"),("embedded","Embedded story")]),onchange:move|e:crate::select::SelectionEvent|form.write().context_kind=e.value()}
+            label{r#for:"context-parent","Parent context"}super::select::RichSelect{id:"context-parent",disabled,value:form.read().parent_context.clone(),options:super::select::record_choices(&choices,&["represented_context"],"Choose parent explicitly"),onchange:move|e:crate::select::SelectionEvent|form.write().parent_context=e.value()}
+            label{r#for:"context-calendar","Authored calendar"}super::select::RichSelect{id:"context-calendar",disabled,value:form.read().calendar.clone(),options:super::select::typed_id_choices(&choices,"calendar","cal_","Choose calendar explicitly"),onchange:move|e:crate::select::SelectionEvent|form.write().calendar=e.value()}
+            label{r#for:"context-story-time","Initial story time (exact fictional tick or Gregorian timestamp)"}input{id:"context-story-time",disabled,value:form.read().story_time.clone(),oninput:move|e|form.write().story_time=e.value()}
+        }
+        button{class:"secondary",disabled,onclick:{let frame=frame.clone();move|_|match if form.read().kind=="story_context"{form.read().create_context(&frame,&choices)}else{form.read().create(&frame)}{Ok(op)=>{onadd.call(op);error.set(String::new());},Err(e)=>error.set(e)}},"Add to draft"}
         if selected["payload"]["record_kind"]=="saga"{
             h3{"Add or reorder work in the inspected saga"}
             label{r#for:"saga-work","Work"}super::select::RichSelect {id:"saga-work",disabled,value:form.read().work.clone(),onchange:move|e: crate::select::SelectionEvent|form.write().work=e.value(),options:super::select::record_choices(&works, &["work"], "Choose a work")}

@@ -257,9 +257,9 @@ class ConnectedWritingTests(unittest.TestCase):
                 self.assertTrue({"universe_check_changes","universe_read_facts","universe_read_contracts"}<=tools)
                 self.assertTrue({"universe_propose","universe_validate","universe_get"}.isdisjoint(tools))
                 decisions=AuthorDecisions(SimpleNamespace(universe="Story"),binaries/"universe",installation,author,output=lambda _:None)
-                def context(tick=None,revision=None):
+                def context(tick=None,revision=None,name=None):
                     temporal={"kind":"timeless"} if tick is None else {"kind":"at","time":{"kind":"exact","calendar":calendar,"value":str(tick)}}
-                    return client.call("universe_open_context",{"universe":"Story","continuity_id":universe["continuity_id"],"revision":revision or {"kind":"head"},"represented_context":universe["context_id"],"temporal_query":temporal,"temporal_systems":[],"perspective":"author"})["result"]["context_id"]
+                    return client.call("universe_open_context",{"universe":"Story","continuity_id":universe["continuity_id"],"revision":revision or {"kind":"head"},"represented_context":universe["context_id"] if name is None else {"name":name},"temporal_query":temporal,"temporal_systems":[],"perspective":"author"})["result"]["context_id"]
                 def check(ctx,**delta):
                     return client.call("universe_check_changes",{"universe":"Story","context_id":ctx,**delta})["result"]
                 def publish(checked,text,key,contracts=False):
@@ -378,6 +378,33 @@ class ConnectedWritingTests(unittest.TestCase):
                 self.assertNotEqual(expired["status"],"checked_candidate",expired)
                 self.assertEqual(expired["validation"]["kind"],"evaluated",expired)
                 self.assertTrue(any(f["outcome"] in {"refuted","conflicting","not_established"} for f in expired["validation"]["execution"]["findings"]),expired)
+                # Explicit represented stories share identity, never objective truth or actions.
+                stories=check(context(),story_contexts=[{"name":name,"introduce":True,"kind":kind,"parent":"Objective reality","calendar":"Days","story_time":"5"} for name,kind in (("Night dream","dream"),("Witness account","account"),("Inner story","embedded"))])
+                with self.assertRaises(RuntimeError):
+                    decisions.action({"action":"prepare","candidate":stories["candidate_handle"],"label":"Stories","text":"These explicitly separate stories begin on day five."})
+                story_revision=publish(stories,"Night dream, Witness account and Inner story are separate authored contexts parented to Objective reality, on authored day five.","connected-contexts",contracts=True)
+                for name in ("Night dream","Witness account","Inner story"):
+                    local=client.call("universe_read_facts",{"universe":"Story","context_id":context(5,name=name),"object_names":["Courtyard"]})["result"]["objects"][0]
+                    self.assertFalse(any(f["state"]=="supported" for f in local["facts"]),local)
+                    self.assertEqual(local["occurred_events"],[],local)
+                    contracts=client.call("universe_read_contracts",{"universe":"Story","context_id":context(5,name=name)})["result"]
+                    self.assertEqual(contracts["attitudes"],[],contracts)
+                    self.assertEqual(contracts["communications"],[],contracts)
+                objective_action=check(context(5,name="Night dream"),events=[{"action":"knock","participants":{"place":"Courtyard"},"at_tick":"5"}])
+                self.assertEqual(objective_action["status"],"needs_clarification",objective_action)
+                self.assertIsNone(objective_action["candidate_handle"])
+                missing_parent=check(context(),story_contexts=[{"name":"Missing story","introduce":True,"kind":"dream","parent":"No parent","calendar":"Days","story_time":"5"}])
+                self.assertEqual(missing_parent["status"],"needs_clarification",missing_parent)
+                self.assertIsNone(missing_parent["candidate_handle"])
+                dream=check(context(5,name="Night dream"),changes=[{"name":"Courtyard","facts":[{"property":"code","value":"purple","scope":"universe","at_tick":"5","lifetime":{"kind":"until","end_tick":"10"}}]}])
+                publish(dream,"Inside Night dream only, the courtyard code is purple from day five until day ten.","connected-dream-fact")
+                local=client.call("universe_read_facts",{"universe":"Story","context_id":context(5,name="Night dream"),"object_names":["Courtyard"]})["result"]["objects"][0]
+                self.assertTrue(any(f["property"]=="code" and f["value"]=="purple" and f["state"]=="supported" for f in local["facts"]),local)
+                reality=client.call("universe_read_facts",{"universe":"Story","context_id":context(5),"object_names":["Courtyard"]})["result"]["objects"][0]
+                self.assertTrue(any(f["property"]=="code" and f["value"]=="green" and f["state"]=="supported" for f in reality["facts"]),reality)
+                self.assertFalse(any(f["value"]=="purple" and f["state"]=="supported" for f in reality["facts"]),reality)
+                prior=client.call("universe_read_facts",{"universe":"Story","context_id":context(5,{"kind":"exact","revision_id":story_revision},name="Night dream"),"object_names":["Courtyard"]})["result"]["objects"][0]
+                self.assertFalse(any(f["state"]=="supported" for f in prior["facts"]),prior)
                 relationships=client.call("universe_read_contracts",{"universe":"Story","context_id":context()})["result"]["relationships"]
                 original=next(r for r in relationships if r["subject"]=="Key")["relationship_handle"]
                 new_owner={"relation":"ownership","subject":"Key","participants":{"item":["Key"],"owner":["Leon"]},"scope":"universe","at_tick":"10","lifetime":{"kind":"until","end_tick":"20"}}

@@ -17,6 +17,7 @@ const EVALUATOR: &str = "finite-policy-v15-writer-constraint-diagnostics";
 mod author_writing;
 mod writing;
 mod writing_connected;
+mod writing_contexts;
 mod writing_contracts;
 mod writing_event_corrections;
 mod writing_initialization;
@@ -1569,8 +1570,21 @@ impl Workflow<'_> {
                         return Err(denied());
                     }
                 }
+                let represented_context = match &a.represented_context {
+                    RepresentedContextSelector::Id(id) => id.clone(),
+                    RepresentedContextSelector::Name { name } => {
+                        let visible:Vec<_>=records.iter().filter(|r|visibility.contains(&r.identity.record_id)).filter(|r|match (&a.perspective,&r.payload) {
+                            (Perspective::Author,_)=>true,
+                            (Perspective::Character(id),Payload::RepresentedContext(c))=>matches!(&c.kind,RepresentedContextKind::Character{holder}if &holder.record==id),
+                            (Perspective::Narrator(id),Payload::RepresentedContext(c))=>matches!(&c.kind,RepresentedContextKind::Narrator{narrator}if &narrator.record==id),
+                            (Perspective::Reader,_)=>true,
+                            _=>false,
+                        }).cloned().collect();
+                        writing_contexts::named_context(&visible, name).ok_or_else(denied)?
+                    }
+                };
                 if !records.iter().any(|r| {
-                    r.identity.record_id == a.represented_context
+                    r.identity.record_id == represented_context
                         && matches!(r.payload, Payload::RepresentedContext(_))
                         && visibility.contains(&r.identity.record_id)
                 }) {
@@ -1580,7 +1594,7 @@ impl Workflow<'_> {
                     universe: self.kernel.universe().clone(),
                     continuity: a.continuity_id,
                     revision,
-                    context: RecordRef::new(self.kernel.universe().clone(), a.represented_context),
+                    context: RecordRef::new(self.kernel.universe().clone(), represented_context),
                     time: a.temporal_query,
                     perspective: a.perspective,
                     reader_scene: a.reader_scene,
@@ -3086,6 +3100,19 @@ fn label(r: &RecordVersion) -> String {
             .or_else(|| e.names.first().map(|name| name.text.clone()))
             .unwrap_or_else(|| r.identity.record_id.0.clone()),
         Payload::World(w) => w.selector.clone(),
+        Payload::RepresentedContext(c) => c
+            .labels
+            .values()
+            .next()
+            .cloned()
+            .or_else(|| {
+                if let RepresentedContextKind::Authored { label } = &c.kind {
+                    Some(label.clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| r.identity.record_id.to_string()),
         Payload::Work(w) => w.title.clone(),
         Payload::Saga(s) => s.title.clone(),
         Payload::Appearance(a) => a.label.clone(),

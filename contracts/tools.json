@@ -2190,6 +2190,14 @@
           },
           "default": []
         },
+        "story_contexts": {
+          "description": "Explicit dreams, accounts or embedded stories. Publish then open by name before adding local facts; parent structure never copies facts.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingStoryContext"
+          },
+          "default": []
+        },
         "changes": {
           "description": "Only factual deltas; do not restate the universe or unchanged facts.",
           "type": "array",
@@ -2487,6 +2495,47 @@
           "additionalProperties": false,
           "required": [
             "name"
+          ]
+        },
+        "WritingStoryContext": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "introduce": {
+              "type": "boolean",
+              "default": false
+            },
+            "kind": {
+              "$ref": "#/$defs/StoryContextKind"
+            },
+            "parent": {
+              "type": "string"
+            },
+            "calendar": {
+              "type": "string"
+            },
+            "story_time": {
+              "description": "Exact fictional coordinate or Gregorian timestamp in the selected authored clock.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "kind",
+            "parent",
+            "calendar",
+            "story_time"
+          ]
+        },
+        "StoryContextKind": {
+          "type": "string",
+          "enum": [
+            "dream",
+            "account",
+            "embedded"
           ]
         },
         "ObjectChange": {
@@ -7045,7 +7094,8 @@
           "$ref": "#/$defs/RevisionSelector"
         },
         "represented_context": {
-          "$ref": "#/$defs/RecordId"
+          "description": "Existing opaque context identity, or an exact discovered context name. Ambiguous/inaccessible names are rejected.",
+          "$ref": "#/$defs/RepresentedContextSelector"
         },
         "temporal_query": {
           "$ref": "#/$defs/FrameTime"
@@ -7128,6 +7178,25 @@
           "description": "Stable identity of an immutable canon revision.",
           "type": "string",
           "pattern": "^rev_[0-9a-f]{24}$"
+        },
+        "RepresentedContextSelector": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecordId"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "name"
+              ]
+            }
+          ]
         },
         "RecordId": {
           "description": "Stable identity of a canonical record within a universe.",

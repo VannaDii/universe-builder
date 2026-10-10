@@ -83,6 +83,47 @@ async fn native_forms_create_refine_reject_and_recover_stable_identity() {
     let opened = open(&mut c, &u).await;
     let authored = read(&mut c, &opened, &world["client_ref"]).await;
     assert_eq!(authored["payload"]["selector"], "Garden world");
+    let context_record = read(&mut c, &opened, &u["context_id"]).await;
+    let chronology = &context_record["payload"]["chronology"];
+    let context_form = Form {
+        kind: "story_context".into(),
+        name: "Garden dream".into(),
+        context_kind: "dream".into(),
+        parent_context: u["context_id"].as_str().unwrap().into(),
+        calendar: chronology["calendar"].as_str().unwrap().into(),
+        story_time: "5".into(),
+        ..Default::default()
+    };
+    let choices = vec![
+        json!({"kind":"represented_context","record_id":u["context_id"],"definition":context_record["payload"]}),
+    ];
+    let story = context_form
+        .create_context(
+            &serde_json::from_value(opened["frame"].clone()).unwrap(),
+            &choices,
+        )
+        .unwrap();
+    publish(&mut c, &opened, json!([story]), "native-story-context").await;
+    let library = c
+        .call(EngineRequest::Library {
+            universe: universe_protocol::request::Selector("Alpha".into()),
+        })
+        .await
+        .unwrap();
+    let empty_draft = json!({"content":{"represented_context":u["context_id"],"operations":[],"proposal":null,"rationale":""}});
+    let target = story["client_ref"].as_str().unwrap();
+    assert_eq!(
+        crate::author::workspace_context(&library, &empty_draft, target).unwrap(),
+        story["client_ref"]
+    );
+    let mut unfinished = empty_draft.clone();
+    unfinished["content"]["operations"] = json!([story]);
+    assert!(crate::author::workspace_context(&library, &unfinished, target).is_err());
+    let named=tool(&mut c,"universe_open_context",json!({"universe":"Alpha","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":{"name":"Garden dream"},"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"})).await;
+    let authored = read(&mut c, &named, &story["client_ref"]).await;
+    assert_eq!(authored["payload"]["parent"]["record"], u["context_id"]);
+    assert_eq!(authored["payload"]["chronology"]["current"], "5");
+    let opened = open(&mut c, &u).await;
     let parent = "rec_00000000000000000000ab01";
     let child = "rec_00000000000000000000ab02";
     let unrelated = "rec_00000000000000000000ab03";
@@ -319,6 +360,50 @@ async fn native_forms_create_refine_reject_and_recover_stable_identity() {
     assert_eq!(
         read(&mut c, &at, &another["client_ref"]).await["identity"],
         nera["identity"]
+    );
+    let load_draft = EngineRequest::LoadDraft {
+        universe: universe_protocol::request::Selector("Alpha".into()),
+        continuity_id: frame.continuity.clone(),
+    };
+    let unfinished = c.call(load_draft.clone()).await.unwrap();
+    assert!(crate::author::workspace_context(&library, &unfinished, target).is_err());
+    let empty_content = DraftContent {
+        proposal: None,
+        base_revision: serde_json::from_value(at["frame"]["revision"].clone()).unwrap(),
+        represented_context: frame.context.record.clone(),
+        operations: vec![],
+        rationale: String::new(),
+    };
+    let cleared = c
+        .call(EngineRequest::SaveDraft {
+            universe: universe_protocol::request::Selector("Alpha".into()),
+            continuity_id: frame.continuity.clone(),
+            expected_version: unfinished["version"].as_u64().unwrap(),
+            content: empty_content,
+        })
+        .await
+        .unwrap();
+    let selected_context = crate::author::workspace_context(&library, &cleared, target).unwrap();
+    let switched=tool(&mut c,"universe_open_context",json!({"universe":"Alpha","continuity_id":u["continuity_id"],"revision":{"kind":"head"},"represented_context":selected_context,"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"})).await;
+    let switched_content = DraftContent {
+        proposal: None,
+        base_revision: serde_json::from_value(switched["frame"]["revision"].clone()).unwrap(),
+        represented_context: serde_json::from_value(switched["frame"]["context"]["record"].clone())
+            .unwrap(),
+        operations: vec![],
+        rationale: String::new(),
+    };
+    c.call(EngineRequest::SaveDraft {
+        universe: universe_protocol::request::Selector("Alpha".into()),
+        continuity_id: frame.continuity.clone(),
+        expected_version: cleared["version"].as_u64().unwrap(),
+        content: switched_content,
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        c.call(load_draft).await.unwrap()["content"]["represented_context"],
+        story["client_ref"]
     );
     drop(c);
     stop.cancel();

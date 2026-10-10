@@ -54,6 +54,13 @@ impl Workflow<'_> {
         let mut ambiguous_new = BTreeSet::new();
         let mut new_properties = BTreeMap::new();
         let mut emitted_properties = BTreeSet::new();
+        self.writing_story_contexts(
+            &input,
+            &ctx,
+            &records.iter().map(|r| (*r).clone()).collect::<Vec<_>>(),
+            &mut operations,
+            &mut result,
+        )?;
         for world in &input.worlds {
             let key = universe_store::selector::selector_key(&world.name)?;
             let matches: Vec<_> = records.iter().filter(|r| matches!(&r.payload, Payload::World(w) if std::iter::once(&w.selector).chain(w.aliases.iter()).any(|n| universe_store::selector::selector_key(n).ok().as_ref() == Some(&key)))).collect();
@@ -954,7 +961,7 @@ impl Workflow<'_> {
                 }
             }
             let occurred_events:Vec<_>=records.iter().filter_map(|r|if let Payload::Event(e)=&r.payload {
-                (e.occurrence==universe_domain::records::OccurrenceMode::Occurred && e.participants.iter().any(|p|p.record.record==matches[0].identity.record_id)).then(||json!({"handle":r.identity.record_id,"time":plain_time(&json!(e.time),&label),"action":e.action.as_ref().and_then(|a|label(&a.record)),"participants":e.participants.iter().map(|p|json!({"role":p.role,"object":label(&p.record.record)})).collect::<Vec<_>>(),"requires_knowledge":e.preconditions.iter().filter_map(|condition|if let universe_domain::expr::Expr::Attitude{holder,proposition,attitude:EpistemicAttitudeKind::Knows}=condition {records.iter().find(|r|r.identity.record_id==proposition.record).and_then(|r|if let Payload::Proposition(p)=&r.payload {Some(json!({"holder":label(&holder.record),"claim":{"subject":label(&p.subject.record),"property":label(&p.predicate.record),"value":p.value.as_ref().and_then(|v|plain_value(v,&label))}}))}else{None})}else{None}).collect::<Vec<_>>(),"worlds":e.worlds.iter().filter_map(|w|RecordId::parse(&w.as_str().replacen("wld_","rec_",1)).ok().and_then(|id|label(&id))).collect::<Vec<_>>()}))
+                (e.occurrence==universe_domain::records::OccurrenceMode::Occurred && (!matches!(ctx.frame.perspective,Perspective::Author) || e.action.as_ref().is_some_and(|a| records.iter().any(|r|r.identity.record_id==a.record && matches!(&r.payload,Payload::ActionDefinition(d) if d.scope.context==ctx.frame.context))) || (e.action.is_none() && !e.effects.is_empty() && e.effects.iter().all(|effect|effect.scope.context==ctx.frame.context))) && e.participants.iter().any(|p|p.record.record==matches[0].identity.record_id)).then(||json!({"handle":r.identity.record_id,"time":plain_time(&json!(e.time),&label),"action":e.action.as_ref().and_then(|a|label(&a.record)),"participants":e.participants.iter().map(|p|json!({"role":p.role,"object":label(&p.record.record)})).collect::<Vec<_>>(),"requires_knowledge":e.preconditions.iter().filter_map(|condition|if let universe_domain::expr::Expr::Attitude{holder,proposition,attitude:EpistemicAttitudeKind::Knows}=condition {records.iter().find(|r|r.identity.record_id==proposition.record).and_then(|r|if let Payload::Proposition(p)=&r.payload {Some(json!({"holder":label(&holder.record),"claim":{"subject":label(&p.subject.record),"property":label(&p.predicate.record),"value":p.value.as_ref().and_then(|v|plain_value(v,&label))}}))}else{None})}else{None}).collect::<Vec<_>>(),"worlds":e.worlds.iter().filter_map(|w|RecordId::parse(&w.as_str().replacen("wld_","rec_",1)).ok().and_then(|id|label(&id))).collect::<Vec<_>>()}))
             }else{None}).collect();
             objects.push(json!({"name":name,"identity":"resolved","kind":if matches!(matches[0].payload,Payload::EntityType(_)){"definition"}else{"instance"},"classification":object.ancestry.first().and_then(|r|label(&r.identity.record_id)),"ancestry":object.ancestry.iter().filter_map(|r|label(&r.identity.record_id)).collect::<Vec<_>>(),"ancestry_complete":object.ancestry_complete,"names":match &matches[0].payload {Payload::Entity(e) if matches!(ctx.frame.perspective,Perspective::Author)=>e.names.iter().filter(|n|universe_rules::events::applies(&n.validity,&ctx.frame.time,&records)!=Some(false)).map(|n|json!({"text":n.text,"language":n.language,"community":n.community,"role":n.role,"time":plain_time(&json!(n.validity),&label),"time_applicable":universe_rules::events::applies(&n.validity,&ctx.frame.time,&records)})).collect::<Vec<_>>(),_=>vec![]},"facts":facts,"occurred_events":occurred_events,"inherited_attributes":inherited,"initial_value_candidates":initial,"coverage":object.coverage,"unknowns":object.unknowns,"state_coverage":state.coverage,"limitations":state.unsupported_capabilities}));
         }
@@ -1084,6 +1091,16 @@ mod tests {
             .focus(&json!({"world":"First"}), &world_rows)
             .unwrap()
             .is_some());
+        let context_ops:Vec<_>=["rec_00000000000000000000bb01","rec_00000000000000000000bb02"].into_iter().map(|id|json!({"kind":"record_narrative_reference","client_ref":id,"record":"represented_context","payload":{"record_kind":"represented_context","universe":ctx.frame.universe,"kind":{"kind":"authored","label":"dream: Ambiguous story"},"parent":ctx.frame.context,"labels":{"en":"Ambiguous story"}}})).collect();
+        let context_rows = super::writing_connected::candidate_records(
+            workflow.kernel.universe(),
+            &ctx,
+            &original_rows,
+            &context_ops,
+        )
+        .unwrap();
+        assert!(super::writing_contexts::named_context(&context_rows, "Ambiguous story").is_none());
+        assert!(super::writing_contexts::named_context(&context_rows, "Absent story").is_none());
         workflow.scope = Some(BTreeSet::from([universe_store::kernel::record_world(
             &RecordId::parse("rec_00000000000000000000aa01").unwrap(),
         )]));
@@ -1099,6 +1116,11 @@ mod tests {
             assert_eq!(held["result"]["status"], "needs_clarification");
             assert!(held["result"]["candidate_handle"].is_null());
             assert!(held["result"]["validation"].is_null());
+        }
+        for name in ["Hidden story", "Absent story"] {
+            let held=workflow.execute(Request::from_tool("universe_check_changes",json!({"universe":"Writing","context_id":scoped["result"]["context_id"],"story_contexts":[{"name":name,"introduce":true,"kind":"dream","parent":"Absent parent","calendar":"Absent clock","story_time":"5"}]})).unwrap()).unwrap();
+            assert_eq!(held["result"]["status"], "needs_clarification");
+            assert!(held["result"]["candidate_handle"].is_null());
         }
         workflow.scope = None;
         let args = json!({"universe":"Writing","context_id":opened["result"]["context_id"],"changes":[{"name":"Mara","introduce":true,"facts":[{"property":"age","value":30,"scope":"universe"}]},{"name":"Blue pistol","introduce":true,"facts":[{"property":"owner","value":{"object":"Mara"}}]},{"name":"Imagined dragon","facts":[{"property":"colour","value":"red","statement":"belief"}]}]});

@@ -225,10 +225,11 @@ impl Fixture {
    Request::Describe(_) => Ok(Response::Describe(scope.wrap(Description{fixture:true,worlds:universe.worlds.clone(),capabilities:capabilities(),definition_ids:vec![],continuities:vec![]}))),
    Request::OpenContext(a) => {
     if self.contexts.len()>=128{return Err(limit())}
-    if a.continuity_id.as_str()!=id("cont",1) || a.represented_context.as_str()!=id("rec",90) || !matches!(a.temporal_query,FrameTime::Timeless) || !matches!(a.perspective,Perspective::Author) || !a.temporal_systems.is_empty() {return Err(unsupported("fixture supports main, objective, timeless author frame only"))}
+    let RepresentedContextSelector::Id(represented_context)=a.represented_context else{return Err(unsupported("fixture supports an objective context ID only"))};
+    if a.continuity_id.as_str()!=id("cont",1) || represented_context.as_str()!=id("rec",90) || !matches!(a.temporal_query,FrameTime::Timeless) || !matches!(a.perspective,Perspective::Author) || !a.temporal_systems.is_empty() {return Err(unsupported("fixture supports main, objective, timeless author frame only"))}
     if let RevisionSelector::Exact{revision_id}=&a.revision {if revision_id.as_str()!=id("rev",1){return Err(ProtocolError::not_found("revision"))}}
     let context_id=ContextId::parse(&self.allocate("ctx")).unwrap();
-    let frame=Frame{universe:universe.id.clone(),continuity:a.continuity_id,revision:RevisionId::parse(&id("rev",1)).unwrap(),context:RecordRef::new(universe.id.clone(),a.represented_context),time:a.temporal_query,perspective:a.perspective,reader_scene:a.reader_scene,personal_sequence:None};
+    let frame=Frame{universe:universe.id.clone(),continuity:a.continuity_id,revision:RevisionId::parse(&id("rev",1)).unwrap(),context:RecordRef::new(universe.id.clone(),represented_context),time:a.temporal_query,perspective:a.perspective,reader_scene:a.reader_scene,personal_sequence:None};
     self.contexts.insert(context_id.clone(),frame.clone());
     Ok(Response::OpenContext(Scope{frame:Some(frame.clone()),..scope}.wrap(OpenedContext{context_id,frame})))
    }

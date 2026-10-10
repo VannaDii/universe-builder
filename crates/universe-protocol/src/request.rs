@@ -149,7 +149,8 @@ pub struct OpenContext {
     pub universe_id: Option<UniverseId>,
     pub continuity_id: ContinuityId,
     pub revision: RevisionSelector,
-    pub represented_context: RecordId,
+    /// Existing opaque context identity, or an exact discovered context name. Ambiguous/inaccessible names are rejected.
+    pub represented_context: RepresentedContextSelector,
     pub temporal_query: FrameTime,
     pub temporal_systems: Vec<CalendarId>,
     pub perspective: Perspective,
@@ -162,6 +163,17 @@ pub struct OpenContext {
     pub reader_scene: Option<RecordId>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged, deny_unknown_fields)]
+pub enum RepresentedContextSelector {
+    Id(RecordId),
+    Name { name: String },
+}
+impl From<RecordId> for RepresentedContextSelector {
+    fn from(value: RecordId) -> Self {
+        Self::Id(value)
+    }
+}
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Search {

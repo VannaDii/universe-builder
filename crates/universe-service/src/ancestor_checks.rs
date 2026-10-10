@@ -295,7 +295,7 @@ fn indexed_retrieval_stays_pinned_to_store_historical_revisions() {
                 revision: universe_protocol::request::RevisionSelector::Exact {
                     revision_id: last.clone(),
                 },
-                represented_context: RecordId::parse(&id(99)).unwrap(),
+                represented_context: RecordId::parse(&id(99)).unwrap().into(),
                 temporal_query: serde_json::from_value(json!({"kind":"timeless"})).unwrap(),
                 temporal_systems: vec![],
                 perspective: universe_domain::Perspective::Author,
@@ -965,7 +965,7 @@ fn indexed_context_assembly_matches_full_scan_with_overlapping_history() {
                 revision: universe_protocol::request::RevisionSelector::Exact {
                     revision_id: revision.clone(),
                 },
-                represented_context: RecordId::parse(&id(99)).unwrap(),
+                represented_context: RecordId::parse(&id(99)).unwrap().into(),
                 temporal_query: serde_json::from_value(json!({"kind":"at","time":{"kind":"exact","calendar":"cal_000000000000000000000010","value":"15"}})).unwrap(),
                 temporal_systems: vec![CalendarId::parse("cal_000000000000000000000010").unwrap()],
                 perspective: universe_domain::Perspective::Author,
