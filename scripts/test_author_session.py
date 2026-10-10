@@ -833,6 +833,87 @@ class ConnectedWritingTests(unittest.TestCase):
                 self.assertIn(": 15",past["occurred_events"][0]["time"])
 
 
+
+            finally:
+                if client: client.close()
+                cli("shutdown",profile=author)
+
+    def test_silver_gate_named_changes_custody_and_receipt_timing(self):
+        """Bounded remaining story cases through default installed tools; no inference."""
+        import os
+        import subprocess
+        import tempfile
+        from pathlib import Path
+        from types import SimpleNamespace
+        from mcp_smoke import MCP
+        binaries=Path(os.environ.get("UB_TEST_BIN_DIR",Path(__file__).resolve().parents[1]/"target/debug")).resolve()
+        if not all((binaries/name).is_file() for name in ("universe","universe-engine","universe-mcp")):
+            self.skipTest("Build existing CLI/engine/MCP binaries for installed integration")
+        with tempfile.TemporaryDirectory(prefix="ub-silver-writing-",dir="/tmp") as temp:
+            installation=Path(temp)/"installation"
+            def cli(*args,profile=None):
+                argv=[str(binaries/"universe"),"--installation",str(installation)]
+                if profile: argv.extend(["--profile",profile])
+                result=subprocess.run([*argv,*args],capture_output=True,text=True,timeout=30)
+                self.assertEqual(result.returncode,0,result.stderr)
+                return result.stdout.strip()
+            author=cli("init");client=None
+            def publish(checked,text,key,contracts=False):
+                self.assertEqual(checked["status"],"checked_candidate",checked)
+                reviewed=decisions.action({"action":"prepare_contracts" if contracts else "prepare","candidate":checked["candidate_handle"],"label":"Gate passage","text":text})
+                self.assertTrue(reviewed["publishable"],reviewed)
+                args={"action":"publish","candidate":reviewed["candidate"],"validation_run":reviewed["validation"]["execution"]["run_id"],"idempotency_key":key}
+                receipt=decisions.action(args)
+                self.assertEqual(decisions.action(args)["result"],receipt["result"])
+                return receipt["result"]["revision"]
+            try:
+                # Remaining Silver Gate premises use plain named changes, not legacy
+                # knows_location Boolean proxies or supplied prose interpretations.
+                silver=json.loads((Path(__file__).resolve().parents[1]/"fixtures/silver-gate.json").read_text())
+                self.assertEqual([s["id"] for s in silver["scenarios"]],[f"S{n:02d}" for n in range(1,11)])
+                gate=json.loads(cli("create",silver["universe"],"--first-time","16","--calendar","Gate days","--tick-label","events",profile=author))
+                agent=json.loads(cli("enroll",profile=author))["profile_id"]
+                cli("grant",agent,gate["universe_id"],"--propose","--edit","--protected",profile=author)
+                client=MCP(binaries/"universe-mcp",installation=installation,profile=agent)
+                self.assertEqual(len(client.request("tools/list",{})["tools"]),11)
+                decisions=AuthorDecisions(SimpleNamespace(universe=silver["universe"]),binaries/"universe",installation,author,output=lambda _:None)
+                def gate_context(tick=None,revision=None):
+                    return client.call("universe_open_context",{"universe":silver["universe"],"continuity_id":gate["continuity_id"],"revision":revision or {"kind":"head"},"represented_context":gate["context_id"],"temporal_query":{"kind":"timeless"} if tick is None else {"kind":"at","time":{"kind":"exact","calendar":gate_calendar,"value":str(tick)}},"temporal_systems":[],"perspective":"author"})["result"]["context_id"]
+                def gate_check(**delta):
+                    return client.call("universe_check_changes",{"universe":silver["universe"],"context_id":gate_context(),**delta})["result"]
+                def gate_fact(property,value,start,end):
+                    return {"property":property,"value":value,"scope":"universe","at_tick":str(start),"lifetime":{"kind":"until","end_tick":str(end)}}
+                gate_calendar=client.call("universe_read_facts",{"universe":silver["universe"],"context_id":gate_context(),"object_names":["One seal"]})["result"]["clocks"][0]["calendar_id"]
+                initial=gate_check(properties=[{"name":name,"introduce":True,"value_type":kind,"single_value":True,"persistence":"explicit_interval"} for name,kind in (("holder","object"),("charged","boolean"),("seal_power","boolean"),("location","text"))],changes=[{"name":name,"introduce":True,"facts":[gate_fact("holder",{"object":"Mara"},0,17),gate_fact("charged",True,0,17)] if name=="One seal" else [gate_fact("location","beneath the ridge",0,40)] if name=="Silver gate" else []} for name in ("Mara","Iven","One seal","Silver gate")],item_powers=[{"item":"One seal","holder_property":"holder","ability_property":"seal_power","value":True,"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"17"}}],actions=[{"name":"Iven opens with the seal","introduce":True,"scope":"universe","requirements":[{"role":"seal","property":"holder","value":{"object":"Iven"}},{"role":"seal","property":"charged","value":True},{"role":"actor","property":"seal_power","value":True}]},{"name":"handover to Iven","introduce":True,"scope":"universe","effects":[{"role":"seal","property":"holder","change":{"kind":"set","value":{"object":"Iven"}},"lifetime":{"kind":"until_changed"}}]},{"name":"accidental arrival","introduce":True,"scope":"universe"},{"name":"later opening method","introduce":True,"scope":"universe","at_tick":"21","lifetime":{"kind":"until","end_tick":"40"}}],knowledge_policies=[{"kind":"knowledge","name":"gate receipts","mode":"justified"},{"kind":"channel","name":"gate speech","channel":"speech","forward_only":True}])
+                baseline=publish(initial,"Mara continuously holds the single charged seal through Event 16. The seal grants its holder the defined power; Iven's established opening requires his custody and the charged seal. Explicit handover changes the holder. Accidental arrival requires no knowledge. The new opening method applies only from Event 21.","silver-ordinary-premises",contracts=True)
+                opening={"action":"Iven opens with the seal","participants":{"actor":"Iven","seal":"One seal"},"at_tick":"16"}
+                denied=client.call("universe_check_changes",{"universe":silver["universe"],"context_id":gate_context(),"events":[opening]},error=True)
+                self.assertEqual(denied["code"],"INVALID_ARGUMENT",denied);self.assertEqual(denied["field"],"event.action.requirements",denied);self.assertIn("NotEstablished",denied["message"],denied)
+                missing=gate_check(events=[{**opening,"participants":{"actor":"Iven","seal":"Unknown seal"}}])
+                self.assertEqual(missing["status"],"needs_clarification",missing);self.assertIsNone(missing["candidate_handle"]);self.assertTrue(any("role" in q for q in missing["clarifications"]),missing)
+                spoken=gate_check(changes=[{"name":"One seal","facts":[{**gate_fact("holder",{"object":"Iven"},16,17),"statement":"dialogue"}]}])
+                self.assertEqual(spoken["status"],"no_changes",spoken);self.assertTrue(spoken["excluded"],spoken)
+                publish(gate_check(events=[{"action":"accidental arrival","participants":{"actor":"Iven"},"at_tick":"16"}]),"Iven arrives accidentally at Event 16 without acquiring the gate's exact location.","silver-ordinary-arrival")
+                claim={"subject":"Silver gate","property":"location","value":"beneath the ridge"}
+                publish(gate_check(messages=[{"label":"gate directions","from":"Mara","to":["Iven"],"received_by":["Iven"],"understood_by":["Iven"],"claim":claim,"channel":"speech","sent_tick":"17","received_tick":"18"}],attitudes=[{"holder":"Iven","attitude":"knows","claim":claim,"message":"gate directions","at_tick":"18","lifetime":{"kind":"until","end_tick":"30"}}]),"Iven receives and understands Mara's exact directions at Event 18 and knows them until Event 30.","silver-ordinary-knowledge")
+                communication=next(m for m in client.call("universe_read_contracts",{"universe":silver["universe"],"context_id":gate_context(18)})["result"]["communications"] if m["from"]=="Mara" and m["claims"][0]["property"]=="location")
+                early=gate_check(attitudes=[{"holder":"Iven","attitude":"knows","claim":claim,"message":communication["message_handle"],"at_tick":"16"}])
+                self.assertEqual(early["status"],"conflict",early);self.assertTrue(any(f["outcome"]=="refuted" for f in early["validation"]["execution"]["findings"]),early)
+                active=client.call("universe_read_contracts",{"universe":silver["universe"],"context_id":gate_context(16)})["result"]["attitudes"]
+                self.assertFalse(any(a["holder"]=="Iven" and a["attitude"]=="knows" and a["applicable"] is True for a in active),active)
+                fixed=gate_check(events=[{"action":"handover to Iven","participants":{"seal":"One seal"},"at_tick":"15"}])
+                self.assertEqual(fixed["status"],"conflict",fixed);self.assertTrue(any(f["outcome"]=="conflicting" for f in fixed["validation"]["execution"]["findings"]),fixed)
+                seal=client.call("universe_read_facts",{"universe":silver["universe"],"context_id":gate_context(16),"object_names":["One seal"]})["result"]["objects"][0]
+                custody=next(f for f in seal["facts"] if f["property"]=="holder")
+                transferred=gate_check(fact_endings=[{"fact_handle":custody["fact_handle"],"end_tick":"15","reason":"Explicitly end Mara's prior continuous custody before the off-page handover."}],events=[{"action":"handover to Iven","participants":{"seal":"One seal"},"at_tick":"15"},opening])
+                publish(transferred,"Mara's custody explicitly ends at fifteen; she hands the charged seal to Iven off page, and he opens with it at sixteen.","silver-ordinary-offpage-transfer")
+                now=client.call("universe_read_facts",{"universe":silver["universe"],"context_id":gate_context(16),"object_names":["One seal","Iven"]})["result"]["objects"]
+                self.assertTrue(any(f["property"]=="holder" and f["value"]=={"object":"Iven"} for f in now[0]["facts"]),now)
+                old=client.call("universe_read_facts",{"universe":silver["universe"],"context_id":gate_context(16,{"kind":"exact","revision_id":baseline}),"object_names":["One seal"]})["result"]["objects"][0]
+                self.assertTrue(any(f["property"]=="holder" and f["value"]=={"object":"Mara"} for f in old["facts"]),old)
+                unavailable=client.call("universe_check_changes",{"universe":silver["universe"],"context_id":gate_context(),"events":[{"action":"later opening method","participants":{"gate":"Silver gate"},"at_tick":"16"}]},error=True)
+                self.assertEqual(unavailable["code"],"INVALID_ARGUMENT",unavailable);self.assertEqual(unavailable["field"],"event.action",unavailable);self.assertIn("not explicitly active",unavailable["message"],unavailable)
+                publish(gate_check(events=[{"action":"later opening method","participants":{"gate":"Silver gate"},"at_tick":"22"}]),"The new opening method is used at Event 22, after its authored applicability starts.","silver-ordinary-later-method")
             finally:
                 if client: client.close()
                 cli("shutdown",profile=author)
