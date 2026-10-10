@@ -4760,7 +4760,7 @@ CREATE TABLE "r_issue_decision_mode" (
 
 CREATE TABLE "r_domain_operation" (
   __row_id INTEGER PRIMARY KEY,
-  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 57),
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 59),
   v0 INTEGER REFERENCES "r_domain_operation_v0"(__row_id),
   v1 INTEGER REFERENCES "r_domain_operation_v1"(__row_id),
   v2 INTEGER REFERENCES "r_domain_operation_v2"(__row_id),
@@ -4819,6 +4819,8 @@ CREATE TABLE "r_domain_operation" (
   v55 INTEGER REFERENCES "r_domain_operation_v55"(__row_id),
   v56 INTEGER REFERENCES "r_domain_operation_v56"(__row_id),
   v57 INTEGER REFERENCES "r_domain_operation_v57"(__row_id),
+  v58 INTEGER REFERENCES "r_domain_operation_v58"(__row_id),
+  v59 INTEGER REFERENCES "r_domain_operation_v59"(__row_id),
   CHECK(variant=0 OR v0 IS NULL),
   CHECK(variant!=0 OR v0 IS NOT NULL),
   CHECK(variant=1 OR v1 IS NULL),
@@ -4934,7 +4936,11 @@ CREATE TABLE "r_domain_operation" (
   CHECK(variant=56 OR v56 IS NULL),
   CHECK(variant!=56 OR v56 IS NOT NULL),
   CHECK(variant=57 OR v57 IS NULL),
-  CHECK(variant!=57 OR v57 IS NOT NULL)
+  CHECK(variant!=57 OR v57 IS NOT NULL),
+  CHECK(variant=58 OR v58 IS NULL),
+  CHECK(variant!=58 OR v58 IS NOT NULL),
+  CHECK(variant=59 OR v59 IS NULL),
+  CHECK(variant!=59 OR v59 IS NOT NULL)
 ) STRICT;
 
 CREATE TABLE "r_domain_operation_v0" (
@@ -7354,6 +7360,56 @@ CREATE TABLE "r_domain_operation_v57" (
   CHECK(("expected_version__state"=2 AND "expected_version" IS NOT NULL) OR ("expected_version__state" IN (0,1) AND "expected_version" IS NULL)),
   CHECK(("replacement__state"=2 AND "replacement" IS NOT NULL) OR ("replacement__state" IN (0,1) AND "replacement" IS NULL)),
   CHECK(("rationale__state"=2 AND "rationale" IS NOT NULL) OR ("rationale__state" IN (0,1) AND "rationale" IS NULL))
+) STRICT;
+
+CREATE TABLE "r_domain_operation_v58" (
+  __row_id INTEGER PRIMARY KEY,
+  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
+  "kind" TEXT,
+  "record__state" INTEGER NOT NULL CHECK("record__state" IN (2)),
+  "record" INTEGER REFERENCES "r_record_ref"(__row_id),
+  "expected_version__state" INTEGER NOT NULL CHECK("expected_version__state" IN (2)),
+  "expected_version" TEXT,
+  "replacement__state" INTEGER NOT NULL CHECK("replacement__state" IN (2)),
+  "replacement" INTEGER REFERENCES "r_communication"(__row_id),
+  "rationale__state" INTEGER NOT NULL CHECK("rationale__state" IN (2)),
+  "rationale" TEXT,
+  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
+  CHECK("kind"='revise_communication'),
+  CHECK(("record__state"=2 AND "record" IS NOT NULL) OR ("record__state" IN (0,1) AND "record" IS NULL)),
+  CHECK(("expected_version__state"=2 AND "expected_version" IS NOT NULL) OR ("expected_version__state" IN (0,1) AND "expected_version" IS NULL)),
+  CHECK(("replacement__state"=2 AND "replacement" IS NOT NULL) OR ("replacement__state" IN (0,1) AND "replacement" IS NULL)),
+  CHECK(("rationale__state"=2 AND "rationale" IS NOT NULL) OR ("rationale__state" IN (0,1) AND "rationale" IS NULL))
+) STRICT;
+
+CREATE TABLE "r_domain_operation_v59" (
+  __row_id INTEGER PRIMARY KEY,
+  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
+  "kind" TEXT,
+  "record__state" INTEGER NOT NULL CHECK("record__state" IN (2)),
+  "record" INTEGER REFERENCES "r_record_ref"(__row_id),
+  "expected_version__state" INTEGER NOT NULL CHECK("expected_version__state" IN (2)),
+  "expected_version" TEXT,
+  "interpretation__state" INTEGER NOT NULL CHECK("interpretation__state" IN (1,2)),
+  "interpretation" INTEGER REFERENCES "r_domain_operation_v59_interpretation"(__row_id),
+  "rationale__state" INTEGER NOT NULL CHECK("rationale__state" IN (2)),
+  "rationale" TEXT,
+  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
+  CHECK("kind"='revise_interpretation'),
+  CHECK(("record__state"=2 AND "record" IS NOT NULL) OR ("record__state" IN (0,1) AND "record" IS NULL)),
+  CHECK(("expected_version__state"=2 AND "expected_version" IS NOT NULL) OR ("expected_version__state" IN (0,1) AND "expected_version" IS NULL)),
+  CHECK(("interpretation__state"=2 AND "interpretation" IS NOT NULL) OR ("interpretation__state" IN (0,1) AND "interpretation" IS NULL)),
+  CHECK(("rationale__state"=2 AND "rationale" IS NOT NULL) OR ("rationale__state" IN (0,1) AND "rationale" IS NULL))
+) STRICT;
+
+CREATE TABLE "r_domain_operation_v59_interpretation" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_record_ref"(__row_id),
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
 ) STRICT;
 
 CREATE TABLE "r_stored_context" (
@@ -12085,6 +12141,18 @@ CREATE TRIGGER "r_domain_operation_v56_no_delete" BEFORE DELETE ON "r_domain_ope
 CREATE TRIGGER "r_domain_operation_v57_no_update" BEFORE UPDATE ON "r_domain_operation_v57" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_domain_operation_v57_no_delete" BEFORE DELETE ON "r_domain_operation_v57" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v58_no_update" BEFORE UPDATE ON "r_domain_operation_v58" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v58_no_delete" BEFORE DELETE ON "r_domain_operation_v58" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v59_no_update" BEFORE UPDATE ON "r_domain_operation_v59" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v59_no_delete" BEFORE DELETE ON "r_domain_operation_v59" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v59_interpretation_no_update" BEFORE UPDATE ON "r_domain_operation_v59_interpretation" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v59_interpretation_no_delete" BEFORE DELETE ON "r_domain_operation_v59_interpretation" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_stored_context_no_update" BEFORE UPDATE ON "r_stored_context" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 

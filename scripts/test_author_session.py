@@ -612,6 +612,25 @@ class ConnectedWritingTests(unittest.TestCase):
                 historical=facts(context(5,{"kind":"exact","revision_id":before_end_revision}))["facts"]
                 self.assertTrue(any(f["property"]=="locked" and f["state"]=="supported" for f in historical),historical)
 
+                messages=client.call("universe_read_contracts",{"universe":"Story","context_id":context(5)})["result"]["communications"]
+                receipt_message=next(m for m in messages if any(c["value"]=="green" for c in m["claims"]))
+                blocked=check(context(),message_corrections=[{"message_edit_handle":receipt_message["message_edit_handle"],"received_by":["Leon"],"reason":"A different actual recipient cannot establish Mara’s knowledge."}])
+                self.assertNotEqual(blocked["status"],"checked_candidate")
+                self.assertTrue(any(f["outcome"]!="supported" and "knowledge" in f["message"].lower() for f in blocked["validation"]["execution"]["findings"]),blocked)
+                knowledge_before=next(a for a in attributed if a["attitude"]=="knows")
+                missing_interpretation=check(context(),interpretation_corrections=[{"attitude_handle":knowledge_before["attitude_handle"],"clear_interpretation":True,"reason":"A historical missing interpretation cannot support knowledge."}])
+                self.assertNotEqual(missing_interpretation["status"],"checked_candidate")
+                message_revision=action_revision
+                revised=check(context(),message_corrections=[{"message_edit_handle":receipt_message["message_edit_handle"],"from":"Mara","to":["Mara"],"claims":[claim,{**claim,"value":"red"}],"reason":"Correct the historical sender/content without inventing another message."}],interpretation_corrections=[{"attitude_handle":knowledge_before["attitude_handle"],"interpretation":claim,"reason":"Explicitly retain the green interpreted claim from the corrected content."}])
+                publish(revised,"Mara sent herself the green and red claims; her interpreted green claim and actual prior receipt remain.","connected-message-correction")
+                read_after=client.call("universe_read_contracts",{"universe":"Story","context_id":context(5)})["result"]
+                new_message=next(m for m in read_after["communications"] if m["message_handle"]==receipt_message["message_handle"])
+                self.assertEqual(new_message["from"],"Mara")
+                self.assertNotEqual(new_message["message_edit_handle"],receipt_message["message_edit_handle"])
+                self.assertIsNone(check(context(),message_corrections=[{"message_edit_handle":receipt_message["message_edit_handle"],"clear_receipt":True,"reason":"Stale message handle."}])["candidate_handle"])
+                historical_message=next(m for m in client.call("universe_read_contracts",{"universe":"Story","context_id":context(5,{"kind":"exact","revision_id":message_revision})})["result"]["communications"] if m["message_handle"]==receipt_message["message_handle"])
+                self.assertEqual(historical_message["from"],receipt_message["from"])
+                attributed=read_after["attitudes"]
                 belief=next(a for a in attributed if a["holder"]=="Mara" and a["attitude"]=="believes")
                 knowledge=next(a for a in attributed if a["holder"]=="Mara" and a["attitude"]=="knows")
                 belief_patch=check(context(),attitude_corrections=[{"attitude_handle":belief["attitude_handle"],"value":"blue","certainty":"tentative","reason":"Historical correction: Mara's recorded belief was blue, not red."}])

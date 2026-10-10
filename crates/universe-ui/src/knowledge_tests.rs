@@ -308,6 +308,34 @@ async fn native_receipt_form_repairs_after_earlier_truth_correction() {
         read(&mut c, &historical, &repaired["client_ref"]).await["payload"]["validity"],
         stored["payload"]["validity"]
     );
+    let original_message = read(&mut c, &opened, &message["client_ref"]).await;
+    let corrected_message = crate::inspector_editor::operation(
+        &frame,
+        &original_message,
+        "message_received",
+        "6",
+        "Correct the historical receipt time",
+        Some(&clock),
+    )
+    .unwrap();
+    publish(
+        &mut c,
+        &opened,
+        json!([corrected_message]),
+        "manual-message-correction",
+    )
+    .await;
+    let message_context = open(&mut c, &u).await;
+    assert_eq!(
+        read(&mut c, &message_context, &message["client_ref"]).await["payload"]["receivedAt"]
+            ["value"],
+        "6"
+    );
+    assert_eq!(
+        read(&mut c, &opened, &message["client_ref"]).await["payload"],
+        original_message["payload"]
+    );
+    let opened = message_context;
     f.attitude = "believes".into();
     let belief = f.build(&frame, Some(&clock), &choices).unwrap();
     publish(&mut c, &opened, json!([belief]), "manual-belief").await;

@@ -408,6 +408,7 @@ impl Workflow<'_> {
                     });
                 }
             }
+            if matches!(op,DomainOperation::ReviseCommunication{..}|DomainOperation::ReviseInterpretation{..}) {return false;}
             if let DomainOperation::ReviseAttitude {record,expected_version,replacement,..}=op {
                 let Some(original)=originals.iter().find(|r|r.identity.record_id==record.record && &r.record_version_id==expected_version) else{return true;};
                 let Payload::EpistemicAttitude(old)=&original.payload else{return true;};
@@ -698,6 +699,13 @@ impl Workflow<'_> {
         };
         let mut summary = vec![];
         let mut factual_edits = BTreeSet::new();
+        for op in &p.operations {
+            match op {
+                DomainOperation::ReviseCommunication{record,replacement,rationale,..}=>summary.push(format!("Historical message correction: {}; sender {}; intended recipients {}; actual recipients {}; sent {}; received {}; channel {}; distortion {}; content {}; reason: {}. Dependent knowledge/actions are rechecked; a later message is a separate declaration.",label(&record.record).unwrap_or_else(||"message".into()),label(&replacement.sender.record).unwrap_or_else(||"unresolved".into()),replacement.intended_recipients.iter().filter_map(|r|label(&r.record)).collect::<Vec<_>>().join(", "),replacement.actual_recipients.iter().filter_map(|r|label(&r.record)).collect::<Vec<_>>().join(", "),writing::plain_time(&json!(replacement.sent_at),&label),replacement.received_at.as_ref().map(|v|writing::plain_time(&json!(v),&label)).unwrap_or_else(||"no established receipt".into()),replacement.channel.as_deref().unwrap_or("unspecified"),replacement.distorted,replacement.content.iter().map(|v|describe_claim(v).to_string()).collect::<Vec<_>>().join("; "),rationale)),
+                DomainOperation::ReviseInterpretation{interpretation,rationale,..}=>summary.push(format!("Historical justified interpretation correction: {}; holder, message, acquisition time and basis retained; reason: {}",interpretation.as_ref().map(|v|describe_claim(v).to_string()).unwrap_or_else(||"interpretation removed; knowledge may become unsupported".into()),rationale)),_=>()
+            }
+        }
+
         for op in &p.operations {
             if let DomainOperation::ReviseAttitude {
                 record,

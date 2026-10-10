@@ -19,11 +19,95 @@ pub(super) fn operation(
                 .into(),
         );
     }
-    if value.trim().is_empty() && action != "retract_assertion" {
+    if value.trim().is_empty() && action != "retract_assertion" && !action.contains("clear_") {
         return Err("Enter a value before adding this change.".into());
     }
     let mut op = json!({"kind":action,"record":{"universe":frame.universe,"record":selected["identity"]["record_id"]},"expected_version":selected["record_version_id"]});
     match action {
+        "message_sender"
+        | "message_to"
+        | "message_received_by"
+        | "message_clear_to"
+        | "message_clear_recipients"
+        | "message_content"
+        | "message_sent"
+        | "message_received"
+        | "message_clear_receipt"
+        | "message_channel"
+        | "message_clear_channel"
+        | "message_distorted" => {
+            if selected["payload"]["record_kind"] != "communication" || reason.trim().is_empty() {
+                return Err(
+                    "Inspect the original message and explain its historical correction".into(),
+                );
+            }
+            let mut replacement = selected["payload"].clone();
+            replacement.as_object_mut().unwrap().remove("record_kind");
+            let reference = json!({"universe":frame.universe,"record":value});
+            match action {
+                "message_sender" => replacement["sender"] = reference,
+                "message_to" => replacement["intendedRecipients"] = json!([reference]),
+                "message_received_by" => replacement["actualRecipients"] = json!([reference]),
+                "message_clear_to" => replacement["intendedRecipients"] = json!([]),
+                "message_clear_recipients" => replacement["actualRecipients"] = json!([]),
+                "message_content" => replacement["content"] = json!([reference]),
+                "message_clear_receipt" => replacement["receivedAt"] = Value::Null,
+                "message_clear_channel" => replacement["channel"] = Value::Null,
+                "message_channel" => replacement["channel"] = json!(value),
+                "message_distorted" => {
+                    replacement["distorted"] =
+                        json!(value.parse::<bool>().map_err(|_| "Choose true or false")?)
+                }
+                _ => {
+                    let field = if action == "message_sent" {
+                        "sentAt"
+                    } else {
+                        "receivedAt"
+                    };
+                    let original = if replacement[field].is_null() {
+                        &replacement["sentAt"]
+                    } else {
+                        &replacement[field]
+                    };
+                    if original["kind"] != "exact" {
+                        return Err("Use advanced authoring for non-exact message time".into());
+                    }
+                    let tick = if let Some(c) =
+                        clock.filter(|c| original["calendar"] == c.calendar.as_str())
+                    {
+                        c.coordinate(value)?
+                    } else {
+                        value
+                            .parse::<i128>()
+                            .map_err(|_| "Enter exact authored tick")?
+                            .to_string()
+                    };
+                    replacement[field] =
+                        json!({"kind":"exact","calendar":original["calendar"],"value":tick});
+                }
+            }
+            op["kind"] = json!("revise_communication");
+            op["replacement"] = replacement;
+            op["rationale"] = json!(reason);
+        }
+        "knowledge_interpretation" | "knowledge_clear_interpretation" => {
+            if selected["payload"]["attitude"] != "knows"
+                || selected["payload"]["acquisition"]["basis"]["kind"] != "communication_receipt"
+                || reason.trim().is_empty()
+            {
+                return Err(
+                    "Only existing justified receipt interpretation is editable here; explain it"
+                        .into(),
+                );
+            }
+            op["kind"] = json!("revise_interpretation");
+            op["interpretation"] = if action == "knowledge_clear_interpretation" {
+                Value::Null
+            } else {
+                json!({"universe":frame.universe,"record":value})
+            };
+            op["rationale"] = json!(reason);
+        }
         "definition_label"
         | "property_multiplicity"
         | "property_persistence"
@@ -514,6 +598,46 @@ pub fn InspectorEditor(
             ("rename_world_selector", "Rename this world"),
             ("add_world_alias", "Add a world alias"),
         ],
+        "communication" => vec![
+            ("", "Keep historical message"),
+            ("message_sender", "Correct sender"),
+            (
+                "message_to",
+                "Replace intended recipients with one selected person",
+            ),
+            (
+                "message_received_by",
+                "Replace actual recipients with one selected person",
+            ),
+            ("message_clear_to", "Explicitly clear intended recipients"),
+            (
+                "message_clear_recipients",
+                "Explicitly clear actual recipients",
+            ),
+            ("message_content", "Replace content with selected claim"),
+            ("message_sent", "Correct sent time"),
+            ("message_received", "Correct receipt time"),
+            ("message_clear_receipt", "Explicitly remove receipt"),
+            ("message_channel", "Correct channel"),
+            ("message_clear_channel", "Explicitly remove channel"),
+            ("message_distorted", "Correct transmission distortion"),
+        ],
+        "epistemic_attitude"
+            if selected["payload"]["attitude"] == "knows"
+                && selected["payload"]["acquisition"]["basis"]["kind"]
+                    == "communication_receipt" =>
+        {
+            vec![
+                ("", "Keep recorded knowledge"),
+                ("attitude_start", "Correct knowledge interval start"),
+                ("attitude_end", "Explicitly end knowledge duration"),
+                ("knowledge_interpretation", "Correct interpreted claim"),
+                (
+                    "knowledge_clear_interpretation",
+                    "Explicitly remove interpretation",
+                ),
+            ]
+        }
         "epistemic_attitude" if selected["payload"]["attitude"] == "knows" => vec![
             ("", "Keep recorded knowledge"),
             ("attitude_start", "Correct knowledge interval start"),
@@ -652,6 +776,12 @@ pub fn InspectorEditor(
             p{"This revises the type's ancestry; it does not reclassify or replace its instances. Existing inheritance, initialization and action constraints are rechecked."}
             label{r#for:"inspector-parent","Authored parent"}
             super::select::RichSelect{id:"inspector-parent",disabled,value:value(),options:{let mut options=super::select::record_choices(&choices,&["entity_type"],"Choose explicitly");options.insert(1,super::select::Choice::new("none","Explicit root — no parent"));options},onchange:move|e:super::select::SelectionEvent|value.set(e.value())}
+        }else if action().starts_with("message_") || action().starts_with("knowledge_"){
+            p{"Correct the recorded historical communication or justified interpretation. A later communication is a separate declaration. Existing knowledge/actions are rechecked; no acquisition or dependent repair is inferred."}
+            if ["message_sender","message_to","message_received_by"].contains(&action().as_str()){label{r#for:"inspector-message-person","Explicit replacement participant"}super::select::RichSelect{id:"inspector-message-person",disabled,value:value(),options:super::select::record_choices(&choices,&["entity"],"Choose person"),onchange:move|e:super::select::SelectionEvent|value.set(e.value())}}
+            else if ["message_content","knowledge_interpretation"].contains(&action().as_str()){label{r#for:"inspector-message-claim","Explicit replacement claim"}super::select::RichSelect{id:"inspector-message-claim",disabled,value:value(),options:super::select::record_choices(&choices,&["proposition"],"Choose claim"),onchange:move|e:super::select::SelectionEvent|value.set(e.value())}}
+            else if action()=="message_distorted"{label{r#for:"inspector-message-distortion","Transmission distorted"}super::select::RichSelect{id:"inspector-message-distortion",disabled,value:value(),options:super::select::choices(&[("","Choose explicitly"),("true","True"),("false","False")]),onchange:move|e:super::select::SelectionEvent|value.set(e.value())}}
+            else if !action().contains("clear_"){label{r#for:"inspector-message-value","Explicit channel or authored date/tick"}input{id:"inspector-message-value",disabled,value,oninput:move|e|value.set(e.value())}}
         }else if action().starts_with("attitude_"){
             p{"This edits the recorded historical attitude. A later change or loss needs a separate declaration. Stance, holder, acquisition and basis stay unchanged; knowledge accepts duration edits only and requires actual author review."}
             if action()=="attitude_value" && attitude_value_kind=="boolean"{label{r#for:"inspector-attitude-bool","Historical attributed value"}super::select::RichSelect{id:"inspector-attitude-bool",disabled,value:value(),options:super::select::choices(&[("","Choose explicitly"),("true","True"),("false","False")]),onchange:move|e:super::select::SelectionEvent|value.set(e.value())}}else if action()=="attitude_value" && attitude_value_kind=="entity_ref"{label{r#for:"inspector-attitude-object","Historical attributed object"}super::select::RichSelect{id:"inspector-attitude-object",disabled,value:value(),options:super::select::record_choices(&choices,&["entity"],"Choose object"),onchange:move|e:super::select::SelectionEvent|value.set(e.value())}}else if action()!="attitude_clear_certainty"{label{r#for:"inspector-attitude-value","Explicit replacement value, certainty or authored date/tick"}input{id:"inspector-attitude-value",disabled,value,oninput:move|e|value.set(e.value())}}
@@ -692,7 +822,7 @@ pub fn InspectorEditor(
         }
         if action()=="end_assertion_at"{p{"This ends the authored interval; support before the end remains."}}
         if action()=="retract_assertion"{p{"This withdraws the assertion from the new revision. It does not claim the opposite; earlier revisions remain available."}}
-        if action().starts_with("attitude_") || action().starts_with("power_") || action().starts_with("policy_") || ["end_assertion_at","retract_assertion"].contains(&action().as_str()){
+        if action().starts_with("message_") || action().starts_with("knowledge_") || action().starts_with("attitude_") || action().starts_with("power_") || action().starts_with("policy_") || ["end_assertion_at","retract_assertion"].contains(&action().as_str()){
             label{r#for:"inspector-reason","Reason"}textarea{id:"inspector-reason",disabled,value:reason,oninput:move|e|reason.set(e.value())}
         }
         button{class:"secondary",disabled:disabled||action().is_empty(),onclick:move|_|match if action()=="attitude_value"{attitude_value_operations(&frame,&selected,&evidence,&value(),&reason(),clock.as_ref())}else if action()=="add_name"{name_operation(&frame,&selected,&name(),clock.as_ref()).map(|v|vec![v])}else if action().starts_with("role_")||action().starts_with("relation_"){contract_operation(&frame,&selected,&action(),&role(),&value()).map(|v|vec![v])}else{operation(&frame,&selected,&action(),&value(),&reason(),clock.as_ref()).map(|v|vec![v])}{Ok(op)=>{onadd.call(op);error.set(String::new());},Err(e)=>error.set(e)},"Add inspected change to draft"}

@@ -2269,6 +2269,20 @@
           },
           "default": []
         },
+        "message_corrections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingMessageCorrection"
+          },
+          "default": []
+        },
+        "interpretation_corrections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingInterpretationCorrection"
+          },
+          "default": []
+        },
         "definition_corrections": {
           "description": "Incremental ancestry/applicability revisions; omitted fields keep authored metadata. Requires private contract review.",
           "type": "array",
@@ -3313,6 +3327,148 @@
             "reason"
           ]
         },
+        "WritingMessageCorrection": {
+          "description": "Correct this historical message; omitted fields remain authored. Later communication uses messages instead.",
+          "type": "object",
+          "properties": {
+            "message_edit_handle": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "from": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "to": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              },
+              "default": null
+            },
+            "received_by": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              },
+              "default": null
+            },
+            "claims": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/$defs/WritingClaim"
+              },
+              "default": null
+            },
+            "channel": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "clear_channel": {
+              "type": "boolean",
+              "default": false
+            },
+            "sent_tick": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "received_tick": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "clear_receipt": {
+              "type": "boolean",
+              "default": false
+            },
+            "distorted": {
+              "type": [
+                "boolean",
+                "null"
+              ],
+              "default": null
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "message_edit_handle",
+            "reason"
+          ]
+        },
+        "WritingClaim": {
+          "type": "object",
+          "properties": {
+            "subject": {
+              "type": "string"
+            },
+            "property": {
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/$defs/FactValue"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "subject",
+            "property",
+            "value"
+          ]
+        },
+        "WritingInterpretationCorrection": {
+          "description": "Explicit justified-receipt interpretation correction. No knowledge promotion or automatic acquisition.",
+          "type": "object",
+          "properties": {
+            "attitude_handle": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "interpretation": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/WritingClaim"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "clear_interpretation": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "attitude_handle",
+            "reason"
+          ]
+        },
         "WritingDefinitionCorrection": {
           "type": "object",
           "properties": {
@@ -4101,26 +4257,6 @@
           "required": [
             "holder",
             "claim"
-          ]
-        },
-        "WritingClaim": {
-          "type": "object",
-          "properties": {
-            "subject": {
-              "type": "string"
-            },
-            "property": {
-              "type": "string"
-            },
-            "value": {
-              "$ref": "#/$defs/FactValue"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "subject",
-            "property",
-            "value"
           ]
         },
         "WritingEventCorrection": {
@@ -29855,6 +29991,72 @@
               ]
             },
             {
+              "description": "Exact historical communication correction; does not declare a later message.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/Communication"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_communication"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
+              ]
+            },
+            {
+              "description": "Explicit correction of justified receipt interpretation; preserves holder, acquisition time/context/message and evidence basis.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "interpretation": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_interpretation"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "rationale"
+              ]
+            },
+            {
               "description": "Historical attitude correction; stance, holder, acquisition and basis stay unchanged. Knows permits duration edits only.",
               "type": "object",
               "properties": {
@@ -42715,6 +42917,72 @@
               ]
             },
             {
+              "description": "Exact historical communication correction; does not declare a later message.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/Communication"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_communication"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
+              ]
+            },
+            {
+              "description": "Explicit correction of justified receipt interpretation; preserves holder, acquisition time/context/message and evidence basis.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "interpretation": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_interpretation"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "rationale"
+              ]
+            },
+            {
               "description": "Historical attitude correction; stance, holder, acquisition and basis stay unchanged. Knows permits duration edits only.",
               "type": "object",
               "properties": {
@@ -51572,6 +51840,72 @@
                 "kind",
                 "client_ref",
                 "record"
+              ]
+            },
+            {
+              "description": "Exact historical communication correction; does not declare a later message.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/Communication"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_communication"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
+              ]
+            },
+            {
+              "description": "Explicit correction of justified receipt interpretation; preserves holder, acquisition time/context/message and evidence basis.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "interpretation": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_interpretation"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "rationale"
               ]
             },
             {
@@ -60643,6 +60977,72 @@
                 "kind",
                 "client_ref",
                 "record"
+              ]
+            },
+            {
+              "description": "Exact historical communication correction; does not declare a later message.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/Communication"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_communication"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
+              ]
+            },
+            {
+              "description": "Explicit correction of justified receipt interpretation; preserves holder, acquisition time/context/message and evidence basis.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "interpretation": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_interpretation"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "rationale"
               ]
             },
             {
@@ -74377,6 +74777,72 @@
               ]
             },
             {
+              "description": "Exact historical communication correction; does not declare a later message.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/Communication"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_communication"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
+              ]
+            },
+            {
+              "description": "Explicit correction of justified receipt interpretation; preserves holder, acquisition time/context/message and evidence basis.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "interpretation": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_interpretation"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "rationale"
+              ]
+            },
+            {
               "description": "Historical attitude correction; stance, holder, acquisition and basis stay unchanged. Knows permits duration edits only.",
               "type": "object",
               "properties": {
@@ -84237,6 +84703,72 @@
                 "kind",
                 "client_ref",
                 "record"
+              ]
+            },
+            {
+              "description": "Exact historical communication correction; does not declare a later message.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/Communication"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_communication"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
+              ]
+            },
+            {
+              "description": "Explicit correction of justified receipt interpretation; preserves holder, acquisition time/context/message and evidence basis.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "interpretation": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RecordRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_interpretation"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "rationale"
               ]
             },
             {

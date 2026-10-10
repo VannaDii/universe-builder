@@ -181,6 +181,160 @@ pub(super) fn define(
     operations.push(json!({"kind":"define_proposition","client_ref":id,"record":p}));
     reference(u, &id)
 }
+pub(super) fn message_edit(
+    u: &UniverseId,
+    rows: &[RecordVersion],
+    frame: &Frame,
+    patch: &WritingMessageCorrection,
+) -> anyhow::Result<Vec<Value>> {
+    let original = rows
+        .iter()
+        .find(|r| {
+            r.record_version_id.as_str() == patch.message_edit_handle
+                && matches!(r.payload, Payload::Communication(_))
+        })
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "Retrieve the current author-visible message_edit_handle before editing"
+            )
+        })?;
+    let Payload::Communication(old) = &original.payload else {
+        unreachable!()
+    };
+    if patch.reason.trim().is_empty() {
+        anyhow::bail!("Explain the historical message correction");
+    }
+    if (patch.clear_channel && patch.channel.is_some())
+        || (patch.clear_receipt && patch.received_tick.is_some())
+    {
+        anyhow::bail!("Choose a replacement or explicit removal, not both");
+    }
+    let names = |values: &Vec<String>| -> anyhow::Result<Vec<RecordRef>> {
+        values
+            .iter()
+            .map(|name| {
+                object(rows, name, frame)
+                    .map(|id| reference(u, &id))
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("Which exact communication participant is '{name}'?")
+                    })
+            })
+            .collect()
+    };
+    let mut new = old.clone();
+    let mut ops = vec![];
+    if let Some(name) = &patch.from {
+        new.sender = names(&vec![name.clone()])?.remove(0);
+    }
+    if let Some(v) = &patch.to {
+        new.intended_recipients = names(v)?;
+    }
+    if let Some(v) = &patch.received_by {
+        new.actual_recipients = names(v)?;
+    }
+    if let Some(v) = &patch.claims {
+        if old.content.iter().any(|id| {
+            !rows.iter().any(|r| {
+                r.identity.record_id == id.record
+                    && matches!(&r.payload,Payload::Proposition(p) if p.context==frame.context)
+            })
+        }) {
+            anyhow::bail!("Select the original message claim context before editing content");
+        }
+        new.content = v
+            .iter()
+            .map(|v| claim(u, rows, frame, v).map(|p| define(&mut ops, u, &p, rows)))
+            .collect::<anyhow::Result<_>>()?;
+    }
+    if patch.clear_channel {
+        new.channel = None;
+    } else if let Some(v) = &patch.channel {
+        new.channel = Some(v.clone());
+    }
+    let changed_time =
+        |old: &TemporalExpression, tick: &str| -> anyhow::Result<TemporalExpression> {
+            let TemporalExpression::Exact { calendar, .. } = old else {
+                anyhow::bail!(
+                "This message time is not an exact authored calendar time; use advanced authoring"
+            );
+            };
+            Ok(TemporalExpression::Exact {
+                calendar: calendar.clone(),
+                value: tick.into(),
+            })
+        };
+    if let Some(v) = &patch.sent_tick {
+        new.sent_at = changed_time(&old.sent_at, v)?;
+    }
+    if patch.clear_receipt {
+        new.received_at = None;
+    } else if let Some(v) = &patch.received_tick {
+        new.received_at = Some(changed_time(
+            old.received_at.as_ref().unwrap_or(&old.sent_at),
+            v,
+        )?);
+    }
+    if let Some(v) = patch.distorted {
+        new.distorted = v;
+    }
+    if new == *old {
+        anyhow::bail!(
+            "Specify a changed historical message field; a later message is a separate declaration"
+        );
+    }
+    ops.push(json!({"kind":"revise_communication","record":reference(u,&original.identity.record_id),"expected_version":original.record_version_id,"replacement":new,"rationale":patch.reason}));
+    Ok(ops)
+}
+
+pub(super) fn interpretation_edit(
+    u: &UniverseId,
+    rows: &[RecordVersion],
+    frame: &Frame,
+    patch: &WritingInterpretationCorrection,
+) -> anyhow::Result<Vec<Value>> {
+    let original = rows
+        .iter()
+        .find(|r| {
+            r.record_version_id.as_str() == patch.attitude_handle
+                && matches!(r.payload, Payload::EpistemicAttitude(_))
+        })
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "Retrieve the current author-visible attitude handle before editing interpretation"
+            )
+        })?;
+    let Payload::EpistemicAttitude(old) = &original.payload else {
+        unreachable!()
+    };
+    let Some(acquisition) = &old.acquisition else {
+        anyhow::bail!("No justified receipt acquisition to correct");
+    };
+    if old.attitude != EpistemicAttitudeKind::Knows
+        || !matches!(
+            acquisition.basis,
+            KnowledgeBasis::CommunicationReceipt { .. }
+        )
+        || acquisition.truth_context != frame.context
+    {
+        anyhow::bail!(
+            "Select the original context of existing justified communication-receipt knowledge"
+        );
+    }
+    if patch.reason.trim().is_empty()
+        || patch.clear_interpretation == patch.interpretation.is_some()
+    {
+        anyhow::bail!("Select an explicit interpretation claim or remove interpretation, and explain the historical correction");
+    }
+    let mut ops = vec![];
+    let interpreted = patch
+        .interpretation
+        .as_ref()
+        .map(|v| claim(u, rows, frame, v).map(|p| define(&mut ops, u, &p, rows)))
+        .transpose()?;
+    ops.push(json!({"kind":"revise_interpretation","record":reference(u,&original.identity.record_id),"expected_version":original.record_version_id,"interpretation":interpreted,"rationale":patch.reason}));
+    Ok(ops)
+}
+
 pub(super) fn attitude_edit(
     u: &UniverseId,
     rows: &[RecordVersion],
@@ -440,6 +594,8 @@ impl Workflow<'_> {
             && input.messages.is_empty()
             && input.attitudes.is_empty()
             && input.attitude_corrections.is_empty()
+            && input.message_corrections.is_empty()
+            && input.interpretation_corrections.is_empty()
             && input.corrections.is_empty()
             && input.fact_endings.is_empty()
             && input.fact_withdrawals.is_empty()
@@ -449,6 +605,43 @@ impl Workflow<'_> {
         let u = self.kernel.universe();
         let mut rows = candidate_records(u, ctx, base, operations)?;
         let mut edited = std::collections::BTreeSet::new();
+        for patch in &input.message_corrections {
+            if !edited.insert(&patch.message_edit_handle) {
+                result
+                    .clarifications
+                    .push("Edit each message once per delta".into());
+                continue;
+            }
+            match message_edit(u, &rows, &ctx.frame, patch) {
+                Ok(ops) => {
+                    operations.extend(ops);
+                    result.additions.push(format!(
+                        "Historical communication correction: {}",
+                        patch.reason
+                    ));
+                }
+                Err(e) => result.clarifications.push(e.to_string()),
+            }
+        }
+        rows = candidate_records(u, ctx, base, operations)?;
+        for patch in &input.interpretation_corrections {
+            if !edited.insert(&patch.attitude_handle) {
+                result
+                    .clarifications
+                    .push("Edit each recorded attitude once per delta".into());
+                continue;
+            }
+            match interpretation_edit(u, &rows, &ctx.frame, patch) {
+                Ok(ops) => {
+                    operations.extend(ops);
+                    result.additions.push(format!(
+                        "Historical interpretation correction: {}",
+                        patch.reason
+                    ));
+                }
+                Err(e) => result.clarifications.push(e.to_string()),
+            }
+        }
         for patch in &input.attitude_corrections {
             if !edited.insert(&patch.attitude_handle) {
                 result
@@ -924,7 +1117,7 @@ if let Some(p)=&r.knowledge_policy{if p.context==ctx.frame.context{policies.push
                 let p=rows.iter().find(|r|r.identity.record_id==a.proposition.record).and_then(|r|if let Payload::Proposition(p)=&r.payload{Some(p)}else{None});
                 attitudes.push(json!({"attitude_handle":if matches!(ctx.frame.perspective,Perspective::Author){Some(&row.record_version_id)}else{None},"certainty":a.certainty,"holder":name(&a.holder.record),"attitude":a.attitude,"claim":p.map(|p|json!({"subject":name(&p.subject.record),"property":name(&p.predicate.record),"value":p.value.as_ref().and_then(|v|plain_value(v,&name))})),"time":plain_time(&json!(a.validity),&name),"applicable":universe_rules::events::applies(&a.validity,&ctx.frame.time,&rows),"message_handle":a.acquisition.as_ref().and_then(|a|if let KnowledgeBasis::CommunicationReceipt{communication,..}=&a.basis{Some(communication.record.clone())}else{None}),"limitation":"Attributed attitude; knowledge eligibility remains subject to existing truth/acquisition evaluator."}));
             },
-            Payload::Communication(c)=>messages.push(json!({"message_handle":row.identity.record_id,"from":name(&c.sender.record),"received_by":c.actual_recipients.iter().filter_map(|r|name(&r.record)).collect::<Vec<_>>(),"sent_at":plain_time(&json!(c.sent_at),&name),"received_at":c.received_at.as_ref().map(|t|plain_time(&json!(t),&name)),"distorted":c.distorted,"claims":c.content.iter().filter_map(|p|rows.iter().find(|r|r.identity.record_id==p.record)).filter_map(|r|if let Payload::Proposition(p)=&r.payload{Some(json!({"subject":name(&p.subject.record),"property":name(&p.predicate.record),"value":p.value.as_ref().and_then(|v|plain_value(v,&name))}))}else{None}).collect::<Vec<_>>()})),_=>()
+            Payload::Communication(c)=>messages.push(json!({"message_handle":row.identity.record_id,"message_edit_handle":if matches!(ctx.frame.perspective,Perspective::Author){Some(&row.record_version_id)}else{None},"channel":c.channel,"to":c.intended_recipients.iter().filter_map(|r|name(&r.record)).collect::<Vec<_>>(),"from":name(&c.sender.record),"received_by":c.actual_recipients.iter().filter_map(|r|name(&r.record)).collect::<Vec<_>>(),"sent_at":plain_time(&json!(c.sent_at),&name),"received_at":c.received_at.as_ref().map(|t|plain_time(&json!(t),&name)),"distorted":c.distorted,"claims":c.content.iter().filter_map(|p|rows.iter().find(|r|r.identity.record_id==p.record)).filter_map(|r|if let Payload::Proposition(p)=&r.payload{Some(json!({"subject":name(&p.subject.record),"property":name(&p.predicate.record),"value":p.value.as_ref().and_then(|v|plain_value(v,&name))}))}else{None}).collect::<Vec<_>>()})),_=>()
         }
         }
         self.wrap(&args,Some(ctx.frame.clone()),None,true,None,json!({"actions":actions,"units":units,"knowledge_policies":policies,"channels":channels,"communications":messages,"attitudes":attitudes,"constraints":constraints,"exhaustive_sets":exhaustive_sets,"relations":relations,"relation_limits":relation_limits,"relationships":relationships,"item_powers":item_powers,"properties":properties,"coverage":if self.scope.is_some() || !matches!(ctx.frame.perspective,Perspective::Author){"restricted"}else{"bounded"},"limitation":"Visible pinned authored declarations; absent contracts are unknown. Effects are computed and checked by the engine. Interpretation alone does not establish knowledge."}))

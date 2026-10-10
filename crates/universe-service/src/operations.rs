@@ -531,6 +531,8 @@ pub(crate) fn compile_allocated(
             | ReviseDefinition { .. }
             | ReviseItemPower { .. }
             | ReviseAttitude { .. }
+            | ReviseCommunication { .. }
+            | ReviseInterpretation { .. }
             | AdoptRecordVersion { .. }
             | ReviseEvent { .. }
             | UpgradePack { .. }
@@ -620,6 +622,89 @@ pub(crate) fn compile_allocated(
                 let mut e = replacement.clone();
                 e.expansion_version = Some(universe_rules::events::EXPANSION.into());
                 (record, expected_version, Some(Payload::Event(e)))
+            }
+            ReviseCommunication {
+                record,
+                expected_version,
+                replacement,
+                rationale,
+            } => {
+                let Payload::Communication(old) =
+                    &current(&records, u, record, expected_version)?.payload
+                else {
+                    return Err(invalid("expected historical communication"));
+                };
+                if rationale.trim().is_empty() {
+                    return Err(invalid("Explain the historical message correction"));
+                }
+                let clock = |v: &universe_domain::temporal::TemporalExpression| match v {
+                    universe_domain::temporal::TemporalExpression::Exact { calendar, .. } => {
+                        Some(calendar.clone())
+                    }
+                    _ => None,
+                };
+                if clock(&old.sent_at).is_some()
+                    && clock(&old.sent_at) != clock(&replacement.sent_at)
+                {
+                    return Err(invalid("Retain the message's authored sent calendar"));
+                }
+                if let (Some(before), Some(after)) = (&old.received_at, &replacement.received_at) {
+                    if clock(before).is_some() && clock(before) != clock(after) {
+                        return Err(invalid("Retain the message's authored receipt calendar"));
+                    }
+                }
+                (
+                    record,
+                    expected_version,
+                    Some(Payload::Communication(replacement.clone())),
+                )
+            }
+            ReviseInterpretation {
+                record,
+                expected_version,
+                interpretation,
+                rationale,
+            } => {
+                let Payload::EpistemicAttitude(old) =
+                    &current(&records, u, record, expected_version)?.payload
+                else {
+                    return Err(invalid("expected recorded knowledge"));
+                };
+                if old.attitude != EpistemicAttitudeKind::Knows || rationale.trim().is_empty() {
+                    return Err(invalid("Interpretation correction requires existing knowledge and an author reason"));
+                }
+                let mut new = old.clone();
+                let Some(acquisition) = new.acquisition.as_mut() else {
+                    return Err(invalid("No justified receipt acquisition to correct"));
+                };
+                let KnowledgeBasis::CommunicationReceipt {
+                    interpretation: target,
+                    ..
+                } = &mut acquisition.basis
+                else {
+                    return Err(invalid(
+                        "Only justified communication receipt interpretation is editable here",
+                    ));
+                };
+                *target = interpretation.clone();
+                if let Some(value) = interpretation {
+                    let proposition = records
+                        .get(&value.record)
+                        .or_else(|| created.get(&value.record))
+                        .filter(|_| value.resolve_namespace(u).is_ok());
+                    if !matches!(proposition.map(|r|&r.payload),Some(Payload::Proposition(p)) if p.context==acquisition.truth_context)
+                    {
+                        return Err(invalid(
+                            "Select an interpretation claim in the original acquisition context",
+                        ));
+                    }
+                    new.proposition = value.clone();
+                }
+                (
+                    record,
+                    expected_version,
+                    Some(Payload::EpistemicAttitude(new)),
+                )
             }
             ReviseAttitude {
                 record,

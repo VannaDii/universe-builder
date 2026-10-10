@@ -3008,6 +3008,36 @@ fn research_label(r: &RecordVersion, visible: &[RecordVersion], author: bool) ->
             return format!("{} — {}", label(item), label(ability));
         }
     }
+    if let (true, Payload::Communication(c)) = (author, &r.payload) {
+        if let Some(sender) = visible
+            .iter()
+            .find(|r| r.identity.record_id == c.sender.record)
+        {
+            let content = c
+                .content
+                .iter()
+                .filter_map(|id| visible.iter().find(|r| r.identity.record_id == id.record))
+                .filter_map(|r| {
+                    if let Payload::Proposition(p) = &r.payload {
+                        Some(p)
+                    } else {
+                        None
+                    }
+                })
+                .filter_map(|p| {
+                    let subject = visible
+                        .iter()
+                        .find(|r| r.identity.record_id == p.subject.record)?;
+                    let property = visible
+                        .iter()
+                        .find(|r| r.identity.record_id == p.predicate.record)?;
+                    Some(format!("{}.{}", label(subject), label(property)))
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            return format!("{} — message {}", label(sender), content);
+        }
+    }
     if let (true, Payload::EpistemicAttitude(a)) = (author, &r.payload) {
         let holder = visible
             .iter()

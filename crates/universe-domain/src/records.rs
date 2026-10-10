@@ -2204,6 +2204,20 @@ pub enum DomainOperation {
         client_ref: String,
         record: DomainPack,
     },
+    /// Exact historical communication correction; does not declare a later message.
+    ReviseCommunication {
+        record: RecordRef,
+        expected_version: RecordVersionId,
+        replacement: Communication,
+        rationale: String,
+    },
+    /// Explicit correction of justified receipt interpretation; preserves holder, acquisition time/context/message and evidence basis.
+    ReviseInterpretation {
+        record: RecordRef,
+        expected_version: RecordVersionId,
+        interpretation: Option<RecordRef>,
+        rationale: String,
+    },
     /// Historical attitude correction; stance, holder, acquisition and basis stay unchanged. Knows permits duration edits only.
     ReviseAttitude {
         record: RecordRef,
@@ -2316,7 +2330,9 @@ impl DomainOperation {
             | EndAssertionAt { .. }
             | SupersedeAssertion { .. }
             | RetractAssertion { .. }
-            | ReviseAttitude { .. } => OperationAuthority::Historical,
+            | ReviseAttitude { .. }
+            | ReviseCommunication { .. }
+            | ReviseInterpretation { .. } => OperationAuthority::Historical,
             IntroduceDefinition { .. }
             | AddNamedAttribute { .. }
             | DefineItemPower { .. }

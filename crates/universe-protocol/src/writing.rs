@@ -139,6 +139,10 @@ pub struct CheckChanges {
     pub policy_corrections: Vec<WritingPolicyCorrection>,
     #[serde(default)]
     pub attitude_corrections: Vec<WritingAttitudeCorrection>,
+    #[serde(default)]
+    pub message_corrections: Vec<WritingMessageCorrection>,
+    #[serde(default)]
+    pub interpretation_corrections: Vec<WritingInterpretationCorrection>,
     /// Incremental ancestry/applicability revisions; omitted fields keep authored metadata. Requires private contract review.
     #[serde(default)]
     pub definition_corrections: Vec<WritingDefinitionCorrection>,
@@ -214,6 +218,44 @@ pub struct WritingItemPower {
     /// Unspecified means the exact instant; a longer duration must be authored explicitly.
     #[serde(default)]
     pub lifetime: FactLifetime,
+}
+/// Correct this historical message; omitted fields remain authored. Later communication uses messages instead.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingMessageCorrection {
+    pub message_edit_handle: String,
+    pub reason: String,
+    #[serde(default)]
+    pub from: Option<String>,
+    #[serde(default)]
+    pub to: Option<Vec<String>>,
+    #[serde(default)]
+    pub received_by: Option<Vec<String>>,
+    #[serde(default)]
+    pub claims: Option<Vec<WritingClaim>>,
+    #[serde(default)]
+    pub channel: Option<String>,
+    #[serde(default)]
+    pub clear_channel: bool,
+    #[serde(default)]
+    pub sent_tick: Option<String>,
+    #[serde(default)]
+    pub received_tick: Option<String>,
+    #[serde(default)]
+    pub clear_receipt: bool,
+    #[serde(default)]
+    pub distorted: Option<bool>,
+}
+/// Explicit justified-receipt interpretation correction. No knowledge promotion or automatic acquisition.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingInterpretationCorrection {
+    pub attitude_handle: String,
+    pub reason: String,
+    #[serde(default)]
+    pub interpretation: Option<WritingClaim>,
+    #[serde(default)]
+    pub clear_interpretation: bool,
 }
 /// Correct the recorded historical attitude, not a later change of mind. Knows allows duration only.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
