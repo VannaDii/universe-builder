@@ -300,6 +300,79 @@ mod tests {
             "validation_run":c.validation.run_id,"idempotency_key":key})).unwrap()
     }
     #[test]
+    fn approved_publication_crash_child() {
+        let Ok(path) = std::env::var("UB_TEST_PUBLICATION_PACKAGE") else { return; };
+        let profile: ProfileId = serde_json::from_str(&std::env::var("UB_TEST_PUBLICATION_PROFILE").unwrap()).unwrap();
+        let request: Request = serde_json::from_str(&std::env::var("UB_TEST_PUBLICATION_REQUEST").unwrap()).unwrap();
+        let mut kernel = Kernel::open(std::path::Path::new(&path)).unwrap();
+        workflow(&mut kernel, &profile).execute(request).unwrap();
+        panic!("The selected transaction phase must terminate before client receipt");
+    }
+    #[test]
+    fn approved_publication_abrupt_exit_keeps_exact_source_approval_and_single_receipt() {
+        for phase in ["before", "after"] {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("package.sqlite");
+            let profile = ProfileId::generate(&mut rand::rng());
+            let mut kernel = kernel(&path);
+            let (p, body) = setup(&mut kernel, &profile);
+            let mut w = workflow(&mut kernel, &profile);
+            let reference = reference(&p);
+            w.attach_assessment(&reference, 0, body, "source-selection").unwrap();
+            let checked = synchronous(&mut w, &p);
+            w.approve(&reference, &checked.validation.run_id).unwrap();
+            let approval_key = format!("approval:{}:{}:{}", w.approval_author, p.proposal.digest, checked.validation.run_id);
+            let approval = w.kernel.workflow_get(&approval_key).unwrap().unwrap();
+            let prior = w.kernel.records(&p.proposal.base_frame.continuity, &p.proposal.base_frame.revision).unwrap();
+            let input = w.input(&p, "interrupted-publication".into()).unwrap();
+            let request = commit_request(&p, &checked, "interrupted-publication");
+            drop(w); drop(kernel);
+            let result = std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", "workflow::validation_binding::tests::approved_publication_crash_child", "--nocapture"])
+                .env("UB_TEST_PUBLICATION_PACKAGE", &path)
+                .env("UB_TEST_PUBLICATION_PROFILE", serde_json::to_string(&profile).unwrap())
+                .env("UB_TEST_PUBLICATION_REQUEST", serde_json::to_string(&request).unwrap())
+                .env("UB_TEST_PUBLICATION_UNIVERSE", p.proposal.base_frame.universe.as_str())
+                .env("UB_TEST_PUBLICATION_PHASE", phase)
+                .output().unwrap();
+            assert_eq!(result.status.code(), Some(72), "{}", String::from_utf8_lossy(&result.stderr));
+            let mut kernel = Kernel::open(&path).unwrap();
+            assert_eq!(kernel.workflow_get(&approval_key).unwrap(), Some(approval.clone()));
+            let head = kernel.head(&p.proposal.base_frame.continuity).unwrap();
+            let expected: Vec<_> = p.changes.iter().filter_map(|change| change.next.clone()).collect();
+            if phase == "before" {
+                assert_eq!(head, p.proposal.base_frame.revision);
+                assert_eq!(kernel.records(&p.proposal.base_frame.continuity, &head).unwrap(), prior);
+                assert!(kernel.receipt(&input).unwrap().is_none());
+            } else {
+                assert_eq!(kernel.receipt(&input).unwrap(), Some(head.clone()));
+                let rows = kernel.records(&p.proposal.base_frame.continuity, &head).unwrap();
+                assert_eq!(rows.len(), expected.len());
+                for record in &expected { assert!(rows.contains(record)); assert!(record.verify_digest()); }
+            }
+            let mut w = workflow(&mut kernel, &profile);
+            let operation_key = w.operation_key("commit", "interrupted-publication");
+            let interrupted = w.operation(&operation_key).unwrap();
+            assert_eq!(interrupted.status.receipt.is_some(), phase == "after");
+            let operation_id = interrupted.status.operation_id;
+            let receipt = w.execute(request.clone()).unwrap()["result"].clone();
+            assert_eq!(receipt["operation_id"], json!(operation_id));
+            assert_eq!(receipt["proposal_id"], json!(p.proposal.proposal_id));
+            assert_eq!(w.execute(request).unwrap()["result"], receipt);
+            let revision: RevisionId = serde_json::from_value(receipt["revision"].clone()).unwrap();
+            assert_eq!(w.kernel.head(&p.proposal.base_frame.continuity).unwrap(), revision);
+            assert_eq!(w.kernel.receipt(&input).unwrap(), Some(revision.clone()));
+            assert_eq!(w.kernel.workflow_get(&approval_key).unwrap(), Some(approval));
+            let rows = w.kernel.records(&p.proposal.base_frame.continuity, &revision).unwrap();
+            assert_eq!(rows.len(), expected.len());
+            for record in &expected { assert!(rows.contains(record)); }
+            assert_eq!(w.kernel.records(&p.proposal.base_frame.continuity, &p.proposal.base_frame.revision).unwrap(), prior);
+            let db = universe_store::Database::open_existing(&path).unwrap().connect().unwrap();
+            let receipt_count: i64 = db.query_row("SELECT count(*) FROM operation_receipts", [], |r| r.get(0)).unwrap();
+            assert_eq!(receipt_count, 1);
+        }
+    }
+    #[test]
     fn assessment_publication_exact_approval_withdrawal_and_restart() {
         for withdrawn in [false, true] {
             let dir = tempfile::tempdir().unwrap();

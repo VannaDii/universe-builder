@@ -2780,9 +2780,23 @@ impl Workflow<'_> {
                 self.verify_validation_authority(&capture, guard.as_deref())?;
                 // Current authority remains locked through SQLite's selection,
                 // proposal and head comparison and canonical receipt publication.
-                let revision = self
-                    .kernel
-                    .commit_compared(&input, &capture.comparisons())?;
+                #[cfg(not(test))]
+                let revision = self.kernel.commit_compared(&input, &capture.comparisons())?;
+                #[cfg(test)]
+                let revision = {
+                    // Subprocess-only transaction interruption; absent from production builds.
+                    let phase = (std::env::var("UB_TEST_PUBLICATION_UNIVERSE").ok().as_deref()
+                        == Some(self.kernel.universe().as_str()))
+                        .then(|| std::env::var("UB_TEST_PUBLICATION_PHASE").ok()).flatten();
+                    let revision = self.kernel.commit_compared_with_hook(&input, &capture.comparisons(), |point| {
+                        if phase.as_deref() == Some("before") && point == universe_store::kernel::FaultPoint::BeforeCommit {
+                            std::process::exit(72);
+                        }
+                        Ok(())
+                    })?;
+                    if phase.as_deref() == Some("after") { std::process::exit(72); }
+                    revision
+                };
                 serde_json::to_value(CommitReceipt {
                     operation_id: op.status.operation_id,
                     proposal_id: p.proposal.proposal_id,
