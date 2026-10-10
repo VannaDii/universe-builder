@@ -797,6 +797,41 @@ class ConnectedWritingTests(unittest.TestCase):
                 self.assertEqual([f["value"]["amount"] for f in fuel_facts(5,{"kind":"exact","revision_id":refilled_revision})["Tank"]],[0.025])
                 missing=check(context(),event_withdrawals=[{"event_handle":final["event_edit_handle"],"reason":"Withdrawn handle is no longer current."}])
                 self.assertIsNone(missing["candidate_handle"],missing)
+                # Date-only ordinary calls are validated against the advertised schemas.
+                dated=json.loads(cli("create","Dates","--first-time","1970-01-01T00:00:00+00:00",profile=author))
+                cli("grant",agent,dated["universe_id"],"--propose","--edit","--protected",profile=author)
+                decisions=AuthorDecisions(SimpleNamespace(universe="Dates"),binaries/"universe",installation,author,output=lambda _:None)
+                def date_context(tick=None,revision=None):
+                    return client.call("universe_open_context",{"universe":"Dates","continuity_id":dated["continuity_id"],"revision":revision or {"kind":"head"},"represented_context":dated["context_id"],"temporal_query":{"kind":"timeless"} if tick is None else {"kind":"at","time":{"kind":"exact","calendar":date_calendar,"value":str(tick)}},"temporal_systems":[],"perspective":"author"})["result"]["context_id"]
+                def date_check(**delta):
+                    return client.call("universe_check_changes",{"universe":"Dates","context_id":date_context(),**delta})["result"]
+                date_clock=client.call("universe_read_facts",{"universe":"Dates","context_id":date_context(),"object_names":["Gate"]})["result"]["clocks"][0]
+                date_calendar=date_clock["calendar_id"]
+                self.assertIn("RFC3339",date_clock["date_format"])
+                date=lambda second:f"1970-01-01T00:00:{second:02d}+00:00"
+                objective={"property":"open","value":True,"scope":"universe","at_date":date(0),"lifetime":{"kind":"until","end_date":date(40)}}
+                publish(date_check(properties=[{"name":"open","introduce":True,"value_type":"boolean","single_value":True,"persistence":"explicit_interval"}],changes=[{"name":name,"introduce":True,"facts":[objective] if name=="Gate" else []} for name in ("Gate","Mara","Leon")],actions=[{"name":"enter","introduce":True,"scope":"universe","at_date":date(0),"lifetime":{"kind":"until","end_date":date(40)},"requirements":[{"role":"place","property":"open","value":True}]}],knowledge_policies=[{"kind":"knowledge","name":"dated receipts","mode":"justified"},{"kind":"channel","name":"dated speech","channel":"speech","forward_only":True,"minimum_delay":"0","maximum_delay":"3"}]),"The gate is open from second zero until forty; entering requires an open gate, and knowledge uses justified receipts.","connected-date-contracts",contracts=True)
+                same=date_check(changes=[{"name":"Gate","facts":[{**objective,"at_tick":"0","at_date":date(0)}]}])
+                self.assertEqual(same["status"],"no_changes",same)
+                for bad in ({**objective,"at_tick":"1"},{**objective,"at_date":"tomorrow"},{**objective,"at_date":"1970-01-01T00:00:00"}):
+                    held=date_check(changes=[{"name":"Undeclared identity","facts":[bad]}])
+                    self.assertEqual(held["status"],"needs_clarification",held);self.assertIsNone(held["candidate_handle"]);self.assertTrue(any("at_date" in q or "disagree" in q for q in held["clarifications"]),held)
+                claim={"subject":"Gate","property":"open","value":True}
+                message=date_check(messages=[{"label":"dated notice","from":"Leon","to":["Mara"],"received_by":["Mara"],"understood_by":["Mara"],"claim":claim,"channel":"speech","sent_date":date(10),"received_date":date(12)}],attitudes=[{"holder":"Mara","attitude":"knows","claim":claim,"message":"dated notice","at_date":date(12),"lifetime":{"kind":"until","end_date":date(30)}}],events=[{"action":"enter","participants":{"place":"Gate"},"at_date":date(15),"requires_knowledge":[{"holder":"Mara","claim":claim}]}])
+                date_revision=publish(message,"Leon sends the notice at ten; Mara receives and understands it at twelve, knows it until thirty, and uses it when entering at fifteen.","connected-date-writing")
+                read=client.call("universe_read_facts",{"universe":"Dates","context_id":date_context(20),"object_names":["Gate"]})["result"]["objects"][0]
+                event=read["occurred_events"][0]
+                for second in (16,14):
+                    publish(date_check(event_corrections=[{"event_handle":event["handle"],"at_date":date(second),"reason":"Explicitly correct the authored timestamp."}]),f"The entrance was at second {second}.",f"connected-date-event-{second}")
+                current_fact=next(f for f in read["facts"] if f["property"]=="open")
+                ending=date_check(fact_endings=[{"fact_handle":current_fact["fact_handle"],"end_date":date(25),"reason":"The original open interval ends at twenty-five."}])
+                publish(ending,"The gate's open interval ends at twenty-five, preserving the earlier entrance.","connected-date-ending")
+                current=client.call("universe_read_facts",{"universe":"Dates","context_id":date_context(26),"object_names":["Gate"]})["result"]["objects"][0]
+                self.assertFalse(any(f["property"]=="open" and f["state"]=="supported" for f in current["facts"]),current)
+                past=client.call("universe_read_facts",{"universe":"Dates","context_id":date_context(26,{"kind":"exact","revision_id":date_revision}),"object_names":["Gate"]})["result"]["objects"][0]
+                self.assertTrue(any(f["property"]=="open" and f["state"]=="supported" for f in past["facts"]),past)
+                self.assertIn(": 15",past["occurred_events"][0]["time"])
+
 
             finally:
                 if client: client.close()

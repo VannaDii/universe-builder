@@ -18,6 +18,10 @@ impl Workflow<'_> {
             .iter()
             .filter(|r| visible.contains(&r.identity.record_id))
             .collect();
+        let input = match super::writing_dates::normalize(input,&ctx.frame,&records.iter().map(|r|(*r).clone()).collect::<Vec<_>>()) {
+            Ok(input)=>input,
+            Err(error)=>return self.wrap(&args,Some(ctx.frame),None,true,None,json!(WritingCheck{status:"needs_clarification".into(),candidate_handle:None,additions:vec![],unchanged:vec![],clarifications:vec![error.to_string()],excluded:vec![],unknowns:vec![],validation:None,impact:None})),
+        };
         let mut result = WritingCheck {
             status: "needs_clarification".into(),
             candidate_handle: None,
@@ -536,7 +540,7 @@ impl Workflow<'_> {
                                             value: value.clone(),
                                         },
                                         end: match lifetime {
-                                            FactLifetime::Until { end_tick } => {
+                                            FactLifetime::Until { end_tick, .. } => {
                                                 TemporalBound::Exact {
                                                     value: end_tick.clone(),
                                                 }
@@ -827,7 +831,7 @@ impl Workflow<'_> {
                 })
         };
         let clocks:Vec<_>=records.iter().filter(|r|r.identity.record_id==ctx.frame.context.record).filter_map(|r| if let Payload::RepresentedContext(c)=&r.payload {
-            c.chronology.as_ref().map(|clock| json!({"calendar_id":clock.calendar,"calendar_name":label(&RecordId::parse(&clock.calendar.as_str().replacen("cal_","rec_",1)).expect("calendar record")),"current":clock.current,"first_interaction":clock.first_interaction,"units":clock.system}))
+            c.chronology.as_ref().map(|clock| json!({"calendar_id":clock.calendar,"calendar_name":label(&RecordId::parse(&clock.calendar.as_str().replacen("cal_","rec_",1)).expect("calendar record")),"current":clock.current,"first_interaction":clock.first_interaction,"units":clock.system,"date_format":match clock.system{universe_domain::chronology::ClockSystem::Gregorian{..}=>"RFC3339 whole-second timestamp with an explicit offset",universe_domain::chronology::ClockSystem::Fictional{..}=>"Exact integer in this authored fictional clock"}}))
         } else { None }).collect();
         let mut objects = vec![];
         for name in &input.object_names {

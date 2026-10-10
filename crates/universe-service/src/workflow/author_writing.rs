@@ -113,6 +113,7 @@ impl Workflow<'_> {
                     .into_iter()
                     .filter(|r| visible.contains(&r.identity.record_id))
                     .collect();
+                let correction=super::writing_dates::normalize(correction,&ctx.frame,&rows)?;
                 let ops = super::writing_connected::attitude_edit(
                     self.kernel.universe(),
                     &rows,
@@ -174,6 +175,7 @@ impl Workflow<'_> {
                     .into_iter()
                     .filter(|r| visible.contains(&r.identity.record_id))
                     .collect();
+                let declaration=super::writing_dates::normalize(declaration,&ctx.frame,&rows)?;
                 let policies: Vec<_> = rows
                     .iter()
                     .filter_map(|r| {

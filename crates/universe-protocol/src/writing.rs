@@ -41,6 +41,9 @@ pub struct FactChange {
     /// Explicit scene tick on the selected context's authored calendar. Missing tick never chooses a current-time default.
     #[serde(default)]
     pub at_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_date: Option<String>,
     /// Explicit scene fact lifetime. Unspecified preserves authored property persistence only.
     #[serde(default)]
     pub lifetime: FactLifetime,
@@ -250,6 +253,9 @@ pub struct WritingItemPower {
     pub scope: String,
     #[serde(default)]
     pub at_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_date: Option<String>,
     /// Unspecified means the exact instant; a longer duration must be authored explicitly.
     #[serde(default)]
     pub lifetime: FactLifetime,
@@ -274,8 +280,14 @@ pub struct WritingMessageCorrection {
     pub clear_channel: bool,
     #[serde(default)]
     pub sent_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sent_date: Option<String>,
     #[serde(default)]
     pub received_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub received_date: Option<String>,
     #[serde(default)]
     pub clear_receipt: bool,
     #[serde(default)]
@@ -307,11 +319,17 @@ pub struct WritingAttitudeCorrection {
     pub clear_certainty: bool,
     #[serde(default)]
     pub at_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_date: Option<String>,
     #[serde(default)]
     pub lifetime: Option<FactLifetime>,
     /// Explicit ending only shortens an existing authored interval.
     #[serde(default)]
     pub end_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub end_date: Option<String>,
 }
 
 /// Version-bound protected policy changes; omitted settings stay authored.
@@ -338,6 +356,9 @@ pub struct WritingPolicyCorrection {
     pub scope: Option<String>,
     #[serde(default)]
     pub at_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_date: Option<String>,
     #[serde(default)]
     pub lifetime: Option<FactLifetime>,
 }
@@ -354,11 +375,17 @@ pub struct WritingItemPowerCorrection {
     /// Explicit new start in the original authored calendar; omitted start stays unchanged.
     #[serde(default)]
     pub at_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_date: Option<String>,
     #[serde(default)]
     pub lifetime: Option<FactLifetime>,
     /// Explicitly shorten an existing interval; separate from historical validity correction.
     #[serde(default)]
     pub end_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub end_date: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -400,7 +427,10 @@ pub enum FactLifetime {
     UntilChanged,
     /// Explicit exclusive end on the same authored calendar; never inferred.
     Until {
+        #[serde(default)]
         end_tick: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        end_date: Option<String>,
     },
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -420,6 +450,9 @@ pub struct WritingEvent {
     /// Explicit tick on the selected context's authored calendar; omit only when research pins an exact scene time.
     #[serde(default)]
     pub at_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_date: Option<String>,
     #[serde(default)]
     pub world: Option<String>,
     /// Knowledge the author explicitly says this action relies on, even when the action contract has no knowledge requirement. Include its holder and exact claim so the dependency is checked at action time; omission does not check it. Never infer physics or automatic knowledge.
@@ -450,8 +483,14 @@ pub struct WritingMessage {
     pub channel: Option<String>,
     #[serde(default)]
     pub sent_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sent_date: Option<String>,
     #[serde(default)]
     pub received_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub received_date: Option<String>,
     #[serde(default)]
     /// Actual distortion of the communication, not merely a deliberately false claim.
     pub distorted: bool,
@@ -477,6 +516,9 @@ pub struct WritingAttitude {
     pub message: Option<String>,
     #[serde(default)]
     pub at_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_date: Option<String>,
     /// Explicit attitude lifetime; unspecified is an observation at the acquisition time.
     #[serde(default)]
     pub lifetime: FactLifetime,
@@ -494,7 +536,10 @@ pub struct WritingCorrection {
 pub struct WritingFactEnding {
     /// Current opaque authored assertion-version handle returned by universe_read_facts.
     pub fact_handle: String,
+    #[serde(default)]
     pub end_tick: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub end_date: Option<String>,
     pub reason: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -610,6 +655,9 @@ pub struct WritingAction {
     pub scope: String,
     #[serde(default)]
     pub at_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_date: Option<String>,
     #[serde(default)]
     pub lifetime: FactLifetime,
 }
@@ -670,6 +718,9 @@ pub struct WritingEventCorrection {
     /// Changed coordinate on the event's original authored calendar.
     #[serde(default)]
     pub at_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_date: Option<String>,
     /// Replace the event's world with this exact authored world; omitted retains original worlds.
     #[serde(default)]
     pub world: Option<String>,
@@ -719,6 +770,9 @@ pub struct WritingActionCorrection {
     /// Time revision requires both explicit tick and lifetime; omission preserves existing validity.
     #[serde(default)]
     pub at_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_date: Option<String>,
     #[serde(default)]
     pub lifetime: Option<FactLifetime>,
 }
@@ -744,7 +798,10 @@ pub enum WritingKnowledgePolicy {
 pub struct AuthorKnowledgeDeclaration {
     pub holder: String,
     pub claim: WritingClaim,
+    #[serde(default)]
     pub at_tick: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_date: Option<String>,
     pub lifetime: FactLifetime,
     #[serde(default)]
     pub world: Option<String>,
@@ -763,6 +820,9 @@ pub struct WritingExhaustiveSet {
     /// Explicit tick on the selected context's authored calendar, or use its pinned scene time.
     #[serde(default)]
     pub at_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_date: Option<String>,
     #[serde(default)]
     pub lifetime: FactLifetime,
 }
@@ -798,6 +858,9 @@ pub struct WritingRelationLimit {
     pub scope: String,
     #[serde(default)]
     pub at_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_date: Option<String>,
     #[serde(default)]
     pub lifetime: FactLifetime,
 }
@@ -811,6 +874,9 @@ pub struct WritingRelationship {
     pub scope: String,
     #[serde(default)]
     pub at_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_date: Option<String>,
     #[serde(default)]
     pub lifetime: FactLifetime,
     #[serde(default)]
@@ -833,7 +899,10 @@ pub struct WritingRelationshipCorrection {
 pub struct WritingRelationshipEnding {
     pub relationship_handle: String,
     /// Exclusive end on the relationship's original authored interval calendar. No clock conversion.
+    #[serde(default)]
     pub end_tick: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub end_date: Option<String>,
     pub reason: String,
 }
 
@@ -871,6 +940,9 @@ pub struct WritingRelationLimitCorrection {
     /// Time edit requires both explicit tick and lifetime; omission preserves existing validity.
     #[serde(default)]
     pub at_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_date: Option<String>,
     #[serde(default)]
     pub lifetime: Option<FactLifetime>,
     pub reason: String,
@@ -889,6 +961,9 @@ pub struct WritingAlias {
     pub role: Option<String>,
     #[serde(default)]
     pub at_tick: Option<String>,
+    /// Date in the selected authored calendar; an explicit tick must agree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_date: Option<String>,
     /// Omission leaves validity unspecified; explicit lifetime/tick uses the selected authored calendar.
     #[serde(default)]
     pub lifetime: Option<FactLifetime>,

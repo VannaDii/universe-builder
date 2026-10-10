@@ -812,7 +812,7 @@ impl Workflow<'_> {
                                     value: value.clone(),
                                 },
                                 end: match lifetime {
-                                    FactLifetime::Until { end_tick } => {
+                                    FactLifetime::Until { end_tick, .. } => {
                                         universe_domain::temporal::TemporalBound::Exact {
                                             value: end_tick.clone(),
                                         }

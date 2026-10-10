@@ -139,7 +139,9 @@ approval publish the declaration; ordinary factual review cannot adopt it.
 `universe_read_contracts` returns named declarations, while `universe_read_facts`
 returns actual derived holder abilities only while both possession evidence and
 the declaration apply. Transfer, loss and expiry do not create permanent facts.
-Item-power revisions remain unsupported; no conversion or physics is inferred.
+Version-bound grant corrections support value, scope and authored validity changes
+or explicit duration endings through private contract review; targets remain fixed.
+No conversion or physics is inferred.
 In the interface, “Define a possession-dependent item power” offers Boolean,
 text, integer, decimal, object and quantity values matching the selected power
 property. Quantities retain that property's authored unit. Add the declaration
@@ -372,6 +374,16 @@ Generated balance facts cannot be edited directly. Later actions are rechecked,
 and may block the correction; they are never automatically rewritten. Explicit
 corrections to multiple events can share one atomic reviewed candidate. Exact
 source review and author approval remain required, and old revisions remain intact.
+Ordinary temporal changes accept `at_date`, `sent_date`, `received_date` and
+`end_date` beside their existing tick fields; `lifetime: {kind: "until", end_date}`
+also accepts an explicit date. The selected context's authored chronology parses
+these dates into existing exact coordinates. Gregorian dates require whole-second
+RFC3339 timestamps with an explicit offset; fictional clocks use their authored
+coordinate syntax. Matching dates and ticks are allowed; disagreement, missing
+chronology, unsupported dates and relative phrases require clarification. Integer
+delays and durations remain ticks. No current date or different calendar is chosen.
+The existing interface date/time controls already use this same parser.
+
 `event_withdrawals` selects a current `event_edit_handle` from `read_facts` and
 an author reason. It removes support for that occurrence and its generated effects
 without asserting that the event did not happen. Earlier generated intervals are

@@ -634,6 +634,7 @@ impl Workflow<'_> {
                     effects: patch.effects.clone().unwrap_or_default(),
                     scope: patch.scope.clone().unwrap_or_else(|| "unspecified".into()),
                     at_tick: patch.at_tick.clone(),
+                    at_date: None,
                     lifetime: patch.lifetime.clone().unwrap_or(FactLifetime::Unspecified),
                 }];
                 declaration.constraints.clear();
@@ -865,7 +866,7 @@ pub(super) fn validity(
                     value: value.clone(),
                 },
                 end: match lifetime {
-                    FactLifetime::Until { end_tick } => TemporalBound::Exact {
+                    FactLifetime::Until { end_tick, .. } => TemporalBound::Exact {
                         value: end_tick.clone(),
                     },
                     _ => TemporalBound::Unbounded,

@@ -80,7 +80,7 @@ impl Workflow<'_> {
                 };
                 let end=match &request.lifetime {
                     FactLifetime::UntilChanged=>TemporalBound::Unbounded,
-                    FactLifetime::Until{end_tick}=>TemporalBound::Exact{value:end_tick.clone()},
+                    FactLifetime::Until{end_tick,..}=>TemporalBound::Exact{value:end_tick.clone()},
                     FactLifetime::Unspecified=>anyhow::bail!("What explicit interval or until_changed lifetime applies to initialized values?"),
                 };
                 let validity = Validity::CalendarInterval {
