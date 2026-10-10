@@ -114,6 +114,9 @@ def contracts():
     defs['DomainOperation']['oneOf'].append(obj(
         kind={'type':'string','const':'revise_item_power'},record=ref('RecordRef'),
         expected_version=ref('RecordVersionId'),replacement=ref('ItemPower'),rationale=S))
+    defs['DomainOperation']['oneOf'].append(obj(
+        kind={'type':'string','const':'revise_attitude'},record=ref('RecordRef'),
+        expected_version=ref('RecordVersionId'),replacement=ref('EpistemicAttitude'),rationale=S))
     return defs
 
 

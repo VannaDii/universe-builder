@@ -530,6 +530,7 @@ pub(crate) fn compile_allocated(
             | ReviseAppearance { .. }
             | ReviseDefinition { .. }
             | ReviseItemPower { .. }
+            | ReviseAttitude { .. }
             | AdoptRecordVersion { .. }
             | ReviseEvent { .. }
             | UpgradePack { .. }
@@ -548,6 +549,10 @@ pub(crate) fn compile_allocated(
             _ => return Err(unsupported()),
         }
     }
+    let created: BTreeMap<_, _> = changes
+        .iter()
+        .filter_map(|a| a.next.as_ref().map(|r| (a.record_id.clone(), r.clone())))
+        .collect();
     let mut ancestry: BTreeMap<_, _> = records
         .iter()
         .map(|(id, r)| (id.clone(), r.clone()))
@@ -615,6 +620,73 @@ pub(crate) fn compile_allocated(
                 let mut e = replacement.clone();
                 e.expansion_version = Some(universe_rules::events::EXPANSION.into());
                 (record, expected_version, Some(Payload::Event(e)))
+            }
+            ReviseAttitude {
+                record,
+                expected_version,
+                replacement,
+                rationale,
+            } => {
+                let Payload::EpistemicAttitude(old) =
+                    &current(&records, u, record, expected_version)?.payload
+                else {
+                    return Err(invalid("expected recorded epistemic attitude"));
+                };
+                if rationale.trim().is_empty()
+                    || old.holder != replacement.holder
+                    || old.attitude != replacement.attitude
+                    || old.acquisition != replacement.acquisition
+                    || old.basis != replacement.basis
+                {
+                    return Err(invalid("Attitude correction must retain stance, holder, acquisition and basis and include a reason"));
+                }
+                if old.attitude == EpistemicAttitudeKind::Knows
+                    && (old.proposition != replacement.proposition
+                        || old.certainty != replacement.certainty)
+                {
+                    return Err(invalid("Knowledge corrections can change duration only; they cannot substitute a claim or manufacture acquisition evidence"));
+                }
+                if old.proposition != replacement.proposition {
+                    let prop = |reference: &RecordRef| {
+                        records
+                            .get(&reference.record)
+                            .or_else(|| created.get(&reference.record))
+                            .filter(|_| reference.resolve_namespace(u).is_ok())
+                            .and_then(|r| {
+                                if let Payload::Proposition(p) = &r.payload {
+                                    Some(p.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                    };
+                    let (Some(mut before), Some(after)) =
+                        (prop(&old.proposition), prop(&replacement.proposition))
+                    else {
+                        return Err(invalid("Retrieve both attributed claims"));
+                    };
+                    before.value = after.value.clone();
+                    if before != after {
+                        return Err(invalid("An attributed claim correction changes its value only; subject, property, roles, polarity and truth context stay unchanged"));
+                    }
+                }
+                let clock = |v: &universe_domain::scope::Validity| match v {
+                    universe_domain::scope::Validity::CalendarInterval { calendar, .. }
+                    | universe_domain::scope::Validity::Instant {
+                        at: universe_domain::temporal::TemporalExpression::Exact { calendar, .. },
+                    } => Some(calendar.clone()),
+                    _ => None,
+                };
+                if clock(&old.validity).is_some()
+                    && clock(&old.validity) != clock(&replacement.validity)
+                {
+                    return Err(invalid("Retain the attitude's authored calendar"));
+                }
+                (
+                    record,
+                    expected_version,
+                    Some(Payload::EpistemicAttitude(replacement.clone())),
+                )
             }
             ReviseItemPower {
                 record,

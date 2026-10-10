@@ -65,6 +65,64 @@ pub(super) fn operation(
             }
             op["replacement"] = replacement;
         }
+        "attitude_start" | "attitude_end" | "attitude_certainty" | "attitude_clear_certainty" => {
+            if selected["payload"]["record_kind"] != "epistemic_attitude"
+                || reason.trim().is_empty()
+            {
+                return Err(
+                    "Inspect the recorded attitude and explain the historical correction.".into(),
+                );
+            }
+            let mut replacement = selected["payload"].clone();
+            replacement.as_object_mut().unwrap().remove("record_kind");
+            if action.starts_with("attitude_c") {
+                if replacement["attitude"] == "knows" {
+                    return Err(
+                        "Knowledge editing preserves certainty and acquisition; duration only."
+                            .into(),
+                    );
+                }
+                replacement["certainty"] = if action == "attitude_clear_certainty" {
+                    Value::Null
+                } else {
+                    json!(value)
+                };
+            } else {
+                let validity = &mut replacement["validity"];
+                if validity["kind"] != "calendar_interval" {
+                    return Err("Inspect an existing authored attitude interval.".into());
+                }
+                let tick = if let Some(c) =
+                    clock.filter(|c| validity["calendar"] == c.calendar.as_str())
+                {
+                    c.coordinate(value)?
+                } else {
+                    value
+                        .parse::<i128>()
+                        .map_err(|_| "Enter an exact authored tick")?
+                        .to_string()
+                };
+                if action == "attitude_end"
+                    && validity["end"]["kind"] == "exact"
+                    && tick.parse::<i128>().map_err(|_| "Invalid tick")?
+                        > validity["end"]["value"]
+                            .as_str()
+                            .unwrap_or("")
+                            .parse::<i128>()
+                            .map_err(|_| "Unresolved original end")?
+                {
+                    return Err("An ending only shortens this interval; use an explicit historical duration correction otherwise.".into());
+                }
+                validity[if action == "attitude_start" {
+                    "start"
+                } else {
+                    "end"
+                }] = json!({"kind":"exact","value":tick});
+            }
+            op["kind"] = json!("revise_attitude");
+            op["replacement"] = replacement;
+            op["rationale"] = json!(reason);
+        }
         "policy_mode" | "policy_forward" | "policy_min" | "policy_max" | "policy_clear_min"
         | "policy_clear_max" | "policy_scope" | "policy_start" | "policy_end" => {
             if selected["payload"]["record_kind"] != "rule" || reason.trim().is_empty() {
@@ -367,14 +425,63 @@ pub(super) fn contract_operation(
     serde_json::to_value(typed).map_err(|e| e.to_string())
 }
 
+pub(super) fn attitude_value_operations(
+    frame: &Frame,
+    selected: &Value,
+    evidence: &[Value],
+    value: &str,
+    reason: &str,
+    clock: Option<&Chronology>,
+) -> Result<Vec<Value>, String> {
+    let old = &selected["payload"];
+    if old["record_kind"] != "epistemic_attitude"
+        || old["attitude"] == "knows"
+        || reason.trim().is_empty()
+    {
+        return Err(
+            "Only a non-Knows historical claim value can be corrected here; explain it.".into(),
+        );
+    }
+    let prop = evidence
+        .iter()
+        .find(|r| r["identity"]["record_id"] == old["proposition"]["record"])
+        .ok_or("Retrieve the attributed proposition at this pinned revision")?;
+    let mut claim = prop["payload"].clone();
+    claim
+        .as_object_mut()
+        .ok_or("Missing claim")?
+        .remove("record_kind");
+    let original = &claim["value"];
+    let form = super::claim_editor::Form {
+        kind: original["kind"].as_str().unwrap_or("").into(),
+        value: value.into(),
+        unit: original["unit"].as_str().unwrap_or("").into(),
+        ..Default::default()
+    };
+    claim["value"] = form.typed_value(frame, clock)?;
+    let id = universe_domain::ids::RecordId::generate(&mut rand::rng());
+    let mut replacement = old.clone();
+    replacement.as_object_mut().unwrap().remove("record_kind");
+    replacement["proposition"] = json!({"universe":frame.universe,"record":id});
+    let ops:Vec<DomainOperation>=serde_json::from_value(json!([{"kind":"define_proposition","client_ref":id,"record":claim},{"kind":"revise_attitude","record":{"universe":frame.universe,"record":selected["identity"]["record_id"]},"expected_version":selected["record_version_id"],"replacement":replacement,"rationale":reason}])).map_err(|e|e.to_string())?;
+    serde_json::to_value(ops)
+        .map_err(|e| e.to_string())
+        .and_then(|v| {
+            v.as_array()
+                .cloned()
+                .ok_or_else(|| "Missing operations".into())
+        })
+}
+
 #[component]
 pub fn InspectorEditor(
     frame: Frame,
     selected: Value,
     choices: Vec<Value>,
+    #[props(default)] evidence: Vec<Value>,
     clock: Option<Chronology>,
     disabled: bool,
-    onadd: EventHandler<Value>,
+    onadd: EventHandler<Vec<Value>>,
 ) -> Element {
     let mut action = use_signal(String::new);
     let mut value = use_signal(String::new);
@@ -382,6 +489,12 @@ pub fn InspectorEditor(
     let mut error = use_signal(String::new);
     let mut role = use_signal(String::new);
     let mut name = use_signal(NameForm::default);
+    let attitude_value_kind = evidence
+        .iter()
+        .find(|r| r["identity"]["record_id"] == selected["payload"]["proposition"]["record"])
+        .and_then(|r| r["payload"]["value"]["kind"].as_str())
+        .unwrap_or("")
+        .to_owned();
     if selected["payload"]["record_kind"] == "assertion"
         && !selected["payload"]["establishedBy"].is_null()
     {
@@ -400,6 +513,19 @@ pub fn InspectorEditor(
             ("", "Choose a change"),
             ("rename_world_selector", "Rename this world"),
             ("add_world_alias", "Add a world alias"),
+        ],
+        "epistemic_attitude" if selected["payload"]["attitude"] == "knows" => vec![
+            ("", "Keep recorded knowledge"),
+            ("attitude_start", "Correct knowledge interval start"),
+            ("attitude_end", "Explicitly end knowledge duration"),
+        ],
+        "epistemic_attitude" => vec![
+            ("", "Keep recorded attitude"),
+            ("attitude_value", "Correct historical claim value"),
+            ("attitude_certainty", "Correct certainty"),
+            ("attitude_clear_certainty", "Explicitly remove certainty"),
+            ("attitude_start", "Correct historical interval start"),
+            ("attitude_end", "Explicitly end attitude duration"),
         ],
         "item_power" => vec![
             ("", "Keep grant"),
@@ -526,6 +652,9 @@ pub fn InspectorEditor(
             p{"This revises the type's ancestry; it does not reclassify or replace its instances. Existing inheritance, initialization and action constraints are rechecked."}
             label{r#for:"inspector-parent","Authored parent"}
             super::select::RichSelect{id:"inspector-parent",disabled,value:value(),options:{let mut options=super::select::record_choices(&choices,&["entity_type"],"Choose explicitly");options.insert(1,super::select::Choice::new("none","Explicit root — no parent"));options},onchange:move|e:super::select::SelectionEvent|value.set(e.value())}
+        }else if action().starts_with("attitude_"){
+            p{"This edits the recorded historical attitude. A later change or loss needs a separate declaration. Stance, holder, acquisition and basis stay unchanged; knowledge accepts duration edits only and requires actual author review."}
+            if action()=="attitude_value" && attitude_value_kind=="boolean"{label{r#for:"inspector-attitude-bool","Historical attributed value"}super::select::RichSelect{id:"inspector-attitude-bool",disabled,value:value(),options:super::select::choices(&[("","Choose explicitly"),("true","True"),("false","False")]),onchange:move|e:super::select::SelectionEvent|value.set(e.value())}}else if action()=="attitude_value" && attitude_value_kind=="entity_ref"{label{r#for:"inspector-attitude-object","Historical attributed object"}super::select::RichSelect{id:"inspector-attitude-object",disabled,value:value(),options:super::select::record_choices(&choices,&["entity"],"Choose object"),onchange:move|e:super::select::SelectionEvent|value.set(e.value())}}else if action()!="attitude_clear_certainty"{label{r#for:"inspector-attitude-value","Explicit replacement value, certainty or authored date/tick"}input{id:"inspector-attitude-value",disabled,value,oninput:move|e|value.set(e.value())}}
         }else if action().starts_with("policy_"){
             p{"This explicitly corrects a protected author policy. Its identity, kind, targets and capabilities stay unchanged; contract review and separate approval are required."}
             if action()=="policy_mode"{
@@ -563,10 +692,10 @@ pub fn InspectorEditor(
         }
         if action()=="end_assertion_at"{p{"This ends the authored interval; support before the end remains."}}
         if action()=="retract_assertion"{p{"This withdraws the assertion from the new revision. It does not claim the opposite; earlier revisions remain available."}}
-        if action().starts_with("power_") || action().starts_with("policy_") || ["end_assertion_at","retract_assertion"].contains(&action().as_str()){
+        if action().starts_with("attitude_") || action().starts_with("power_") || action().starts_with("policy_") || ["end_assertion_at","retract_assertion"].contains(&action().as_str()){
             label{r#for:"inspector-reason","Reason"}textarea{id:"inspector-reason",disabled,value:reason,oninput:move|e|reason.set(e.value())}
         }
-        button{class:"secondary",disabled:disabled||action().is_empty(),onclick:move|_|match if action()=="add_name"{name_operation(&frame,&selected,&name(),clock.as_ref())}else if action().starts_with("role_")||action().starts_with("relation_"){contract_operation(&frame,&selected,&action(),&role(),&value())}else{operation(&frame,&selected,&action(),&value(),&reason(),clock.as_ref())}{Ok(op)=>{onadd.call(op);error.set(String::new());},Err(e)=>error.set(e)},"Add inspected change to draft"}
+        button{class:"secondary",disabled:disabled||action().is_empty(),onclick:move|_|match if action()=="attitude_value"{attitude_value_operations(&frame,&selected,&evidence,&value(),&reason(),clock.as_ref())}else if action()=="add_name"{name_operation(&frame,&selected,&name(),clock.as_ref()).map(|v|vec![v])}else if action().starts_with("role_")||action().starts_with("relation_"){contract_operation(&frame,&selected,&action(),&role(),&value()).map(|v|vec![v])}else{operation(&frame,&selected,&action(),&value(),&reason(),clock.as_ref()).map(|v|vec![v])}{Ok(op)=>{onadd.call(op);error.set(String::new());},Err(e)=>error.set(e)},"Add inspected change to draft"}
         if !error().is_empty(){p{role:"alert","{error}"}}
     }}
 }

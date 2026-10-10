@@ -347,6 +347,17 @@ class AuthorDecisions:
                     "label":"Author selected passage", "text":self.session.last_passage})
                 self.publish_key = "author-publish:" + uuid.uuid4().hex
             self.show_review()
+        elif command == "/edit-knowledge":
+            self.review, self.publish_key = None, None
+            chosen = json.loads(rest)
+            contexts = [args["context_id"] for name, args, result in self.session.tool_calls
+                if name == "universe_read_contracts" and args.get("context_id") and not result.get("isError")]
+            if not contexts:
+                raise ValueError("Read the recorded attitude in a selected context before explicitly editing knowledge.")
+            self.review = self.action({"action":"edit_knowledge", "context_id":contexts[-1],
+                "correction":chosen, "label":"Author historical knowledge edit", "text":self.session.last_passage})
+            self.publish_key = "author-publish:" + uuid.uuid4().hex
+            self.show_review()
         elif command == "/establish-knowledge":
             self.review, self.publish_key = None, None
             chosen = json.loads(rest)
@@ -397,7 +408,7 @@ class AuthorDecisions:
             self.published(receipt, arguments["candidate"])
             return receipt
         else:
-            raise ValueError("Commands: /review, /review-contracts, /establish-knowledge JSON, /approve, /retry, /recover TOKEN, /reject, /accept FINDING RESOURCE_SCOPE reason, /quit.")
+            raise ValueError("Commands: /review, /review-contracts, /establish-knowledge JSON, /edit-knowledge JSON, /approve, /retry, /recover TOKEN, /reject, /accept FINDING RESOURCE_SCOPE reason, /quit.")
 
     def published(self, receipt, candidate):
         result = receipt.get("result", {})

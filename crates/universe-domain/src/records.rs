@@ -2204,6 +2204,13 @@ pub enum DomainOperation {
         client_ref: String,
         record: DomainPack,
     },
+    /// Historical attitude correction; stance, holder, acquisition and basis stay unchanged. Knows permits duration edits only.
+    ReviseAttitude {
+        record: RecordRef,
+        expected_version: RecordVersionId,
+        replacement: EpistemicAttitude,
+        rationale: String,
+    },
     /// Version-bound grant correction; item, possession predicate, ability predicate and represented context remain unchanged.
     ReviseItemPower {
         record: RecordRef,
@@ -2308,7 +2315,8 @@ impl DomainOperation {
             SetStoryTime { .. }
             | EndAssertionAt { .. }
             | SupersedeAssertion { .. }
-            | RetractAssertion { .. } => OperationAuthority::Historical,
+            | RetractAssertion { .. }
+            | ReviseAttitude { .. } => OperationAuthority::Historical,
             IntroduceDefinition { .. }
             | AddNamedAttribute { .. }
             | DefineItemPower { .. }

@@ -137,6 +137,8 @@ pub struct CheckChanges {
     pub item_power_corrections: Vec<WritingItemPowerCorrection>,
     #[serde(default)]
     pub policy_corrections: Vec<WritingPolicyCorrection>,
+    #[serde(default)]
+    pub attitude_corrections: Vec<WritingAttitudeCorrection>,
     /// Incremental ancestry/applicability revisions; omitted fields keep authored metadata. Requires private contract review.
     #[serde(default)]
     pub definition_corrections: Vec<WritingDefinitionCorrection>,
@@ -213,6 +215,28 @@ pub struct WritingItemPower {
     #[serde(default)]
     pub lifetime: FactLifetime,
 }
+/// Correct the recorded historical attitude, not a later change of mind. Knows allows duration only.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingAttitudeCorrection {
+    pub attitude_handle: String,
+    pub reason: String,
+    #[serde(default)]
+    pub value: Option<FactValue>,
+    /// Supplied certainty replaces it; clear_certainty explicitly removes it. Non-Knows only.
+    #[serde(default)]
+    pub certainty: Option<String>,
+    #[serde(default)]
+    pub clear_certainty: bool,
+    #[serde(default)]
+    pub at_tick: Option<String>,
+    #[serde(default)]
+    pub lifetime: Option<FactLifetime>,
+    /// Explicit ending only shortens an existing authored interval.
+    #[serde(default)]
+    pub end_tick: Option<String>,
+}
+
 /// Version-bound protected policy changes; omitted settings stay authored.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

@@ -285,6 +285,66 @@ async fn native_receipt_form_repairs_after_earlier_truth_correction() {
         stored["payload"]["acquisition"],
         repaired["record"]["acquisition"]
     );
+    let historical = opened.clone();
+    let end = crate::inspector_editor::operation(
+        &frame,
+        &stored,
+        "attitude_end",
+        "10",
+        "Explicit knowledge duration ending",
+        Some(&clock),
+    )
+    .unwrap();
+    assert_eq!(
+        end["replacement"]["acquisition"],
+        stored["payload"]["acquisition"]
+    );
+    assert_eq!(end["replacement"]["basis"], stored["payload"]["basis"]);
+    publish(&mut c, &opened, json!([end]), "manual-knowledge-ending").await;
+    let opened = open(&mut c, &u).await;
+    let current = read(&mut c, &opened, &repaired["client_ref"]).await;
+    assert_eq!(current["payload"]["validity"]["end"]["value"], "10");
+    assert_eq!(
+        read(&mut c, &historical, &repaired["client_ref"]).await["payload"]["validity"],
+        stored["payload"]["validity"]
+    );
+    f.attitude = "believes".into();
+    let belief = f.build(&frame, Some(&clock), &choices).unwrap();
+    publish(&mut c, &opened, json!([belief]), "manual-belief").await;
+    let opened = open(&mut c, &u).await;
+    let original = read(&mut c, &opened, &belief["client_ref"]).await;
+    let proposition = read(&mut c, &opened, &json!(f.proposition)).await;
+    let correction = crate::inspector_editor::attitude_value_operations(
+        &frame,
+        &original,
+        &[proposition],
+        "false",
+        "Correct the recorded belief only",
+        Some(&clock),
+    )
+    .unwrap();
+    publish(
+        &mut c,
+        &opened,
+        json!(correction),
+        "manual-belief-correction",
+    )
+    .await;
+    let current_context = open(&mut c, &u).await;
+    let changed = read(&mut c, &current_context, &belief["client_ref"]).await;
+    assert_eq!(changed["payload"]["attitude"], "believes");
+    assert_eq!(changed["payload"]["holder"], original["payload"]["holder"]);
+    let changed_claim = read(
+        &mut c,
+        &current_context,
+        &changed["payload"]["proposition"]["record"],
+    )
+    .await;
+    assert_eq!(changed_claim["payload"]["value"]["value"], false);
+    assert_eq!(
+        read(&mut c, &opened, &belief["client_ref"]).await["payload"],
+        original["payload"]
+    );
     drop(c);
     stop.cancel();
     server.await.unwrap().unwrap();

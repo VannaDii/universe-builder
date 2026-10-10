@@ -612,8 +612,34 @@ class ConnectedWritingTests(unittest.TestCase):
                 historical=facts(context(5,{"kind":"exact","revision_id":before_end_revision}))["facts"]
                 self.assertTrue(any(f["property"]=="locked" and f["state"]=="supported" for f in historical),historical)
 
-
-
+                belief=next(a for a in attributed if a["holder"]=="Mara" and a["attitude"]=="believes")
+                knowledge=next(a for a in attributed if a["holder"]=="Mara" and a["attitude"]=="knows")
+                belief_patch=check(context(),attitude_corrections=[{"attitude_handle":belief["attitude_handle"],"value":"blue","certainty":"tentative","reason":"Historical correction: Mara's recorded belief was blue, not red."}])
+                publish(belief_patch,"Mara historically believed blue tentatively; Leon's red lie remains a separate message.","connected-belief-correction")
+                new_belief=next(a for a in client.call("universe_read_contracts",{"universe":"Story","context_id":context(5)})["result"]["attitudes"] if a["attitude"]=="believes")
+                self.assertEqual((new_belief["claim"]["value"],new_belief["certainty"]),("blue","tentative"))
+                self.assertIsNone(check(context(),attitude_corrections=[{"attitude_handle":belief["attitude_handle"],"end_tick":"8","reason":"An old attitude handle is stale."}])["candidate_handle"])
+                old_belief=next(a for a in client.call("universe_read_contracts",{"universe":"Story","context_id":context(5,{"kind":"exact","revision_id":action_revision})})["result"]["attitudes"] if a["attitude"]=="believes")
+                self.assertEqual(old_belief["claim"]["value"],"red")
+                extra=check(context(),attitudes=[{"holder":"Mara","attitude":stance,"claim":{**claim,"value":"amber"},"at_tick":"3","lifetime":{"kind":"until","end_tick":"10"}} for stance in ("suspects","rejects","remembers")])
+                publish(extra,"Mara suspects, rejects and remembers amber as separate authored attitudes from three until ten.","connected-other-attitudes")
+                others=[a for a in client.call("universe_read_contracts",{"universe":"Story","context_id":context(5)})["result"]["attitudes"] if a["attitude"] in {"suspects","rejects","remembers"}]
+                corrected=check(context(),attitude_corrections=[{"attitude_handle":a["attitude_handle"],"value":"violet","end_tick":"8","reason":"Explicit historical correction and shortened interval, without changing stance."} for a in others]+[{"attitude_handle":new_belief["attitude_handle"],"end_tick":"8","reason":"End the recorded belief at eight."}])
+                publish(corrected,"The three attributed violet attitudes and the blue belief end at eight; their stances and prior intervals remain recorded.","connected-attitude-endings")
+                late=client.call("universe_read_contracts",{"universe":"Story","context_id":context(9)})["result"]["attitudes"]
+                self.assertTrue(all(a["applicable"] is False for a in late if a["attitude"]!="knows"))
+                denied_knowledge=client.request("tools/call",{"name":"universe_check_changes","arguments":{"universe":"Story","context_id":context(),"attitude_corrections":[{"attitude_handle":knowledge["attitude_handle"],"end_tick":"4","reason":"Loss before the committed dependent action must be blocked."}]}})
+                denied=denied_knowledge["structuredContent"]["result"]
+                self.assertNotEqual(denied["status"],"checked_candidate")
+                self.assertTrue(any(f["outcome"]=="not_established" and "Action prerequisite" in f["message"] for f in denied["validation"]["execution"]["findings"]),denied)
+                denied_review=decisions.action({"action":"prepare","candidate":denied["candidate_handle"],"label":"Blocked knowledge ending","text":"Mara's knowledge ends before the committed dependent action."})
+                self.assertFalse(denied_review["publishable"])
+                with self.assertRaises(RuntimeError):
+                    decisions.action({"action":"publish","candidate":denied_review["candidate"],"validation_run":denied_review["validation"]["execution"]["run_id"],"idempotency_key":"blocked-knowledge-ending"})
+                ended_knowledge=check(context(),attitude_corrections=[{"attitude_handle":knowledge["attitude_handle"],"end_tick":"8","reason":"Knowledge ends after the committed dependent action."}])
+                publish(ended_knowledge,"Mara's established code knowledge ends at eight, preserving its original receipt and interpretation.","connected-knowledge-ending")
+                late=client.call("universe_read_contracts",{"universe":"Story","context_id":context(9)})["result"]["attitudes"]
+                self.assertTrue(all(a["applicable"] is False for a in late))
                 protection=check(context(),properties=[{"name":"reserve","introduce":True,"value_type":"integer","single_value":True,"persistence":"explicit_interval"}],constraints=[{"kind":"resource_accounting","name":"reserve accounting","property":"reserve","scope":"universe"},{"kind":"no_opposing_evidence","name":"key tag conflict","object":"Key","property":"tags","scope":"universe"}])
                 protection_revision=publish(protection,"Reserve changes require resource accounting; conflicting support for the key's tags is blocked.","connected-protection-declarations",contracts=True)
                 protected=client.call("universe_read_contracts",{"universe":"Story","context_id":context(5)})["result"]["constraints"]

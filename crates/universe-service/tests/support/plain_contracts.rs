@@ -987,6 +987,110 @@ async fn ordinary_knowledge_policies_and_explicit_author_decision() {
         read["result"]["knowledge_policies"][0]["mode"], "author_established",
         "{read}"
     );
+    let head = context(&mut a, &u, "Alpha").await;
+    let attitudes = a
+        .call(tool(
+            "universe_read_contracts",
+            json!({"universe":"Alpha","context_id":head}),
+        ))
+        .await
+        .unwrap();
+    let known = attitudes["result"]["attitudes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["claim"]["property"] == "code")
+        .unwrap();
+    let patch = json!({"attitude_handle":known["attitude_handle"],"end_tick":"8","reason":"Explicitly end the recorded author-established knowledge at eight."});
+    let held = a
+        .call(tool(
+            "universe_check_changes",
+            json!({"universe":"Alpha","context_id":head,"attitude_corrections":[patch]}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(held["result"]["status"], "needs_clarification");
+    assert!(held["result"]["candidate_handle"].is_null());
+    let knowledge_id = raw["result"]["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|o| o["kind"] == "add_belief")
+        .unwrap()["client_ref"]
+        .clone();
+    let author_ctx = context(&mut c, &u, "Alpha").await;
+    let old=c.call(tool("universe_get",json!({"universe":"Alpha","context_id":author_ctx,"record_ids":[knowledge_id],"field_groups":["payload"]}))).await.unwrap()["result"]["records"][0].clone();
+    let mut replacement = old["payload"].clone();
+    replacement.as_object_mut().unwrap().remove("record_kind");
+    replacement["validity"]["end"]["value"] = json!("8");
+    let op = json!({"kind":"revise_attitude","record":{"universe":u["universe_id"],"record":knowledge_id},"expected_version":old["record_version_id"],"replacement":replacement,"rationale":"An agent explanation cannot grant author origin."});
+    let forged=a.call(tool("universe_propose",json!({"action":"create","universe":"Alpha","context_id":head,"operations":[op],"submission":"draft","rationale":"Agent attempted author-established duration correction","idempotency_key":"forged-attitude-revision"}))).await.unwrap()["result"].clone();
+    let denied=a.call(tool("universe_validate",json!({"mode":"proposal","universe":"Alpha","context_id":head,"proposal_reference":reference(&forged),"check_scope":"universe"}))).await;
+    assert!(
+        denied
+            .as_ref()
+            .is_err_and(|e| e.to_string().contains("author-origin")),
+        "{denied:?}"
+    );
+    assert!(c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::Prepare {
+                candidate: serde_json::from_value(forged["proposal_id"].clone()).unwrap(),
+                label: "Forbidden adoption".into(),
+                text: "A generic review cannot manufacture an author knowledge decision.".into()
+            }
+        })
+        .await
+        .is_err());
+    let edit = EngineRequest::AuthorWriting {
+        universe: Selector("Alpha".into()),
+        action: AuthorWritingAction::EditKnowledge {
+            context_id: serde_json::from_value(head.clone()).unwrap(),
+            correction: serde_json::from_value(patch.clone()).unwrap(),
+            label: "Explicit knowledge ending".into(),
+            text: "Holder's recorded knowledge ends at eight; its original acquisition remains."
+                .into(),
+        },
+    };
+    assert!(a.call(edit.clone()).await.is_err());
+    let reviewed = c.call(edit).await.unwrap();
+    assert_eq!(reviewed["publishable"], true, "{reviewed}");
+    c.call(EngineRequest::AuthorWriting {
+        universe: Selector("Alpha".into()),
+        action: AuthorWritingAction::Publish {
+            candidate: serde_json::from_value(reviewed["candidate"].clone()).unwrap(),
+            validation_run: serde_json::from_value(
+                reviewed["validation"]["execution"]["run_id"].clone(),
+            )
+            .unwrap(),
+            idempotency_key: "author-knowledge-ending".into(),
+        },
+    })
+    .await
+    .unwrap();
+    let new_ctx = context(&mut c, &u, "Alpha").await;
+    let current=c.call(tool("universe_get",json!({"universe":"Alpha","context_id":new_ctx,"record_ids":[knowledge_id],"field_groups":["payload"]}))).await.unwrap()["result"]["records"][0].clone();
+    assert_eq!(
+        current["payload"]["acquisition"],
+        old["payload"]["acquisition"]
+    );
+    assert_eq!(current["payload"]["basis"], old["payload"]["basis"]);
+    assert_eq!(current["payload"]["validity"]["end"]["value"], "8");
+    assert_ne!(current["record_version_id"], old["record_version_id"]);
+    assert_eq!(c.call(tool("universe_get",json!({"universe":"Alpha","context_id":author_ctx,"record_ids":[knowledge_id],"field_groups":["payload"]}))).await.unwrap()["result"]["records"][0]["payload"]["validity"]["end"]["value"],"10");
+    let stale = c
+        .call(EngineRequest::AuthorWriting {
+            universe: Selector("Alpha".into()),
+            action: AuthorWritingAction::EditKnowledge {
+                context_id: serde_json::from_value(new_ctx).unwrap(),
+                correction: serde_json::from_value(patch).unwrap(),
+                label: "Stale version".into(),
+                text: "An old handle cannot revise current knowledge.".into(),
+            },
+        })
+        .await;
+    assert!(stale.is_err());
     stop.cancel();
     server.await.unwrap().unwrap();
 }

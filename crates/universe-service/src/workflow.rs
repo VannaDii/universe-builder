@@ -3008,6 +3008,39 @@ fn research_label(r: &RecordVersion, visible: &[RecordVersion], author: bool) ->
             return format!("{} — {}", label(item), label(ability));
         }
     }
+    if let (true, Payload::EpistemicAttitude(a)) = (author, &r.payload) {
+        let holder = visible
+            .iter()
+            .find(|r| r.identity.record_id == a.holder.record);
+        let proposition = visible
+            .iter()
+            .find(|r| r.identity.record_id == a.proposition.record)
+            .and_then(|r| {
+                if let Payload::Proposition(p) = &r.payload {
+                    Some(p)
+                } else {
+                    None
+                }
+            });
+        if let (Some(holder), Some(p)) = (holder, proposition) {
+            if let (Some(subject), Some(property)) = (
+                visible
+                    .iter()
+                    .find(|r| r.identity.record_id == p.subject.record),
+                visible
+                    .iter()
+                    .find(|r| r.identity.record_id == p.predicate.record),
+            ) {
+                return format!(
+                    "{} — {:?} {}.{}",
+                    label(holder),
+                    a.attitude,
+                    label(subject),
+                    label(property)
+                );
+            }
+        }
+    }
     label(r)
 }
 fn label(r: &RecordVersion) -> String {

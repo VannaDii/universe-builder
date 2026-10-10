@@ -181,6 +181,161 @@ pub(super) fn define(
     operations.push(json!({"kind":"define_proposition","client_ref":id,"record":p}));
     reference(u, &id)
 }
+pub(super) fn attitude_edit(
+    u: &UniverseId,
+    rows: &[RecordVersion],
+    frame: &Frame,
+    patch: &WritingAttitudeCorrection,
+    private_knowledge: bool,
+) -> anyhow::Result<Vec<Value>> {
+    let original = rows
+        .iter()
+        .find(|r| {
+            r.record_version_id.as_str() == patch.attitude_handle
+                && matches!(r.payload, Payload::EpistemicAttitude(_))
+        })
+        .ok_or_else(|| {
+            anyhow::anyhow!("Retrieve the current author-visible attitude handle before editing it")
+        })?;
+    let Payload::EpistemicAttitude(old) = &original.payload else {
+        unreachable!()
+    };
+    let original_claim = rows
+        .iter()
+        .find(|r| r.identity.record_id == old.proposition.record)
+        .and_then(|r| {
+            if let Payload::Proposition(p) = &r.payload {
+                Some(p)
+            } else {
+                None
+            }
+        })
+        .ok_or_else(|| anyhow::anyhow!("Retrieve the original attributed claim"))?;
+    if original_claim.context != frame.context {
+        anyhow::bail!("Select this attitude's original represented context before editing it");
+    }
+    if patch.value.is_some() && original_claim.value.is_none() {
+        anyhow::bail!("Ordinary claim correction supports existing property-value claims only");
+    }
+    if patch.reason.trim().is_empty() {
+        anyhow::bail!("Explain the explicit historical attitude correction or ending");
+    }
+    if private_knowledge && old.attitude != EpistemicAttitudeKind::Knows {
+        anyhow::bail!("The private knowledge edit requires an existing Knows record");
+    }
+    if old.attitude == EpistemicAttitudeKind::Knows {
+        if patch.value.is_some() || patch.certainty.is_some() || patch.clear_certainty {
+            anyhow::bail!("Knowledge editing preserves claim, certainty, acquisition and basis; only authored duration can change");
+        }
+        if !private_knowledge
+            && old
+                .acquisition
+                .as_ref()
+                .is_some_and(|a| a.basis == KnowledgeBasis::AuthorEstablished)
+        {
+            anyhow::bail!("Author-established knowledge editing requires the explicit private edit_knowledge action with this handle, context, exact source and reason");
+        }
+    }
+    let mut new = old.clone();
+    let mut ops = vec![];
+    if let Some(value) = &patch.value {
+        let Payload::Proposition(p) = &rows
+            .iter()
+            .find(|r| r.identity.record_id == old.proposition.record)
+            .ok_or_else(|| anyhow::anyhow!("Retrieve the original attributed claim"))?
+            .payload
+        else {
+            anyhow::bail!("Retrieve the original attributed claim")
+        };
+        let mut p = p.clone();
+        p.value = Some(fact_value(u, rows, frame, value)?);
+        new.proposition = define(&mut ops, u, &p, rows);
+    }
+    if patch.clear_certainty && patch.certainty.is_some() {
+        anyhow::bail!("Choose a certainty replacement or explicit removal, not both");
+    }
+    if patch.clear_certainty {
+        new.certainty = None;
+    } else if let Some(value) = &patch.certainty {
+        new.certainty = Some(value.clone());
+    }
+    if patch.end_tick.is_some() && (patch.at_tick.is_some() || patch.lifetime.is_some()) {
+        anyhow::bail!("Choose an ending or historical duration correction, not both");
+    }
+    if patch.at_tick.is_some() || patch.lifetime.is_some() {
+        use universe_domain::{
+            scope::Validity,
+            temporal::{TemporalBound, TemporalExpression},
+        };
+        let (calendar, start, end) = match &old.validity {
+            Validity::CalendarInterval {
+                calendar,
+                start,
+                end,
+            } => (calendar.clone(), start.clone(), Some(end.clone())),
+            Validity::Instant {
+                at: TemporalExpression::Exact { calendar, value },
+            } => (
+                calendar.clone(),
+                TemporalBound::Exact {
+                    value: value.clone(),
+                },
+                None,
+            ),
+            _ => anyhow::bail!(
+                "This attitude has no supported exact authored duration; use advanced authoring"
+            ),
+        };
+        let start = patch
+            .at_tick
+            .as_ref()
+            .map(|v| TemporalBound::Exact { value: v.clone() })
+            .unwrap_or(start);
+        new.validity = if let Some(lifetime) = &patch.lifetime {
+            let TemporalBound::Exact { value } = start else {
+                anyhow::bail!("Supply the unresolved attitude start explicitly")
+            };
+            super::writing_contracts::validity(
+                &TemporalExpression::Exact { calendar, value },
+                lifetime,
+            )?
+        } else if let Some(end) = end {
+            Validity::CalendarInterval {
+                calendar,
+                start,
+                end,
+            }
+        } else {
+            let TemporalBound::Exact { value } = start else {
+                unreachable!()
+            };
+            Validity::Instant {
+                at: TemporalExpression::Exact { calendar, value },
+            }
+        };
+    }
+    if let Some(tick) = &patch.end_tick {
+        use universe_domain::{scope::Validity, temporal::TemporalBound};
+        let Validity::CalendarInterval { start, end, .. } = &mut new.validity else {
+            anyhow::bail!("Ending requires an existing authored attitude interval")
+        };
+        let tick = tick.parse::<i128>()?;
+        if matches!(start,TemporalBound::Exact{value} if tick<=value.parse::<i128>().unwrap_or(i128::MAX))
+            || matches!(end,TemporalBound::Exact{value} if tick>value.parse::<i128>().unwrap_or(i128::MIN))
+        {
+            anyhow::bail!("End after the original start and no later than the original end");
+        }
+        *end = TemporalBound::Exact {
+            value: tick.to_string(),
+        };
+    }
+    if new == *old {
+        anyhow::bail!("Specify changed historical attitude fields; later change or loss needs a separate declaration");
+    }
+    ops.push(json!({"kind":"revise_attitude","record":{"universe":u,"record":original.identity.record_id},"expected_version":original.record_version_id,"replacement":new,"rationale":patch.reason}));
+    Ok(ops)
+}
+
 pub(super) fn candidate_records(
     u: &UniverseId,
     ctx: &Context,
@@ -284,6 +439,7 @@ impl Workflow<'_> {
         if input.events.is_empty()
             && input.messages.is_empty()
             && input.attitudes.is_empty()
+            && input.attitude_corrections.is_empty()
             && input.corrections.is_empty()
             && input.fact_endings.is_empty()
             && input.fact_withdrawals.is_empty()
@@ -292,6 +448,25 @@ impl Workflow<'_> {
         }
         let u = self.kernel.universe();
         let mut rows = candidate_records(u, ctx, base, operations)?;
+        let mut edited = std::collections::BTreeSet::new();
+        for patch in &input.attitude_corrections {
+            if !edited.insert(&patch.attitude_handle) {
+                result
+                    .clarifications
+                    .push("Edit each recorded attitude once in a delta".into());
+                continue;
+            }
+            match attitude_edit(u, &rows, &ctx.frame, patch, false) {
+                Ok(ops) => {
+                    operations.extend(ops);
+                    result
+                        .additions
+                        .push(format!("Historical attitude edit: {}", patch.reason));
+                }
+                Err(e) => result.clarifications.push(e.to_string()),
+            }
+        }
+        rows = candidate_records(u, ctx, base, operations)?;
         let mut messages = BTreeMap::new();
         for message in &input.messages {
             let built = (|| -> anyhow::Result<_> {
@@ -747,7 +922,7 @@ if let Some(p)=&r.knowledge_policy{if p.context==ctx.frame.context{policies.push
             },
             Payload::EpistemicAttitude(a) => {
                 let p=rows.iter().find(|r|r.identity.record_id==a.proposition.record).and_then(|r|if let Payload::Proposition(p)=&r.payload{Some(p)}else{None});
-                attitudes.push(json!({"holder":name(&a.holder.record),"attitude":a.attitude,"claim":p.map(|p|json!({"subject":name(&p.subject.record),"property":name(&p.predicate.record),"value":p.value.as_ref().and_then(|v|plain_value(v,&name))})),"time":plain_time(&json!(a.validity),&name),"applicable":universe_rules::events::applies(&a.validity,&ctx.frame.time,&rows),"message_handle":a.acquisition.as_ref().and_then(|a|if let KnowledgeBasis::CommunicationReceipt{communication,..}=&a.basis{Some(communication.record.clone())}else{None}),"limitation":"Attributed attitude; knowledge eligibility remains subject to existing truth/acquisition evaluator."}));
+                attitudes.push(json!({"attitude_handle":if matches!(ctx.frame.perspective,Perspective::Author){Some(&row.record_version_id)}else{None},"certainty":a.certainty,"holder":name(&a.holder.record),"attitude":a.attitude,"claim":p.map(|p|json!({"subject":name(&p.subject.record),"property":name(&p.predicate.record),"value":p.value.as_ref().and_then(|v|plain_value(v,&name))})),"time":plain_time(&json!(a.validity),&name),"applicable":universe_rules::events::applies(&a.validity,&ctx.frame.time,&rows),"message_handle":a.acquisition.as_ref().and_then(|a|if let KnowledgeBasis::CommunicationReceipt{communication,..}=&a.basis{Some(communication.record.clone())}else{None}),"limitation":"Attributed attitude; knowledge eligibility remains subject to existing truth/acquisition evaluator."}));
             },
             Payload::Communication(c)=>messages.push(json!({"message_handle":row.identity.record_id,"from":name(&c.sender.record),"received_by":c.actual_recipients.iter().filter_map(|r|name(&r.record)).collect::<Vec<_>>(),"sent_at":plain_time(&json!(c.sent_at),&name),"received_at":c.received_at.as_ref().map(|t|plain_time(&json!(t),&name)),"distorted":c.distorted,"claims":c.content.iter().filter_map(|p|rows.iter().find(|r|r.identity.record_id==p.record)).filter_map(|r|if let Payload::Proposition(p)=&r.payload{Some(json!({"subject":name(&p.subject.record),"property":name(&p.predicate.record),"value":p.value.as_ref().and_then(|v|plain_value(v,&name))}))}else{None}).collect::<Vec<_>>()})),_=>()
         }

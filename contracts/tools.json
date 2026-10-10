@@ -2262,6 +2262,13 @@
           },
           "default": []
         },
+        "attitude_corrections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingAttitudeCorrection"
+          },
+          "default": []
+        },
         "definition_corrections": {
           "description": "Incremental ancestry/applicability revisions; omitted fields keep authored metadata. Requires private contract review.",
           "type": "array",
@@ -3238,6 +3245,72 @@
           "enum": [
             "author_established",
             "justified"
+          ]
+        },
+        "WritingAttitudeCorrection": {
+          "description": "Correct the recorded historical attitude, not a later change of mind. Knows allows duration only.",
+          "type": "object",
+          "properties": {
+            "attitude_handle": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FactValue"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "certainty": {
+              "description": "Supplied certainty replaces it; clear_certainty explicitly removes it. Non-Knows only.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "clear_certainty": {
+              "type": "boolean",
+              "default": false
+            },
+            "at_tick": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "lifetime": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FactLifetime"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "end_tick": {
+              "description": "Explicit ending only shortens an existing authored interval.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "attitude_handle",
+            "reason"
           ]
         },
         "WritingDefinitionCorrection": {
@@ -29782,6 +29855,36 @@
               ]
             },
             {
+              "description": "Historical attitude correction; stance, holder, acquisition and basis stay unchanged. Knows permits duration edits only.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/EpistemicAttitude"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_attitude"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
+              ]
+            },
+            {
               "description": "Version-bound grant correction; item, possession predicate, ability predicate and represented context remain unchanged.",
               "type": "object",
               "properties": {
@@ -42612,6 +42715,36 @@
               ]
             },
             {
+              "description": "Historical attitude correction; stance, holder, acquisition and basis stay unchanged. Knows permits duration edits only.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/EpistemicAttitude"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_attitude"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
+              ]
+            },
+            {
               "description": "Version-bound grant correction; item, possession predicate, ability predicate and represented context remain unchanged.",
               "type": "object",
               "properties": {
@@ -51439,6 +51572,36 @@
                 "kind",
                 "client_ref",
                 "record"
+              ]
+            },
+            {
+              "description": "Historical attitude correction; stance, holder, acquisition and basis stay unchanged. Knows permits duration edits only.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/EpistemicAttitude"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_attitude"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
               ]
             },
             {
@@ -60480,6 +60643,36 @@
                 "kind",
                 "client_ref",
                 "record"
+              ]
+            },
+            {
+              "description": "Historical attitude correction; stance, holder, acquisition and basis stay unchanged. Knows permits duration edits only.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/EpistemicAttitude"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_attitude"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
               ]
             },
             {
@@ -74184,6 +74377,36 @@
               ]
             },
             {
+              "description": "Historical attitude correction; stance, holder, acquisition and basis stay unchanged. Knows permits duration edits only.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/EpistemicAttitude"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_attitude"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
+              ]
+            },
+            {
               "description": "Version-bound grant correction; item, possession predicate, ability predicate and represented context remain unchanged.",
               "type": "object",
               "properties": {
@@ -84014,6 +84237,36 @@
                 "kind",
                 "client_ref",
                 "record"
+              ]
+            },
+            {
+              "description": "Historical attitude correction; stance, holder, acquisition and basis stay unchanged. Knows permits duration edits only.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/EpistemicAttitude"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_attitude"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
               ]
             },
             {

@@ -83,6 +83,66 @@ impl Workflow<'_> {
                 label,
                 text,
             } => self.prepare_writing_source(universe, candidate, label, text, true, None),
+            AuthorWritingAction::EditKnowledge {
+                context_id,
+                correction,
+                label,
+                text,
+            } => {
+                if text.trim().is_empty() || correction.reason.trim().is_empty() {
+                    return Err(ProtocolError::invalid_argument(
+                        "text/reason",
+                        "Explicit author source and reason required",
+                    )
+                    .into());
+                }
+                let selected: Context = self.load(&format!("context:{context_id}"))?;
+                if selected.expires < now() {
+                    return Err(ProtocolError::ContextExpired.into());
+                }
+                if self.kernel.head(&selected.frame.continuity)? != selected.frame.revision {
+                    return Err(ProtocolError::ApprovalStale.into());
+                }
+                let reopened = self.writing_author_context_frame(&universe, &selected.frame)?;
+                let ctx = self.context(&reopened)?;
+                let base = self
+                    .kernel
+                    .records(&ctx.frame.continuity, &ctx.frame.revision)?;
+                let visible = self.visible_ids(&base)?;
+                let rows: Vec<_> = base
+                    .into_iter()
+                    .filter(|r| visible.contains(&r.identity.record_id))
+                    .collect();
+                let ops = super::writing_connected::attitude_edit(
+                    self.kernel.universe(),
+                    &rows,
+                    &ctx.frame,
+                    &correction,
+                    true,
+                )?;
+                let key = format!(
+                    "author-knowledge-edit:{}",
+                    hash(&(&ctx.frame, &correction, &label, &text))
+                );
+                let receipt = self.operation_key("propose", &key);
+                let candidate = if self.kernel.workflow_get(&receipt)?.is_some() {
+                    self.operation(&receipt)?
+                        .status
+                        .proposal
+                        .ok_or_else(denied)?
+                } else {
+                    let proposed=self.execute(Request::from_tool("universe_propose",json!({"action":"create","universe":universe,"context_id":reopened,"operations":ops,"submission":"draft","rationale":correction.reason,"idempotency_key":key}))?)?;
+                    field::<Proposal>(&proposed, "result")?
+                };
+                self.prepare_writing_source(
+                    universe,
+                    candidate.proposal_id,
+                    label,
+                    text,
+                    false,
+                    Some(correction.reason),
+                )
+            }
             AuthorWritingAction::EstablishKnowledge {
                 context_id,
                 declaration,
@@ -347,6 +407,14 @@ impl Workflow<'_> {
                                 }
                     });
                 }
+            }
+            if let DomainOperation::ReviseAttitude {record,expected_version,replacement,..}=op {
+                let Some(original)=originals.iter().find(|r|r.identity.record_id==record.record && &r.record_version_id==expected_version) else{return true;};
+                let Payload::EpistemicAttitude(old)=&original.payload else{return true;};
+                if old.holder!=replacement.holder || old.attitude!=replacement.attitude || old.acquisition!=replacement.acquisition || old.basis!=replacement.basis {return true;}
+                if old.attitude==EpistemicAttitudeKind::Knows && (old.proposition!=replacement.proposition || old.certainty!=replacement.certainty) {return true;}
+                if old.attitude==EpistemicAttitudeKind::Knows && old.acquisition.as_ref().is_some_and(|a|a.basis==KnowledgeBasis::AuthorEstablished) {return knowledge_rationale.is_none() || !p.author_origin || old.proposition!=replacement.proposition || old.certainty!=replacement.certainty || old.acquisition!=replacement.acquisition || old.basis!=replacement.basis;}
+                return false;
             }
             if let DomainOperation::ReviseItemPower {record,expected_version,replacement,rationale}=op {
                 return !contracts || rationale.trim().is_empty() || !originals.iter().any(|r|r.identity.record_id==record.record && &r.record_version_id==expected_version && matches!(&r.payload,Payload::ItemPower(old) if old.item==replacement.item && old.holder_predicate==replacement.holder_predicate && old.power_predicate==replacement.power_predicate && old.scope.context==replacement.scope.context));
@@ -630,6 +698,45 @@ impl Workflow<'_> {
         };
         let mut summary = vec![];
         let mut factual_edits = BTreeSet::new();
+        for op in &p.operations {
+            if let DomainOperation::ReviseAttitude {
+                record,
+                replacement,
+                rationale,
+                ..
+            } = op
+            {
+                if let Some(Payload::EpistemicAttitude(old)) = originals
+                    .iter()
+                    .find(|r| r.identity.record_id == record.record)
+                    .map(|r| &r.payload)
+                {
+                    let claim = |rows: &[RecordVersion], id: &RecordId| {
+                        rows.iter()
+                            .find(|r| &r.identity.record_id == id)
+                            .and_then(|r| {
+                                if let Payload::Proposition(p) = &r.payload {
+                                    Some(format!(
+                                        "{}.{} = {}",
+                                        label(&p.subject.record)
+                                            .unwrap_or_else(|| "unresolved".into()),
+                                        label(&p.predicate.record)
+                                            .unwrap_or_else(|| "unresolved".into()),
+                                        p.value
+                                            .as_ref()
+                                            .and_then(|v| writing::plain_value(v, &label))
+                                            .unwrap_or(Value::Null)
+                                    ))
+                                } else {
+                                    None
+                                }
+                            })
+                            .unwrap_or_else(|| "unresolved claim".into())
+                    };
+                    summary.push(format!("Historical attitude correction: {} {:?}; original claim {}, time {}; proposed claim {}, time {}; acquisition and basis retained; reason: {}",label(&old.holder.record).unwrap_or_else(||"unresolved holder".into()),old.attitude,claim(&originals,&old.proposition.record),writing::plain_time(&json!(old.validity),&label),claim(&records,&replacement.proposition.record),writing::plain_time(&json!(replacement.validity),&label),rationale));
+                }
+            }
+        }
         for op in &p.operations {
             if let DomainOperation::ReviseItemPower {
                 record,
