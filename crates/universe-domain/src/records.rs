@@ -2204,6 +2204,12 @@ pub enum DomainOperation {
         client_ref: String,
         record: DomainPack,
     },
+    /// Withdraw support for an incorrectly recorded occurrence; immutable history remains.
+    WithdrawEvent {
+        record: RecordRef,
+        expected_version: RecordVersionId,
+        rationale: String,
+    },
     /// Exact historical communication correction; does not declare a later message.
     ReviseCommunication {
         record: RecordRef,
@@ -2330,6 +2336,7 @@ impl DomainOperation {
             | EndAssertionAt { .. }
             | SupersedeAssertion { .. }
             | RetractAssertion { .. }
+            | WithdrawEvent { .. }
             | ReviseAttitude { .. }
             | ReviseCommunication { .. }
             | ReviseInterpretation { .. } => OperationAuthority::Historical,

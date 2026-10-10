@@ -609,6 +609,8 @@ async fn version_bound_corrections_recompile_dependents_and_preserve_history() {
     let mut timed = Form::load(new_second.clone(), &f, Some(&clock), &timed_choices).unwrap();
     timed.start = "3".into();
     reject(&mut c, &current, timed.build(&f, Some(&clock), &timed_choices).unwrap(), "reviewed-event-time", "resource pre-event balance missing").await;
+    let withdrawal = crate::event_correction::withdrawal(&corrected,&f,"Withdraw the burst's support, without asserting non-occurrence.").unwrap();
+    reject(&mut c,&current,vec![withdrawal],"reviewed-event-withdrawal-dependency","resource").await;
     let latest = open(&mut c, &u).await;
     assert_eq!(read(&mut c, &latest, &second_id).await, new_second);
     assert_eq!(read(&mut c, &current, &second_id).await, new_second);

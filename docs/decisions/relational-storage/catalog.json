@@ -7272,7 +7272,8 @@
         "DomainOperation_v56",
         "DomainOperation_v57",
         "DomainOperation_v58",
-        "DomainOperation_v59"
+        "DomainOperation_v59",
+        "DomainOperation_v60"
       ]
     },
     "DomainOperation_v0": {
@@ -11220,6 +11221,37 @@
     },
     "DomainOperation_v59_rationale": {
       "table": "r_domain_operation_v59_rationale",
+      "kind": "string"
+    },
+    "DomainOperation_v60": {
+      "table": "r_domain_operation_v60",
+      "kind": "object",
+      "fields": {
+        "kind": {
+          "model": "DomainOperation_v60_kind",
+          "required": true
+        },
+        "record": {
+          "model": "RecordRef",
+          "required": true
+        },
+        "expected_version": {
+          "model": "RecordVersionId",
+          "required": true
+        },
+        "rationale": {
+          "model": "DomainOperation_v60_rationale",
+          "required": true
+        }
+      }
+    },
+    "DomainOperation_v60_kind": {
+      "table": "r_domain_operation_v60_kind",
+      "kind": "string",
+      "const": "withdraw_event"
+    },
+    "DomainOperation_v60_rationale": {
+      "table": "r_domain_operation_v60_rationale",
       "kind": "string"
     },
     "StoredContext": {

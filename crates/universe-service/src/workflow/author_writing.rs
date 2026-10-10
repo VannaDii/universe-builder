@@ -489,6 +489,9 @@ impl Workflow<'_> {
             if let DomainOperation::EndAssertionAt { record, expected_version, .. } | DomainOperation::RetractAssertion { record, expected_version, .. } = op {
                 return !originals.iter().any(|r| r.identity.record_id==record.record && &r.record_version_id==expected_version && matches!(&r.payload,Payload::Assertion(a) if a.established_by.is_none() && originals.iter().any(|p|p.identity.record_id==a.proposition.record && matches!(&p.payload,Payload::Proposition(p) if originals.iter().any(|d|d.identity.record_id==p.predicate.record && (matches!(d.payload,Payload::Property(_)) || (matches!(op,DomainOperation::EndAssertionAt{..}) && super::writing_relations::correctable(a) && matches!(d.payload,Payload::Relation(_)))))))));
             }
+            if let DomainOperation::WithdrawEvent { record, expected_version, rationale } = op {
+                return rationale.trim().is_empty() || !originals.iter().any(|r|r.identity.record_id==record.record && &r.record_version_id==expected_version && matches!(&r.payload,Payload::Event(e) if e.occurrence==OccurrenceMode::Occurred));
+            }
             if let DomainOperation::SetCompleteness { record, .. } = op {
                 return !contracts
                     || !matches!(record.completeness, CompletenessKind::ObjectiveReality);
@@ -763,6 +766,13 @@ impl Workflow<'_> {
                     .map(|r| &r.payload)
                 {
                     summary.push(format!("Correct item grant: {} — {}; original value {}, time {}; proposed value {}, time {}, scope {}; reason: {}",label(&old.item.record).unwrap_or_else(||"unresolved".into()),label(&old.power_predicate.record).unwrap_or_else(||"unresolved".into()),writing::plain_value(&old.value,&label).unwrap_or(Value::Null),writing::plain_time(&json!(old.validity),&label),writing::plain_value(&replacement.value,&label).unwrap_or(Value::Null),writing::plain_time(&json!(replacement.validity),&label),super::writing_connected::plain_scope(&replacement.scope,&label),rationale));
+                }
+            }
+        }
+        for op in &p.operations {
+            if let DomainOperation::WithdrawEvent { record, rationale, .. } = op {
+                if let Some(Payload::Event(e))=originals.iter().find(|r|r.identity.record_id==record.record).map(|r|&r.payload) {
+                    summary.push(format!("Withdraw occurred event: {}; time {}; generated effects removed; no non-occurrence asserted; reason: {}",e.action.as_ref().and_then(|a|label(&a.record)).unwrap_or_else(||"authored occurrence".into()),writing::plain_time(&json!(e.time),&label),rationale));
                 }
             }
         }

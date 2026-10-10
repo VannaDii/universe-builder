@@ -535,6 +535,7 @@ pub(crate) fn compile_allocated(
             | ReviseInterpretation { .. }
             | AdoptRecordVersion { .. }
             | ReviseEvent { .. }
+            | WithdrawEvent { .. }
             | UpgradePack { .. }
             | SetStoryTime { .. }
             | AddName { .. }
@@ -1034,6 +1035,13 @@ pub(crate) fn compile_allocated(
                 if rationale.trim().is_empty() {
                     return Err(invalid("explain the assertion retraction"));
                 }
+                (record, expected_version, None)
+            }
+            WithdrawEvent { record, expected_version, rationale } => {
+                if !matches!(&current(&records,u,record,expected_version)?.payload, Payload::Event(e) if e.occurrence == OccurrenceMode::Occurred) {
+                    return Err(invalid("withdrawal requires an occurred event"));
+                }
+                if rationale.trim().is_empty() { return Err(invalid("explain the occurrence withdrawal")); }
                 (record, expected_version, None)
             }
             TombstoneRecord {

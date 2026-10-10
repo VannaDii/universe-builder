@@ -775,6 +775,29 @@ class ConnectedWritingTests(unittest.TestCase):
                 self.assertEqual([f["value"]["amount"] for f in fuel_facts(9)["Tank"]],[0])
                 self.assertEqual([f["value"]["amount"] for f in fuel_facts(5,{"kind":"exact","revision_id":refilled_revision})["Tank"]],[0.025])
                 self.assertEqual([f["value"]["amount"] for f in fuel_facts(5,{"kind":"exact","revision_id":later_revision})["Tank"]],[0.125])
+                withdrawal_base=context(9)
+                events=client.call("universe_read_facts",{"universe":"Story","context_id":withdrawal_base,"object_names":["Tank"]})["result"]["objects"][0]["occurred_events"]
+                small=next(e for e in events if e["time"].endswith(": 6"))
+                final=next(e for e in events if e["time"].endswith(": 9"))
+                refused=client.call("universe_check_changes",{"universe":"Story","context_id":context(),"event_withdrawals":[{"event_handle":small["event_edit_handle"],"reason":"The small burn was recorded incorrectly."}]},error=True)
+                self.assertEqual(refused["code"],"INVALID_ARGUMENT",refused)
+                self.assertIn("resource post-value",refused["message"],refused)
+                self.assertEqual([f["value"]["amount"] for f in fuel_facts(9)["Tank"]],[0])
+                # Withdrawal plus an explicit dependent correction is one reviewed change.
+                repaired=check(context(),event_withdrawals=[{"event_handle":small["event_edit_handle"],"reason":"Withdraw only the incorrectly recorded small burn."}],event_corrections=[{"event_handle":final["handle"],"action":"small burn","reason":"Explicitly correct the remaining burn's authored cost."}])
+                publish(repaired,"Only a small burn happened at nine; the six o'clock burn had no support.","connected-event-withdrawal-repair")
+                self.assertEqual([f["value"]["amount"] for f in fuel_facts(9)["Tank"]],[0.1])
+                stale=check(context(),event_withdrawals=[{"event_handle":final["event_edit_handle"],"reason":"Old version cannot target the corrected occurrence."}])
+                self.assertIsNone(stale["candidate_handle"],stale)
+                remaining=client.call("universe_read_facts",{"universe":"Story","context_id":context(9),"object_names":["Tank"]})["result"]["objects"][0]["occurred_events"]
+                final=next(e for e in remaining if e["time"].endswith(": 9"))
+                publish(check(context(),event_withdrawals=[{"event_handle":final["event_edit_handle"],"reason":"Withdraw the unsupported final occurrence."}]),"The final recorded burn is withdrawn without asserting its opposite.","connected-event-withdrawal-last")
+                self.assertEqual([f["value"]["amount"] for f in fuel_facts(9)["Tank"]],[0.125])
+                self.assertEqual([f["value"]["amount"] for f in fuel_facts(9)["Other tank"]],[2])
+                self.assertEqual([f["value"]["amount"] for f in fuel_facts(5,{"kind":"exact","revision_id":refilled_revision})["Tank"]],[0.025])
+                missing=check(context(),event_withdrawals=[{"event_handle":final["event_edit_handle"],"reason":"Withdrawn handle is no longer current."}])
+                self.assertIsNone(missing["candidate_handle"],missing)
+
             finally:
                 if client: client.close()
                 cli("shutdown",profile=author)

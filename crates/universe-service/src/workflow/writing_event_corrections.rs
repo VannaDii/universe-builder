@@ -12,11 +12,26 @@ impl Workflow<'_> {
         ops: &mut Vec<Value>,
         result: &mut WritingCheck,
     ) -> anyhow::Result<()> {
-        if input.event_corrections.is_empty() {
+        if input.event_corrections.is_empty() && input.event_withdrawals.is_empty() {
             return Ok(());
         }
         let u = self.kernel.universe();
         let mut corrected = BTreeSet::new();
+        for withdrawal in &input.event_withdrawals {
+            let built = (|| -> anyhow::Result<Value> {
+                if withdrawal.reason.trim().is_empty() { anyhow::bail!("Explain the author's occurrence withdrawal."); }
+                let original = base.iter().find(|r|r.record_version_id.as_str()==withdrawal.event_handle)
+                    .ok_or_else(||anyhow::anyhow!("Retrieve the current occurred-event edit handle before withdrawing it; stale, absent or restricted handles cannot be edited."))?;
+                let Payload::Event(e) = &original.payload else { anyhow::bail!("Retrieve an occurred-event edit handle."); };
+                if e.occurrence != OccurrenceMode::Occurred || !(e.action.as_ref().is_some_and(|a|base.iter().any(|r|r.identity.record_id==a.record && matches!(&r.payload,Payload::ActionDefinition(d) if d.scope.context==ctx.frame.context))) || (e.action.is_none() && !e.effects.is_empty() && e.effects.iter().all(|effect|effect.scope.context==ctx.frame.context))) { anyhow::bail!("Retrieve an occurred event in this selected author context."); }
+                if !corrected.insert(original.identity.record_id.clone()) { anyhow::bail!("Submit one correction or withdrawal per event in this delta."); }
+                Ok(json!({"kind":"withdraw_event","record":RecordRef::new(u.clone(),original.identity.record_id.clone()),"expected_version":original.record_version_id,"rationale":withdrawal.reason}))
+            })();
+            match built {
+                Ok(op)=>{ops.push(op);result.additions.push(format!("Withdraw occurrence support; no non-occurrence or opposite claim asserted; reason: {}",withdrawal.reason));},
+                Err(e)=>result.clarifications.push(e.to_string()),
+            }
+        }
         for correction in &input.event_corrections {
             let built = (|| -> anyhow::Result<Vec<Value>> {
                 if correction.reason.trim().is_empty() {
@@ -38,7 +53,11 @@ impl Workflow<'_> {
                     anyhow::bail!("This ordinary correction path supports occurred events only.");
                 }
                 let mut replacement = old.clone();
-                let mut rows = super::writing_connected::candidate_records(u, ctx, base, ops)?;
+                // The edited occurrence is not a prerequisite for itself. Remove it
+                // before compiling preceding withdrawals, so an explicitly corrected
+                // dependent is not validated with its obsolete frozen balance.
+                let derivation_base:Vec<_>=base.iter().filter(|r|r.identity.record_id!=original.identity.record_id && !matches!(&r.payload,Payload::Assertion(a)if a.established_by.as_ref().is_some_and(|e|e.event.record==original.identity.record_id))).cloned().collect();
+                let mut rows = super::writing_connected::candidate_records(u, ctx, &derivation_base, ops)?;
                 let original_action=old.action.as_ref().and_then(|a|rows.iter().find(|r|r.identity.record_id==a.record)).and_then(|r|if let Payload::ActionDefinition(a)=&r.payload {Some(a)}else{None}).ok_or_else(||anyhow::anyhow!("The original event lacks a readable declared action; use explicit advanced correction."))?;
                 let original_contract=original_action.consequence_contract.as_ref().ok_or_else(||anyhow::anyhow!("The original event's consequences are not contract-derived; use explicit advanced correction."))?;
                 if old.effects.iter().any(|effect| {

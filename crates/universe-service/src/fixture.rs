@@ -509,6 +509,9 @@ fn validate_write_envelope(
                 expected_version,
                 ..
             }
+            | DomainOperation::WithdrawEvent {
+                record, expected_version, ..
+            }
             | DomainOperation::TombstoneRecord {
                 record,
                 expected_version,

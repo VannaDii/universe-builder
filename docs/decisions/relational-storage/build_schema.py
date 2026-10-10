@@ -119,6 +119,7 @@ def contracts():
         expected_version=ref('RecordVersionId'),replacement=ref('EpistemicAttitude'),rationale=S))
     defs['DomainOperation']['oneOf'].append(obj(kind={'type':'string','const':'revise_communication'},record=ref('RecordRef'),expected_version=ref('RecordVersionId'),replacement=ref('Communication'),rationale=S))
     defs['DomainOperation']['oneOf'].append(obj(kind={'type':'string','const':'revise_interpretation'},record=ref('RecordRef'),expected_version=ref('RecordVersionId'),interpretation={'anyOf':[ref('RecordRef'),{'type':'null'}]},rationale=S))
+    defs['DomainOperation']['oneOf'].append(obj(kind={'type':'string','const':'withdraw_event'},record=ref('RecordRef'),expected_version=ref('RecordVersionId'),rationale=S))
     return defs
 
 

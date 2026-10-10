@@ -30,6 +30,15 @@ pub fn recompile(
             candidate.remove(&change.record_id);
         }
     }
+    for row in candidate.values() {
+        if let Payload::Assertion(a) = &row.payload {
+            if let universe_domain::scope::EvidenceBasis::InstanceInitialization { start, .. } = &a.basis {
+                if changes.iter().any(|change|change.record_id==start.record && change.next.is_none()) {
+                    return Err(invalid("surviving initialization requires its occurred start; its once-only receipt is retained"));
+                }
+            }
+        }
+    }
     let mut expected =
         universe_rules::events::expand(&candidate.values().cloned().collect::<Vec<_>>())
             .map_err(|e| invalid(&e))?;

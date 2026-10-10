@@ -416,6 +416,12 @@ mod tests {
             proposition.value,
             Some(Value::Integer { digits: "7".into() })
         );
+
+        let mut initialized=rows.clone();
+        initialized.extend(changes.iter().filter_map(|c|c.next.clone()));
+        let error=run(&initialized,json!({"kind":"withdraw_event","record":rr(9),"expected_version":id("ver",9),"rationale":"Incorrectly recorded instance start"})).unwrap_err();
+        assert!(error.to_string().contains("surviving initialization requires its occurred start"),"{error}");
+        assert_eq!(initialized.iter().filter(|r|matches!(&r.payload,Payload::Assertion(a) if matches!(&a.basis,EvidenceBasis::InstanceInitialization{..}))).count(),1);
         assert_eq!(rows, fixture());
     }
     #[test]

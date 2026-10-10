@@ -372,6 +372,14 @@ Generated balance facts cannot be edited directly. Later actions are rechecked,
 and may block the correction; they are never automatically rewritten. Explicit
 corrections to multiple events can share one atomic reviewed candidate. Exact
 source review and author approval remain required, and old revisions remain intact.
+`event_withdrawals` selects a current `event_edit_handle` from `read_facts` and
+an author reason. It removes support for that occurrence and its generated effects
+without asserting that the event did not happen. Earlier generated intervals are
+rebuilt; authored stock intervals and historical revisions remain unchanged.
+Surviving actions and initialization dependencies can block publication. Use the
+existing event inspector withdrawal control or ordinary delta, then exact factual
+source review and separate author approval. Do not withdraw generated facts directly.
+
 Moving a resource event rebuilds the interval boundaries of earlier generated
 stock before deriving its new balance. Authored starting intervals stay unchanged;
 missing stock, overspending and inconsistent later actions still block the edit.

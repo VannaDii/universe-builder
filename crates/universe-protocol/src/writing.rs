@@ -191,6 +191,9 @@ pub struct CheckChanges {
     /// Incremental occurred-event corrections; omitted fields preserve canon. Effects remain engine-derived.
     #[serde(default)]
     pub event_corrections: Vec<WritingEventCorrection>,
+    /// Remove support for a pinned occurred-event version; does not assert non-occurrence.
+    #[serde(default)]
+    pub event_withdrawals: Vec<WritingEventWithdrawal>,
     #[serde(default)]
     pub events: Vec<WritingEvent>,
     #[serde(default)]
@@ -645,6 +648,13 @@ pub struct WritingInitialization {
     pub scope: String,
     /// Explicit interval end or until_changed. An instant cannot initialize stock.
     pub lifetime: FactLifetime,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingEventWithdrawal {
+    pub event_handle: String,
+    pub reason: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
