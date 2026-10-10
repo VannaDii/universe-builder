@@ -211,12 +211,116 @@ impl Workflow<'_> {
             && input.exhaustive_sets.is_empty()
             && input.item_powers.is_empty()
             && input.item_power_corrections.is_empty()
+            && input.policy_corrections.is_empty()
         {
             return Ok(());
         }
         let rows =
             super::writing_connected::candidate_records(self.kernel.universe(), ctx, base, ops)?;
         let u = self.kernel.universe();
+        let mut policy_edits = std::collections::BTreeSet::new();
+        for patch in &input.policy_corrections {
+            let build = || -> anyhow::Result<Value> {
+                let original = rows.iter().find(|r| r.record_version_id.as_str()==patch.policy_handle && matches!(&r.payload,Payload::Rule(p) if (supported_policy(p) || supported_knowledge_policy(p)) && p.knowledge_policy.as_ref().is_none_or(|k|k.context==ctx.frame.context))).ok_or_else(||anyhow::anyhow!("Retrieve the current author-visible policy handle before correcting it"))?;
+                let Payload::Rule(old) = &original.payload else {
+                    unreachable!()
+                };
+                if patch.reason.trim().is_empty() {
+                    anyhow::bail!("Explain the explicit policy correction");
+                }
+                let mut new = old.clone();
+                if let Some(mode) = &patch.mode {
+                    new.knowledge_policy
+                        .as_mut()
+                        .ok_or_else(|| {
+                            anyhow::anyhow!("Only a knowledge policy accepts a mode correction")
+                        })?
+                        .mode = mode.clone();
+                }
+                if patch.forward_only.is_some()
+                    || patch.minimum_delay.is_some()
+                    || patch.maximum_delay.is_some()
+                    || patch.clear_minimum_delay
+                    || patch.clear_maximum_delay
+                {
+                    let channel = new.channel_chronology.as_mut().ok_or_else(|| {
+                        anyhow::anyhow!("Only a channel policy accepts ordering/delay corrections")
+                    })?;
+                    if patch.clear_minimum_delay && patch.minimum_delay.is_some()
+                        || patch.clear_maximum_delay && patch.maximum_delay.is_some()
+                    {
+                        anyhow::bail!(
+                            "Choose a replacement delay or explicitly clear it, not both"
+                        );
+                    }
+                    if let Some(value) = patch.forward_only {
+                        channel.forward_only = value;
+                    }
+                    if patch.clear_minimum_delay {
+                        channel.minimum_delay = None;
+                    } else if let Some(value) = &patch.minimum_delay {
+                        channel.minimum_delay = Some(value.clone());
+                    }
+                    if patch.clear_maximum_delay {
+                        channel.maximum_delay = None;
+                    } else if let Some(value) = &patch.maximum_delay {
+                        channel.maximum_delay = Some(value.clone());
+                    }
+                }
+                if patch.scope.is_some() || patch.at_tick.is_some() || patch.lifetime.is_some() {
+                    if !supported_policy(old) {
+                        anyhow::bail!("Knowledge and channel policies retain universe-wide scope and unspecified validity");
+                    }
+                    if let Some(scope) = &patch.scope {
+                        new.applicability = applicability(self, scope, &rows)?;
+                    }
+                    match (&patch.at_tick, &patch.lifetime) {
+                        (None, None) => {}
+                        (Some(tick), Some(lifetime)) => {
+                            new.validity = validity(
+                                &super::writing_connected::time(
+                                    &ctx.frame,
+                                    &rows,
+                                    &Some(tick.clone()),
+                                )?,
+                                lifetime,
+                            )?
+                        }
+                        _ => anyhow::bail!(
+                            "A policy time correction needs both an explicit tick and lifetime"
+                        ),
+                    }
+                }
+                if new == *old {
+                    anyhow::bail!(
+                        "Specify a changed policy setting; omitted settings stay unchanged"
+                    );
+                }
+                if !permitted_policy_correction(old, &new) {
+                    anyhow::bail!("This policy correction changes unsupported policy semantics");
+                }
+                Ok(
+                    json!({"kind":"revise_definition","record":{"universe":u,"record":original.identity.record_id},"expected_version":original.record_version_id,"replacement":Payload::Rule(new),"reason":patch.reason}),
+                )
+            };
+            if !policy_edits.insert(&patch.policy_handle) {
+                result
+                    .clarifications
+                    .push("Correct each policy once in a delta".into());
+                continue;
+            }
+            match build() {
+                Ok(mut op) => {
+                    op.as_object_mut().unwrap().remove("reason");
+                    ops.push(op);
+                    result.additions.push(format!(
+                        "Policy correction: {}; private contract review required",
+                        patch.reason
+                    ));
+                }
+                Err(e) => result.clarifications.push(e.to_string()),
+            }
+        }
         let mut edited = std::collections::BTreeSet::new();
         for patch in &input.item_power_corrections {
             let build = || -> anyhow::Result<Value> {
@@ -534,6 +638,7 @@ impl Workflow<'_> {
                 declaration.property_corrections.clear();
                 declaration.item_powers.clear();
                 declaration.item_power_corrections.clear();
+                declaration.policy_corrections.clear();
                 let mut generated = vec![];
                 let mut feedback = result.clone();
                 feedback.clarifications.clear();
@@ -789,4 +894,29 @@ pub(super) fn supported_knowledge_policy(r: &Rule) -> bool {
         && crate::knowledge::validate_rule(r).is_ok()
         && crate::communications::validate_rule(r).is_ok()
         && r.relation_cardinality.is_none()
+}
+
+/// Finite private-review whitelist: never adopt kind/targets/capabilities or hidden rule edits.
+pub(super) fn permitted_policy_correction(old: &Rule, new: &Rule) -> bool {
+    let mut permitted = old.clone();
+    if supported_knowledge_policy(old) {
+        if let (Some(before), Some(after)) =
+            (&mut permitted.knowledge_policy, &new.knowledge_policy)
+        {
+            before.mode = after.mode.clone();
+        }
+        if let (Some(before), Some(after)) =
+            (&mut permitted.channel_chronology, &new.channel_chronology)
+        {
+            before.forward_only = after.forward_only;
+            before.minimum_delay = after.minimum_delay.clone();
+            before.maximum_delay = after.maximum_delay.clone();
+        }
+    } else if supported_policy(old) {
+        permitted.applicability = new.applicability.clone();
+        permitted.validity = new.validity.clone();
+    } else {
+        return false;
+    }
+    permitted == *new && (supported_policy(new) || supported_knowledge_policy(new))
 }

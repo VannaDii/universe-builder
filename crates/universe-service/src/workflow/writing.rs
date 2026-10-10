@@ -680,6 +680,12 @@ impl Workflow<'_> {
         for ending in &input.fact_endings {
             rationale.push_str(&format!("\nProposed fact ending reason: {}", ending.reason));
         }
+        for correction in &input.policy_corrections {
+            rationale.push_str(&format!(
+                "\nProposed policy correction reason: {}",
+                correction.reason
+            ));
+        }
         let prepared = json!({"action":"create","universe":input.universe,"context_id":admission["result"]["context_id"],"operations":operations,"submission":"draft","rationale":rationale,"idempotency_key":key});
         let proposed = self.execute(Request::from_tool("universe_propose", prepared)?)?;
         let p = serde_json::from_value::<Proposal>(proposed["result"].clone())?;

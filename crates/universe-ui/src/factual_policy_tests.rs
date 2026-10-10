@@ -261,6 +261,34 @@ async fn factual_policy_forms_recover_review_approve_and_publish() {
         payload.as_object_mut().unwrap().remove("record_kind");
         assert_eq!(payload, op["record"]);
     }
+    let original_policy_context = opened.clone();
+    let policy_row = read(&mut c, &opened, &chronology["client_ref"]).await;
+    let edit = crate::inspector_editor::operation(
+        &frame,
+        &policy_row,
+        "policy_max",
+        "12",
+        "Explicitly change the delay maximum",
+        Some(&clock),
+    )
+    .unwrap();
+    assert_eq!(
+        edit["replacement"]["channelChronology"]["minimumDelay"],
+        "0"
+    );
+    assert_eq!(edit["replacement"]["channelChronology"]["channel"], "radio");
+    publish(&mut c, &opened, json!([edit]), "manual-policy-correction").await;
+    let opened = open(&mut c, &u).await;
+    let current = read(&mut c, &opened, &chronology["client_ref"]).await;
+    assert_eq!(
+        current["payload"]["channelChronology"]["maximumDelay"],
+        "12"
+    );
+    assert_eq!(
+        read(&mut c, &original_policy_context, &chronology["client_ref"]).await["payload"]
+            ["channelChronology"]["maximumDelay"],
+        "10"
+    );
     let at = |n: i32| json!({"kind":"exact","calendar":clock.calendar,"value":n.to_string()});
     let rr = |id: &str| json!({"universe":frame.universe,"record":id});
     // The native chronology policy is active after approval, not merely serializable.

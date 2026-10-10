@@ -292,9 +292,36 @@ class ConnectedWritingTests(unittest.TestCase):
                 self.assertEqual(boundary["status"],"conflict",boundary)
                 ownership=check(canon,relationships=[{"relation":"ownership","subject":"Key","participants":{"item":["Key"],"owner":["Leon"]},"scope":"universe","at_tick":"5","lifetime":{"kind":"until","end_tick":"10"}}])
                 self.assertEqual(ownership["status"],"conflict",ownership)
+                policy_snapshot=client.call("universe_read_contracts",{"universe":"Story","context_id":context()})["result"]
+                knowledge_policy=policy_snapshot["knowledge_policies"][0]
+                mode_edit=check(context(),policy_corrections=[{"policy_handle":knowledge_policy["policy_handle"],"mode":"author_established","reason":"Explicitly choose author-established knowledge before any acquisition."}])
+                mode_revision=publish(mode_edit,"The selected knowledge policy uses explicit author-established acquisition.","connected-mode-correction",contracts=True)
+                changed_policy=client.call("universe_read_contracts",{"universe":"Story","context_id":context()})["result"]["knowledge_policies"][0]
+                self.assertEqual(changed_policy["mode"],"author_established")
+                self.assertNotEqual(changed_policy["policy_handle"],knowledge_policy["policy_handle"])
+                self.assertIsNone(check(context(),policy_corrections=[{"policy_handle":knowledge_policy["policy_handle"],"mode":"justified","reason":"Old handle must not edit the changed policy."}])["candidate_handle"])
+                restored=check(context(),policy_corrections=[{"policy_handle":changed_policy["policy_handle"],"mode":"justified","reason":"Restore justified receipt acquisition explicitly."}])
+                publish(restored,"Knowledge requires justified acquisition by receipt.","connected-mode-restored",contracts=True)
+                old_mode=client.call("universe_read_contracts",{"universe":"Story","context_id":context(None,{"kind":"exact","revision_id":mode_revision})})["result"]["knowledge_policies"][0]
+                self.assertEqual(old_mode["mode"],"author_established")
                 claim={"subject":"Courtyard","property":"code","value":"green"}
                 speech=check(context(),messages=[{"label":"true code","from":"Leon","to":["Mara"],"received_by":["Mara"],"understood_by":["Mara"],"claim":claim,"channel":"speech","sent_tick":"1","received_tick":"2"},{"label":"lie","from":"Leon","to":["Mara"],"received_by":["Mara"],"claim":{**claim,"value":"red"},"channel":"speech","sent_tick":"3","received_tick":"3"}],attitudes=[{"holder":"Mara","attitude":"knows","claim":claim,"message":"true code","at_tick":"2","lifetime":{"kind":"until","end_tick":"10"}},{"holder":"Mara","attitude":"believes","claim":{**claim,"value":"red"},"at_tick":"3","lifetime":{"kind":"until","end_tick":"10"}}])
                 publish(speech,"Leon tells Mara the green code at day one; she receives and understands it at day two and knows it until day ten. At day three he falsely says red, which she believes.","connected-speech")
+                current_knowledge=client.call("universe_read_contracts",{"universe":"Story","context_id":context()})["result"]["knowledge_policies"][0]
+                blocked_mode=check(context(),policy_corrections=[{"policy_handle":current_knowledge["policy_handle"],"mode":"author_established","reason":"Existing justified receipts must not become author decisions."}])
+                self.assertEqual(blocked_mode["status"],"conflict",blocked_mode)
+                self.assertTrue(any(f["outcome"]=="refuted" for f in blocked_mode["validation"]["execution"]["findings"]))
+                channel=client.call("universe_read_contracts",{"universe":"Story","context_id":context()})["result"]["channels"][0]
+                blocked_channel=check(context(),policy_corrections=[{"policy_handle":channel["policy_handle"],"maximum_delay":"0","reason":"Tightening must check already committed delayed speech."}])
+                self.assertEqual(blocked_channel["status"],"conflict",blocked_channel)
+                self.assertTrue(any(f["outcome"]=="refuted" for f in blocked_channel["validation"]["execution"]["findings"]))
+                legal_channel=check(context(),policy_corrections=[{"policy_handle":channel["policy_handle"],"maximum_delay":"4","clear_minimum_delay":True,"reason":"Explicit new maximum and removal of the lower bound."}])
+                with self.assertRaisesRegex(RuntimeError,"protected contracts require explicit author contract review"):
+                    decisions.action({"action":"prepare","candidate":legal_channel["candidate_handle"],"label":"Forbidden ordinary review","text":"The maximum speech delay is four."})
+                publish(legal_channel,"Speech allows at most four ticks of delay; the minimum bound is explicitly removed.","connected-channel-correction",contracts=True)
+                current_channel=client.call("universe_read_contracts",{"universe":"Story","context_id":context()})["result"]["channels"][0]
+                self.assertEqual((current_channel["channel"],current_channel["forward_only"],current_channel["maximum_delay"],current_channel["minimum_delay"]),("speech",True,"4",None))
+                self.assertIsNone(check(context(),policy_corrections=[{"policy_handle":channel["policy_handle"],"maximum_delay":"5","reason":"Stale channel handle"}])["candidate_handle"])
                 pre_action=context(5)
                 truth=client.call("universe_read_facts",{"universe":"Story","context_id":pre_action,"object_names":["Courtyard"]})["result"]["objects"][0]
                 self.assertTrue(any(f["property"]=="code" and f["value"]=="green" and f["state"]=="supported" for f in truth["facts"]))
@@ -587,6 +614,21 @@ class ConnectedWritingTests(unittest.TestCase):
 
 
 
+                protection=check(context(),properties=[{"name":"reserve","introduce":True,"value_type":"integer","single_value":True,"persistence":"explicit_interval"}],constraints=[{"kind":"resource_accounting","name":"reserve accounting","property":"reserve","scope":"universe"},{"kind":"no_opposing_evidence","name":"key tag conflict","object":"Key","property":"tags","scope":"universe"}])
+                protection_revision=publish(protection,"Reserve changes require resource accounting; conflicting support for the key's tags is blocked.","connected-protection-declarations",contracts=True)
+                protected=client.call("universe_read_contracts",{"universe":"Story","context_id":context(5)})["result"]["constraints"]
+                selected=[p for p in protected if p["name"] in {"reserve accounting","key tag conflict"}]
+                self.assertEqual(len(selected),2)
+                edited=check(context(5),policy_corrections=[{"policy_handle":p["policy_handle"],"at_tick":"0","lifetime":{"kind":"until","end_tick":"70"},"reason":"Explicitly declare this policy's authored interval."} for p in selected])
+                publish(edited,"Reserve accounting and the key-tag conflict policy apply from zero until seventy.","connected-protection-corrections",contracts=True)
+                fresh_policies=client.call("universe_read_contracts",{"universe":"Story","context_id":context(5)})["result"]["constraints"]
+                for before in selected:
+                    after=next(p for p in fresh_policies if p["name"]==before["name"])
+                    self.assertEqual((after["kind"],after["property"]),(before["kind"],before["property"]))
+                    self.assertNotEqual(after["policy_handle"],before["policy_handle"])
+                    self.assertIn("70",after["time"])
+                historical_policies=client.call("universe_read_contracts",{"universe":"Story","context_id":context(5,{"kind":"exact","revision_id":protection_revision})})["result"]["constraints"]
+                self.assertEqual(next(p for p in historical_policies if p["name"]=="reserve accounting")["time"],"no temporal claim stated")
             finally:
                 if client: client.close()
                 cli("shutdown",profile=author)

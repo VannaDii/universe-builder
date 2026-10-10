@@ -2255,6 +2255,13 @@
           },
           "default": []
         },
+        "policy_corrections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingPolicyCorrection"
+          },
+          "default": []
+        },
         "definition_corrections": {
           "description": "Incremental ancestry/applicability revisions; omitted fields keep authored metadata. Requires private contract review.",
           "type": "array",
@@ -3142,6 +3149,97 @@
             "reason"
           ]
         },
+        "WritingPolicyCorrection": {
+          "description": "Version-bound protected policy changes; omitted settings stay authored.",
+          "type": "object",
+          "properties": {
+            "policy_handle": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "mode": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/KnowledgeMode"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "forward_only": {
+              "type": [
+                "boolean",
+                "null"
+              ],
+              "default": null
+            },
+            "minimum_delay": {
+              "description": "Supplied bound replaces it; clear_minimum_delay explicitly removes it.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "maximum_delay": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "clear_minimum_delay": {
+              "type": "boolean",
+              "default": false
+            },
+            "clear_maximum_delay": {
+              "type": "boolean",
+              "default": false
+            },
+            "scope": {
+              "description": "Only resource/conflict policies support scope/time changes.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "at_tick": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "lifetime": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FactLifetime"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "policy_handle",
+            "reason"
+          ]
+        },
+        "KnowledgeMode": {
+          "type": "string",
+          "enum": [
+            "author_established",
+            "justified"
+          ]
+        },
         "WritingDefinitionCorrection": {
           "type": "object",
           "properties": {
@@ -3785,13 +3883,6 @@
                 "forward_only"
               ]
             }
-          ]
-        },
-        "KnowledgeMode": {
-          "type": "string",
-          "enum": [
-            "author_established",
-            "justified"
           ]
         },
         "WritingInitialization": {

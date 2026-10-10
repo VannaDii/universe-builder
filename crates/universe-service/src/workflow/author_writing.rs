@@ -407,6 +407,7 @@ impl Workflow<'_> {
                         before.scope.applicability=after.scope.applicability.clone();before.validity=after.validity.clone();
                         &permitted != new
                     }
+                    (Payload::Rule(old), Payload::Rule(new)) => !super::writing_contracts::permitted_policy_correction(old,new),
                     _ => true,
                 };
             }
@@ -749,7 +750,7 @@ impl Workflow<'_> {
                 Payload::Rule(d) => {
                     let targets:Vec<_>=d.target_predicates.iter().map(|key|records.iter().find_map(|r| if let Payload::Property(p)=&r.payload { (format!("{}:{}",p.namespace,p.key)==*key).then(||p.key.clone()) }else{None}).unwrap_or_else(||"unresolved property".into())).collect();
                     let scope=match &d.applicability { Applicability::UniverseWide=>json!("universe"),Applicability::Worlds{world_ids}=>json!({"worlds":world_ids.iter().filter_map(|w|RecordId::parse(&w.as_str().replacen("wld_","rec_",1)).ok().and_then(|id|label(&id))).collect::<Vec<_>>()}),_=>json!("unresolved") };
-                    summary.push(format!("Author constraint declaration: {}; properties {}; policy {:?}; scope {}",d.key,targets.join(", "),d.commit_policy,scope));
+                    summary.push(format!("Author constraint declaration: {}; properties {}; policy {:?}; scope {}; time {}",d.key,targets.join(", "),d.commit_policy,scope,writing::plain_time(&json!(d.validity),&label)));
                 },
                 Payload::IssueDecision(d) => summary.push(format!(
                     "Author creative acceptance: {}; reason {}",

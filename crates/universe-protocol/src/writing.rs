@@ -135,6 +135,8 @@ pub struct CheckChanges {
     /// Version-bound grant corrections/endings. Omitted fields retain authored values; targets cannot change. Private contract review required.
     #[serde(default)]
     pub item_power_corrections: Vec<WritingItemPowerCorrection>,
+    #[serde(default)]
+    pub policy_corrections: Vec<WritingPolicyCorrection>,
     /// Incremental ancestry/applicability revisions; omitted fields keep authored metadata. Requires private contract review.
     #[serde(default)]
     pub definition_corrections: Vec<WritingDefinitionCorrection>,
@@ -211,6 +213,34 @@ pub struct WritingItemPower {
     #[serde(default)]
     pub lifetime: FactLifetime,
 }
+/// Version-bound protected policy changes; omitted settings stay authored.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingPolicyCorrection {
+    pub policy_handle: String,
+    pub reason: String,
+    #[serde(default)]
+    pub mode: Option<universe_domain::records::KnowledgeMode>,
+    #[serde(default)]
+    pub forward_only: Option<bool>,
+    /// Supplied bound replaces it; clear_minimum_delay explicitly removes it.
+    #[serde(default)]
+    pub minimum_delay: Option<String>,
+    #[serde(default)]
+    pub maximum_delay: Option<String>,
+    #[serde(default)]
+    pub clear_minimum_delay: bool,
+    #[serde(default)]
+    pub clear_maximum_delay: bool,
+    /// Only resource/conflict policies support scope/time changes.
+    #[serde(default)]
+    pub scope: Option<String>,
+    #[serde(default)]
+    pub at_tick: Option<String>,
+    #[serde(default)]
+    pub lifetime: Option<FactLifetime>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct WritingItemPowerCorrection {

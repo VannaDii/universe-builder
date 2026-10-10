@@ -65,6 +65,82 @@ pub(super) fn operation(
             }
             op["replacement"] = replacement;
         }
+        "policy_mode" | "policy_forward" | "policy_min" | "policy_max" | "policy_clear_min"
+        | "policy_clear_max" | "policy_scope" | "policy_start" | "policy_end" => {
+            if selected["payload"]["record_kind"] != "rule" || reason.trim().is_empty() {
+                return Err("Inspect the protected policy and explain the correction.".into());
+            }
+            let mut replacement = selected["payload"].clone();
+            match action {
+                "policy_mode" => {
+                    if !replacement["knowledgePolicy"].is_object() {
+                        return Err("Inspect a knowledge policy".into());
+                    }
+                    replacement["knowledgePolicy"]["mode"] = json!(value);
+                }
+                "policy_forward" | "policy_min" | "policy_max" | "policy_clear_min"
+                | "policy_clear_max" => {
+                    if !replacement["channelChronology"].is_object() {
+                        return Err("Inspect a channel policy".into());
+                    }
+                    let channel = &mut replacement["channelChronology"];
+                    match action {
+                        "policy_forward" => {
+                            channel["forwardOnly"] =
+                                json!(value.parse::<bool>().map_err(|_| "Choose true or false")?)
+                        }
+                        "policy_min" => {
+                            channel["minimumDelay"] = json!(value
+                                .parse::<i128>()
+                                .map_err(|_| "Enter exact delay ticks")?
+                                .to_string())
+                        }
+                        "policy_max" => {
+                            channel["maximumDelay"] = json!(value
+                                .parse::<i128>()
+                                .map_err(|_| "Enter exact delay ticks")?
+                                .to_string())
+                        }
+                        "policy_clear_min" => {
+                            channel.as_object_mut().unwrap().remove("minimumDelay");
+                        }
+                        _ => {
+                            channel.as_object_mut().unwrap().remove("maximumDelay");
+                        }
+                    }
+                }
+                "policy_scope" => {
+                    replacement["applicability"] = if value == "universe" {
+                        json!({"kind":"universe_wide"})
+                    } else {
+                        json!({"kind":"worlds","world_ids":[universe_domain::ids::WorldId::parse(value).map_err(|e|e.to_string())?]})
+                    }
+                }
+                _ => {
+                    let validity = &mut replacement["validity"];
+                    if validity["kind"] != "calendar_interval" {
+                        return Err("This control edits an existing authored policy interval; other time forms need ordinary explicit tick/lifetime changes.".into());
+                    }
+                    let tick = if let Some(c) =
+                        clock.filter(|c| validity["calendar"] == c.calendar.as_str())
+                    {
+                        c.coordinate(value)?
+                    } else {
+                        value
+                            .parse::<i128>()
+                            .map_err(|_| "Enter an exact authored tick")?
+                            .to_string()
+                    };
+                    validity[if action == "policy_start" {
+                        "start"
+                    } else {
+                        "end"
+                    }] = json!({"kind":"exact","value":tick});
+                }
+            }
+            op["kind"] = json!("revise_definition");
+            op["replacement"] = replacement;
+        }
         "power_value" | "power_scope" | "power_start" | "power_end" => {
             if selected["payload"]["record_kind"] != "item_power" || reason.trim().is_empty() {
                 return Err("Inspect a grant and explain the correction; its item and property targets stay unchanged.".into());
@@ -359,6 +435,33 @@ pub fn InspectorEditor(
             ("relation_group_role", "Group by declared role"),
             ("relation_counted_role", "Change counted role"),
         ],
+        "rule" if selected["payload"]["knowledgePolicy"].is_object() => vec![
+            ("", "Keep knowledge policy"),
+            ("policy_mode", "Correct knowledge mode"),
+        ],
+        "rule" if selected["payload"]["channelChronology"].is_object() => vec![
+            ("", "Keep channel policy"),
+            ("policy_forward", "Correct channel ordering"),
+            ("policy_min", "Correct minimum delay"),
+            ("policy_max", "Correct maximum delay"),
+            ("policy_clear_min", "Explicitly remove minimum delay"),
+            ("policy_clear_max", "Explicitly remove maximum delay"),
+        ],
+        "rule"
+            if selected["payload"]["capabilities"]
+                .as_array()
+                .is_some_and(|c| {
+                    c == &vec![json!("resources.accounting.v1")]
+                        || c == &vec![json!("opposing_evidence.v1")]
+                }) =>
+        {
+            vec![
+                ("", "Keep protected policy"),
+                ("policy_scope", "Correct policy scope"),
+                ("policy_start", "Correct existing interval start"),
+                ("policy_end", "Correct existing interval end"),
+            ]
+        }
         "unit" | "calendar" | "value_definition" | "rule" => vec![
             ("", "Choose a change"),
             ("definition_label", "Revise display label"),
@@ -423,6 +526,18 @@ pub fn InspectorEditor(
             p{"This revises the type's ancestry; it does not reclassify or replace its instances. Existing inheritance, initialization and action constraints are rechecked."}
             label{r#for:"inspector-parent","Authored parent"}
             super::select::RichSelect{id:"inspector-parent",disabled,value:value(),options:{let mut options=super::select::record_choices(&choices,&["entity_type"],"Choose explicitly");options.insert(1,super::select::Choice::new("none","Explicit root — no parent"));options},onchange:move|e:super::select::SelectionEvent|value.set(e.value())}
+        }else if action().starts_with("policy_"){
+            p{"This explicitly corrects a protected author policy. Its identity, kind, targets and capabilities stay unchanged; contract review and separate approval are required."}
+            if action()=="policy_mode"{
+                label{r#for:"inspector-policy-mode","Knowledge mode"}
+                super::select::RichSelect{id:"inspector-policy-mode",disabled,value:value(),options:super::select::choices(&[("","Choose explicitly"),("justified","Justified"),("author_established","Author established")]),onchange:move|e:super::select::SelectionEvent|value.set(e.value())}
+            }else if action()=="policy_forward"{
+                label{r#for:"inspector-policy-order","Forward only"}
+                super::select::RichSelect{id:"inspector-policy-order",disabled,value:value(),options:super::select::choices(&[("","Choose explicitly"),("true","True"),("false","False")]),onchange:move|e:super::select::SelectionEvent|value.set(e.value())}
+            }else if action()=="policy_scope"{
+                label{r#for:"inspector-policy-scope","Explicit scope"}
+                super::select::RichSelect{id:"inspector-policy-scope",disabled,value:value(),options:{let mut c=super::select::typed_id_choices(&choices,"world","wld_","Choose scope");c.insert(1,super::select::Choice::new("universe","Universe wide"));c},onchange:move|e:super::select::SelectionEvent|value.set(e.value())}
+            }else if !action().starts_with("policy_clear_"){label{r#for:"inspector-policy-value","Explicit delay or date/tick"}input{id:"inspector-policy-value",disabled,value,oninput:move|e|value.set(e.value())}}
         }else if action().starts_with("power_"){
             p{"Only the selected grant field changes. Item, holder property, ability property, represented context and calendar stay unchanged; author contract review and separate approval are required."}
             if action()=="power_scope"{
@@ -448,7 +563,7 @@ pub fn InspectorEditor(
         }
         if action()=="end_assertion_at"{p{"This ends the authored interval; support before the end remains."}}
         if action()=="retract_assertion"{p{"This withdraws the assertion from the new revision. It does not claim the opposite; earlier revisions remain available."}}
-        if action().starts_with("power_") || ["end_assertion_at","retract_assertion"].contains(&action().as_str()){
+        if action().starts_with("power_") || action().starts_with("policy_") || ["end_assertion_at","retract_assertion"].contains(&action().as_str()){
             label{r#for:"inspector-reason","Reason"}textarea{id:"inspector-reason",disabled,value:reason,oninput:move|e|reason.set(e.value())}
         }
         button{class:"secondary",disabled:disabled||action().is_empty(),onclick:move|_|match if action()=="add_name"{name_operation(&frame,&selected,&name(),clock.as_ref())}else if action().starts_with("role_")||action().starts_with("relation_"){contract_operation(&frame,&selected,&action(),&role(),&value())}else{operation(&frame,&selected,&action(),&value(),&reason(),clock.as_ref())}{Ok(op)=>{onadd.call(op);error.set(String::new());},Err(e)=>error.set(e)},"Add inspected change to draft"}
