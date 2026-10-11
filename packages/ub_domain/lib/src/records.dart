@@ -4,6 +4,7 @@ import 'ids.dart';
 import 'record_identity.dart';
 import 'references.dart';
 import 'scope.dart';
+import 'time_space.dart';
 import 'value.dart';
 import 'value_shape.dart';
 
@@ -11,6 +12,8 @@ part 'definition_records.dart';
 part 'frame_records.dart';
 part 'narrative_records.dart';
 part 'source_records.dart';
+part 'knowledge_records.dart';
+part 'appearance_records.dart';
 
 enum AttributeMode {
   instance('instance'),
@@ -56,6 +59,14 @@ sealed class RecordPayload {
   String get digest => payloadDigest(recordKind.wireName, toWire());
   static RecordPayload fromWire(CanonicalValue value) => switch (Fields(value)
       .string('record_kind')) {
+    'epistemic_attitude' => EpistemicAttitudeRecord.fromWire(value),
+    'observation' => ObservationRecord.fromWire(value),
+    'communication' => CommunicationRecord.fromWire(value),
+    'memory' => MemoryRecord.fromWire(value),
+    'secret' => SecretRecord.fromWire(value),
+    'completeness' => CompletenessRecord.fromWire(value),
+    'appearance' => AppearanceRecord.fromWire(value),
+    'image_asset' => ImageAssetRecord.fromWire(value),
     'work' => WorkRecord.fromWire(value),
     'work_version' => WorkVersionRecord.fromWire(value),
     'scene_ref' => SceneRecord.fromWire(value),
@@ -361,3 +372,12 @@ RecordRef? _optionalRef(Fields fields, String key) =>
     : RecordRef.fromCanonical(fields.require(key));
 CanonicalValue _nullableRef(RecordRef? value) =>
     value?.toCanonical() ?? const CanonicalNull();
+
+TemporalExpression? _optionalTime(Fields fields, String key) =>
+    fields.values[key] == null || fields.values[key] is CanonicalNull
+    ? null
+    : TemporalExpression.fromWire(fields.require(key));
+CanonicalValue _nullableTime(TemporalExpression? value) =>
+    value?.encode(canonical: false) ?? const CanonicalNull();
+CanonicalArray _refs(Iterable<RecordRef> values) =>
+    CanonicalArray(values.map((r) => r.toCanonical()));

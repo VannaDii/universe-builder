@@ -14,6 +14,39 @@
     "digest": "17dce8a027601dbb4fc70c114a04e0164d08b1301fc1d7e3420104c332a4d130"
   },
   {
+    "name": "family:appearance",
+    "value": {
+      "record_kind": "appearance",
+      "target": {
+        "kind": "universe"
+      },
+      "label": "é🌲 sample",
+      "physical_description": "é🌲 sample",
+      "atmosphere": "é🌲 sample",
+      "images": [],
+      "links": [],
+      "validity": {
+        "kind": "unspecified"
+      }
+    },
+    "canonical": "{\"atmosphere\":\"é🌲 sample\",\"images\":[],\"label\":\"é🌲 sample\",\"links\":[],\"physical_description\":\"é🌲 sample\",\"record_kind\":\"appearance\",\"target\":{\"kind\":\"universe\"},\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "8ff80ce5c9f3865e45d6440c6927dc5280971bc394acd1e056498ca667939488"
+  },
+  {
+    "name": "family:image_asset",
+    "value": {
+      "record_kind": "image_asset",
+      "digest": "é🌲 sample",
+      "media_type": "é🌲 sample",
+      "byte_size": 1,
+      "width": 1,
+      "height": 1,
+      "original_name": "é🌲 sample"
+    },
+    "canonical": "{\"byte_size\":1,\"digest\":\"é🌲 sample\",\"height\":1,\"media_type\":\"é🌲 sample\",\"original_name\":\"é🌲 sample\",\"record_kind\":\"image_asset\",\"width\":1}",
+    "digest": "9f2d0a57789f52c14fb37b125a9e9ac748abba64d0fcad39a214c371c0f6bdb9"
+  },
+  {
     "name": "family:world",
     "value": {
       "record_kind": "world",
@@ -261,6 +294,136 @@
     },
     "canonical": "{\"attributeMode\":\"instance\",\"basis\":{\"kind\":\"author_decision\",\"note\":\"é🌲 sample\"},\"persistence\":\"explicit_interval\",\"polarity\":\"support\",\"precision\":\"exact\",\"proposition\":{\"record\":\"rec_000000000000000000000001\"},\"record_kind\":\"assertion\",\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
     "digest": "854f4038bb72b11dd4f96e358b05924c4b879b8cb9827307dc8738497ccfa113"
+  },
+  {
+    "name": "family:completeness",
+    "value": {
+      "record_kind": "completeness",
+      "subject": {
+        "record": "rec_000000000000000000000001"
+      },
+      "predicate": "é🌲 sample",
+      "members": [],
+      "completeness": "objective_reality",
+      "validity": {
+        "kind": "unspecified"
+      },
+      "scope": {
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "context": {
+          "record": "rec_000000000000000000000001"
+        }
+      }
+    },
+    "canonical": "{\"completeness\":\"objective_reality\",\"members\":[],\"predicate\":\"é🌲 sample\",\"record_kind\":\"completeness\",\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_000000000000000000000001\"}},\"subject\":{\"record\":\"rec_000000000000000000000001\"},\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "28619b88abb440666e3c46fb565143ec174be31b50247c78a0e83c056eef8c8d"
+  },
+  {
+    "name": "family:epistemic_attitude",
+    "value": {
+      "record_kind": "epistemic_attitude",
+      "holder": {
+        "record": "rec_000000000000000000000001"
+      },
+      "proposition": {
+        "record": "rec_000000000000000000000001"
+      },
+      "attitude": "believes",
+      "certainty": null,
+      "validity": {
+        "kind": "unspecified"
+      },
+      "basis": {
+        "kind": "author_decision",
+        "note": "é🌲 sample"
+      }
+    },
+    "canonical": "{\"attitude\":\"believes\",\"basis\":{\"kind\":\"author_decision\",\"note\":\"é🌲 sample\"},\"certainty\":null,\"holder\":{\"record\":\"rec_000000000000000000000001\"},\"proposition\":{\"record\":\"rec_000000000000000000000001\"},\"record_kind\":\"epistemic_attitude\",\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "6a15bb61d58a5fdaae41918275609056eb226f31f0a6a79d148947d6488deb38"
+  },
+  {
+    "name": "family:observation",
+    "value": {
+      "record_kind": "observation",
+      "observer": {
+        "record": "rec_000000000000000000000001"
+      },
+      "observed": {
+        "record": "rec_000000000000000000000001"
+      },
+      "sensoryAccess": true,
+      "time": {
+        "kind": "exact",
+        "calendar": "cal_000000000000000000000001",
+        "value": "é🌲 sample"
+      },
+      "interpretation": null,
+      "basis": {
+        "kind": "author_decision",
+        "note": "é🌲 sample"
+      }
+    },
+    "canonical": "{\"basis\":{\"kind\":\"author_decision\",\"note\":\"é🌲 sample\"},\"interpretation\":null,\"observed\":{\"record\":\"rec_000000000000000000000001\"},\"observer\":{\"record\":\"rec_000000000000000000000001\"},\"record_kind\":\"observation\",\"sensoryAccess\":true,\"time\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"é🌲 sample\"}}",
+    "digest": "e3e6dbd333018dce0103e8e911f59ea1100adf0ae631b3521283b82d2b0f08a2"
+  },
+  {
+    "name": "family:communication",
+    "value": {
+      "record_kind": "communication",
+      "sender": {
+        "record": "rec_000000000000000000000001"
+      },
+      "intendedRecipients": [],
+      "actualRecipients": [],
+      "content": [],
+      "channel": null,
+      "sentAt": {
+        "kind": "exact",
+        "calendar": "cal_000000000000000000000001",
+        "value": "é🌲 sample"
+      },
+      "receivedAt": null,
+      "distorted": true
+    },
+    "canonical": "{\"actualRecipients\":[],\"channel\":null,\"content\":[],\"distorted\":true,\"intendedRecipients\":[],\"receivedAt\":null,\"record_kind\":\"communication\",\"sender\":{\"record\":\"rec_000000000000000000000001\"},\"sentAt\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"é🌲 sample\"}}",
+    "digest": "5a32d7e553c1edad9b889e5c6a2708d29be6cd15fc5aea170b33591200d18b7a"
+  },
+  {
+    "name": "family:memory",
+    "value": {
+      "record_kind": "memory",
+      "holder": {
+        "record": "rec_000000000000000000000001"
+      },
+      "content": {
+        "record": "rec_000000000000000000000001"
+      },
+      "alleged": null,
+      "accessibility": "é🌲 sample",
+      "altered": true,
+      "validity": {
+        "kind": "unspecified"
+      }
+    },
+    "canonical": "{\"accessibility\":\"é🌲 sample\",\"alleged\":null,\"altered\":true,\"content\":{\"record\":\"rec_000000000000000000000001\"},\"holder\":{\"record\":\"rec_000000000000000000000001\"},\"record_kind\":\"memory\",\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "baa3c42c8cfa6758c8bc8a24517f84ddd4ecc6a4e1582062cc641587c941a622"
+  },
+  {
+    "name": "family:secret",
+    "value": {
+      "record_kind": "secret",
+      "scope": [],
+      "fictionalKnowers": [],
+      "readerDisclosed": true,
+      "concealment": null,
+      "validity": {
+        "kind": "unspecified"
+      }
+    },
+    "canonical": "{\"concealment\":null,\"fictionalKnowers\":[],\"readerDisclosed\":true,\"record_kind\":\"secret\",\"scope\":[],\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "d3bfc0689db7dc1ae8d0bb65b25d64dfb011fa61388161f3b14683beb02cad41"
   },
   {
     "name": "family:source",

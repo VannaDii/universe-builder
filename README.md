@@ -8,9 +8,10 @@ The approved [conversion plan](docs/dart-conversion-plan.md) is being implemente
 alongside the current runtime. The Dart workspace currently contains the shared
 canonical encoding, digests, typed identities, values, temporal/spatial expressions
 and reference foundations, typed scopes, validity and evidence bases, and
-20 of 38 record families: worlds, realms, entities, the seven definition
+28 of 38 record families: worlds, realms, entities, the seven definition
 families, propositions, assertions, the five narrative families and the three
-source/evidence families. It also contains the internal typed SQLite codec,
+source/evidence families, the five knowledge families, completeness, appearances
+and image assets. It also contains the internal typed SQLite codec,
 revision journal and connection policy. It is not yet a
 replacement engine or application.
 
@@ -23,7 +24,7 @@ dart analyze packages tool
 dart format --output=none --set-exit-if-changed packages tool
 cd packages/ub_domain
 dart test
-dart test test/canonical_test.dart test/identity_test.dart test/exact_amount_test.dart test/value_test.dart test/selector_test.dart test/scope_test.dart test/records_test.dart test/definitions_test.dart test/narrative_source_test.dart --platform chrome
+dart test test/canonical_test.dart test/identity_test.dart test/exact_amount_test.dart test/value_test.dart test/selector_test.dart test/scope_test.dart test/records_test.dart test/definitions_test.dart test/narrative_source_test.dart test/knowledge_appearance_test.dart --platform chrome
 cd ../ub_store
 dart test
 ```
@@ -89,6 +90,13 @@ attributed origin and content digests remain distinct from payload digests.
 Byte sizes, anchor offsets and narrative positions use exact unsigned 64-bit
 values on VM and web. These record types describe evidence; content-link,
 excerpt-boundary and factual-support admission still need their service ports.
+Typed knowledge records retain attitudes, sensory access, interpretation, actual
+receipt and remembered allegations independently. Fictional secrecy remains
+separate from application rights. Completeness retains its existing externally
+tagged record encoding independently from comparison encoding. Typed appearance
+and image records preserve authored visual references; SQLite recovery applies
+the existing image metadata and retained-content checks through the typed model.
+Knowledge evaluation and acquisition authorization still need their service ports.
 The Dart rational validator rejects all zero denominator spellings, including
 `00`, `+0` and `-0`, closing a missed case in the existing Rust validator.
 

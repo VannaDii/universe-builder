@@ -54,6 +54,14 @@ void main() {
     'source',
     'source_version',
     'anchor',
+    'epistemic_attitude',
+    'observation',
+    'communication',
+    'memory',
+    'secret',
+    'completeness',
+    'appearance',
+    'image_asset',
   };
   final covered = <String>{};
   var count = 0;

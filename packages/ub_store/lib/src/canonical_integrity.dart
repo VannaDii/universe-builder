@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:ub_domain/ub_domain.dart';
 
-import 'catalog.dart';
 import 'initialization.dart';
 import 'journal.dart';
 import 'workflow_storage.dart';
@@ -55,9 +54,9 @@ final class CanonicalIntegrity {
       )) {
         final record = journal.load(RecordVersionId.parse(row['id'] as String));
         if (record.identity.recordKind == RecordKind.imageAsset) {
-          final asset = objectFields(record.payload);
+          final asset = ImageAssetRecord.fromWire(record.payload);
           _imageMetadata(asset);
-          final digest = (asset['digest'] as CanonicalString).value;
+          final digest = asset.contentDigest;
           if (images.add(digest)) _imageBytes(workflow, asset);
         }
       }
@@ -79,15 +78,13 @@ bool _hash(String value) =>
     value.length == 64 &&
     value.codeUnits.every((c) => (c >= 48 && c <= 57) || (c >= 97 && c <= 102));
 
-BigInt _integer(CanonicalValue value) =>
-    BigInt.parse((value as CanonicalNumber).digits);
-void _imageMetadata(Map<String, CanonicalValue> asset) {
-  final digest = (asset['digest'] as CanonicalString).value;
-  final size = _integer(asset['byte_size']!);
-  final width = _integer(asset['width']!);
-  final height = _integer(asset['height']!);
-  final media = (asset['media_type'] as CanonicalString).value;
-  final name = (asset['original_name'] as CanonicalString).value;
+void _imageMetadata(ImageAssetRecord asset) {
+  final digest = asset.contentDigest;
+  final size = asset.byteSize;
+  final width = BigInt.from(asset.width);
+  final height = BigInt.from(asset.height);
+  final media = asset.mediaType;
+  final name = asset.originalName;
   if (!_hash(digest) ||
       size <= BigInt.zero ||
       size > BigInt.from(10 * 1048576) ||
@@ -106,10 +103,10 @@ void _imageMetadata(Map<String, CanonicalValue> asset) {
   }
 }
 
-void _imageBytes(WorkflowStorage workflow, Map<String, CanonicalValue> asset) {
+void _imageBytes(WorkflowStorage workflow, ImageAssetRecord asset) {
   const chunkSize = 256 * 1024;
-  final digest = (asset['digest'] as CanonicalString).value;
-  final size = _integer(asset['byte_size']!).toInt();
+  final digest = asset.contentDigest;
+  final size = asset.byteSize.toInt();
   final bytes = BytesBuilder(copy: false);
   for (var index = 0; index < (size + chunkSize - 1) ~/ chunkSize; index++) {
     final value = workflow.get('image-bytes:$digest:$index');
