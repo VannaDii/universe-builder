@@ -38,8 +38,11 @@ narrative, scalar and search projections are also implemented internally.
 Foundation/value/ancestry admission and world selector reservations are
 implemented internally. Selector keys preserve the existing NFC/full case
 folding/NFC format with pinned Unicode tables; renamed or removed world names
-remain reserved to their original identities. Definition admission,
-initialization, projection recovery and
+remain reserved to their original identities. Internal semantic indexes resolve
+definition attributes in the selected candidate. Initialization admission keeps
+exact start/definition provenance and durable receipts through correction,
+removal and restoration; receipt reads respect pinned fork ancestry, and the
+history check detects missing or changed receipts. Full projection recovery and
 service authorization still need their port before an author-facing publication
 path can use it. Schema resources are compiled into the
 package; after changing the owning files in `docs/decisions/relational-storage`,

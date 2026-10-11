@@ -9,7 +9,9 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/src/candidate_foundation.dart';
 import 'package:ub_store/src/candidate_references.dart';
 import 'package:ub_store/src/database.dart';
+import 'package:ub_store/src/definition_index.dart';
 import 'package:ub_store/src/journal.dart';
+import 'package:ub_store/src/initialization.dart';
 import 'package:ub_store/src/projections.dart';
 import 'package:ub_store/src/revision_input.dart';
 
@@ -81,11 +83,22 @@ void main() {
         return retry;
       }
       journal.compareWorkflow({});
+      final base = journal.snapshot(request.continuity, request.expectedHead);
       final candidate = journal.stageVersions(request);
       checkpoint('versions');
       CandidateFoundation(journal).validate(candidate);
       CandidateReferences(journal).validate(candidate);
+      for (final change in request.changes) {
+        if (change.next != null) {
+          DefinitionIndex(journal).index(change.next!, candidate);
+        }
+      }
+      final initialization = InitializationEvidence(journal);
+      final receipts = initialization.pending(request, base, candidate);
       final revision = journal.append(request);
+      for (final receipt in receipts) {
+        initialization.insert(receipt.admittedAt(revision));
+      }
       checkpoint('changes');
       journal.advanceHead(
         request.continuity,
@@ -327,6 +340,11 @@ void main() {
           'commit_changes',
           'head_membership',
           'operation_receipts',
+          'instance_classification',
+          'type_definition',
+          'type_world',
+          'definition_attribute',
+          'initialization_receipt',
           'reference_index',
           'typed_projection',
           'world_projection',
