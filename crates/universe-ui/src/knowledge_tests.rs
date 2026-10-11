@@ -164,6 +164,39 @@ async fn native_receipt_form_repairs_after_earlier_truth_correction() {
         {"kind":"assert_proposition","client_ref":id(20),"proposition":{"subject":rr(10),"predicate":rr(21),"value":{"kind":"boolean","value":true},"quantification":"particular","context":frame.context},"assertion":{"attributeMode":"instance","proposition":rr(20),"polarity":"support","scope":scope,"validity":interval(0),"persistence":"explicit_interval","precision":"exact","basis":{"kind":"author_decision","note":"Authored code"}}}]),"knowledge-seed").await;
     let opened = open(&mut c, &u).await;
     let frame: Frame = serde_json::from_value(opened["frame"].clone()).unwrap();
+    let boundary_form = crate::policy_editor::factual::Form {
+        namespace: "native".into(),
+        key: "Mara not informed".into(),
+        holder: id(12),
+        proposition: id(20),
+        context: frame.context.record.to_string(),
+        applicability: "universe_wide".into(),
+        validity: "interval".into(),
+        start: "0".into(),
+        end: "4".into(),
+        ..Default::default()
+    };
+    let boundary_choices = vec![
+        json!({"kind":"entity","record_id":id(12)}),
+        json!({"kind":"proposition","record_id":id(20)}),
+    ];
+    let boundary = boundary_form
+        .build(
+            "knowledge_boundary",
+            &frame,
+            Some(&clock),
+            &boundary_choices,
+        )
+        .unwrap();
+    publish(
+        &mut c,
+        &opened,
+        json!([boundary]),
+        "explicit-native-knowledge-boundary",
+    )
+    .await;
+    let opened = open(&mut c, &u).await;
+    let frame: Frame = serde_json::from_value(opened["frame"].clone()).unwrap();
     let message = json!({"kind":"record_communication","client_ref":id(30),"record":{"sender":rr(11),"intendedRecipients":[rr(12)],"actualRecipients":[rr(12)],"content":[rr(20)],"channel":"radio","sentAt":time(1),"receivedAt":time(3),"distorted":false}});
     let choices = crate::author::choices(
         &[

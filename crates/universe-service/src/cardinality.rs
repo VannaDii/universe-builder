@@ -30,6 +30,7 @@ pub(crate) fn validate_rule(rule: &Rule, records: &[RecordVersion]) -> anyhow::R
         || !rule.target_predicates.is_empty()
         || rule.expression != (Expr::Lit { value: true })
         || rule.capabilities != [CAPABILITY]
+        || rule.knowledge_boundary.is_some()
         || rule.channel_chronology.is_some()
         || rule.knowledge_policy.is_some()
     {

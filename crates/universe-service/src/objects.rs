@@ -320,12 +320,13 @@ fn assemble_impl(
                         }
                     }
                     Payload::Rule(rule) => {
-                        let typed = rule.channel_chronology.is_some() || rule.knowledge_policy.is_some() || rule.relation_cardinality.is_some();
+                        let typed = rule.knowledge_boundary.is_some() || rule.channel_chronology.is_some() || rule.knowledge_policy.is_some() || rule.relation_cardinality.is_some();
                         let mut checks = vec![
                             ("rule_subject_applicability", type_matches(id, &rule.subject_types, Some(&worlds))),
                             ("world_applicability", definitions::world_applies(&rule.applicability, &worlds)),
-                            ("temporal_applicability", if typed { Some(true) } else { time_applies(&rule.validity, &frame.time) }),
+                            ("temporal_applicability", if typed && rule.knowledge_boundary.is_none() { Some(true) } else { time_applies(&rule.validity, &frame.time) }),
                         ];
+                        if let Some(b) = &rule.knowledge_boundary { checks.push(("knowledge_boundary_context",Some(b.context == frame.context))); checks.push(("knowledge_boundary_holder",Some(b.holder.record == *id))); dependencies.extend([b.holder.record.clone(), b.proposition.record.clone(), b.context.record.clone()]); }
                         if let Some(policy) = &rule.knowledge_policy {
                             checks.push(("knowledge_truth_context", Some(policy.context == frame.context)));
                         }

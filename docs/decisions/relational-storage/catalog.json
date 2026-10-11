@@ -5085,6 +5085,10 @@
       "table": "r_payload_v22",
       "kind": "object",
       "fields": {
+        "knowledgeBoundary": {
+          "model": "Payload_v22_knowledgeBoundary",
+          "required": false
+        },
         "relationCardinality": {
           "model": "Payload_v22_relationCardinality",
           "required": false
@@ -5150,6 +5154,36 @@
           "required": true
         }
       }
+    },
+    "Payload_v22_knowledgeBoundary": {
+      "table": "r_payload_v22_knowledge_boundary",
+      "kind": "union",
+      "variants": [
+        "KnowledgeBoundary",
+        "Payload_v22_knowledgeBoundary_v1"
+      ]
+    },
+    "KnowledgeBoundary": {
+      "table": "r_knowledge_boundary",
+      "kind": "object",
+      "fields": {
+        "holder": {
+          "model": "RecordRef",
+          "required": true
+        },
+        "proposition": {
+          "model": "RecordRef",
+          "required": true
+        },
+        "context": {
+          "model": "RecordRef",
+          "required": true
+        }
+      }
+    },
+    "Payload_v22_knowledgeBoundary_v1": {
+      "table": "r_payload_v22_knowledge_boundary_v1",
+      "kind": "null"
     },
     "Payload_v22_relationCardinality": {
       "table": "r_payload_v22_relation_cardinality",
@@ -7273,7 +7307,12 @@
         "DomainOperation_v57",
         "DomainOperation_v58",
         "DomainOperation_v59",
-        "DomainOperation_v60"
+        "DomainOperation_v60",
+        "DomainOperation_v61",
+        "DomainOperation_v62",
+        "DomainOperation_v63",
+        "DomainOperation_v64",
+        "DomainOperation_v65"
       ]
     },
     "DomainOperation_v0": {
@@ -9858,6 +9897,10 @@
       "table": "r_rule",
       "kind": "object",
       "fields": {
+        "knowledgeBoundary": {
+          "model": "Rule_knowledgeBoundary",
+          "required": false
+        },
         "relationCardinality": {
           "model": "Rule_relationCardinality",
           "required": false
@@ -9919,6 +9962,18 @@
           "required": true
         }
       }
+    },
+    "Rule_knowledgeBoundary": {
+      "table": "r_rule_knowledge_boundary",
+      "kind": "union",
+      "variants": [
+        "KnowledgeBoundary",
+        "Rule_knowledgeBoundary_v1"
+      ]
+    },
+    "Rule_knowledgeBoundary_v1": {
+      "table": "r_rule_knowledge_boundary_v1",
+      "kind": "null"
     },
     "Rule_relationCardinality": {
       "table": "r_rule_relation_cardinality",
@@ -10669,8 +10724,8 @@
           "model": "RecordVersionId",
           "required": true
         },
-        "replacement": {
-          "model": "Payload",
+        "rationale": {
+          "model": "DomainOperation_v48_rationale",
           "required": true
         },
         "kind": {
@@ -10679,13 +10734,196 @@
         }
       }
     },
+    "DomainOperation_v48_rationale": {
+      "table": "r_domain_operation_v48_rationale",
+      "kind": "string"
+    },
     "DomainOperation_v48_kind": {
       "table": "r_domain_operation_v48_kind",
       "kind": "string",
-      "const": "revise_definition"
+      "const": "withdraw_event"
     },
     "DomainOperation_v49": {
       "table": "r_domain_operation_v49",
+      "kind": "object",
+      "fields": {
+        "record": {
+          "model": "RecordRef",
+          "required": true
+        },
+        "expected_version": {
+          "model": "RecordVersionId",
+          "required": true
+        },
+        "replacement": {
+          "model": "Communication",
+          "required": true
+        },
+        "rationale": {
+          "model": "DomainOperation_v49_rationale",
+          "required": true
+        },
+        "kind": {
+          "model": "DomainOperation_v49_kind",
+          "required": true
+        }
+      }
+    },
+    "DomainOperation_v49_rationale": {
+      "table": "r_domain_operation_v49_rationale",
+      "kind": "string"
+    },
+    "DomainOperation_v49_kind": {
+      "table": "r_domain_operation_v49_kind",
+      "kind": "string",
+      "const": "revise_communication"
+    },
+    "DomainOperation_v50": {
+      "table": "r_domain_operation_v50",
+      "kind": "object",
+      "fields": {
+        "record": {
+          "model": "RecordRef",
+          "required": true
+        },
+        "expected_version": {
+          "model": "RecordVersionId",
+          "required": true
+        },
+        "interpretation": {
+          "model": "DomainOperation_v50_interpretation",
+          "required": false
+        },
+        "rationale": {
+          "model": "DomainOperation_v50_rationale",
+          "required": true
+        },
+        "kind": {
+          "model": "DomainOperation_v50_kind",
+          "required": true
+        }
+      }
+    },
+    "DomainOperation_v50_interpretation": {
+      "table": "r_domain_operation_v50_interpretation",
+      "kind": "union",
+      "variants": [
+        "RecordRef",
+        "DomainOperation_v50_interpretation_v1"
+      ]
+    },
+    "DomainOperation_v50_interpretation_v1": {
+      "table": "r_domain_operation_v50_interpretation_v1",
+      "kind": "null"
+    },
+    "DomainOperation_v50_rationale": {
+      "table": "r_domain_operation_v50_rationale",
+      "kind": "string"
+    },
+    "DomainOperation_v50_kind": {
+      "table": "r_domain_operation_v50_kind",
+      "kind": "string",
+      "const": "revise_interpretation"
+    },
+    "DomainOperation_v51": {
+      "table": "r_domain_operation_v51",
+      "kind": "object",
+      "fields": {
+        "record": {
+          "model": "RecordRef",
+          "required": true
+        },
+        "expected_version": {
+          "model": "RecordVersionId",
+          "required": true
+        },
+        "replacement": {
+          "model": "EpistemicAttitude",
+          "required": true
+        },
+        "rationale": {
+          "model": "DomainOperation_v51_rationale",
+          "required": true
+        },
+        "kind": {
+          "model": "DomainOperation_v51_kind",
+          "required": true
+        }
+      }
+    },
+    "DomainOperation_v51_rationale": {
+      "table": "r_domain_operation_v51_rationale",
+      "kind": "string"
+    },
+    "DomainOperation_v51_kind": {
+      "table": "r_domain_operation_v51_kind",
+      "kind": "string",
+      "const": "revise_attitude"
+    },
+    "DomainOperation_v52": {
+      "table": "r_domain_operation_v52",
+      "kind": "object",
+      "fields": {
+        "record": {
+          "model": "RecordRef",
+          "required": true
+        },
+        "expected_version": {
+          "model": "RecordVersionId",
+          "required": true
+        },
+        "replacement": {
+          "model": "ItemPower",
+          "required": true
+        },
+        "rationale": {
+          "model": "DomainOperation_v52_rationale",
+          "required": true
+        },
+        "kind": {
+          "model": "DomainOperation_v52_kind",
+          "required": true
+        }
+      }
+    },
+    "DomainOperation_v52_rationale": {
+      "table": "r_domain_operation_v52_rationale",
+      "kind": "string"
+    },
+    "DomainOperation_v52_kind": {
+      "table": "r_domain_operation_v52_kind",
+      "kind": "string",
+      "const": "revise_item_power"
+    },
+    "DomainOperation_v53": {
+      "table": "r_domain_operation_v53",
+      "kind": "object",
+      "fields": {
+        "record": {
+          "model": "RecordRef",
+          "required": true
+        },
+        "expected_version": {
+          "model": "RecordVersionId",
+          "required": true
+        },
+        "replacement": {
+          "model": "Payload",
+          "required": true
+        },
+        "kind": {
+          "model": "DomainOperation_v53_kind",
+          "required": true
+        }
+      }
+    },
+    "DomainOperation_v53_kind": {
+      "table": "r_domain_operation_v53_kind",
+      "kind": "string",
+      "const": "revise_definition"
+    },
+    "DomainOperation_v54": {
+      "table": "r_domain_operation_v54",
       "kind": "object",
       "fields": {
         "record": {
@@ -10701,38 +10939,38 @@
           "required": true
         },
         "kind": {
-          "model": "DomainOperation_v49_kind",
+          "model": "DomainOperation_v54_kind",
           "required": true
         }
       }
     },
-    "DomainOperation_v49_kind": {
-      "table": "r_domain_operation_v49_kind",
+    "DomainOperation_v54_kind": {
+      "table": "r_domain_operation_v54_kind",
       "kind": "string",
       "const": "upgrade_pack"
     },
-    "DomainOperation_v50": {
-      "table": "r_domain_operation_v50",
+    "DomainOperation_v55": {
+      "table": "r_domain_operation_v55",
       "kind": "object",
       "fields": {
         "client_ref": {
-          "model": "DomainOperation_v50_client_ref",
+          "model": "DomainOperation_v55_client_ref",
           "required": true
         },
         "namespace": {
-          "model": "DomainOperation_v50_namespace",
+          "model": "DomainOperation_v55_namespace",
           "required": true
         },
         "key": {
-          "model": "DomainOperation_v50_key",
+          "model": "DomainOperation_v55_key",
           "required": true
         },
         "name": {
-          "model": "DomainOperation_v50_name",
+          "model": "DomainOperation_v55_name",
           "required": true
         },
         "parent": {
-          "model": "DomainOperation_v50_parent",
+          "model": "DomainOperation_v55_parent",
           "required": false
         },
         "applicability": {
@@ -10740,58 +10978,58 @@
           "required": true
         },
         "classification_executable": {
-          "model": "DomainOperation_v50_classification_executable",
+          "model": "DomainOperation_v55_classification_executable",
           "required": true
         },
         "kind": {
-          "model": "DomainOperation_v50_kind",
+          "model": "DomainOperation_v55_kind",
           "required": true
         }
       }
     },
-    "DomainOperation_v50_client_ref": {
-      "table": "r_domain_operation_v50_client_ref",
+    "DomainOperation_v55_client_ref": {
+      "table": "r_domain_operation_v55_client_ref",
       "kind": "string"
     },
-    "DomainOperation_v50_namespace": {
-      "table": "r_domain_operation_v50_namespace",
+    "DomainOperation_v55_namespace": {
+      "table": "r_domain_operation_v55_namespace",
       "kind": "string"
     },
-    "DomainOperation_v50_key": {
-      "table": "r_domain_operation_v50_key",
+    "DomainOperation_v55_key": {
+      "table": "r_domain_operation_v55_key",
       "kind": "string"
     },
-    "DomainOperation_v50_name": {
-      "table": "r_domain_operation_v50_name",
+    "DomainOperation_v55_name": {
+      "table": "r_domain_operation_v55_name",
       "kind": "string"
     },
-    "DomainOperation_v50_parent": {
-      "table": "r_domain_operation_v50_parent",
+    "DomainOperation_v55_parent": {
+      "table": "r_domain_operation_v55_parent",
       "kind": "union",
       "variants": [
         "RecordId",
-        "DomainOperation_v50_parent_v1"
+        "DomainOperation_v55_parent_v1"
       ]
     },
-    "DomainOperation_v50_parent_v1": {
-      "table": "r_domain_operation_v50_parent_v1",
+    "DomainOperation_v55_parent_v1": {
+      "table": "r_domain_operation_v55_parent_v1",
       "kind": "null"
     },
-    "DomainOperation_v50_classification_executable": {
-      "table": "r_domain_operation_v50_classification_executable",
+    "DomainOperation_v55_classification_executable": {
+      "table": "r_domain_operation_v55_classification_executable",
       "kind": "boolean"
     },
-    "DomainOperation_v50_kind": {
-      "table": "r_domain_operation_v50_kind",
+    "DomainOperation_v55_kind": {
+      "table": "r_domain_operation_v55_kind",
       "kind": "string",
       "const": "introduce_definition"
     },
-    "DomainOperation_v51": {
-      "table": "r_domain_operation_v51",
+    "DomainOperation_v56": {
+      "table": "r_domain_operation_v56",
       "kind": "object",
       "fields": {
         "client_ref": {
-          "model": "DomainOperation_v51_client_ref",
+          "model": "DomainOperation_v56_client_ref",
           "required": true
         },
         "name": {
@@ -10799,51 +11037,51 @@
           "required": true
         },
         "classification": {
-          "model": "DomainOperation_v51_classification",
+          "model": "DomainOperation_v56_classification",
           "required": false
         },
         "world_associations": {
-          "model": "DomainOperation_v51_world_associations",
+          "model": "DomainOperation_v56_world_associations",
           "required": true
         },
         "kind": {
-          "model": "DomainOperation_v51_kind",
+          "model": "DomainOperation_v56_kind",
           "required": true
         }
       }
     },
-    "DomainOperation_v51_client_ref": {
-      "table": "r_domain_operation_v51_client_ref",
+    "DomainOperation_v56_client_ref": {
+      "table": "r_domain_operation_v56_client_ref",
       "kind": "string"
     },
-    "DomainOperation_v51_classification": {
-      "table": "r_domain_operation_v51_classification",
+    "DomainOperation_v56_classification": {
+      "table": "r_domain_operation_v56_classification",
       "kind": "union",
       "variants": [
         "RecordId",
-        "DomainOperation_v51_classification_v1"
+        "DomainOperation_v56_classification_v1"
       ]
     },
-    "DomainOperation_v51_classification_v1": {
-      "table": "r_domain_operation_v51_classification_v1",
+    "DomainOperation_v56_classification_v1": {
+      "table": "r_domain_operation_v56_classification_v1",
       "kind": "null"
     },
-    "DomainOperation_v51_world_associations": {
-      "table": "r_domain_operation_v51_world_associations",
+    "DomainOperation_v56_world_associations": {
+      "table": "r_domain_operation_v56_world_associations",
       "kind": "array",
       "item": "WorldAssociation"
     },
-    "DomainOperation_v51_kind": {
-      "table": "r_domain_operation_v51_kind",
+    "DomainOperation_v56_kind": {
+      "table": "r_domain_operation_v56_kind",
       "kind": "string",
       "const": "introduce_instance"
     },
-    "DomainOperation_v52": {
-      "table": "r_domain_operation_v52",
+    "DomainOperation_v57": {
+      "table": "r_domain_operation_v57",
       "kind": "object",
       "fields": {
         "client_ref": {
-          "model": "DomainOperation_v52_client_ref",
+          "model": "DomainOperation_v57_client_ref",
           "required": true
         },
         "subject": {
@@ -10851,11 +11089,11 @@
           "required": true
         },
         "namespace": {
-          "model": "DomainOperation_v52_namespace",
+          "model": "DomainOperation_v57_namespace",
           "required": true
         },
         "key": {
-          "model": "DomainOperation_v52_key",
+          "model": "DomainOperation_v57_key",
           "required": true
         },
         "value_shape": {
@@ -10863,7 +11101,7 @@
           "required": true
         },
         "subject_types": {
-          "model": "DomainOperation_v52_subject_types",
+          "model": "DomainOperation_v57_subject_types",
           "required": true
         },
         "multiplicity": {
@@ -10879,25 +11117,25 @@
           "required": true
         },
         "kind": {
-          "model": "DomainOperation_v52_kind",
+          "model": "DomainOperation_v57_kind",
           "required": true
         }
       }
     },
-    "DomainOperation_v52_client_ref": {
-      "table": "r_domain_operation_v52_client_ref",
+    "DomainOperation_v57_client_ref": {
+      "table": "r_domain_operation_v57_client_ref",
       "kind": "string"
     },
-    "DomainOperation_v52_namespace": {
-      "table": "r_domain_operation_v52_namespace",
+    "DomainOperation_v57_namespace": {
+      "table": "r_domain_operation_v57_namespace",
       "kind": "string"
     },
-    "DomainOperation_v52_key": {
-      "table": "r_domain_operation_v52_key",
+    "DomainOperation_v57_key": {
+      "table": "r_domain_operation_v57_key",
       "kind": "string"
     },
-    "DomainOperation_v52_subject_types": {
-      "table": "r_domain_operation_v52_subject_types",
+    "DomainOperation_v57_subject_types": {
+      "table": "r_domain_operation_v57_subject_types",
       "kind": "array",
       "item": "RecordId"
     },
@@ -10953,17 +11191,17 @@
       "kind": "array",
       "item": "Value"
     },
-    "DomainOperation_v52_kind": {
-      "table": "r_domain_operation_v52_kind",
+    "DomainOperation_v57_kind": {
+      "table": "r_domain_operation_v57_kind",
       "kind": "string",
       "const": "add_named_attribute"
     },
-    "DomainOperation_v53": {
-      "table": "r_domain_operation_v53",
+    "DomainOperation_v58": {
+      "table": "r_domain_operation_v58",
       "kind": "object",
       "fields": {
         "client_ref": {
-          "model": "DomainOperation_v53_client_ref",
+          "model": "DomainOperation_v58_client_ref",
           "required": true
         },
         "instance": {
@@ -10987,22 +11225,22 @@
           "required": true
         },
         "kind": {
-          "model": "DomainOperation_v53_kind",
+          "model": "DomainOperation_v58_kind",
           "required": true
         }
       }
     },
-    "DomainOperation_v53_client_ref": {
-      "table": "r_domain_operation_v53_client_ref",
+    "DomainOperation_v58_client_ref": {
+      "table": "r_domain_operation_v58_client_ref",
       "kind": "string"
     },
-    "DomainOperation_v53_kind": {
-      "table": "r_domain_operation_v53_kind",
+    "DomainOperation_v58_kind": {
+      "table": "r_domain_operation_v58_kind",
       "kind": "string",
       "const": "initialize_instance"
     },
-    "DomainOperation_v54": {
-      "table": "r_domain_operation_v54",
+    "DomainOperation_v59": {
+      "table": "r_domain_operation_v59",
       "kind": "object",
       "fields": {
         "record": {
@@ -11018,26 +11256,26 @@
           "required": true
         },
         "kind": {
-          "model": "DomainOperation_v54_kind",
+          "model": "DomainOperation_v59_kind",
           "required": true
         }
       }
     },
-    "DomainOperation_v54_kind": {
-      "table": "r_domain_operation_v54_kind",
+    "DomainOperation_v59_kind": {
+      "table": "r_domain_operation_v59_kind",
       "kind": "string",
       "const": "refine_classification"
     },
-    "DomainOperation_v55": {
-      "table": "r_domain_operation_v55",
+    "DomainOperation_v60": {
+      "table": "r_domain_operation_v60",
       "kind": "object",
       "fields": {
         "kind": {
-          "model": "DomainOperation_v55_kind",
+          "model": "DomainOperation_v60_kind",
           "required": true
         },
         "client_ref": {
-          "model": "DomainOperation_v55_client_ref",
+          "model": "DomainOperation_v60_client_ref",
           "required": true
         },
         "instance": {
@@ -11062,21 +11300,21 @@
         }
       }
     },
-    "DomainOperation_v55_kind": {
-      "table": "r_domain_operation_v55_kind",
+    "DomainOperation_v60_kind": {
+      "table": "r_domain_operation_v60_kind",
       "kind": "string",
       "const": "initialize_instance"
     },
-    "DomainOperation_v55_client_ref": {
-      "table": "r_domain_operation_v55_client_ref",
+    "DomainOperation_v60_client_ref": {
+      "table": "r_domain_operation_v60_client_ref",
       "kind": "string"
     },
-    "DomainOperation_v56": {
-      "table": "r_domain_operation_v56",
+    "DomainOperation_v61": {
+      "table": "r_domain_operation_v61",
       "kind": "object",
       "fields": {
         "kind": {
-          "model": "DomainOperation_v56_kind",
+          "model": "DomainOperation_v61_kind",
           "required": true
         },
         "record": {
@@ -11092,26 +11330,26 @@
           "required": true
         },
         "rationale": {
-          "model": "DomainOperation_v56_rationale",
+          "model": "DomainOperation_v61_rationale",
           "required": true
         }
       }
     },
-    "DomainOperation_v56_kind": {
-      "table": "r_domain_operation_v56_kind",
+    "DomainOperation_v61_kind": {
+      "table": "r_domain_operation_v61_kind",
       "kind": "string",
       "const": "revise_item_power"
     },
-    "DomainOperation_v56_rationale": {
-      "table": "r_domain_operation_v56_rationale",
+    "DomainOperation_v61_rationale": {
+      "table": "r_domain_operation_v61_rationale",
       "kind": "string"
     },
-    "DomainOperation_v57": {
-      "table": "r_domain_operation_v57",
+    "DomainOperation_v62": {
+      "table": "r_domain_operation_v62",
       "kind": "object",
       "fields": {
         "kind": {
-          "model": "DomainOperation_v57_kind",
+          "model": "DomainOperation_v62_kind",
           "required": true
         },
         "record": {
@@ -11127,26 +11365,26 @@
           "required": true
         },
         "rationale": {
-          "model": "DomainOperation_v57_rationale",
+          "model": "DomainOperation_v62_rationale",
           "required": true
         }
       }
     },
-    "DomainOperation_v57_kind": {
-      "table": "r_domain_operation_v57_kind",
+    "DomainOperation_v62_kind": {
+      "table": "r_domain_operation_v62_kind",
       "kind": "string",
       "const": "revise_attitude"
     },
-    "DomainOperation_v57_rationale": {
-      "table": "r_domain_operation_v57_rationale",
+    "DomainOperation_v62_rationale": {
+      "table": "r_domain_operation_v62_rationale",
       "kind": "string"
     },
-    "DomainOperation_v58": {
-      "table": "r_domain_operation_v58",
+    "DomainOperation_v63": {
+      "table": "r_domain_operation_v63",
       "kind": "object",
       "fields": {
         "kind": {
-          "model": "DomainOperation_v58_kind",
+          "model": "DomainOperation_v63_kind",
           "required": true
         },
         "record": {
@@ -11162,26 +11400,26 @@
           "required": true
         },
         "rationale": {
-          "model": "DomainOperation_v58_rationale",
+          "model": "DomainOperation_v63_rationale",
           "required": true
         }
       }
     },
-    "DomainOperation_v58_kind": {
-      "table": "r_domain_operation_v58_kind",
+    "DomainOperation_v63_kind": {
+      "table": "r_domain_operation_v63_kind",
       "kind": "string",
       "const": "revise_communication"
     },
-    "DomainOperation_v58_rationale": {
-      "table": "r_domain_operation_v58_rationale",
+    "DomainOperation_v63_rationale": {
+      "table": "r_domain_operation_v63_rationale",
       "kind": "string"
     },
-    "DomainOperation_v59": {
-      "table": "r_domain_operation_v59",
+    "DomainOperation_v64": {
+      "table": "r_domain_operation_v64",
       "kind": "object",
       "fields": {
         "kind": {
-          "model": "DomainOperation_v59_kind",
+          "model": "DomainOperation_v64_kind",
           "required": true
         },
         "record": {
@@ -11193,42 +11431,42 @@
           "required": true
         },
         "interpretation": {
-          "model": "DomainOperation_v59_interpretation",
+          "model": "DomainOperation_v64_interpretation",
           "required": true
         },
         "rationale": {
-          "model": "DomainOperation_v59_rationale",
+          "model": "DomainOperation_v64_rationale",
           "required": true
         }
       }
     },
-    "DomainOperation_v59_kind": {
-      "table": "r_domain_operation_v59_kind",
+    "DomainOperation_v64_kind": {
+      "table": "r_domain_operation_v64_kind",
       "kind": "string",
       "const": "revise_interpretation"
     },
-    "DomainOperation_v59_interpretation": {
-      "table": "r_domain_operation_v59_interpretation",
+    "DomainOperation_v64_interpretation": {
+      "table": "r_domain_operation_v64_interpretation",
       "kind": "union",
       "variants": [
         "RecordRef",
-        "DomainOperation_v59_interpretation_v1"
+        "DomainOperation_v64_interpretation_v1"
       ]
     },
-    "DomainOperation_v59_interpretation_v1": {
-      "table": "r_domain_operation_v59_interpretation_v1",
+    "DomainOperation_v64_interpretation_v1": {
+      "table": "r_domain_operation_v64_interpretation_v1",
       "kind": "null"
     },
-    "DomainOperation_v59_rationale": {
-      "table": "r_domain_operation_v59_rationale",
+    "DomainOperation_v64_rationale": {
+      "table": "r_domain_operation_v64_rationale",
       "kind": "string"
     },
-    "DomainOperation_v60": {
-      "table": "r_domain_operation_v60",
+    "DomainOperation_v65": {
+      "table": "r_domain_operation_v65",
       "kind": "object",
       "fields": {
         "kind": {
-          "model": "DomainOperation_v60_kind",
+          "model": "DomainOperation_v65_kind",
           "required": true
         },
         "record": {
@@ -11240,18 +11478,18 @@
           "required": true
         },
         "rationale": {
-          "model": "DomainOperation_v60_rationale",
+          "model": "DomainOperation_v65_rationale",
           "required": true
         }
       }
     },
-    "DomainOperation_v60_kind": {
-      "table": "r_domain_operation_v60_kind",
+    "DomainOperation_v65_kind": {
+      "table": "r_domain_operation_v65_kind",
       "kind": "string",
       "const": "withdraw_event"
     },
-    "DomainOperation_v60_rationale": {
-      "table": "r_domain_operation_v60_rationale",
+    "DomainOperation_v65_rationale": {
+      "table": "r_domain_operation_v65_rationale",
       "kind": "string"
     },
     "StoredContext": {

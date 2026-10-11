@@ -22,6 +22,7 @@ mod communications;
 mod consequences;
 mod events;
 mod knowledge;
+mod knowledge_boundaries;
 mod resources;
 
 mod powers;

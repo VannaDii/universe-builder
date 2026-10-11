@@ -895,7 +895,30 @@ class ConnectedWritingTests(unittest.TestCase):
                 self.assertEqual(spoken["status"],"no_changes",spoken);self.assertTrue(spoken["excluded"],spoken)
                 publish(gate_check(events=[{"action":"accidental arrival","participants":{"actor":"Iven"},"at_tick":"16"}]),"Iven arrives accidentally at Event 16 without acquiring the gate's exact location.","silver-ordinary-arrival")
                 claim={"subject":"Silver gate","property":"location","value":"beneath the ridge"}
+                boundary=gate_check(knowledge_boundaries=[{"name":"Iven not informed","holder":"Iven","claim":claim,"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"18"}}])
+                with self.assertRaises(RuntimeError):
+                    decisions.action({"action":"prepare","candidate":boundary["candidate_handle"],"label":"Wrong factual authority","text":"A protected knowledge boundary requires explicit contract review."})
+                boundary_revision=publish(boundary,"Iven does not know the gate's location from Event 0 until Event 18.","silver-explicit-knowledge-boundary",contracts=True)
+                boundary_handle=client.call("universe_read_contracts",{"universe":silver["universe"],"context_id":gate_context()})["result"]["knowledge_boundaries"][0]["policy_handle"]
+                def informed(holder,tick):
+                    return {"messages":[{"label":"earlier directions","from":"Mara","to":[holder],"received_by":[holder],"understood_by":[holder],"claim":claim,"channel":"speech","sent_tick":str(tick),"received_tick":str(tick)}],"attitudes":[{"holder":holder,"attitude":"knows","claim":claim,"message":"earlier directions","at_tick":str(tick),"lifetime":{"kind":"until","end_tick":"30"}}]}
+                prohibited=gate_check(**informed("Iven",16))
+                self.assertEqual(prohibited["status"],"conflict",prohibited)
+                self.assertTrue(any("boundary prohibits" in (f.get("message") or "") for f in prohibited["validation"]["execution"]["findings"]),prohibited)
+                self.assertEqual(gate_check(**informed("Mara",16))["status"],"checked_candidate")
+                unsupported=informed("Mara",18)
+                unsupported["messages"][0]["claim"]={**claim,"value":"an unauthored place"};unsupported["attitudes"][0]["claim"]=unsupported["messages"][0]["claim"]
+                unchecked=gate_check(**unsupported)
+                self.assertNotEqual(unchecked["status"],"checked_candidate",unchecked)
+                self.assertTrue(any(f["outcome"]=="not_established" for f in unchecked["validation"]["execution"]["findings"]),unchecked)
+                self.assertEqual(gate_check(attitudes=[{"holder":"Iven","attitude":"believes","claim":claim,"at_tick":"16"}])["status"],"checked_candidate")
                 publish(gate_check(messages=[{"label":"gate directions","from":"Mara","to":["Iven"],"received_by":["Iven"],"understood_by":["Iven"],"claim":claim,"channel":"speech","sent_tick":"17","received_tick":"18"}],attitudes=[{"holder":"Iven","attitude":"knows","claim":claim,"message":"gate directions","at_tick":"18","lifetime":{"kind":"until","end_tick":"30"}}]),"Iven receives and understands Mara's exact directions at Event 18 and knows them until Event 30.","silver-ordinary-knowledge")
+                overlapping=gate_check(knowledge_boundaries=[{"name":"retained knowledge prohibited","holder":"Iven","claim":claim,"scope":"universe","at_tick":"19","lifetime":{"kind":"until","end_tick":"25"}}])
+                self.assertEqual(overlapping["status"],"conflict",overlapping)
+                wrong_scope=gate_check(knowledge_boundaries=[{"name":"unspecified prohibition","holder":"Iven","claim":claim,"scope":"unspecified","at_tick":"0","lifetime":{"kind":"until","end_tick":"18"}}])
+                self.assertEqual(wrong_scope["status"],"needs_clarification",wrong_scope);self.assertIsNone(wrong_scope["candidate_handle"])
+                at_end=client.call("universe_read_contracts",{"universe":silver["universe"],"context_id":gate_context(18)})["result"]["knowledge_boundaries"][0]
+                self.assertIs(at_end["applicable"],False)
                 communication=next(m for m in client.call("universe_read_contracts",{"universe":silver["universe"],"context_id":gate_context(18)})["result"]["communications"] if m["from"]=="Mara" and m["claims"][0]["property"]=="location")
                 early=gate_check(attitudes=[{"holder":"Iven","attitude":"knows","claim":claim,"message":communication["message_handle"],"at_tick":"16"}])
                 self.assertEqual(early["status"],"conflict",early);self.assertTrue(any(f["outcome"]=="refuted" for f in early["validation"]["execution"]["findings"]),early)
@@ -914,6 +937,31 @@ class ConnectedWritingTests(unittest.TestCase):
                 unavailable=client.call("universe_check_changes",{"universe":silver["universe"],"context_id":gate_context(),"events":[{"action":"later opening method","participants":{"gate":"Silver gate"},"at_tick":"16"}]},error=True)
                 self.assertEqual(unavailable["code"],"INVALID_ARGUMENT",unavailable);self.assertEqual(unavailable["field"],"event.action",unavailable);self.assertIn("not explicitly active",unavailable["message"],unavailable)
                 publish(gate_check(events=[{"action":"later opening method","participants":{"gate":"Silver gate"},"at_tick":"22"}]),"The new opening method is used at Event 22, after its authored applicability starts.","silver-ordinary-later-method")
+                ended=gate_check(policy_corrections=[{"policy_handle":boundary_handle,"reason":"Author explicitly ends this boundary at Event 16.","at_tick":"0","lifetime":{"kind":"until","end_tick":"16"}}])
+                ended_revision=publish(ended,"The explicit knowledge boundary ends at Event 16; learning still needs an actual justified receipt.","silver-boundary-ended",contracts=True)
+                stale=gate_check(policy_corrections=[{"policy_handle":boundary_handle,"reason":"Old version must not change the current boundary.","at_tick":"0","lifetime":{"kind":"until","end_tick":"15"}}])
+                self.assertEqual(stale["status"],"needs_clarification",stale);self.assertIsNone(stale["candidate_handle"])
+                publish(gate_check(**informed("Iven",16)),"Iven receives and understands separate directions at sixteen after the author explicitly ended the boundary.","silver-boundary-corrected-learning")
+                past=client.call("universe_read_contracts",{"universe":silver["universe"],"context_id":gate_context(16,{"kind":"exact","revision_id":boundary_revision})})["result"]["knowledge_boundaries"][0]
+                self.assertEqual(past["policy_handle"],boundary_handle)
+                # Explicit private author authority still cannot waive an independent boundary.
+                silver["universe"]="Author boundary"
+                gate=json.loads(cli("create",silver["universe"],"--first-time","0","--calendar","Author days","--tick-label","days",profile=author))
+                cli("grant",agent,gate["universe_id"],"--propose","--edit","--protected",profile=author)
+                decisions=AuthorDecisions(SimpleNamespace(universe=silver["universe"]),binaries/"universe",installation,author,output=lambda _:None)
+                gate_calendar=client.call("universe_read_facts",{"universe":silver["universe"],"context_id":gate_context(),"object_names":["Iven"]})["result"]["clocks"][0]["calendar_id"]
+                publish(gate_check(properties=[{"name":"location","introduce":True,"value_type":"text","single_value":False,"persistence":"unspecified"}],changes=[{"name":n,"introduce":True} for n in ("Iven","Silver gate")],knowledge_policies=[{"kind":"knowledge","name":"author knowledge","mode":"author_established"}],knowledge_boundaries=[{"name":"private knowledge prohibited","holder":"Iven","claim":claim,"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"18"}}]),"The author explicitly declares no knowledge before eighteen; author decisions do not waive this boundary.","author-boundary-premises",contracts=True)
+                declaration={"holder":"Iven","claim":claim,"at_tick":"16","lifetime":{"kind":"until","end_tick":"30"}}
+                private=decisions.action({"action":"establish_knowledge","context_id":gate_context(),"declaration":declaration,"rationale":"Explicit decision, still constrained by the boundary.","label":"Prohibited author knowledge","text":"Iven knows the gate location at sixteen."})
+                self.assertFalse(private["publishable"],private)
+                self.assertTrue(any("boundary prohibits" in (f.get("message") or "") for f in private["validation"]["execution"]["findings"]),private)
+                with self.assertRaises(RuntimeError):
+                    decisions.action({"action":"publish","candidate":private["candidate"],"validation_run":private["validation"]["execution"]["run_id"],"idempotency_key":"prohibited-author-knowledge"})
+                declaration["at_tick"]="18"
+                legal=decisions.action({"action":"establish_knowledge","context_id":gate_context(),"declaration":declaration,"rationale":"Explicit author knowledge beginning exactly at the boundary end.","label":"Legal author knowledge","text":"Iven knows the gate location from eighteen until thirty; this decision establishes attributed knowledge, not objective truth."})
+                self.assertTrue(legal["publishable"],legal)
+                args={"action":"publish","candidate":legal["candidate"],"validation_run":legal["validation"]["execution"]["run_id"],"idempotency_key":"legal-author-knowledge"}
+                self.assertEqual(decisions.action(args)["result"],decisions.action(args)["result"])
             finally:
                 if client: client.close()
                 cli("shutdown",profile=author)

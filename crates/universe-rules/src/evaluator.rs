@@ -88,6 +88,7 @@ mod tests {
             ),
             Payload::Rule(universe_domain::records::Rule {
                 relation_cardinality: None,
+                knowledge_boundary: None,
                 knowledge_policy: None,
                 channel_chronology: None,
                 namespace: "t".into(),
@@ -129,6 +130,7 @@ mod tests {
             ),
             Payload::Rule(universe_domain::records::Rule {
                 relation_cardinality: None,
+                knowledge_boundary: None,
                 knowledge_policy: None,
                 channel_chronology: None,
                 namespace: "t".into(),
@@ -169,6 +171,7 @@ mod tests {
             ),
             Payload::Rule(universe_domain::records::Rule {
                 relation_cardinality: None,
+                knowledge_boundary: None,
                 knowledge_policy: None,
                 channel_chronology: None,
                 namespace: "t".into(),
@@ -211,6 +214,7 @@ mod tests {
             ),
             Payload::Rule(universe_domain::records::Rule {
                 relation_cardinality: None,
+                knowledge_boundary: None,
                 knowledge_policy: None,
                 channel_chronology: None,
                 namespace: "t".into(),
@@ -253,6 +257,7 @@ mod tests {
             ),
             Payload::Rule(universe_domain::records::Rule {
                 relation_cardinality: None,
+                knowledge_boundary: None,
                 knowledge_policy: None,
                 channel_chronology: None,
                 namespace: "t".into(),
@@ -295,6 +300,7 @@ mod tests {
             ),
             Payload::Rule(universe_domain::records::Rule {
                 relation_cardinality: None,
+                knowledge_boundary: None,
                 knowledge_policy: None,
                 channel_chronology: None,
                 namespace: "t".into(),
@@ -343,6 +349,7 @@ mod tests {
             ),
             Payload::Rule(universe_domain::records::Rule {
                 relation_cardinality: None,
+                knowledge_boundary: None,
                 knowledge_policy: None,
                 channel_chronology: None,
                 namespace: "t".into(),

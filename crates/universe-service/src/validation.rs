@@ -352,6 +352,7 @@ pub fn structural(records: &[RecordVersion]) -> anyhow::Result<()> {
             Payload::Rule(rule) => {
                 crate::communications::validate_rule(rule)?;
                 crate::knowledge::validate_rule(rule)?;
+                crate::knowledge_boundaries::validate_rule(rule, records)?;
                 crate::cardinality::validate_rule(rule, records)?;
                 if rule.knowledge_policy.as_ref().is_some_and(|p| {
                     !matches!(

@@ -10,6 +10,7 @@ fn rule(expression: Expr, applicability: Applicability, executable: bool) -> Rec
         ),
         Payload::Rule(Rule {
             relation_cardinality: None,
+            knowledge_boundary: None,
             knowledge_policy: None,
             channel_chronology: None,
             namespace: "fixture".into(),

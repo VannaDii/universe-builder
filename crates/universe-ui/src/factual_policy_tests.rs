@@ -76,6 +76,39 @@ fn factual_forms_match_the_supported_contracts_and_reject_invalid_fields() {
     f.context = "".into();
     assert!(f.build("knowledge", &frame(), None, &choices()).is_err());
     f.context = frame().context.record.to_string();
+    let mut boundary_choices = choices();
+    boundary_choices.push(json!({"kind":"entity","record_id":"rec_000000000000000000000010"}));
+    boundary_choices.push(json!({"kind":"proposition","record_id":"rec_000000000000000000000011"}));
+    let mut boundary = base();
+    boundary.holder = "rec_000000000000000000000010".into();
+    boundary.proposition = "rec_000000000000000000000011".into();
+    boundary.applicability = "universe_wide".into();
+    boundary.validity = "interval".into();
+    boundary.start = "0".into();
+    boundary.end = "18".into();
+    let op = boundary
+        .build(
+            "knowledge_boundary",
+            &frame(),
+            Some(&clock()),
+            &boundary_choices,
+        )
+        .unwrap();
+    assert_eq!(
+        op["record"]["knowledgeBoundary"]["holder"]["record"],
+        boundary.holder
+    );
+    assert_eq!(op["record"]["commitPolicy"], "always_block");
+    assert_eq!(op["record"]["validity"]["end"]["value"], "18");
+    boundary.end = "0".into();
+    assert!(boundary
+        .build(
+            "knowledge_boundary",
+            &frame(),
+            Some(&clock()),
+            &boundary_choices
+        )
+        .is_err());
     f.relation = "rec_000000000000000000000002".into();
     f.grouping = "role".into();
     f.group_role = "office".into();
@@ -139,7 +172,7 @@ fn factual_forms_match_the_supported_contracts_and_reject_invalid_fields() {
 #[test]
 fn factual_control_branches_mount() {
     fn fixture() -> Element {
-        rsx! { for mode in ["chronology","knowledge","cardinality","resources"] { FactualPolicy{mode:mode.to_string(),frame:frame(),clock:Some(clock()),choices:choices(),namespaces:vec![],disabled:false,onadd:move |_|{}} } }
+        rsx! { for mode in ["chronology","knowledge","knowledge_boundary","cardinality","resources"] { FactualPolicy{mode:mode.to_string(),frame:frame(),clock:Some(clock()),choices:choices(),namespaces:vec![],disabled:false,onadd:move |_|{}} } }
     }
     let mut dom = dioxus::core::VirtualDom::new(fixture);
     let mutations = dom.rebuild_to_vec();

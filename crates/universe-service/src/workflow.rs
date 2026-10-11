@@ -1038,19 +1038,25 @@ impl Workflow<'_> {
                 unsupported_capabilities.push(format!("event.preconditions:{}", f.rule_id));
             }
         }
-        let declared_findings = crate::cardinality::assess(&candidate)
-            .into_iter()
-            .map(|f| (f, "relations.cardinality"))
-            .chain(
-                crate::communications::assess(&candidate)
-                    .into_iter()
-                    .map(|f| (f, "communications.chronology")),
-            )
-            .chain(
-                crate::knowledge::assess(&candidate, &p.proposal.base_frame)
-                    .into_iter()
-                    .map(|f| (f, "knowledge.acquisition")),
-            );
+        let declared_findings =
+            crate::knowledge_boundaries::assess(&candidate, &p.proposal.base_frame)
+                .into_iter()
+                .map(|f| (f, "knowledge.boundaries"))
+                .chain(
+                    crate::cardinality::assess(&candidate)
+                        .into_iter()
+                        .map(|f| (f, "relations.cardinality")),
+                )
+                .chain(
+                    crate::communications::assess(&candidate)
+                        .into_iter()
+                        .map(|f| (f, "communications.chronology")),
+                )
+                .chain(
+                    crate::knowledge::assess(&candidate, &p.proposal.base_frame)
+                        .into_iter()
+                        .map(|f| (f, "knowledge.acquisition")),
+                );
         for (finding, capability) in declared_findings {
             if !matches!(finding.outcome, EvidenceOutcome::Supported) {
                 admissible = false;
@@ -1100,7 +1106,8 @@ impl Workflow<'_> {
             cancelled()?;
             match &record.payload {
                 Payload::Rule(rule) => {
-                    if rule.channel_chronology.is_some()
+                    if rule.knowledge_boundary.is_some()
+                        || rule.channel_chronology.is_some()
                         || rule.knowledge_policy.is_some()
                         || rule.relation_cardinality.is_some()
                     {
@@ -3262,6 +3269,10 @@ fn research_closure(
                 .iter()
                 .map(|p| p.record.record.clone())
                 .collect(),
+            Payload::Rule(r) if r.knowledge_boundary.is_some() => {
+                let b = r.knowledge_boundary.as_ref().unwrap();
+                vec![b.holder.record.clone(), b.proposition.record.clone()]
+            }
             Payload::Exception(e) => vec![e.rule.record.clone()],
             Payload::Appearance(a) => match &a.target {
                 AppearanceTarget::Universe => {

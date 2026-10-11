@@ -188,6 +188,9 @@ pub struct CheckChanges {
     /// Explicit context knowledge modes or communication chronology; private contract review required.
     #[serde(default)]
     pub knowledge_policies: Vec<WritingKnowledgePolicy>,
+    /// Explicit absence of knowledge for one holder and claim in the selected context/world/period; protected author contract review required. Missing knowledge remains unknown.
+    #[serde(default)]
+    pub knowledge_boundaries: Vec<WritingKnowledgeBoundary>,
     /// Apply selected approved initial values once at an explicitly occurred instance start.
     #[serde(default)]
     pub initializations: Vec<WritingInitialization>,
@@ -351,7 +354,7 @@ pub struct WritingPolicyCorrection {
     pub clear_minimum_delay: bool,
     #[serde(default)]
     pub clear_maximum_delay: bool,
-    /// Only resource/conflict policies support scope/time changes.
+    /// Resource/conflict policies and explicit knowledge boundaries support scope/time changes; boundary holder/claim/context stay unchanged.
     #[serde(default)]
     pub scope: Option<String>,
     #[serde(default)]
@@ -433,6 +436,21 @@ pub enum FactLifetime {
         end_date: Option<String>,
     },
 }
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingKnowledgeBoundary {
+    pub name: String,
+    pub holder: String,
+    pub claim: WritingClaim,
+    /// Explicit universe or named world, never inferred.
+    pub scope: String,
+    #[serde(default)]
+    pub at_tick: Option<String>,
+    #[serde(default)]
+    pub at_date: Option<String>,
+    pub lifetime: FactLifetime,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct WritingClaim {

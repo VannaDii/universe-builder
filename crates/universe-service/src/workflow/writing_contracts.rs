@@ -1,6 +1,7 @@
 //! Finite plain contract declarations over existing protected operations/evaluators.
 use super::*;
 use std::collections::BTreeMap;
+use universe_domain::scope::Validity;
 use universe_protocol::writing::*;
 
 fn property<'a>(
@@ -213,6 +214,7 @@ impl Workflow<'_> {
             && input.action_corrections.is_empty()
             && input.definition_corrections.is_empty()
             && input.knowledge_policies.is_empty()
+            && input.knowledge_boundaries.is_empty()
             && input.exhaustive_sets.is_empty()
             && input.item_powers.is_empty()
             && input.item_power_corrections.is_empty()
@@ -226,7 +228,7 @@ impl Workflow<'_> {
         let mut policy_edits = std::collections::BTreeSet::new();
         for patch in &input.policy_corrections {
             let build = || -> anyhow::Result<Value> {
-                let original = rows.iter().find(|r| r.record_version_id.as_str()==patch.policy_handle && matches!(&r.payload,Payload::Rule(p) if (supported_policy(p) || supported_knowledge_policy(p)) && p.knowledge_policy.as_ref().is_none_or(|k|k.context==ctx.frame.context))).ok_or_else(||anyhow::anyhow!("Retrieve the current author-visible policy handle before correcting it"))?;
+                let original = rows.iter().find(|r| r.record_version_id.as_str()==patch.policy_handle && matches!(&r.payload,Payload::Rule(p) if (supported_policy(p) || supported_knowledge_policy(p) || supported_boundary(p)) && p.knowledge_policy.as_ref().is_none_or(|k|k.context==ctx.frame.context) && p.knowledge_boundary.as_ref().is_none_or(|b|b.context==ctx.frame.context))).ok_or_else(||anyhow::anyhow!("Retrieve the current author-visible policy handle before correcting it"))?;
                 let Payload::Rule(old) = &original.payload else {
                     unreachable!()
                 };
@@ -273,7 +275,7 @@ impl Workflow<'_> {
                     }
                 }
                 if patch.scope.is_some() || patch.at_tick.is_some() || patch.lifetime.is_some() {
-                    if !supported_policy(old) {
+                    if !supported_policy(old) && !supported_boundary(old) {
                         anyhow::bail!("Knowledge and channel policies retain universe-wide scope and unspecified validity");
                     }
                     if let Some(scope) = &patch.scope {
@@ -639,6 +641,7 @@ impl Workflow<'_> {
                 }];
                 declaration.constraints.clear();
                 declaration.knowledge_policies.clear();
+                declaration.knowledge_boundaries.clear();
                 declaration.action_corrections.clear();
                 declaration.definition_corrections.clear();
                 declaration.property_corrections.clear();
@@ -742,6 +745,46 @@ impl Workflow<'_> {
                     result.additions.push(format!(
                         "Definition correction: {} — {}",
                         patch.name, patch.reason
+                    ));
+                }
+                Err(e) => result.clarifications.push(e.to_string()),
+            }
+        }
+        for b in &input.knowledge_boundaries {
+            let build = || -> anyhow::Result<Vec<Value>> {
+                if b.name.trim().is_empty()
+                    || rows
+                        .iter()
+                        .any(|r| matches!(&r.payload,Payload::Rule(r) if r.key==b.name))
+                {
+                    anyhow::bail!("Use a uniquely named knowledge boundary; retrieve a current policy handle to revise it");
+                }
+                let holder = super::writing_connected::object(&rows, &b.holder, &ctx.frame)
+                    .ok_or_else(|| anyhow::anyhow!("Which exact holder is '{}' ?", b.holder))?;
+                let scope = applicability(self, &b.scope, &rows)?;
+                if !matches!(
+                    scope,
+                    Applicability::UniverseWide | Applicability::Worlds { .. }
+                ) || !matches!(b.lifetime, FactLifetime::Until { .. })
+                    || b.at_tick.is_none()
+                {
+                    anyhow::bail!("A knowledge boundary needs explicit world scope, start and exclusive end on the selected calendar");
+                }
+                let time = super::writing_connected::time(&ctx.frame, &rows, &b.at_tick)?;
+                let period = validity(&time, &b.lifetime)?;
+                let proposition = super::writing_connected::claim(u, &rows, &ctx.frame, &b.claim)?;
+                let mut added = vec![];
+                let reference =
+                    super::writing_connected::define(&mut added, u, &proposition, &rows);
+                added.push(json!({"kind":"define_rule","client_ref":RecordId::generate(&mut rand::rng()),"record":{"namespace":"authoring","key":b.name,"labels":{},"kind":"physical_constraint","commitPolicy":"always_block","applicability":scope,"targetPredicates":[],"expression":{"kind":"lit","value":true},"capabilities":[crate::knowledge_boundaries::CAPABILITY],"executable":true,"validity":period,"knowledgeBoundary":{"holder":{"universe":u,"record":holder},"proposition":reference,"context":ctx.frame.context}}}));
+                Ok(added)
+            };
+            match build() {
+                Ok(added) => {
+                    ops.extend(added);
+                    result.additions.push(format!(
+                        "Explicit knowledge boundary: {}; private contract review required",
+                        b.name
                     ));
                 }
                 Err(e) => result.clarifications.push(e.to_string()),
@@ -882,6 +925,7 @@ pub(super) fn supported_policy(r: &Rule) -> bool {
         && r.kind == RuleKind::PhysicalConstraint
         && r.target_predicates.len() == 1
         && r.subject_types.is_empty()
+        && r.knowledge_boundary.is_none()
         && r.knowledge_policy.is_none()
         && r.channel_chronology.is_none()
         && r.relation_cardinality.is_none()
@@ -897,11 +941,30 @@ pub(super) fn supported_policy(r: &Rule) -> bool {
                 } if predicate == &r.target_predicates[0]))
 }
 
+pub(super) fn supported_boundary(r: &Rule) -> bool {
+    r.knowledge_boundary.is_some()
+        && r.capabilities == [crate::knowledge_boundaries::CAPABILITY]
+        && r.kind == RuleKind::PhysicalConstraint
+        && r.commit_policy == CommitPolicy::AlwaysBlock
+        && r.executable
+        && r.knowledge_policy.is_none()
+        && r.channel_chronology.is_none()
+        && r.relation_cardinality.is_none()
+        && r.expression == (universe_domain::expr::Expr::Lit { value: true })
+        && r.target_predicates.is_empty()
+        && r.subject_types.is_empty()
+        && matches!(
+            r.applicability,
+            Applicability::UniverseWide | Applicability::Worlds { .. }
+        )
+        && matches!(r.validity, Validity::CalendarInterval { .. })
+}
 pub(super) fn supported_knowledge_policy(r: &Rule) -> bool {
     (r.knowledge_policy.is_some() || r.channel_chronology.is_some())
         && crate::knowledge::validate_rule(r).is_ok()
         && crate::communications::validate_rule(r).is_ok()
         && r.relation_cardinality.is_none()
+        && r.knowledge_boundary.is_none()
 }
 
 /// Finite private-review whitelist: never adopt kind/targets/capabilities or hidden rule edits.
@@ -920,11 +983,12 @@ pub(super) fn permitted_policy_correction(old: &Rule, new: &Rule) -> bool {
             before.minimum_delay = after.minimum_delay.clone();
             before.maximum_delay = after.maximum_delay.clone();
         }
-    } else if supported_policy(old) {
+    } else if supported_policy(old) || supported_boundary(old) {
         permitted.applicability = new.applicability.clone();
         permitted.validity = new.validity.clone();
     } else {
         return false;
     }
-    permitted == *new && (supported_policy(new) || supported_knowledge_policy(new))
+    permitted == *new
+        && (supported_policy(new) || supported_knowledge_policy(new) || supported_boundary(new))
 }

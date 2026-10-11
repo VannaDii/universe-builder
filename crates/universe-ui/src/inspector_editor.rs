@@ -685,6 +685,12 @@ pub fn InspectorEditor(
             ("relation_group_role", "Group by declared role"),
             ("relation_counted_role", "Change counted role"),
         ],
+        "rule" if selected["payload"]["knowledgeBoundary"].is_object() => vec![
+            ("", "Keep knowledge boundary"),
+            ("policy_scope", "Correct boundary world scope"),
+            ("policy_start", "Correct boundary interval start"),
+            ("policy_end", "Correct or end boundary interval"),
+        ],
         "rule" if selected["payload"]["knowledgePolicy"].is_object() => vec![
             ("", "Keep knowledge policy"),
             ("policy_mode", "Correct knowledge mode"),

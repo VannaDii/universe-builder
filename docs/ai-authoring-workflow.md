@@ -962,3 +962,32 @@ Ordinary `worlds` changes use `name` and explicit `introduce: true` for a new au
 `story_contexts` introduces a named dream, account or embedded story using explicit `name`, `introduce: true`, `kind`, existing `parent`, authored `calendar` and exact `story_time`. The engine stores an Authored label; these descriptions do not establish a Source/Narrator, disclosure, knowledge or objective truth. Parentage is structure, with no inherited facts/actions. The chosen calendar must already have an authored clock system; no conversion or current-time default is inferred. Attach exact author source through private contract review and approve/publish separately. Then open `represented_context: {"name":"Night dream"}` at an explicit selected story time before proposing local facts. Existing unambiguous names reuse identity; inaccessible/ambiguous names hold or reject without choosing a context. Older pinned revisions retain their original contexts and facts. Existing opaque context IDs remain supported.
 
 The existing **Create an entity, world, work, saga or story context** control offers explicit kind, parent, calendar and initial story-time fields. Publish the draft before selecting the new context in **Writing context → Open current revision** or the existing state controls. An unfinished draft must be explicitly cleared/withdrawn or finished before switching; empty drafts save their selected context through the existing draft path. Plain factual research separates local occurred actions and attributed evidence from other contexts; explicitly linked mixed-context message claims retain their named context. This does not establish that every implication in prose was extracted.
+
+Explicit knowledge boundaries
+-----------------------------
+
+`knowledge_boundaries` explicitly declares that one named holder does not know one
+claim in the selected represented context during a finite authored interval. Supply
+`name`, `holder`, `claim` (subject/property/value), explicit `scope` (universe or a
+named world), `at_tick` or selected-calendar `at_date`, and an exclusive
+`lifetime: {kind: "until", end_tick: "18"}` (or `end_date`). Missing knowledge
+records remain unknown. This declaration does not establish objective truth or
+prohibit beliefs, suspicions, memories, rejection or dialogue.
+
+`universe_read_contracts` returns author-visible `knowledge_boundaries` with
+version-bound `policy_handle` values. `policy_corrections` changes only explicitly
+supplied world scope or the interval; time corrections supply the start and
+lifetime together. Holders, claims and represented contexts stay fixed. The
+existing policy inspector can correct scope/start or explicitly end the boundary;
+the factual-policy form can declare a holder, existing claim, scope and dates.
+Both declarations and corrections require private contract source review and
+separate exact approval/publication. An ending is explicit, never inferred from
+a message arriving. Boundary approval cannot waive overlapping knowledge, even
+knowledge established by an explicit private author decision.
+
+The engine checks the full validity interval of matching knowledge, including
+knowledge acquired earlier and retained during the prohibited period. A specific
+other authored world/context/holder/claim is unaffected; universe-wide knowledge
+is not treated as a different world. Unknown applicability or overlap cannot
+qualify publication. Older development packages require separately authorized
+conversion after this closed-model change; no existing installation is migrated.

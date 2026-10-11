@@ -921,10 +921,21 @@ pub enum CardinalityKey {
     Role { role: String },
 }
 
+/// Explicit absence of knowledge, never a refutation of the claimed proposition.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct KnowledgeBoundary {
+    pub holder: RecordRef,
+    pub proposition: RecordRef,
+    pub context: RecordRef,
+}
+
 /// A typed, declarative rule (spec §9.3, §27.2).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Rule {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub knowledge_boundary: Option<KnowledgeBoundary>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relation_cardinality: Option<RelationCardinality>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2542,6 +2553,7 @@ mod tests {
             client_ref: "r".into(),
             record: Rule {
                 relation_cardinality: None,
+                knowledge_boundary: None,
                 knowledge_policy: None,
                 channel_chronology: None,
                 namespace: "author".into(),
@@ -2610,6 +2622,7 @@ mod tests {
             }),
             Payload::Rule(Rule {
                 relation_cardinality: None,
+                knowledge_boundary: None,
                 knowledge_policy: None,
                 channel_chronology: None,
                 namespace: "author".into(),

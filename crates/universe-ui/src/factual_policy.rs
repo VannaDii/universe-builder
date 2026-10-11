@@ -11,6 +11,8 @@ pub(crate) struct Form {
     pub(crate) maximum_delay: String,
     pub(crate) context: String,
     pub(crate) knowledge: String,
+    pub(crate) holder: String,
+    pub(crate) proposition: String,
     pub(crate) relation: String,
     pub(crate) grouping: String,
     pub(crate) group_role: String,
@@ -127,6 +129,38 @@ impl Form {
                 }
                 rule["channelChronology"] = json!({"channel":self.channel,"forwardOnly":forward,"minimumDelay":min.map(|v|v.to_string()),"maximumDelay":max.map(|v|v.to_string())});
                 "communications.chronology.v1"
+            }
+            "knowledge_boundary" => {
+                if !choices
+                    .iter()
+                    .any(|c| c["kind"] == "entity" && c["record_id"] == self.holder)
+                    || !choices
+                        .iter()
+                        .any(|c| c["kind"] == "proposition" && c["record_id"] == self.proposition)
+                {
+                    return Err("Choose an existing holder and exact claim.".into());
+                }
+                if self.validity != "interval" {
+                    return Err("Explicit knowledge absence requires an authored interval.".into());
+                }
+                let clock = clock.ok_or("Select an authored calendar")?;
+                let start = clock.coordinate(&self.start)?;
+                let end = clock.coordinate(&self.end)?;
+                if start.parse::<i128>().map_err(|e| e.to_string())?
+                    >= end.parse::<i128>().map_err(|e| e.to_string())?
+                {
+                    return Err("The exclusive end must follow the start.".into());
+                }
+                rule["knowledgeBoundary"] = json!({"holder":rr(&self.holder),"proposition":rr(&self.proposition),"context":context()?});
+                rule["validity"] = json!({"kind":"calendar_interval","calendar":clock.calendar,"start":{"kind":"exact","value":start},"end":{"kind":"exact","value":end}});
+                rule["applicability"] = match self.applicability.as_str() {
+                    "universe_wide" => json!({"kind":"universe_wide"}),
+                    "worlds" if !self.worlds.is_empty() => {
+                        json!({"kind":"worlds","world_ids":self.worlds})
+                    }
+                    _ => return Err("Choose universe-wide or explicit world scope.".into()),
+                };
+                "knowledge.boundaries.v1"
             }
             "knowledge" => {
                 if !["author_established", "justified"].contains(&self.knowledge.as_str()) {
@@ -263,7 +297,15 @@ pub(super) fn FactualPolicy(
             label{r#for:"factual-delay-maximum","Maximum delay (optional)"}input{id:"factual-delay-maximum",disabled,value:form.read().maximum_delay.clone(),oninput:move|e|form.write().maximum_delay=e.value()}
         } else if mode!="resources" {
             label{r#for:"factual-context","Truth context"}RichSelect{id:"factual-context",disabled,value:form.read().context.clone(),options:contexts(&choices,&frame),onchange:move|e:SelectionEvent|form.write().context=e.value()}
-            if mode=="knowledge" {
+            if mode=="knowledge_boundary" {
+                label{r#for:"factual-boundary-holder","Knowledge holder"}RichSelect{id:"factual-boundary-holder",disabled,value:form.read().holder.clone(),options:super::super::select::record_choices(&choices,&["entity"],"Choose holder"),onchange:move|e:SelectionEvent|form.write().holder=e.value()}
+                label{r#for:"factual-boundary-claim","Claim"}RichSelect{id:"factual-boundary-claim",disabled,value:form.read().proposition.clone(),options:super::super::select::record_choices(&choices,&["proposition"],"Choose exact claim"),onchange:move|e:SelectionEvent|form.write().proposition=e.value()}
+                label{r#for:"factual-boundary-scope","Scope"}RichSelect{id:"factual-boundary-scope",disabled,value:form.read().applicability.clone(),options:super::super::select::choices(&[("","Choose scope"),("universe_wide","Explicit universe-wide"),("worlds","Selected world")]),onchange:move|e:SelectionEvent|form.write().applicability=e.value()}
+                if form.read().applicability=="worlds" {RichSelect{id:"factual-boundary-world",disabled,value:form.read().worlds.first().cloned().unwrap_or_default(),options:super::super::select::typed_id_choices(&choices,"world","wld_","Choose world"),onchange:move|e:SelectionEvent|form.write().worlds=vec![e.value()]}}
+                label{r#for:"factual-boundary-start","Start date or tick"}input{id:"factual-boundary-start",disabled,value:form.read().start.clone(),oninput:move|e|{form.write().start=e.value();form.write().validity="interval".into();}}
+                label{r#for:"factual-boundary-end","Exclusive end date or tick"}input{id:"factual-boundary-end",disabled,value:form.read().end.clone(),oninput:move|e|form.write().end=e.value()}
+                p{"This declares absence of knowledge only for the selected holder, claim and period. It does not change objective truth or infer later learning."}
+            } else if mode=="knowledge" {
                 label{r#for:"factual-knowledge","Knowledge basis"}RichSelect{id:"factual-knowledge",disabled,value:form.read().knowledge.clone(),options:super::super::select::choices(&[("","Choose explicitly"),("author_established","Author-established knowledge"),("justified","Justified interpreted receipt")]),onchange:move|e:SelectionEvent|form.write().knowledge=e.value()}
                 p{"Author-established knowledge needs an attributable author decision. Justified knowledge needs explicit interpretation, actual receipt, chronology and supported truth at acquisition. Receipt alone does not imply understanding."}
             } else if mode=="cardinality" {

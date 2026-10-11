@@ -48,6 +48,7 @@ pub(super) fn supported_limit(r: &Rule) -> bool {
         && r.target_predicates.is_empty()
         && r.expression == universe_domain::expr::Expr::Lit { value: true }
         && r.capabilities == [crate::cardinality::CAPABILITY]
+        && r.knowledge_boundary.is_none()
         && r.knowledge_policy.is_none()
         && r.channel_chronology.is_none()
 }

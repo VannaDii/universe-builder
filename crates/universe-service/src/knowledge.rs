@@ -34,6 +34,7 @@ pub(crate) fn validate_rule(rule: &Rule) -> anyhow::Result<()> {
         || !rule.target_predicates.is_empty()
         || rule.expression != (Expr::Lit { value: true })
         || rule.capabilities != [CAPABILITY]
+        || rule.knowledge_boundary.is_some()
         || rule.channel_chronology.is_some()
     {
         return Err(ProtocolError::invalid_argument("knowledgePolicy", "knowledge needs an executable universe-wide physical constraint with always_block, unspecified validity, literal true and only its capability").into());
