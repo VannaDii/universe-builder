@@ -3,6 +3,7 @@ import 'package:ub_domain/ub_domain.dart';
 
 import 'relational.dart';
 import 'revision_input.dart';
+import 'world_names.dart';
 
 typedef Membership = Map<RecordId, RecordVersionId>;
 const maxRecords = 500000;
@@ -32,6 +33,7 @@ final class SqliteJournal {
     PrincipalId principal,
   ) {
     _transactionRequired();
+    selectorKey(name);
     final revision = RevisionId.generate();
     database.execute('INSERT INTO universes(id,name) VALUES(?,?)', [
       universe.value,
@@ -157,8 +159,8 @@ final class SqliteJournal {
     return Map.unmodifiable(membership);
   }
 
-  /// Append only after candidate admission. Subsequent reservation,
-  /// initialization and projection work still shares this uncommitted write.
+  /// Append only after candidate admission. Name reservations, subsequent
+  /// initialization and projections share this uncommitted write.
   RevisionId append(CommitInput input) {
     _transactionRequired();
     _checkInput(input);
@@ -196,6 +198,7 @@ final class SqliteJournal {
         change.next?.versionId.value,
       ]);
     }
+    WorldNames(database).reserve(input, revision);
     return revision;
   }
 

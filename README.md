@@ -20,7 +20,7 @@ dart analyze packages tool
 dart format --output=none --set-exit-if-changed packages tool
 cd packages/ub_domain
 dart test
-dart test test/canonical_test.dart test/identity_test.dart test/exact_amount_test.dart test/value_test.dart --platform chrome
+dart test test/canonical_test.dart test/identity_test.dart test/exact_amount_test.dart test/value_test.dart test/selector_test.dart --platform chrome
 cd ../ub_store
 dart test
 ```
@@ -35,8 +35,11 @@ provide reviewed publication yet. The internal journal adds immutable revision
 history, exact receipt lookup, tombstones and pinned branches within a
 caller-owned transaction. Reference admission and per-record reference, world,
 narrative, scalar and search projections are also implemented internally.
-Foundation/value/ancestry admission is implemented internally. Selector
-reservations, definition admission, initialization, projection recovery and
+Foundation/value/ancestry admission and world selector reservations are
+implemented internally. Selector keys preserve the existing NFC/full case
+folding/NFC format with pinned Unicode tables; renamed or removed world names
+remain reserved to their original identities. Definition admission,
+initialization, projection recovery and
 service authorization still need their port before an author-facing publication
 path can use it. Schema resources are compiled into the
 package; after changing the owning files in `docs/decisions/relational-storage`,

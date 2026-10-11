@@ -111,6 +111,145 @@ void main() {
     }
   }
 
+  StoredVersion world(
+    int identity,
+    int versionNumber,
+    String name, [
+    List<String> aliases = const [],
+  ]) => StoredVersion.build(
+    RecordVersionId.parse('ver_${versionNumber.toString().padLeft(24, '0')}'),
+    RecordIdentity(
+      universeId: universe,
+      recordId: RecordId.parse('rec_${identity.toString().padLeft(24, '0')}'),
+      recordKind: RecordKind.world,
+    ),
+    CanonicalObject(
+      {
+        'record_kind': CanonicalString('world'),
+        'selector': CanonicalString(name),
+        'aliases': CanonicalArray(aliases.map(CanonicalString.new)),
+        'labels': CanonicalObject([]),
+        'metadata': CanonicalObject([]),
+      }.entries,
+    ),
+  );
+
+  CommitInput worldInput(String key, List<Assignment> changes) => CommitInput(
+    universe: universe,
+    continuity: continuity,
+    expectedHead: journal.head(continuity),
+    principal: principal,
+    decision: 'exact world approval',
+    reason: 'authored worlds',
+    idempotencyKey: key,
+    changes: changes,
+  );
+
+  test(
+    'world names reject candidate collisions without partial publication',
+    () {
+      final a = world(1, 1, 'Straße');
+      final b = world(2, 2, 'Elsewhere', [' STRASSE ']);
+      expect(
+        () => publish(
+          worldInput('collision', [
+            Assignment(recordId: a.identity.recordId, next: a),
+            Assignment(recordId: b.identity.recordId, next: b),
+          ]),
+        ),
+        throwsFormatException,
+      );
+      expect(journal.head(continuity), genesis);
+      expect(database.select('SELECT * FROM record_versions'), isEmpty);
+      expect(database.select('SELECT * FROM world_name_reservations'), isEmpty);
+      final invalid = world(1, 3, 'ALL');
+      expect(
+        () => publish(
+          worldInput('invalid-name', [
+            Assignment(recordId: invalid.identity.recordId, next: invalid),
+          ]),
+        ),
+        throwsFormatException,
+      );
+      expect(journal.head(continuity), genesis);
+    },
+  );
+
+  test(
+    'world reservations survive rename, removal and restart without rebinding',
+    () {
+      final a = world(1, 1, 'Straße', ['cafe\u0301', 'STRASSE']);
+      final first = publish(
+        worldInput('first-world', [
+          Assignment(recordId: a.identity.recordId, next: a),
+        ]),
+      );
+      expect(
+        database.select('SELECT * FROM world_name_reservations'),
+        hasLength(2),
+      );
+      final renamed = world(1, 2, 'New Earth');
+      publish(
+        worldInput('rename', [
+          Assignment(
+            recordId: a.identity.recordId,
+            expected: a.versionId,
+            next: renamed,
+          ),
+        ]),
+      );
+      final removed = publish(
+        worldInput('remove', [
+          Assignment(
+            recordId: a.identity.recordId,
+            expected: renamed.versionId,
+          ),
+        ]),
+      );
+      database.close();
+      database = SqliteDatabase.open(
+        '${directory.path}/package.sqlite',
+        existing: true,
+      );
+      journal = SqliteJournal(database, universe);
+      for (final (i, name) in [(3, 'STRASSE'), (4, 'café'), (5, 'new earth')]) {
+        final stolen = world(2, i, name);
+        expect(
+          () => publish(
+            worldInput('steal-$i', [
+              Assignment(recordId: stolen.identity.recordId, next: stolen),
+            ]),
+          ),
+          throwsFormatException,
+        );
+        expect(journal.head(continuity), removed);
+        expect(database.select('SELECT * FROM record_versions'), hasLength(2));
+      }
+      final restored = world(1, 6, 'STRASSE', ['café']);
+      publish(
+        worldInput('restore-same-world', [
+          Assignment(recordId: a.identity.recordId, next: restored),
+        ]),
+      );
+      expect(
+        database.select(
+          'SELECT first_revision FROM world_name_reservations WHERE name=?',
+          ['strasse'],
+        ).single['first_revision'],
+        first.value,
+      );
+      expect(
+        database.select('SELECT * FROM world_name_reservations'),
+        hasLength(3),
+      );
+      expect(
+        () => database.execute('DELETE FROM world_name_reservations'),
+        throwsA(isA<SqliteException>()),
+      );
+      expect(database.select('PRAGMA foreign_key_check'), isEmpty);
+    },
+  );
+
   test(
     'typed history and exact receipt retries survive restart and later edits',
     () {

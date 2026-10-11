@@ -4,9 +4,11 @@ import 'catalog.dart';
 import 'journal.dart';
 import 'references.dart';
 import 'revision_input.dart';
+import 'world_names.dart';
 
 /// Reference portion of candidate admission. Foundation/value/ancestry gates
-/// and world selector reservation checks remain separate required kernel work.
+/// remain separate required kernel work. Selected world names use the pinned
+/// shared selector policy; durable reservations are checked during append.
 final class CandidateReferences {
   CandidateReferences(this.journal);
   final SqliteJournal journal;
@@ -15,6 +17,7 @@ final class CandidateReferences {
     final records = [
       for (final version in membership.values) journal.load(version),
     ];
+    WorldNames.validateRecords(records);
     final kinds = {
       for (final record in records)
         record.identity.recordId: record.identity.recordKind,
