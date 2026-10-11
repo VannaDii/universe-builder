@@ -1,0 +1,167 @@
+[
+  {
+    "type": "knowledge_requirement",
+    "input_raw": "{\"holder\":\"Iven\",\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true}}",
+    "canonical_utf8": "{\"claim\":{\"property\":\"open\",\"subject\":\"Door\",\"value\":true},\"holder\":\"Iven\"}"
+  },
+  {
+    "type": "event",
+    "input_raw": "{\"action\":\"Open door\",\"participants\":{\"actor\":\"Mara\",\"target\":\"Door\"}}",
+    "canonical_utf8": "{\"action\":\"Open door\",\"at_tick\":null,\"participants\":{\"actor\":\"Mara\",\"target\":\"Door\"},\"requires_knowledge\":[],\"world\":null}"
+  },
+  {
+    "type": "event",
+    "input_raw": "{\"action\":\"Open door\",\"participants\":{\"actor\":\"Mara\",\"target\":\"Door\"},\"at_tick\":\"9007199254740993\",\"at_date\":\"1900-01-01\",\"world\":\"Earth\",\"requires_knowledge\":[{\"holder\":\"Mara\",\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true}}]}",
+    "canonical_utf8": "{\"action\":\"Open door\",\"at_date\":\"1900-01-01\",\"at_tick\":\"9007199254740993\",\"participants\":{\"actor\":\"Mara\",\"target\":\"Door\"},\"requires_knowledge\":[{\"claim\":{\"property\":\"open\",\"subject\":\"Door\",\"value\":true},\"holder\":\"Mara\"}],\"world\":\"Earth\"}"
+  },
+  {
+    "type": "message",
+    "input_raw": "{\"label\":\"m1\",\"from\":\"Mara\",\"to\":[],\"received_by\":[],\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true}}",
+    "canonical_utf8": "{\"channel\":null,\"claim\":{\"property\":\"open\",\"subject\":\"Door\",\"value\":true},\"distorted\":false,\"from\":\"Mara\",\"label\":\"m1\",\"received_by\":[],\"received_tick\":null,\"sent_tick\":null,\"to\":[],\"understood_by\":[]}"
+  },
+  {
+    "type": "message",
+    "input_raw": "{\"label\":\"m1\",\"from\":\"Mara\",\"to\":[\"Iven\",\"Mara\"],\"received_by\":[\"Iven\"],\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true},\"understood_by\":[\"Iven\"],\"sent_tick\":\"10\",\"received_tick\":\"13\",\"sent_date\":\"1900-01-01\",\"received_date\":\"1900-01-02\",\"channel\":\"Radio\",\"distorted\":true}",
+    "canonical_utf8": "{\"channel\":\"Radio\",\"claim\":{\"property\":\"open\",\"subject\":\"Door\",\"value\":true},\"distorted\":true,\"from\":\"Mara\",\"label\":\"m1\",\"received_by\":[\"Iven\"],\"received_date\":\"1900-01-02\",\"received_tick\":\"13\",\"sent_date\":\"1900-01-01\",\"sent_tick\":\"10\",\"to\":[\"Iven\",\"Mara\"],\"understood_by\":[\"Iven\"]}"
+  },
+  {
+    "type": "attitude",
+    "input_raw": "{\"holder\":\"Iven\",\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true},\"attitude\":\"believes\",\"message\":null}",
+    "canonical_utf8": "{\"at_tick\":null,\"attitude\":\"believes\",\"claim\":{\"property\":\"open\",\"subject\":\"Door\",\"value\":true},\"holder\":\"Iven\",\"lifetime\":{\"kind\":\"unspecified\"},\"message\":null}"
+  },
+  {
+    "type": "attitude",
+    "input_raw": "{\"holder\":\"Iven\",\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true},\"attitude\":\"suspects\",\"message\":null}",
+    "canonical_utf8": "{\"at_tick\":null,\"attitude\":\"suspects\",\"claim\":{\"property\":\"open\",\"subject\":\"Door\",\"value\":true},\"holder\":\"Iven\",\"lifetime\":{\"kind\":\"unspecified\"},\"message\":null}"
+  },
+  {
+    "type": "attitude",
+    "input_raw": "{\"holder\":\"Iven\",\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true},\"attitude\":\"rejects\",\"message\":null}",
+    "canonical_utf8": "{\"at_tick\":null,\"attitude\":\"rejects\",\"claim\":{\"property\":\"open\",\"subject\":\"Door\",\"value\":true},\"holder\":\"Iven\",\"lifetime\":{\"kind\":\"unspecified\"},\"message\":null}"
+  },
+  {
+    "type": "attitude",
+    "input_raw": "{\"holder\":\"Iven\",\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true},\"attitude\":\"remembers\",\"message\":null}",
+    "canonical_utf8": "{\"at_tick\":null,\"attitude\":\"remembers\",\"claim\":{\"property\":\"open\",\"subject\":\"Door\",\"value\":true},\"holder\":\"Iven\",\"lifetime\":{\"kind\":\"unspecified\"},\"message\":null}"
+  },
+  {
+    "type": "attitude",
+    "input_raw": "{\"holder\":\"Iven\",\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true},\"attitude\":\"knows\",\"message\":\"m1\"}",
+    "canonical_utf8": "{\"at_tick\":null,\"attitude\":\"knows\",\"claim\":{\"property\":\"open\",\"subject\":\"Door\",\"value\":true},\"holder\":\"Iven\",\"lifetime\":{\"kind\":\"unspecified\"},\"message\":\"m1\"}"
+  },
+  {
+    "type": "attitude",
+    "input_raw": "{\"holder\":\"Iven\",\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true},\"attitude\":\"knows\",\"message\":\"opaque existing message\",\"at_tick\":\"13\",\"at_date\":\"1900-01-02\",\"lifetime\":{\"kind\":\"until_changed\"}}",
+    "canonical_utf8": "{\"at_date\":\"1900-01-02\",\"at_tick\":\"13\",\"attitude\":\"knows\",\"claim\":{\"property\":\"open\",\"subject\":\"Door\",\"value\":true},\"holder\":\"Iven\",\"lifetime\":{\"kind\":\"until_changed\"},\"message\":\"opaque existing message\"}"
+  },
+  {
+    "type": "knowledge_boundary",
+    "input_raw": "{\"name\":\"Unknown to Iven\",\"holder\":\"Iven\",\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true},\"scope\":\"Earth\",\"lifetime\":{\"kind\":\"until_changed\"}}",
+    "canonical_utf8": "{\"at_date\":null,\"at_tick\":null,\"claim\":{\"property\":\"open\",\"subject\":\"Door\",\"value\":true},\"holder\":\"Iven\",\"lifetime\":{\"kind\":\"until_changed\"},\"name\":\"Unknown to Iven\",\"scope\":\"Earth\"}"
+  },
+  {
+    "type": "knowledge_boundary",
+    "input_raw": "{\"name\":\"Unknown to Iven\",\"holder\":\"Iven\",\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true},\"scope\":\"universe\",\"at_tick\":\"3\",\"at_date\":\"1900-01-01\",\"lifetime\":{\"kind\":\"until\",\"end_tick\":\"9\"}}",
+    "canonical_utf8": "{\"at_date\":\"1900-01-01\",\"at_tick\":\"3\",\"claim\":{\"property\":\"open\",\"subject\":\"Door\",\"value\":true},\"holder\":\"Iven\",\"lifetime\":{\"end_tick\":\"9\",\"kind\":\"until\"},\"name\":\"Unknown to Iven\",\"scope\":\"universe\"}"
+  },
+  {
+    "type": "message_correction",
+    "input_raw": "{\"message_edit_handle\":\"opaque message version\",\"reason\":\"correct historical receipt\"}",
+    "canonical_utf8": "{\"channel\":null,\"claims\":null,\"clear_channel\":false,\"clear_receipt\":false,\"distorted\":null,\"from\":null,\"message_edit_handle\":\"opaque message version\",\"reason\":\"correct historical receipt\",\"received_by\":null,\"received_tick\":null,\"sent_tick\":null,\"to\":null}"
+  },
+  {
+    "type": "message_correction",
+    "input_raw": "{\"message_edit_handle\":\"opaque message version\",\"reason\":\"clear audience\",\"to\":[],\"received_by\":[],\"claims\":[],\"clear_channel\":true,\"clear_receipt\":true,\"distorted\":false}",
+    "canonical_utf8": "{\"channel\":null,\"claims\":[],\"clear_channel\":true,\"clear_receipt\":true,\"distorted\":false,\"from\":null,\"message_edit_handle\":\"opaque message version\",\"reason\":\"clear audience\",\"received_by\":[],\"received_tick\":null,\"sent_tick\":null,\"to\":[]}"
+  },
+  {
+    "type": "message_correction",
+    "input_raw": "{\"message_edit_handle\":\"opaque message version\",\"reason\":\"correct audience\",\"from\":\"Iven\",\"to\":[\"Mara\"],\"received_by\":[\"Mara\"],\"claims\":[{\"subject\":\"Door\",\"property\":\"open\",\"value\":true}],\"sent_date\":\"1900-01-01\",\"received_date\":\"1900-01-02\",\"sent_tick\":\"10\",\"received_tick\":\"12\",\"channel\":\"Radio\",\"distorted\":true}",
+    "canonical_utf8": "{\"channel\":\"Radio\",\"claims\":[{\"property\":\"open\",\"subject\":\"Door\",\"value\":true}],\"clear_channel\":false,\"clear_receipt\":false,\"distorted\":true,\"from\":\"Iven\",\"message_edit_handle\":\"opaque message version\",\"reason\":\"correct audience\",\"received_by\":[\"Mara\"],\"received_date\":\"1900-01-02\",\"received_tick\":\"12\",\"sent_date\":\"1900-01-01\",\"sent_tick\":\"10\",\"to\":[\"Mara\"]}"
+  },
+  {
+    "type": "interpretation_correction",
+    "input_raw": "{\"attitude_handle\":\"opaque attitude version\",\"reason\":\"interpretation correction\"}",
+    "canonical_utf8": "{\"attitude_handle\":\"opaque attitude version\",\"clear_interpretation\":false,\"interpretation\":null,\"reason\":\"interpretation correction\"}"
+  },
+  {
+    "type": "interpretation_correction",
+    "input_raw": "{\"attitude_handle\":\"opaque attitude version\",\"reason\":\"remove interpretation\",\"clear_interpretation\":true}",
+    "canonical_utf8": "{\"attitude_handle\":\"opaque attitude version\",\"clear_interpretation\":true,\"interpretation\":null,\"reason\":\"remove interpretation\"}"
+  },
+  {
+    "type": "interpretation_correction",
+    "input_raw": "{\"attitude_handle\":\"opaque attitude version\",\"reason\":\"correct interpretation\",\"interpretation\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true}}",
+    "canonical_utf8": "{\"attitude_handle\":\"opaque attitude version\",\"clear_interpretation\":false,\"interpretation\":{\"property\":\"open\",\"subject\":\"Door\",\"value\":true},\"reason\":\"correct interpretation\"}"
+  },
+  {
+    "type": "attitude_correction",
+    "input_raw": "{\"attitude_handle\":\"opaque attitude version\",\"reason\":\"correct recorded uncertainty\"}",
+    "canonical_utf8": "{\"at_tick\":null,\"attitude_handle\":\"opaque attitude version\",\"certainty\":null,\"clear_certainty\":false,\"end_tick\":null,\"lifetime\":null,\"reason\":\"correct recorded uncertainty\",\"value\":null}"
+  },
+  {
+    "type": "attitude_correction",
+    "input_raw": "{\"attitude_handle\":\"opaque attitude version\",\"reason\":\"correct value\",\"value\":{\"object\":\"Mara\"},\"certainty\":\"uncertain\",\"clear_certainty\":false,\"at_tick\":\"3\",\"at_date\":\"1900-01-01\",\"lifetime\":{\"kind\":\"until_changed\"},\"end_tick\":\"10\",\"end_date\":\"1900-01-02\"}",
+    "canonical_utf8": "{\"at_date\":\"1900-01-01\",\"at_tick\":\"3\",\"attitude_handle\":\"opaque attitude version\",\"certainty\":\"uncertain\",\"clear_certainty\":false,\"end_date\":\"1900-01-02\",\"end_tick\":\"10\",\"lifetime\":{\"kind\":\"until_changed\"},\"reason\":\"correct value\",\"value\":{\"object\":\"Mara\"}}"
+  },
+  {
+    "type": "policy_correction",
+    "input_raw": "{\"policy_handle\":\"opaque policy version\",\"reason\":\"explicit author correction\"}",
+    "canonical_utf8": "{\"at_tick\":null,\"clear_maximum_delay\":false,\"clear_minimum_delay\":false,\"forward_only\":null,\"lifetime\":null,\"maximum_delay\":null,\"minimum_delay\":null,\"mode\":null,\"policy_handle\":\"opaque policy version\",\"reason\":\"explicit author correction\",\"scope\":null}"
+  },
+  {
+    "type": "policy_correction",
+    "input_raw": "{\"policy_handle\":\"opaque policy version\",\"reason\":\"explicit author correction\",\"mode\":\"justified\",\"forward_only\":true,\"minimum_delay\":\"0003\",\"maximum_delay\":\"6\",\"clear_minimum_delay\":false,\"clear_maximum_delay\":true,\"scope\":\"Earth\",\"at_tick\":\"3\",\"at_date\":\"1900-01-01\",\"lifetime\":{\"kind\":\"until_changed\"}}",
+    "canonical_utf8": "{\"at_date\":\"1900-01-01\",\"at_tick\":\"3\",\"clear_maximum_delay\":true,\"clear_minimum_delay\":false,\"forward_only\":true,\"lifetime\":{\"kind\":\"until_changed\"},\"maximum_delay\":\"6\",\"minimum_delay\":\"0003\",\"mode\":\"justified\",\"policy_handle\":\"opaque policy version\",\"reason\":\"explicit author correction\",\"scope\":\"Earth\"}"
+  },
+  {
+    "type": "event_correction",
+    "input_raw": "{\"event_handle\":\"opaque event version\",\"reason\":\"correct original event\"}",
+    "canonical_utf8": "{\"action\":null,\"at_tick\":null,\"event_handle\":\"opaque event version\",\"participants\":null,\"reason\":\"correct original event\",\"requires_knowledge\":null,\"world\":null}"
+  },
+  {
+    "type": "event_correction",
+    "input_raw": "{\"event_handle\":\"opaque event version\",\"reason\":\"explicitly replace roles and dependencies\",\"participants\":{},\"requires_knowledge\":[]}",
+    "canonical_utf8": "{\"action\":null,\"at_tick\":null,\"event_handle\":\"opaque event version\",\"participants\":{},\"reason\":\"explicitly replace roles and dependencies\",\"requires_knowledge\":[],\"world\":null}"
+  },
+  {
+    "type": "event_correction",
+    "input_raw": "{\"event_handle\":\"opaque event version\",\"reason\":\"correct original event\",\"action\":\"Close door\",\"participants\":{\"actor\":\"Iven\",\"target\":\"Door\"},\"requires_knowledge\":[{\"holder\":\"Iven\",\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true}}],\"at_tick\":\"3\",\"at_date\":\"1900-01-01\",\"world\":\"Earth\"}",
+    "canonical_utf8": "{\"action\":\"Close door\",\"at_date\":\"1900-01-01\",\"at_tick\":\"3\",\"event_handle\":\"opaque event version\",\"participants\":{\"actor\":\"Iven\",\"target\":\"Door\"},\"reason\":\"correct original event\",\"requires_knowledge\":[{\"claim\":{\"property\":\"open\",\"subject\":\"Door\",\"value\":true},\"holder\":\"Iven\"}],\"world\":\"Earth\"}"
+  },
+  {
+    "type": "event_withdrawal",
+    "input_raw": "{\"event_handle\":\"opaque event version\",\"reason\":\"withdraw support\"}",
+    "canonical_utf8": "{\"event_handle\":\"opaque event version\",\"reason\":\"withdraw support\"}"
+  },
+  {
+    "type": "author_knowledge",
+    "input_raw": "{\"holder\":\"Iven\",\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true},\"lifetime\":{\"kind\":\"until_changed\"}}",
+    "canonical_utf8": "{\"at_tick\":\"\",\"claim\":{\"property\":\"open\",\"subject\":\"Door\",\"value\":true},\"holder\":\"Iven\",\"lifetime\":{\"kind\":\"until_changed\"},\"world\":null}"
+  },
+  {
+    "type": "author_knowledge",
+    "input_raw": "{\"holder\":\"Iven\",\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true},\"at_tick\":\"13\",\"at_date\":\"1900-01-02\",\"world\":\"Earth\",\"lifetime\":{\"kind\":\"until\",\"end_date\":\"1900-01-03\"}}",
+    "canonical_utf8": "{\"at_date\":\"1900-01-02\",\"at_tick\":\"13\",\"claim\":{\"property\":\"open\",\"subject\":\"Door\",\"value\":true},\"holder\":\"Iven\",\"lifetime\":{\"end_date\":\"1900-01-03\",\"end_tick\":\"\",\"kind\":\"until\"},\"world\":\"Earth\"}"
+  },
+  {
+    "type": "knowledge_policy",
+    "input_raw": "{\"kind\":\"knowledge\",\"name\":\"Mode\",\"mode\":\"justified\"}",
+    "canonical_utf8": "{\"kind\":\"knowledge\",\"mode\":\"justified\",\"name\":\"Mode\"}"
+  },
+  {
+    "type": "knowledge_policy",
+    "input_raw": "{\"kind\":\"knowledge\",\"name\":\"Mode\",\"mode\":\"author_established\"}",
+    "canonical_utf8": "{\"kind\":\"knowledge\",\"mode\":\"author_established\",\"name\":\"Mode\"}"
+  },
+  {
+    "type": "knowledge_policy",
+    "input_raw": "{\"kind\":\"channel\",\"name\":\"Radio chronology\",\"channel\":\"Radio\",\"forward_only\":true}",
+    "canonical_utf8": "{\"channel\":\"Radio\",\"forward_only\":true,\"kind\":\"channel\",\"maximum_delay\":null,\"minimum_delay\":null,\"name\":\"Radio chronology\"}"
+  },
+  {
+    "type": "knowledge_policy",
+    "input_raw": "{\"kind\":\"channel\",\"name\":\"Radio chronology\",\"channel\":\"Radio\",\"forward_only\":false,\"minimum_delay\":\"0003\",\"maximum_delay\":\"6\"}",
+    "canonical_utf8": "{\"channel\":\"Radio\",\"forward_only\":false,\"kind\":\"channel\",\"maximum_delay\":\"6\",\"minimum_delay\":\"0003\",\"name\":\"Radio chronology\"}"
+  }
+]

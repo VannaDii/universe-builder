@@ -12,8 +12,9 @@ import 'validation_scope.dart';
 part 'read_request.dart';
 part 'workflow_request.dart';
 part 'writing.dart';
+part 'writing_knowledge.dart';
 
-/// Closed implemented request contracts. Writing-language tools remain pending.
+/// Closed implemented request contracts. The complete writing delta is pending.
 /// Parsing and request validation do not route, evaluate or grant authority.
 sealed class Request {
   const Request();

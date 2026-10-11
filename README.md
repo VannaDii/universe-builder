@@ -42,7 +42,7 @@ dart test
 dart test test/compiler_test.dart --platform chrome
 cd ../ub_contracts
 dart test
-dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart test/workflow_request_test.dart test/writing_test.dart --platform chrome
+dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart test/workflow_request_test.dart test/writing_test.dart test/writing_knowledge_test.dart --platform chrome
 ```
 
 Browser tests must run from the package directory. Set `CHROME_EXECUTABLE` if
@@ -199,8 +199,16 @@ the existing untagged object-before-quantity precedence and ignored extra object
 members; surrounding DTOs remain closed. Defaults preserve unspecified
 scope/time/lifetime and false introduction intent. Shared definition attributes
 and instance initial values remain separate. These are declarations, with no
-inferred current time, truth, stock initialization or publication. Attachment
-admission, the remaining writing-language contracts (including the complete
+inferred current time, truth, stock initialization or publication. Typed writing
+inputs also preserve events and explicit knowledge requirements, communication
+recipients/receipt/understanding, the five epistemic attitudes, knowledge
+boundaries and knowledge/channel policies. Historical event, message, attitude,
+interpretation and policy corrections distinguish omitted fields from explicit
+empty replacements and explicit clear flags. Author knowledge declarations
+remain a distinct input for private author controls; decoding grants no
+permission or communication-based acquisition. Recipient and role collections
+are immutable copies, and missing ticks/dates never select current time.
+Attachment admission, the remaining writing-language contracts (including the complete
 `universe_check_changes` delta), evaluator execution and exact approval
 enforcement still need their ports. Byte verification remains
 distinct from factual support; it does not establish truth or authenticate an
