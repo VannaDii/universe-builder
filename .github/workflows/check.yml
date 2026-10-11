@@ -9,10 +9,14 @@ jobs:
         with:
           sdk: '3.13.4'
       - run: dart pub get --enforce-lockfile
-      - run: dart format --output=none --set-exit-if-changed packages/ub_domain
-      - run: dart analyze packages/ub_domain
+      - run: dart run tool/embed_schema.dart
+      - run: git diff --exit-code -- packages/ub_store/lib/src/schema.g.dart
+      - run: dart format --output=none --set-exit-if-changed packages tool
+      - run: dart analyze packages tool
       - run: dart test
         working-directory: packages/ub_domain
+      - run: dart test
+        working-directory: packages/ub_store
   macos:
     runs-on: macos-15
     steps:

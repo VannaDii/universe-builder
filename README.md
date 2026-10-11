@@ -6,24 +6,34 @@ Two modes are available: the disposable read/propose fixture and a persistent au
 
 The approved [conversion plan](docs/dart-conversion-plan.md) is being implemented
 alongside the current runtime. The Dart workspace currently contains the shared
-canonical encoding, digests, typed identities and reference foundations; it is
-not yet a replacement engine or application.
+canonical encoding, digests, typed identities and reference foundations, plus
+the internal typed SQLite codec and connection policy. It is not yet a
+replacement engine or application.
 
 Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter
 **3.47.5** (recorded in `.flutter-version`). Dependency resolution is locked in
 the root `pubspec.lock`. Run `dart pub get` at the repository root, then:
 
 ```sh
-dart analyze packages/ub_domain
-dart format --output=none --set-exit-if-changed packages/ub_domain
+dart analyze packages tool
+dart format --output=none --set-exit-if-changed packages tool
 cd packages/ub_domain
 dart test
-dart test test/canonical_test.dart test/identity_test.dart --platform chrome
+dart test test/canonical_test.dart test/identity_test.dart test/exact_amount_test.dart --platform chrome
+cd ../ub_store
+dart test
 ```
 
 Browser tests must run from the package directory. Set `CHROME_EXECUTABLE` if
 Chrome is not discoverable automatically. Tests consume existing canonical and
 historical fixtures; they do not read or modify author installations.
+
+The SQLite codec uses the existing fixed-column relational schema and keeps
+absent/null states, exact numeric strings and ordered child rows. It does not
+provide reviewed publication yet. Schema resources are compiled into the
+package; after changing the owning files in `docs/decisions/relational-storage`,
+run `dart run tool/embed_schema.dart` from the repository root to regenerate
+them. Opening an incompatible database refuses conversion and preserves it.
 
 ## Approved logo and application icon
 
