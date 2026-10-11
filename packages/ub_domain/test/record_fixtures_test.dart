@@ -62,6 +62,8 @@ void main() {
     'completeness',
     'appearance',
     'image_asset',
+    'goal',
+    'commitment',
   };
   final covered = <String>{};
   var count = 0;

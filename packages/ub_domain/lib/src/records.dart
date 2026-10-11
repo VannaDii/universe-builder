@@ -14,6 +14,8 @@ part 'narrative_records.dart';
 part 'source_records.dart';
 part 'knowledge_records.dart';
 part 'appearance_records.dart';
+part 'expr.dart';
+part 'plan_records.dart';
 
 enum AttributeMode {
   instance('instance'),
@@ -67,6 +69,8 @@ sealed class RecordPayload {
     'completeness' => CompletenessRecord.fromWire(value),
     'appearance' => AppearanceRecord.fromWire(value),
     'image_asset' => ImageAssetRecord.fromWire(value),
+    'goal' => GoalRecord.fromWire(value),
+    'commitment' => CommitmentRecord.fromWire(value),
     'work' => WorkRecord.fromWire(value),
     'work_version' => WorkVersionRecord.fromWire(value),
     'scene_ref' => SceneRecord.fromWire(value),

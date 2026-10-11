@@ -1,0 +1,391 @@
+[
+  {
+    "name": "expression:0",
+    "value": {
+      "kind": "no_opposing_evidence",
+      "subject": {
+        "kind": "variable",
+        "name": "é🌲 sample"
+      },
+      "predicate": "é🌲 sample",
+      "context": {
+        "kind": "variable",
+        "name": "é🌲 sample"
+      }
+    },
+    "canonical": "{\"context\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"kind\":\"no_opposing_evidence\",\"predicate\":\"é🌲 sample\",\"subject\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"}}"
+  },
+  {
+    "name": "expression:1",
+    "value": {
+      "kind": "attitude",
+      "holder": {
+        "record": "rec_000000000000000000000001"
+      },
+      "proposition": {
+        "record": "rec_000000000000000000000001"
+      },
+      "attitude": "believes"
+    },
+    "canonical": "{\"attitude\":\"believes\",\"holder\":{\"record\":\"rec_000000000000000000000001\"},\"kind\":\"attitude\",\"proposition\":{\"record\":\"rec_000000000000000000000001\"}}"
+  },
+  {
+    "name": "expression:2",
+    "value": {
+      "kind": "lit",
+      "value": true
+    },
+    "canonical": "{\"kind\":\"lit\",\"value\":true}"
+  },
+  {
+    "name": "expression:3",
+    "value": {
+      "kind": "not",
+      "expr": {
+        "kind": "no_opposing_evidence",
+        "subject": {
+          "kind": "variable",
+          "name": "é🌲 sample"
+        },
+        "predicate": "é🌲 sample",
+        "context": {
+          "kind": "variable",
+          "name": "é🌲 sample"
+        }
+      }
+    },
+    "canonical": "{\"expr\":{\"context\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"kind\":\"no_opposing_evidence\",\"predicate\":\"é🌲 sample\",\"subject\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"}},\"kind\":\"not\"}"
+  },
+  {
+    "name": "expression:4",
+    "value": {
+      "kind": "all",
+      "exprs": []
+    },
+    "canonical": "{\"exprs\":[],\"kind\":\"all\"}"
+  },
+  {
+    "name": "expression:5",
+    "value": {
+      "kind": "any",
+      "exprs": []
+    },
+    "canonical": "{\"exprs\":[],\"kind\":\"any\"}"
+  },
+  {
+    "name": "expression:6",
+    "value": {
+      "kind": "claim",
+      "subject": {
+        "kind": "variable",
+        "name": "é🌲 sample"
+      },
+      "predicate": "é🌲 sample",
+      "polarity": "support"
+    },
+    "canonical": "{\"kind\":\"claim\",\"polarity\":\"support\",\"predicate\":\"é🌲 sample\",\"subject\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"}}"
+  },
+  {
+    "name": "expression:7",
+    "value": {
+      "kind": "negated_claim",
+      "subject": {
+        "kind": "variable",
+        "name": "é🌲 sample"
+      },
+      "predicate": "é🌲 sample"
+    },
+    "canonical": "{\"kind\":\"negated_claim\",\"predicate\":\"é🌲 sample\",\"subject\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"}}"
+  },
+  {
+    "name": "expression:8",
+    "value": {
+      "kind": "compare",
+      "left": {
+        "kind": "variable",
+        "name": "é🌲 sample"
+      },
+      "op": "eq",
+      "right": {
+        "kind": "variable",
+        "name": "é🌲 sample"
+      }
+    },
+    "canonical": "{\"kind\":\"compare\",\"left\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"op\":\"eq\",\"right\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"}}"
+  },
+  {
+    "name": "expression:9",
+    "value": {
+      "kind": "temporal",
+      "left": {
+        "kind": "variable",
+        "name": "é🌲 sample"
+      },
+      "relation": "before",
+      "right": {
+        "kind": "variable",
+        "name": "é🌲 sample"
+      }
+    },
+    "canonical": "{\"kind\":\"temporal\",\"left\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"relation\":\"before\",\"right\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"}}"
+  },
+  {
+    "name": "expression:10",
+    "value": {
+      "kind": "membership",
+      "element": {
+        "kind": "variable",
+        "name": "é🌲 sample"
+      },
+      "collection": {
+        "kind": "variable",
+        "name": "é🌲 sample"
+      },
+      "complete": null
+    },
+    "canonical": "{\"collection\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"element\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"kind\":\"membership\"}"
+  },
+  {
+    "name": "expression:11",
+    "value": {
+      "kind": "cardinality",
+      "collection": {
+        "kind": "variable",
+        "name": "é🌲 sample"
+      },
+      "op": "eq",
+      "count": {
+        "kind": "text",
+        "text": "é🌲 sample"
+      },
+      "complete": null
+    },
+    "canonical": "{\"collection\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"count\":{\"kind\":\"text\",\"text\":\"é🌲 sample\"},\"kind\":\"cardinality\",\"op\":\"eq\"}"
+  },
+  {
+    "name": "expression:12",
+    "value": {
+      "kind": "existence",
+      "subject": {
+        "kind": "variable",
+        "name": "é🌲 sample"
+      },
+      "predicate": "é🌲 sample"
+    },
+    "canonical": "{\"kind\":\"existence\",\"predicate\":\"é🌲 sample\",\"subject\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"}}"
+  },
+  {
+    "name": "expression:13",
+    "value": {
+      "kind": "quantify",
+      "variable": "é🌲 sample",
+      "over": {
+        "kind": "variable",
+        "name": "é🌲 sample"
+      },
+      "complete": true,
+      "quantifier": "for_all",
+      "body": {
+        "kind": "no_opposing_evidence",
+        "subject": {
+          "kind": "variable",
+          "name": "é🌲 sample"
+        },
+        "predicate": "é🌲 sample",
+        "context": {
+          "kind": "variable",
+          "name": "é🌲 sample"
+        }
+      }
+    },
+    "canonical": "{\"body\":{\"context\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"kind\":\"no_opposing_evidence\",\"predicate\":\"é🌲 sample\",\"subject\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"}},\"complete\":true,\"kind\":\"quantify\",\"over\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"quantifier\":\"forall\",\"variable\":\"é🌲 sample\"}"
+  },
+  {
+    "name": "expression:14",
+    "value": {
+      "kind": "role_holds",
+      "subject": {
+        "kind": "variable",
+        "name": "é🌲 sample"
+      },
+      "predicate": "é🌲 sample",
+      "role": "é🌲 sample",
+      "participant": {
+        "kind": "variable",
+        "name": "é🌲 sample"
+      }
+    },
+    "canonical": "{\"kind\":\"role_holds\",\"participant\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"},\"predicate\":\"é🌲 sample\",\"role\":\"é🌲 sample\",\"subject\":{\"kind\":\"variable\",\"name\":\"é🌲 sample\"}}"
+  },
+  {
+    "name": "claim-roles",
+    "value": {
+      "kind": "claim",
+      "subject": {
+        "kind": "record",
+        "ref": {
+          "record": "rec_000000000000000000000001"
+        }
+      },
+      "predicate": "author:owns",
+      "roles": [
+        [
+          "holder",
+          {
+            "kind": "record",
+            "ref": {
+              "record": "rec_000000000000000000000001"
+            }
+          }
+        ],
+        [
+          "holder",
+          {
+            "kind": "value",
+            "value": {
+              "kind": "range",
+              "lower": {
+                "kind": "integer",
+                "digits": "1"
+              },
+              "upper": {
+                "kind": "integer",
+                "digits": "2"
+              },
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            }
+          }
+        ]
+      ],
+      "value": {
+        "kind": "value",
+        "value": {
+          "kind": "range",
+          "lower": {
+            "kind": "integer",
+            "digits": "1"
+          },
+          "upper": {
+            "kind": "integer",
+            "digits": "2"
+          },
+          "lower_inclusive": true,
+          "upper_inclusive": false
+        }
+      },
+      "polarity": "support"
+    },
+    "canonical": "{\"kind\":\"claim\",\"polarity\":\"support\",\"predicate\":\"author:owns\",\"roles\":[{\"operand\":{\"kind\":\"record\",\"ref\":{\"record\":\"rec_000000000000000000000001\"}},\"role\":\"holder\"},{\"operand\":{\"kind\":\"value\",\"value\":{\"kind\":\"range\",\"lower\":{\"digits\":\"1\",\"kind\":\"integer\"},\"lowerInclusive\":true,\"upper\":{\"digits\":\"2\",\"kind\":\"integer\"},\"upperInclusive\":false}},\"role\":\"holder\"}],\"subject\":{\"kind\":\"record\",\"ref\":{\"record\":\"rec_000000000000000000000001\"}},\"value\":{\"kind\":\"value\",\"value\":{\"kind\":\"range\",\"lower\":{\"digits\":\"1\",\"kind\":\"integer\"},\"lowerInclusive\":true,\"upper\":{\"digits\":\"2\",\"kind\":\"integer\"},\"upperInclusive\":false}}}"
+  },
+  {
+    "name": "opposing-wire-values",
+    "value": {
+      "kind": "no_opposing_evidence",
+      "subject": {
+        "kind": "value",
+        "value": {
+          "kind": "range",
+          "lower": {
+            "kind": "integer",
+            "digits": "1"
+          },
+          "upper": {
+            "kind": "integer",
+            "digits": "2"
+          },
+          "lower_inclusive": true,
+          "upper_inclusive": false
+        }
+      },
+      "predicate": "author:shape",
+      "context": {
+        "kind": "record",
+        "ref": {
+          "record": "rec_000000000000000000000001"
+        }
+      }
+    },
+    "canonical": "{\"context\":{\"kind\":\"record\",\"ref\":{\"record\":\"rec_000000000000000000000001\"}},\"kind\":\"no_opposing_evidence\",\"predicate\":\"author:shape\",\"subject\":{\"kind\":\"value\",\"value\":{\"kind\":\"range\",\"lower\":{\"digits\":\"1\",\"kind\":\"integer\"},\"lower_inclusive\":true,\"upper\":{\"digits\":\"2\",\"kind\":\"integer\"},\"upper_inclusive\":false}}}"
+  },
+  {
+    "name": "compare-lte",
+    "value": {
+      "kind": "compare",
+      "left": {
+        "kind": "value",
+        "value": {
+          "kind": "range",
+          "lower": {
+            "kind": "integer",
+            "digits": "1"
+          },
+          "upper": {
+            "kind": "integer",
+            "digits": "2"
+          },
+          "lower_inclusive": true,
+          "upper_inclusive": false
+        }
+      },
+      "op": "lt_eq",
+      "right": {
+        "kind": "value",
+        "value": {
+          "kind": "range",
+          "lower": {
+            "kind": "integer",
+            "digits": "1"
+          },
+          "upper": {
+            "kind": "integer",
+            "digits": "2"
+          },
+          "lower_inclusive": true,
+          "upper_inclusive": false
+        }
+      }
+    },
+    "canonical": "{\"kind\":\"compare\",\"left\":{\"kind\":\"value\",\"value\":{\"kind\":\"range\",\"lower\":{\"digits\":\"1\",\"kind\":\"integer\"},\"lowerInclusive\":true,\"upper\":{\"digits\":\"2\",\"kind\":\"integer\"},\"upperInclusive\":false}},\"op\":\"lte\",\"right\":{\"kind\":\"value\",\"value\":{\"kind\":\"range\",\"lower\":{\"digits\":\"1\",\"kind\":\"integer\"},\"lowerInclusive\":true,\"upper\":{\"digits\":\"2\",\"kind\":\"integer\"},\"upperInclusive\":false}}}"
+  },
+  {
+    "name": "membership-null",
+    "value": {
+      "kind": "membership",
+      "element": {
+        "kind": "value",
+        "value": {
+          "kind": "range",
+          "lower": {
+            "kind": "integer",
+            "digits": "1"
+          },
+          "upper": {
+            "kind": "integer",
+            "digits": "2"
+          },
+          "lower_inclusive": true,
+          "upper_inclusive": false
+        }
+      },
+      "collection": {
+        "kind": "value",
+        "value": {
+          "kind": "range",
+          "lower": {
+            "kind": "integer",
+            "digits": "1"
+          },
+          "upper": {
+            "kind": "integer",
+            "digits": "2"
+          },
+          "lower_inclusive": true,
+          "upper_inclusive": false
+        }
+      },
+      "complete": null
+    },
+    "canonical": "{\"collection\":{\"kind\":\"value\",\"value\":{\"kind\":\"range\",\"lower\":{\"digits\":\"1\",\"kind\":\"integer\"},\"lowerInclusive\":true,\"upper\":{\"digits\":\"2\",\"kind\":\"integer\"},\"upperInclusive\":false}},\"element\":{\"kind\":\"value\",\"value\":{\"kind\":\"range\",\"lower\":{\"digits\":\"1\",\"kind\":\"integer\"},\"lowerInclusive\":true,\"upper\":{\"digits\":\"2\",\"kind\":\"integer\"},\"upperInclusive\":false}},\"kind\":\"membership\"}"
+  }
+]

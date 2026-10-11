@@ -426,6 +426,39 @@
     "digest": "d3bfc0689db7dc1ae8d0bb65b25d64dfb011fa61388161f3b14683beb02cad41"
   },
   {
+    "name": "family:goal",
+    "value": {
+      "record_kind": "goal",
+      "actor": {
+        "record": "rec_000000000000000000000001"
+      },
+      "desired": null,
+      "prerequisites": [],
+      "steps": [],
+      "status": "active",
+      "validity": {
+        "kind": "unspecified"
+      }
+    },
+    "canonical": "{\"actor\":{\"record\":\"rec_000000000000000000000001\"},\"desired\":null,\"prerequisites\":[],\"record_kind\":\"goal\",\"status\":\"active\",\"steps\":[],\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "91495c3adac5d2d324da02f2438cb8f4c03faab8b65ebc9b6a4b27b9c5079ae5"
+  },
+  {
+    "name": "family:commitment",
+    "value": {
+      "record_kind": "commitment",
+      "parties": [],
+      "obligated": {
+        "record": "rec_000000000000000000000001"
+      },
+      "conditions": [],
+      "deadline": null,
+      "status": "unfulfilled"
+    },
+    "canonical": "{\"conditions\":[],\"deadline\":null,\"obligated\":{\"record\":\"rec_000000000000000000000001\"},\"parties\":[],\"record_kind\":\"commitment\",\"status\":\"unfulfilled\"}",
+    "digest": "59a5b4c47cfd851c3a3fddcec3658e78dc85994415265069a017d28fc76a1fe2"
+  },
+  {
     "name": "family:source",
     "value": {
       "record_kind": "source",
