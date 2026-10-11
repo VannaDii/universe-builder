@@ -6,7 +6,8 @@ Two modes are available: the disposable read/propose fixture and a persistent au
 
 The approved [conversion plan](docs/dart-conversion-plan.md) is being implemented
 alongside the current runtime. The Dart workspace currently contains the shared
-canonical encoding, digests, typed identities and reference foundations, plus
+canonical encoding, digests, typed identities, values, temporal/spatial expressions
+and reference foundations, plus
 the internal typed SQLite codec, revision journal and connection policy. It is not yet a
 replacement engine or application.
 
@@ -19,7 +20,7 @@ dart analyze packages tool
 dart format --output=none --set-exit-if-changed packages tool
 cd packages/ub_domain
 dart test
-dart test test/canonical_test.dart test/identity_test.dart test/exact_amount_test.dart --platform chrome
+dart test test/canonical_test.dart test/identity_test.dart test/exact_amount_test.dart test/value_test.dart --platform chrome
 cd ../ub_store
 dart test
 ```
@@ -34,12 +35,22 @@ provide reviewed publication yet. The internal journal adds immutable revision
 history, exact receipt lookup, tombstones and pinned branches within a
 caller-owned transaction. Reference admission and per-record reference, world,
 narrative, scalar and search projections are also implemented internally.
-Foundation/value/ancestry admission, initialization, projection recovery and
+Foundation/value/ancestry admission is implemented internally. Selector
+reservations, definition admission, initialization, projection recovery and
 service authorization still need their port before an author-facing publication
 path can use it. Schema resources are compiled into the
 package; after changing the owning files in `docs/decisions/relational-storage`,
 run `dart run tool/embed_schema.dart` from the repository root to regenerate
 them. Opening an incompatible database refuses conversion and preserves it.
+
+Typed values retain their existing record-wire encoding independently from
+domain-value comparison encoding. In particular, record ranges use
+`lower_inclusive`/`upper_inclusive`, comparison ranges use
+`lowerInclusive`/`upperInclusive`, and set comparison sorts canonical members
+without changing authored record order or removing duplicates. Exact numeric
+strings and approximate/unknown temporal bounds retain their authored meaning.
+The Dart rational validator rejects all zero denominator spellings, including
+`00`, `+0` and `-0`, closing a missed case in the existing Rust validator.
 
 ## Approved logo and application icon
 

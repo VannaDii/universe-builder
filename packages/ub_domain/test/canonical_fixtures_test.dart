@@ -29,6 +29,26 @@ void main() {
       );
       expect(CanonicalValue.parse(value.toBytes()).toBytes(), value.toBytes());
     });
+    if ((item['name'] as String).startsWith('value:')) {
+      test('typed wire value preserves payload oracle: ${item['name']}', () {
+        final payload = Map<String, dynamic>.from(
+          item['value'] as Map<String, dynamic>,
+        );
+        final metadata = Map<String, dynamic>.from(
+          payload['metadata'] as Map<String, dynamic>,
+        );
+        final value = DomainValue.fromWire(
+          CanonicalValue.parseJson(jsonEncode(metadata['specimen'])),
+        );
+        // The schema oracle includes non-executable examples (such as a
+        // quantity containing text). This case checks encoding parity only.
+        metadata['specimen'] = jsonDecode(value.toWire().toText());
+        payload['metadata'] = metadata;
+        final canonical = CanonicalValue.parseJson(jsonEncode(payload));
+        expect(canonical.toText(), item['canonical']);
+        expect(payloadDigest('entity', canonical), item['digest']);
+      });
+    }
   }
 
   final historical = jsonDecode(

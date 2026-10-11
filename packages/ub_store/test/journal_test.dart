@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';
 import 'package:ub_domain/ub_domain.dart';
+import 'package:ub_store/src/candidate_foundation.dart';
 import 'package:ub_store/src/candidate_references.dart';
 import 'package:ub_store/src/database.dart';
 import 'package:ub_store/src/journal.dart';
@@ -82,6 +83,7 @@ void main() {
       journal.compareWorkflow({});
       final candidate = journal.stageVersions(request);
       checkpoint('versions');
+      CandidateFoundation(journal).validate(candidate);
       CandidateReferences(journal).validate(candidate);
       final revision = journal.append(request);
       checkpoint('changes');
