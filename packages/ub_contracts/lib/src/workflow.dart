@@ -70,6 +70,14 @@ final class ProposalRef {
   final ProposalId proposalId;
   final BigInt version;
   final String digest;
+  @override
+  bool operator ==(Object other) =>
+      other is ProposalRef &&
+      proposalId == other.proposalId &&
+      version == other.version &&
+      digest == other.digest;
+  @override
+  int get hashCode => Object.hash(proposalId, version, digest);
   factory ProposalRef.fromWire(CanonicalValue value) {
     final f = WireFields(value, {'proposal_id', 'version', 'digest'});
     return ProposalRef(

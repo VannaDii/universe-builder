@@ -18,7 +18,8 @@ authority classifications, incremental attribute evidence and immutable record
 version DTOs. Pinned query frames and perspectives are typed too. The new
 `ub_contracts` package contains proposal references, proposals, compiled changes,
 impact and commit-receipt DTOs, validation findings and opposing diagnostics,
-versioned validation reporting and stored/public operation views. The workspace
+versioned validation reporting, stored/public operation views and typed source
+assessment declarations, selections and review pages. The workspace
 also contains the internal typed SQLite
 codec,
 revision journal and connection policy. It is not yet a
@@ -41,7 +42,7 @@ dart test
 dart test test/compiler_test.dart --platform chrome
 cd ../ub_contracts
 dart test
-dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart --platform chrome
+dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart --platform chrome
 ```
 
 Browser tests must run from the package directory. Set `CHROME_EXECUTABLE` if
@@ -156,10 +157,19 @@ assessment generations, byte counts and ranges retain exact u64 values on VM
 and web. Opposing diagnostics preserve both evidence chains, policy/exception
 versions, intersection uncertainty and unresolved reasons. The execution-result
 digest uses the complete unpaged execution core's owning wire encoding and
-excludes the assessment wrapper. Assessment bodies/selections, final binding
-validation, request contracts, evaluator execution and exact approval enforcement
-still need their ports. Declared byte verification remains distinct from factual
-support; decoding these DTOs does not verify source content or establish truth.
+excludes the assessment wrapper. Typed assessment bodies retain assessor/tool
+attribution, source/material accounting declarations, exact references, narrative
+positions, semantic mappings and unresolved dispositions. Nullable assessment
+selection and review fields are explicitly required; fragments remain distinct
+from partial body declarations. Final binding validation checks exact proposal,
+selection identity/generation and declared inventory digest, refusing query and
+inappropriate source-assessed scopes. Its prefixed digest preserves the existing
+owning field serialization. An unavailable assessment can remain attached to a
+record-only validation; unavailability is distinct from absence. Assessment-body
+accounting validation, retained-source byte verification, attachment admission,
+request contracts, evaluator execution and exact approval enforcement still need
+their ports. Declared byte verification remains distinct from factual support;
+decoding these DTOs does not verify source content or establish truth.
 The Dart rational validator rejects all zero denominator spellings, including
 `00`, `+0` and `-0`, closing a missed case in the existing Rust validator.
 
