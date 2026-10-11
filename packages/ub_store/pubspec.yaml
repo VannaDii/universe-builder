@@ -5,6 +5,7 @@ resolution: workspace
 environment:
   sdk: 3.13.4
 dependencies:
+  crypto: 3.0.7
   ub_domain: 0.1.0
   sqlite3: 3.7.0
   ffi: 2.2.0

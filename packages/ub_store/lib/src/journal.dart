@@ -4,6 +4,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'relational.dart';
 import 'revision_input.dart';
 import 'world_names.dart';
+import 'workflow_storage.dart';
 
 typedef Membership = Map<RecordId, RecordVersionId>;
 const maxRecords = 500000;
@@ -81,17 +82,8 @@ final class SqliteJournal {
     return RevisionId.parse(rows.single['revision_id'] as String);
   }
 
-  void compareWorkflow(Map<String, String?> expected) {
-    for (final entry in expected.entries) {
-      final rows = database.select(
-        'SELECT key FROM active_workflow_index WHERE substr(key,1,length(?))=? ORDER BY key DESC LIMIT 1',
-        [entry.key, entry.key],
-      );
-      if ((rows.isEmpty ? null : rows.single['key']) != entry.value) {
-        throw const FormatException('Workflow comparison conflict');
-      }
-    }
-  }
+  void compareWorkflow(Map<String, String?> expected) =>
+      WorkflowStorage(database).compare(expected);
 
   /// Apply typed bodies inside the owning transaction. The returned candidate
   /// must pass the kernel's factual/identity/reference gates before append.

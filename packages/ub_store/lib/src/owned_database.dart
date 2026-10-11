@@ -1,12 +1,17 @@
 import 'dart:io';
 
 import 'package:sqlite3/sqlite3.dart';
+import 'package:ub_domain/ub_domain.dart';
 
+import 'canonical_integrity.dart';
 import 'database.dart';
+import 'journal.dart';
 import 'ownership.dart';
+import 'projection_recovery.dart';
 
-/// Internal connection lifetime boundary. Full service startup still adds
-/// canonical content/workflow verification and recovery before serving calls.
+/// Internal connection lifetime boundary. Existing initialized packages must
+/// complete recover() before serving calls; client authorization remains in
+/// the service boundary.
 final class OwnedSqliteDatabase {
   OwnedSqliteDatabase._(this._database, this._lock) {
     _connectionLocks[_database] = _lock;
@@ -53,6 +58,21 @@ final class OwnedSqliteDatabase {
   Database get database {
     if (_closed) throw StateError('Owned SQLite connection is closed');
     return _database;
+  }
+
+  /// Required before service startup exposes an existing initialized package.
+  /// Retained evidence is checked first; disposable indexes never admit canon.
+  void recover() {
+    final rows = database.select('SELECT id FROM universes');
+    if (rows.length != 1) {
+      throw const FormatException('Missing or ambiguous package universe');
+    }
+    final journal = SqliteJournal(
+      database,
+      UniverseId.parse(rows.single['id'] as String),
+    );
+    CanonicalIntegrity(journal).verify();
+    ProjectionRecovery(journal).rebuild();
   }
 
   void close() {

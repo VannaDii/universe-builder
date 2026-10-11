@@ -53,8 +53,12 @@ descriptor locks, protected regular files and private directories; owned SQLite
 connections retain writer ownership through close. This has been exercised on
 macOS, including processes, isolates, crash release and a bundled AOT executable.
 Windows ownership is not implemented and fails explicitly; Linux and mobile
-platform verification remains pending. Complete startup content/workflow
-verification and service authorization still need their port before an author-facing publication
+platform verification remains pending. Typed workflow storage and atomic compared
+append preserve exact retries and inactive imported authority. Owned package
+recovery verifies retained canonical bodies, source/media bytes, conversion
+provenance and initialization receipts before rebuilding projections. Source and
+media staging metadata remains separate from content-link admission. Service
+authorization still needs its port before an author-facing publication
 path can use it. Schema resources are compiled into the
 package; after changing the owning files in `docs/decisions/relational-storage`,
 run `dart run tool/embed_schema.dart` from the repository root to regenerate

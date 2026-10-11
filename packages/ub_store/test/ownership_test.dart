@@ -8,6 +8,9 @@ import 'dart:isolate';
 import 'package:test/test.dart';
 import 'package:ub_store/src/ownership.dart';
 import 'package:ub_store/src/owned_database.dart';
+import 'package:ub_store/src/journal.dart';
+import 'package:ub_store/src/workflow_storage.dart';
+import 'package:ub_domain/ub_domain.dart';
 
 void main() {
   late Directory directory;
@@ -37,6 +40,49 @@ void main() {
     path,
   ]);
 
+  test('owned startup verifies workflow evidence before switching projection generations', () {
+    final path = '${directory.path}/package.sqlite';
+    final owner = OwnedSqliteDatabase.create(path);
+    try {
+      final database = owner.database;
+      final universe = UniverseId.parse('unv_000000000000000000000001');
+      final continuity = ContinuityId.parse('cont_000000000000000000000001');
+      final principal = PrincipalId.parse('prn_000000000000000000000001');
+      database.execute('BEGIN IMMEDIATE');
+      SqliteJournal(
+        database,
+        universe,
+      ).initialize('Owned startup', continuity, principal);
+      WorkflowStorage(database).put(
+        'cursor:one',
+        CanonicalValue.parseJson('{"binding":"exact binding","offset":0}'),
+      );
+      database.execute('COMMIT');
+      owner.recover();
+      expect(
+        database
+            .select('SELECT generation FROM projection_state')
+            .single['generation'],
+        1,
+      );
+      database.execute('DROP TRIGGER workflow_entries_no_update');
+      database.execute('UPDATE workflow_entries SET digest=?', ['0' * 64]);
+      expect(owner.recover, throwsFormatException);
+      expect(
+        database
+            .select('SELECT generation FROM projection_state')
+            .single['generation'],
+        1,
+      );
+      expect(
+        () => OwnedSqliteDatabase.openExisting(path),
+        throwsA(isA<FileSystemException>()),
+      );
+      expect(database.autocommit, isTrue);
+    } finally {
+      owner.close();
+    }
+  });
   test(
     'owned SQLite connection holds its writer lock through close and restart',
     () {
