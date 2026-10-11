@@ -95,7 +95,7 @@ void main() {
     );
   });
   test(
-    'records reject unknown fields, wrong discriminators and unported families',
+    'records reject unknown fields, wrong discriminators and unknown families',
     () {
       expect(
         () => PropositionRecord.fromWire(
@@ -112,7 +112,7 @@ void main() {
       );
       expect(
         () => RecordPayload.fromWire(
-          CanonicalValue.parseJson('{"record_kind":"event"}'),
+          CanonicalValue.parseJson('{"record_kind":"invented"}'),
         ),
         throwsFormatException,
       );

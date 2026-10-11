@@ -8,11 +8,12 @@ The approved [conversion plan](docs/dart-conversion-plan.md) is being implemente
 alongside the current runtime. The Dart workspace currently contains the shared
 canonical encoding, digests, typed identities, values, temporal/spatial expressions
 and reference foundations, typed scopes, validity and evidence bases, and
-34 of 38 record families: worlds, realms, entities, the seven definition
+all 38 record families: worlds, realms, entities, the seven definition
 families, propositions, assertions, the five narrative families and the three
 source/evidence families, the five knowledge families, completeness, appearances,
 image assets, goals, commitments, rules, creative boundaries, exceptions and
-issue decisions. It also contains the internal typed SQLite
+issue decisions, events, action definitions, item powers and represented contexts.
+It also contains the internal typed SQLite
 codec,
 revision journal and connection policy. It is not yet a
 replacement engine or application.
@@ -26,7 +27,7 @@ dart analyze packages tool
 dart format --output=none --set-exit-if-changed packages tool
 cd packages/ub_domain
 dart test
-dart test test/canonical_test.dart test/identity_test.dart test/exact_amount_test.dart test/value_test.dart test/selector_test.dart test/scope_test.dart test/records_test.dart test/definitions_test.dart test/narrative_source_test.dart test/knowledge_appearance_test.dart test/expr_test.dart test/rule_records_test.dart --platform chrome
+dart test test/canonical_test.dart test/identity_test.dart test/exact_amount_test.dart test/value_test.dart test/selector_test.dart test/scope_test.dart test/records_test.dart test/definitions_test.dart test/narrative_source_test.dart test/knowledge_appearance_test.dart test/expr_test.dart test/rule_records_test.dart test/event_contract_test.dart --platform chrome
 cd ../ub_store
 dart test
 cd ../ub_rules
@@ -117,6 +118,14 @@ contains the structural compiler, preserving existing node/depth metrics and
 sorted reference extraction; descriptive rules remain non-executable. Compilation
 does not establish truth, verify evaluator capabilities, or confer publication
 rights. Rule evaluation and boundary/exception admission still need their ports.
+Typed events preserve occurrence modes, authored participants and ordered effects.
+Action consequences validate exact decimal bounds, slot uniqueness and lifetimes;
+an absent historical contract remains distinct from an explicitly empty contract,
+and an explicit null contract is rejected. Represented contexts retain authored
+Gregorian or fictional clock data. Storing these declarations does not execute
+effects, advance clocks or promote a report to objective fact. Consequence
+execution, chronology operations and the domain operation contracts still need
+their ports; completing record types does not complete the domain milestone.
 The Dart rational validator rejects all zero denominator spellings, including
 `00`, `+0` and `-0`, closing a missed case in the existing Rust validator.
 

@@ -32,43 +32,22 @@ void main() {
   final fixtures = [
     ...canonical,
     ...(semantic['versions'] as CanonicalArray).items,
+    for (final raw in (CanonicalValue.parseJson(
+      File('../../fixtures/normalized-foundation/historical-digests.json')
+          .readAsStringSync(),
+    ) as CanonicalArray).items)
+      CanonicalObject([
+        MapEntry(
+          'name',
+          CanonicalString(
+            'historical:${(fields(raw)['name'] as CanonicalString).value}',
+          ),
+        ),
+        MapEntry('value', fields(raw)['payload']!),
+        MapEntry('digest', fields(raw)['normative_digest']!),
+      ]),
   ];
-  const supported = {
-    'proposition',
-    'assertion',
-    'world',
-    'realm',
-    'entity',
-    'entity_type',
-    'property',
-    'relation',
-    'unit',
-    'calendar',
-    'value_definition',
-    'domain_pack',
-    'work',
-    'work_version',
-    'scene_ref',
-    'passage_ref',
-    'saga',
-    'source',
-    'source_version',
-    'anchor',
-    'epistemic_attitude',
-    'observation',
-    'communication',
-    'memory',
-    'secret',
-    'completeness',
-    'appearance',
-    'image_asset',
-    'goal',
-    'commitment',
-    'rule',
-    'boundary',
-    'exception',
-    'issue_decision',
-  };
+  final supported = RecordKind.values.map((kind) => kind.wireName).toSet();
   final covered = <String>{};
   var count = 0;
   for (final fixture in fixtures) {

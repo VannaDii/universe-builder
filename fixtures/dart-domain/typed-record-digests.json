@@ -315,6 +315,20 @@
     "compiled": null
   },
   {
+    "name": "family:represented_context",
+    "value": {
+      "record_kind": "represented_context",
+      "universe": "unv_000000000000000000000001",
+      "kind": {
+        "kind": "objective"
+      },
+      "labels": {}
+    },
+    "canonical": "{\"kind\":{\"kind\":\"objective\"},\"labels\":{},\"record_kind\":\"represented_context\",\"universe\":\"unv_000000000000000000000001\"}",
+    "digest": "72453515587b258e9bfd4c02b1a0dcc230207e2defc85c5d7b17a894cf40ed67",
+    "compiled": null
+  },
+  {
     "name": "family:completeness",
     "value": {
       "record_kind": "completeness",
@@ -430,6 +444,83 @@
     },
     "canonical": "{\"authorizingDecision\":{\"record\":\"rec_000000000000000000000001\"},\"rationale\":\"é🌲 sample\",\"record_kind\":\"exception\",\"rule\":{\"record\":\"rec_000000000000000000000001\"},\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
     "digest": "70d5aad1f1cd359c15b07e5cd43da0758597a52f2274599534ebb026636ac69d",
+    "compiled": null
+  },
+  {
+    "name": "family:event",
+    "value": {
+      "record_kind": "event",
+      "occurrence": "occurred",
+      "worlds": [],
+      "time": {
+        "kind": "exact",
+        "calendar": "cal_000000000000000000000001",
+        "value": "é🌲 sample"
+      },
+      "participants": [],
+      "preconditions": [],
+      "effects": [],
+      "labels": {}
+    },
+    "canonical": "{\"effects\":[],\"labels\":{},\"occurrence\":\"occurred\",\"participants\":[],\"preconditions\":[],\"record_kind\":\"event\",\"time\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"é🌲 sample\"},\"worlds\":[]}",
+    "digest": "8e56a32e4c32e32cdab65f3d22a8fc3f2aada3fcc446e718ac40141097f32da0",
+    "compiled": null
+  },
+  {
+    "name": "family:item_power",
+    "value": {
+      "record_kind": "item_power",
+      "item": {
+        "record": "rec_000000000000000000000001"
+      },
+      "holderPredicate": {
+        "record": "rec_000000000000000000000001"
+      },
+      "powerPredicate": {
+        "record": "rec_000000000000000000000001"
+      },
+      "value": {
+        "kind": "text",
+        "text": "é🌲 sample"
+      },
+      "scope": {
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "context": {
+          "record": "rec_000000000000000000000001"
+        }
+      },
+      "validity": {
+        "kind": "unspecified"
+      }
+    },
+    "canonical": "{\"holderPredicate\":{\"record\":\"rec_000000000000000000000001\"},\"item\":{\"record\":\"rec_000000000000000000000001\"},\"powerPredicate\":{\"record\":\"rec_000000000000000000000001\"},\"record_kind\":\"item_power\",\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"},\"value\":{\"kind\":\"text\",\"text\":\"é🌲 sample\"}}",
+    "digest": "dea8d8773867df1633141180b751bd7b92df40e667106eb434bcff04ebb56889",
+    "compiled": null
+  },
+  {
+    "name": "family:action_definition",
+    "value": {
+      "record_kind": "action_definition",
+      "namespace": "é🌲 sample",
+      "key": "é🌲 sample",
+      "labels": {},
+      "requirements": [],
+      "scope": {
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "context": {
+          "record": "rec_000000000000000000000001"
+        }
+      },
+      "validity": {
+        "kind": "unspecified"
+      }
+    },
+    "canonical": "{\"key\":\"é🌲 sample\",\"labels\":{},\"namespace\":\"é🌲 sample\",\"record_kind\":\"action_definition\",\"requirements\":[],\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "98713793c092239e53d608e5d847f26815d8bfafb98df8696c79271c0d71a8b3",
     "compiled": null
   },
   {
@@ -2769,6 +2860,30 @@
     "compiled": null
   },
   {
+    "name": "semantic:ver_000000000000000000000027",
+    "value": {
+      "record_kind": "represented_context",
+      "universe": "unv_000000000000000000000001",
+      "kind": {
+        "kind": "objective"
+      },
+      "chronology": {
+        "calendar": "cal_00000000000000000000001a",
+        "system": {
+          "kind": "fictional",
+          "tick_label": "tick",
+          "ticks_per_month": null
+        },
+        "first_interaction": "0",
+        "current": "3"
+      },
+      "labels": {}
+    },
+    "canonical": "{\"chronology\":{\"calendar\":\"cal_00000000000000000000001a\",\"current\":\"3\",\"first_interaction\":\"0\",\"system\":{\"kind\":\"fictional\",\"tick_label\":\"tick\",\"ticks_per_month\":null}},\"kind\":{\"kind\":\"objective\"},\"labels\":{},\"record_kind\":\"represented_context\",\"universe\":\"unv_000000000000000000000001\"}",
+    "digest": "f83b296054ed0a5c781b29ef46c9770b018a7c4c2d99d8325ac9e06ccaac8e92",
+    "compiled": null
+  },
+  {
     "name": "semantic:ver_000000000000000000000028",
     "value": {
       "record_kind": "property",
@@ -2886,6 +3001,66 @@
     "compiled": null
   },
   {
+    "name": "semantic:ver_00000000000000000000002d",
+    "value": {
+      "record_kind": "event",
+      "occurrence": "occurred",
+      "worlds": [],
+      "time": {
+        "kind": "exact",
+        "calendar": "cal_00000000000000000000001a",
+        "value": "0"
+      },
+      "participants": [],
+      "preconditions": [],
+      "effects": [],
+      "labels": {}
+    },
+    "canonical": "{\"effects\":[],\"labels\":{},\"occurrence\":\"occurred\",\"participants\":[],\"preconditions\":[],\"record_kind\":\"event\",\"time\":{\"calendar\":\"cal_00000000000000000000001a\",\"kind\":\"exact\",\"value\":\"0\"},\"worlds\":[]}",
+    "digest": "1a333d5a6726cbcfcb7d1f007e425582412bc6d0264aa6038726331affa8d1d0",
+    "compiled": null
+  },
+  {
+    "name": "semantic:ver_00000000000000000000002e",
+    "value": {
+      "record_kind": "event",
+      "occurrence": "occurred",
+      "worlds": [],
+      "time": {
+        "kind": "exact",
+        "calendar": "cal_00000000000000000000001a",
+        "value": "1"
+      },
+      "participants": [],
+      "preconditions": [],
+      "effects": [],
+      "labels": {}
+    },
+    "canonical": "{\"effects\":[],\"labels\":{},\"occurrence\":\"occurred\",\"participants\":[],\"preconditions\":[],\"record_kind\":\"event\",\"time\":{\"calendar\":\"cal_00000000000000000000001a\",\"kind\":\"exact\",\"value\":\"1\"},\"worlds\":[]}",
+    "digest": "79473929de592ec5316229a4fc7a8ebc97cd20e4dd81c2978262e99951344ac8",
+    "compiled": null
+  },
+  {
+    "name": "semantic:ver_00000000000000000000002f",
+    "value": {
+      "record_kind": "event",
+      "occurrence": "occurred",
+      "worlds": [],
+      "time": {
+        "kind": "exact",
+        "calendar": "cal_00000000000000000000001a",
+        "value": "3"
+      },
+      "participants": [],
+      "preconditions": [],
+      "effects": [],
+      "labels": {}
+    },
+    "canonical": "{\"effects\":[],\"labels\":{},\"occurrence\":\"occurred\",\"participants\":[],\"preconditions\":[],\"record_kind\":\"event\",\"time\":{\"calendar\":\"cal_00000000000000000000001a\",\"kind\":\"exact\",\"value\":\"3\"},\"worlds\":[]}",
+    "digest": "ab9eb0355eeba2901e477299a37b5535613066681e45fbd13a946fe5af298a3e",
+    "compiled": null
+  },
+  {
     "name": "semantic:ver_000000000000000000000030",
     "value": {
       "record_kind": "unit",
@@ -2957,5 +3132,366 @@
       "executable": true,
       "referenced_records": []
     }
+  },
+  {
+    "name": "historical:historical-action",
+    "value": {
+      "record_kind": "action_definition",
+      "namespace": "fixture",
+      "key": "walk",
+      "labels": {
+        "en": "Walk café 🌙"
+      },
+      "requirements": [],
+      "scope": {
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000a"
+        }
+      },
+      "validity": {
+        "kind": "unspecified"
+      }
+    },
+    "canonical": "{\"key\":\"walk\",\"labels\":{\"en\":\"Walk café 🌙\"},\"namespace\":\"fixture\",\"record_kind\":\"action_definition\",\"requirements\":[],\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_00000000000000000000000a\",\"universe\":\"unv_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "eea7028f5fed429e81c451d89097156c635f25b3d0142bcf713a756ec87243b3",
+    "compiled": null
+  },
+  {
+    "name": "historical:historical-actionless-event",
+    "value": {
+      "record_kind": "event",
+      "occurrence": "occurred",
+      "worlds": [],
+      "time": {
+        "kind": "exact",
+        "calendar": "cal_000000000000000000000009",
+        "value": "11"
+      },
+      "participants": [
+        {
+          "record": {
+            "universe": "unv_000000000000000000000001",
+            "record": "rec_000000000000000000000001"
+          },
+          "role": "actor"
+        }
+      ],
+      "preconditions": [],
+      "effects": [],
+      "labels": {}
+    },
+    "canonical": "{\"effects\":[],\"labels\":{},\"occurrence\":\"occurred\",\"participants\":[{\"record\":{\"record\":\"rec_000000000000000000000001\",\"universe\":\"unv_000000000000000000000001\"},\"role\":\"actor\"}],\"preconditions\":[],\"record_kind\":\"event\",\"time\":{\"calendar\":\"cal_000000000000000000000009\",\"kind\":\"exact\",\"value\":\"11\"},\"worlds\":[]}",
+    "digest": "a480addb3e859b6da10fb088d3966ed7308824d50f296f1617dc74336a1fe3a0",
+    "compiled": null
+  },
+  {
+    "name": "historical:empty",
+    "value": {
+      "record_kind": "action_definition",
+      "namespace": "fixture",
+      "key": "declared-walk",
+      "labels": {
+        "en": "Walk café 🌙"
+      },
+      "requirements": [],
+      "consequenceContract": {
+        "kind": "action_consequences",
+        "slots": []
+      },
+      "scope": {
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000a"
+        }
+      },
+      "validity": {
+        "kind": "unspecified"
+      }
+    },
+    "canonical": "{\"consequenceContract\":{\"kind\":\"action_consequences\",\"slots\":[]},\"key\":\"declared-walk\",\"labels\":{\"en\":\"Walk café 🌙\"},\"namespace\":\"fixture\",\"record_kind\":\"action_definition\",\"requirements\":[],\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_00000000000000000000000a\",\"universe\":\"unv_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "008eebe0df3ad72d14eb9b1ca6f45ebf572c40f741751708e7dc6cde3b368105",
+    "compiled": null
+  },
+  {
+    "name": "historical:fire",
+    "value": {
+      "record_kind": "action_definition",
+      "namespace": "fixture",
+      "key": "fire",
+      "labels": {
+        "en": "Walk café 🌙"
+      },
+      "requirements": [],
+      "consequenceContract": {
+        "kind": "action_consequences",
+        "slots": [
+          {
+            "slot": "consume",
+            "order": 0,
+            "presence": "required",
+            "target": {
+              "role": "gun",
+              "predicate": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000002"
+              }
+            },
+            "condition": {
+              "kind": "always"
+            },
+            "change": {
+              "kind": "delta",
+              "delta": "-1",
+              "minimum": "0",
+              "maximum": "12",
+              "unit": null
+            },
+            "lifetime": {
+              "kind": "until_changed"
+            }
+          }
+        ]
+      },
+      "scope": {
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000a"
+        }
+      },
+      "validity": {
+        "kind": "unspecified"
+      }
+    },
+    "canonical": "{\"consequenceContract\":{\"kind\":\"action_consequences\",\"slots\":[{\"change\":{\"delta\":\"-1\",\"kind\":\"delta\",\"maximum\":\"12\",\"minimum\":\"0\",\"unit\":null},\"condition\":{\"kind\":\"always\"},\"lifetime\":{\"kind\":\"until_changed\"},\"order\":0,\"presence\":\"required\",\"slot\":\"consume\",\"target\":{\"predicate\":{\"record\":\"rec_000000000000000000000002\",\"universe\":\"unv_000000000000000000000001\"},\"role\":\"gun\"}}]},\"key\":\"fire\",\"labels\":{\"en\":\"Walk café 🌙\"},\"namespace\":\"fixture\",\"record_kind\":\"action_definition\",\"requirements\":[],\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_00000000000000000000000a\",\"universe\":\"unv_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "0c9b0828bd703f0d21bcb2e50a91f77005741c037b314f4498af140418e0eeaf",
+    "compiled": null
+  },
+  {
+    "name": "historical:transfer",
+    "value": {
+      "record_kind": "action_definition",
+      "namespace": "fixture",
+      "key": "transfer",
+      "labels": {
+        "en": "Walk café 🌙"
+      },
+      "requirements": [],
+      "consequenceContract": {
+        "kind": "action_consequences",
+        "slots": [
+          {
+            "slot": "debit",
+            "order": 0,
+            "presence": "required",
+            "target": {
+              "role": "source",
+              "predicate": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000002"
+              }
+            },
+            "condition": {
+              "kind": "always"
+            },
+            "change": {
+              "kind": "delta",
+              "delta": "-2",
+              "minimum": "0",
+              "maximum": "12",
+              "unit": "unit_000000000000000000000007"
+            },
+            "lifetime": {
+              "kind": "until_changed"
+            }
+          },
+          {
+            "slot": "credit",
+            "order": 1,
+            "presence": "required",
+            "target": {
+              "role": "recipient",
+              "predicate": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000002"
+              }
+            },
+            "condition": {
+              "kind": "always"
+            },
+            "change": {
+              "kind": "delta",
+              "delta": "2",
+              "minimum": "0",
+              "maximum": "12",
+              "unit": "unit_000000000000000000000007"
+            },
+            "lifetime": {
+              "kind": "until_changed"
+            }
+          }
+        ]
+      },
+      "scope": {
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000a"
+        }
+      },
+      "validity": {
+        "kind": "unspecified"
+      }
+    },
+    "canonical": "{\"consequenceContract\":{\"kind\":\"action_consequences\",\"slots\":[{\"change\":{\"delta\":\"-2\",\"kind\":\"delta\",\"maximum\":\"12\",\"minimum\":\"0\",\"unit\":\"unit_000000000000000000000007\"},\"condition\":{\"kind\":\"always\"},\"lifetime\":{\"kind\":\"until_changed\"},\"order\":0,\"presence\":\"required\",\"slot\":\"debit\",\"target\":{\"predicate\":{\"record\":\"rec_000000000000000000000002\",\"universe\":\"unv_000000000000000000000001\"},\"role\":\"source\"}},{\"change\":{\"delta\":\"2\",\"kind\":\"delta\",\"maximum\":\"12\",\"minimum\":\"0\",\"unit\":\"unit_000000000000000000000007\"},\"condition\":{\"kind\":\"always\"},\"lifetime\":{\"kind\":\"until_changed\"},\"order\":1,\"presence\":\"required\",\"slot\":\"credit\",\"target\":{\"predicate\":{\"record\":\"rec_000000000000000000000002\",\"universe\":\"unv_000000000000000000000001\"},\"role\":\"recipient\"}}]},\"key\":\"transfer\",\"labels\":{\"en\":\"Walk café 🌙\"},\"namespace\":\"fixture\",\"record_kind\":\"action_definition\",\"requirements\":[],\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_00000000000000000000000a\",\"universe\":\"unv_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "48c8f23b3b91d349693002169df522c809df11c1a11bd61e7ffdaacc07db94e1",
+    "compiled": null
+  },
+  {
+    "name": "historical:conditional-grant",
+    "value": {
+      "record_kind": "action_definition",
+      "namespace": "fixture",
+      "key": "grant",
+      "labels": {
+        "en": "Walk café 🌙"
+      },
+      "requirements": [],
+      "consequenceContract": {
+        "kind": "action_consequences",
+        "slots": [
+          {
+            "slot": "protection",
+            "order": 3,
+            "presence": "optional",
+            "target": {
+              "role": "recipient",
+              "predicate": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000002"
+              }
+            },
+            "condition": {
+              "kind": "attribute_equals",
+              "role": "caster",
+              "predicate": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000003"
+              },
+              "value": {
+                "kind": "boolean",
+                "value": true
+              }
+            },
+            "change": {
+              "kind": "set",
+              "polarity": "support",
+              "value": {
+                "kind": "boolean",
+                "value": true
+              }
+            },
+            "lifetime": {
+              "kind": "ticks",
+              "count": "5"
+            }
+          }
+        ]
+      },
+      "scope": {
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000a"
+        }
+      },
+      "validity": {
+        "kind": "unspecified"
+      }
+    },
+    "canonical": "{\"consequenceContract\":{\"kind\":\"action_consequences\",\"slots\":[{\"change\":{\"kind\":\"set\",\"polarity\":\"support\",\"value\":{\"kind\":\"boolean\",\"value\":true}},\"condition\":{\"kind\":\"attribute_equals\",\"predicate\":{\"record\":\"rec_000000000000000000000003\",\"universe\":\"unv_000000000000000000000001\"},\"role\":\"caster\",\"value\":{\"kind\":\"boolean\",\"value\":true}},\"lifetime\":{\"count\":\"5\",\"kind\":\"ticks\"},\"order\":3,\"presence\":\"optional\",\"slot\":\"protection\",\"target\":{\"predicate\":{\"record\":\"rec_000000000000000000000002\",\"universe\":\"unv_000000000000000000000001\"},\"role\":\"recipient\"}}]},\"key\":\"grant\",\"labels\":{\"en\":\"Walk café 🌙\"},\"namespace\":\"fixture\",\"record_kind\":\"action_definition\",\"requirements\":[],\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_00000000000000000000000a\",\"universe\":\"unv_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "d91f6bf8ff68caf3b6df843c2f740688049e57469fbf9178af671c44b59b9e2c",
+    "compiled": null
+  },
+  {
+    "name": "historical:refutation",
+    "value": {
+      "record_kind": "action_definition",
+      "namespace": "fixture",
+      "key": "refute",
+      "labels": {
+        "en": "Walk café 🌙"
+      },
+      "requirements": [],
+      "consequenceContract": {
+        "kind": "action_consequences",
+        "slots": [
+          {
+            "slot": "protection",
+            "order": 3,
+            "presence": "optional",
+            "target": {
+              "role": "recipient",
+              "predicate": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000002"
+              }
+            },
+            "condition": {
+              "kind": "attribute_equals",
+              "role": "caster",
+              "predicate": {
+                "universe": "unv_000000000000000000000001",
+                "record": "rec_000000000000000000000003"
+              },
+              "value": {
+                "kind": "boolean",
+                "value": true
+              }
+            },
+            "change": {
+              "kind": "set",
+              "polarity": "refutation",
+              "value": {
+                "kind": "boolean",
+                "value": true
+              }
+            },
+            "lifetime": {
+              "kind": "ticks",
+              "count": "5"
+            }
+          }
+        ]
+      },
+      "scope": {
+        "applicability": {
+          "kind": "universe_wide"
+        },
+        "context": {
+          "universe": "unv_000000000000000000000001",
+          "record": "rec_00000000000000000000000a"
+        }
+      },
+      "validity": {
+        "kind": "unspecified"
+      }
+    },
+    "canonical": "{\"consequenceContract\":{\"kind\":\"action_consequences\",\"slots\":[{\"change\":{\"kind\":\"set\",\"polarity\":\"refutation\",\"value\":{\"kind\":\"boolean\",\"value\":true}},\"condition\":{\"kind\":\"attribute_equals\",\"predicate\":{\"record\":\"rec_000000000000000000000003\",\"universe\":\"unv_000000000000000000000001\"},\"role\":\"caster\",\"value\":{\"kind\":\"boolean\",\"value\":true}},\"lifetime\":{\"count\":\"5\",\"kind\":\"ticks\"},\"order\":3,\"presence\":\"optional\",\"slot\":\"protection\",\"target\":{\"predicate\":{\"record\":\"rec_000000000000000000000002\",\"universe\":\"unv_000000000000000000000001\"},\"role\":\"recipient\"}}]},\"key\":\"refute\",\"labels\":{\"en\":\"Walk café 🌙\"},\"namespace\":\"fixture\",\"record_kind\":\"action_definition\",\"requirements\":[],\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_00000000000000000000000a\",\"universe\":\"unv_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
+    "digest": "48f20b33252aaf106f2bf61cb349342362f49d2795d11302a9f1911b5232db32",
+    "compiled": null
   }
 ]

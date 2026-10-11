@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'canonical.dart';
 import 'fields.dart';
+import 'exact_amount.dart';
 import 'ids.dart';
 import 'record_identity.dart';
 import 'references.dart';
@@ -17,6 +20,9 @@ part 'appearance_records.dart';
 part 'expr.dart';
 part 'plan_records.dart';
 part 'rule_records.dart';
+part 'event_records.dart';
+part 'consequences.dart';
+part 'context_records.dart';
 
 enum AttributeMode {
   instance('instance'),
@@ -70,6 +76,10 @@ sealed class RecordPayload {
     'completeness' => CompletenessRecord.fromWire(value),
     'appearance' => AppearanceRecord.fromWire(value),
     'image_asset' => ImageAssetRecord.fromWire(value),
+    'event' => EventRecord.fromWire(value),
+    'item_power' => ItemPowerRecord.fromWire(value),
+    'action_definition' => ActionDefinitionRecord.fromWire(value),
+    'represented_context' => RepresentedContextRecord.fromWire(value),
     'rule' => RuleRecord.fromWire(value),
     'boundary' => BoundaryRecord.fromWire(value),
     'exception' => ExceptionRecord.fromWire(value),

@@ -157,8 +157,8 @@ final class InitializationEvidence {
         get(candidate, RecordRef.fromCanonical(a['proposition']!).record),
         RecordKind.proposition,
       );
-      final event = body(pinned(start, candidate), RecordKind.event);
-      final time = TemporalExpression.fromWire(event['time']!);
+      final event = EventRecord.fromWire(pinned(start, candidate).payload);
+      final time = event.time;
       if (time is! ExactTime) {
         throw const FormatException(
           'Initialization needs an exact authored start',
@@ -174,11 +174,11 @@ final class InitializationEvidence {
           validity is CalendarIntervalValidity &&
           validity.calendar == time.calendar &&
           validity.start == ExactBound(time.value);
-      if (event['occurrence'] is! CanonicalString ||
-          _string(event['occurrence']!) != 'occurred' ||
-          !(event['participants'] as CanonicalArray).items.any(
-            (r) =>
-                RecordRef.fromCanonical(objectFields(r)['record']!) == subject,
+      final occurrence = event.occurrence;
+      if (occurrence is! SimpleOccurrence ||
+          occurrence.kind != OccurrenceKind.occurred ||
+          !event.participants.any(
+            (participant) => participant.record == subject,
           ) ||
           _string(a['attributeMode']!) != 'instance' ||
           _string(initial['attributeMode']!) != 'initial_value' ||
