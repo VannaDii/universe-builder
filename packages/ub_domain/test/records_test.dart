@@ -112,7 +112,7 @@ void main() {
       );
       expect(
         () => RecordPayload.fromWire(
-          CanonicalValue.parseJson('{"record_kind":"world"}'),
+          CanonicalValue.parseJson('{"record_kind":"event"}'),
         ),
         throwsFormatException,
       );

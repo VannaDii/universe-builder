@@ -1,6 +1,5 @@
 import 'package:ub_domain/ub_domain.dart';
 
-import 'catalog.dart';
 import 'journal.dart';
 import 'revision_input.dart';
 
@@ -21,11 +20,11 @@ final class CandidateFoundation {
         bodies[id]?.identity.recordKind == kind;
     final finished = <RecordId>{};
     for (final record in records) {
-      final fields = objectFields(record.payload);
       switch (record.identity.recordKind) {
         case RecordKind.entityType:
-          final parent = _optionalId(fields['parent']);
-          if ((_string(fields['parentResolution']) == 'resolved') !=
+          final type = EntityTypeRecord.fromWire(record.payload);
+          final parent = type.parent;
+          if ((type.parentResolution == ParentResolution.resolved) !=
               (parent != null)) {
             throw const FormatException(
               'Parent resolution disagrees with parent identity',
@@ -45,12 +44,14 @@ final class CandidateFoundation {
                 'Parent is not a type in the selected revision',
               );
             }
-            next = _optionalId(objectFields(definition.payload)['parent']);
+            next = EntityTypeRecord.fromWire(definition.payload).parent;
           }
           finished.addAll(path);
         case RecordKind.entity:
-          final classification = _optionalId(fields['classification']);
-          if ((_string(fields['classificationResolution']) == 'resolved') !=
+          final entity = EntityRecord.fromWire(record.payload);
+          final classification = entity.classification;
+          if ((entity.classificationResolution ==
+                  ClassificationResolution.resolved) !=
               (classification != null)) {
             throw const FormatException(
               'Classification resolution disagrees with type identity',
@@ -62,14 +63,14 @@ final class CandidateFoundation {
               'Classification is not a type in the selected revision',
             );
           }
-          _values(fields['metadata']!);
-          for (final association
-              in (fields['worldAssociations'] as CanonicalArray).items) {
-            _values(objectFields(association)['qualifiers']!);
+          _values(entity.metadata);
+          for (final association in entity.worldAssociations) {
+            _values(association.qualifiers);
           }
         case RecordKind.world:
+          _values(WorldRecord.fromWire(record.payload).metadata);
         case RecordKind.realm:
-          _values(fields['metadata'] ?? CanonicalObject([]));
+          _values(RealmRecord.fromWire(record.payload).metadata);
         case RecordKind.proposition:
           final proposition = PropositionRecord.fromWire(record.payload);
           if (!hasKind(
@@ -131,15 +132,9 @@ final class CandidateFoundation {
     }
   }
 
-  void _values(CanonicalValue values) {
-    for (final value in objectFields(values).values) {
-      DomainValue.fromWire(value).validate();
+  void _values(Map<String, DomainValue> values) {
+    for (final value in values.values) {
+      value.validate();
     }
   }
-
-  String _string(CanonicalValue? value) => (value as CanonicalString).value;
-  RecordId? _optionalId(CanonicalValue? value) =>
-      value == null || value is CanonicalNull
-      ? null
-      : RecordId.parse(_string(value));
 }

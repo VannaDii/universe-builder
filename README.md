@@ -8,7 +8,8 @@ The approved [conversion plan](docs/dart-conversion-plan.md) is being implemente
 alongside the current runtime. The Dart workspace currently contains the shared
 canonical encoding, digests, typed identities, values, temporal/spatial expressions
 and reference foundations, typed scopes, validity and evidence bases, and
-proposition/assertion records (the first two of 38 record families), plus
+12 of 38 record families: worlds, realms, entities, the seven definition
+families, propositions and assertions, plus
 the internal typed SQLite codec, revision journal and connection policy. It is not yet a
 replacement engine or application.
 
@@ -21,7 +22,7 @@ dart analyze packages tool
 dart format --output=none --set-exit-if-changed packages tool
 cd packages/ub_domain
 dart test
-dart test test/canonical_test.dart test/identity_test.dart test/exact_amount_test.dart test/value_test.dart test/selector_test.dart test/scope_test.dart test/records_test.dart --platform chrome
+dart test test/canonical_test.dart test/identity_test.dart test/exact_amount_test.dart test/value_test.dart test/selector_test.dart test/scope_test.dart test/records_test.dart test/definitions_test.dart --platform chrome
 cd ../ub_store
 dart test
 ```
@@ -71,11 +72,16 @@ domain-value comparison encoding. In particular, record ranges use
 `lowerInclusive`/`upperInclusive`, and set comparison sorts canonical members
 without changing authored record order or removing duplicates. Exact numeric
 strings and approximate/unknown temporal bounds retain their authored meaning.
-Typed factual records preserve their historical wire digests. Scope world lists
+Typed record serialization matches the existing Rust DTO defaults and digests.
+The raw relational fixtures retain omitted fields; decoding a typed view expands
+only source-declared defaults and never rewrites the stored historical body. Scope world lists
 use `world_ids` on the wire and `worldIds` in comparison encoding; derivation
 evidence includes a null evaluator on the wire but omits it in comparison
 encoding. Foundation admission and initialization scope/provenance checks use
-these typed models. Unknown validity remains distinct from unbounded time.
+these typed models, as do definition/classification indexes and world-name
+reservations. Value shapes preserve typed unit/definition identities and recursive
+sequence declarations without inferring executable behavior from labels. Unknown
+validity remains distinct from unbounded time.
 The Dart rational validator rejects all zero denominator spellings, including
 `00`, `+0` and `-0`, closing a missed case in the existing Rust validator.
 

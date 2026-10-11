@@ -10,3 +10,4 @@ export 'src/scope.dart';
 export 'src/selector.dart';
 export 'src/time_space.dart';
 export 'src/value.dart';
+export 'src/value_shape.dart';

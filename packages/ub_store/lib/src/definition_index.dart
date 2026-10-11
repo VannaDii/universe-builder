@@ -1,6 +1,5 @@
 import 'package:ub_domain/ub_domain.dart';
 
-import 'catalog.dart';
 import 'journal.dart';
 import 'references.dart';
 import 'revision_input.dart';
@@ -22,59 +21,52 @@ final class DefinitionIndex {
     final u = journal.universe.value;
     final v = record.versionId.value;
     final id = record.identity.recordId.value;
-    final fields = objectFields(record.payload);
-    String string(String key) => (fields[key] as CanonicalString).value;
-    String? optional(String key) =>
-        fields[key] == null || fields[key] is CanonicalNull
-        ? null
-        : string(key);
     switch (record.identity.recordKind) {
       case RecordKind.entityType:
-        final applicability = objectFields(fields['applicability']!);
-        final kind = (applicability['kind'] as CanonicalString).value;
+        final type = EntityTypeRecord.fromWire(record.payload);
+        final applicability = type.applicability;
         database.execute('INSERT INTO type_definition VALUES(?,?,?,?,?,?,?)', [
           u,
           v,
           id,
-          string('name'),
-          optional('parent'),
-          string('parentResolution'),
-          switch (kind) {
-            'universe_wide' => 'universe',
-            'worlds' => 'worlds',
-            'unspecified' => 'unspecified',
-            'conditional' => 'conditional',
-            _ => throw const FormatException('Invalid type applicability'),
+          type.name,
+          type.parent?.value,
+          type.parentResolution.name,
+          switch (applicability) {
+            UniverseApplicability() => 'universe',
+            WorldsApplicability() => 'worlds',
+            UnspecifiedApplicability() => 'unspecified',
+            ConditionalApplicability() => 'conditional',
           },
         ]);
-        if (kind == 'worlds') {
-          final worlds = (applicability['world_ids'] as CanonicalArray).items;
+        if (applicability is WorldsApplicability) {
+          final worlds = applicability.worldIds;
           for (var ordinal = 0; ordinal < worlds.length; ordinal++) {
             database.execute('INSERT INTO type_world VALUES(?,?,?,?)', [
               u,
               v,
               ordinal,
-              worldRecord(
-                WorldId.parse((worlds[ordinal] as CanonicalString).value),
-              ).value,
+              worldRecord(worlds[ordinal]).value,
             ]);
           }
         }
       case RecordKind.entity:
+        final entity = EntityRecord.fromWire(record.payload);
         database.execute(
           'INSERT INTO instance_classification VALUES(?,?,?,?,?)',
           [
             u,
             v,
             id,
-            optional('classification'),
-            string('classificationResolution'),
+            entity.classification?.value,
+            entity.classificationResolution.name,
           ],
         );
       case RecordKind.assertion:
-        final mode = string('attributeMode');
-        if (mode == 'instance') return;
-        final reference = RecordRef.fromCanonical(fields['proposition']!);
+        final assertion = AssertionRecord.fromWire(record.payload);
+        final mode = assertion.attributeMode;
+        if (mode == AttributeMode.instance) return;
+        final reference = assertion.proposition;
         final version = membership[reference.record];
         if (version == null) {
           throw const FormatException('Missing definition proposition');
@@ -83,19 +75,13 @@ final class DefinitionIndex {
         if (proposition.identity.recordKind != RecordKind.proposition) {
           throw const FormatException('Invalid definition proposition');
         }
-        final body = objectFields(proposition.payload);
+        final body = PropositionRecord.fromWire(proposition.payload);
         database.execute('INSERT INTO definition_attribute VALUES(?,?,?,?,?)', [
           u,
           v,
-          RecordRef.fromCanonical(body['subject']!).record.value,
-          RecordRef.fromCanonical(body['predicate']!).record.value,
-          switch (mode) {
-            'shared' => 'shared',
-            'initial_value' => 'initial_value',
-            _ => throw const FormatException(
-              'Invalid definition attribute mode',
-            ),
-          },
+          body.subject.record.value,
+          body.predicate.record.value,
+          mode.wireName,
         ]);
       default:
         break;

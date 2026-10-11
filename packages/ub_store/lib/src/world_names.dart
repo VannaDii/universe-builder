@@ -1,7 +1,6 @@
 import 'package:sqlite3/sqlite3.dart';
 import 'package:ub_domain/ub_domain.dart';
 
-import 'catalog.dart';
 import 'revision_input.dart';
 
 /// Names are selected-revision projections, but reservations are immutable
@@ -56,10 +55,10 @@ final class WorldNames {
 
   static Iterable<String> _keys(StoredVersion record) sync* {
     if (record.identity.recordKind != RecordKind.world) return;
-    final fields = objectFields(record.payload);
-    yield selectorKey((fields['selector'] as CanonicalString).value);
-    for (final alias in (fields['aliases'] as CanonicalArray).items) {
-      yield selectorKey((alias as CanonicalString).value);
+    final world = WorldRecord.fromWire(record.payload);
+    yield selectorKey(world.selector);
+    for (final alias in world.aliases) {
+      yield selectorKey(alias);
     }
   }
 }

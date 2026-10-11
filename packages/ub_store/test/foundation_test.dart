@@ -11,6 +11,7 @@ import 'package:ub_store/src/catalog.dart';
 import 'package:ub_store/src/database.dart';
 import 'package:ub_store/src/journal.dart';
 import 'package:ub_store/src/revision_input.dart';
+import 'package:ub_store/src/world_names.dart';
 
 void main() {
   final oracle = objectFields(
@@ -78,6 +79,51 @@ void main() {
     () {
       expect(selected, hasLength(48));
       foundation.validateRecords(selected);
+    },
+  );
+  test(
+    'typed world admission honors defaults without rewriting retained bytes',
+    () {
+      final payload = CanonicalValue.parseJson(
+        '{"record_kind":"world","selector":"Memoir setting"}',
+      );
+      final world = StoredVersion.build(
+        RecordVersionId.parse('ver_0000000000000000000000ff'),
+        RecordIdentity(
+          universeId: universe,
+          recordId: RecordId.parse('rec_0000000000000000000000ff'),
+          recordKind: RecordKind.world,
+        ),
+        payload,
+      );
+      final retained = world.toCanonical().toText();
+      foundation.validateRecords([world]);
+      WorldNames.validateRecords([world]);
+      database.execute('BEGIN IMMEDIATE');
+      final journal = foundation.journal;
+      final continuity = ContinuityId.parse('cont_0000000000000000000000ff');
+      final principal = PrincipalId.parse('prn_0000000000000000000000ff');
+      final head = journal.initialize(
+        'Disposable setting',
+        continuity,
+        principal,
+      );
+      journal.stageVersions(
+        CommitInput(
+          universe: universe,
+          continuity: continuity,
+          expectedHead: head,
+          principal: principal,
+          decision: 'test admission',
+          reason: 'test',
+          idempotencyKey: 'typed-world-defaults',
+          changes: [Assignment(recordId: world.identity.recordId, next: world)],
+        ),
+      );
+      database.execute('COMMIT');
+      expect(journal.load(world.versionId).toCanonical().toText(), retained);
+      expect(world.payload.toText(), payload.toText());
+      expect(WorldRecord.fromWire(world.payload).metadata, isEmpty);
     },
   );
   test('parent resolution and ancestry cannot fabricate a type chain', () {

@@ -1,9 +1,14 @@
 import 'canonical.dart';
 import 'fields.dart';
+import 'ids.dart';
 import 'record_identity.dart';
 import 'references.dart';
 import 'scope.dart';
 import 'value.dart';
+import 'value_shape.dart';
+
+part 'definition_records.dart';
+part 'frame_records.dart';
 
 enum AttributeMode {
   instance('instance'),
@@ -49,6 +54,16 @@ sealed class RecordPayload {
   String get digest => payloadDigest(recordKind.wireName, toWire());
   static RecordPayload fromWire(CanonicalValue value) => switch (Fields(value)
       .string('record_kind')) {
+    'entity' => EntityRecord.fromWire(value),
+    'world' => WorldRecord.fromWire(value),
+    'realm' => RealmRecord.fromWire(value),
+    'entity_type' => EntityTypeRecord.fromWire(value),
+    'property' => PropertyRecord.fromWire(value),
+    'relation' => RelationRecord.fromWire(value),
+    'unit' => UnitRecord.fromWire(value),
+    'calendar' => CalendarRecord.fromWire(value),
+    'value_definition' => ValueDefinitionRecord.fromWire(value),
+    'domain_pack' => DomainPackRecord.fromWire(value),
     'proposition' => PropositionRecord.fromWire(value),
     'assertion' => AssertionRecord.fromWire(value),
     _ => throw const FormatException('Record family port is not implemented'),
@@ -252,3 +267,56 @@ String _string(CanonicalValue value) {
   }
   return value.value;
 }
+
+Fields _recordFields(CanonicalValue value, RecordKind kind, Set<String> keys) {
+  final f = Fields(value)..allow({'record_kind', ...keys});
+  if (f.string('record_kind') != kind.wireName) {
+    throw const FormatException('Wrong record kind');
+  }
+  return f;
+}
+
+CanonicalObject _recordWire(
+  RecordKind kind,
+  Iterable<MapEntry<String, CanonicalValue>> fields,
+) => CanonicalObject([
+  MapEntry('record_kind', CanonicalString(kind.wireName)),
+  ...fields,
+]);
+Map<String, String> _strings(
+  Fields f,
+  String key, {
+  bool defaultEmpty = false,
+}) {
+  if (defaultEmpty && !f.values.containsKey(key)) return const {};
+  final object = Fields(f.require(key));
+  return Map.unmodifiable({
+    for (final k in object.values.keys) k: object.string(k),
+  });
+}
+
+Map<String, DomainValue> _values(
+  Fields f,
+  String key, {
+  bool defaultEmpty = false,
+}) {
+  if (defaultEmpty && !f.values.containsKey(key)) return const {};
+  final object = Fields(f.require(key));
+  return Map.unmodifiable({
+    for (final entry in object.values.entries)
+      entry.key: DomainValue.fromWire(entry.value),
+  });
+}
+
+CanonicalObject _stringMap(Map<String, String> map) => CanonicalObject(
+  map.entries.map((e) => MapEntry(e.key, CanonicalString(e.value))),
+);
+CanonicalObject _valueMap(Map<String, DomainValue> map) =>
+    CanonicalObject(map.entries.map((e) => MapEntry(e.key, e.value.toWire())));
+CanonicalValue _nullableString(String? value) =>
+    value == null ? const CanonicalNull() : CanonicalString(value);
+CanonicalValue _nullableId(TypedId? id) => _nullableString(id?.value);
+List<RecordId> _ids(Iterable<CanonicalValue> values) =>
+    values.map((v) => RecordId.parse(_string(v))).toList();
+CanonicalArray _idArray(Iterable<TypedId> ids) =>
+    CanonicalArray(ids.map((id) => CanonicalString(id.value)));
