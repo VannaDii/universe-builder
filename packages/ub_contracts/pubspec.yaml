@@ -5,6 +5,7 @@ resolution: workspace
 environment:
   sdk: 3.13.4
 dependencies:
+  crypto: 3.0.7
   ub_domain: any
 dev_dependencies:
   test: 1.33.0

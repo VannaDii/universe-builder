@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:ub_domain/ub_domain.dart';
 
 import 'assessment.dart';
+import 'wire.dart';
 import 'validation_scope.dart';
 
 /// Bind declarations to exact proposal/selection inputs. This does not establish
@@ -15,7 +16,7 @@ extension SourceValidationBindingIntegrity on SourceValidationBindingV1 {
       'Selection proposal mismatch',
     );
     _ensure(
-      _hasRustText(evaluatorVersion) &&
+      hasRustText(evaluatorVersion) &&
           utf8.encode(evaluatorVersion).length <= 16384,
       'Invalid evaluator version',
     );
@@ -74,19 +75,3 @@ bool _sameSelection(AssessmentRef? left, AssessmentRef right) =>
 void _ensure(bool condition, String message) {
   if (!condition) throw FormatException(message);
 }
-
-// Rust str::trim uses Unicode White_Space, including NEL but excluding FEFF.
-bool _hasRustText(String value) => value.runes.any(
-  (r) =>
-      !((r >= 0x9 && r <= 0xd) ||
-          r == 0x20 ||
-          r == 0x85 ||
-          r == 0xa0 ||
-          r == 0x1680 ||
-          (r >= 0x2000 && r <= 0x200a) ||
-          r == 0x2028 ||
-          r == 0x2029 ||
-          r == 0x202f ||
-          r == 0x205f ||
-          r == 0x3000),
-);

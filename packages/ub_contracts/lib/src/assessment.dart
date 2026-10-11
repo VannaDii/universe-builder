@@ -1,8 +1,14 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:crypto/crypto.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 import 'wire.dart';
 import 'workflow.dart';
 import 'validation_scope.dart';
+
+part 'assessment_integrity.dart';
 
 enum AssessmentKind {
   sourceAssessmentV1('source_assessment');
@@ -493,9 +499,20 @@ final class UnresolvedDisposition {
   ]);
 }
 
-/// Structural declaration DTO. Accounting and retained-byte admission remain
-/// separate from decoding and must precede certifying an assessment body.
+/// Structural DTO decoding remains separate from accounting and byte checks.
+/// Use [SourceAssessmentV1.decode] at the strict assessment import boundary.
 final class SourceAssessmentV1 {
+  factory SourceAssessmentV1.decode(Uint8List input) {
+    _assessmentEnsure(
+      input.length <= _assessmentFrameLimit,
+      'Assessment exceeds frame limit',
+    );
+    final body = SourceAssessmentV1.fromWire(
+      CanonicalValue.parseJson(utf8.decode(input)),
+    );
+    body.validate();
+    return body;
+  }
   SourceAssessmentV1({
     required this.kind,
     required this.proposal,

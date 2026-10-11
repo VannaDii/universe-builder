@@ -42,7 +42,7 @@ dart test
 dart test test/compiler_test.dart --platform chrome
 cd ../ub_contracts
 dart test
-dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart --platform chrome
+dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart --platform chrome
 ```
 
 Browser tests must run from the package directory. Set `CHROME_EXECUTABLE` if
@@ -165,11 +165,17 @@ from partial body declarations. Final binding validation checks exact proposal,
 selection identity/generation and declared inventory digest, refusing query and
 inappropriate source-assessed scopes. Its prefixed digest preserves the existing
 owning field serialization. An unavailable assessment can remain attached to a
-record-only validation; unavailability is distinct from absence. Assessment-body
-accounting validation, retained-source byte verification, attachment admission,
-request contracts, evaluator execution and exact approval enforcement still need
-their ports. Declared byte verification remains distinct from factual support;
-decoding these DTOs does not verify source content or establish truth.
+record-only validation; unavailability is distinct from absence. The strict
+assessment import validates bounded input, UTC timestamps, declared exact
+references, active versus historical versions, reciprocal material links,
+uncertainty dispositions and conclusions before hashing. Trusted retained-byte
+verification checks exact size/SHA, strict UTF-8 and source/item/exclusion range
+boundaries. Envelope verification and frozen proposal/frame binding preserve
+the existing digest preimages. Structural DTO decoding remains separate from
+these checks. Attachment admission, request contracts, evaluator execution and
+exact approval enforcement still need their ports. Byte verification remains
+distinct from factual support; it does not establish truth or authenticate an
+assessor.
 The Dart rational validator rejects all zero denominator spellings, including
 `00`, `+0` and `-0`, closing a missed case in the existing Rust validator.
 
