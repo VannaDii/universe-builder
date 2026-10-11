@@ -13,6 +13,7 @@ import 'package:ub_store/src/definition_index.dart';
 import 'package:ub_store/src/journal.dart';
 import 'package:ub_store/src/initialization.dart';
 import 'package:ub_store/src/projections.dart';
+import 'package:ub_store/src/projection_recovery.dart';
 import 'package:ub_store/src/revision_input.dart';
 
 void main() {
@@ -107,9 +108,14 @@ void main() {
         candidate,
       );
       checkpoint('head');
+      final generation =
+          database
+                  .select('SELECT generation FROM projection_state')
+                  .single['generation']
+              as int;
       for (final assignment in request.changes) {
         if (assignment.next != null) {
-          RecordProjections(database).project(0, assignment.next!);
+          RecordProjections(database).project(generation, assignment.next!);
         }
       }
       checkpoint('projections');
@@ -156,6 +162,176 @@ void main() {
     reason: 'authored worlds',
     idempotencyKey: key,
     changes: changes,
+  );
+
+  test(
+    'projection recovery rebuilds historical search and every pinned head',
+    () {
+      final original = version('000000000000000000000001', 'Original oak');
+      final first = publish(input(genesis, 'original', original));
+      final alternate = ContinuityId.parse('cont_000000000000000000000002');
+      database.execute('BEGIN IMMEDIATE');
+      final fork = journal.branch(alternate, continuity, first, principal);
+      database.execute('COMMIT');
+      final corrected = version('000000000000000000000002', 'Latest elm');
+      final latest = publish(
+        input(first, 'corrected', corrected, expected: original.versionId),
+      );
+      for (final table in [
+        'reference_index',
+        'typed_projection',
+        'world_projection',
+        'narrative_projection',
+        'search_index',
+        'head_membership',
+        'projection_heads',
+      ]) {
+        database.execute('DELETE FROM $table');
+      }
+      final recovery = ProjectionRecovery(journal);
+      recovery.rebuild();
+      expect(
+        database
+            .select('SELECT generation FROM projection_state')
+            .single['generation'],
+        1,
+      );
+      expect(database.select('SELECT * FROM projection_heads'), hasLength(2));
+      expect(database.select('SELECT * FROM head_membership'), hasLength(2));
+      expect(database.select('SELECT * FROM search_index'), hasLength(2));
+      expect(
+        recovery.search(continuity, first, 'Original').single.versionId,
+        original.versionId,
+      );
+      expect(recovery.search(continuity, latest, 'Original'), isEmpty);
+      expect(recovery.search(continuity, first, 'Latest'), isEmpty);
+      expect(
+        recovery.search(alternate, fork, 'Original').single.versionId,
+        original.versionId,
+      );
+      expect(
+        recovery.search(continuity, latest, '').single.versionId,
+        corrected.versionId,
+      );
+      expect(
+        recovery.search(continuity, latest, 'Latest OR Original'),
+        isEmpty,
+      );
+      expect(
+        () => recovery.search(continuity, latest, 'é' * 513),
+        throwsFormatException,
+      );
+      final newer = version('000000000000000000000003', 'Future ash');
+      final third = publish(
+        input(latest, 'third', newer, expected: corrected.versionId),
+      );
+      expect(
+        recovery.search(continuity, third, 'Future').single.versionId,
+        newer.versionId,
+      );
+      final removed = publish(
+        input(third, 'remove', null, expected: newer.versionId),
+      );
+      recovery.rebuild();
+      expect(recovery.search(continuity, removed, ''), isEmpty);
+      expect(
+        recovery.search(alternate, fork, 'Original').single.versionId,
+        original.versionId,
+      );
+      expect(
+        database
+            .select('SELECT DISTINCT generation FROM search_index')
+            .single['generation'],
+        2,
+      );
+      database.close();
+      database = SqliteDatabase.open(
+        '${directory.path}/package.sqlite',
+        existing: true,
+      );
+      journal = SqliteJournal(database, universe);
+      ProjectionRecovery(journal).rebuild();
+      expect(
+        ProjectionRecovery(journal)
+            .search(continuity, latest, 'Latest')
+            .single
+            .versionId,
+        corrected.versionId,
+      );
+      expect(database.select('PRAGMA foreign_key_check'), isEmpty);
+    },
+  );
+
+  test('interrupted projection recovery retains the previous generation and head caches', () {
+    final original = version('000000000000000000000001', 'Original');
+    final first = publish(input(genesis, 'original', original));
+    final recovery = ProjectionRecovery(journal);
+    for (final phase in ['projection', 'beforeCommit']) {
+      expect(
+        () => recovery.rebuild(
+          afterProjection: phase == 'projection'
+              ? () => throw StateError('Interrupted projection')
+              : null,
+          beforeCommit: phase == 'beforeCommit'
+              ? () => throw StateError('Interrupted switch')
+              : null,
+        ),
+        throwsStateError,
+      );
+      expect(database.autocommit, isTrue);
+      expect(
+        database
+            .select('SELECT generation FROM projection_state')
+            .single['generation'],
+        0,
+      );
+      expect(
+        database
+            .select('SELECT DISTINCT generation FROM search_index')
+            .single['generation'],
+        0,
+      );
+      expect(
+        database
+            .select('SELECT revision_id FROM projection_heads')
+            .single['revision_id'],
+        first.value,
+      );
+      expect(
+        recovery.search(continuity, first, 'Original').single.versionId,
+        original.versionId,
+      );
+    }
+    recovery.rebuild();
+    expect(
+      database
+          .select('SELECT generation FROM projection_state')
+          .single['generation'],
+      1,
+    );
+    database.execute('BEGIN');
+    expect(recovery.rebuild, throwsStateError);
+    database.execute('ROLLBACK');
+  });
+
+  test(
+    'recovery refuses corrupt retained digests without switching projections',
+    () {
+      final original = version('000000000000000000000001', 'Original');
+      final first = publish(input(genesis, 'original', original));
+      database.execute('DROP TRIGGER immutable_record_versions_update');
+      database.execute('UPDATE record_versions SET digest=?', ['0' * 64]);
+      expect(ProjectionRecovery(journal).rebuild, throwsFormatException);
+      expect(
+        database
+            .select('SELECT generation FROM projection_state')
+            .single['generation'],
+        0,
+      );
+      expect(database.select('SELECT * FROM search_index'), hasLength(1));
+      expect(journal.head(continuity), first);
+      expect(database.autocommit, isTrue);
+    },
   );
 
   test(

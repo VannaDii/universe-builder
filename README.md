@@ -42,8 +42,10 @@ remain reserved to their original identities. Internal semantic indexes resolve
 definition attributes in the selected candidate. Initialization admission keeps
 exact start/definition provenance and durable receipts through correction,
 removal and restoration; receipt reads respect pinned fork ancestry, and the
-history check detects missing or changed receipts. Full projection recovery and
-service authorization still need their port before an author-facing publication
+history check detects missing or changed receipts. Disposable projection rebuilds
+reconstruct all retained versions and pinned heads, switch generations atomically,
+and preserve historical search results. OS ownership, complete startup content/
+workflow verification and service authorization still need their port before an author-facing publication
 path can use it. Schema resources are compiled into the
 package; after changing the owning files in `docs/decisions/relational-storage`,
 run `dart run tool/embed_schema.dart` from the repository root to regenerate

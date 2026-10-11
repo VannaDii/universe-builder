@@ -140,9 +140,14 @@ void main() {
         candidate,
       );
       checkpoint('head');
+      final generation =
+          database
+                  .select('SELECT generation FROM projection_state')
+                  .single['generation']
+              as int;
       for (final change in input.changes) {
         if (change.next != null) {
-          RecordProjections(database).project(0, change.next!);
+          RecordProjections(database).project(generation, change.next!);
         }
       }
       checkpoint('projections');
