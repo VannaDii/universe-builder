@@ -516,6 +516,11 @@ impl Workflow<'_> {
         Ok(keys.last() == Some(&format!("proposal:{}:{:020}", p.proposal_id, p.version)))
     }
     fn input(&self, p: &StoredProposal, key: String) -> anyhow::Result<CommitInput> {
+        if p.changes.iter().any(|a|a.next.as_ref().is_some_and(|r|matches!(r.payload,Payload::SceneRef(_)))) {
+            let mut rows=self.kernel.records(&p.proposal.base_frame.continuity,&p.proposal.base_frame.revision)?;
+            for change in &p.changes {rows.retain(|r|r.identity.record_id!=change.record_id);if let Some(row)=&change.next{rows.push(row.clone());}}
+            for change in &p.changes {if let Some(row)=&change.next {if let Payload::SceneRef(scene)=&row.payload {self.check_scene_disclosures(&scene.work_version,&scene.disclosed_records,&rows)?;}}}
+        }
         Ok(CommitInput {
             universe: self.kernel.universe().clone(),
             continuity: p.proposal.base_frame.continuity.clone(),
@@ -1616,7 +1621,7 @@ impl Workflow<'_> {
                     reader_scene,
                     personal_sequence: None,
                 };
-                perspective_ids(&records, &f)?;
+                perspective_ids(&records, &f, self.kernel)?;
                 let context_id = ContextId::generate(&mut rand::rng());
                 self.save(
                     format!("context:{context_id}"),
@@ -1651,7 +1656,7 @@ impl Workflow<'_> {
                 let mut visibility = self.visible_ids(&records)?;
                 if let Some(f) = &frame {
                     visibility = visibility
-                        .intersection(&perspective_ids(&records, f)?)
+                        .intersection(&perspective_ids(&records, f, self.kernel)?)
                         .cloned()
                         .collect();
                 }
@@ -1711,7 +1716,7 @@ impl Workflow<'_> {
                     .records(&ctx.frame.continuity, &ctx.frame.revision)?;
                 world_focus = self.focus(args, &all)?;
                 let mut visibility = self.visible_ids(&all)?;
-                let perspective = perspective_ids(&all, &ctx.frame)?;
+                let perspective = perspective_ids(&all, &ctx.frame, self.kernel)?;
                 visibility = visibility.intersection(&perspective).cloned().collect();
                 let rule_ids: Vec<_> = all
                     .iter()
@@ -3348,7 +3353,7 @@ fn research_closure(
     Ok((visited, closed))
 }
 
-fn perspective_ids(records: &[RecordVersion], frame: &Frame) -> anyhow::Result<BTreeSet<RecordId>> {
+fn perspective_ids(records: &[RecordVersion], frame: &Frame, kernel: &Kernel) -> anyhow::Result<BTreeSet<RecordId>> {
     if matches!(frame.perspective, Perspective::Author) {
         if frame.reader_scene.is_some() {
             return Err(ProtocolError::invalid_argument(
@@ -3363,6 +3368,7 @@ fn perspective_ids(records: &[RecordVersion], frame: &Frame) -> anyhow::Result<B
             .collect());
     }
     let mut roots = Vec::new();
+    let mut reader_canon = None;
     match &frame.perspective {
         Perspective::Character(holder) | Perspective::Narrator(holder) => {
             let character = matches!(frame.perspective, Perspective::Character(_));
@@ -3428,6 +3434,9 @@ fn perspective_ids(records: &[RecordVersion], frame: &Frame) -> anyhow::Result<B
             {
                 return Err(denied());
             }
+            let Payload::WorkVersion(edition)=&work.payload else {return Err(denied());};
+            let WorkBinding::Bound{continuity,revision}=&edition.binding else {return Err(denied());};
+            reader_canon=Some(kernel.records(continuity,revision)?);
             for r in records {
                 if let Payload::SceneRef(s) = &r.payload {
                     if s.work_version == scene.work_version
@@ -3448,6 +3457,7 @@ fn perspective_ids(records: &[RecordVersion], frame: &Frame) -> anyhow::Result<B
     while let Some(id) = roots.pop() {
         if ids.insert(id.clone()) {
             let r = by_id.get(&id).ok_or_else(denied)?;
+            if reader_canon.as_ref().is_some_and(|canon| !canon.iter().any(|old|old.identity.record_id==id && old.record_version_id==r.record_version_id)) {return Err(denied());}
             roots.extend(universe_store::kernel::record_dependencies(r)?);
             if roots.len() + ids.len() > 5_000_000 {
                 return Err(unsupported("perspective dependency budget exceeded"));

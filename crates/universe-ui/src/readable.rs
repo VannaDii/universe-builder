@@ -53,6 +53,7 @@ pub fn ReadValue(value: Value) -> Element {
 }
 pub(super) fn operation_summary(op: &Value) -> String {
     match op["kind"].as_str().unwrap_or_default() {
+        "revise_scene" => format!("Correct scene: {} — {} explicit reader disclosures; unchanged edition. Reason: {}",op["replacement"]["sceneId"].as_str().unwrap_or("Unnamed"),op["replacement"]["disclosedRecords"].as_array().map_or(0,Vec::len),op["rationale"].as_str().unwrap_or("not stated")),
         "revise_item_power" => format!(
             "Correct item grant — reason: {}",
             op["rationale"].as_str().unwrap_or("not stated")

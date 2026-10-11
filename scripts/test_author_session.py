@@ -982,6 +982,42 @@ class ConnectedWritingTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):decisions.action({"action":"publish","candidate":held["candidate"],"validation_run":held["validation"]["execution"]["run_id"],"idempotency_key":"silver-earlier-action-denied"})
                 self.assertEqual(client.call("universe_read_contracts",{"universe":silver["universe"],"context_id":gate_context()})["frame"]["revision"],scene_revision)
                 self.assertFalse(any(n["kind"]=="scene" for n in client.call("universe_read_contracts",{"universe":silver["universe"],"context_id":gate_context(None,{"kind":"exact","revision_id":narrator_revision})})["result"]["narrative"]))
+                # Explicit reader disclosure and version-bound scene corrections.
+                def narrative_scene():return next(n for n in client.call("universe_read_contracts",{"universe":silver["universe"],"context_id":gate_context()})["result"]["narrative"] if n["kind"]=="scene" and n["name"]==scene["name"])
+                def reader_at(scene_name,revision=None,error=False):
+                    reply=client.call("universe_open_context",{"universe":silver["universe"],"continuity_id":gate["continuity_id"],"revision":revision or {"kind":"head"},"represented_context":gate["context_id"],"reader_scene":{"name":scene_name},"temporal_query":{"kind":"at","time":{"kind":"exact","calendar":gate_calendar,"value":"16"}},"temporal_systems":[],"perspective":"reader"},error=error)
+                    return reply if error else reply["result"]["context_id"]
+                earlier_scene={**scene,"name":"Before the reveal","reader_order":6,"depicted_events":[]}
+                publish(gate_check(scenes=[earlier_scene]),"Reader order six discloses nothing.","silver-before-reveal",contracts=True)
+                original_scene=narrative_scene()
+                fact=next(f for f in client.call("universe_read_facts",{"universe":silver["universe"],"context_id":gate_context(16),"object_names":["Silver gate"]})["result"]["objects"][0]["facts"] if f["property"]=="location")
+                correction={"scene_handle":original_scene["scene_handle"],"reason":"The author explicitly reveals the gate location at this reader position.","disclosures":[{"kind":"fact","fact_handle":fact["fact_handle"]}]}
+                checked=gate_check(scene_corrections=[correction]);self.assertEqual(checked["status"],"checked_candidate",checked)
+                with self.assertRaises(RuntimeError):decisions.action({"action":"prepare","candidate":checked["candidate_handle"],"label":"Wrong scene authority","text":"Scene correction needs explicit contract review."})
+                reveal_revision=publish(checked,"At reader position seven the gate location is explicitly disclosed; depiction remains separate from character knowledge.","silver-scene-reveal",contracts=True)
+                revealed=narrative_scene();self.assertNotEqual(revealed["scene_handle"],original_scene["scene_handle"]);self.assertEqual(revealed["disclosures"][0]["declared_fact"]["property"],"location")
+                reader_fact=client.call("universe_read_facts",{"universe":silver["universe"],"context_id":reader_at(scene["name"]),"object_names":["Silver gate"]})["result"]["objects"][0]
+                self.assertTrue(any(f["property"]=="location" and f["value"]=="beneath the ridge" for f in reader_fact["facts"]),reader_fact)
+                before=client.call("universe_read_facts",{"universe":silver["universe"],"context_id":reader_at("Before the reveal"),"object_names":["Silver gate"]})["result"]["objects"][0]
+                self.assertNotEqual(before["identity"],"resolved")
+                stale=gate_check(scene_corrections=[{**correction,"reader_order":8}]);self.assertEqual(stale["status"],"needs_clarification");self.assertIsNone(stale["candidate_handle"])
+                missing_scene=gate_check(scene_corrections=[{**correction,"scene_handle":"ver_000000000000000000000099"}]);self.assertEqual(missing_scene["clarifications"],stale["clarifications"])
+                remove_revision=publish(gate_check(scene_corrections=[{"scene_handle":revealed["scene_handle"],"reason":"Author explicitly withdraws the reader reveal.","disclosures":[]}]),"The scene no longer reveals the gate location.","silver-scene-hide",contracts=True)
+                hidden=client.call("universe_read_facts",{"universe":silver["universe"],"context_id":reader_at(scene["name"]),"object_names":["Silver gate"]})["result"]["objects"][0];self.assertNotEqual(hidden["identity"],"resolved")
+                historical=client.call("universe_read_facts",{"universe":silver["universe"],"context_id":reader_at(scene["name"],{"kind":"exact","revision_id":reveal_revision}),"object_names":["Silver gate"]})["result"]["objects"][0];self.assertTrue(any(f["property"]=="location" for f in historical["facts"]))
+                republished=publish(gate_check(scene_corrections=[{**correction,"scene_handle":narrative_scene()["scene_handle"]}]),"The author explicitly restores the same pinned reader disclosure.","silver-scene-restore",contracts=True)
+                # Changing a disclosed fact's named subject also invalidates its pinned dependency closure.
+                publish(gate_check(aliases=[{"object":"Silver gate","text":"Gate of the ridge"}]),"The Silver gate acquires an explicitly authored alias.","silver-disclosure-dependency")
+                self.assertEqual(reader_at(scene["name"],error=True)["code"],"NOT_FOUND_OR_NOT_ACCESSIBLE")
+                self.assertEqual(gate_check(scene_corrections=[{"scene_handle":narrative_scene()["scene_handle"],"reason":"Retained disclosures still must match the edition.","reader_order":8}])["status"],"needs_clarification")
+                # A later assertion version must never replace the edition's earlier truth.
+                publish(gate_check(fact_endings=[{"fact_handle":fact["fact_handle"],"end_tick":"35","reason":"Explicitly shorten the location assertion's authored interval."}]),"The location assertion ends at thirty-five instead of forty.","silver-location-duration")
+                self.assertEqual(reader_at(scene["name"],error=True)["code"],"NOT_FOUND_OR_NOT_ACCESSIBLE")
+                historical=client.call("universe_read_facts",{"universe":silver["universe"],"context_id":reader_at(scene["name"],{"kind":"exact","revision_id":republished}),"object_names":["Silver gate"]})["result"]["objects"][0];self.assertTrue(any(f["property"]=="location" for f in historical["facts"]))
+                changed_fact=next(f for f in client.call("universe_read_facts",{"universe":silver["universe"],"context_id":gate_context(16),"object_names":["Silver gate"]})["result"]["objects"][0]["facts"] if f["property"]=="location")
+                mismatch=gate_check(scene_corrections=[{**correction,"scene_handle":narrative_scene()["scene_handle"],"disclosures":[{"kind":"fact","fact_handle":changed_fact["fact_handle"]}]}]);self.assertEqual(mismatch["status"],"needs_clarification");self.assertIsNone(mismatch["candidate_handle"])
+                # Existing history and character knowledge remain independent of reader reveals.
+                self.assertEqual(next(n for n in client.call("universe_read_contracts",{"universe":silver["universe"],"context_id":gate_context(16,{"kind":"exact","revision_id":scene_revision})})["result"]["narrative"] if n["kind"]=="scene")["disclosure_count"],0)
                 missing=gate_check(story_contexts=[{"name":"Missing narrator","introduce":True,"kind":"narrator","parent":gate["context_id"],"calendar":"Gate days","story_time":"22"}])
                 self.assertEqual(missing["status"],"needs_clarification");self.assertIsNone(missing["candidate_handle"])
                 # Explicit private author authority still cannot waive an independent boundary.

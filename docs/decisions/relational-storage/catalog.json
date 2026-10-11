@@ -7312,7 +7312,8 @@
         "DomainOperation_v62",
         "DomainOperation_v63",
         "DomainOperation_v64",
-        "DomainOperation_v65"
+        "DomainOperation_v65",
+        "DomainOperation_v66"
       ]
     },
     "DomainOperation_v0": {
@@ -11490,6 +11491,138 @@
     },
     "DomainOperation_v65_rationale": {
       "table": "r_domain_operation_v65_rationale",
+      "kind": "string"
+    },
+    "DomainOperation_v66": {
+      "table": "r_domain_operation_v66",
+      "kind": "object",
+      "fields": {
+        "kind": {
+          "model": "DomainOperation_v66_kind",
+          "required": true
+        },
+        "record": {
+          "model": "RecordRef",
+          "required": true
+        },
+        "expected_version": {
+          "model": "RecordVersionId",
+          "required": true
+        },
+        "replacement": {
+          "model": "SceneRef",
+          "required": true
+        },
+        "rationale": {
+          "model": "DomainOperation_v66_rationale",
+          "required": true
+        }
+      }
+    },
+    "DomainOperation_v66_kind": {
+      "table": "r_domain_operation_v66_kind",
+      "kind": "string",
+      "const": "revise_scene"
+    },
+    "SceneRef": {
+      "table": "r_scene_ref",
+      "kind": "object",
+      "fields": {
+        "workVersion": {
+          "model": "VersionRef",
+          "required": true
+        },
+        "sceneId": {
+          "model": "SceneRef_sceneId",
+          "required": true
+        },
+        "disclosedRecords": {
+          "model": "SceneRef_disclosedRecords",
+          "required": false
+        },
+        "viewpoint": {
+          "model": "SceneRef_viewpoint",
+          "required": false
+        },
+        "narrativePosition": {
+          "model": "SceneRef_narrativePosition",
+          "required": false
+        },
+        "depictedEvents": {
+          "model": "SceneRef_depictedEvents",
+          "required": true
+        },
+        "narrationFrame": {
+          "model": "SceneRef_narrationFrame",
+          "required": false
+        },
+        "worldAssociations": {
+          "model": "SceneRef_worldAssociations",
+          "required": true
+        }
+      }
+    },
+    "SceneRef_sceneId": {
+      "table": "r_scene_ref_scene_id",
+      "kind": "string"
+    },
+    "SceneRef_disclosedRecords": {
+      "table": "r_scene_ref_disclosed_records",
+      "kind": "array",
+      "item": "RecordRef"
+    },
+    "SceneRef_viewpoint": {
+      "table": "r_scene_ref_viewpoint",
+      "kind": "union",
+      "variants": [
+        "RecordRef",
+        "SceneRef_viewpoint_v1"
+      ]
+    },
+    "SceneRef_viewpoint_v1": {
+      "table": "r_scene_ref_viewpoint_v1",
+      "kind": "null"
+    },
+    "SceneRef_narrativePosition": {
+      "table": "r_scene_ref_narrative_position",
+      "kind": "union",
+      "variants": [
+        "SceneRef_narrativePosition_v0",
+        "SceneRef_narrativePosition_v1"
+      ]
+    },
+    "SceneRef_narrativePosition_v0": {
+      "table": "r_scene_ref_narrative_position_v0",
+      "kind": "integer"
+    },
+    "SceneRef_narrativePosition_v1": {
+      "table": "r_scene_ref_narrative_position_v1",
+      "kind": "null"
+    },
+    "SceneRef_depictedEvents": {
+      "table": "r_scene_ref_depicted_events",
+      "kind": "array",
+      "item": "RecordRef"
+    },
+    "SceneRef_narrationFrame": {
+      "table": "r_scene_ref_narration_frame",
+      "kind": "union",
+      "variants": [
+        "RecordRef",
+        "SceneRef_narrationFrame_v1"
+      ]
+    },
+    "SceneRef_narrationFrame_v1": {
+      "table": "r_scene_ref_narration_frame_v1",
+      "kind": "null"
+    },
+    "SceneRef_worldAssociations": {
+      "table": "r_scene_ref_world_associations",
+      "kind": "array",
+      "item": "WorldAssociation"
+    },
+    "DomainOperation_v66_rationale": {
+      "table": "r_domain_operation_v66_rationale",
       "kind": "string"
     },
     "StoredContext": {

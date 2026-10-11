@@ -533,6 +533,7 @@ pub(crate) fn compile_allocated(
             | ReviseAttitude { .. }
             | ReviseCommunication { .. }
             | ReviseInterpretation { .. }
+            | ReviseScene { .. }
             | AdoptRecordVersion { .. }
             | ReviseEvent { .. }
             | WithdrawEvent { .. }
@@ -659,6 +660,11 @@ pub(crate) fn compile_allocated(
                     expected_version,
                     Some(Payload::Communication(replacement.clone())),
                 )
+            }
+            ReviseScene { record, expected_version, replacement, rationale } => {
+                let Payload::SceneRef(old) = &current(&records,u,record,expected_version)?.payload else { return Err(invalid("expected scene")); };
+                if rationale.trim().is_empty() || old.scene_id != replacement.scene_id || old.work_version != replacement.work_version || old.world_associations != replacement.world_associations { return Err(invalid("Scene correction requires a reason and preserves identity, edition and worlds")); }
+                (record,expected_version,Some(Payload::SceneRef(replacement.clone())))
             }
             ReviseInterpretation {
                 record,
@@ -1232,6 +1238,16 @@ mod incremental_tests {
                 .map(|op| serde_json::from_value(op).unwrap())
                 .collect::<Vec<_>>(),
         )
+    }
+    #[test]
+    fn scene_revision_preserves_identity_edition_worlds_and_exact_version() {
+        let rows=vec![record(5,json!({"record_kind":"scene_ref","workVersion":{"universe":u(),"record":rid(2),"version":"ver_000000000000000000000002"},"sceneId":"Gate passage","disclosedRecords":[],"viewpoint":null,"narrativePosition":7,"depictedEvents":[],"narrationFrame":null,"worldAssociations":[]}))];
+        let mut replacement=serde_json::to_value(&rows[0].payload).unwrap();replacement.as_object_mut().unwrap().remove("record_kind");replacement["narrativePosition"]=json!(8);
+        let op=json!({"kind":"revise_scene","record":rr(5),"expected_version":rows[0].record_version_id,"replacement":replacement,"rationale":"Reader order correction"});
+        assert!(compile_json(&rows,vec![op.clone()]).is_ok());
+        for field in ["sceneId","workVersion","worldAssociations"] {let mut bad=op.clone();bad["replacement"][field]=match field {"sceneId"=>json!("Another scene"),"workVersion"=>json!({"universe":u(),"record":rid(3),"version":"ver_000000000000000000000003"}),_=>json!([{"world":"wld_000000000000000000000003","role":"setting","validity":{"kind":"unspecified"},"qualifiers":{}}])};assert!(compile_json(&rows,vec![bad]).is_err());}
+        let mut bad=op.clone();bad["expected_version"]=json!("ver_000000000000000000000099");assert!(compile_json(&rows,vec![bad]).is_err());
+        let mut bad=op;bad["rationale"]=json!("");assert!(compile_json(&rows,vec![bad]).is_err());
     }
     #[test]
     fn item_power_revision_is_version_and_target_bound() {

@@ -125,6 +125,9 @@ pub struct CheckChanges {
     /// Explicit scenes of an existing edition. Reader order, narration context and depicted events are independent; depiction does not disclose.
     #[serde(default)]
     pub scenes: Vec<WritingScene>,
+    /// Version-bound scene corrections; omitted fields remain authored, supplied lists replace explicitly. Edition and scene identity cannot change.
+    #[serde(default)]
+    pub scene_corrections: Vec<WritingSceneCorrection>,
     /// Only factual deltas; do not restate the universe or unchanged facts.
     #[schemars(length(max = 100))]
     #[serde(default)]
@@ -291,6 +294,29 @@ pub struct WritingScene {
     /// Opaque pinned occurred-event edit handles retrieved from ordinary factual research; never inferred from reader order/narration time.
     #[serde(default)]
     pub depicted_events: Vec<String>,
+    /// Explicit reader disclosures only. Depicted events never imply disclosure or character knowledge. Targets must match this edition's pinned canon.
+    #[serde(default)]
+    pub disclosures: Vec<WritingDisclosure>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag="kind", rename_all="snake_case", deny_unknown_fields)]
+pub enum WritingDisclosure {
+    Object { name: String },
+    Fact { fact_handle: String },
+    Event { event_handle: String },
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingSceneCorrection {
+    pub scene_handle: String,
+    pub reason: String,
+    #[serde(default)] pub narration_context: Option<String>,
+    #[serde(default)] pub viewpoint: Option<String>,
+    #[serde(default)] pub clear_viewpoint: bool,
+    #[serde(default)] pub reader_order: Option<u64>,
+    #[serde(default)] pub clear_reader_order: bool,
+    #[serde(default)] pub depicted_events: Option<Vec<String>>,
+    #[serde(default)] pub disclosures: Option<Vec<WritingDisclosure>>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

@@ -27,7 +27,7 @@ fn dependency<'a>(object: &'a Value, id: &Value) -> Option<&'a Value> {
         .chain(object["dependencies"].as_array().into_iter().flatten())
         .find(|r| r["identity"]["record_id"] == *id)
 }
-fn reference_name(object: &Value, id: &Value) -> String {
+pub(super) fn reference_name(object: &Value, id: &Value) -> String {
     dependency(object, id)
         .map(name)
         .unwrap_or_else(|| format!("Record {}", text(id)))
@@ -39,7 +39,7 @@ fn applicability(v: &Value) -> &'static str {
         None => "Applicability unresolved",
     }
 }
-fn value_text(v: &Value, object: &Value) -> String {
+pub(super) fn value_text(v: &Value, object: &Value) -> String {
     match v["kind"].as_str().unwrap_or_default() {
         "integer" | "decimal" => text(&v["digits"]).into(),
         "text" => text(&v["text"]).into(),

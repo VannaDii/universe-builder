@@ -20,6 +20,7 @@ pub(super) struct Form {
     pub(super) narrator: String,
     pub(super) scene_viewpoint: String,
     pub(super) scene_events: Vec<String>,
+    pub(super) scene_disclosures: Vec<String>,
 }
 fn checked(value: Value) -> Result<Value, String> {
     let operation: DomainOperation = serde_json::from_value(value).map_err(|e| e.to_string())?;
@@ -74,7 +75,8 @@ impl Form {
         let viewpoint=if self.scene_viewpoint.is_empty(){Value::Null}else{if !choices.iter().any(|c|c["kind"]=="entity"&&c["record_id"]==self.scene_viewpoint){return Err("Choose an existing viewpoint entity.".into());}json!({"universe":frame.universe,"record":self.scene_viewpoint})};
         let order=if self.order.is_empty(){None}else{Some(self.order.parse::<u64>().map_err(|_|"Reader order is a whole nonnegative position.")?)};
         let events:Vec<_>=self.scene_events.iter().map(|id|{if !choices.iter().any(|c|c["kind"]=="event"&&c["record_id"]==*id&&c["definition"]["occurrence"]=="occurred"){return Err("Inspect and select an occurred event explicitly.");}Ok(json!({"universe":frame.universe,"record":id}))}).collect::<Result<_,_>>()?;
-        checked(json!({"kind":"record_narrative_reference","client_ref":RecordId::generate(&mut rand::rng()),"record":"scene_ref","payload":{"record_kind":"scene_ref","workVersion":{"universe":frame.universe,"record":edition["record_id"],"version":edition["record_version_id"]},"sceneId":self.name,"disclosedRecords":[],"viewpoint":viewpoint,"narrativePosition":order,"depictedEvents":events,"narrationFrame":{"universe":frame.universe,"record":context["record_id"]},"worldAssociations":[]}}))
+        let disclosures:Vec<_>=self.scene_disclosures.iter().map(|id|{if !choices.iter().any(|c|["entity","assertion","event"].contains(&c["kind"].as_str().unwrap_or_default())&&c["record_id"]==*id){return Err("Inspect and select a disclosure target explicitly.");}Ok(json!({"universe":frame.universe,"record":id}))}).collect::<Result<_,_>>()?;
+        checked(json!({"kind":"record_narrative_reference","client_ref":RecordId::generate(&mut rand::rng()),"record":"scene_ref","payload":{"record_kind":"scene_ref","workVersion":{"universe":frame.universe,"record":edition["record_id"],"version":edition["record_version_id"]},"sceneId":self.name,"disclosedRecords":disclosures,"viewpoint":viewpoint,"narrativePosition":order,"depictedEvents":events,"narrationFrame":{"universe":frame.universe,"record":context["record_id"]},"worldAssociations":[]}}))
     }
     pub(super) fn create(&self, frame: &Frame) -> Result<Value, String> {
         if self.name.trim().is_empty() {
@@ -201,6 +203,8 @@ pub fn IdentityEditor(
             label{r#for:"scene-narration","Narration context and time"}super::select::RichSelect{id:"scene-narration",disabled,value:form.read().parent_context.clone(),options:super::select::record_choices(&choices,&["represented_context"],"Choose narrator context"),onchange:move|e:crate::select::SelectionEvent|form.write().parent_context=e.value()}
             label{r#for:"scene-viewpoint","Viewpoint (optional)"}super::select::RichSelect{id:"scene-viewpoint",disabled,value:form.read().scene_viewpoint.clone(),options:super::select::record_choices(&choices,&["entity"],"Unspecified"),onchange:move|e:crate::select::SelectionEvent|form.write().scene_viewpoint=e.value()}
             label{r#for:"scene-order","Reader order (optional, not story time)"}input{id:"scene-order",disabled,value:form.read().order.clone(),oninput:move|e|form.write().order=e.value()}
+            p{"Explicit reader reveals (independent of depiction and character knowledge). Inspect targets first; they must match the edition’s pinned canon."}
+            for target in choices.iter().filter(|c|["entity","assertion","event"].contains(&c["kind"].as_str().unwrap_or_default())){label{class:"check-label",input{r#type:"checkbox",disabled,checked:form.read().scene_disclosures.iter().any(|id|target["record_id"]==*id),onchange:{let id=target["record_id"].as_str().unwrap_or_default().to_string();move|e|{if e.checked(){form.write().scene_disclosures.push(id.clone());}else{form.write().scene_disclosures.retain(|old|old!=&id);}}}}{format!("Reveal: {}",target["label"].as_str().unwrap_or_default())}}}
             for event in choices.iter().filter(|c|c["kind"]=="event"&&c["definition"]["occurrence"]=="occurred"){label{class:"check-label",input{r#type:"checkbox",disabled,checked:form.read().scene_events.iter().any(|id|event["record_id"]==*id),onchange:{let id=event["record_id"].as_str().unwrap_or_default().to_string();move|e|{if e.checked(){form.write().scene_events.push(id.clone());}else{form.write().scene_events.retain(|old|old!=&id);}}}}{event["label"].as_str().unwrap_or_default().to_string()}}}
         }
         button{class:"secondary",disabled,onclick:{let frame=frame.clone();move|_|match if form.read().kind=="story_context"{form.read().create_context(&frame,&choices)}else if form.read().kind=="scene_ref"{form.read().create_scene(&frame,&choices)}else{form.read().create(&frame)}{Ok(op)=>{onadd.call(op);error.set(String::new());},Err(e)=>error.set(e)}},"Add to draft"}
@@ -319,6 +323,15 @@ mod tests {
         assert_eq!(op["payload"]["narrationFrame"]["record"],"rec_000000000000000000000003");
         assert_eq!(op["payload"]["depictedEvents"][0]["record"],"rec_000000000000000000000005");
         assert!(op["payload"]["disclosedRecords"].is_null() || op["payload"]["disclosedRecords"].as_array().unwrap().is_empty());
+        form.scene_disclosures=vec!["rec_000000000000000000000004".into()];
+        let reveal=form.create_scene(&frame,&choices).unwrap();assert_eq!(reveal["payload"]["disclosedRecords"][0]["record"],form.scene_disclosures[0]);
+        let selected=json!({"identity":{"record_id":"rec_000000000000000000000006"},"record_version_id":"ver_000000000000000000000006","payload":reveal["payload"]});
+        let clear=crate::inspector_editor::operation(&frame,&selected,"scene_clear_disclosures","","Explicitly withhold the reveal",None).unwrap();
+        assert!(clear["replacement"]["disclosedRecords"].as_array().is_none_or(Vec::is_empty));assert_eq!(clear["replacement"]["workVersion"],reveal["payload"]["workVersion"]);assert_eq!(clear["replacement"]["depictedEvents"],reveal["payload"]["depictedEvents"]);assert_eq!(clear["expected_version"],selected["record_version_id"]);
+        assert!(crate::inspector_editor::operation(&frame,&selected,"scene_order","8","",None).is_err());
+        let ordered=crate::inspector_editor::operation(&frame,&selected,"scene_order","8","Correct reader order",None).unwrap();assert_eq!(ordered["replacement"]["narrativePosition"],8);assert_eq!(ordered["replacement"]["disclosedRecords"],reveal["payload"]["disclosedRecords"]);
+        let rows=vec![json!({"identity":{"record_id":"rec_000000000000000000000004"},"payload":{"record_kind":"entity","names":[{"text":"Gate"}]}}),json!({"identity":{"record_id":"rec_000000000000000000000008"},"payload":{"record_kind":"property","key":"location"}}),json!({"identity":{"record_id":"rec_000000000000000000000009"},"payload":{"record_kind":"proposition","subject":{"record":"rec_000000000000000000000004"},"predicate":{"record":"rec_000000000000000000000008"},"value":{"kind":"text","text":"ridge"}}}),json!({"identity":{"record_id":"rec_000000000000000000000010"},"payload":{"record_kind":"assertion","proposition":{"record":"rec_000000000000000000000009"},"polarity":"support"}})];
+        let options=crate::author::choices(&[],&rows,"[]");assert_eq!(options.iter().find(|row|row["kind"]=="assertion").unwrap()["label"],"Gate — location: ridge (support)");
         let mut stale=choices.clone();stale[0]["record_version_id"]=Value::Null;
         assert!(form.create_scene(&frame,&stale).unwrap_err().contains("exact version"));
         form.order="tomorrow".into();assert!(form.create_scene(&frame,&choices).is_err());

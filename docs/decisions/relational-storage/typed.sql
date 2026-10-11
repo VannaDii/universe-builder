@@ -4786,7 +4786,7 @@ CREATE TABLE "r_issue_decision_mode" (
 
 CREATE TABLE "r_domain_operation" (
   __row_id INTEGER PRIMARY KEY,
-  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 65),
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 66),
   v0 INTEGER REFERENCES "r_domain_operation_v0"(__row_id),
   v1 INTEGER REFERENCES "r_domain_operation_v1"(__row_id),
   v2 INTEGER REFERENCES "r_domain_operation_v2"(__row_id),
@@ -4853,6 +4853,7 @@ CREATE TABLE "r_domain_operation" (
   v63 INTEGER REFERENCES "r_domain_operation_v63"(__row_id),
   v64 INTEGER REFERENCES "r_domain_operation_v64"(__row_id),
   v65 INTEGER REFERENCES "r_domain_operation_v65"(__row_id),
+  v66 INTEGER REFERENCES "r_domain_operation_v66"(__row_id),
   CHECK(variant=0 OR v0 IS NULL),
   CHECK(variant!=0 OR v0 IS NOT NULL),
   CHECK(variant=1 OR v1 IS NULL),
@@ -4984,7 +4985,9 @@ CREATE TABLE "r_domain_operation" (
   CHECK(variant=64 OR v64 IS NULL),
   CHECK(variant!=64 OR v64 IS NOT NULL),
   CHECK(variant=65 OR v65 IS NULL),
-  CHECK(variant!=65 OR v65 IS NOT NULL)
+  CHECK(variant!=65 OR v65 IS NOT NULL),
+  CHECK(variant=66 OR v66 IS NULL),
+  CHECK(variant!=66 OR v66 IS NOT NULL)
 ) STRICT;
 
 CREATE TABLE "r_domain_operation_v0" (
@@ -7592,6 +7595,102 @@ CREATE TABLE "r_domain_operation_v65" (
   CHECK(("expected_version__state"=2 AND "expected_version" IS NOT NULL) OR ("expected_version__state" IN (0,1) AND "expected_version" IS NULL)),
   CHECK(("rationale__state"=2 AND "rationale" IS NOT NULL) OR ("rationale__state" IN (0,1) AND "rationale" IS NULL))
 ) STRICT;
+
+CREATE TABLE "r_domain_operation_v66" (
+  __row_id INTEGER PRIMARY KEY,
+  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
+  "kind" TEXT,
+  "record__state" INTEGER NOT NULL CHECK("record__state" IN (2)),
+  "record" INTEGER REFERENCES "r_record_ref"(__row_id),
+  "expected_version__state" INTEGER NOT NULL CHECK("expected_version__state" IN (2)),
+  "expected_version" TEXT,
+  "replacement__state" INTEGER NOT NULL CHECK("replacement__state" IN (2)),
+  "replacement" INTEGER REFERENCES "r_scene_ref"(__row_id),
+  "rationale__state" INTEGER NOT NULL CHECK("rationale__state" IN (2)),
+  "rationale" TEXT,
+  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
+  CHECK("kind"='revise_scene'),
+  CHECK(("record__state"=2 AND "record" IS NOT NULL) OR ("record__state" IN (0,1) AND "record" IS NULL)),
+  CHECK(("expected_version__state"=2 AND "expected_version" IS NOT NULL) OR ("expected_version__state" IN (0,1) AND "expected_version" IS NULL)),
+  CHECK(("replacement__state"=2 AND "replacement" IS NOT NULL) OR ("replacement__state" IN (0,1) AND "replacement" IS NULL)),
+  CHECK(("rationale__state"=2 AND "rationale" IS NOT NULL) OR ("rationale__state" IN (0,1) AND "rationale" IS NULL))
+) STRICT;
+
+CREATE TABLE "r_scene_ref" (
+  __row_id INTEGER PRIMARY KEY,
+  "workVersion__state" INTEGER NOT NULL CHECK("workVersion__state" IN (2)),
+  "workVersion" INTEGER REFERENCES "r_version_ref"(__row_id),
+  "sceneId__state" INTEGER NOT NULL CHECK("sceneId__state" IN (2)),
+  "sceneId" TEXT,
+  "disclosedRecords__state" INTEGER NOT NULL CHECK("disclosedRecords__state" IN (0,2)),
+  "disclosedRecords" INTEGER REFERENCES "r_scene_ref_disclosed_records"(__row_id),
+  "viewpoint__state" INTEGER NOT NULL CHECK("viewpoint__state" IN (0,1,2)),
+  "viewpoint" INTEGER REFERENCES "r_scene_ref_viewpoint"(__row_id),
+  "narrativePosition__state" INTEGER NOT NULL CHECK("narrativePosition__state" IN (0,1,2)),
+  "narrativePosition" INTEGER REFERENCES "r_scene_ref_narrative_position"(__row_id),
+  "depictedEvents__state" INTEGER NOT NULL CHECK("depictedEvents__state" IN (2)),
+  "depictedEvents" INTEGER REFERENCES "r_scene_ref_depicted_events"(__row_id),
+  "narrationFrame__state" INTEGER NOT NULL CHECK("narrationFrame__state" IN (0,1,2)),
+  "narrationFrame" INTEGER REFERENCES "r_scene_ref_narration_frame"(__row_id),
+  "worldAssociations__state" INTEGER NOT NULL CHECK("worldAssociations__state" IN (2)),
+  "worldAssociations" INTEGER REFERENCES "r_scene_ref_world_associations"(__row_id),
+  CHECK(("workVersion__state"=2 AND "workVersion" IS NOT NULL) OR ("workVersion__state" IN (0,1) AND "workVersion" IS NULL)),
+  CHECK(("sceneId__state"=2 AND "sceneId" IS NOT NULL) OR ("sceneId__state" IN (0,1) AND "sceneId" IS NULL)),
+  CHECK(("disclosedRecords__state"=2 AND "disclosedRecords" IS NOT NULL) OR ("disclosedRecords__state" IN (0,1) AND "disclosedRecords" IS NULL)),
+  CHECK(("viewpoint__state"=2 AND "viewpoint" IS NOT NULL) OR ("viewpoint__state" IN (0,1) AND "viewpoint" IS NULL)),
+  CHECK(("narrativePosition__state"=2 AND "narrativePosition" IS NOT NULL) OR ("narrativePosition__state" IN (0,1) AND "narrativePosition" IS NULL)),
+  CHECK(("depictedEvents__state"=2 AND "depictedEvents" IS NOT NULL) OR ("depictedEvents__state" IN (0,1) AND "depictedEvents" IS NULL)),
+  CHECK(("narrationFrame__state"=2 AND "narrationFrame" IS NOT NULL) OR ("narrationFrame__state" IN (0,1) AND "narrationFrame" IS NULL)),
+  CHECK(("worldAssociations__state"=2 AND "worldAssociations" IS NOT NULL) OR ("worldAssociations__state" IN (0,1) AND "worldAssociations" IS NULL))
+) STRICT;
+
+CREATE TABLE "r_scene_ref_disclosed_records" (
+  __row_id INTEGER PRIMARY KEY
+) STRICT;
+
+CREATE TABLE "r_scene_ref_disclosed_records_items" (owner INTEGER NOT NULL REFERENCES "r_scene_ref_disclosed_records"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item INTEGER REFERENCES "r_record_ref"(__row_id), PRIMARY KEY(owner,ordinal)) STRICT;
+
+CREATE TABLE "r_scene_ref_viewpoint" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_record_ref"(__row_id),
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_scene_ref_narrative_position" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 TEXT,
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_scene_ref_depicted_events" (
+  __row_id INTEGER PRIMARY KEY
+) STRICT;
+
+CREATE TABLE "r_scene_ref_depicted_events_items" (owner INTEGER NOT NULL REFERENCES "r_scene_ref_depicted_events"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item INTEGER REFERENCES "r_record_ref"(__row_id), PRIMARY KEY(owner,ordinal)) STRICT;
+
+CREATE TABLE "r_scene_ref_narration_frame" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_record_ref"(__row_id),
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_scene_ref_world_associations" (
+  __row_id INTEGER PRIMARY KEY
+) STRICT;
+
+CREATE TABLE "r_scene_ref_world_associations_items" (owner INTEGER NOT NULL REFERENCES "r_scene_ref_world_associations"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item INTEGER REFERENCES "r_world_association"(__row_id), PRIMARY KEY(owner,ordinal)) STRICT;
 
 CREATE TABLE "r_stored_context" (
   __row_id INTEGER PRIMARY KEY,
@@ -12374,6 +12473,50 @@ CREATE TRIGGER "r_domain_operation_v64_interpretation_no_delete" BEFORE DELETE O
 CREATE TRIGGER "r_domain_operation_v65_no_update" BEFORE UPDATE ON "r_domain_operation_v65" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_domain_operation_v65_no_delete" BEFORE DELETE ON "r_domain_operation_v65" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v66_no_update" BEFORE UPDATE ON "r_domain_operation_v66" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v66_no_delete" BEFORE DELETE ON "r_domain_operation_v66" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_no_update" BEFORE UPDATE ON "r_scene_ref" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_no_delete" BEFORE DELETE ON "r_scene_ref" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_disclosed_records_no_update" BEFORE UPDATE ON "r_scene_ref_disclosed_records" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_disclosed_records_no_delete" BEFORE DELETE ON "r_scene_ref_disclosed_records" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_disclosed_records_items_no_update" BEFORE UPDATE ON "r_scene_ref_disclosed_records_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_disclosed_records_items_no_delete" BEFORE DELETE ON "r_scene_ref_disclosed_records_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_viewpoint_no_update" BEFORE UPDATE ON "r_scene_ref_viewpoint" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_viewpoint_no_delete" BEFORE DELETE ON "r_scene_ref_viewpoint" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_narrative_position_no_update" BEFORE UPDATE ON "r_scene_ref_narrative_position" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_narrative_position_no_delete" BEFORE DELETE ON "r_scene_ref_narrative_position" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_depicted_events_no_update" BEFORE UPDATE ON "r_scene_ref_depicted_events" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_depicted_events_no_delete" BEFORE DELETE ON "r_scene_ref_depicted_events" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_depicted_events_items_no_update" BEFORE UPDATE ON "r_scene_ref_depicted_events_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_depicted_events_items_no_delete" BEFORE DELETE ON "r_scene_ref_depicted_events_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_narration_frame_no_update" BEFORE UPDATE ON "r_scene_ref_narration_frame" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_narration_frame_no_delete" BEFORE DELETE ON "r_scene_ref_narration_frame" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_world_associations_no_update" BEFORE UPDATE ON "r_scene_ref_world_associations" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_world_associations_no_delete" BEFORE DELETE ON "r_scene_ref_world_associations" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_world_associations_items_no_update" BEFORE UPDATE ON "r_scene_ref_world_associations_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_scene_ref_world_associations_items_no_delete" BEFORE DELETE ON "r_scene_ref_world_associations_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_stored_context_no_update" BEFORE UPDATE ON "r_stored_context" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 

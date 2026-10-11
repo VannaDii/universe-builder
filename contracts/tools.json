@@ -2222,6 +2222,14 @@
           },
           "default": []
         },
+        "scene_corrections": {
+          "description": "Version-bound scene corrections; omitted fields remain authored, supplied lists replace explicitly. Edition and scene identity cannot change.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WritingSceneCorrection"
+          },
+          "default": []
+        },
         "changes": {
           "description": "Only factual deltas; do not restate the universe or unchanged facts.",
           "type": "array",
@@ -2699,6 +2707,14 @@
                 "type": "string"
               },
               "default": []
+            },
+            "disclosures": {
+              "description": "Explicit reader disclosures only. Depicted events never imply disclosure or character knowledge. Targets must match this edition's pinned canon.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/WritingDisclosure"
+              },
+              "default": []
             }
           },
           "additionalProperties": false,
@@ -2708,6 +2724,128 @@
             "work",
             "edition",
             "narration_context"
+          ]
+        },
+        "WritingDisclosure": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "object"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "name"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "fact_handle": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "fact"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "fact_handle"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "event_handle": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "event"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "event_handle"
+              ]
+            }
+          ]
+        },
+        "WritingSceneCorrection": {
+          "type": "object",
+          "properties": {
+            "scene_handle": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "narration_context": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "viewpoint": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "clear_viewpoint": {
+              "type": "boolean",
+              "default": false
+            },
+            "reader_order": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0,
+              "default": null
+            },
+            "clear_reader_order": {
+              "type": "boolean",
+              "default": false
+            },
+            "depicted_events": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              },
+              "default": null
+            },
+            "disclosures": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/$defs/WritingDisclosure"
+              },
+              "default": null
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "scene_handle",
+            "reason"
           ]
         },
         "ObjectChange": {
@@ -30688,6 +30826,36 @@
               ]
             },
             {
+              "description": "Exact scene correction; scene identity, immutable edition and world associations stay unchanged.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/SceneRef"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_scene"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
+              ]
+            },
+            {
               "description": "Historical attitude correction; stance, holder, acquisition and basis stay unchanged. Knows permits duration edits only.",
               "type": "object",
               "properties": {
@@ -38085,6 +38253,72 @@
             "dependencies",
             "capabilities",
             "records"
+          ]
+        },
+        "SceneRef": {
+          "description": "A scene reference: reader order, narration time, depicted event time,\nand local world time stay separate (spec §36.7).",
+          "type": "object",
+          "properties": {
+            "workVersion": {
+              "$ref": "#/$defs/VersionRef"
+            },
+            "sceneId": {
+              "type": "string"
+            },
+            "disclosedRecords": {
+              "description": "Explicit reader disclosures; depicted events alone do not establish knowledge.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "viewpoint": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "narrativePosition": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0
+            },
+            "depictedEvents": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "narrationFrame": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "worldAssociations": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/WorldAssociation"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "workVersion",
+            "sceneId",
+            "depictedEvents",
+            "worldAssociations"
           ]
         },
         "AttributeEvidence": {
@@ -43686,6 +43920,36 @@
               ]
             },
             {
+              "description": "Exact scene correction; scene identity, immutable edition and world associations stay unchanged.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/SceneRef"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_scene"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
+              ]
+            },
+            {
               "description": "Historical attitude correction; stance, holder, acquisition and basis stay unchanged. Knows permits duration edits only.",
               "type": "object",
               "properties": {
@@ -50294,6 +50558,72 @@
             "records"
           ]
         },
+        "SceneRef": {
+          "description": "A scene reference: reader order, narration time, depicted event time,\nand local world time stay separate (spec §36.7).",
+          "type": "object",
+          "properties": {
+            "workVersion": {
+              "$ref": "#/$defs/VersionRef"
+            },
+            "sceneId": {
+              "type": "string"
+            },
+            "disclosedRecords": {
+              "description": "Explicit reader disclosures; depicted events alone do not establish knowledge.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "viewpoint": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "narrativePosition": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0
+            },
+            "depictedEvents": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "narrationFrame": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "worldAssociations": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/WorldAssociation"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "workVersion",
+            "sceneId",
+            "depictedEvents",
+            "worldAssociations"
+          ]
+        },
         "AttributeEvidence": {
           "description": "Explicit evidence for an incremental attribute. No event linkage or inferred\ntime, polarity, precision, or source truth is introduced by this convenience.",
           "type": "object",
@@ -52680,6 +53010,36 @@
                 "kind",
                 "record",
                 "expected_version",
+                "rationale"
+              ]
+            },
+            {
+              "description": "Exact scene correction; scene identity, immutable edition and world associations stay unchanged.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/SceneRef"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_scene"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
                 "rationale"
               ]
             },
@@ -59286,6 +59646,72 @@
             "dependencies",
             "capabilities",
             "records"
+          ]
+        },
+        "SceneRef": {
+          "description": "A scene reference: reader order, narration time, depicted event time,\nand local world time stay separate (spec §36.7).",
+          "type": "object",
+          "properties": {
+            "workVersion": {
+              "$ref": "#/$defs/VersionRef"
+            },
+            "sceneId": {
+              "type": "string"
+            },
+            "disclosedRecords": {
+              "description": "Explicit reader disclosures; depicted events alone do not establish knowledge.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "viewpoint": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "narrativePosition": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0
+            },
+            "depictedEvents": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "narrationFrame": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "worldAssociations": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/WorldAssociation"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "workVersion",
+            "sceneId",
+            "depictedEvents",
+            "worldAssociations"
           ]
         },
         "AttributeEvidence": {
@@ -61893,6 +62319,36 @@
               ]
             },
             {
+              "description": "Exact scene correction; scene identity, immutable edition and world associations stay unchanged.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/SceneRef"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_scene"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
+              ]
+            },
+            {
               "description": "Historical attitude correction; stance, holder, acquisition and basis stay unchanged. Knows permits duration edits only.",
               "type": "object",
               "properties": {
@@ -68495,6 +68951,72 @@
             "dependencies",
             "capabilities",
             "records"
+          ]
+        },
+        "SceneRef": {
+          "description": "A scene reference: reader order, narration time, depicted event time,\nand local world time stay separate (spec §36.7).",
+          "type": "object",
+          "properties": {
+            "workVersion": {
+              "$ref": "#/$defs/VersionRef"
+            },
+            "sceneId": {
+              "type": "string"
+            },
+            "disclosedRecords": {
+              "description": "Explicit reader disclosures; depicted events alone do not establish knowledge.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "viewpoint": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "narrativePosition": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0
+            },
+            "depictedEvents": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "narrationFrame": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "worldAssociations": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/WorldAssociation"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "workVersion",
+            "sceneId",
+            "depictedEvents",
+            "worldAssociations"
           ]
         },
         "AttributeEvidence": {
@@ -75762,6 +76284,36 @@
               ]
             },
             {
+              "description": "Exact scene correction; scene identity, immutable edition and world associations stay unchanged.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/SceneRef"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_scene"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
+              ]
+            },
+            {
               "description": "Historical attitude correction; stance, holder, acquisition and basis stay unchanged. Knows permits duration edits only.",
               "type": "object",
               "properties": {
@@ -82047,6 +82599,72 @@
             "dependencies",
             "capabilities",
             "records"
+          ]
+        },
+        "SceneRef": {
+          "description": "A scene reference: reader order, narration time, depicted event time,\nand local world time stay separate (spec §36.7).",
+          "type": "object",
+          "properties": {
+            "workVersion": {
+              "$ref": "#/$defs/VersionRef"
+            },
+            "sceneId": {
+              "type": "string"
+            },
+            "disclosedRecords": {
+              "description": "Explicit reader disclosures; depicted events alone do not establish knowledge.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "viewpoint": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "narrativePosition": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0
+            },
+            "depictedEvents": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "narrationFrame": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "worldAssociations": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/WorldAssociation"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "workVersion",
+            "sceneId",
+            "depictedEvents",
+            "worldAssociations"
           ]
         },
         "AttributeEvidence": {
@@ -85763,6 +86381,36 @@
               ]
             },
             {
+              "description": "Exact scene correction; scene identity, immutable edition and world associations stay unchanged.",
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/SceneRef"
+                },
+                "rationale": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_scene"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement",
+                "rationale"
+              ]
+            },
+            {
               "description": "Historical attitude correction; stance, holder, acquisition and basis stay unchanged. Knows permits duration edits only.",
               "type": "object",
               "properties": {
@@ -92048,6 +92696,72 @@
             "dependencies",
             "capabilities",
             "records"
+          ]
+        },
+        "SceneRef": {
+          "description": "A scene reference: reader order, narration time, depicted event time,\nand local world time stay separate (spec §36.7).",
+          "type": "object",
+          "properties": {
+            "workVersion": {
+              "$ref": "#/$defs/VersionRef"
+            },
+            "sceneId": {
+              "type": "string"
+            },
+            "disclosedRecords": {
+              "description": "Explicit reader disclosures; depicted events alone do not establish knowledge.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "viewpoint": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "narrativePosition": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0
+            },
+            "depictedEvents": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "narrationFrame": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "worldAssociations": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/WorldAssociation"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "workVersion",
+            "sceneId",
+            "depictedEvents",
+            "worldAssociations"
           ]
         },
         "AttributeEvidence": {

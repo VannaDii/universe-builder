@@ -1013,13 +1013,17 @@ and `reader_order` are explicit. `depicted_events` uses current occurred-event
 handles from factual research. The engine pins the immutable edition version and
 the proposal revision; the existing SceneRef retains event identities within that
 revision. Narration time, each linked event time and reader order stay separate.
-No reader disclosures are inferred; this finite path creates scenes with none.
-Explicit disclosures and segment editions remain advanced authoring.
+No reader disclosures are inferred. `disclosures` explicitly selects an existing
+object by name, an authored `fact_handle`, or an occurred `event_handle` using
+`kind: object`, `fact` or `event`. A revealed fact includes its existing dependency
+closure; it never grants character knowledge. Editions use one pinned canon
+revision. Historical advanced segment editions remain stored but are outside this
+ordinary path.
 
 Contexts, editions and scenes require private contract source review and separate
 exact approval/publication. Named research returns these declarations in
 `universe_read_contracts.narrative`; Reader context opening accepts
-`reader_scene: {name: "Event sixteen passage"}` or the discovered opaque handle.
+`reader_scene: {name: "Event sixteen passage"}` or the discovered `reader_scene_handle`.
 Ambiguous/inaccessible names are rejected. Unbound editions cannot authorize a
 Reader view. Current and exact historical contexts retain their pinned data.
 
@@ -1028,3 +1032,24 @@ edition. Select an existing narrator and explicit narration date/time. Inspect a
 published edition and any linked events in the explorer to load their pinned
 references before staging the scene. Viewpoint/order may stay unspecified.
 Existing draft-context safety and exact source review remain in force.
+
+`universe_read_contracts.narrative` returns a version-bound `scene_handle`.
+`scene_corrections` requires that current handle and an author reason. Omitted
+fields remain unchanged; supplied `depicted_events` or `disclosures` lists explicitly
+replace those lists (an empty list clears them). Optional narration context,
+viewpoint and reader order may be corrected; `clear_viewpoint` and
+`clear_reader_order` explicitly remove those optional fields. Scene identity,
+edition and world associations cannot change. Private contract source review and
+separate exact approval are required for corrections and reveals.
+
+Disclosure targets and their dependencies must match the edition's pinned canon.
+A Reader view is held when its selected frame cannot supply those exact versions;
+later facts are never substituted for an earlier edition. Exact historical frames
+continue to show their original reveals. Reader order accumulates only explicit
+disclosures at or before the selected scene. Revealing, removing or moving a
+reveal does not alter character knowledge or execute depicted events.
+
+The existing scene form offers explicit reveal checkboxes. The inspected scene
+control stages reveal/removal, narration/viewpoint/order and depicted-event
+corrections into the existing draft and exact review workflow. Inspect targets to
+load their named choices. Existing unfinished-draft context guards remain in force.

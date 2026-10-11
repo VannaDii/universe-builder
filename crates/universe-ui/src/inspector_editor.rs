@@ -24,6 +24,23 @@ pub(super) fn operation(
     }
     let mut op = json!({"kind":action,"record":{"universe":frame.universe,"record":selected["identity"]["record_id"]},"expected_version":selected["record_version_id"]});
     match action {
+        "scene_reveal" | "scene_clear_disclosures" | "scene_context" | "scene_viewpoint" | "scene_clear_viewpoint" | "scene_order" | "scene_clear_order" | "scene_event" | "scene_clear_events" => {
+            if selected["payload"]["record_kind"] != "scene_ref" || reason.trim().is_empty() {return Err("Inspect the original scene and explain its correction.".into());}
+            let mut replacement=selected["payload"].clone();replacement.as_object_mut().unwrap().remove("record_kind");
+            let reference=if ["scene_reveal","scene_context","scene_viewpoint","scene_event"].contains(&action){json!({"universe":frame.universe,"record":universe_domain::ids::RecordId::parse(value).map_err(|e|e.to_string())?})}else{Value::Null};
+            match action {
+                "scene_reveal"=>{let mut records=replacement["disclosedRecords"].as_array().cloned().unwrap_or_default();if !records.contains(&reference){records.push(reference);}replacement["disclosedRecords"]=json!(records);},
+                "scene_clear_disclosures"=>replacement["disclosedRecords"]=json!([]),
+                "scene_context"=>replacement["narrationFrame"]=reference,
+                "scene_viewpoint"=>replacement["viewpoint"]=reference,
+                "scene_clear_viewpoint"=>replacement["viewpoint"]=Value::Null,
+                "scene_order"=>replacement["narrativePosition"]=json!(value.parse::<u64>().map_err(|_|"Reader order is a nonnegative whole number")?),
+                "scene_clear_order"=>replacement["narrativePosition"]=Value::Null,
+                "scene_event"=>{let mut events=replacement["depictedEvents"].as_array().cloned().unwrap_or_default();if !events.contains(&reference){events.push(reference);}replacement["depictedEvents"]=json!(events);},
+                _=>replacement["depictedEvents"]=json!([]),
+            }
+            op["kind"]=json!("revise_scene");op["replacement"]=replacement;op["rationale"]=json!(reason);
+        }
         "message_sender"
         | "message_to"
         | "message_received_by"
@@ -651,6 +668,7 @@ pub fn InspectorEditor(
             ("attitude_start", "Correct historical interval start"),
             ("attitude_end", "Explicitly end attitude duration"),
         ],
+        "scene_ref" => vec![("","Keep scene"),("scene_reveal","Explicitly reveal an inspected record to readers"),("scene_clear_disclosures","Explicitly clear reader disclosures"),("scene_context","Correct narration context"),("scene_viewpoint","Correct viewpoint"),("scene_clear_viewpoint","Explicitly clear viewpoint"),("scene_order","Correct reader order"),("scene_clear_order","Explicitly clear reader order"),("scene_event","Add explicitly depicted event"),("scene_clear_events","Explicitly clear depicted events")],
         "item_power" => vec![
             ("", "Keep grant"),
             ("power_value", "Correct granted value"),
@@ -788,6 +806,9 @@ pub fn InspectorEditor(
             else if ["message_content","knowledge_interpretation"].contains(&action().as_str()){label{r#for:"inspector-message-claim","Explicit replacement claim"}super::select::RichSelect{id:"inspector-message-claim",disabled,value:value(),options:super::select::record_choices(&choices,&["proposition"],"Choose claim"),onchange:move|e:super::select::SelectionEvent|value.set(e.value())}}
             else if action()=="message_distorted"{label{r#for:"inspector-message-distortion","Transmission distorted"}super::select::RichSelect{id:"inspector-message-distortion",disabled,value:value(),options:super::select::choices(&[("","Choose explicitly"),("true","True"),("false","False")]),onchange:move|e:super::select::SelectionEvent|value.set(e.value())}}
             else if !action().contains("clear_"){label{r#for:"inspector-message-value","Explicit channel or authored date/tick"}input{id:"inspector-message-value",disabled,value,oninput:move|e|value.set(e.value())}}
+        }else if action().starts_with("scene_"){
+            p{"This corrects the existing scene in its unchanged edition. Reveal is explicit reader access, not character knowledge; depicting an event never reveals it. Targets must match the edition’s pinned canon."}
+            if ["scene_reveal","scene_context","scene_viewpoint","scene_event"].contains(&action().as_str()){label{r#for:"inspector-scene-record","Inspected named target"}super::select::RichSelect{id:"inspector-scene-record",disabled,value:value(),options:super::select::record_choices(&choices.iter().filter(|c|if action()=="scene_context"{c["definition"]["kind"]["kind"]=="narrator"&&c["definition"]["chronology"].is_object()}else if action()=="scene_event"{c["definition"]["occurrence"]=="occurred"}else{true}).cloned().collect::<Vec<_>>(),if action()=="scene_context"{&["represented_context"]}else if action()=="scene_viewpoint"{&["entity"]}else if action()=="scene_event"{&["event"]}else{&["entity","assertion","event"]},"Inspect and select explicitly"),onchange:move|e:super::select::SelectionEvent|value.set(e.value())}}else if action()=="scene_order"{label{r#for:"inspector-scene-order","Reader order (not story time)"}input{id:"inspector-scene-order",disabled,value,oninput:move|e|value.set(e.value())}}
         }else if action().starts_with("attitude_"){
             p{"This edits the recorded historical attitude. A later change or loss needs a separate declaration. Stance, holder, acquisition and basis stay unchanged; knowledge accepts duration edits only and requires actual author review."}
             if action()=="attitude_value" && attitude_value_kind=="boolean"{label{r#for:"inspector-attitude-bool","Historical attributed value"}super::select::RichSelect{id:"inspector-attitude-bool",disabled,value:value(),options:super::select::choices(&[("","Choose explicitly"),("true","True"),("false","False")]),onchange:move|e:super::select::SelectionEvent|value.set(e.value())}}else if action()=="attitude_value" && attitude_value_kind=="entity_ref"{label{r#for:"inspector-attitude-object","Historical attributed object"}super::select::RichSelect{id:"inspector-attitude-object",disabled,value:value(),options:super::select::record_choices(&choices,&["entity"],"Choose object"),onchange:move|e:super::select::SelectionEvent|value.set(e.value())}}else if action()!="attitude_clear_certainty"{label{r#for:"inspector-attitude-value","Explicit replacement value, certainty or authored date/tick"}input{id:"inspector-attitude-value",disabled,value,oninput:move|e|value.set(e.value())}}

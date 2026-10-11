@@ -399,7 +399,10 @@ impl Workflow<'_> {
                 return !contracts || !matches!(c.kind,RepresentedContextKind::Authored{..}|RepresentedContextKind::Narrator{..}) || c.parent.is_none() || c.chronology.is_none() || matches!(&c.kind,RepresentedContextKind::Narrator{narrator}if !originals.iter().any(|r|r.identity.record_id==narrator.record&&matches!(r.payload,Payload::Entity(_))));
             }
             if let DomainOperation::RecordNarrativeReference{record,payload,..}=op {
-                return !contracts || !matches!((record,payload),(RecordKind::WorkVersion,Payload::WorkVersion(_))|(RecordKind::SceneRef,Payload::SceneRef(_)));
+                return !contracts || !matches!((record,payload),(RecordKind::WorkVersion,Payload::WorkVersion(_))|(RecordKind::SceneRef,Payload::SceneRef(_))) || matches!(payload,Payload::SceneRef(scene)if self.check_scene_disclosures(&scene.work_version,&scene.disclosed_records,&originals).is_err());
+            }
+            if let DomainOperation::ReviseScene { record,expected_version,replacement,rationale }=op {
+                return !contracts || rationale.trim().is_empty() || self.check_scene_disclosures(&replacement.work_version,&replacement.disclosed_records,&originals).is_err() || !originals.iter().any(|r|r.identity.record_id==record.record && &r.record_version_id==expected_version && matches!(&r.payload,Payload::SceneRef(old)if old.scene_id==replacement.scene_id && old.work_version==replacement.work_version && old.world_associations==replacement.world_associations));
             }
             if let DomainOperation::AddBelief { record, .. } = op {
                 if record

@@ -794,7 +794,7 @@ impl Workflow<'_> {
             .records(&ctx.frame.continuity, &ctx.frame.revision)?;
         let mut visible = self.visible_ids(&all)?;
         visible = visible
-            .intersection(&perspective_ids(&all, &ctx.frame)?)
+            .intersection(&perspective_ids(&all, &ctx.frame, self.kernel)?)
             .cloned()
             .collect();
         let records: Vec<_> = all

@@ -2235,6 +2235,13 @@ pub enum DomainOperation {
         interpretation: Option<RecordRef>,
         rationale: String,
     },
+    /// Exact scene correction; scene identity, immutable edition and world associations stay unchanged.
+    ReviseScene {
+        record: RecordRef,
+        expected_version: RecordVersionId,
+        replacement: SceneRef,
+        rationale: String,
+    },
     /// Historical attitude correction; stance, holder, acquisition and basis stay unchanged. Knows permits duration edits only.
     ReviseAttitude {
         record: RecordRef,
@@ -2350,7 +2357,8 @@ impl DomainOperation {
             | WithdrawEvent { .. }
             | ReviseAttitude { .. }
             | ReviseCommunication { .. }
-            | ReviseInterpretation { .. } => OperationAuthority::Historical,
+            | ReviseInterpretation { .. }
+            | ReviseScene { .. } => OperationAuthority::Historical,
             IntroduceDefinition { .. }
             | AddNamedAttribute { .. }
             | DefineItemPower { .. }
