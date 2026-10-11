@@ -6,8 +6,10 @@ import 'dart:io';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';
 import 'package:ub_domain/ub_domain.dart';
+import 'package:ub_store/src/candidate_references.dart';
 import 'package:ub_store/src/database.dart';
 import 'package:ub_store/src/journal.dart';
+import 'package:ub_store/src/projections.dart';
 import 'package:ub_store/src/revision_input.dart';
 
 void main() {
@@ -80,6 +82,7 @@ void main() {
       journal.compareWorkflow({});
       final candidate = journal.stageVersions(request);
       checkpoint('versions');
+      CandidateReferences(journal).validate(candidate);
       final revision = journal.append(request);
       checkpoint('changes');
       journal.advanceHead(
@@ -89,6 +92,12 @@ void main() {
         candidate,
       );
       checkpoint('head');
+      for (final assignment in request.changes) {
+        if (assignment.next != null) {
+          RecordProjections(database).project(0, assignment.next!);
+        }
+      }
+      checkpoint('projections');
       journal.writeReceipt(request, revision);
       checkpoint('receipt');
       checkpoint('beforeCommit');
@@ -162,6 +171,7 @@ void main() {
         'versions',
         'changes',
         'head',
+        'projections',
         'receipt',
         'beforeCommit',
       ]) {
@@ -176,6 +186,11 @@ void main() {
           'commit_changes',
           'head_membership',
           'operation_receipts',
+          'reference_index',
+          'typed_projection',
+          'world_projection',
+          'narrative_projection',
+          'search_index',
         ]) {
           expect(
             database.select('SELECT count(*) AS n FROM $table').single['n'],

@@ -32,9 +32,11 @@ The SQLite codec uses the existing fixed-column relational schema and keeps
 absent/null states, exact numeric strings and ordered child rows. It does not
 provide reviewed publication yet. The internal journal adds immutable revision
 history, exact receipt lookup, tombstones and pinned branches within a
-caller-owned transaction. Factual candidate admission, initialization,
-projections and service authorization still need their port before an
-author-facing publication path can use it. Schema resources are compiled into the
+caller-owned transaction. Reference admission and per-record reference, world,
+narrative, scalar and search projections are also implemented internally.
+Foundation/value/ancestry admission, initialization, projection recovery and
+service authorization still need their port before an author-facing publication
+path can use it. Schema resources are compiled into the
 package; after changing the owning files in `docs/decisions/relational-storage`,
 run `dart run tool/embed_schema.dart` from the repository root to regenerate
 them. Opening an incompatible database refuses conversion and preserves it.
