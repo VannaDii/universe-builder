@@ -1,5 +1,6 @@
 import 'canonical.dart';
 import 'ids.dart';
+import 'fields.dart';
 
 enum RecordKind {
   entity('entity'),
@@ -58,6 +59,14 @@ final class RecordIdentity {
   final UniverseId universeId;
   final RecordId recordId;
   final RecordKind recordKind;
+  factory RecordIdentity.fromWire(CanonicalValue value) {
+    final f = Fields(value)..allow({'universe_id', 'record_id', 'record_kind'});
+    return RecordIdentity(
+      universeId: UniverseId.parse(f.string('universe_id')),
+      recordId: RecordId.parse(f.string('record_id')),
+      recordKind: RecordKind.parse(f.string('record_kind')),
+    );
+  }
   CanonicalObject toCanonical() => CanonicalObject([
     MapEntry('universe_id', CanonicalString(universeId.value)),
     MapEntry('record_id', CanonicalString(recordId.value)),

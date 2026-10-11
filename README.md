@@ -13,7 +13,9 @@ families, propositions, assertions, the five narrative families and the three
 source/evidence families, the five knowledge families, completeness, appearances,
 image assets, goals, commitments, rules, creative boundaries, exceptions and
 issue decisions, events, action definitions, item powers and represented contexts.
-It also contains the internal typed SQLite
+The shared domain also contains all 61 current operation variants, their coarse
+authority classifications, incremental attribute evidence and immutable record
+version DTOs. It also contains the internal typed SQLite
 codec,
 revision journal and connection policy. It is not yet a
 replacement engine or application.
@@ -27,7 +29,7 @@ dart analyze packages tool
 dart format --output=none --set-exit-if-changed packages tool
 cd packages/ub_domain
 dart test
-dart test test/canonical_test.dart test/identity_test.dart test/exact_amount_test.dart test/value_test.dart test/selector_test.dart test/scope_test.dart test/records_test.dart test/definitions_test.dart test/narrative_source_test.dart test/knowledge_appearance_test.dart test/expr_test.dart test/rule_records_test.dart test/event_contract_test.dart --platform chrome
+dart test test/canonical_test.dart test/identity_test.dart test/exact_amount_test.dart test/value_test.dart test/selector_test.dart test/scope_test.dart test/records_test.dart test/definitions_test.dart test/narrative_source_test.dart test/knowledge_appearance_test.dart test/expr_test.dart test/rule_records_test.dart test/event_contract_test.dart test/operations_test.dart --platform chrome
 cd ../ub_store
 dart test
 cd ../ub_rules
@@ -124,8 +126,14 @@ an absent historical contract remains distinct from an explicitly empty contract
 and an explicit null contract is rejected. Represented contexts retain authored
 Gregorian or fictional clock data. Storing these declarations does not execute
 effects, advance clocks or promote a report to objective fact. Consequence
-execution, chronology operations and the domain operation contracts still need
-their ports; completing record types does not complete the domain milestone.
+execution and chronology arithmetic still need their ports. Typed operation
+contracts preserve bare nested record DTOs separately from tagged stored
+payloads, snake-case operation fields and exact expected versions. Decoding an
+adoption request preserves its supplied digest; digest verification and current
+adoption rights remain separate service checks. An operation's coarse authority
+classification never grants permission. Workflow/request DTOs, service operation
+admission and execution still need their ports; completing record and operation
+types does not complete the conversion.
 The Dart rational validator rejects all zero denominator spellings, including
 `00`, `+0` and `-0`, closing a missed case in the existing Rust validator.
 
