@@ -11,6 +11,7 @@ import 'validation_scope.dart';
 
 part 'read_request.dart';
 part 'workflow_request.dart';
+part 'writing.dart';
 
 /// Closed implemented request contracts. Writing-language tools remain pending.
 /// Parsing and request validation do not route, evaluate or grant authority.
@@ -27,7 +28,7 @@ sealed class Request {
     if (bytes.length > 1024 * 1024) {
       throw const FormatException('Frame too large');
     }
-    return fromWire(CanonicalValue.parseJson(utf8.decode(bytes)));
+    return fromWire(CanonicalValue.parseWireJson(utf8.decode(bytes)));
   }
 
   static Request fromWire(CanonicalValue value) {
@@ -46,6 +47,8 @@ sealed class Request {
   }
 
   static Request _parse(String name, CanonicalValue args) => switch (name) {
+    'universe_read_facts' ||
+    'universe_read_contracts' ||
     'universe_describe' ||
     'universe_open_context' ||
     'universe_search' ||
@@ -55,6 +58,24 @@ sealed class Request {
     _ => WorkflowRequest._parse(name, args),
   };
   void validate() {
+    if (this case ReadFactsRequest(:final objectNames)) {
+      if (objectNames.isEmpty ||
+          objectNames.length > 100 ||
+          objectNames.any((n) => !hasRustText(n))) {
+        throw const InvalidArgumentError(
+          field: 'object_names',
+          message: 'one to 100 nonempty object names required',
+        );
+      }
+    }
+    if (this case ReadContractsRequest(:final actionNames)) {
+      if (actionNames.length > 100 || actionNames.any((n) => !hasRustText(n))) {
+        throw const InvalidArgumentError(
+          field: 'action_names',
+          message: 'at most 100 nonempty exact action names',
+        );
+      }
+    }
     if (this case GetProposalRequest(
       :final assessmentReference,
       :final viewGroup,

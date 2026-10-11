@@ -28,6 +28,26 @@ void main() {
     );
   });
 
+  test(
+    'typed wire numbers retain decimal and arbitrary precision numeric kinds',
+    () {
+      final value = CanonicalValue.parseWireJson(
+        '[30.00,1E3,1e-03,18446744073709551616,-9223372036854775809,-0]',
+      ) as CanonicalArray;
+      expect(value.items.every((v) => v is CanonicalNumber), isTrue);
+      expect(
+        value.toText(),
+        '[30.00,1E3,1e-03,18446744073709551616,-9223372036854775809,0]',
+      );
+      final text = CanonicalValue.parseWireJson('"30.00"');
+      expect(text, isA<CanonicalString>());
+      expect(
+        () => CanonicalValue.parseWireJson(r'{"a":1,"\u0061":2}'),
+        throwsFormatException,
+      );
+    },
+  );
+
   test('wire strings decode escapes before duplicate-key detection', () {
     expect(CanonicalValue.parseJson(r'"\u00e9\ud83c\udf32"').toText(), '"é🌲"');
     expect(

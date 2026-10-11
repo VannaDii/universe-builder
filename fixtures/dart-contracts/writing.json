@@ -1,0 +1,142 @@
+[
+  {
+    "type": "fact_value",
+    "input_raw": "30.00",
+    "canonical_utf8": "30.00"
+  },
+  {
+    "type": "fact_value",
+    "input_raw": "1E3",
+    "canonical_utf8": "1E3"
+  },
+  {
+    "type": "fact_value",
+    "input_raw": "1e-03",
+    "canonical_utf8": "1e-03"
+  },
+  {
+    "type": "fact_value",
+    "input_raw": "18446744073709551616",
+    "canonical_utf8": "18446744073709551616"
+  },
+  {
+    "type": "fact_value",
+    "input_raw": "-9223372036854775809",
+    "canonical_utf8": "-9223372036854775809"
+  },
+  {
+    "type": "fact_value",
+    "input_raw": "-0",
+    "canonical_utf8": "0"
+  },
+  {
+    "type": "fact_value",
+    "input_raw": "\"30.00\"",
+    "canonical_utf8": "\"30.00\""
+  },
+  {
+    "type": "fact_value",
+    "input_raw": "true",
+    "canonical_utf8": "true"
+  },
+  {
+    "type": "fact_value",
+    "input_raw": "{\"object\":\"Mara\",\"ignored\":true}",
+    "canonical_utf8": "{\"object\":\"Mara\"}"
+  },
+  {
+    "type": "fact_value",
+    "input_raw": "{\"amount\":30.00,\"unit\":\"m\",\"ignored\":true}",
+    "canonical_utf8": "{\"amount\":30.00,\"unit\":\"m\"}"
+  },
+  {
+    "type": "fact_value",
+    "input_raw": "{\"object\":\"Mara\",\"amount\":1,\"unit\":\"m\"}",
+    "canonical_utf8": "{\"object\":\"Mara\"}"
+  },
+  {
+    "type": "fact_value",
+    "input_raw": "{\"object\":false,\"amount\":1,\"unit\":\"m\"}",
+    "canonical_utf8": "{\"amount\":1,\"unit\":\"m\"}"
+  },
+  {
+    "type": "fact_lifetime",
+    "input_raw": "{\"kind\":\"unspecified\"}",
+    "canonical_utf8": "{\"kind\":\"unspecified\"}"
+  },
+  {
+    "type": "fact_lifetime",
+    "input_raw": "{\"kind\":\"until_changed\"}",
+    "canonical_utf8": "{\"kind\":\"until_changed\"}"
+  },
+  {
+    "type": "fact_lifetime",
+    "input_raw": "{\"kind\":\"until\"}",
+    "canonical_utf8": "{\"end_tick\":\"\",\"kind\":\"until\"}"
+  },
+  {
+    "type": "fact_lifetime",
+    "input_raw": "{\"kind\":\"until\",\"end_date\":\"1900-01-01\",\"end_tick\":\"9007199254740993\"}",
+    "canonical_utf8": "{\"end_date\":\"1900-01-01\",\"end_tick\":\"9007199254740993\",\"kind\":\"until\"}"
+  },
+  {
+    "type": "fact_change",
+    "input_raw": "{\"property\":\"stock\",\"value\":30.00}",
+    "canonical_utf8": "{\"at_tick\":null,\"lifetime\":{\"kind\":\"unspecified\"},\"negated\":false,\"property\":\"stock\",\"scope\":\"unspecified\",\"statement\":\"objective\",\"value\":30.00,\"when\":\"unspecified\"}"
+  },
+  {
+    "type": "fact_change",
+    "input_raw": "{\"property\":\"holder\",\"value\":{\"object\":\"Mara\"},\"negated\":true,\"statement\":\"belief\",\"scope\":\"Earth\",\"when\":\"scene\",\"at_date\":\"1900-01-01\",\"lifetime\":{\"kind\":\"until_changed\"}}",
+    "canonical_utf8": "{\"at_date\":\"1900-01-01\",\"at_tick\":null,\"lifetime\":{\"kind\":\"until_changed\"},\"negated\":true,\"property\":\"holder\",\"scope\":\"Earth\",\"statement\":\"belief\",\"value\":{\"object\":\"Mara\"},\"when\":\"scene\"}"
+  },
+  {
+    "type": "object_change",
+    "input_raw": "{\"name\":\"Pistol\"}",
+    "canonical_utf8": "{\"classification\":null,\"facts\":[],\"introduce\":false,\"name\":\"Pistol\"}"
+  },
+  {
+    "type": "object_change",
+    "input_raw": "{\"name\":\"Mara\",\"introduce\":true,\"classification\":\"Person\",\"facts\":[{\"property\":\"age\",\"value\":40}]}",
+    "canonical_utf8": "{\"classification\":\"Person\",\"facts\":[{\"at_tick\":null,\"lifetime\":{\"kind\":\"unspecified\"},\"negated\":false,\"property\":\"age\",\"scope\":\"unspecified\",\"statement\":\"objective\",\"value\":40,\"when\":\"unspecified\"}],\"introduce\":true,\"name\":\"Mara\"}"
+  },
+  {
+    "type": "definition_change",
+    "input_raw": "{\"name\":\"Person\"}",
+    "canonical_utf8": "{\"initial_values\":[],\"introduce\":false,\"name\":\"Person\",\"parent\":null,\"scope\":\"unspecified\",\"shared_attributes\":[]}"
+  },
+  {
+    "type": "definition_change",
+    "input_raw": "{\"name\":\"Pistol\",\"introduce\":true,\"parent\":\"Weapon\",\"shared_attributes\":[{\"property\":\"material\",\"value\":\"steel\"}],\"initial_values\":[{\"property\":\"stock\",\"value\":8}]}",
+    "canonical_utf8": "{\"initial_values\":[{\"at_tick\":null,\"lifetime\":{\"kind\":\"unspecified\"},\"negated\":false,\"property\":\"stock\",\"scope\":\"unspecified\",\"statement\":\"objective\",\"value\":8,\"when\":\"unspecified\"}],\"introduce\":true,\"name\":\"Pistol\",\"parent\":\"Weapon\",\"scope\":\"unspecified\",\"shared_attributes\":[{\"at_tick\":null,\"lifetime\":{\"kind\":\"unspecified\"},\"negated\":false,\"property\":\"material\",\"scope\":\"unspecified\",\"statement\":\"objective\",\"value\":\"steel\",\"when\":\"unspecified\"}]}"
+  },
+  {
+    "type": "writing_claim",
+    "input_raw": "{\"subject\":\"Mara\",\"property\":\"age\",\"value\":40}",
+    "canonical_utf8": "{\"property\":\"age\",\"subject\":\"Mara\",\"value\":40}"
+  },
+  {
+    "type": "writing_correction",
+    "input_raw": "{\"fact_handle\":\"opaque version\",\"value\":30.00,\"reason\":\"correct transcription\"}",
+    "canonical_utf8": "{\"fact_handle\":\"opaque version\",\"reason\":\"correct transcription\",\"value\":30.00}"
+  },
+  {
+    "type": "writing_fact_ending",
+    "input_raw": "{\"fact_handle\":\"opaque version\",\"reason\":\"ended\"}",
+    "canonical_utf8": "{\"end_tick\":\"\",\"fact_handle\":\"opaque version\",\"reason\":\"ended\"}"
+  },
+  {
+    "type": "writing_fact_withdrawal",
+    "input_raw": "{\"fact_handle\":\"opaque version\",\"reason\":\"unsupported\"}",
+    "canonical_utf8": "{\"fact_handle\":\"opaque version\",\"reason\":\"unsupported\"}"
+  },
+  {
+    "type": "read_facts",
+    "input_raw": "{\"universe\":\"é🌲 cycle\",\"context_id\":\"ctx_000000000000000000000001\",\"object_names\":[\"Mara\",\"Person\"]}",
+    "canonical_utf8": "{\"context_id\":\"ctx_000000000000000000000001\",\"object_names\":[\"Mara\",\"Person\"],\"universe\":\"é🌲 cycle\"}"
+  },
+  {
+    "type": "read_contracts",
+    "input_raw": "{\"universe\":\"é🌲 cycle\",\"context_id\":\"ctx_000000000000000000000001\"}",
+    "canonical_utf8": "{\"action_names\":[],\"context_id\":\"ctx_000000000000000000000001\",\"universe\":\"é🌲 cycle\"}"
+  }
+]

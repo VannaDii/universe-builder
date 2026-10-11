@@ -137,6 +137,8 @@ sealed class ReadRequest extends Request {
   }
 
   static ReadRequest _parse(String name, CanonicalValue args) => switch (name) {
+    'universe_read_facts' => ReadFactsRequest.fromWire(args),
+    'universe_read_contracts' => ReadContractsRequest.fromWire(args),
     'universe_open_context' => OpenContextRequest.fromArgs(args),
     'universe_search' => SearchRequest.fromArgs(args),
     'universe_get' => GetRequest.fromArgs(args),

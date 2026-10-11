@@ -29,6 +29,12 @@ sealed class CanonicalValue {
   /// become number tokens; other numbers become exact strings, as in Rust.
   static CanonicalValue parseJson(String text) =>
       _Parser(text, canonical: false).parse();
+
+  /// Strict ordinary JSON for typed wire inputs. Keeps arbitrary-precision
+  /// numeric tokens numeric, matching serde_json::Number serialization. Use
+  /// [parseJson] when applying the historical serde-to-canonical digest bridge.
+  static CanonicalValue parseWireJson(String text) =>
+      _Parser(text, canonical: false, bridgeNumbers: false).parse();
 }
 
 final class CanonicalNull extends CanonicalValue {
@@ -175,11 +181,12 @@ void _writeString(StringBuffer buffer, String text) {
 }
 
 final class _Parser {
-  _Parser(this.text, {required this.canonical}) {
+  _Parser(this.text, {required this.canonical, this.bridgeNumbers = true}) {
     _validateUnicode(text);
   }
   final String text;
   final bool canonical;
+  final bool bridgeNumbers;
   int position = 0;
   static final _jsonNumber = RegExp(
     r'-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?',
@@ -275,13 +282,18 @@ final class _Parser {
       position = match.end;
       // serde_json's arbitrary-precision scanner normalizes the exponent
       // marker to lowercase and inserts an explicit positive sign.
-      digits = digits.replaceFirstMapped(RegExp(r'[eE]([+-]?)([0-9]+)$'), (m) {
-        return 'e${m[1]!.isEmpty ? '+' : m[1]}${m[2]}';
-      });
+      if (bridgeNumbers) {
+        digits = digits.replaceFirstMapped(RegExp(r'[eE]([+-]?)([0-9]+)$'), (
+          m,
+        ) {
+          return 'e${m[1]!.isEmpty ? '+' : m[1]}${m[2]}';
+        });
+      }
       final integer = BigInt.tryParse(digits);
-      return integer != null && integer >= _minimum && integer <= _maximum
-          ? CanonicalNumber(integer.toString())
-          : CanonicalString(digits);
+      if (integer != null && integer >= _minimum && integer <= _maximum) {
+        return CanonicalNumber(integer.toString());
+      }
+      return bridgeNumbers ? CanonicalString(digits) : CanonicalNumber(digits);
     }
     _fail('Expected value');
   }
