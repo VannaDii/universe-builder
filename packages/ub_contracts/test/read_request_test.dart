@@ -78,7 +78,8 @@ void main() {
   for (final read in reads) {
     test('read request preserves closed owning wire: ${read.runtimeType}', () {
       read.validate();
-      final parsed = ReadRequest.fromTool(read.toolName, read.toArgs());
+      final parsed = Request.fromTool(read.toolName, read.toArgs());
+      expect(parsed, isA<ReadRequest>());
       expect(parsed.toWire().toText(), read.toWire().toText());
       expect(
         ReadRequest.fromWire(read.toWire()).toWire().toText(),

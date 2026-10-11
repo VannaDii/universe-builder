@@ -1,9 +1,4 @@
-import 'dart:convert';
-
-import 'package:ub_domain/ub_domain.dart';
-
-import 'wire.dart';
-import 'protocol_error.dart';
+part of 'request.dart';
 
 /// Exact administrative selector; validation never chooses a default universe.
 final class Selector {
@@ -124,15 +119,8 @@ final class ContextNameSelector extends RepresentedContextSelector {
 }
 
 /// Read-only contract subset. No routing, visibility or service execution here.
-sealed class ReadRequest {
+sealed class ReadRequest extends Request {
   const ReadRequest();
-  Selector get universe;
-  String get toolName;
-  CanonicalObject toArgs();
-  CanonicalObject toWire() => CanonicalObject([
-    MapEntry('tool', CanonicalString(toolName)),
-    MapEntry('args', toArgs()),
-  ]);
   static ReadRequest fromWire(CanonicalValue value) {
     final f = WireFields(value, {'tool', 'args'});
     return _parse(f.string('tool'), f.require('args'));
@@ -176,74 +164,6 @@ sealed class ReadRequest {
       'definitions' => DescribeDefinitionsRequest.fromArgs(args),
       _ => throw const FormatException('Unknown describe mode'),
     };
-  }
-
-  void validate() {
-    final args = {for (final e in toArgs().fields) e.key: e.value};
-    for (final key in ['universe', 'world']) {
-      final value = args[key];
-      if (value != null) {
-        final text = wireString(value);
-        final first = text.runes.firstOrNull;
-        if (!hasRustText(text) ||
-            utf8.encode(text).length > 256 ||
-            (text.contains('*') || text.contains('/') || text.contains('\\')) ||
-            text.runes.any((r) => r <= 0x1f || (r >= 0x7f && r <= 0x9f)) ||
-            (first != null && !hasRustText(String.fromCharCode(first)))) {
-          throw InvalidArgumentError(
-            field: key,
-            message: 'expected an exact nonblank selector',
-          );
-        }
-      }
-    }
-    if (args.containsKey('world_id') && !args.containsKey('world')) {
-      throw const InvalidArgumentError(
-        field: 'world_id',
-        message: 'requires world',
-      );
-    }
-    if (args.containsKey('event') != args.containsKey('event_side')) {
-      throw const InvalidArgumentError(
-        field: 'event',
-        message: 'event and event_side must be supplied together',
-      );
-    }
-    final purpose = args['purpose'];
-    if (purpose != null) {
-      final text = wireString(purpose);
-      if (!hasRustText(text) || utf8.encode(text).length > 4096) {
-        throw const InvalidArgumentError(
-          field: 'purpose',
-          message: 'expected 1..4096 bytes',
-        );
-      }
-    }
-    for (final key in ['record_ids', 'entity_ids', 'focus_ids']) {
-      final list = args[key];
-      if (list is CanonicalArray &&
-          (list.items.isEmpty || list.items.length > 100)) {
-        throw InvalidArgumentError(
-          field: key,
-          message: 'expected 1..100 items',
-        );
-      }
-    }
-    for (final (key, lo, hi) in [
-      ('limit', 1, 100),
-      ('byte_budget', 256, 65536),
-    ]) {
-      final value = args[key];
-      if (value != null) {
-        final number = _requestU32(value);
-        if (number < lo || number > hi) {
-          throw InvalidArgumentError(
-            field: key,
-            message: 'outside request limits',
-          );
-        }
-      }
-    }
   }
 }
 

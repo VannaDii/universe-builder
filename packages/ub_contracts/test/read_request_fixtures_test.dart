@@ -17,7 +17,7 @@ void main() {
     test('owning Rust wire and validation fixture $index ($type)', () {
       if (type == 'read') {
         final tool = (f['tool']! as CanonicalString).value;
-        final request = ReadRequest.fromTool(tool, f['args']!);
+        final request = Request.fromTool(tool, f['args']!);
         expect(
           request.toWire().toText(),
           (f['canonical_utf8']! as CanonicalString).value,

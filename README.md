@@ -42,7 +42,7 @@ dart test
 dart test test/compiler_test.dart --platform chrome
 cd ../ub_contracts
 dart test
-dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart --platform chrome
+dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart test/workflow_request_test.dart --platform chrome
 ```
 
 Browser tests must run from the package directory. Set `CHROME_EXECUTABLE` if
@@ -178,9 +178,18 @@ preserves required universe selectors, omitted-versus-null optional fields,
 world name/ID guards, paired event/side queries and request limits. Closed typed
 protocol errors retain their historical wire codes and protocol-failure
 classification, including the `DOMAIN` wire / `DOMAIN_ERROR` public-code
-distinction. These contracts do not execute queries or grant access. Attachment
-admission, writing/mutation request contracts, evaluator execution and exact
-approval enforcement still need their ports. Byte verification remains
+distinction. Shared request contracts also cover inline/proposal/queued
+validation, proposal creation/revision/submission/withdrawal, assessment
+attachment/selection, proposal review, impact queries, exact commit and operation
+lookup/cancellation. Selection requires an explicit nullable assessment;
+assessment review references require the assessment view. Proposal versions and
+selection generations retain exact u64 values on web. Strict request decoding
+bounds raw frames and rejects duplicate keys/invalid UTF-8; structural decoding
+remains separate from semantic validation and service admission. Commit input
+binds a proposal, expected base revision, validation run and retry key; it has no
+inline approval flag. These contracts do not execute queries or grant access.
+Attachment admission, writing-language tool contracts, evaluator execution and
+exact approval enforcement still need their ports. Byte verification remains
 distinct from factual support; it does not establish truth or authenticate an
 assessor.
 The Dart rational validator rejects all zero denominator spellings, including
