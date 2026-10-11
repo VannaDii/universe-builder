@@ -42,7 +42,7 @@ dart test
 dart test test/compiler_test.dart --platform chrome
 cd ../ub_contracts
 dart test
-dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart --platform chrome
+dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart --platform chrome
 ```
 
 Browser tests must run from the package directory. Set `CHROME_EXECUTABLE` if
@@ -172,8 +172,15 @@ uncertainty dispositions and conclusions before hashing. Trusted retained-byte
 verification checks exact size/SHA, strict UTF-8 and source/item/exclusion range
 boundaries. Envelope verification and frozen proposal/frame binding preserve
 the existing digest preimages. Structural DTO decoding remains separate from
-these checks. Attachment admission, request contracts, evaluator execution and
-exact approval enforcement still need their ports. Byte verification remains
+these checks. The read-request subset now covers all describe modes, context
+opening, search, record retrieval, effective state and context briefs. It
+preserves required universe selectors, omitted-versus-null optional fields,
+world name/ID guards, paired event/side queries and request limits. Closed typed
+protocol errors retain their historical wire codes and protocol-failure
+classification, including the `DOMAIN` wire / `DOMAIN_ERROR` public-code
+distinction. These contracts do not execute queries or grant access. Attachment
+admission, writing/mutation request contracts, evaluator execution and exact
+approval enforcement still need their ports. Byte verification remains
 distinct from factual support; it does not establish truth or authenticate an
 assessor.
 The Dart rational validator rejects all zero denominator spellings, including

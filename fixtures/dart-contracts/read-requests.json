@@ -1,0 +1,348 @@
+[
+  {
+    "type": "read",
+    "tool": "universe_describe",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "mode": "summary"
+    },
+    "canonical_utf8": "{\"args\":{\"mode\":\"summary\",\"universe\":\"The Ashen Cycle\"},\"tool\":\"universe_describe\"}"
+  },
+  {
+    "type": "read",
+    "tool": "universe_open_context",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "continuity_id": "cont_000000000000000000000001",
+      "revision": {
+        "kind": "head"
+      },
+      "represented_context": "rec_00000000000000000000005a",
+      "temporal_query": {
+        "kind": "timeless"
+      },
+      "temporal_systems": [],
+      "perspective": "author"
+    },
+    "canonical_utf8": "{\"args\":{\"continuity_id\":\"cont_000000000000000000000001\",\"perspective\":\"author\",\"represented_context\":\"rec_00000000000000000000005a\",\"revision\":{\"kind\":\"head\"},\"temporal_query\":{\"kind\":\"timeless\"},\"temporal_systems\":[],\"universe\":\"The Ashen Cycle\"},\"tool\":\"universe_open_context\"}"
+  },
+  {
+    "type": "read",
+    "tool": "universe_search",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "context_id": "ctx_000000000000000000000001",
+      "query": "Mara",
+      "typed_filters": {
+        "record_kinds": []
+      },
+      "limit": 25
+    },
+    "canonical_utf8": "{\"args\":{\"context_id\":\"ctx_000000000000000000000001\",\"limit\":25,\"query\":\"Mara\",\"typed_filters\":{\"record_kinds\":[]},\"universe\":\"The Ashen Cycle\"},\"tool\":\"universe_search\"}"
+  },
+  {
+    "type": "read",
+    "tool": "universe_get",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "context_id": "ctx_000000000000000000000001",
+      "record_ids": [
+        "rec_00000000000000000000000a"
+      ],
+      "field_groups": [
+        "payload"
+      ]
+    },
+    "canonical_utf8": "{\"args\":{\"context_id\":\"ctx_000000000000000000000001\",\"field_groups\":[\"payload\"],\"record_ids\":[\"rec_00000000000000000000000a\"],\"universe\":\"The Ashen Cycle\"},\"tool\":\"universe_get\"}"
+  },
+  {
+    "type": "read",
+    "tool": "universe_get_state",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "context_id": "ctx_000000000000000000000001",
+      "entity_ids": [
+        "rec_00000000000000000000000a"
+      ],
+      "predicate_filters": []
+    },
+    "canonical_utf8": "{\"args\":{\"context_id\":\"ctx_000000000000000000000001\",\"entity_ids\":[\"rec_00000000000000000000000a\"],\"predicate_filters\":[],\"universe\":\"The Ashen Cycle\"},\"tool\":\"universe_get_state\"}"
+  },
+  {
+    "type": "read",
+    "tool": "universe_get_context",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "context_id": "ctx_000000000000000000000001",
+      "focus_ids": [
+        "rec_00000000000000000000000a"
+      ],
+      "purpose": "research",
+      "byte_budget": 24576
+    },
+    "canonical_utf8": "{\"args\":{\"byte_budget\":24576,\"context_id\":\"ctx_000000000000000000000001\",\"focus_ids\":[\"rec_00000000000000000000000a\"],\"purpose\":\"research\",\"universe\":\"The Ashen Cycle\"},\"tool\":\"universe_get_context\"}"
+  },
+  {
+    "type": "read",
+    "tool": "universe_describe",
+    "args": {
+      "universe": "é🌲 cycle",
+      "universe_id": "unv_000000000000000000000001",
+      "mode": "capabilities"
+    },
+    "canonical_utf8": "{\"args\":{\"mode\":\"capabilities\",\"universe\":\"é🌲 cycle\",\"universe_id\":\"unv_000000000000000000000001\"},\"tool\":\"universe_describe\"}"
+  },
+  {
+    "type": "read",
+    "tool": "universe_describe",
+    "args": {
+      "universe": "é🌲 cycle",
+      "universe_id": "unv_000000000000000000000001",
+      "mode": "worlds",
+      "context_id": "ctx_000000000000000000000001"
+    },
+    "canonical_utf8": "{\"args\":{\"context_id\":\"ctx_000000000000000000000001\",\"mode\":\"worlds\",\"universe\":\"é🌲 cycle\",\"universe_id\":\"unv_000000000000000000000001\"},\"tool\":\"universe_describe\"}"
+  },
+  {
+    "type": "read",
+    "tool": "universe_describe",
+    "args": {
+      "universe": "é🌲 cycle",
+      "universe_id": "unv_000000000000000000000001",
+      "mode": "definitions",
+      "context_id": "ctx_000000000000000000000001",
+      "world": "Earth",
+      "world_id": "wld_000000000000000000000001"
+    },
+    "canonical_utf8": "{\"args\":{\"context_id\":\"ctx_000000000000000000000001\",\"mode\":\"definitions\",\"universe\":\"é🌲 cycle\",\"universe_id\":\"unv_000000000000000000000001\",\"world\":\"Earth\",\"world_id\":\"wld_000000000000000000000001\"},\"tool\":\"universe_describe\"}"
+  },
+  {
+    "type": "read",
+    "tool": "universe_open_context",
+    "args": {
+      "universe": "The Ashen Cycle",
+      "continuity_id": "cont_000000000000000000000001",
+      "revision": {
+        "kind": "exact",
+        "revision_id": "rev_000000000000000000000001"
+      },
+      "represented_context": {
+        "name": "Earth proper"
+      },
+      "temporal_query": {
+        "kind": "at_event",
+        "event": {
+          "record": "rec_000000000000000000000001"
+        },
+        "side": "after"
+      },
+      "temporal_systems": [],
+      "perspective": {
+        "narrator": "rec_000000000000000000000001"
+      },
+      "reader_scene": {
+        "name": "scene é"
+      }
+    },
+    "canonical_utf8": "{\"args\":{\"continuity_id\":\"cont_000000000000000000000001\",\"perspective\":{\"narrator\":\"rec_000000000000000000000001\"},\"reader_scene\":{\"name\":\"scene é\"},\"represented_context\":{\"name\":\"Earth proper\"},\"revision\":{\"kind\":\"exact\",\"revision_id\":\"rev_000000000000000000000001\"},\"temporal_query\":{\"event\":{\"record\":\"rec_000000000000000000000001\"},\"kind\":\"at_event\",\"side\":\"after\"},\"temporal_systems\":[],\"universe\":\"The Ashen Cycle\"},\"tool\":\"universe_open_context\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "INVALID_ARGUMENT",
+      "field": "universe",
+      "message": "exact selector required"
+    },
+    "public_code": "INVALID_ARGUMENT",
+    "protocol_failure": true,
+    "canonical_utf8": "{\"code\":\"INVALID_ARGUMENT\",\"field\":\"universe\",\"message\":\"exact selector required\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "AMBIGUOUS_REFERENCE",
+      "message": "é🌲 diagnostic"
+    },
+    "public_code": "AMBIGUOUS_REFERENCE",
+    "protocol_failure": false,
+    "canonical_utf8": "{\"code\":\"AMBIGUOUS_REFERENCE\",\"message\":\"é🌲 diagnostic\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "UNIVERSE_REQUIRED"
+    },
+    "public_code": "UNIVERSE_REQUIRED",
+    "protocol_failure": true,
+    "canonical_utf8": "{\"code\":\"UNIVERSE_REQUIRED\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "UNIVERSE_ID_MISMATCH",
+      "expected": "expected",
+      "actual": "actual"
+    },
+    "public_code": "UNIVERSE_ID_MISMATCH",
+    "protocol_failure": false,
+    "canonical_utf8": "{\"actual\":\"actual\",\"code\":\"UNIVERSE_ID_MISMATCH\",\"expected\":\"expected\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "UNIVERSE_SCOPE_MISMATCH",
+      "message": "é🌲 diagnostic"
+    },
+    "public_code": "UNIVERSE_SCOPE_MISMATCH",
+    "protocol_failure": false,
+    "canonical_utf8": "{\"code\":\"UNIVERSE_SCOPE_MISMATCH\",\"message\":\"é🌲 diagnostic\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "WORLD_NOT_FOUND_OR_NOT_ACCESSIBLE",
+      "message": "é🌲 diagnostic"
+    },
+    "public_code": "WORLD_NOT_FOUND_OR_NOT_ACCESSIBLE",
+    "protocol_failure": false,
+    "canonical_utf8": "{\"code\":\"WORLD_NOT_FOUND_OR_NOT_ACCESSIBLE\",\"message\":\"é🌲 diagnostic\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "WORLD_SCOPE_CONFLICT",
+      "message": "é🌲 diagnostic"
+    },
+    "public_code": "WORLD_SCOPE_CONFLICT",
+    "protocol_failure": false,
+    "canonical_utf8": "{\"code\":\"WORLD_SCOPE_CONFLICT\",\"message\":\"é🌲 diagnostic\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "NAME_UNAVAILABLE",
+      "message": "é🌲 diagnostic"
+    },
+    "public_code": "NAME_UNAVAILABLE",
+    "protocol_failure": false,
+    "canonical_utf8": "{\"code\":\"NAME_UNAVAILABLE\",\"message\":\"é🌲 diagnostic\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "NOT_FOUND_OR_NOT_ACCESSIBLE",
+      "message": "é🌲 diagnostic"
+    },
+    "public_code": "NOT_FOUND_OR_NOT_ACCESSIBLE",
+    "protocol_failure": false,
+    "canonical_utf8": "{\"code\":\"NOT_FOUND_OR_NOT_ACCESSIBLE\",\"message\":\"é🌲 diagnostic\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "CONTEXT_EXPIRED"
+    },
+    "public_code": "CONTEXT_EXPIRED",
+    "protocol_failure": false,
+    "canonical_utf8": "{\"code\":\"CONTEXT_EXPIRED\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "BASE_REVISION_CONFLICT",
+      "expected": "expected",
+      "actual": "actual"
+    },
+    "public_code": "BASE_REVISION_CONFLICT",
+    "protocol_failure": false,
+    "canonical_utf8": "{\"actual\":\"actual\",\"code\":\"BASE_REVISION_CONFLICT\",\"expected\":\"expected\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "APPROVAL_REQUIRED",
+      "message": "é🌲 diagnostic"
+    },
+    "public_code": "APPROVAL_REQUIRED",
+    "protocol_failure": false,
+    "canonical_utf8": "{\"code\":\"APPROVAL_REQUIRED\",\"message\":\"é🌲 diagnostic\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "APPROVAL_STALE"
+    },
+    "public_code": "APPROVAL_STALE",
+    "protocol_failure": false,
+    "canonical_utf8": "{\"code\":\"APPROVAL_STALE\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "IDEMPOTENCY_KEY_REUSED",
+      "message": "é🌲 diagnostic"
+    },
+    "public_code": "IDEMPOTENCY_KEY_REUSED",
+    "protocol_failure": false,
+    "canonical_utf8": "{\"code\":\"IDEMPOTENCY_KEY_REUSED\",\"message\":\"é🌲 diagnostic\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "UNSUPPORTED_SEMANTICS",
+      "message": "é🌲 diagnostic"
+    },
+    "public_code": "UNSUPPORTED_SEMANTICS",
+    "protocol_failure": false,
+    "canonical_utf8": "{\"code\":\"UNSUPPORTED_SEMANTICS\",\"message\":\"é🌲 diagnostic\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "EVALUATION_LIMIT_REACHED",
+      "message": "é🌲 diagnostic"
+    },
+    "public_code": "EVALUATION_LIMIT_REACHED",
+    "protocol_failure": false,
+    "canonical_utf8": "{\"code\":\"EVALUATION_LIMIT_REACHED\",\"message\":\"é🌲 diagnostic\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "POLICY_DENIED",
+      "message": "é🌲 diagnostic"
+    },
+    "public_code": "POLICY_DENIED",
+    "protocol_failure": false,
+    "canonical_utf8": "{\"code\":\"POLICY_DENIED\",\"message\":\"é🌲 diagnostic\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "STORAGE_FAILURE",
+      "message": "é🌲 diagnostic"
+    },
+    "public_code": "STORAGE_FAILURE",
+    "protocol_failure": false,
+    "canonical_utf8": "{\"code\":\"STORAGE_FAILURE\",\"message\":\"é🌲 diagnostic\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "MAINTENANCE_REQUIRED"
+    },
+    "public_code": "MAINTENANCE_REQUIRED",
+    "protocol_failure": false,
+    "canonical_utf8": "{\"code\":\"MAINTENANCE_REQUIRED\"}"
+  },
+  {
+    "type": "error",
+    "input": {
+      "code": "DOMAIN",
+      "message": "é🌲 diagnostic"
+    },
+    "public_code": "DOMAIN_ERROR",
+    "protocol_failure": true,
+    "canonical_utf8": "{\"code\":\"DOMAIN\",\"message\":\"é🌲 diagnostic\"}"
+  }
+]
