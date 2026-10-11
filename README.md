@@ -42,7 +42,7 @@ dart test
 dart test test/compiler_test.dart --platform chrome
 cd ../ub_contracts
 dart test
-dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart test/workflow_request_test.dart test/writing_test.dart test/writing_knowledge_test.dart --platform chrome
+dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart test/workflow_request_test.dart test/writing_test.dart test/writing_knowledge_test.dart test/writing_delta_test.dart --platform chrome
 ```
 
 Browser tests must run from the package directory. Set `CHROME_EXECUTABLE` if
@@ -208,9 +208,19 @@ empty replacements and explicit clear flags. Author knowledge declarations
 remain a distinct input for private author controls; decoding grants no
 permission or communication-based acquisition. Recipient and role collections
 are immutable copies, and missing ticks/dates never select current time.
-Attachment admission, the remaining writing-language contracts (including the complete
-`universe_check_changes` delta), evaluator execution and exact approval
-enforcement still need their ports. Byte verification remains
+The complete `universe_check_changes` request now has typed contracts for all 42
+change collections, completing request decoding for all 16 public tools. These
+include worlds and story contexts, works/editions/scenes and explicit disclosures,
+properties/units/actions/item powers, initialization provenance, finite constraints,
+exhaustive sets, aliases and relationship contracts/occurrences/corrections. Reader
+order remains independent of story time and disclosure. Local role multiplicity
+remains separate from cross-occurrence maxima, and selected initialization handles
+do not imply approval. Omitted correction collections retain authored values;
+explicit empty collections remain replacements. Exact numeric JSON and immutable
+participant collections work on VM and web. Historical Rust serialization fixtures
+cover the remaining writing families and a fully populated delta. These are input
+contracts; response contracts, attachment admission, evaluator execution and exact
+approval enforcement still need their ports. Byte verification remains
 distinct from factual support; it does not establish truth or authenticate an
 assessor.
 The Dart rational validator rejects all zero denominator spellings, including

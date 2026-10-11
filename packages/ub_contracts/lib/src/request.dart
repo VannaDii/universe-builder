@@ -13,8 +13,9 @@ part 'read_request.dart';
 part 'workflow_request.dart';
 part 'writing.dart';
 part 'writing_knowledge.dart';
+part 'writing_delta.dart';
 
-/// Closed implemented request contracts. The complete writing delta is pending.
+/// Closed application requests shared by service, desktop and MCP transports.
 /// Parsing and request validation do not route, evaluate or grant authority.
 sealed class Request {
   const Request();
@@ -48,6 +49,7 @@ sealed class Request {
   }
 
   static Request _parse(String name, CanonicalValue args) => switch (name) {
+    'universe_check_changes' => CheckChangesRequest.fromWire(args),
     'universe_read_facts' ||
     'universe_read_contracts' ||
     'universe_describe' ||
@@ -59,6 +61,39 @@ sealed class Request {
     _ => WorkflowRequest._parse(name, args),
   };
   void validate() {
+    if (this case CheckChangesRequest()) {
+      final input = this as CheckChangesRequest;
+      if (input.events.length +
+                  input.messages.length +
+                  input.attitudes.length +
+                  input.corrections.length >
+              100 ||
+          input.changes.length > 100 ||
+          input.changes.fold<int>(0, (sum, o) => sum + o.facts.length) > 100 ||
+          input.questions.length > 20) {
+        throw const InvalidArgumentError(
+          field: 'changes',
+          message: 'at most 100 objects/facts and 20 questions',
+        );
+      }
+      for (final fact in input.changes.expand((o) => o.facts)) {
+        if (!{
+              'objective',
+              'dialogue',
+              'belief',
+              'plan',
+              'hypothetical',
+              'metaphor',
+            }.contains(fact.statement) ||
+            !{'scene', 'unspecified'}.contains(fact.when) ||
+            !hasRustText(fact.scope)) {
+          throw const InvalidArgumentError(
+            field: 'changes',
+            message: 'unknown statement, time or empty scope intent',
+          );
+        }
+      }
+    }
     if (this case ReadFactsRequest(:final objectNames)) {
       if (objectNames.isEmpty ||
           objectNames.length > 100 ||

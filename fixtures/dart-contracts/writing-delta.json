@@ -1,0 +1,317 @@
+[
+  {
+    "type": "WritingWorld",
+    "input_raw": "{\"name\":\"Earth\"}",
+    "canonical_utf8": "{\"introduce\":false,\"name\":\"Earth\"}"
+  },
+  {
+    "type": "WritingStoryContext",
+    "input_raw": "{\"name\":\"Remembered account\",\"kind\":\"account\",\"parent\":\"Primary\",\"calendar\":\"Gregorian\",\"story_time\":\"1900-01-01\"}",
+    "canonical_utf8": "{\"calendar\":\"Gregorian\",\"introduce\":false,\"kind\":\"account\",\"name\":\"Remembered account\",\"narrator\":null,\"parent\":\"Primary\",\"story_time\":\"1900-01-01\"}"
+  },
+  {
+    "type": "WritingNarrativeWork",
+    "input_raw": "{\"name\":\"Memoir\",\"introduce\":true,\"kind\":\"other\"}",
+    "canonical_utf8": "{\"introduce\":true,\"kind\":\"other\",\"name\":\"Memoir\"}"
+  },
+  {
+    "type": "WritingWorkEdition",
+    "input_raw": "{\"work\":\"Memoir\",\"name\":\"First edition\",\"introduce\":true,\"binding\":\"current\"}",
+    "canonical_utf8": "{\"binding\":\"current\",\"introduce\":true,\"name\":\"First edition\",\"work\":\"Memoir\"}"
+  },
+  {
+    "type": "WritingScene",
+    "input_raw": "{\"name\":\"Scene A\",\"introduce\":true,\"work\":\"Memoir\",\"edition\":\"First edition\",\"narration_context\":\"Primary\",\"reader_order\":18446744073709551615,\"depicted_events\":[\"opaque event version\"],\"disclosures\":[{\"kind\":\"object\",\"name\":\"Mara\"},{\"kind\":\"fact\",\"fact_handle\":\"opaque fact version\"},{\"kind\":\"event\",\"event_handle\":\"opaque event version\"}]}",
+    "canonical_utf8": "{\"depicted_events\":[\"opaque event version\"],\"disclosures\":[{\"kind\":\"object\",\"name\":\"Mara\"},{\"fact_handle\":\"opaque fact version\",\"kind\":\"fact\"},{\"event_handle\":\"opaque event version\",\"kind\":\"event\"}],\"edition\":\"First edition\",\"introduce\":true,\"name\":\"Scene A\",\"narration_context\":\"Primary\",\"reader_order\":18446744073709551615,\"viewpoint\":null,\"work\":\"Memoir\"}"
+  },
+  {
+    "type": "WritingSceneCorrection",
+    "input_raw": "{\"scene_handle\":\"opaque scene version\",\"reason\":\"correct reader order\",\"clear_viewpoint\":true,\"reader_order\":18446744073709551615,\"depicted_events\":[],\"disclosures\":[]}",
+    "canonical_utf8": "{\"clear_reader_order\":false,\"clear_viewpoint\":true,\"depicted_events\":[],\"disclosures\":[],\"narration_context\":null,\"reader_order\":18446744073709551615,\"reason\":\"correct reader order\",\"scene_handle\":\"opaque scene version\",\"viewpoint\":null}"
+  },
+  {
+    "type": "WritingItemPower",
+    "input_raw": "{\"item\":\"Ring\",\"holder_property\":\"holder\",\"ability_property\":\"invisible\",\"value\":true,\"scope\":\"Earth\"}",
+    "canonical_utf8": "{\"ability_property\":\"invisible\",\"at_tick\":null,\"holder_property\":\"holder\",\"item\":\"Ring\",\"lifetime\":{\"kind\":\"unspecified\"},\"scope\":\"Earth\",\"value\":true}"
+  },
+  {
+    "type": "WritingItemPowerCorrection",
+    "input_raw": "{\"grant_handle\":\"opaque grant version\",\"reason\":\"correct interval\",\"end_date\":\"1900-01-02\"}",
+    "canonical_utf8": "{\"at_tick\":null,\"end_date\":\"1900-01-02\",\"end_tick\":null,\"grant_handle\":\"opaque grant version\",\"lifetime\":null,\"reason\":\"correct interval\",\"scope\":null,\"value\":null}"
+  },
+  {
+    "type": "WritingCheck",
+    "input_raw": "{\"status\":\"clarification_required\",\"additions\":[],\"unchanged\":[],\"clarifications\":[\"Which Mara?\"],\"excluded\":[],\"unknowns\":[\"unresolved owner\"],\"validation\":{\"value\":true},\"impact\":null}",
+    "canonical_utf8": "{\"additions\":[],\"candidate_handle\":null,\"clarifications\":[\"Which Mara?\"],\"excluded\":[],\"impact\":null,\"status\":\"clarification_required\",\"unchanged\":[],\"unknowns\":[\"unresolved owner\"],\"validation\":{\"value\":true}}"
+  },
+  {
+    "type": "WritingProperty",
+    "input_raw": "{\"name\":\"stock\",\"value_type\":\"integer\",\"single_value\":true,\"persistence\":\"until_changed\"}",
+    "canonical_utf8": "{\"introduce\":false,\"name\":\"stock\",\"persistence\":\"until_changed\",\"single_value\":true,\"unit\":null,\"value_type\":\"integer\"}"
+  },
+  {
+    "type": "WritingPropertyCorrection",
+    "input_raw": "{\"name\":\"stock\",\"single_value\":false,\"reason\":\"explicit property correction\"}",
+    "canonical_utf8": "{\"name\":\"stock\",\"persistence\":null,\"reason\":\"explicit property correction\",\"single_value\":false}"
+  },
+  {
+    "type": "RoleValue",
+    "input_raw": "{\"role\":\"actor\",\"property\":\"stock\",\"value\":8}",
+    "canonical_utf8": "{\"property\":\"stock\",\"role\":\"actor\",\"value\":8}"
+  },
+  {
+    "type": "WritingEffect",
+    "input_raw": "{\"role\":\"actor\",\"property\":\"stock\",\"change\":{\"kind\":\"delta\",\"amount\":-1,\"minimum\":0,\"maximum\":8},\"lifetime\":{\"kind\":\"until_changed\"}}",
+    "canonical_utf8": "{\"change\":{\"amount\":-1,\"kind\":\"delta\",\"maximum\":8,\"minimum\":0,\"unit\":null},\"condition\":null,\"lifetime\":{\"kind\":\"until_changed\"},\"optional\":false,\"property\":\"stock\",\"role\":\"actor\"}"
+  },
+  {
+    "type": "WritingAction",
+    "input_raw": "{\"name\":\"Fire\",\"effects\":[{\"role\":\"actor\",\"property\":\"stock\",\"change\":{\"kind\":\"delta\",\"amount\":-1,\"minimum\":0,\"maximum\":8},\"lifetime\":{\"kind\":\"until_changed\"}}]}",
+    "canonical_utf8": "{\"at_tick\":null,\"effects\":[{\"change\":{\"amount\":-1,\"kind\":\"delta\",\"maximum\":8,\"minimum\":0,\"unit\":null},\"condition\":null,\"lifetime\":{\"kind\":\"until_changed\"},\"optional\":false,\"property\":\"stock\",\"role\":\"actor\"}],\"introduce\":false,\"lifetime\":{\"kind\":\"unspecified\"},\"name\":\"Fire\",\"requirements\":[],\"scope\":\"unspecified\"}"
+  },
+  {
+    "type": "WritingInitialization",
+    "input_raw": "{\"instance\":\"Pistol\",\"initial_value_handles\":[\"opaque approved initial value\"],\"start\":{\"kind\":\"existing\",\"handle\":\"opaque occurred start\"},\"scope\":\"Earth\",\"lifetime\":{\"kind\":\"until_changed\"}}",
+    "canonical_utf8": "{\"initial_value_handles\":[\"opaque approved initial value\"],\"instance\":\"Pistol\",\"lifetime\":{\"kind\":\"until_changed\"},\"scope\":\"Earth\",\"start\":{\"handle\":\"opaque occurred start\",\"kind\":\"existing\"}}"
+  },
+  {
+    "type": "WritingUnit",
+    "input_raw": "{\"name\":\"meter\",\"dimension\":\"length\",\"symbol\":\"m\"}",
+    "canonical_utf8": "{\"dimension\":\"length\",\"introduce\":false,\"name\":\"meter\",\"symbol\":\"m\"}"
+  },
+  {
+    "type": "WritingDefinitionCorrection",
+    "input_raw": "{\"name\":\"Pistol\",\"reason\":\"correct ancestry\",\"parent\":{\"kind\":\"root\"}}",
+    "canonical_utf8": "{\"name\":\"Pistol\",\"parent\":{\"kind\":\"root\"},\"reason\":\"correct ancestry\",\"scope\":null}"
+  },
+  {
+    "type": "WritingActionCorrection",
+    "input_raw": "{\"name\":\"Fire\",\"reason\":\"replace explicit effects\",\"effects\":[],\"requirements\":[]}",
+    "canonical_utf8": "{\"at_tick\":null,\"effects\":[],\"lifetime\":null,\"name\":\"Fire\",\"reason\":\"replace explicit effects\",\"requirements\":[],\"scope\":null}"
+  },
+  {
+    "type": "WritingExhaustiveSet",
+    "input_raw": "{\"subject\":\"Mara\",\"property\":\"children\",\"members\":[],\"scope\":\"Earth\"}",
+    "canonical_utf8": "{\"at_tick\":null,\"lifetime\":{\"kind\":\"unspecified\"},\"members\":[],\"property\":\"children\",\"scope\":\"Earth\",\"subject\":\"Mara\"}"
+  },
+  {
+    "type": "WritingRelationDefinition",
+    "input_raw": "{\"name\":\"family\",\"introduce\":true,\"roles\":[{\"name\":\"child\",\"multiple\":true}]}",
+    "canonical_utf8": "{\"introduce\":true,\"name\":\"family\",\"roles\":[{\"multiple\":true,\"name\":\"child\"}]}"
+  },
+  {
+    "type": "WritingRelationRole",
+    "input_raw": "{\"name\":\"child\",\"multiple\":true}",
+    "canonical_utf8": "{\"multiple\":true,\"name\":\"child\"}"
+  },
+  {
+    "type": "WritingRelationLimit",
+    "input_raw": "{\"name\":\"family children\",\"relation\":\"family\",\"grouping\":{\"kind\":\"subject\"},\"counted_role\":\"child\",\"maximum\":4294967295,\"scope\":\"Earth\"}",
+    "canonical_utf8": "{\"at_tick\":null,\"counted_role\":\"child\",\"grouping\":{\"kind\":\"subject\"},\"lifetime\":{\"kind\":\"unspecified\"},\"maximum\":4294967295,\"name\":\"family children\",\"relation\":\"family\",\"scope\":\"Earth\"}"
+  },
+  {
+    "type": "WritingRelationship",
+    "input_raw": "{\"relation\":\"family\",\"subject\":\"Mara\",\"participants\":{\"child\":[\"Iven\",\"Dara\"]},\"scope\":\"Earth\"}",
+    "canonical_utf8": "{\"at_tick\":null,\"lifetime\":{\"kind\":\"unspecified\"},\"negated\":false,\"participants\":{\"child\":[\"Iven\",\"Dara\"]},\"relation\":\"family\",\"scope\":\"Earth\",\"statement\":\"objective\",\"subject\":\"Mara\"}"
+  },
+  {
+    "type": "WritingRelationshipCorrection",
+    "input_raw": "{\"relationship_handle\":\"opaque relationship version\",\"participants\":{\"child\":[]},\"reason\":\"correct historical roles\"}",
+    "canonical_utf8": "{\"participants\":{\"child\":[]},\"reason\":\"correct historical roles\",\"relationship_handle\":\"opaque relationship version\"}"
+  },
+  {
+    "type": "WritingRelationshipEnding",
+    "input_raw": "{\"relationship_handle\":\"opaque relationship version\",\"end_date\":\"1900-01-02\",\"reason\":\"ended\"}",
+    "canonical_utf8": "{\"end_date\":\"1900-01-02\",\"end_tick\":\"\",\"reason\":\"ended\",\"relationship_handle\":\"opaque relationship version\"}"
+  },
+  {
+    "type": "WritingRelationCorrection",
+    "input_raw": "{\"name\":\"family\",\"roles\":[{\"name\":\"child\",\"ordered\":true,\"participant_types\":[]}],\"reason\":\"correct role restrictions\"}",
+    "canonical_utf8": "{\"name\":\"family\",\"reason\":\"correct role restrictions\",\"roles\":[{\"multiple\":null,\"name\":\"child\",\"ordered\":true,\"participant_types\":[]}]}"
+  },
+  {
+    "type": "WritingRelationRoleCorrection",
+    "input_raw": "{\"name\":\"child\",\"ordered\":false,\"multiple\":false,\"participant_types\":[]}",
+    "canonical_utf8": "{\"multiple\":false,\"name\":\"child\",\"ordered\":false,\"participant_types\":[]}"
+  },
+  {
+    "type": "WritingRelationLimitCorrection",
+    "input_raw": "{\"name\":\"family children\",\"maximum\":4294967295,\"grouping\":{\"kind\":\"role\",\"role\":\"parent\"},\"reason\":\"correct grouping\"}",
+    "canonical_utf8": "{\"at_tick\":null,\"counted_role\":null,\"grouping\":{\"kind\":\"role\",\"role\":\"parent\"},\"lifetime\":null,\"maximum\":4294967295,\"name\":\"family children\",\"reason\":\"correct grouping\",\"scope\":null}"
+  },
+  {
+    "type": "WritingAlias",
+    "input_raw": "{\"object\":\"Mara\",\"text\":\"é remembered name\"}",
+    "canonical_utf8": "{\"at_tick\":null,\"community\":null,\"language\":null,\"lifetime\":null,\"object\":\"Mara\",\"role\":null,\"text\":\"é remembered name\"}"
+  },
+  {
+    "type": "WritingDisclosure",
+    "input_raw": "{\"kind\":\"object\",\"name\":\"Mara\"}",
+    "canonical_utf8": "{\"kind\":\"object\",\"name\":\"Mara\"}"
+  },
+  {
+    "type": "WritingDisclosure",
+    "input_raw": "{\"kind\":\"fact\",\"fact_handle\":\"opaque fact\"}",
+    "canonical_utf8": "{\"fact_handle\":\"opaque fact\",\"kind\":\"fact\"}"
+  },
+  {
+    "type": "WritingDisclosure",
+    "input_raw": "{\"kind\":\"event\",\"event_handle\":\"opaque event\"}",
+    "canonical_utf8": "{\"event_handle\":\"opaque event\",\"kind\":\"event\"}"
+  },
+  {
+    "type": "WritingEffectChange",
+    "input_raw": "{\"kind\":\"set\",\"value\":false}",
+    "canonical_utf8": "{\"kind\":\"set\",\"negated\":false,\"value\":false}"
+  },
+  {
+    "type": "WritingEffectChange",
+    "input_raw": "{\"kind\":\"delta\",\"amount\":-1,\"minimum\":0,\"maximum\":8,\"unit\":\"charge\"}",
+    "canonical_utf8": "{\"amount\":-1,\"kind\":\"delta\",\"maximum\":8,\"minimum\":0,\"unit\":\"charge\"}"
+  },
+  {
+    "type": "WritingEffectLifetime",
+    "input_raw": "{\"kind\":\"until_changed\"}",
+    "canonical_utf8": "{\"kind\":\"until_changed\"}"
+  },
+  {
+    "type": "WritingEffectLifetime",
+    "input_raw": "{\"kind\":\"ticks\",\"count\":3}",
+    "canonical_utf8": "{\"count\":3,\"kind\":\"ticks\"}"
+  },
+  {
+    "type": "WritingConstraint",
+    "input_raw": "{\"kind\":\"resource_accounting\",\"name\":\"stock\",\"property\":\"stock\",\"scope\":\"Earth\"}",
+    "canonical_utf8": "{\"kind\":\"resource_accounting\",\"name\":\"stock\",\"property\":\"stock\",\"scope\":\"Earth\"}"
+  },
+  {
+    "type": "WritingConstraint",
+    "input_raw": "{\"kind\":\"no_opposing_evidence\",\"name\":\"no contradictory age\",\"object\":\"Mara\",\"property\":\"age\",\"scope\":\"universe\"}",
+    "canonical_utf8": "{\"kind\":\"no_opposing_evidence\",\"name\":\"no contradictory age\",\"object\":\"Mara\",\"property\":\"age\",\"scope\":\"universe\"}"
+  },
+  {
+    "type": "WritingInstanceStart",
+    "input_raw": "{\"kind\":\"occurred\",\"event\":{\"action\":\"Manufacture pistol\",\"participants\":{\"instance\":\"Pistol\"}}}",
+    "canonical_utf8": "{\"event\":{\"action\":\"Manufacture pistol\",\"at_tick\":null,\"participants\":{\"instance\":\"Pistol\"},\"requires_knowledge\":[],\"world\":null},\"kind\":\"occurred\"}"
+  },
+  {
+    "type": "WritingInstanceStart",
+    "input_raw": "{\"kind\":\"existing\",\"handle\":\"opaque occurred start\"}",
+    "canonical_utf8": "{\"handle\":\"opaque occurred start\",\"kind\":\"existing\"}"
+  },
+  {
+    "type": "WritingParent",
+    "input_raw": "{\"kind\":\"root\"}",
+    "canonical_utf8": "{\"kind\":\"root\"}"
+  },
+  {
+    "type": "WritingParent",
+    "input_raw": "{\"kind\":\"definition\",\"name\":\"Weapon\"}",
+    "canonical_utf8": "{\"kind\":\"definition\",\"name\":\"Weapon\"}"
+  },
+  {
+    "type": "WritingRelationGrouping",
+    "input_raw": "{\"kind\":\"subject\"}",
+    "canonical_utf8": "{\"kind\":\"subject\"}"
+  },
+  {
+    "type": "WritingRelationGrouping",
+    "input_raw": "{\"kind\":\"role\",\"role\":\"parent\"}",
+    "canonical_utf8": "{\"kind\":\"role\",\"role\":\"parent\"}"
+  },
+  {
+    "type": "StoryContextKind",
+    "input_raw": "\"narrator\"",
+    "canonical_utf8": "\"narrator\""
+  },
+  {
+    "type": "StoryContextKind",
+    "input_raw": "\"dream\"",
+    "canonical_utf8": "\"dream\""
+  },
+  {
+    "type": "StoryContextKind",
+    "input_raw": "\"account\"",
+    "canonical_utf8": "\"account\""
+  },
+  {
+    "type": "StoryContextKind",
+    "input_raw": "\"embedded\"",
+    "canonical_utf8": "\"embedded\""
+  },
+  {
+    "type": "WritingEditionBinding",
+    "input_raw": "\"current\"",
+    "canonical_utf8": "\"current\""
+  },
+  {
+    "type": "WritingEditionBinding",
+    "input_raw": "\"unbound\"",
+    "canonical_utf8": "\"unbound\""
+  },
+  {
+    "type": "PlainPropertyType",
+    "input_raw": "\"text\"",
+    "canonical_utf8": "\"text\""
+  },
+  {
+    "type": "PlainPropertyType",
+    "input_raw": "\"boolean\"",
+    "canonical_utf8": "\"boolean\""
+  },
+  {
+    "type": "PlainPropertyType",
+    "input_raw": "\"integer\"",
+    "canonical_utf8": "\"integer\""
+  },
+  {
+    "type": "PlainPropertyType",
+    "input_raw": "\"decimal\"",
+    "canonical_utf8": "\"decimal\""
+  },
+  {
+    "type": "PlainPropertyType",
+    "input_raw": "\"object\"",
+    "canonical_utf8": "\"object\""
+  },
+  {
+    "type": "PlainPropertyType",
+    "input_raw": "\"quantity\"",
+    "canonical_utf8": "\"quantity\""
+  },
+  {
+    "type": "PlainPersistence",
+    "input_raw": "\"unspecified\"",
+    "canonical_utf8": "\"unspecified\""
+  },
+  {
+    "type": "PlainPersistence",
+    "input_raw": "\"until_changed\"",
+    "canonical_utf8": "\"until_changed\""
+  },
+  {
+    "type": "PlainPersistence",
+    "input_raw": "\"explicit_interval\"",
+    "canonical_utf8": "\"explicit_interval\""
+  },
+  {
+    "type": "WritingEffectChange",
+    "input_raw": "{\"kind\":\"delta\",\"amount\":-1.00,\"minimum\":0.00,\"maximum\":1E3}",
+    "canonical_utf8": "{\"amount\":-1.00,\"kind\":\"delta\",\"maximum\":1E3,\"minimum\":0.00,\"unit\":null}"
+  },
+  {
+    "type": "WritingCheck",
+    "input_raw": "{\"status\":\"checked\",\"candidate_handle\":null,\"additions\":[],\"unchanged\":[],\"clarifications\":[],\"excluded\":[],\"unknowns\":[],\"validation\":{\"score\":1E3},\"impact\":null}",
+    "canonical_utf8": "{\"additions\":[],\"candidate_handle\":null,\"clarifications\":[],\"excluded\":[],\"impact\":null,\"status\":\"checked\",\"unchanged\":[],\"unknowns\":[],\"validation\":{\"score\":1E3}}"
+  },
+  {
+    "type": "CheckChanges",
+    "input_raw": "{\"universe\":\"é🌲 cycle\",\"context_id\":\"ctx_000000000000000000000001\",\"worlds\":[{\"name\":\"Earth\"}],\"story_contexts\":[{\"name\":\"Remembered account\",\"kind\":\"account\",\"parent\":\"Primary\",\"calendar\":\"Gregorian\",\"story_time\":\"1900-01-01\"}],\"narrative_works\":[{\"name\":\"Memoir\",\"introduce\":true,\"kind\":\"other\"}],\"work_editions\":[{\"work\":\"Memoir\",\"name\":\"First edition\",\"introduce\":true,\"binding\":\"current\"}],\"scenes\":[{\"name\":\"Scene A\",\"introduce\":true,\"work\":\"Memoir\",\"edition\":\"First edition\",\"narration_context\":\"Primary\",\"reader_order\":18446744073709551615,\"depicted_events\":[\"opaque event version\"],\"disclosures\":[{\"kind\":\"object\",\"name\":\"Mara\"},{\"kind\":\"fact\",\"fact_handle\":\"opaque fact version\"},{\"kind\":\"event\",\"event_handle\":\"opaque event version\"}]}],\"scene_corrections\":[{\"scene_handle\":\"opaque scene version\",\"reason\":\"correct reader order\",\"clear_viewpoint\":true,\"reader_order\":18446744073709551615,\"depicted_events\":[],\"disclosures\":[]}],\"changes\":[{\"name\":\"Mara\",\"facts\":[{\"property\":\"age\",\"value\":40}]}],\"aliases\":[{\"object\":\"Mara\",\"text\":\"é remembered name\"}],\"definitions\":[{\"name\":\"Person\"}],\"properties\":[{\"name\":\"stock\",\"value_type\":\"integer\",\"single_value\":true,\"persistence\":\"until_changed\"}],\"property_corrections\":[{\"name\":\"stock\",\"single_value\":false,\"reason\":\"explicit property correction\"}],\"units\":[{\"name\":\"meter\",\"dimension\":\"length\",\"symbol\":\"m\"}],\"actions\":[{\"name\":\"Fire\",\"effects\":[{\"role\":\"actor\",\"property\":\"stock\",\"change\":{\"kind\":\"delta\",\"amount\":-1,\"minimum\":0,\"maximum\":8},\"lifetime\":{\"kind\":\"until_changed\"}}]}],\"item_powers\":[{\"item\":\"Ring\",\"holder_property\":\"holder\",\"ability_property\":\"invisible\",\"value\":true,\"scope\":\"Earth\"}],\"item_power_corrections\":[{\"grant_handle\":\"opaque grant version\",\"reason\":\"correct interval\",\"end_date\":\"1900-01-02\"}],\"policy_corrections\":[{\"policy_handle\":\"opaque policy\",\"reason\":\"correct history\"}],\"attitude_corrections\":[{\"attitude_handle\":\"opaque attitude\",\"reason\":\"correct history\"}],\"message_corrections\":[{\"message_edit_handle\":\"opaque message\",\"reason\":\"correct history\"}],\"interpretation_corrections\":[{\"attitude_handle\":\"opaque attitude\",\"reason\":\"correct history\"}],\"definition_corrections\":[{\"name\":\"Pistol\",\"reason\":\"correct ancestry\",\"parent\":{\"kind\":\"root\"}}],\"action_corrections\":[{\"name\":\"Fire\",\"reason\":\"replace explicit effects\",\"effects\":[],\"requirements\":[]}],\"constraints\":[{\"kind\":\"resource_accounting\",\"name\":\"stock\",\"property\":\"stock\",\"scope\":\"Earth\"}],\"exhaustive_sets\":[{\"subject\":\"Mara\",\"property\":\"children\",\"members\":[],\"scope\":\"Earth\"}],\"relation_definitions\":[{\"name\":\"family\",\"introduce\":true,\"roles\":[{\"name\":\"child\",\"multiple\":true}]}],\"relation_limits\":[{\"name\":\"family children\",\"relation\":\"family\",\"grouping\":{\"kind\":\"subject\"},\"counted_role\":\"child\",\"maximum\":4294967295,\"scope\":\"Earth\"}],\"relation_corrections\":[{\"name\":\"family\",\"roles\":[{\"name\":\"child\",\"ordered\":true,\"participant_types\":[]}],\"reason\":\"correct role restrictions\"}],\"relation_limit_corrections\":[{\"name\":\"family children\",\"maximum\":4294967295,\"grouping\":{\"kind\":\"role\",\"role\":\"parent\"},\"reason\":\"correct grouping\"}],\"relationships\":[{\"relation\":\"family\",\"subject\":\"Mara\",\"participants\":{\"child\":[\"Iven\",\"Dara\"]},\"scope\":\"Earth\"}],\"relationship_corrections\":[{\"relationship_handle\":\"opaque relationship version\",\"participants\":{\"child\":[]},\"reason\":\"correct historical roles\"}],\"relationship_endings\":[{\"relationship_handle\":\"opaque relationship version\",\"end_date\":\"1900-01-02\",\"reason\":\"ended\"}],\"knowledge_policies\":[{\"kind\":\"knowledge\",\"name\":\"mode\",\"mode\":\"justified\"}],\"knowledge_boundaries\":[{\"name\":\"absence\",\"holder\":\"Iven\",\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true},\"scope\":\"Earth\",\"lifetime\":{\"kind\":\"until_changed\"}}],\"initializations\":[{\"instance\":\"Pistol\",\"initial_value_handles\":[\"opaque approved initial value\"],\"start\":{\"kind\":\"existing\",\"handle\":\"opaque occurred start\"},\"scope\":\"Earth\",\"lifetime\":{\"kind\":\"until_changed\"}}],\"event_corrections\":[{\"event_handle\":\"opaque event\",\"reason\":\"correct history\"}],\"event_withdrawals\":[{\"event_handle\":\"opaque event\",\"reason\":\"withdraw support\"}],\"events\":[{\"action\":\"Open door\",\"participants\":{\"actor\":\"Mara\",\"target\":\"Door\"}}],\"messages\":[{\"label\":\"m1\",\"from\":\"Mara\",\"to\":[],\"received_by\":[],\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true}}],\"attitudes\":[{\"holder\":\"Iven\",\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true},\"attitude\":\"believes\"}],\"corrections\":[{\"fact_handle\":\"opaque fact\",\"value\":41,\"reason\":\"correct history\"}],\"fact_endings\":[{\"fact_handle\":\"opaque fact\",\"reason\":\"ended\"}],\"fact_withdrawals\":[{\"fact_handle\":\"opaque fact\",\"reason\":\"withdraw support\"}],\"questions\":[\"Who is the intended owner?\"]}",
+    "canonical_utf8": "{\"action_corrections\":[{\"at_tick\":null,\"effects\":[],\"lifetime\":null,\"name\":\"Fire\",\"reason\":\"replace explicit effects\",\"requirements\":[],\"scope\":null}],\"actions\":[{\"at_tick\":null,\"effects\":[{\"change\":{\"amount\":-1,\"kind\":\"delta\",\"maximum\":8,\"minimum\":0,\"unit\":null},\"condition\":null,\"lifetime\":{\"kind\":\"until_changed\"},\"optional\":false,\"property\":\"stock\",\"role\":\"actor\"}],\"introduce\":false,\"lifetime\":{\"kind\":\"unspecified\"},\"name\":\"Fire\",\"requirements\":[],\"scope\":\"unspecified\"}],\"aliases\":[{\"at_tick\":null,\"community\":null,\"language\":null,\"lifetime\":null,\"object\":\"Mara\",\"role\":null,\"text\":\"é remembered name\"}],\"attitude_corrections\":[{\"at_tick\":null,\"attitude_handle\":\"opaque attitude\",\"certainty\":null,\"clear_certainty\":false,\"end_tick\":null,\"lifetime\":null,\"reason\":\"correct history\",\"value\":null}],\"attitudes\":[{\"at_tick\":null,\"attitude\":\"believes\",\"claim\":{\"property\":\"open\",\"subject\":\"Door\",\"value\":true},\"holder\":\"Iven\",\"lifetime\":{\"kind\":\"unspecified\"},\"message\":null}],\"changes\":[{\"classification\":null,\"facts\":[{\"at_tick\":null,\"lifetime\":{\"kind\":\"unspecified\"},\"negated\":false,\"property\":\"age\",\"scope\":\"unspecified\",\"statement\":\"objective\",\"value\":40,\"when\":\"unspecified\"}],\"introduce\":false,\"name\":\"Mara\"}],\"constraints\":[{\"kind\":\"resource_accounting\",\"name\":\"stock\",\"property\":\"stock\",\"scope\":\"Earth\"}],\"context_id\":\"ctx_000000000000000000000001\",\"corrections\":[{\"fact_handle\":\"opaque fact\",\"reason\":\"correct history\",\"value\":41}],\"definition_corrections\":[{\"name\":\"Pistol\",\"parent\":{\"kind\":\"root\"},\"reason\":\"correct ancestry\",\"scope\":null}],\"definitions\":[{\"initial_values\":[],\"introduce\":false,\"name\":\"Person\",\"parent\":null,\"scope\":\"unspecified\",\"shared_attributes\":[]}],\"event_corrections\":[{\"action\":null,\"at_tick\":null,\"event_handle\":\"opaque event\",\"participants\":null,\"reason\":\"correct history\",\"requires_knowledge\":null,\"world\":null}],\"event_withdrawals\":[{\"event_handle\":\"opaque event\",\"reason\":\"withdraw support\"}],\"events\":[{\"action\":\"Open door\",\"at_tick\":null,\"participants\":{\"actor\":\"Mara\",\"target\":\"Door\"},\"requires_knowledge\":[],\"world\":null}],\"exhaustive_sets\":[{\"at_tick\":null,\"lifetime\":{\"kind\":\"unspecified\"},\"members\":[],\"property\":\"children\",\"scope\":\"Earth\",\"subject\":\"Mara\"}],\"fact_endings\":[{\"end_tick\":\"\",\"fact_handle\":\"opaque fact\",\"reason\":\"ended\"}],\"fact_withdrawals\":[{\"fact_handle\":\"opaque fact\",\"reason\":\"withdraw support\"}],\"initializations\":[{\"initial_value_handles\":[\"opaque approved initial value\"],\"instance\":\"Pistol\",\"lifetime\":{\"kind\":\"until_changed\"},\"scope\":\"Earth\",\"start\":{\"handle\":\"opaque occurred start\",\"kind\":\"existing\"}}],\"interpretation_corrections\":[{\"attitude_handle\":\"opaque attitude\",\"clear_interpretation\":false,\"interpretation\":null,\"reason\":\"correct history\"}],\"item_power_corrections\":[{\"at_tick\":null,\"end_date\":\"1900-01-02\",\"end_tick\":null,\"grant_handle\":\"opaque grant version\",\"lifetime\":null,\"reason\":\"correct interval\",\"scope\":null,\"value\":null}],\"item_powers\":[{\"ability_property\":\"invisible\",\"at_tick\":null,\"holder_property\":\"holder\",\"item\":\"Ring\",\"lifetime\":{\"kind\":\"unspecified\"},\"scope\":\"Earth\",\"value\":true}],\"knowledge_boundaries\":[{\"at_date\":null,\"at_tick\":null,\"claim\":{\"property\":\"open\",\"subject\":\"Door\",\"value\":true},\"holder\":\"Iven\",\"lifetime\":{\"kind\":\"until_changed\"},\"name\":\"absence\",\"scope\":\"Earth\"}],\"knowledge_policies\":[{\"kind\":\"knowledge\",\"mode\":\"justified\",\"name\":\"mode\"}],\"message_corrections\":[{\"channel\":null,\"claims\":null,\"clear_channel\":false,\"clear_receipt\":false,\"distorted\":null,\"from\":null,\"message_edit_handle\":\"opaque message\",\"reason\":\"correct history\",\"received_by\":null,\"received_tick\":null,\"sent_tick\":null,\"to\":null}],\"messages\":[{\"channel\":null,\"claim\":{\"property\":\"open\",\"subject\":\"Door\",\"value\":true},\"distorted\":false,\"from\":\"Mara\",\"label\":\"m1\",\"received_by\":[],\"received_tick\":null,\"sent_tick\":null,\"to\":[],\"understood_by\":[]}],\"narrative_works\":[{\"introduce\":true,\"kind\":\"other\",\"name\":\"Memoir\"}],\"policy_corrections\":[{\"at_tick\":null,\"clear_maximum_delay\":false,\"clear_minimum_delay\":false,\"forward_only\":null,\"lifetime\":null,\"maximum_delay\":null,\"minimum_delay\":null,\"mode\":null,\"policy_handle\":\"opaque policy\",\"reason\":\"correct history\",\"scope\":null}],\"properties\":[{\"introduce\":false,\"name\":\"stock\",\"persistence\":\"until_changed\",\"single_value\":true,\"unit\":null,\"value_type\":\"integer\"}],\"property_corrections\":[{\"name\":\"stock\",\"persistence\":null,\"reason\":\"explicit property correction\",\"single_value\":false}],\"questions\":[\"Who is the intended owner?\"],\"relation_corrections\":[{\"name\":\"family\",\"reason\":\"correct role restrictions\",\"roles\":[{\"multiple\":null,\"name\":\"child\",\"ordered\":true,\"participant_types\":[]}]}],\"relation_definitions\":[{\"introduce\":true,\"name\":\"family\",\"roles\":[{\"multiple\":true,\"name\":\"child\"}]}],\"relation_limit_corrections\":[{\"at_tick\":null,\"counted_role\":null,\"grouping\":{\"kind\":\"role\",\"role\":\"parent\"},\"lifetime\":null,\"maximum\":4294967295,\"name\":\"family children\",\"reason\":\"correct grouping\",\"scope\":null}],\"relation_limits\":[{\"at_tick\":null,\"counted_role\":\"child\",\"grouping\":{\"kind\":\"subject\"},\"lifetime\":{\"kind\":\"unspecified\"},\"maximum\":4294967295,\"name\":\"family children\",\"relation\":\"family\",\"scope\":\"Earth\"}],\"relationship_corrections\":[{\"participants\":{\"child\":[]},\"reason\":\"correct historical roles\",\"relationship_handle\":\"opaque relationship version\"}],\"relationship_endings\":[{\"end_date\":\"1900-01-02\",\"end_tick\":\"\",\"reason\":\"ended\",\"relationship_handle\":\"opaque relationship version\"}],\"relationships\":[{\"at_tick\":null,\"lifetime\":{\"kind\":\"unspecified\"},\"negated\":false,\"participants\":{\"child\":[\"Iven\",\"Dara\"]},\"relation\":\"family\",\"scope\":\"Earth\",\"statement\":\"objective\",\"subject\":\"Mara\"}],\"scene_corrections\":[{\"clear_reader_order\":false,\"clear_viewpoint\":true,\"depicted_events\":[],\"disclosures\":[],\"narration_context\":null,\"reader_order\":18446744073709551615,\"reason\":\"correct reader order\",\"scene_handle\":\"opaque scene version\",\"viewpoint\":null}],\"scenes\":[{\"depicted_events\":[\"opaque event version\"],\"disclosures\":[{\"kind\":\"object\",\"name\":\"Mara\"},{\"fact_handle\":\"opaque fact version\",\"kind\":\"fact\"},{\"event_handle\":\"opaque event version\",\"kind\":\"event\"}],\"edition\":\"First edition\",\"introduce\":true,\"name\":\"Scene A\",\"narration_context\":\"Primary\",\"reader_order\":18446744073709551615,\"viewpoint\":null,\"work\":\"Memoir\"}],\"story_contexts\":[{\"calendar\":\"Gregorian\",\"introduce\":false,\"kind\":\"account\",\"name\":\"Remembered account\",\"narrator\":null,\"parent\":\"Primary\",\"story_time\":\"1900-01-01\"}],\"units\":[{\"dimension\":\"length\",\"introduce\":false,\"name\":\"meter\",\"symbol\":\"m\"}],\"universe\":\"é🌲 cycle\",\"work_editions\":[{\"binding\":\"current\",\"introduce\":true,\"name\":\"First edition\",\"work\":\"Memoir\"}],\"worlds\":[{\"introduce\":false,\"name\":\"Earth\"}]}"
+  },
+  {
+    "type": "CheckChanges",
+    "input_raw": "{\"universe\":\"Cycle\",\"context_id\":\"ctx_000000000000000000000001\"}",
+    "canonical_utf8": "{\"action_corrections\":[],\"actions\":[],\"aliases\":[],\"attitude_corrections\":[],\"attitudes\":[],\"changes\":[],\"constraints\":[],\"context_id\":\"ctx_000000000000000000000001\",\"corrections\":[],\"definition_corrections\":[],\"definitions\":[],\"event_corrections\":[],\"event_withdrawals\":[],\"events\":[],\"exhaustive_sets\":[],\"fact_endings\":[],\"fact_withdrawals\":[],\"initializations\":[],\"interpretation_corrections\":[],\"item_power_corrections\":[],\"item_powers\":[],\"knowledge_boundaries\":[],\"knowledge_policies\":[],\"message_corrections\":[],\"messages\":[],\"narrative_works\":[],\"policy_corrections\":[],\"properties\":[],\"property_corrections\":[],\"questions\":[],\"relation_corrections\":[],\"relation_definitions\":[],\"relation_limit_corrections\":[],\"relation_limits\":[],\"relationship_corrections\":[],\"relationship_endings\":[],\"relationships\":[],\"scene_corrections\":[],\"scenes\":[],\"story_contexts\":[],\"units\":[],\"universe\":\"Cycle\",\"work_editions\":[],\"worlds\":[]}"
+  }
+]
