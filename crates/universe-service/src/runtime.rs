@@ -435,6 +435,8 @@ impl Runtime {
                             Payload::Property(p)=>Some(p.key.clone()),
                             Payload::Relation(r)=>Some(r.key.clone()),
                             Payload::EntityType(t)=>Some(t.name.clone()),
+                            Payload::Rule(rule)=>Some(rule.key.clone()),
+                            Payload::SceneRef(scene)=>Some(scene.scene_id.clone()),
                             Payload::ActionDefinition(a)=>Some(a.key.clone()),
                             Payload::ItemPower(p) => Some(format!("{} — {}", name(&p.item.record)?, name(&p.power_predicate.record)?)),
                             Payload::Event(e) => e.action.as_ref().and_then(|a| name(&a.record)).map(|action| format!("Occurred action: {action}")),

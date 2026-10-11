@@ -332,6 +332,7 @@ mod tests {
         let ordered=crate::inspector_editor::operation(&frame,&selected,"scene_order","8","Correct reader order",None).unwrap();assert_eq!(ordered["replacement"]["narrativePosition"],8);assert_eq!(ordered["replacement"]["disclosedRecords"],reveal["payload"]["disclosedRecords"]);
         let rows=vec![json!({"identity":{"record_id":"rec_000000000000000000000004"},"payload":{"record_kind":"entity","names":[{"text":"Gate"}]}}),json!({"identity":{"record_id":"rec_000000000000000000000008"},"payload":{"record_kind":"property","key":"location"}}),json!({"identity":{"record_id":"rec_000000000000000000000009"},"payload":{"record_kind":"proposition","subject":{"record":"rec_000000000000000000000004"},"predicate":{"record":"rec_000000000000000000000008"},"value":{"kind":"text","text":"ridge"}}}),json!({"identity":{"record_id":"rec_000000000000000000000010"},"payload":{"record_kind":"assertion","proposition":{"record":"rec_000000000000000000000009"},"polarity":"support"}})];
         let options=crate::author::choices(&[],&rows,"[]");assert_eq!(options.iter().find(|row|row["kind"]=="assertion").unwrap()["label"],"Gate — location: ridge (support)");
+        assert_eq!(options.iter().find(|row|row["kind"]=="proposition").unwrap()["label"],"Gate — location: ridge");
         let mut stale=choices.clone();stale[0]["record_version_id"]=Value::Null;
         assert!(form.create_scene(&frame,&stale).unwrap_err().contains("exact version"));
         form.order="tomorrow".into();assert!(form.create_scene(&frame,&choices).is_err());

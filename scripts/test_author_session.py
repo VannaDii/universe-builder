@@ -898,6 +898,7 @@ class ConnectedWritingTests(unittest.TestCase):
                 boundary=gate_check(knowledge_boundaries=[{"name":"Iven not informed","holder":"Iven","claim":claim,"scope":"universe","at_tick":"0","lifetime":{"kind":"until","end_tick":"18"}}])
                 with self.assertRaises(RuntimeError):
                     decisions.action({"action":"prepare","candidate":boundary["candidate_handle"],"label":"Wrong factual authority","text":"A protected knowledge boundary requires explicit contract review."})
+                labels=json.loads(cli("library",silver["universe"],profile=author))["writing"]["proposals"];self.assertTrue(any(row["label"]=="Iven not informed" for row in labels),labels)
                 boundary_revision=publish(boundary,"Iven does not know the gate's location from Event 0 until Event 18.","silver-explicit-knowledge-boundary",contracts=True)
                 boundary_handle=client.call("universe_read_contracts",{"universe":silver["universe"],"context_id":gate_context()})["result"]["knowledge_boundaries"][0]["policy_handle"]
                 def informed(holder,tick):
@@ -962,7 +963,9 @@ class ConnectedWritingTests(unittest.TestCase):
                 events=client.call("universe_read_facts",{"universe":silver["universe"],"context_id":gate_context(),"object_names":["Iven"]})["result"]["objects"][0]["occurred_events"]
                 depicted=next(e["event_edit_handle"] for e in events if e["action"]=="accidental arrival")
                 scene={"name":"Event sixteen passage","introduce":True,"work":"Ashen retrospective","edition":"First edition","narration_context":"Iven later account","viewpoint":"Iven","reader_order":7,"depicted_events":[depicted]}
-                scene_revision=publish(gate_check(scenes=[scene]),"Reader position seven depicts the Event 16 arrival, narrated by Iven at Event 22; no disclosure is asserted.","silver-narrated-scene",contracts=True)
+                scene_candidate=gate_check(scenes=[scene])
+                labels=json.loads(cli("library",silver["universe"],profile=author))["writing"]["proposals"];self.assertTrue(any(row["label"]==scene["name"] for row in labels),labels)
+                scene_revision=publish(scene_candidate,"Reader position seven depicts the Event 16 arrival, narrated by Iven at Event 22; no disclosure is asserted.","silver-narrated-scene",contracts=True)
                 self.assertEqual(gate_check(scenes=[scene])["status"],"no_changes")
                 narrative=client.call("universe_read_contracts",{"universe":silver["universe"],"context_id":gate_context()})["result"]["narrative"]
                 described=next(n for n in narrative if n["kind"]=="scene")
