@@ -1,6 +1,5 @@
 import 'package:ub_domain/ub_domain.dart';
 
-import 'catalog.dart';
 import 'journal.dart';
 import 'references.dart';
 import 'revision_input.dart';
@@ -23,32 +22,25 @@ final class CandidateReferences {
         record.identity.recordId: record.identity.recordKind,
     };
     for (final record in records) {
-      final fields = objectFields(record.payload);
-      if (record.identity.recordKind == RecordKind.workVersion) {
-        final binding = objectFields(fields['binding']!);
-        final kind = (binding['kind'] as CanonicalString).value;
-        if (kind == 'bound') {
-          _binding(binding);
-        } else if (kind == 'segments') {
-          for (final segment in (binding['segments'] as CanonicalArray).items) {
-            _binding(objectFields(segment));
+      switch (record.identity.recordKind) {
+        case RecordKind.workVersion:
+          final binding = WorkVersionRecord.fromWire(record.payload).binding;
+          switch (binding) {
+            case BoundWork(:final continuity, :final revision):
+              _binding(continuity, revision);
+            case SegmentedWork(:final segments):
+              for (final segment in segments) {
+                _binding(segment.continuity, segment.revision);
+              }
+            case UnboundWork():
+              break;
           }
-        }
-      }
-      if ({
-        RecordKind.sceneRef,
-        RecordKind.passageRef,
-      }.contains(record.identity.recordKind)) {
-        final edition = objectFields(fields['workVersion']!);
-        final version = RecordVersionId.parse(
-          (edition['version'] as CanonicalString).value,
-        );
-        if (journal.load(version).identity.recordKind !=
-            RecordKind.workVersion) {
-          throw const FormatException(
-            'Editorial edition reference must pin a work version',
-          );
-        }
+        case RecordKind.sceneRef:
+          _edition(SceneRecord.fromWire(record.payload).workVersion);
+        case RecordKind.passageRef:
+          _edition(PassageRecord.fromWire(record.payload).workVersion);
+        default:
+          break;
       }
       final refs = ReferenceScan.collect(record.payload, journal.universe);
       for (final dependency in refs.records) {
@@ -86,13 +78,16 @@ final class CandidateReferences {
     };
   }
 
-  void _binding(Map<String, CanonicalValue> binding) {
-    final continuity = ContinuityId.parse(
-      (binding['continuity'] as CanonicalString).value,
-    );
-    final revision = RevisionId.parse(
-      (binding['revision'] as CanonicalString).value,
-    );
+  void _edition(VersionRef edition) {
+    if (journal.load(edition.version).identity.recordKind !=
+        RecordKind.workVersion) {
+      throw const FormatException(
+        'Editorial edition reference must pin a work version',
+      );
+    }
+  }
+
+  void _binding(ContinuityId continuity, RevisionId revision) {
     final rows = journal.database.select(
       'SELECT EXISTS(SELECT 1 FROM commits WHERE universe_id=? AND continuity_id=? AND id=?) AS present',
       [journal.universe.value, continuity.value, revision.value],

@@ -9,6 +9,8 @@ import 'value_shape.dart';
 
 part 'definition_records.dart';
 part 'frame_records.dart';
+part 'narrative_records.dart';
+part 'source_records.dart';
 
 enum AttributeMode {
   instance('instance'),
@@ -54,6 +56,14 @@ sealed class RecordPayload {
   String get digest => payloadDigest(recordKind.wireName, toWire());
   static RecordPayload fromWire(CanonicalValue value) => switch (Fields(value)
       .string('record_kind')) {
+    'work' => WorkRecord.fromWire(value),
+    'work_version' => WorkVersionRecord.fromWire(value),
+    'scene_ref' => SceneRecord.fromWire(value),
+    'passage_ref' => PassageRecord.fromWire(value),
+    'saga' => SagaRecord.fromWire(value),
+    'source' => SourceRecord.fromWire(value),
+    'source_version' => SourceVersionRecord.fromWire(value),
+    'anchor' => AnchorRecord.fromWire(value),
     'entity' => EntityRecord.fromWire(value),
     'world' => WorldRecord.fromWire(value),
     'realm' => RealmRecord.fromWire(value),
@@ -320,3 +330,34 @@ List<RecordId> _ids(Iterable<CanonicalValue> values) =>
     values.map((v) => RecordId.parse(_string(v))).toList();
 CanonicalArray _idArray(Iterable<TypedId> ids) =>
     CanonicalArray(ids.map((id) => CanonicalString(id.value)));
+
+final _maximumU64 = BigInt.parse('18446744073709551615');
+BigInt _checkedU64(BigInt value) {
+  if (value.isNegative || value > _maximumU64) {
+    throw const FormatException('Unsigned 64-bit value outside range');
+  }
+  return value;
+}
+
+BigInt _u64(Fields fields, String key) {
+  final value = fields.require(key);
+  if (value is! CanonicalNumber ||
+      !RegExp(r'^(0|[1-9][0-9]*)$').hasMatch(value.digits)) {
+    throw FormatException('Expected unsigned integer: $key');
+  }
+  return _checkedU64(BigInt.parse(value.digits));
+}
+
+BigInt? _optionalU64(Fields fields, String key) =>
+    fields.values[key] == null || fields.values[key] is CanonicalNull
+    ? null
+    : _u64(fields, key);
+CanonicalValue _nullableU64(BigInt? value) => value == null
+    ? const CanonicalNull()
+    : CanonicalNumber(_checkedU64(value).toString());
+RecordRef? _optionalRef(Fields fields, String key) =>
+    fields.values[key] == null || fields.values[key] is CanonicalNull
+    ? null
+    : RecordRef.fromCanonical(fields.require(key));
+CanonicalValue _nullableRef(RecordRef? value) =>
+    value?.toCanonical() ?? const CanonicalNull();

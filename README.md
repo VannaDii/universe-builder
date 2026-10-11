@@ -8,9 +8,10 @@ The approved [conversion plan](docs/dart-conversion-plan.md) is being implemente
 alongside the current runtime. The Dart workspace currently contains the shared
 canonical encoding, digests, typed identities, values, temporal/spatial expressions
 and reference foundations, typed scopes, validity and evidence bases, and
-12 of 38 record families: worlds, realms, entities, the seven definition
-families, propositions and assertions, plus
-the internal typed SQLite codec, revision journal and connection policy. It is not yet a
+20 of 38 record families: worlds, realms, entities, the seven definition
+families, propositions, assertions, the five narrative families and the three
+source/evidence families. It also contains the internal typed SQLite codec,
+revision journal and connection policy. It is not yet a
 replacement engine or application.
 
 Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter
@@ -22,7 +23,7 @@ dart analyze packages tool
 dart format --output=none --set-exit-if-changed packages tool
 cd packages/ub_domain
 dart test
-dart test test/canonical_test.dart test/identity_test.dart test/exact_amount_test.dart test/value_test.dart test/selector_test.dart test/scope_test.dart test/records_test.dart test/definitions_test.dart --platform chrome
+dart test test/canonical_test.dart test/identity_test.dart test/exact_amount_test.dart test/value_test.dart test/selector_test.dart test/scope_test.dart test/records_test.dart test/definitions_test.dart test/narrative_source_test.dart --platform chrome
 cd ../ub_store
 dart test
 ```
@@ -81,7 +82,13 @@ encoding. Foundation admission and initialization scope/provenance checks use
 these typed models, as do definition/classification indexes and world-name
 reservations. Value shapes preserve typed unit/definition identities and recursive
 sequence declarations without inferring executable behavior from labels. Unknown
-validity remains distinct from unbounded time.
+validity remains distinct from unbounded time. Work bindings retain explicit
+continuity/revision pins or ordered segment bindings; scene order, viewpoint,
+depicted events and disclosed records remain independent. Source import metadata,
+attributed origin and content digests remain distinct from payload digests.
+Byte sizes, anchor offsets and narrative positions use exact unsigned 64-bit
+values on VM and web. These record types describe evidence; content-link,
+excerpt-boundary and factual-support admission still need their service ports.
 The Dart rational validator rejects all zero denominator spellings, including
 `00`, `+0` and `-0`, closing a missed case in the existing Rust validator.
 

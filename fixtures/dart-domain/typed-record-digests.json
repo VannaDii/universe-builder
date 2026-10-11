@@ -35,6 +35,80 @@
     "digest": "8faeac7cbc51fcea8ffd88d7af0ebe6e8c35d4c29fd16c06cde5d99886bbed36"
   },
   {
+    "name": "family:work",
+    "value": {
+      "record_kind": "work",
+      "kind": "novel",
+      "title": "é🌲 sample",
+      "labels": {},
+      "sourceRefs": [],
+      "versions": [],
+      "worldAssociations": []
+    },
+    "canonical": "{\"kind\":\"novel\",\"labels\":{},\"record_kind\":\"work\",\"sourceRefs\":[],\"title\":\"é🌲 sample\",\"versions\":[],\"worldAssociations\":[]}",
+    "digest": "68504067ea064ba4c7e7320476db4919960f42d4b87a4f2fdfa358bdf60efb54"
+  },
+  {
+    "name": "family:work_version",
+    "value": {
+      "record_kind": "work_version",
+      "work": {
+        "record": "rec_000000000000000000000001"
+      },
+      "versionLabel": "é🌲 sample",
+      "binding": {
+        "kind": "bound",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001"
+      }
+    },
+    "canonical": "{\"binding\":{\"continuity\":\"cont_000000000000000000000001\",\"kind\":\"bound\",\"revision\":\"rev_000000000000000000000001\"},\"record_kind\":\"work_version\",\"versionLabel\":\"é🌲 sample\",\"work\":{\"record\":\"rec_000000000000000000000001\"}}",
+    "digest": "1dd813cea164191c7ea9473829dfe60ef8d1e7b69397074f486ad1668f26b842"
+  },
+  {
+    "name": "family:scene_ref",
+    "value": {
+      "record_kind": "scene_ref",
+      "workVersion": {
+        "record": "rec_000000000000000000000001",
+        "version": "ver_000000000000000000000001"
+      },
+      "sceneId": "é🌲 sample",
+      "viewpoint": null,
+      "narrativePosition": null,
+      "depictedEvents": [],
+      "narrationFrame": null,
+      "worldAssociations": []
+    },
+    "canonical": "{\"depictedEvents\":[],\"narrationFrame\":null,\"narrativePosition\":null,\"record_kind\":\"scene_ref\",\"sceneId\":\"é🌲 sample\",\"viewpoint\":null,\"workVersion\":{\"record\":\"rec_000000000000000000000001\",\"version\":\"ver_000000000000000000000001\"},\"worldAssociations\":[]}",
+    "digest": "fe91eeaceb254427e7fc57f2644b85968b20833271d55d90f6df1e09f242c1dd"
+  },
+  {
+    "name": "family:passage_ref",
+    "value": {
+      "record_kind": "passage_ref",
+      "workVersion": {
+        "record": "rec_000000000000000000000001",
+        "version": "ver_000000000000000000000001"
+      },
+      "passageId": "é🌲 sample",
+      "anchor": null
+    },
+    "canonical": "{\"anchor\":null,\"passageId\":\"é🌲 sample\",\"record_kind\":\"passage_ref\",\"workVersion\":{\"record\":\"rec_000000000000000000000001\",\"version\":\"ver_000000000000000000000001\"}}",
+    "digest": "dcc8f7d7539baeaf944d1d47ff303ddd442609bca24b02d0da2b9a2fe3758a33"
+  },
+  {
+    "name": "family:saga",
+    "value": {
+      "record_kind": "saga",
+      "title": "é🌲 sample",
+      "labels": {},
+      "memberships": []
+    },
+    "canonical": "{\"labels\":{},\"memberships\":[],\"record_kind\":\"saga\",\"title\":\"é🌲 sample\"}",
+    "digest": "c7aea8d9ccf0e16d1bfcbc71fba18d2b2cc0c34b8e3fc2a2cb77f51ab0cebeea"
+  },
+  {
     "name": "family:entity_type",
     "value": {
       "record_kind": "entity_type",
@@ -187,6 +261,63 @@
     },
     "canonical": "{\"attributeMode\":\"instance\",\"basis\":{\"kind\":\"author_decision\",\"note\":\"é🌲 sample\"},\"persistence\":\"explicit_interval\",\"polarity\":\"support\",\"precision\":\"exact\",\"proposition\":{\"record\":\"rec_000000000000000000000001\"},\"record_kind\":\"assertion\",\"scope\":{\"applicability\":{\"kind\":\"universe_wide\"},\"context\":{\"record\":\"rec_000000000000000000000001\"}},\"validity\":{\"kind\":\"unspecified\"}}",
     "digest": "854f4038bb72b11dd4f96e358b05924c4b879b8cb9827307dc8738497ccfa113"
+  },
+  {
+    "name": "family:source",
+    "value": {
+      "record_kind": "source",
+      "label": "é🌲 sample",
+      "origin": {
+        "originNote": null
+      },
+      "versions": []
+    },
+    "canonical": "{\"label\":\"é🌲 sample\",\"origin\":{\"originNote\":null},\"record_kind\":\"source\",\"versions\":[]}",
+    "digest": "f79c59c6488e07ab3e83422ec3f5313a7acd59a339e122f9cc695982a8ee5e27"
+  },
+  {
+    "name": "family:source_version",
+    "value": {
+      "record_kind": "source_version",
+      "source": {
+        "record": "rec_000000000000000000000001"
+      },
+      "digest": "é🌲 sample",
+      "mediaType": "é🌲 sample",
+      "byteSize": 1,
+      "importActor": "prn_000000000000000000000001",
+      "importTime": "é🌲 sample",
+      "decoding": {
+        "encoding": "é🌲 sample",
+        "representation": "é🌲 sample",
+        "byteLength": 1
+      },
+      "origin": {
+        "originNote": null
+      }
+    },
+    "canonical": "{\"byteSize\":1,\"decoding\":{\"byteLength\":1,\"encoding\":\"é🌲 sample\",\"representation\":\"é🌲 sample\"},\"digest\":\"é🌲 sample\",\"importActor\":\"prn_000000000000000000000001\",\"importTime\":\"é🌲 sample\",\"mediaType\":\"é🌲 sample\",\"origin\":{\"originNote\":null},\"record_kind\":\"source_version\",\"source\":{\"record\":\"rec_000000000000000000000001\"}}",
+    "digest": "8d785314203b19fcb62eb6cc39e3940130831c418213436a23e0913b568cb450"
+  },
+  {
+    "name": "family:anchor",
+    "value": {
+      "record_kind": "anchor",
+      "sourceVersion": {
+        "record": "rec_000000000000000000000001",
+        "version": "ver_000000000000000000000001"
+      },
+      "locator": {
+        "kind": "byte_range",
+        "start": 1,
+        "end": 1
+      },
+      "excerptDigest": "é🌲 sample",
+      "excerpt": "é🌲 sample",
+      "context": null
+    },
+    "canonical": "{\"context\":null,\"excerpt\":\"é🌲 sample\",\"excerptDigest\":\"é🌲 sample\",\"locator\":{\"end\":1,\"kind\":\"byte_range\",\"start\":1},\"record_kind\":\"anchor\",\"sourceVersion\":{\"record\":\"rec_000000000000000000000001\",\"version\":\"ver_000000000000000000000001\"}}",
+    "digest": "38ab31c1cedba3d05db2b0e735253011c1f0f4ace25600c92b3d5263866c4c1b"
   },
   {
     "name": "value:0",

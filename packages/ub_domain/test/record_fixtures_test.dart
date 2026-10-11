@@ -46,6 +46,14 @@ void main() {
     'calendar',
     'value_definition',
     'domain_pack',
+    'work',
+    'work_version',
+    'scene_ref',
+    'passage_ref',
+    'saga',
+    'source',
+    'source_version',
+    'anchor',
   };
   final covered = <String>{};
   var count = 0;
