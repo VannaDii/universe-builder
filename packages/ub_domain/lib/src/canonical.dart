@@ -112,6 +112,10 @@ String payloadDigest(String discriminator, CanonicalValue value) => sha256
     .convert([...utf8.encode('$discriminator:'), ...value.toBytes()])
     .toString();
 
+/// Unprefixed canonical hash used by revision inputs and membership checksums.
+String canonicalDigest(CanonicalValue value) =>
+    sha256.convert(value.toBytes()).toString();
+
 int _compareUnicode(String a, String b) {
   final left = a.runes.iterator;
   final right = b.runes.iterator;

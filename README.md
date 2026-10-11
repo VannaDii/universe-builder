@@ -7,7 +7,7 @@ Two modes are available: the disposable read/propose fixture and a persistent au
 The approved [conversion plan](docs/dart-conversion-plan.md) is being implemented
 alongside the current runtime. The Dart workspace currently contains the shared
 canonical encoding, digests, typed identities and reference foundations, plus
-the internal typed SQLite codec and connection policy. It is not yet a
+the internal typed SQLite codec, revision journal and connection policy. It is not yet a
 replacement engine or application.
 
 Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter
@@ -30,7 +30,11 @@ historical fixtures; they do not read or modify author installations.
 
 The SQLite codec uses the existing fixed-column relational schema and keeps
 absent/null states, exact numeric strings and ordered child rows. It does not
-provide reviewed publication yet. Schema resources are compiled into the
+provide reviewed publication yet. The internal journal adds immutable revision
+history, exact receipt lookup, tombstones and pinned branches within a
+caller-owned transaction. Factual candidate admission, initialization,
+projections and service authorization still need their port before an
+author-facing publication path can use it. Schema resources are compiled into the
 package; after changing the owning files in `docs/decisions/relational-storage`,
 run `dart run tool/embed_schema.dart` from the repository root to regenerate
 them. Opening an incompatible database refuses conversion and preserves it.

@@ -5,6 +5,19 @@ void main() {
   const body = '000000000000000000000001';
   final universe = UniverseId.parse('unv_$body');
   final record = RecordId.parse('rec_$body');
+  test('closed record identities use the existing snake-case discriminators', () {
+    expect(RecordKind.values, hasLength(38));
+    expect(RecordKind.parse('work_version'), RecordKind.workVersion);
+    expect(() => RecordKind.parse('WorkVersion'), throwsFormatException);
+    expect(
+      RecordIdentity(
+        universeId: universe,
+        recordId: record,
+        recordKind: RecordKind.entity,
+      ).toCanonical().toText(),
+      '{"record_id":"rec_$body","record_kind":"entity","universe_id":"unv_$body"}',
+    );
+  });
   test('typed IDs preserve original bodies and reject other families', () {
     expect(RecordId.parse('rec_$body'), record);
     expect(universe, isNot(record));
