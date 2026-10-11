@@ -13,3 +13,6 @@ fixtures/generated
 
 __pycache__/
 *.pyc
+
+.dart_tool/
+packages/*/build/

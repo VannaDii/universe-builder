@@ -2,6 +2,29 @@
 
 Two modes are available: the disposable read/propose fixture and a persistent authenticated engine for author-defined factual universes. Persistent mode supports incremental definitions and instances, scoped factual constraints, retrieval, declared knowledge acquisition, scoped cross-instance cardinality, exact approval, atomic publication, history and recovery. The external writer interprets prose and asks for author clarification; the MCP validates supported factual declarations. Assessments remain optional attributed domain records. The connected writing workflow has been exercised through the native author interface and local packaged launcher. Prose interpretation remains fallible; release acceptance remains open.
 
+## Dart conversion development
+
+The approved [conversion plan](docs/dart-conversion-plan.md) is being implemented
+alongside the current runtime. The Dart workspace currently contains the shared
+canonical encoding, digests, typed identities and reference foundations; it is
+not yet a replacement engine or application.
+
+Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter
+**3.47.5** (recorded in `.flutter-version`). Dependency resolution is locked in
+the root `pubspec.lock`. Run `dart pub get` at the repository root, then:
+
+```sh
+dart analyze packages/ub_domain
+dart format --output=none --set-exit-if-changed packages/ub_domain
+cd packages/ub_domain
+dart test
+dart test test/canonical_test.dart test/identity_test.dart --platform chrome
+```
+
+Browser tests must run from the package directory. Set `CHROME_EXECUTABLE` if
+Chrome is not discoverable automatically. Tests consume existing canonical and
+historical fixtures; they do not read or modify author installations.
+
 ## Approved logo and application icon
 
 The **only approved Universe Builder (UB) logo** is

@@ -1,0 +1,100 @@
+import 'dart:convert';
+
+import 'package:test/test.dart';
+import 'package:ub_domain/ub_domain.dart';
+
+void main() {
+  test(
+    'canonical ordering uses Unicode scalars and preserves authored text',
+    () {
+      final value = CanonicalObject([
+        MapEntry('🌲', CanonicalString('é e\u0301 ßẞſ')),
+        const MapEntry('\ue000', CanonicalNumber('007')),
+      ]);
+      expect(value.toText(), '{"\ue000":007,"🌲":"é e\u0301 ßẞſ"}');
+      expect(CanonicalValue.parse(value.toBytes()).toBytes(), value.toBytes());
+    },
+  );
+
+  test('wire decoding keeps exact integers above browser precision', () {
+    expect(
+      CanonicalValue.parseJson(
+        '[9007199254740993,18446744073709551615,-9223372036854775808,'
+        '18446744073709551616,-9223372036854775809,30.00,1E3,1e-03,-0]',
+      ).toText(),
+      '[9007199254740993,18446744073709551615,-9223372036854775808,'
+      '"18446744073709551616","-9223372036854775809","30.00",'
+      '"1e+3","1e-03",0]',
+    );
+  });
+
+  test('wire strings decode escapes before duplicate-key detection', () {
+    expect(CanonicalValue.parseJson(r'"\u00e9\ud83c\udf32"').toText(), '"é🌲"');
+    expect(
+      () => CanonicalValue.parseJson(r'{"a":1,"\u0061":2}'),
+      throwsFormatException,
+    );
+  });
+
+  test(
+    'canonical parser preserves existing raw-token and ordering behavior',
+    () {
+      final value = CanonicalValue.parse(utf8.encode('{"z":007,"a":30.00}'));
+      expect(value.toText(), '{"z":007,"a":30.00}');
+      expect(
+        () => CanonicalValue.parse(utf8.encode(r'"\u00e9"')),
+        throwsFormatException,
+      );
+      expect(CanonicalString('\u0000').toText(), r'"\u0000"');
+    },
+  );
+
+  test('minimal escapes and sequence order remain stable', () {
+    expect(
+      CanonicalArray([
+        CanonicalString('"\\\n\r\t\b\f/'),
+        const CanonicalBool(true),
+        const CanonicalNull(),
+      ]).toText(),
+      r'["\"\\\n\r\t\b\f/",true,null]',
+    );
+  });
+
+  test('malformed JSON cannot become a canonical payload', () {
+    for (final text in [
+      '01',
+      '-01',
+      '1.',
+      '1e',
+      'NaN',
+      'Infinity',
+      '{"a":0,"a":1}',
+      '{"a":1,}',
+      '[1,]',
+      '[1] trailing',
+      '"\n"',
+      r'"\ud800"',
+      r'"\udc00"',
+    ]) {
+      expect(
+        () => CanonicalValue.parseJson(text),
+        throwsFormatException,
+        reason: text,
+      );
+    }
+    expect(() => CanonicalValue.parse([0xff]), throwsFormatException);
+    expect(
+      () => CanonicalString(String.fromCharCode(0xd800)),
+      throwsFormatException,
+    );
+  });
+
+  test('digest binds the discriminator and exact canonical bytes', () {
+    final value = CanonicalValue.parseJson('{"a":1}');
+    expect(
+      payloadDigest('entity', value),
+      isNot(payloadDigest('world', value)),
+    );
+    expect(payloadDigest('entity', value), hasLength(64));
+  });
+}

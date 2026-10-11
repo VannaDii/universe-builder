@@ -1,0 +1,8 @@
+name: universe_builder_workspace
+publish_to: none
+environment:
+  sdk: 3.13.4
+workspace:
+  - packages/ub_domain
+dev_dependencies:
+  lints: 6.1.0
