@@ -16,6 +16,7 @@ part 'knowledge_records.dart';
 part 'appearance_records.dart';
 part 'expr.dart';
 part 'plan_records.dart';
+part 'rule_records.dart';
 
 enum AttributeMode {
   instance('instance'),
@@ -69,6 +70,10 @@ sealed class RecordPayload {
     'completeness' => CompletenessRecord.fromWire(value),
     'appearance' => AppearanceRecord.fromWire(value),
     'image_asset' => ImageAssetRecord.fromWire(value),
+    'rule' => RuleRecord.fromWire(value),
+    'boundary' => BoundaryRecord.fromWire(value),
+    'exception' => ExceptionRecord.fromWire(value),
+    'issue_decision' => IssueDecisionRecord.fromWire(value),
     'goal' => GoalRecord.fromWire(value),
     'commitment' => CommitmentRecord.fromWire(value),
     'work' => WorkRecord.fromWire(value),
@@ -385,3 +390,11 @@ CanonicalValue _nullableTime(TemporalExpression? value) =>
     value?.encode(canonical: false) ?? const CanonicalNull();
 CanonicalArray _refs(Iterable<RecordRef> values) =>
     CanonicalArray(values.map((r) => r.toCanonical()));
+
+T? _optionalObject<T>(
+  Fields f,
+  String key,
+  T Function(CanonicalValue) decode,
+) => f.values[key] == null || f.values[key] is CanonicalNull
+    ? null
+    : decode(f.require(key));

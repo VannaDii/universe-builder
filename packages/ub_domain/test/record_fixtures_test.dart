@@ -64,6 +64,10 @@ void main() {
     'image_asset',
     'goal',
     'commitment',
+    'rule',
+    'boundary',
+    'exception',
+    'issue_decision',
   };
   final covered = <String>{};
   var count = 0;

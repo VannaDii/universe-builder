@@ -17,6 +17,8 @@ jobs:
         working-directory: packages/ub_domain
       - run: dart test
         working-directory: packages/ub_store
+      - run: dart test
+        working-directory: packages/ub_rules
   macos:
     runs-on: macos-15
     steps:
