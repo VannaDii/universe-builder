@@ -1,0 +1,392 @@
+[
+  {
+    "input": {
+      "universe": "unv_000000000000000000000001",
+      "continuity": "cont_000000000000000000000001",
+      "revision": "rev_000000000000000000000001",
+      "context": {
+        "record": "rec_000000000000000000000001"
+      },
+      "time": {
+        "kind": "timeless"
+      },
+      "perspective": "author",
+      "readerScene": "rec_000000000000000000000001",
+      "personalSequence": "é🌲 experienced"
+    },
+    "wire": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":\"author\",\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"timeless\"},\"universe\":\"unv_000000000000000000000001\"}",
+    "comparison": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":\"author\",\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":\"timeless\",\"universe\":\"unv_000000000000000000000001\"}"
+  },
+  {
+    "input": {
+      "universe": "unv_000000000000000000000001",
+      "continuity": "cont_000000000000000000000001",
+      "revision": "rev_000000000000000000000001",
+      "context": {
+        "record": "rec_000000000000000000000001"
+      },
+      "time": {
+        "kind": "timeless"
+      },
+      "perspective": "reader",
+      "readerScene": "rec_000000000000000000000001",
+      "personalSequence": "é🌲 experienced"
+    },
+    "wire": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":\"reader\",\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"timeless\"},\"universe\":\"unv_000000000000000000000001\"}",
+    "comparison": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":\"reader\",\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":\"timeless\",\"universe\":\"unv_000000000000000000000001\"}"
+  },
+  {
+    "input": {
+      "universe": "unv_000000000000000000000001",
+      "continuity": "cont_000000000000000000000001",
+      "revision": "rev_000000000000000000000001",
+      "context": {
+        "record": "rec_000000000000000000000001"
+      },
+      "time": {
+        "kind": "timeless"
+      },
+      "perspective": {
+        "character": "rec_000000000000000000000001"
+      },
+      "readerScene": "rec_000000000000000000000001",
+      "personalSequence": "é🌲 experienced"
+    },
+    "wire": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":{\"character\":\"rec_000000000000000000000001\"},\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"timeless\"},\"universe\":\"unv_000000000000000000000001\"}",
+    "comparison": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":{\"kind\":\"character\",\"record\":\"rec_000000000000000000000001\"},\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":\"timeless\",\"universe\":\"unv_000000000000000000000001\"}"
+  },
+  {
+    "input": {
+      "universe": "unv_000000000000000000000001",
+      "continuity": "cont_000000000000000000000001",
+      "revision": "rev_000000000000000000000001",
+      "context": {
+        "record": "rec_000000000000000000000001"
+      },
+      "time": {
+        "kind": "timeless"
+      },
+      "perspective": {
+        "narrator": "rec_000000000000000000000001"
+      },
+      "readerScene": "rec_000000000000000000000001",
+      "personalSequence": "é🌲 experienced"
+    },
+    "wire": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":{\"narrator\":\"rec_000000000000000000000001\"},\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"timeless\"},\"universe\":\"unv_000000000000000000000001\"}",
+    "comparison": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":{\"kind\":\"narrator\",\"record\":\"rec_000000000000000000000001\"},\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":\"timeless\",\"universe\":\"unv_000000000000000000000001\"}"
+  },
+  {
+    "input": {
+      "universe": "unv_000000000000000000000001",
+      "continuity": "cont_000000000000000000000001",
+      "revision": "rev_000000000000000000000001",
+      "context": {
+        "record": "rec_000000000000000000000001"
+      },
+      "time": {
+        "kind": "at",
+        "time": {
+          "kind": "exact",
+          "calendar": "cal_000000000000000000000001",
+          "value": "9007199254740993"
+        }
+      },
+      "perspective": "author",
+      "readerScene": "rec_000000000000000000000001",
+      "personalSequence": "é🌲 experienced"
+    },
+    "wire": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":\"author\",\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"at\",\"time\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"9007199254740993\"}},\"universe\":\"unv_000000000000000000000001\"}",
+    "comparison": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":\"author\",\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"at\",\"time\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"9007199254740993\"}},\"universe\":\"unv_000000000000000000000001\"}"
+  },
+  {
+    "input": {
+      "universe": "unv_000000000000000000000001",
+      "continuity": "cont_000000000000000000000001",
+      "revision": "rev_000000000000000000000001",
+      "context": {
+        "record": "rec_000000000000000000000001"
+      },
+      "time": {
+        "kind": "at",
+        "time": {
+          "kind": "exact",
+          "calendar": "cal_000000000000000000000001",
+          "value": "9007199254740993"
+        }
+      },
+      "perspective": "reader",
+      "readerScene": "rec_000000000000000000000001",
+      "personalSequence": "é🌲 experienced"
+    },
+    "wire": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":\"reader\",\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"at\",\"time\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"9007199254740993\"}},\"universe\":\"unv_000000000000000000000001\"}",
+    "comparison": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":\"reader\",\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"at\",\"time\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"9007199254740993\"}},\"universe\":\"unv_000000000000000000000001\"}"
+  },
+  {
+    "input": {
+      "universe": "unv_000000000000000000000001",
+      "continuity": "cont_000000000000000000000001",
+      "revision": "rev_000000000000000000000001",
+      "context": {
+        "record": "rec_000000000000000000000001"
+      },
+      "time": {
+        "kind": "at",
+        "time": {
+          "kind": "exact",
+          "calendar": "cal_000000000000000000000001",
+          "value": "9007199254740993"
+        }
+      },
+      "perspective": {
+        "character": "rec_000000000000000000000001"
+      },
+      "readerScene": "rec_000000000000000000000001",
+      "personalSequence": "é🌲 experienced"
+    },
+    "wire": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":{\"character\":\"rec_000000000000000000000001\"},\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"at\",\"time\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"9007199254740993\"}},\"universe\":\"unv_000000000000000000000001\"}",
+    "comparison": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":{\"kind\":\"character\",\"record\":\"rec_000000000000000000000001\"},\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"at\",\"time\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"9007199254740993\"}},\"universe\":\"unv_000000000000000000000001\"}"
+  },
+  {
+    "input": {
+      "universe": "unv_000000000000000000000001",
+      "continuity": "cont_000000000000000000000001",
+      "revision": "rev_000000000000000000000001",
+      "context": {
+        "record": "rec_000000000000000000000001"
+      },
+      "time": {
+        "kind": "at",
+        "time": {
+          "kind": "exact",
+          "calendar": "cal_000000000000000000000001",
+          "value": "9007199254740993"
+        }
+      },
+      "perspective": {
+        "narrator": "rec_000000000000000000000001"
+      },
+      "readerScene": "rec_000000000000000000000001",
+      "personalSequence": "é🌲 experienced"
+    },
+    "wire": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":{\"narrator\":\"rec_000000000000000000000001\"},\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"at\",\"time\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"9007199254740993\"}},\"universe\":\"unv_000000000000000000000001\"}",
+    "comparison": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":{\"kind\":\"narrator\",\"record\":\"rec_000000000000000000000001\"},\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"at\",\"time\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"9007199254740993\"}},\"universe\":\"unv_000000000000000000000001\"}"
+  },
+  {
+    "input": {
+      "universe": "unv_000000000000000000000001",
+      "continuity": "cont_000000000000000000000001",
+      "revision": "rev_000000000000000000000001",
+      "context": {
+        "record": "rec_000000000000000000000001"
+      },
+      "time": {
+        "kind": "at_event",
+        "event": {
+          "record": "rec_000000000000000000000001"
+        },
+        "side": "before"
+      },
+      "perspective": "author",
+      "readerScene": "rec_000000000000000000000001",
+      "personalSequence": "é🌲 experienced"
+    },
+    "wire": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":\"author\",\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"event\":{\"record\":\"rec_000000000000000000000001\"},\"kind\":\"at_event\",\"side\":\"before\"},\"universe\":\"unv_000000000000000000000001\"}",
+    "comparison": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":\"author\",\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"event\":{\"record\":\"rec_000000000000000000000001\"},\"kind\":\"at_event\",\"side\":\"before\"},\"universe\":\"unv_000000000000000000000001\"}"
+  },
+  {
+    "input": {
+      "universe": "unv_000000000000000000000001",
+      "continuity": "cont_000000000000000000000001",
+      "revision": "rev_000000000000000000000001",
+      "context": {
+        "record": "rec_000000000000000000000001"
+      },
+      "time": {
+        "kind": "at_event",
+        "event": {
+          "record": "rec_000000000000000000000001"
+        },
+        "side": "before"
+      },
+      "perspective": "reader",
+      "readerScene": "rec_000000000000000000000001",
+      "personalSequence": "é🌲 experienced"
+    },
+    "wire": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":\"reader\",\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"event\":{\"record\":\"rec_000000000000000000000001\"},\"kind\":\"at_event\",\"side\":\"before\"},\"universe\":\"unv_000000000000000000000001\"}",
+    "comparison": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":\"reader\",\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"event\":{\"record\":\"rec_000000000000000000000001\"},\"kind\":\"at_event\",\"side\":\"before\"},\"universe\":\"unv_000000000000000000000001\"}"
+  },
+  {
+    "input": {
+      "universe": "unv_000000000000000000000001",
+      "continuity": "cont_000000000000000000000001",
+      "revision": "rev_000000000000000000000001",
+      "context": {
+        "record": "rec_000000000000000000000001"
+      },
+      "time": {
+        "kind": "at_event",
+        "event": {
+          "record": "rec_000000000000000000000001"
+        },
+        "side": "before"
+      },
+      "perspective": {
+        "character": "rec_000000000000000000000001"
+      },
+      "readerScene": "rec_000000000000000000000001",
+      "personalSequence": "é🌲 experienced"
+    },
+    "wire": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":{\"character\":\"rec_000000000000000000000001\"},\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"event\":{\"record\":\"rec_000000000000000000000001\"},\"kind\":\"at_event\",\"side\":\"before\"},\"universe\":\"unv_000000000000000000000001\"}",
+    "comparison": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":{\"kind\":\"character\",\"record\":\"rec_000000000000000000000001\"},\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"event\":{\"record\":\"rec_000000000000000000000001\"},\"kind\":\"at_event\",\"side\":\"before\"},\"universe\":\"unv_000000000000000000000001\"}"
+  },
+  {
+    "input": {
+      "universe": "unv_000000000000000000000001",
+      "continuity": "cont_000000000000000000000001",
+      "revision": "rev_000000000000000000000001",
+      "context": {
+        "record": "rec_000000000000000000000001"
+      },
+      "time": {
+        "kind": "at_event",
+        "event": {
+          "record": "rec_000000000000000000000001"
+        },
+        "side": "before"
+      },
+      "perspective": {
+        "narrator": "rec_000000000000000000000001"
+      },
+      "readerScene": "rec_000000000000000000000001",
+      "personalSequence": "é🌲 experienced"
+    },
+    "wire": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":{\"narrator\":\"rec_000000000000000000000001\"},\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"event\":{\"record\":\"rec_000000000000000000000001\"},\"kind\":\"at_event\",\"side\":\"before\"},\"universe\":\"unv_000000000000000000000001\"}",
+    "comparison": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":{\"kind\":\"narrator\",\"record\":\"rec_000000000000000000000001\"},\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"event\":{\"record\":\"rec_000000000000000000000001\"},\"kind\":\"at_event\",\"side\":\"before\"},\"universe\":\"unv_000000000000000000000001\"}"
+  },
+  {
+    "input": {
+      "universe": "unv_000000000000000000000001",
+      "continuity": "cont_000000000000000000000001",
+      "revision": "rev_000000000000000000000001",
+      "context": {
+        "record": "rec_000000000000000000000001"
+      },
+      "time": {
+        "kind": "at_event",
+        "event": {
+          "record": "rec_000000000000000000000001"
+        },
+        "side": "after"
+      },
+      "perspective": "author",
+      "readerScene": "rec_000000000000000000000001",
+      "personalSequence": "é🌲 experienced"
+    },
+    "wire": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":\"author\",\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"event\":{\"record\":\"rec_000000000000000000000001\"},\"kind\":\"at_event\",\"side\":\"after\"},\"universe\":\"unv_000000000000000000000001\"}",
+    "comparison": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":\"author\",\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"event\":{\"record\":\"rec_000000000000000000000001\"},\"kind\":\"at_event\",\"side\":\"after\"},\"universe\":\"unv_000000000000000000000001\"}"
+  },
+  {
+    "input": {
+      "universe": "unv_000000000000000000000001",
+      "continuity": "cont_000000000000000000000001",
+      "revision": "rev_000000000000000000000001",
+      "context": {
+        "record": "rec_000000000000000000000001"
+      },
+      "time": {
+        "kind": "at_event",
+        "event": {
+          "record": "rec_000000000000000000000001"
+        },
+        "side": "after"
+      },
+      "perspective": "reader",
+      "readerScene": "rec_000000000000000000000001",
+      "personalSequence": "é🌲 experienced"
+    },
+    "wire": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":\"reader\",\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"event\":{\"record\":\"rec_000000000000000000000001\"},\"kind\":\"at_event\",\"side\":\"after\"},\"universe\":\"unv_000000000000000000000001\"}",
+    "comparison": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":\"reader\",\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"event\":{\"record\":\"rec_000000000000000000000001\"},\"kind\":\"at_event\",\"side\":\"after\"},\"universe\":\"unv_000000000000000000000001\"}"
+  },
+  {
+    "input": {
+      "universe": "unv_000000000000000000000001",
+      "continuity": "cont_000000000000000000000001",
+      "revision": "rev_000000000000000000000001",
+      "context": {
+        "record": "rec_000000000000000000000001"
+      },
+      "time": {
+        "kind": "at_event",
+        "event": {
+          "record": "rec_000000000000000000000001"
+        },
+        "side": "after"
+      },
+      "perspective": {
+        "character": "rec_000000000000000000000001"
+      },
+      "readerScene": "rec_000000000000000000000001",
+      "personalSequence": "é🌲 experienced"
+    },
+    "wire": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":{\"character\":\"rec_000000000000000000000001\"},\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"event\":{\"record\":\"rec_000000000000000000000001\"},\"kind\":\"at_event\",\"side\":\"after\"},\"universe\":\"unv_000000000000000000000001\"}",
+    "comparison": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":{\"kind\":\"character\",\"record\":\"rec_000000000000000000000001\"},\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"event\":{\"record\":\"rec_000000000000000000000001\"},\"kind\":\"at_event\",\"side\":\"after\"},\"universe\":\"unv_000000000000000000000001\"}"
+  },
+  {
+    "input": {
+      "universe": "unv_000000000000000000000001",
+      "continuity": "cont_000000000000000000000001",
+      "revision": "rev_000000000000000000000001",
+      "context": {
+        "record": "rec_000000000000000000000001"
+      },
+      "time": {
+        "kind": "at_event",
+        "event": {
+          "record": "rec_000000000000000000000001"
+        },
+        "side": "after"
+      },
+      "perspective": {
+        "narrator": "rec_000000000000000000000001"
+      },
+      "readerScene": "rec_000000000000000000000001",
+      "personalSequence": "é🌲 experienced"
+    },
+    "wire": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":{\"narrator\":\"rec_000000000000000000000001\"},\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"event\":{\"record\":\"rec_000000000000000000000001\"},\"kind\":\"at_event\",\"side\":\"after\"},\"universe\":\"unv_000000000000000000000001\"}",
+    "comparison": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":{\"kind\":\"narrator\",\"record\":\"rec_000000000000000000000001\"},\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"event\":{\"record\":\"rec_000000000000000000000001\"},\"kind\":\"at_event\",\"side\":\"after\"},\"universe\":\"unv_000000000000000000000001\"}"
+  },
+  {
+    "input": {
+      "universe": "unv_000000000000000000000001",
+      "continuity": "cont_000000000000000000000001",
+      "revision": "rev_000000000000000000000001",
+      "context": {
+        "record": "rec_000000000000000000000001"
+      },
+      "time": {
+        "kind": "timeless"
+      },
+      "perspective": "author"
+    },
+    "wire": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"perspective\":\"author\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"timeless\"},\"universe\":\"unv_000000000000000000000001\"}",
+    "comparison": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"perspective\":\"author\",\"revision\":\"rev_000000000000000000000001\",\"time\":\"timeless\",\"universe\":\"unv_000000000000000000000001\"}"
+  },
+  {
+    "input": {
+      "universe": "unv_000000000000000000000001",
+      "continuity": "cont_000000000000000000000001",
+      "revision": "rev_000000000000000000000001",
+      "context": {
+        "record": "rec_000000000000000000000001"
+      },
+      "time": {
+        "kind": "timeless"
+      },
+      "perspective": "author",
+      "readerScene": null,
+      "personalSequence": null
+    },
+    "wire": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"perspective\":\"author\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"timeless\"},\"universe\":\"unv_000000000000000000000001\"}",
+    "comparison": "{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"perspective\":\"author\",\"revision\":\"rev_000000000000000000000001\",\"time\":\"timeless\",\"universe\":\"unv_000000000000000000000001\"}"
+  }
+]

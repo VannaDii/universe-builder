@@ -15,7 +15,10 @@ image assets, goals, commitments, rules, creative boundaries, exceptions and
 issue decisions, events, action definitions, item powers and represented contexts.
 The shared domain also contains all 61 current operation variants, their coarse
 authority classifications, incremental attribute evidence and immutable record
-version DTOs. It also contains the internal typed SQLite
+version DTOs. Pinned query frames and perspectives are typed too. The new
+`ub_contracts` package contains proposal references, proposals, compiled changes,
+impact and commit-receipt DTOs and their existing workflow enums. The workspace
+also contains the internal typed SQLite
 codec,
 revision journal and connection policy. It is not yet a
 replacement engine or application.
@@ -29,12 +32,15 @@ dart analyze packages tool
 dart format --output=none --set-exit-if-changed packages tool
 cd packages/ub_domain
 dart test
-dart test test/canonical_test.dart test/identity_test.dart test/exact_amount_test.dart test/value_test.dart test/selector_test.dart test/scope_test.dart test/records_test.dart test/definitions_test.dart test/narrative_source_test.dart test/knowledge_appearance_test.dart test/expr_test.dart test/rule_records_test.dart test/event_contract_test.dart test/operations_test.dart --platform chrome
+dart test test/canonical_test.dart test/identity_test.dart test/exact_amount_test.dart test/value_test.dart test/selector_test.dart test/scope_test.dart test/records_test.dart test/definitions_test.dart test/narrative_source_test.dart test/knowledge_appearance_test.dart test/expr_test.dart test/rule_records_test.dart test/event_contract_test.dart test/operations_test.dart test/frame_test.dart --platform chrome
 cd ../ub_store
 dart test
 cd ../ub_rules
 dart test
 dart test test/compiler_test.dart --platform chrome
+cd ../ub_contracts
+dart test
+dart test test/workflow_test.dart --platform chrome
 ```
 
 Browser tests must run from the package directory. Set `CHROME_EXECUTABLE` if
@@ -131,9 +137,18 @@ contracts preserve bare nested record DTOs separately from tagged stored
 payloads, snake-case operation fields and exact expected versions. Decoding an
 adoption request preserves its supplied digest; digest verification and current
 adoption rights remain separate service checks. An operation's coarse authority
-classification never grants permission. Workflow/request DTOs, service operation
+classification never grants permission. Remaining workflow/request DTOs, service operation
 admission and execution still need their ports; completing record and operation
 types does not complete the conversion.
+Frames preserve timeless queries, exact revision pins, event entry/exit sides,
+reader-scene selection and personal sequences. Character/narrator perspectives
+use externally tagged wire values and separate comparison values; timeless frame
+time is a tagged wire object and a comparison string. World focus remains
+per-request rather than hidden frame state. Proposal versions retain exact u64
+integers on VM and web, and authored operations remain separate from compiled
+changes. A typed proposal or receipt is data, not proof of validation or
+publication. Assessment, validation and request contracts and exact approval
+enforcement still need their ports.
 The Dart rational validator rejects all zero denominator spellings, including
 `00`, `+0` and `-0`, closing a missed case in the existing Rust validator.
 

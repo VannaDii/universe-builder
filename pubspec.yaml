@@ -6,5 +6,6 @@ workspace:
   - packages/ub_domain
   - packages/ub_store
   - packages/ub_rules
+  - packages/ub_contracts
 dev_dependencies:
   lints: 6.1.0

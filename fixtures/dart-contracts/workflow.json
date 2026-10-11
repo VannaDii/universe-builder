@@ -1,0 +1,245 @@
+[
+  {
+    "type": "proposal",
+    "input": {
+      "base_frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "record": "rec_000000000000000000000001"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_000000000000000000000001",
+            "value": "9007199254740993"
+          }
+        },
+        "perspective": {
+          "character": "rec_000000000000000000000001"
+        },
+        "readerScene": "rec_000000000000000000000001",
+        "personalSequence": "é🌲 experienced"
+      },
+      "world_scope": null,
+      "proposal_id": "prp_000000000000000000000001",
+      "version": 18446744073709551615,
+      "digest": "supplied proposal digest",
+      "submission": "submitted",
+      "operations": [
+        {
+          "kind": "create_entity",
+          "client_ref": "é🌲 authored",
+          "record": {
+            "names": [],
+            "classification": null,
+            "classificationResolution": "unclassified",
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        }
+      ],
+      "rationale": "authored intent",
+      "canonical": false,
+      "operation_id": "op_000000000000000000000001",
+      "withdrawn": false
+    },
+    "wire": "{\"base_frame\":{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":{\"character\":\"rec_000000000000000000000001\"},\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"at\",\"time\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"9007199254740993\"}},\"universe\":\"unv_000000000000000000000001\"},\"canonical\":false,\"digest\":\"supplied proposal digest\",\"operation_id\":\"op_000000000000000000000001\",\"operations\":[{\"client_ref\":\"é🌲 authored\",\"kind\":\"create_entity\",\"record\":{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{},\"names\":[],\"worldAssociations\":[]}}],\"proposal_id\":\"prp_000000000000000000000001\",\"rationale\":\"authored intent\",\"submission\":\"submitted\",\"version\":18446744073709551615,\"withdrawn\":false,\"world_scope\":null}"
+  },
+  {
+    "type": "proposal",
+    "input": {
+      "base_frame": {
+        "universe": "unv_000000000000000000000001",
+        "continuity": "cont_000000000000000000000001",
+        "revision": "rev_000000000000000000000001",
+        "context": {
+          "record": "rec_000000000000000000000001"
+        },
+        "time": {
+          "kind": "at",
+          "time": {
+            "kind": "exact",
+            "calendar": "cal_000000000000000000000001",
+            "value": "9007199254740993"
+          }
+        },
+        "perspective": {
+          "character": "rec_000000000000000000000001"
+        },
+        "readerScene": "rec_000000000000000000000001",
+        "personalSequence": "é🌲 experienced"
+      },
+      "world_scope": null,
+      "proposal_id": "prp_000000000000000000000001",
+      "version": 18446744073709551615,
+      "digest": "supplied proposal digest",
+      "submission": "submitted",
+      "operations": [
+        {
+          "kind": "create_entity",
+          "client_ref": "é🌲 authored",
+          "record": {
+            "names": [],
+            "classification": null,
+            "classificationResolution": "unclassified",
+            "worldAssociations": [],
+            "labels": {},
+            "metadata": {}
+          }
+        }
+      ],
+      "rationale": "authored intent",
+      "canonical": false,
+      "operation_id": "op_000000000000000000000001",
+      "withdrawn": false,
+      "compiled_changes": [
+        {
+          "record_id": "rec_000000000000000000000001",
+          "expected": "ver_000000000000000000000001",
+          "next": {
+            "record_version_id": "ver_000000000000000000000001",
+            "identity": {
+              "universe_id": "unv_000000000000000000000001",
+              "record_id": "rec_000000000000000000000001",
+              "record_kind": "entity_type"
+            },
+            "payload": {
+              "record_kind": "entity_type",
+              "namespace": "é🌲 sample",
+              "key": "é🌲 sample",
+              "labels": {},
+              "name": "é🌲 sample",
+              "parent": null,
+              "parentResolution": "root",
+              "applicability": {
+                "kind": "universe_wide"
+              },
+              "classificationExecutable": true
+            },
+            "payload_digest": "declared historical digest"
+          }
+        }
+      ]
+    },
+    "wire": "{\"base_frame\":{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"personalSequence\":\"é🌲 experienced\",\"perspective\":{\"character\":\"rec_000000000000000000000001\"},\"readerScene\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"at\",\"time\":{\"calendar\":\"cal_000000000000000000000001\",\"kind\":\"exact\",\"value\":\"9007199254740993\"}},\"universe\":\"unv_000000000000000000000001\"},\"canonical\":false,\"compiled_changes\":[{\"expected\":\"ver_000000000000000000000001\",\"next\":{\"identity\":{\"record_id\":\"rec_000000000000000000000001\",\"record_kind\":\"entity_type\",\"universe_id\":\"unv_000000000000000000000001\"},\"payload\":{\"applicability\":{\"kind\":\"universe_wide\"},\"classificationExecutable\":true,\"key\":\"é🌲 sample\",\"labels\":{},\"name\":\"é🌲 sample\",\"namespace\":\"é🌲 sample\",\"parent\":null,\"parentResolution\":\"root\",\"record_kind\":\"entity_type\"},\"payload_digest\":\"declared historical digest\",\"record_version_id\":\"ver_000000000000000000000001\"},\"record_id\":\"rec_000000000000000000000001\"}],\"digest\":\"supplied proposal digest\",\"operation_id\":\"op_000000000000000000000001\",\"operations\":[{\"client_ref\":\"é🌲 authored\",\"kind\":\"create_entity\",\"record\":{\"classification\":null,\"classificationResolution\":\"unclassified\",\"labels\":{},\"metadata\":{},\"names\":[],\"worldAssociations\":[]}}],\"proposal_id\":\"prp_000000000000000000000001\",\"rationale\":\"authored intent\",\"submission\":\"submitted\",\"version\":18446744073709551615,\"withdrawn\":false,\"world_scope\":null}"
+  },
+  {
+    "type": "proposal_ref",
+    "input": {
+      "proposal_id": "prp_000000000000000000000001",
+      "version": 18446744073709551615,
+      "digest": "supplied proposal digest"
+    },
+    "wire": "{\"digest\":\"supplied proposal digest\",\"proposal_id\":\"prp_000000000000000000000001\",\"version\":18446744073709551615}"
+  },
+  {
+    "type": "compiled_change",
+    "input": {
+      "record_id": "rec_000000000000000000000001",
+      "expected": "ver_000000000000000000000001",
+      "next": {
+        "record_version_id": "ver_000000000000000000000001",
+        "identity": {
+          "universe_id": "unv_000000000000000000000001",
+          "record_id": "rec_000000000000000000000001",
+          "record_kind": "entity_type"
+        },
+        "payload": {
+          "record_kind": "entity_type",
+          "namespace": "é🌲 sample",
+          "key": "é🌲 sample",
+          "labels": {},
+          "name": "é🌲 sample",
+          "parent": null,
+          "parentResolution": "root",
+          "applicability": {
+            "kind": "universe_wide"
+          },
+          "classificationExecutable": true
+        },
+        "payload_digest": "declared historical digest"
+      }
+    },
+    "wire": "{\"expected\":\"ver_000000000000000000000001\",\"next\":{\"identity\":{\"record_id\":\"rec_000000000000000000000001\",\"record_kind\":\"entity_type\",\"universe_id\":\"unv_000000000000000000000001\"},\"payload\":{\"applicability\":{\"kind\":\"universe_wide\"},\"classificationExecutable\":true,\"key\":\"é🌲 sample\",\"labels\":{},\"name\":\"é🌲 sample\",\"namespace\":\"é🌲 sample\",\"parent\":null,\"parentResolution\":\"root\",\"record_kind\":\"entity_type\"},\"payload_digest\":\"declared historical digest\",\"record_version_id\":\"ver_000000000000000000000001\"},\"record_id\":\"rec_000000000000000000000001\"}"
+  },
+  {
+    "type": "compiled_change",
+    "input": {
+      "record_id": "rec_000000000000000000000001"
+    },
+    "wire": "{\"expected\":null,\"next\":null,\"record_id\":\"rec_000000000000000000000001\"}"
+  },
+  {
+    "type": "impact",
+    "input": {
+      "records": [
+        "rec_000000000000000000000001",
+        "rec_000000000000000000000001"
+      ],
+      "coverage": "complete",
+      "world_ids": []
+    },
+    "wire": "{\"coverage\":\"complete\",\"records\":[\"rec_000000000000000000000001\",\"rec_000000000000000000000001\"],\"world_ids\":[]}"
+  },
+  {
+    "type": "impact",
+    "input": {
+      "records": [
+        "rec_000000000000000000000001",
+        "rec_000000000000000000000001"
+      ],
+      "coverage": "partial",
+      "world_ids": []
+    },
+    "wire": "{\"coverage\":\"partial\",\"records\":[\"rec_000000000000000000000001\",\"rec_000000000000000000000001\"],\"world_ids\":[]}"
+  },
+  {
+    "type": "impact",
+    "input": {
+      "records": [
+        "rec_000000000000000000000001",
+        "rec_000000000000000000000001"
+      ],
+      "coverage": "unsupported",
+      "world_ids": []
+    },
+    "wire": "{\"coverage\":\"unsupported\",\"records\":[\"rec_000000000000000000000001\",\"rec_000000000000000000000001\"],\"world_ids\":[]}"
+  },
+  {
+    "type": "impact",
+    "input": {
+      "records": [
+        "rec_000000000000000000000001",
+        "rec_000000000000000000000001"
+      ],
+      "coverage": "restricted",
+      "world_ids": []
+    },
+    "wire": "{\"coverage\":\"restricted\",\"records\":[\"rec_000000000000000000000001\",\"rec_000000000000000000000001\"],\"world_ids\":[]}"
+  },
+  {
+    "type": "impact",
+    "input": {
+      "records": [
+        "rec_000000000000000000000001",
+        "rec_000000000000000000000001"
+      ],
+      "coverage": "failed",
+      "world_ids": []
+    },
+    "wire": "{\"coverage\":\"failed\",\"records\":[\"rec_000000000000000000000001\",\"rec_000000000000000000000001\"],\"world_ids\":[]}"
+  },
+  {
+    "type": "commit_receipt",
+    "input": {
+      "operation_id": "op_000000000000000000000001",
+      "proposal_id": "prp_000000000000000000000001",
+      "revision": "rev_000000000000000000000001"
+    },
+    "wire": "{\"operation_id\":\"op_000000000000000000000001\",\"proposal_id\":\"prp_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\"}"
+  }
+]
