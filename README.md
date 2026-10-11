@@ -17,7 +17,8 @@ The shared domain also contains all 61 current operation variants, their coarse
 authority classifications, incremental attribute evidence and immutable record
 version DTOs. Pinned query frames and perspectives are typed too. The new
 `ub_contracts` package contains proposal references, proposals, compiled changes,
-impact and commit-receipt DTOs and their existing workflow enums. The workspace
+impact and commit-receipt DTOs, validation findings and opposing diagnostics,
+versioned validation reporting and stored/public operation views. The workspace
 also contains the internal typed SQLite
 codec,
 revision journal and connection policy. It is not yet a
@@ -40,7 +41,7 @@ dart test
 dart test test/compiler_test.dart --platform chrome
 cd ../ub_contracts
 dart test
-dart test test/workflow_test.dart --platform chrome
+dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart --platform chrome
 ```
 
 Browser tests must run from the package directory. Set `CHROME_EXECUTABLE` if
@@ -147,8 +148,18 @@ time is a tagged wire object and a comparison string. World focus remains
 per-request rather than hidden frame state. Proposal versions retain exact u64
 integers on VM and web, and authored operations remain separate from compiled
 changes. A typed proposal or receipt is data, not proof of validation or
-publication. Assessment, validation and request contracts and exact approval
-enforcement still need their ports.
+publication. Typed validation reports preserve execution coverage independently
+from submitted-input scope, source-assessment state and the nullable final
+binding digest. Restricted reports have only their fixed restricted reporting
+axes. Exact source bindings require explicit nullable edition/passage fields;
+assessment generations, byte counts and ranges retain exact u64 values on VM
+and web. Opposing diagnostics preserve both evidence chains, policy/exception
+versions, intersection uncertainty and unresolved reasons. The execution-result
+digest uses the complete unpaged execution core's owning wire encoding and
+excludes the assessment wrapper. Assessment bodies/selections, final binding
+validation, request contracts, evaluator execution and exact approval enforcement
+still need their ports. Declared byte verification remains distinct from factual
+support; decoding these DTOs does not verify source content or establish truth.
 The Dart rational validator rejects all zero denominator spellings, including
 `00`, `+0` and `-0`, closing a missed case in the existing Rust validator.
 
