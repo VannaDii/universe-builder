@@ -29,6 +29,10 @@ Browser tests must run from the package directory. Set `CHROME_EXECUTABLE` if
 Chrome is not discoverable automatically. Tests consume existing canonical and
 historical fixtures; they do not read or modify author installations.
 
+The ownership bridge builds with the host C compiler through Dart build hooks.
+Native command-line bundles must use `dart build cli`; `dart compile exe` alone
+does not bundle the native assets.
+
 The SQLite codec uses the existing fixed-column relational schema and keeps
 absent/null states, exact numeric strings and ordered child rows. It does not
 provide reviewed publication yet. The internal journal adds immutable revision
@@ -44,8 +48,13 @@ exact start/definition provenance and durable receipts through correction,
 removal and restoration; receipt reads respect pinned fork ancestry, and the
 history check detects missing or changed receipts. Disposable projection rebuilds
 reconstruct all retained versions and pinned heads, switch generations atomically,
-and preserve historical search results. OS ownership, complete startup content/
-workflow verification and service authorization still need their port before an author-facing publication
+and preserve historical search results. The native POSIX ownership bridge uses
+descriptor locks, protected regular files and private directories; owned SQLite
+connections retain writer ownership through close. This has been exercised on
+macOS, including processes, isolates, crash release and a bundled AOT executable.
+Windows ownership is not implemented and fails explicitly; Linux and mobile
+platform verification remains pending. Complete startup content/workflow
+verification and service authorization still need their port before an author-facing publication
 path can use it. Schema resources are compiled into the
 package; after changing the owning files in `docs/decisions/relational-storage`,
 run `dart run tool/embed_schema.dart` from the repository root to regenerate
