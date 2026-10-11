@@ -116,6 +116,15 @@ pub struct CheckChanges {
     /// Explicit dreams, accounts or embedded stories. Publish then open by name before adding local facts; parent structure never copies facts.
     #[serde(default)]
     pub story_contexts: Vec<WritingStoryContext>,
+    /// Explicit named narrative works; publish before declaring an edition.
+    #[serde(default)]
+    pub narrative_works: Vec<WritingNarrativeWork>,
+    /// Explicit editions of existing works; current binds the exact researched revision, unbound selects none.
+    #[serde(default)]
+    pub work_editions: Vec<WritingWorkEdition>,
+    /// Explicit scenes of an existing edition. Reader order, narration context and depicted events are independent; depiction does not disclose.
+    #[serde(default)]
+    pub scenes: Vec<WritingScene>,
     /// Only factual deltas; do not restate the universe or unchanged facts.
     #[schemars(length(max = 100))]
     #[serde(default)]
@@ -233,6 +242,9 @@ pub struct WritingStoryContext {
     #[serde(default)]
     pub introduce: bool,
     pub kind: StoryContextKind,
+    /// Existing entity explicitly acting as narrator; required only for narrator contexts.
+    #[serde(default)]
+    pub narrator: Option<String>,
     pub parent: String,
     pub calendar: String,
     /// Exact fictional coordinate or Gregorian timestamp in the selected authored clock.
@@ -241,9 +253,44 @@ pub struct WritingStoryContext {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum StoryContextKind {
+    Narrator,
     Dream,
     Account,
     Embedded,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingNarrativeWork {
+    pub name: String,
+    pub introduce: bool,
+    pub kind: universe_domain::records::WorkKind,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingWorkEdition {
+    pub work: String,
+    pub name: String,
+    pub introduce: bool,
+    pub binding: WritingEditionBinding,
+}
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum WritingEditionBinding { Current, Unbound }
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WritingScene {
+    pub name: String,
+    pub introduce: bool,
+    pub work: String,
+    pub edition: String,
+    pub narration_context: String,
+    #[serde(default)]
+    pub viewpoint: Option<String>,
+    #[serde(default)]
+    pub reader_order: Option<u64>,
+    /// Opaque pinned occurred-event edit handles retrieved from ordinary factual research; never inferred from reader order/narration time.
+    #[serde(default)]
+    pub depicted_events: Vec<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

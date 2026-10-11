@@ -1057,6 +1057,9 @@ impl Workflow<'_> {
                         .cloned()
                         .or_else(|| e.names.first().map(|n| n.text.clone())),
                     Payload::Property(p) => Some(p.key.clone()),
+                    Payload::Work(w)=>Some(w.title.clone()),
+                    Payload::WorkVersion(w)=>Some(w.version_label.clone()),
+                    Payload::SceneRef(scene)=>Some(scene.scene_id.clone()),
                     Payload::Relation(r) => Some(r.key.clone()),
                     Payload::EntityType(t) => Some(t.name.clone()),
                     Payload::Realm(r) => r.labels.values().next().cloned(),
@@ -1075,6 +1078,7 @@ impl Workflow<'_> {
                     _ => None,
                 })
         };
+        let mut narrative=vec![];
         let mut actions = vec![];
         let mut policies = vec![];
         let mut boundaries = vec![];
@@ -1091,6 +1095,11 @@ impl Workflow<'_> {
         let units:Vec<_>=rows.iter().filter_map(|r|if let Payload::Unit(u)=&r.payload {Some(json!({"name":u.key,"symbol":u.symbol,"dimension":u.dimension,"conversion_declared":u.base.is_some() || u.scale_to_base.is_some(),"time":plain_time(&json!(u.validity),&name)}))}else{None}).collect();
         for row in &rows {
             match &row.payload{
+            Payload::Work(w) if matches!(ctx.frame.perspective,Perspective::Author)=>narrative.push(json!({"kind":"work","name":w.title,"work_kind":w.kind})),
+            Payload::WorkVersion(w) if matches!(ctx.frame.perspective,Perspective::Author)=>narrative.push(json!({"kind":"edition","work":name(&w.work.record),"name":w.version_label,"binding":match &w.binding {WorkBinding::Bound{revision,..}=>json!({"kind":"bound","revision":revision}),WorkBinding::Unbound=>json!({"kind":"unbound"}),_=>json!({"kind":"segments","limitation":"Advanced segment bindings."})}})),
+            Payload::RepresentedContext(c) if matches!(ctx.frame.perspective,Perspective::Author)&&matches!(c.kind,RepresentedContextKind::Narrator{..})=>{let RepresentedContextKind::Narrator{narrator}=&c.kind else{unreachable!()};narrative.push(json!({"kind":"narrator_context","name":name(&row.identity.record_id),"narrator":name(&narrator.record),"narrator_handle":narrator.record,"parent":c.parent.as_ref().and_then(|p|name(&p.record)),"narration_time":c.chronology.as_ref().map(|clock|plain_time(&json!({"kind":"exact","calendar":clock.calendar,"value":clock.current}),&name))}));},
+            Payload::SceneRef(scene) if matches!(ctx.frame.perspective,Perspective::Author)=>narrative.push(json!({"kind":"scene","name":scene.scene_id,"scene_handle":row.identity.record_id,"edition":rows.iter().find(|r|r.record_version_id==scene.work_version.version).and_then(|r|if let Payload::WorkVersion(w)=&r.payload{Some(&w.version_label)}else{None}),"reader_order":scene.narrative_position,"narration_context":scene.narration_frame.as_ref().and_then(|r|name(&r.record)),"viewpoint":scene.viewpoint.as_ref().and_then(|r|name(&r.record)),"depicted_events":scene.depicted_events.iter().filter_map(|event|rows.iter().find(|r|r.identity.record_id==event.record)).filter_map(|r|if let Payload::Event(e)=&r.payload{Some(json!({"event_handle":r.record_version_id,"action":e.action.as_ref().and_then(|a|name(&a.record)),"event_time":plain_time(&json!(e.time),&name)}))}else{None}).collect::<Vec<_>>(),"disclosure_count":scene.disclosed_records.len(),"limitation":"Depiction and narration never establish reader disclosure or character knowledge."})),
+
             Payload::ActionDefinition(a)if a.scope.context==ctx.frame.context&&(input.action_names.is_empty()||input.action_names.iter().any(|n|n==&a.key||a.labels.values().any(|v|v==n)))=>{
                 actions.push(plain_action(a, &name));
             },Payload::Rule(r)=>{
@@ -1132,7 +1141,7 @@ if let Some(p)=&r.knowledge_policy{if p.context==ctx.frame.context{policies.push
             Payload::Communication(c) if !matches!(ctx.frame.perspective,Perspective::Author) || c.content.iter().any(|claim|rows.iter().any(|r|r.identity.record_id==claim.record&&matches!(&r.payload,Payload::Proposition(p) if p.context==ctx.frame.context)))=>messages.push(json!({"message_handle":row.identity.record_id,"message_edit_handle":if matches!(ctx.frame.perspective,Perspective::Author){Some(&row.record_version_id)}else{None},"channel":c.channel,"to":c.intended_recipients.iter().filter_map(|r|name(&r.record)).collect::<Vec<_>>(),"from":name(&c.sender.record),"received_by":c.actual_recipients.iter().filter_map(|r|name(&r.record)).collect::<Vec<_>>(),"sent_at":plain_time(&json!(c.sent_at),&name),"received_at":c.received_at.as_ref().map(|t|plain_time(&json!(t),&name)),"distorted":c.distorted,"claims":c.content.iter().filter_map(|p|rows.iter().find(|r|r.identity.record_id==p.record)).filter_map(|r|if let Payload::Proposition(p)=&r.payload{Some(json!({"subject":name(&p.subject.record),"property":name(&p.predicate.record),"value":p.value.as_ref().and_then(|v|plain_value(v,&name)),"context":name(&p.context.record)}))}else{None}).collect::<Vec<_>>()})),_=>()
         }
         }
-        self.wrap(&args,Some(ctx.frame.clone()),None,true,None,json!({"actions":actions,"units":units,"knowledge_boundaries":boundaries,"knowledge_policies":policies,"channels":channels,"communications":messages,"attitudes":attitudes,"constraints":constraints,"exhaustive_sets":exhaustive_sets,"relations":relations,"relation_limits":relation_limits,"relationships":relationships,"item_powers":item_powers,"properties":properties,"coverage":if self.scope.is_some() || !matches!(ctx.frame.perspective,Perspective::Author){"restricted"}else{"bounded"},"limitation":"Visible pinned authored declarations; absent contracts are unknown. Effects are computed and checked by the engine. Interpretation alone does not establish knowledge."}))
+        self.wrap(&args,Some(ctx.frame.clone()),None,true,None,json!({"narrative":narrative,"actions":actions,"units":units,"knowledge_boundaries":boundaries,"knowledge_policies":policies,"channels":channels,"communications":messages,"attitudes":attitudes,"constraints":constraints,"exhaustive_sets":exhaustive_sets,"relations":relations,"relation_limits":relation_limits,"relationships":relationships,"item_powers":item_powers,"properties":properties,"coverage":if self.scope.is_some() || !matches!(ctx.frame.perspective,Perspective::Author){"restricted"}else{"bounded"},"limitation":"Visible pinned authored declarations; absent contracts are unknown. Effects are computed and checked by the engine. Interpretation alone does not establish knowledge."}))
     }
 }
 

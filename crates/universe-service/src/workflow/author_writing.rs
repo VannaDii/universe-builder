@@ -396,7 +396,10 @@ impl Workflow<'_> {
         )?;
         if p.proposal.operations.iter().any(|op| {
             if let DomainOperation::RecordNarrativeReference{record:RecordKind::RepresentedContext,payload:Payload::RepresentedContext(c),..}=op {
-                return !contracts || !matches!(c.kind,RepresentedContextKind::Authored{..}) || c.parent.is_none() || c.chronology.is_none();
+                return !contracts || !matches!(c.kind,RepresentedContextKind::Authored{..}|RepresentedContextKind::Narrator{..}) || c.parent.is_none() || c.chronology.is_none() || matches!(&c.kind,RepresentedContextKind::Narrator{narrator}if !originals.iter().any(|r|r.identity.record_id==narrator.record&&matches!(r.payload,Payload::Entity(_))));
+            }
+            if let DomainOperation::RecordNarrativeReference{record,payload,..}=op {
+                return !contracts || !matches!((record,payload),(RecordKind::WorkVersion,Payload::WorkVersion(_))|(RecordKind::SceneRef,Payload::SceneRef(_)));
             }
             if let DomainOperation::AddBelief { record, .. } = op {
                 if record
@@ -520,6 +523,7 @@ impl Workflow<'_> {
                 op,
                 DomainOperation::IntroduceInstance { .. }
                     | DomainOperation::CreateWorld { .. }
+                    | DomainOperation::CreateWork { .. }
                     | DomainOperation::IntroduceDefinition { .. }
                     | DomainOperation::AddNamedAttribute { .. }
                     | DomainOperation::AddName { .. }

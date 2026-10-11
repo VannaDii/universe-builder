@@ -97,6 +97,8 @@ pub(super) fn operation_summary(op: &Value) -> String {
             op["instance"]["record"].as_str().unwrap_or("Unknown"),
             op["definition"]["version"].as_str().unwrap_or("Unknown")
         ),
+        "record_narrative_reference" if op["record"] == "work_version" => format!("Create work edition: {} (explicit canon binding)",op["payload"]["versionLabel"].as_str().unwrap_or("Unnamed")),
+        "record_narrative_reference" if op["record"] == "scene_ref" => format!("Create scene: {} (reader order {}, separate narration context and depicted events; no inferred disclosure)",op["payload"]["sceneId"].as_str().unwrap_or("Unnamed"),op["payload"]["narrativePosition"].as_u64().map(|n|n.to_string()).unwrap_or("unspecified".into())),
         "record_narrative_reference" if op["record"] == "represented_context" => format!(
             "Create authored context: {} (explicit parent and story time)",
             op["payload"]["labels"]["en"].as_str().unwrap_or("Unnamed")

@@ -65,6 +65,7 @@ impl Workflow<'_> {
             &mut operations,
             &mut result,
         )?;
+        self.writing_narrative(&input,&ctx,&records.iter().map(|r|(*r).clone()).collect::<Vec<_>>(),&mut operations,&mut result)?;
         for world in &input.worlds {
             let key = universe_store::selector::selector_key(&world.name)?;
             let matches: Vec<_> = records.iter().filter(|r| matches!(&r.payload, Payload::World(w) if std::iter::once(&w.selector).chain(w.aliases.iter()).any(|n| universe_store::selector::selector_key(n).ok().as_ref() == Some(&key)))).collect();

@@ -17,6 +17,9 @@ pub(super) struct Form {
     pub(super) parent_context: String,
     pub(super) calendar: String,
     pub(super) story_time: String,
+    pub(super) narrator: String,
+    pub(super) scene_viewpoint: String,
+    pub(super) scene_events: Vec<String>,
 }
 fn checked(value: Value) -> Result<Value, String> {
     let operation: DomainOperation = serde_json::from_value(value).map_err(|e| e.to_string())?;
@@ -25,9 +28,9 @@ fn checked(value: Value) -> Result<Value, String> {
 impl Form {
     pub(super) fn create_context(&self, frame: &Frame, choices: &[Value]) -> Result<Value, String> {
         if self.name.trim().is_empty()
-            || !["dream", "account", "embedded"].contains(&self.context_kind.as_str())
+            || !["dream", "account", "embedded", "narrator"].contains(&self.context_kind.as_str())
         {
-            return Err("Name the context and choose dream, account or embedded story.".into());
+            return Err("Name the context and choose its explicit kind.".into());
         }
         let parent = RecordId::parse(&self.parent_context)
             .map_err(|_| "Choose an existing parent context.")?;
@@ -56,9 +59,22 @@ impl Form {
         chronology.first_interaction = time.clone();
         chronology.current = time;
         chronology.validate()?;
+        let kind=if self.context_kind=="narrator" {
+            if !choices.iter().any(|c|c["kind"]=="entity"&&c["record_id"]==self.narrator){return Err("Choose an existing narrator entity.".into());}
+            json!({"kind":"narrator","narrator":{"universe":frame.universe,"record":RecordId::parse(&self.narrator).map_err(|e|e.to_string())?}})
+        }else{json!({"kind":"authored","label":format!("{}: {}",self.context_kind,self.name)})};
         checked(
-            json!({"kind":"record_narrative_reference","client_ref":RecordId::generate(&mut rand::rng()),"record":"represented_context","payload":{"record_kind":"represented_context","universe":frame.universe,"kind":{"kind":"authored","label":format!("{}: {}",self.context_kind,self.name)},"parent":{"universe":frame.universe,"record":parent},"chronology":chronology,"labels":{"en":self.name}}}),
+            json!({"kind":"record_narrative_reference","client_ref":RecordId::generate(&mut rand::rng()),"record":"represented_context","payload":{"record_kind":"represented_context","universe":frame.universe,"kind":kind,"parent":{"universe":frame.universe,"record":parent},"chronology":chronology,"labels":{"en":self.name}}}),
         )
+    }
+    pub(super) fn create_scene(&self,frame:&Frame,choices:&[Value])->Result<Value,String>{
+        if self.name.trim().is_empty(){return Err("Name the scene.".into());}
+        let edition=choices.iter().find(|c|c["kind"]=="work_version"&&c["record_id"]==self.work&&c["record_version_id"].is_string()).ok_or("Inspect the published edition to load its exact version, then select it.")?;
+        let context=choices.iter().find(|c|c["kind"]=="represented_context"&&c["record_id"]==self.parent_context&&c["definition"]["kind"]["kind"]=="narrator"&&c["definition"]["chronology"].is_object()).ok_or("Choose an authored narrator context with narration time.")?;
+        let viewpoint=if self.scene_viewpoint.is_empty(){Value::Null}else{if !choices.iter().any(|c|c["kind"]=="entity"&&c["record_id"]==self.scene_viewpoint){return Err("Choose an existing viewpoint entity.".into());}json!({"universe":frame.universe,"record":self.scene_viewpoint})};
+        let order=if self.order.is_empty(){None}else{Some(self.order.parse::<u64>().map_err(|_|"Reader order is a whole nonnegative position.")?)};
+        let events:Vec<_>=self.scene_events.iter().map(|id|{if !choices.iter().any(|c|c["kind"]=="event"&&c["record_id"]==*id&&c["definition"]["occurrence"]=="occurred"){return Err("Inspect and select an occurred event explicitly.");}Ok(json!({"universe":frame.universe,"record":id}))}).collect::<Result<_,_>>()?;
+        checked(json!({"kind":"record_narrative_reference","client_ref":RecordId::generate(&mut rand::rng()),"record":"scene_ref","payload":{"record_kind":"scene_ref","workVersion":{"universe":frame.universe,"record":edition["record_id"],"version":edition["record_version_id"]},"sceneId":self.name,"disclosedRecords":[],"viewpoint":viewpoint,"narrativePosition":order,"depictedEvents":events,"narrationFrame":{"universe":frame.universe,"record":context["record_id"]},"worldAssociations":[]}}))
     }
     pub(super) fn create(&self, frame: &Frame) -> Result<Value, String> {
         if self.name.trim().is_empty() {
@@ -153,7 +169,7 @@ pub fn IdentityEditor(
     let selected = inspected["records"][0].clone();
     rsx! {details{open:true,
         summary{"Create an entity, world, work, saga or story context"}
-        label{r#for:"draft-kind","Record kind"}super::select::RichSelect {id:"draft-kind",disabled,value:form.read().kind.clone(),onchange:move|e: crate::select::SelectionEvent|form.write().kind=e.value(),options:super::select::choices(&[("","Choose a kind"),("entity","Character or entity"),("world","World"),("story_context","Authored story context"),("work","Narrative work"),("saga","Saga or series"),("work_version","Version of a narrative work")])}
+        label{r#for:"draft-kind","Record kind"}super::select::RichSelect {id:"draft-kind",disabled,value:form.read().kind.clone(),onchange:move|e: crate::select::SelectionEvent|form.write().kind=e.value(),options:super::select::choices(&[("","Choose a kind"),("entity","Character or entity"),("world","World"),("story_context","Authored story context"),("scene_ref","Scene in a narrative edition"),("work","Narrative work"),("saga","Saga or series"),("work_version","Version of a narrative work")])}
         label{r#for:"draft-name","Name or version label"}input{id:"draft-name",disabled,value:form.read().name.clone(),oninput:move|e|form.write().name=e.value()}
         if form.read().kind=="entity"{
             label{r#for:"instance-classification","Classification (optional)"}
@@ -173,12 +189,21 @@ pub fn IdentityEditor(
         }
         if form.read().kind=="story_context" {
             p{"Parentage does not copy facts or make this context objective reality. Publish it before selecting it for local writing."}
-            label{r#for:"context-kind","Context kind"}super::select::RichSelect{id:"context-kind",disabled,value:form.read().context_kind.clone(),options:super::select::choices(&[("","Choose explicitly"),("dream","Dream"),("account","Account"),("embedded","Embedded story")]),onchange:move|e:crate::select::SelectionEvent|form.write().context_kind=e.value()}
+            label{r#for:"context-kind","Context kind"}super::select::RichSelect{id:"context-kind",disabled,value:form.read().context_kind.clone(),options:super::select::choices(&[("","Choose explicitly"),("dream","Dream"),("account","Account"),("embedded","Embedded story"),("narrator","Narrator account")]),onchange:move|e:crate::select::SelectionEvent|form.write().context_kind=e.value()}
+            if form.read().context_kind=="narrator"{label{r#for:"context-narrator","Existing narrator entity"}super::select::RichSelect{id:"context-narrator",disabled,value:form.read().narrator.clone(),options:super::select::record_choices(&choices,&["entity"],"Choose explicitly"),onchange:move|e:crate::select::SelectionEvent|form.write().narrator=e.value()}}
             label{r#for:"context-parent","Parent context"}super::select::RichSelect{id:"context-parent",disabled,value:form.read().parent_context.clone(),options:super::select::record_choices(&choices,&["represented_context"],"Choose parent explicitly"),onchange:move|e:crate::select::SelectionEvent|form.write().parent_context=e.value()}
             label{r#for:"context-calendar","Authored calendar"}super::select::RichSelect{id:"context-calendar",disabled,value:form.read().calendar.clone(),options:super::select::typed_id_choices(&choices,"calendar","cal_","Choose calendar explicitly"),onchange:move|e:crate::select::SelectionEvent|form.write().calendar=e.value()}
             label{r#for:"context-story-time","Initial story time (exact fictional tick or Gregorian timestamp)"}input{id:"context-story-time",disabled,value:form.read().story_time.clone(),oninput:move|e|form.write().story_time=e.value()}
         }
-        button{class:"secondary",disabled,onclick:{let frame=frame.clone();move|_|match if form.read().kind=="story_context"{form.read().create_context(&frame,&choices)}else{form.read().create(&frame)}{Ok(op)=>{onadd.call(op);error.set(String::new());},Err(e)=>error.set(e)}},"Add to draft"}
+        if form.read().kind=="scene_ref"{
+            p{"Inspect an edition and any depicted events to load their pinned references. Depicted event times, narration time and reader order stay separate. No disclosures are inferred."}
+            label{r#for:"scene-edition","Published work edition"}super::select::RichSelect{id:"scene-edition",disabled,value:form.read().work.clone(),options:super::select::record_choices(&choices,&["work_version"],"Inspect and choose edition"),onchange:move|e:crate::select::SelectionEvent|form.write().work=e.value()}
+            label{r#for:"scene-narration","Narration context and time"}super::select::RichSelect{id:"scene-narration",disabled,value:form.read().parent_context.clone(),options:super::select::record_choices(&choices,&["represented_context"],"Choose narrator context"),onchange:move|e:crate::select::SelectionEvent|form.write().parent_context=e.value()}
+            label{r#for:"scene-viewpoint","Viewpoint (optional)"}super::select::RichSelect{id:"scene-viewpoint",disabled,value:form.read().scene_viewpoint.clone(),options:super::select::record_choices(&choices,&["entity"],"Unspecified"),onchange:move|e:crate::select::SelectionEvent|form.write().scene_viewpoint=e.value()}
+            label{r#for:"scene-order","Reader order (optional, not story time)"}input{id:"scene-order",disabled,value:form.read().order.clone(),oninput:move|e|form.write().order=e.value()}
+            for event in choices.iter().filter(|c|c["kind"]=="event"&&c["definition"]["occurrence"]=="occurred"){label{class:"check-label",input{r#type:"checkbox",disabled,checked:form.read().scene_events.iter().any(|id|event["record_id"]==*id),onchange:{let id=event["record_id"].as_str().unwrap_or_default().to_string();move|e|{if e.checked(){form.write().scene_events.push(id.clone());}else{form.write().scene_events.retain(|old|old!=&id);}}}}{event["label"].as_str().unwrap_or_default().to_string()}}}
+        }
+        button{class:"secondary",disabled,onclick:{let frame=frame.clone();move|_|match if form.read().kind=="story_context"{form.read().create_context(&frame,&choices)}else if form.read().kind=="scene_ref"{form.read().create_scene(&frame,&choices)}else{form.read().create(&frame)}{Ok(op)=>{onadd.call(op);error.set(String::new());},Err(e)=>error.set(e)}},"Add to draft"}
         if selected["payload"]["record_kind"]=="saga"{
             h3{"Add or reorder work in the inspected saga"}
             label{r#for:"saga-work","Work"}super::select::RichSelect {id:"saga-work",disabled,value:form.read().work.clone(),onchange:move|e: crate::select::SelectionEvent|form.write().work=e.value(),options:super::select::record_choices(&works, &["work"], "Choose a work")}
@@ -278,6 +303,26 @@ mod tests {
         }
     }
 
+    #[test]
+    fn narrator_scene_form_keeps_time_order_and_edition_separate() {
+        let frame=frame();
+        let choices=vec![
+            json!({"kind":"work_version","record_id":"rec_000000000000000000000002","record_version_id":"ver_000000000000000000000002"}),
+            json!({"kind":"represented_context","record_id":"rec_000000000000000000000003","definition":{"kind":{"kind":"narrator"},"chronology":{}}}),
+            json!({"kind":"entity","record_id":"rec_000000000000000000000004"}),
+            json!({"kind":"event","record_id":"rec_000000000000000000000005","definition":{"occurrence":"occurred"}}),
+        ];
+        let mut form=Form{kind:"scene_ref".into(),name:"Earlier gate passage".into(),work:"rec_000000000000000000000002".into(),parent_context:"rec_000000000000000000000003".into(),order:"7".into(),scene_viewpoint:"rec_000000000000000000000004".into(),scene_events:vec!["rec_000000000000000000000005".into()],..Default::default()};
+        let op=form.create_scene(&frame,&choices).unwrap();
+        assert_eq!(op["payload"]["workVersion"]["version"],"ver_000000000000000000000002");
+        assert_eq!(op["payload"]["narrativePosition"],7);
+        assert_eq!(op["payload"]["narrationFrame"]["record"],"rec_000000000000000000000003");
+        assert_eq!(op["payload"]["depictedEvents"][0]["record"],"rec_000000000000000000000005");
+        assert!(op["payload"]["disclosedRecords"].is_null() || op["payload"]["disclosedRecords"].as_array().unwrap().is_empty());
+        let mut stale=choices.clone();stale[0]["record_version_id"]=Value::Null;
+        assert!(form.create_scene(&frame,&stale).unwrap_err().contains("exact version"));
+        form.order="tomorrow".into();assert!(form.create_scene(&frame,&choices).is_err());
+    }
     #[test]
     fn shared_identity_and_work_binding_are_explicit() {
         let mut f = Form {

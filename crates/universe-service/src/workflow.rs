@@ -1598,6 +1598,14 @@ impl Workflow<'_> {
                 }) {
                     return Err(denied());
                 }
+                let reader_scene=match &a.reader_scene {
+                    None=>None,
+                    Some(RepresentedContextSelector::Id(id))=>Some(id.clone()),
+                    Some(RepresentedContextSelector::Name{name})=>{
+                        let found:Vec<_>=records.iter().filter(|r|visibility.contains(&r.identity.record_id)&&matches!(&r.payload,Payload::SceneRef(scene)if scene.scene_id==*name)).collect();
+                        let [row]=found.as_slice()else{return Err(denied())};Some(row.identity.record_id.clone())
+                    }
+                };
                 let f = Frame {
                     universe: self.kernel.universe().clone(),
                     continuity: a.continuity_id,
@@ -1605,7 +1613,7 @@ impl Workflow<'_> {
                     context: RecordRef::new(self.kernel.universe().clone(), represented_context),
                     time: a.temporal_query,
                     perspective: a.perspective,
-                    reader_scene: a.reader_scene,
+                    reader_scene,
                     personal_sequence: None,
                 };
                 perspective_ids(&records, &f)?;

@@ -991,3 +991,40 @@ other authored world/context/holder/claim is unaffected; universe-wide knowledge
 is not treated as a different world. Unknown applicability or overlap cannot
 qualify publication. Older development packages require separately authorized
 conversion after this closed-model change; no existing installation is migrated.
+
+
+Retrospective narrators and scenes
+
+Ordinary `narrative_works` explicitly introduces a named work and kind. Publish it
+before `work_editions` selects that work and an edition name. `binding: "current"`
+means the exact canon revision just researched; `"unbound"` leaves the edition
+without a canon selection. It does not follow later head changes automatically.
+Publish the edition before referencing it from a scene.
+
+`story_contexts` also accepts `kind: "narrator"` with an explicitly selected existing
+`narrator` entity, parent context, authored calendar and `story_time`. This is an
+actual narrator represented context, with its own narration time; no narrator or
+work identity is inferred. Open it by name under Author perspective to write its
+local claims. Narrator perspective remains restricted research. Later narrator
+knowledge does not establish an earlier character's knowledge or objective truth.
+
+`scenes` names an existing work/edition and narration context. Optional `viewpoint`
+and `reader_order` are explicit. `depicted_events` uses current occurred-event
+handles from factual research. The engine pins the immutable edition version and
+the proposal revision; the existing SceneRef retains event identities within that
+revision. Narration time, each linked event time and reader order stay separate.
+No reader disclosures are inferred; this finite path creates scenes with none.
+Explicit disclosures and segment editions remain advanced authoring.
+
+Contexts, editions and scenes require private contract source review and separate
+exact approval/publication. Named research returns these declarations in
+`universe_read_contracts.narrative`; Reader context opening accepts
+`reader_scene: {name: "Event sixteen passage"}` or the discovered opaque handle.
+Ambiguous/inaccessible names are rejected. Unbound editions cannot authorize a
+Reader view. Current and exact historical contexts retain their pinned data.
+
+The existing identity control now offers Narrator account and Scene in a narrative
+edition. Select an existing narrator and explicit narration date/time. Inspect a
+published edition and any linked events in the explorer to load their pinned
+references before staging the scene. Viewpoint/order may stay unspecified.
+Existing draft-context safety and exact source review remain in force.

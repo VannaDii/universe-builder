@@ -229,7 +229,7 @@ impl Fixture {
     if a.continuity_id.as_str()!=id("cont",1) || represented_context.as_str()!=id("rec",90) || !matches!(a.temporal_query,FrameTime::Timeless) || !matches!(a.perspective,Perspective::Author) || !a.temporal_systems.is_empty() {return Err(unsupported("fixture supports main, objective, timeless author frame only"))}
     if let RevisionSelector::Exact{revision_id}=&a.revision {if revision_id.as_str()!=id("rev",1){return Err(ProtocolError::not_found("revision"))}}
     let context_id=ContextId::parse(&self.allocate("ctx")).unwrap();
-    let frame=Frame{universe:universe.id.clone(),continuity:a.continuity_id,revision:RevisionId::parse(&id("rev",1)).unwrap(),context:RecordRef::new(universe.id.clone(),represented_context),time:a.temporal_query,perspective:a.perspective,reader_scene:a.reader_scene,personal_sequence:None};
+    let frame=Frame{universe:universe.id.clone(),continuity:a.continuity_id,revision:RevisionId::parse(&id("rev",1)).unwrap(),context:RecordRef::new(universe.id.clone(),represented_context),time:a.temporal_query,perspective:a.perspective,reader_scene:match a.reader_scene{Some(universe_protocol::request::RepresentedContextSelector::Id(id))=>Some(id),None=>None,_=>return Err(unsupported("named scenes require persistent storage"))},personal_sequence:None};
     self.contexts.insert(context_id.clone(),frame.clone());
     Ok(Response::OpenContext(Scope{frame:Some(frame.clone()),..scope}.wrap(OpenedContext{context_id,frame})))
    }

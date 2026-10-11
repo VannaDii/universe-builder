@@ -944,6 +944,46 @@ class ConnectedWritingTests(unittest.TestCase):
                 publish(gate_check(**informed("Iven",16)),"Iven receives and understands separate directions at sixteen after the author explicitly ended the boundary.","silver-boundary-corrected-learning")
                 past=client.call("universe_read_contracts",{"universe":silver["universe"],"context_id":gate_context(16,{"kind":"exact","revision_id":boundary_revision})})["result"]["knowledge_boundaries"][0]
                 self.assertEqual(past["policy_handle"],boundary_handle)
+                # Actual retrospective narrator/scene setup through ordinary named deltas.
+                work=gate_check(narrative_works=[{"name":"Ashen retrospective","introduce":True,"kind":"novel"}])
+                publish(work,"A narrative work called Ashen retrospective.","silver-narrative-work")
+                publish(gate_check(work_editions=[{"work":"Ashen retrospective","name":"First edition","introduce":True,"binding":"current"}]),"The first edition explicitly depicts this researched continuity revision.","silver-narrative-edition",contracts=True)
+                narrator=gate_check(story_contexts=[{"name":"Iven later account","introduce":True,"kind":"narrator","narrator":"Iven","parent":gate["context_id"],"calendar":"Gate days","story_time":"22"}])
+                narrator_revision=publish(narrator,"Iven narrates at Event 22, separately from the depicted Event 16.","silver-narrator-context",contracts=True)
+                def narration_context(revision=None):
+                    return client.call("universe_open_context",{"universe":silver["universe"],"continuity_id":gate["continuity_id"],"revision":revision or {"kind":"head"},"represented_context":{"name":"Iven later account"},"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"author"})["result"]["context_id"]
+                def narrated(**delta):return client.call("universe_check_changes",{"universe":silver["universe"],"context_id":narration_context(),**delta})["result"]
+                publish(narrated(knowledge_policies=[{"kind":"knowledge","name":"narrator explicit knowledge","mode":"author_established"}]),"Explicit author decisions may establish attributed knowledge in Iven's narrator account.","silver-narrator-policy",contracts=True)
+                declaration={"holder":"Iven","claim":claim,"at_tick":"22","lifetime":{"kind":"until","end_tick":"30"}}
+                later=decisions.action({"action":"establish_knowledge","context_id":narration_context(),"declaration":declaration,"rationale":"Explicit later narrator knowledge only.","label":"Later narrator knowledge","text":"Iven knows the location in the retrospective narrator account at Event 22."})
+                self.assertTrue(later["publishable"],later)
+                args={"action":"publish","candidate":later["candidate"],"validation_run":later["validation"]["execution"]["run_id"],"idempotency_key":"silver-narrator-knowledge"}
+                self.assertEqual(decisions.action(args)["result"],decisions.action(args)["result"])
+                events=client.call("universe_read_facts",{"universe":silver["universe"],"context_id":gate_context(),"object_names":["Iven"]})["result"]["objects"][0]["occurred_events"]
+                depicted=next(e["event_edit_handle"] for e in events if e["action"]=="accidental arrival")
+                scene={"name":"Event sixteen passage","introduce":True,"work":"Ashen retrospective","edition":"First edition","narration_context":"Iven later account","viewpoint":"Iven","reader_order":7,"depicted_events":[depicted]}
+                scene_revision=publish(gate_check(scenes=[scene]),"Reader position seven depicts the Event 16 arrival, narrated by Iven at Event 22; no disclosure is asserted.","silver-narrated-scene",contracts=True)
+                self.assertEqual(gate_check(scenes=[scene])["status"],"no_changes")
+                narrative=client.call("universe_read_contracts",{"universe":silver["universe"],"context_id":gate_context()})["result"]["narrative"]
+                described=next(n for n in narrative if n["kind"]=="scene")
+                self.assertEqual((described["reader_order"],described["narration_context"],described["disclosure_count"]),(7,"Iven later account",0))
+                self.assertIn("16",str(described["depicted_events"][0]["event_time"]))
+                self.assertIn("22",str(next(n for n in narrative if n["kind"]=="narrator_context")["narration_time"]))
+                reader=client.call("universe_open_context",{"universe":silver["universe"],"continuity_id":gate["continuity_id"],"revision":{"kind":"head"},"represented_context":gate["context_id"],"reader_scene":{"name":"Event sixteen passage"},"temporal_query":{"kind":"timeless"},"temporal_systems":[],"perspective":"reader"})["result"]["context_id"]
+                reader_facts=client.call("universe_read_facts",{"universe":silver["universe"],"context_id":reader,"object_names":["Silver gate"]})["result"]["objects"][0]
+                self.assertNotEqual(reader_facts["identity"],"resolved")
+                self.assertEqual(client.call("universe_read_contracts",{"universe":silver["universe"],"context_id":reader})["result"]["narrative"],[])
+                self.assertEqual(client.call("universe_read_contracts",{"universe":silver["universe"],"context_id":reader})["result"]["knowledge_boundaries"],[])
+                blocked=gate_check(events=[{"action":"accidental arrival","participants":{"actor":"Iven"},"at_tick":"15","requires_knowledge":[{"holder":"Iven","claim":claim}]}])
+                self.assertNotEqual(blocked["status"],"checked_candidate",blocked)
+                self.assertTrue(any(f["outcome"]=="not_established" and "prerequisite" in f["message"].lower() for f in blocked["validation"]["execution"]["findings"]),blocked)
+                held=decisions.action({"action":"prepare","candidate":blocked["candidate_handle"],"label":"Earlier character action","text":"An Event 15 action requires Iven's actual knowledge; later narration does not supply it."})
+                self.assertFalse(held["publishable"],held)
+                with self.assertRaises(RuntimeError):decisions.action({"action":"publish","candidate":held["candidate"],"validation_run":held["validation"]["execution"]["run_id"],"idempotency_key":"silver-earlier-action-denied"})
+                self.assertEqual(client.call("universe_read_contracts",{"universe":silver["universe"],"context_id":gate_context()})["frame"]["revision"],scene_revision)
+                self.assertFalse(any(n["kind"]=="scene" for n in client.call("universe_read_contracts",{"universe":silver["universe"],"context_id":gate_context(None,{"kind":"exact","revision_id":narrator_revision})})["result"]["narrative"]))
+                missing=gate_check(story_contexts=[{"name":"Missing narrator","introduce":True,"kind":"narrator","parent":gate["context_id"],"calendar":"Gate days","story_time":"22"}])
+                self.assertEqual(missing["status"],"needs_clarification");self.assertIsNone(missing["candidate_handle"])
                 # Explicit private author authority still cannot waive an independent boundary.
                 silver["universe"]="Author boundary"
                 gate=json.loads(cli("create",silver["universe"],"--first-time","0","--calendar","Author days","--tick-label","days",profile=author))
