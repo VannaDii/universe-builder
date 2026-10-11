@@ -71,67 +71,59 @@ final class CandidateFoundation {
         case RecordKind.realm:
           _values(fields['metadata'] ?? CanonicalObject([]));
         case RecordKind.proposition:
+          final proposition = PropositionRecord.fromWire(record.payload);
           if (!hasKind(
-            _reference(fields['context']!),
+            proposition.context.record,
             RecordKind.representedContext,
           )) {
             throw const FormatException('Proposition context has wrong kind');
           }
-          final subject = _reference(fields['subject']!);
+          final subject = proposition.subject.record;
           if (!hasKind(subject, RecordKind.entity) &&
               !hasKind(subject, RecordKind.entityType)) {
             throw const FormatException('Proposition subject has wrong kind');
           }
-          final predicate = _reference(fields['predicate']!);
+          final predicate = proposition.predicate.record;
           if (!hasKind(predicate, RecordKind.property) &&
               !hasKind(predicate, RecordKind.relation)) {
             throw const FormatException('Proposition predicate has wrong kind');
           }
-          final value = fields['value'];
-          if (value != null && value is! CanonicalNull) {
-            DomainValue.fromWire(value).validate();
-          }
+          proposition.value?.validate();
         case RecordKind.assertion:
-          final proposition = bodies[_reference(fields['proposition']!)];
+          final assertion = AssertionRecord.fromWire(record.payload);
+          final proposition = bodies[assertion.proposition.record];
           if (proposition == null ||
               proposition.identity.recordKind != RecordKind.proposition) {
             throw const FormatException(
               'Assertion must reference a proposition',
             );
           }
-          final kind = _string(fields['attributeMode']) == 'instance'
+          final kind = assertion.attributeMode == AttributeMode.instance
               ? RecordKind.entity
               : RecordKind.entityType;
           if (!hasKind(
-            _reference(objectFields(proposition.payload)['subject']!),
+            PropositionRecord.fromWire(proposition.payload).subject.record,
             kind,
           )) {
             throw const FormatException(
               'Attribute mode disagrees with subject kind',
             );
           }
-          final scope = objectFields(fields['scope']!);
-          final realm = scope['realm'];
-          if (!hasKind(
-                _reference(scope['context']!),
-                RecordKind.representedContext,
-              ) ||
-              (realm != null &&
-                  realm is! CanonicalNull &&
-                  !hasKind(_reference(realm), RecordKind.realm))) {
+          final scope = assertion.scope;
+          if (!hasKind(scope.context.record, RecordKind.representedContext) ||
+              (scope.realm != null &&
+                  !hasKind(scope.realm!.record, RecordKind.realm))) {
             throw const FormatException(
               'Attribute scope has wrong reference kind',
             );
           }
-          final basis = objectFields(fields['basis']!);
-          if (_string(basis['kind']) == 'source_anchor' &&
-              !hasKind(_reference(basis['anchor']!), RecordKind.anchor)) {
+          final basis = assertion.basis;
+          if (basis is SourceAnchorBasis &&
+              !hasKind(basis.anchor.record, RecordKind.anchor)) {
             throw const FormatException('Evidence is not an anchor');
           }
-          for (final value
-              in (fields['alternatives'] as CanonicalArray?)?.items ??
-                  <CanonicalValue>[]) {
-            DomainValue.fromWire(value).validate();
+          for (final value in assertion.alternatives) {
+            value.validate();
           }
         default:
           break;
@@ -150,6 +142,4 @@ final class CandidateFoundation {
       value == null || value is CanonicalNull
       ? null
       : RecordId.parse(_string(value));
-  RecordId _reference(CanonicalValue value) =>
-      RecordRef.fromCanonical(value).record;
 }

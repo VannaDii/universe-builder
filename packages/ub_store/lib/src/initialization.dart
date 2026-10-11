@@ -166,14 +166,14 @@ final class InitializationEvidence {
       }
       final subject = RecordRef.fromCanonical(p['subject']!);
       final predicate = RecordRef.fromCanonical(p['predicate']!);
-      final scope = objectFields(a['scope']!);
-      final validity = objectFields(a['validity']!);
+      final scope = Scope.fromWire(a['scope']!);
+      final validity = Validity.fromWire(a['validity']!);
       final value = p['value'];
       final sourceValue = sourceP['value'];
       final isStart =
-          _string(validity['kind']!) == 'calendar_interval' &&
-          _string(validity['calendar']!) == time.calendar.value &&
-          TemporalBound.fromWire(validity['start']!) == ExactBound(time.value);
+          validity is CalendarIntervalValidity &&
+          validity.calendar == time.calendar &&
+          validity.start == ExactBound(time.value);
       if (event['occurrence'] is! CanonicalString ||
           _string(event['occurrence']!) != 'occurred' ||
           !(event['participants'] as CanonicalArray).items.any(
@@ -189,11 +189,10 @@ final class InitializationEvidence {
           !_empty(a['alternatives']) ||
           !_empty(initial['alternatives']) ||
           !_absent(a['establishedBy']) ||
-          !_scopeContains(objectFields(initial['scope']!), scope) ||
+          !_scopeContains(Scope.fromWire(initial['scope']!), scope) ||
           RecordRef.fromCanonical(p['context']!) !=
               RecordRef.fromCanonical(sourceP['context']!) ||
-          RecordRef.fromCanonical(p['context']!) !=
-              RecordRef.fromCanonical(scope['context']!) ||
+          RecordRef.fromCanonical(p['context']!) != scope.context ||
           predicate != RecordRef.fromCanonical(sourceP['predicate']!) ||
           value == null ||
           value is CanonicalNull ||
@@ -418,13 +417,10 @@ final class InitializationEvidence {
 }
 
 (VersionRef, VersionRef, RevisionId)? _provenance(CanonicalValue basis) {
-  final fields = objectFields(basis);
-  if (_string(fields['kind']!) != 'instance_initialization') return null;
-  return (
-    VersionRef.fromCanonical(fields['start']!),
-    VersionRef.fromCanonical(fields['definition']!),
-    RevisionId.parse(_string(fields['source_revision']!)),
-  );
+  final evidence = EvidenceBasis.fromWire(basis);
+  return evidence is InstanceInitializationBasis
+      ? (evidence.start, evidence.definition, evidence.sourceRevision)
+      : null;
 }
 
 String _string(CanonicalValue value) => (value as CanonicalString).value;
@@ -434,33 +430,16 @@ bool _empty(CanonicalValue? value) =>
 RecordId? _optionalId(CanonicalValue? value) =>
     _absent(value) ? null : RecordId.parse(_string(value!));
 
-bool _scopeContains(
-  Map<String, CanonicalValue> source,
-  Map<String, CanonicalValue> target,
-) {
-  if (RecordRef.fromCanonical(source['context']!) !=
-      RecordRef.fromCanonical(target['context']!)) {
+bool _scopeContains(Scope source, Scope target) {
+  if (source.context != target.context || source.realm != target.realm) {
     return false;
   }
-  RecordRef? realm(Map<String, CanonicalValue> fields) =>
-      _absent(fields['realm'])
-      ? null
-      : RecordRef.fromCanonical(fields['realm']!);
-  if (realm(source) != realm(target)) return false;
-  final from = objectFields(source['applicability']!);
-  final to = objectFields(target['applicability']!);
-  final fromKind = _string(from['kind']!);
-  final toKind = _string(to['kind']!);
-  if (fromKind == 'universe_wide' && toKind == 'universe_wide') return true;
-  if (toKind != 'worlds') return false;
-  final worlds = (to['world_ids'] as CanonicalArray).items
-      .map((w) => WorldId.parse(_string(w)))
-      .toList();
-  if (worlds.isEmpty) return false;
-  if (fromKind == 'universe_wide') return true;
-  if (fromKind != 'worlds') return false;
-  final allowed = (from['world_ids'] as CanonicalArray).items
-      .map((w) => WorldId.parse(_string(w)))
-      .toSet();
-  return worlds.every(allowed.contains);
+  final from = source.applicability;
+  final to = target.applicability;
+  if (from is UniverseApplicability && to is UniverseApplicability) return true;
+  if (to is! WorldsApplicability || to.worldIds.isEmpty) return false;
+  if (from is UniverseApplicability) return true;
+  if (from is! WorldsApplicability) return false;
+  final allowed = from.worldIds.toSet();
+  return to.worldIds.every(allowed.contains);
 }
