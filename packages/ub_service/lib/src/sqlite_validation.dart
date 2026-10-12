@@ -392,6 +392,28 @@ final class SqliteValidationWorkflow {
     );
   }
 
+  Future<CanonicalObject> maintainRequest(MaintainEngineRequest request) async {
+    try {
+      return await authority.withUniverseAuthority(principal, universe, (
+        current,
+      ) {
+        if (!current.principal.author ||
+            authority
+                    .resolveUniverseAlias(principal, request.universe.value)
+                    .universeId !=
+                universe) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        return package.maintain(collect: request.collect);
+      });
+    } on InstallationException catch (error) {
+      if (error.failure == InstallationFailure.denied) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      rethrow;
+    }
+  }
+
   /// Author-owned pinned branches and explicit adoption intent. Comparison and
   /// adoption preparation never advance either continuity or approve changes.
   Future<CanonicalValue> continuityRequest(EngineRequest request) async {

@@ -2704,6 +2704,239 @@ void main() {
     continuityId: draft.proposal.baseFrame.continuity,
   );
 
+  test('native maintenance collects only snapshot caches and retains drafts sources approvals history and publication receipts', () async {
+    final imageBytes = base64.decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR4nGP4z8DwHwQBEPgD/U6VwW8AAAAASUVORK5CYII=',
+    );
+    late ImageAssetRecord image;
+    final setup = OwnedSqliteDatabase.openExisting(path);
+    try {
+      setup.recover();
+      image = SqliteKernel(
+        setup.database,
+        f.u,
+      ).stageImageBytes(imageBytes, 'Retained.png').asset;
+      final journal = SqliteJournal(setup.database, f.u);
+      final base = draft.proposal.baseFrame;
+      final members = journal.snapshot(base.continuity, base.revision);
+      setup.database.execute('BEGIN IMMEDIATE');
+      setup.database.execute('INSERT INTO snapshot_membership VALUES(?,?,?)', [
+        f.u.value,
+        base.revision.value,
+        canonicalDigest(
+          CanonicalObject([
+            for (final e in members.entries)
+              MapEntry(e.key.value, CanonicalString(e.value.value)),
+          ]),
+        ),
+      ]);
+      for (final e in members.entries) {
+        setup.database.execute('INSERT INTO snapshot_member VALUES(?,?,?,?)', [
+          f.u.value,
+          base.revision.value,
+          e.key.value,
+          e.value.value,
+        ]);
+      }
+      setup.database.execute('COMMIT');
+    } finally {
+      setup.close();
+    }
+    var connection = runtime.connect(hello(author.id));
+    final opened = await readContext(connection);
+    final submitted = Proposal.fromWire(
+      (await tool(
+        connection,
+        SubmitProposalRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          proposalReference: draft.reference,
+          idempotencyKey: 'maintenance-submit',
+        ),
+      )).result,
+    );
+    final reference = ProposalRef(
+      proposalId: submitted.proposalId,
+      version: submitted.version,
+      digest: submitted.digest,
+    );
+    final checked = ValidationV3.fromWire(
+      (await tool(
+        connection,
+        ProposalValidationRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          proposalReference: reference,
+          checkScope: CheckScope.candidate,
+        ),
+      )).result,
+    ) as EvaluatedValidation;
+    await engine(
+      connection,
+      ApproveEngineRequest(
+        universe: const Selector('World'),
+        proposalReference: reference,
+        validationRun: checked.execution.runId,
+      ),
+    );
+    final publish = CommitRequest(
+      universe: const Selector('World'),
+      proposalReference: reference,
+      expectedBaseRevision: opened.frame.revision,
+      validationRun: checked.execution.runId,
+      idempotencyKey: 'maintenance-publish',
+    );
+    final published = await tool(connection, publish);
+    final savedDraft = await engine(
+      connection,
+      saveEditor(editorContent('Retained unfinished text'), BigInt.zero),
+    );
+    final stagedSource = await engine(connection, stage);
+    const fields = {
+      'retention_policy',
+      'retained_record_versions',
+      'retained_revisions',
+      'retained_commit_receipts',
+      'retained_workflow_entries',
+      'retained_source_assets',
+      'eligible_snapshot_caches',
+      'collected_snapshot_caches',
+      'source_assets_collected',
+      'backup_pins',
+      'canonical',
+    };
+    Future<WireFields> maintenance(bool collect) async => WireFields(
+      await engine(
+        connection,
+        MaintainEngineRequest(
+          universe: const Selector('World'),
+          collect: collect,
+        ),
+      ),
+      fields,
+    );
+    final beforeLibrary = await library(connection);
+    final dry = await maintenance(false);
+    expect(dry.string('retention_policy'), 'retain-all-history-v1');
+    expect(dry.boolean('canonical'), isFalse);
+    expect(dry.require('eligible_snapshot_caches').toText(), '1');
+    expect(dry.require('collected_snapshot_caches').toText(), '0');
+    expect(dry.require('retained_source_assets').toText(), '1');
+    final collected = await maintenance(true);
+    expect(collected.require('collected_snapshot_caches').toText(), '1');
+    expect(collected.require('source_assets_collected').toText(), '0');
+    for (final field in fields.where((f) => f != 'collected_snapshot_caches')) {
+      expect(collected.require(field).toText(), dry.require(field).toText());
+    }
+    final afterLibrary = await library(connection);
+    for (final field in [
+      'storage',
+      'worlds',
+      'contexts',
+      'continuities',
+      'writing',
+    ]) {
+      expect(
+        afterLibrary.require(field).toText(),
+        beforeLibrary.require(field).toText(),
+      );
+    }
+    expect(
+      (await engine(connection, loadEditor())).toText(),
+      savedDraft.toText(),
+    );
+    await runtime.close();
+    runtime = NativeSqliteRuntime(authority: authority);
+    connection = runtime.connect(hello(author.id));
+    expect(
+      (await tool(connection, publish)).toWire((v) => v).toText(),
+      published.toWire((v) => v).toText(),
+    );
+    expect(
+      (await engine(connection, loadEditor())).toText(),
+      savedDraft.toText(),
+    );
+    final repeated = await maintenance(true);
+    expect(repeated.require('eligible_snapshot_caches').toText(), '0');
+    expect(repeated.require('collected_snapshot_caches').toText(), '0');
+    await runtime.close();
+    final package = OwnedSqliteDatabase.openExisting(path);
+    try {
+      package.recover();
+      expect(
+        package.database.select('SELECT * FROM snapshot_membership'),
+        isEmpty,
+      );
+      expect(package.database.select('SELECT * FROM snapshot_member'), isEmpty);
+      expect(
+        package.database
+            .select('SELECT utf8_content FROM source_content')
+            .single['utf8_content'],
+        orderedEquals(utf8.encode(stage.text)),
+      );
+      final workflow = WorkflowStorage(package.database);
+      final sourceVersion = workflow.keys('source-version:').single;
+      final retained = workflow.get(sourceVersion)!;
+      final stagedVersion =
+          WireFields(stagedSource, {'canonical', 'operations'})
+              .array('operations')
+              .map(DomainOperation.fromWire)
+              .whereType<RecordNarrativeReferenceOperation>()
+              .singleWhere((op) => op.record == RecordKind.sourceVersion);
+      expect(retained.toText(), stagedVersion.payload.toWire().toText());
+      expect(stagedSource.toText(), contains(stage.label));
+      expect(workflow.keys('approval:'), hasLength(1));
+      expect(
+        SqliteKernel(package.database, f.u).imageBytes(image),
+        orderedEquals(imageBytes),
+      );
+      expect(
+        SqliteJournal(
+          package.database,
+          f.u,
+        ).snapshot(opened.frame.continuity, opened.frame.revision),
+        hasLength(1),
+      );
+    } finally {
+      package.close();
+    }
+  });
+
+  test(
+    'native maintenance requires author rights before worker acquisition',
+    () async {
+      authority.grant(
+        author,
+        GrantSpec(
+          profileId: writer.id,
+          universeId: f.u,
+          worlds: null,
+          propose: true,
+          edit: true,
+          protected: true,
+        ),
+      );
+      final connection = runtime.connect(hello(writer.id));
+      final owner = OwnedSqliteDatabase.openExisting(path);
+      try {
+        for (final collect in [false, true]) {
+          await expectLater(
+            engine(
+              connection,
+              MaintainEngineRequest(
+                universe: const Selector('World'),
+                collect: collect,
+              ),
+            ),
+            throwsA(isA<NotFoundOrNotAccessibleError>()),
+          );
+        }
+      } finally {
+        owner.close();
+      }
+    },
+  );
+
   test('private drafts retain immutable edits and recover lost saves without overwriting another window', () async {
     var first = runtime.connect(hello(author.id));
     final second = runtime.connect(hello(author.id));

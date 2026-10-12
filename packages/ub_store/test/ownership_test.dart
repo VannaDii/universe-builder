@@ -83,6 +83,50 @@ void main() {
       owner.close();
     }
   });
+  test('maintenance verifies retained evidence before deleting reconstructible caches', () {
+    final owner = OwnedSqliteDatabase.create(
+      '${directory.path}/maintenance.sqlite',
+    );
+    try {
+      final database = owner.database;
+      final universe = UniverseId.generate();
+      final continuity = ContinuityId.generate();
+      final journal = SqliteJournal(database, universe);
+      database.execute('BEGIN IMMEDIATE');
+      final revision = journal.initialize(
+        'Maintenance fixture',
+        continuity,
+        PrincipalId.generate(),
+      );
+      WorkflowStorage(database).put(
+        'cursor:one',
+        CanonicalValue.parseJson('{"binding":"pinned","offset":0}'),
+      );
+      database.execute('INSERT INTO snapshot_membership VALUES(?,?,?)', [
+        universe.value,
+        revision.value,
+        canonicalDigest(CanonicalObject([])),
+      ]);
+      database.execute('COMMIT');
+      owner.recover();
+      database.execute('BEGIN');
+      expect(() => owner.maintain(collect: true), throwsStateError);
+      database.execute('ROLLBACK');
+      database.execute('DROP TRIGGER workflow_entries_no_update');
+      database.execute('UPDATE workflow_entries SET digest=?', ['0' * 64]);
+      expect(() => owner.maintain(collect: true), throwsFormatException);
+      expect(
+        database
+            .select('SELECT count(*) AS total FROM snapshot_membership')
+            .single['total'],
+        1,
+      );
+      expect(database.autocommit, isTrue);
+    } finally {
+      owner.close();
+    }
+  });
+
   test(
     'owned SQLite connection holds its writer lock through close and restart',
     () {

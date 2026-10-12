@@ -78,6 +78,71 @@ final class OwnedSqliteDatabase {
     return UniverseId.parse(rows.single['id'] as String);
   }
 
+  /// Retain all author history and evidence. Only disposable snapshot caches
+  /// may be collected while this connection retains sole writer ownership.
+  CanonicalObject maintain({required bool collect}) {
+    if (!database.autocommit) {
+      throw StateError('Maintenance owns its transaction');
+    }
+    final journal = SqliteJournal(database, universeId);
+    CanonicalIntegrity(journal).verify();
+    int count(String table) =>
+        database.select('SELECT count(*) AS total FROM $table').single['total']
+            as int;
+    final versions = count('record_versions');
+    final revisions = count('commits');
+    final receipts = count('operation_receipts');
+    final workflows = count('workflow_index');
+    final sources = count('source_content');
+    final caches = count('snapshot_membership');
+    if (collect) {
+      database.execute('BEGIN IMMEDIATE');
+      try {
+        database.execute('DELETE FROM snapshot_member');
+        database.execute('DELETE FROM snapshot_membership');
+        database.execute('COMMIT');
+      } on Object {
+        if (!database.autocommit) {
+          database.execute('ROLLBACK');
+        }
+        rethrow;
+      }
+      database.execute('PRAGMA wal_checkpoint(TRUNCATE)');
+      database.execute('VACUUM');
+      CanonicalIntegrity(journal).verify();
+    }
+    return CanonicalObject([
+      MapEntry('retention_policy', CanonicalString('retain-all-history-v1')),
+      MapEntry(
+        'retained_record_versions',
+        CanonicalNumber(versions.toString()),
+      ),
+      MapEntry('retained_revisions', CanonicalNumber(revisions.toString())),
+      MapEntry(
+        'retained_commit_receipts',
+        CanonicalNumber(receipts.toString()),
+      ),
+      MapEntry(
+        'retained_workflow_entries',
+        CanonicalNumber(workflows.toString()),
+      ),
+      MapEntry('retained_source_assets', CanonicalNumber(sources.toString())),
+      MapEntry('eligible_snapshot_caches', CanonicalNumber(caches.toString())),
+      MapEntry(
+        'collected_snapshot_caches',
+        CanonicalNumber((collect ? caches : 0).toString()),
+      ),
+      const MapEntry('source_assets_collected', CanonicalNumber('0')),
+      MapEntry(
+        'backup_pins',
+        CanonicalString(
+          'source bytes are embedded in each complete SQLite snapshot',
+        ),
+      ),
+      const MapEntry('canonical', CanonicalBool(false)),
+    ]);
+  }
+
   void close() {
     if (_closed) return;
     _closed = true;

@@ -73,6 +73,7 @@ final class NativeSqliteRuntime {
         final selector = switch (request) {
           ToolEngineRequest(:final request) => request.universe,
           LibraryEngineRequest(:final universe) => universe,
+          MaintainEngineRequest(:final universe) => universe,
           LoadDraftEngineRequest(:final universe) ||
           SaveDraftEngineRequest(:final universe) => universe,
           StageImageEngineRequest(:final universe) ||
@@ -119,6 +120,9 @@ final class NativeSqliteRuntime {
       );
       if (request is LibraryEngineRequest) {
         return await workflow.libraryRequest(request);
+      }
+      if (request is MaintainEngineRequest) {
+        return await workflow.maintainRequest(request);
       }
       if (request is ForkContinuityEngineRequest ||
           request is CompareContinuitiesEngineRequest ||
