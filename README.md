@@ -535,8 +535,13 @@ the exact proposal frame and retains completed evidence with current source and
 selection bindings. Its result can feed exact author approval and publication;
 the check itself creates no queued operation and does not publish canon. Scoped
 checks retain only restricted evidence. Both context-backed validation modes
-reject non-author perspectives before loading the proposal. Inline checks remain
-pending.
+reject non-author perspectives before loading the proposal. Native inline checks
+now compile and preview an ephemeral candidate against the retained frame and
+retain query evidence without a proposal, reservation or final publication
+binding. These research checks do not require write permission. A named world
+must contain the full write footprint. Scoped inline checks resolve only visible
+world selectors and return restricted output before compilation, preventing
+compiler errors from disclosing hidden definitions; they retain no result.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

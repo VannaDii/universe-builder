@@ -11,6 +11,7 @@ import 'candidate_validation.dart';
 import 'context_binding.dart';
 import 'context_opening.dart';
 import 'installation_authority.dart';
+import 'operation_compilation.dart';
 import 'operation_state.dart';
 import 'proposal_authorization.dart';
 import 'proposal_state.dart';
@@ -528,6 +529,102 @@ final class SqliteValidationWorkflow {
       report: report,
     );
     await _persistValidation(request.proposalReference, completed, current, [
+      MapEntry(
+        'validation:${result.validation.runId.value}',
+        completed.toWire(),
+      ),
+    ]);
+    return report;
+  });
+
+  /// Research an ephemeral candidate. No proposal, reservation, approval
+  /// binding or publication operation is created by this check.
+  Future<ValidationV3> validateInlineRequest(
+    InlineValidationRequest request,
+  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    if (request.universeId != null && request.universeId != universe) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final frame = _validationFrame(request.contextId, current);
+    final base = _canon(frame.continuity, frame.revision);
+    // Compilation errors can disclose hidden definitions. Restricted research
+    // resolves only its visible world selector and never compiles the candidate.
+    if (current.worldScope != null) {
+      resolveWorldFocus(
+        world: request.world,
+        guard: request.worldId,
+        records: base,
+        scope: current.worldScope,
+      );
+      return ValidationV3.restricted();
+    }
+    final changes = compileOperations(
+      universe: universe,
+      revision: frame.revision,
+      base: base,
+      operations: request.operations,
+    );
+    final footprint = writeFootprint(base: base, changes: changes);
+    final focus = resolveWorldFocus(
+      world: request.world,
+      guard: request.worldId,
+      records: base,
+      scope: null,
+    );
+    if (focus != null &&
+        (footprint.shared || footprint.worlds.any((world) => world != focus))) {
+      throw const WorldScopeConflictError(
+        message: 'full write footprint exceeds named world',
+      );
+    }
+    final stored = StoredProposal(
+      owner: principal.id,
+      authorOrigin: principal.author,
+      changes: changes,
+      footprint: footprint,
+      proposal: Proposal(
+        baseFrame: frame,
+        worldScope: focus,
+        proposalId: ProposalId.generate(),
+        version: BigInt.one,
+        digest: canonicalDigest(request.toArgs()),
+        submission: Submission.draft,
+        operations: request.operations,
+        compiledChanges: [],
+        rationale: 'inline validation',
+        canonical: false,
+        operationId: OperationId.generate(),
+        withdrawn: false,
+      ),
+    );
+    final kernel = SqliteKernel(package.database, universe);
+    final result = await checkProposalCandidate(
+      stored: stored,
+      universe: universe,
+      principal: principal.id,
+      approvalAuthor: current.approvalAuthor,
+      scope: null,
+      preview: (input) => kernel
+          .preview(input)
+          .map((row) => RecordVersion.fromWire(row.toCanonical()))
+          .toList(),
+      readCanon: _canon,
+      readWorkflow: _workflow.get,
+      readVersion: _version,
+    );
+    final report = EvaluatedValidation(
+      execution: result.validation,
+      submittedInput: QueryInput(frame: frame, checkScope: request.checkScope),
+      assessment: const AbsentAssessment(),
+      finalBindingDigest: null,
+    );
+    final completed = CheckedValidation(
+      proposalDigest: result.proposalDigest,
+      validation: result.validation,
+      admissible: result.admissible,
+      report: report,
+    );
+    _workflow.compareAppend({}, [
       MapEntry(
         'validation:${result.validation.runId.value}',
         completed.toWire(),

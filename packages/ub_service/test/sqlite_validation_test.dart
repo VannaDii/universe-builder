@@ -304,6 +304,157 @@ void main() {
         checkScope: CheckScope.candidate,
       );
 
+  InlineValidationRequest inlineCheck({
+    List<DomainOperation>? operations,
+    Selector? world,
+    WorldId? guard,
+  }) => InlineValidationRequest(
+    universe: const Selector('World'),
+    universeId: f.u,
+    contextId: proposals.contextId,
+    world: world,
+    worldId: guard,
+    operations: operations ?? creation().operations,
+    checkScope: CheckScope.universe,
+  );
+
+  test('inline research retains query evidence without write rights or durable proposal state', () async {
+    await authority.coordinate(
+      author,
+      () => authority.grant(
+        author,
+        GrantSpec(
+          profileId: writer.id,
+          universeId: f.u,
+          worlds: null,
+          propose: false,
+          edit: false,
+          protected: false,
+        ),
+      ),
+    );
+    await retainedContext();
+    final request = inlineCheck();
+    final before = kernel.journal.head(continuity);
+    final report =
+        await service.validateInlineRequest(request) as EvaluatedValidation;
+    final query = report.submittedInput as QueryInput;
+    expect(query.frame, proposal.proposal.baseFrame);
+    expect(query.checkScope, CheckScope.universe);
+    expect(report.assessment, isA<AbsentAssessment>());
+    expect(report.finalBindingDigest, isNull);
+    expect(report.execution.operationId, isNull);
+    expect(report.execution.inputDigest, canonicalDigest(request.toArgs()));
+    final workflow = WorkflowStorage(package.database);
+    final retained = CheckedValidation.fromWire(
+      workflow.get('validation:${report.execution.runId.value}')!,
+    );
+    expect(retained.admissible, isTrue);
+    expect(retained.capture, isNull);
+    expect(retained.report!.toWire().toText(), report.toWire().toText());
+    expect(workflow.keys('proposal:').length, 1);
+    expect(workflow.keys('operation:'), isEmpty);
+    expect(workflow.keys('reserved-record:'), isEmpty);
+    expect(workflow.keys('approval:'), isEmpty);
+    expect(kernel.identityExists(f.id(20)), isFalse);
+    expect(kernel.journal.head(continuity), before);
+  });
+
+  test(
+    'failed inline preview retains no query result and leaves canon intact',
+    () async {
+      await retainedContext();
+      await expectLater(
+        service.validateInlineRequest(
+          inlineCheck(
+            operations: [
+              CreateEntityOperation(
+                clientRef: f.id(20).value,
+                record: f.entity(classification: f.id(999)),
+              ),
+            ],
+          ),
+        ),
+        throwsA(isA<FormatException>()),
+      );
+      expect(WorkflowStorage(package.database).keys('validation:'), isEmpty);
+      expect(kernel.identityExists(f.id(20)), isFalse);
+      expect(package.database.autocommit, isTrue);
+    },
+  );
+
+  test(
+    'inline named world rejects a shared footprint before retaining evidence',
+    () async {
+      kernel.commit(
+        input('inline-world', [f.row(50, WorldRecord(selector: 'Campaign'))]),
+      );
+      final opened = await service.openContext(contextRequest());
+      await expectLater(
+        service.validateInlineRequest(
+          InlineValidationRequest(
+            universe: const Selector('World'),
+            contextId: opened.contextId,
+            world: const Selector('Campaign'),
+            operations: creation().operations,
+            checkScope: CheckScope.candidate,
+          ),
+        ),
+        throwsA(isA<WorldScopeConflictError>()),
+      );
+      expect(WorkflowStorage(package.database).keys('validation:'), isEmpty);
+    },
+  );
+
+  test('scoped inline research never compiles hidden definitions or retains a result', () async {
+    kernel.commit(
+      input('inline-world', [f.row(50, WorldRecord(selector: 'Campaign'))]),
+    );
+    final invalid = [CreateEntityOperation(clientRef: '', record: f.entity())];
+    final opened = await service.openContext(contextRequest());
+    InlineValidationRequest request(ContextId context, {Selector? world}) =>
+        InlineValidationRequest(
+          universe: const Selector('World'),
+          contextId: context,
+          world: world,
+          operations: invalid,
+          checkScope: CheckScope.candidate,
+        );
+    await expectLater(
+      service.validateInlineRequest(request(opened.contextId)),
+      throwsA(isA<InvalidArgumentError>()),
+    );
+    await authority.coordinate(
+      author,
+      () => authority.grant(
+        author,
+        GrantSpec(
+          profileId: writer.id,
+          universeId: f.u,
+          worlds: [permissions.world(50)],
+          propose: false,
+          edit: false,
+          protected: false,
+        ),
+      ),
+    );
+    final scoped = await service.openContext(contextRequest());
+    expect(
+      await service.validateInlineRequest(
+        request(scoped.contextId, world: const Selector('Campaign')),
+      ),
+      isA<RestrictedValidation>(),
+    );
+    await expectLater(
+      service.validateInlineRequest(
+        request(scoped.contextId, world: const Selector('Hidden')),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    expect(WorkflowStorage(package.database).keys('validation:'), isEmpty);
+    expect(WorkflowStorage(package.database).keys('proposal:').length, 1);
+  });
+
   test('synchronous check retains completed evidence across owned reopen without publishing', () async {
     await retainedContext();
     final before = kernel.journal.head(continuity);
@@ -343,6 +494,10 @@ void main() {
       throwsA(isA<ContextExpiredError>()),
     );
     await expectLater(
+      service.validateInlineRequest(inlineCheck()),
+      throwsA(isA<ContextExpiredError>()),
+    );
+    await expectLater(
       service.validateProposalRequest(
         synchronousCheck(guard: UniverseId.generate()),
       ),
@@ -377,6 +532,10 @@ void main() {
     });
     await expectLater(
       service.validateProposalRequest(synchronousCheck()),
+      throwsA(isA<UnsupportedSemanticsError>()),
+    );
+    await expectLater(
+      service.validateInlineRequest(inlineCheck()),
       throwsA(isA<UnsupportedSemanticsError>()),
     );
     await expectLater(
