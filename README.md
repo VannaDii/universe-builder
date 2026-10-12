@@ -474,8 +474,12 @@ no complete snapshots and produces restricted evidence. Completion revalidates
 captured bindings in the transaction retaining both the finished report and
 terminal state. A stale capture or worker failure retains failure with the
 original pending validation, and cancellation or an existing terminal state
-suppresses late results. Restricted completion remains inadmissible. Scheduler
-integration and the public cancellation route remain pending.
+suppresses late results. Restricted completion remains inadmissible. The native
+cancellation route admits the retained owner and current world scope, atomically
+retains its marker and principal-bound request receipt, then signals the live
+worker. Authorized retries survive reopen; changed requests are refused and
+succeeded/failed results remain unchanged. Scheduler and transport integration
+remain pending.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

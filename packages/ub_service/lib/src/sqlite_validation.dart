@@ -261,6 +261,92 @@ final class SqliteValidationWorkflow {
     );
   });
 
+  /// The dispatcher resolves the universe before calling this route. The live
+  /// cancellation signal is sent only after durable cancellation is retained.
+  Future<OperationStatusV3> cancelOperation(
+    CancelOperationRequest request, {
+    required bool Function(OperationId) isValidationActive,
+    required void Function(OperationId) signalCancellation,
+  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+    if (request.universeId != null && request.universeId != universe) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final entries = <MapEntry<String, CanonicalValue>>[];
+    late StoredOperation operation;
+    var fresh = false;
+    await _workflow.compareAppendWithVerification(
+      entries: entries,
+      verify: () async {
+        Future<StoredOperation> load(String key) => loadStoredOperation(
+          key: key,
+          principal: principal.id,
+          worldScope: current.worldScope,
+          readWorkflow: _workflow.get,
+          readReceipt: _journal.receipt,
+          isValidationActive: isValidationActive,
+        );
+        operation = await load('operation:${request.operationId.value}');
+        final key = operationRequestKey(
+          principal.id,
+          'cancel',
+          request.idempotencyKey,
+        );
+        final digest = canonicalDigest(request.toArgs());
+        final existing = _workflow.get(key);
+        if (existing != null) {
+          if (StoredOperation.fromWire(existing).digest != digest) {
+            throw const IdempotencyKeyReusedError(
+              message: 'cancel key names another request',
+            );
+          }
+          operation = await load(key);
+          return const {};
+        }
+        final s = operation.status;
+        final cancel =
+            s.state != OperationState.succeeded &&
+            s.state != OperationState.failed;
+        if (cancel) {
+          entries.add(
+            MapEntry(
+              'cancel:${request.operationId.value}',
+              CanonicalObject([
+                MapEntry('owner', CanonicalString(principal.id.value)),
+                MapEntry('cancelled', const CanonicalBool(true)),
+              ]),
+            ),
+          );
+        }
+        operation = StoredOperation(
+          owner: operation.owner,
+          digest: digest,
+          input: operation.input,
+          footprint: operation.footprint,
+          validationCapture: operation.validationCapture,
+          status: OperationStatus(
+            operationId: s.operationId,
+            kind: s.kind,
+            state: cancel ? OperationState.cancelled : s.state,
+            proposal: s.proposal,
+            validation: s.validation,
+            failure: s.failure,
+            receipt: s.receipt,
+            cancellationRequested: cancel || s.cancellationRequested,
+          ),
+        );
+        entries.add(MapEntry(key, operation.toWire()));
+        fresh = true;
+        return const {};
+      },
+    );
+    if (fresh) signalCancellation(request.operationId);
+    return publicOperationStatus(
+      status: operation.status,
+      worldScope: current.worldScope,
+      readWorkflow: _workflow.get,
+    );
+  });
+
   Future<PreparedValidationTask?> prepareValidation(
     OperationId id, {
     required bool Function(OperationId) isValidationActive,

@@ -211,6 +211,159 @@ void main() {
     return status.operationId;
   }
 
+  CancelOperationRequest cancellation(
+    OperationId id, {
+    String key = 'cancel-check',
+  }) => CancelOperationRequest(
+    universe: const Selector('World'),
+    universeId: f.u,
+    operationId: id,
+    idempotencyKey: key,
+  );
+
+  test(
+    'cancellation retains before signaling and retries after owned reopen',
+    () async {
+      final id = await startValidation();
+      var signals = 0;
+      final cancelled = await service.cancelOperation(
+        cancellation(id),
+        isValidationActive: (_) => true,
+        signalCancellation: (operation) {
+          signals++;
+          expect(operation, id);
+          expect(
+            WorkflowStorage(package.database).get('cancel:${id.value}'),
+            isNotNull,
+          );
+        },
+      );
+      expect(cancelled.state, OperationState.cancelled);
+      expect(cancelled.cancellationRequested, isTrue);
+      expect(signals, 1);
+      await service.finishValidation(
+        id,
+        checked,
+        isValidationActive: (_) => true,
+      );
+      expect(WorkflowStorage(package.database).keys('validation:'), isEmpty);
+      package.close();
+      package = OwnedSqliteDatabase.openExisting(
+        '${directory.path}/packages/world.sqlite',
+      );
+      package.recover();
+      kernel = SqliteKernel(package.database, f.u);
+      service = SqliteValidationWorkflow(
+        package: package,
+        authority: authority,
+        principal: writer,
+      );
+      final retry = await service.cancelOperation(
+        cancellation(id),
+        isValidationActive: (_) => false,
+        signalCancellation: (_) => fail('Retry must not signal again'),
+      );
+      expect(retry.toWire().toText(), cancelled.toWire().toText());
+      expect(
+        WorkflowStorage(package.database)
+            .keys('request:${writer.id.value}:cancel:')
+            .length,
+        1,
+      );
+      expect(kernel.identityExists(f.id(10)), isFalse);
+    },
+  );
+
+  test('cancellation preserves completed evidence and rejects changed idempotent requests', () async {
+    final id = await startValidation();
+    await service.finishValidation(
+      id,
+      checked,
+      isValidationActive: (_) => true,
+    );
+    final before = await service.operationStatus(
+      id,
+      isValidationActive: (_) => false,
+    );
+    final after = await service.cancelOperation(
+      cancellation(id),
+      isValidationActive: (_) => false,
+      signalCancellation: (_) {},
+    );
+    expect(after.toWire().toText(), before.toWire().toText());
+    expect(WorkflowStorage(package.database).get('cancel:${id.value}'), isNull);
+    final changed = CancelOperationRequest(
+      universe: const Selector('Renamed World'),
+      universeId: f.u,
+      operationId: id,
+      idempotencyKey: 'cancel-check',
+    );
+    await expectLater(
+      service.cancelOperation(
+        changed,
+        isValidationActive: (_) => false,
+        signalCancellation: (_) => fail('Rejected request must not signal'),
+      ),
+      throwsA(isA<IdempotencyKeyReusedError>()),
+    );
+  });
+
+  test('another principal cannot cancel the retained operation', () async {
+    final id = await startValidation();
+    final other = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: author,
+    );
+    await expectLater(
+      other.cancelOperation(
+        cancellation(id),
+        isValidationActive: (_) => true,
+        signalCancellation: (_) => fail('Denied cancellation must not signal'),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    expect(WorkflowStorage(package.database).get('cancel:${id.value}'), isNull);
+    expect(
+      WorkflowStorage(package.database)
+          .keys('request:${author.id.value}:cancel:'),
+      isEmpty,
+    );
+  });
+
+  test(
+    'narrowed world scope cannot cancel a shared retained operation',
+    () async {
+      final id = await startValidation();
+      await authority.coordinate(
+        author,
+        () => authority.grant(
+          author,
+          GrantSpec(
+            profileId: writer.id,
+            universeId: f.u,
+            worlds: [permissions.world(50)],
+            propose: true,
+            edit: true,
+            protected: false,
+          ),
+        ),
+      );
+      await expectLater(
+        service.cancelOperation(
+          cancellation(id),
+          isValidationActive: (_) => true,
+          signalCancellation: (_) =>
+              fail('Denied cancellation must not signal'),
+        ),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      final workflow = WorkflowStorage(package.database);
+      expect(workflow.get('cancel:${id.value}'), isNull);
+      expect(workflow.keys('request:${writer.id.value}:cancel:'), isEmpty);
+    },
+  );
+
   test('completion atomically retains exact evidence and terminal status across reopen', () async {
     final id = await startValidation();
     await service.finishValidation(
