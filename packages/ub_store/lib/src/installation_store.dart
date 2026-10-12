@@ -358,13 +358,25 @@ final class SqliteInstallationStore {
     selectorKey(name);
     final package = OwnedSqliteDatabase.openExisting(path);
     try {
-      package.recover();
-      final id = package.universeId;
-      _registerUniverse(actor: actor, id: id, name: name, path: path);
-      return id;
+      return registerOwnedPackage(actor: actor, name: name, package: package);
     } finally {
       package.close();
     }
+  }
+
+  /// Retain caller ownership while publishing the recovered package's identity.
+  /// The path comes from its open session, never from a separate caller claim.
+  UniverseId registerOwnedPackage({
+    required ProfileId actor,
+    required String name,
+    required OwnedSqliteDatabase package,
+  }) {
+    requireAuthor(actor);
+    selectorKey(name);
+    package.recover();
+    final id = package.universeId;
+    _registerUniverse(actor: actor, id: id, name: name, path: package.path);
+    return id;
   }
 
   void _registerUniverse({

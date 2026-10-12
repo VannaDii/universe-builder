@@ -4,6 +4,8 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/sqlite.dart';
+import 'package:ub_store/ub_store.dart'
+    show CommitInput, Assignment, StoredVersion;
 
 import 'installation_authority.dart';
 import 'runtime_admission.dart';
@@ -53,7 +55,9 @@ final class NativeSqliteRuntime {
               RevokeEngineRequest() ||
               WithdrawGrantEngineRequest() ||
               RenameUniverseEngineRequest() ||
-              ShutdownEngineRequest()) {
+              ShutdownEngineRequest() ||
+              CreateUniverseEngineRequest() ||
+              RegisterUniverseEngineRequest()) {
         final result = await authority.coordinate(
           principal,
           () => _installation(principal, request),
@@ -84,11 +88,7 @@ final class NativeSqliteRuntime {
         );
         final cached = _packages[catalog.universeId];
         if (cached != null) return cached;
-        if (_packages.length >= 32) {
-          throw const EvaluationLimitReachedError(
-            message: 'universe worker limit',
-          );
-        }
+        _requireWorkerCapacity();
         final opened = OwnedSqliteDatabase.openExisting(catalog.path);
         try {
           if (opened.universeId != catalog.universeId) {
@@ -241,8 +241,127 @@ final class NativeSqliteRuntime {
         return CanonicalObject([
           MapEntry('shutdown', CanonicalString('requested')),
         ]);
+      case CreateUniverseEngineRequest():
+        return _createUniverse(principal, request);
+      case RegisterUniverseEngineRequest():
+        _requireWorkerCapacity();
+        selectorKey(request.name);
+        final package = OwnedSqliteDatabase.openExisting(request.path);
+        try {
+          final id = authority.registerOpenedUniverse(
+            principal,
+            name: request.name,
+            package: package,
+          );
+          _packages[id] = package;
+          return CanonicalObject([
+            MapEntry('universe_id', CanonicalString(id.value)),
+            MapEntry('name', CanonicalString(request.name)),
+          ]);
+        } on Object {
+          package.close();
+          rethrow;
+        }
       default:
         throw StateError('Unreachable installation request');
+    }
+  }
+
+  void _requireWorkerCapacity() {
+    if (_packages.length >= 32) {
+      throw const EvaluationLimitReachedError(message: 'universe worker limit');
+    }
+  }
+
+  CanonicalObject _createUniverse(
+    InstallationPrincipal principal,
+    CreateUniverseEngineRequest request,
+  ) {
+    _requireWorkerCapacity();
+    selectorKey(request.name);
+    final id = UniverseId.generate();
+    final continuity = ContinuityId.generate();
+    final calendar = CalendarId.generate();
+    final (chronology, definition) = request.start.build(calendar);
+    final actor = PrincipalId.parse(
+      principal.id.value.replaceFirst('prf_', 'prn_'),
+    );
+    final contextId = RecordId.generate();
+    final package = OwnedSqliteDatabase.create(
+      authority.newUniversePath(principal, id),
+    );
+    try {
+      final kernel = SqliteKernel(package.database, id);
+      package.database.execute('BEGIN IMMEDIATE');
+      try {
+        kernel.journal.initialize(request.name, continuity, actor);
+        package.database.execute('COMMIT');
+      } on Object {
+        package.database.execute('ROLLBACK');
+        rethrow;
+      }
+      RecordVersion record(RecordId recordId, RecordPayload payload) =>
+          RecordVersion.build(
+            recordVersionId: RecordVersionId.generate(),
+            identity: RecordIdentity(
+              universeId: id,
+              recordId: recordId,
+              recordKind: payload.recordKind,
+            ),
+            payload: payload,
+          );
+      final records = [
+        record(
+          contextId,
+          RepresentedContextRecord(
+            universe: id,
+            kind: const ObjectiveContext(),
+            chronology: chronology,
+            labels: {'en': 'Objective reality'},
+          ),
+        ),
+        record(calendar.toRecordId(), definition),
+      ];
+      final revision = kernel.commit(
+        CommitInput(
+          universe: id,
+          continuity: continuity,
+          expectedHead: kernel.journal.head(continuity),
+          principal: actor,
+          decision: 'create-universe',
+          reason: 'Author created objective context',
+          idempotencyKey: 'create-universe',
+          changes: records.map(
+            (row) => Assignment(
+              recordId: row.identity.recordId,
+              next: StoredVersion(
+                versionId: row.recordVersionId,
+                identity: row.identity,
+                payload: row.payload.toWire(),
+                digest: row.payloadDigest,
+              ),
+            ),
+          ),
+        ),
+      );
+      authority.registerOpenedUniverse(
+        principal,
+        name: request.name,
+        package: package,
+      );
+      _packages[id] = package;
+      return CanonicalObject([
+        MapEntry('universe_id', CanonicalString(id.value)),
+        MapEntry('continuity_id', CanonicalString(continuity.value)),
+        MapEntry('context_id', CanonicalString(contextId.value)),
+        MapEntry('revision', CanonicalString(revision.value)),
+        MapEntry('name', CanonicalString(request.name)),
+      ]);
+    } on Object {
+      // Failed registration must release ownership without deleting authored
+      // package data. It remains available for explicit registration/recovery.
+      package.close();
+      rethrow;
     }
   }
 

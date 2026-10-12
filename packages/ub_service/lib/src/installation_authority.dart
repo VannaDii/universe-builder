@@ -8,6 +8,7 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
+import 'package:ub_store/sqlite.dart' show OwnedSqliteDatabase;
 
 import 'validation_binding.dart';
 
@@ -237,6 +238,24 @@ final class InstallationAuthority {
       actor: actor.id,
       name: name,
       path: path,
+    );
+  }
+
+  String newUniversePath(InstallationPrincipal actor, UniverseId id) {
+    requireAuthor(actor);
+    return '${_store.root}/packages/${id.value}.sqlite';
+  }
+
+  UniverseId registerOpenedUniverse(
+    InstallationPrincipal actor, {
+    required String name,
+    required OwnedSqliteDatabase package,
+  }) {
+    requireAuthor(actor);
+    return _store.registerOwnedPackage(
+      actor: actor.id,
+      name: name,
+      package: package,
     );
   }
 

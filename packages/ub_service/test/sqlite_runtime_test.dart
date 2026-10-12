@@ -1349,6 +1349,282 @@ void main() {
     }
   });
 
+  test('native creation retains explicit fictional and Gregorian clocks with owned durable packages', () async {
+    final connection = runtime.connect(hello(author.id));
+    final starts = <UniverseStart>[
+      FictionalUniverseStart(
+        calendarName: 'Aurora',
+        initialTick: '9007199254740993',
+        tickLabel: 'days',
+        ticksPerMonth: 36,
+      ),
+      const GregorianUniverseStart('2040-03-15T12:30:00+02:00'),
+    ];
+    final created =
+        <
+          ({
+            UniverseId id,
+            ContinuityId continuity,
+            RecordId context,
+            RevisionId revision,
+            String path,
+            CanonicalValue records,
+          })
+        >[];
+    for (var i = 0; i < starts.length; i++) {
+      final name = 'Authored $i';
+      final response = WireFields(
+        await engine(
+          connection,
+          CreateUniverseEngineRequest(name: name, start: starts[i]),
+        ),
+        {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
+      );
+      final id = UniverseId.parse(response.string('universe_id'));
+      final continuity = ContinuityId.parse(response.string('continuity_id'));
+      final context = RecordId.parse(response.string('context_id'));
+      final revision = RevisionId.parse(response.string('revision'));
+      final entry = authority
+          .catalog(author)
+          .singleWhere((entry) => entry.universeId == id);
+      expect(entry.name, name);
+      expect(
+        () => OwnedSqliteDatabase.openExisting(entry.path),
+        throwsA(isA<FileSystemException>()),
+      );
+      final opened = OpenedContext.fromWire(
+        (await tool(
+          connection,
+          OpenContextRequest(
+            universe: Selector(name),
+            continuityId: continuity,
+            revision: const HeadRevisionSelector(),
+            representedContext: ContextIdSelector(context),
+            temporalQuery: const TimelessFrameTime(),
+            temporalSystems: [],
+            perspective: const AuthorPerspective(),
+          ),
+        )).result,
+      );
+      expect(opened.frame.revision, revision);
+      final read = await tool(
+        connection,
+        GetRequest(
+          universe: Selector(name),
+          contextId: opened.contextId,
+          recordIds: [context],
+          fieldGroups: [FieldGroup.payload],
+        ),
+      );
+      final objective =
+          Records.fromWire(read.result).records.single.payload
+              as RepresentedContextRecord;
+      expect(objective.kind, isA<ObjectiveContext>());
+      final clock = objective.chronology!;
+      expect(
+        clock.toWire().toText(),
+        starts[i].build(clock.calendar).$1.toWire().toText(),
+      );
+      final calendar =
+          Records.fromWire(
+                (await tool(
+                  connection,
+                  GetRequest(
+                    universe: Selector(name),
+                    contextId: opened.contextId,
+                    recordIds: [clock.calendar.toRecordId()],
+                    fieldGroups: [FieldGroup.payload],
+                  ),
+                )).result,
+              ).records.single.payload
+              as CalendarRecord;
+      expect(
+        calendar.toWire().toText(),
+        starts[i].build(clock.calendar).$2.toWire().toText(),
+      );
+      created.add((
+        id: id,
+        continuity: continuity,
+        context: context,
+        revision: revision,
+        path: entry.path,
+        records: read.result,
+      ));
+    }
+    await runtime.close();
+    for (final fixture in created) {
+      final package = OwnedSqliteDatabase.openExisting(fixture.path);
+      try {
+        package.recover();
+        final kernel = SqliteKernel(package.database, fixture.id);
+        expect(kernel.journal.head(fixture.continuity), fixture.revision);
+        expect(
+          kernel.journal.snapshot(fixture.continuity, fixture.revision),
+          hasLength(2),
+        );
+        final version = kernel.journal.snapshot(
+          fixture.continuity,
+          fixture.revision,
+        )[fixture.context]!;
+        final stored = RecordVersion.fromWire(
+          kernel.journal.load(version).toCanonical(),
+        );
+        expect(
+          Records.fromWire(fixture.records).records.single.toWire().toText(),
+          stored.toWire().toText(),
+        );
+      } finally {
+        package.close();
+      }
+    }
+    runtime = NativeSqliteRuntime(authority: authority);
+    final reopened = runtime.connect(hello(author.id));
+    expect(
+      WireFields(await engine(reopened, const StatusEngineRequest()), {
+        'service_instance',
+        'principal',
+        'author',
+        'universes',
+        'canonical_commit',
+        'max_requests_per_principal',
+        'universe_queue_capacity',
+      }).array('universes'),
+      hasLength(3),
+    );
+  });
+
+  test('native creation rejects writer authority and invalid authored inputs before creating files', () async {
+    final authorConnection = runtime.connect(hello(author.id));
+    final writerConnection = runtime.connect(hello(writer.id));
+    Set<String> files() =>
+        Directory('${root.path}/packages')
+            .listSync()
+            .map((file) => file.path)
+            .toSet();
+    final before = files();
+    final start = const GregorianUniverseStart('2040-03-15T12:30:00+02:00');
+    await expectLater(
+      engine(
+        writerConnection,
+        CreateUniverseEngineRequest(name: 'Denied', start: start),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    await expectLater(
+      engine(
+        authorConnection,
+        CreateUniverseEngineRequest(name: '  ', start: start),
+      ),
+      throwsFormatException,
+    );
+    await expectLater(
+      engine(
+        authorConnection,
+        CreateUniverseEngineRequest(
+          name: 'Invalid clock',
+          start: const GregorianUniverseStart('not a date'),
+        ),
+      ),
+      throwsFormatException,
+    );
+    await expectLater(
+      engine(
+        authorConnection,
+        CreateUniverseEngineRequest(
+          name: 'Invalid month',
+          start: FictionalUniverseStart(
+            calendarName: 'Aurora',
+            initialTick: '10',
+            tickLabel: 'days',
+            ticksPerMonth: 0,
+          ),
+        ),
+      ),
+      throwsFormatException,
+    );
+    expect(files(), before);
+    expect(authority.catalog(author), hasLength(1));
+  });
+
+  test('native registration retains recovered external identity and retries after catalog conflict', () async {
+    final foreign = UniverseId.generate();
+    final continuity = ContinuityId.generate();
+    final path = '${root.path}/external/imported.sqlite';
+    final external = OwnedSqliteDatabase.create(path);
+    late RevisionId genesis;
+    try {
+      external.database.execute('BEGIN IMMEDIATE');
+      genesis = SqliteKernel(
+        external.database,
+        foreign,
+      ).journal.initialize('External', continuity, PrincipalId.generate());
+      external.database.execute('COMMIT');
+    } finally {
+      external.close();
+    }
+    final connection = runtime.connect(hello(author.id));
+    final writerConnection = runtime.connect(hello(writer.id));
+    await expectLater(
+      engine(
+        writerConnection,
+        RegisterUniverseEngineRequest(path: path, name: 'External'),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    await expectLater(
+      engine(
+        connection,
+        RegisterUniverseEngineRequest(path: path, name: 'World'),
+      ),
+      throwsA(isA<Exception>()),
+    );
+    expect(authority.catalog(author), hasLength(1));
+    final retryable = OwnedSqliteDatabase.openExisting(path);
+    try {
+      retryable.recover();
+      expect(retryable.universeId, foreign);
+    } finally {
+      retryable.close();
+    }
+    final response = WireFields(
+      await engine(
+        connection,
+        RegisterUniverseEngineRequest(path: path, name: 'Imported'),
+      ),
+      {'universe_id', 'name'},
+    );
+    expect(response.string('universe_id'), foreign.value);
+    final entry = authority
+        .catalog(author)
+        .singleWhere((entry) => entry.universeId == foreign);
+    expect(entry.path, File(path).resolveSymbolicLinksSync());
+    expect(
+      () => OwnedSqliteDatabase.openExisting(path),
+      throwsA(isA<FileSystemException>()),
+    );
+    final summary = Description.fromWire(
+      (await tool(
+        connection,
+        DescribeSummaryRequest(universe: const Selector('Imported')),
+      )).result,
+    );
+    // Registration does not manufacture a represented context for an empty
+    // existing package. Its genesis is verified directly after reopening.
+    expect(summary.continuities, isEmpty);
+    await runtime.close();
+    final recovered = OwnedSqliteDatabase.openExisting(path);
+    try {
+      recovered.recover();
+      expect(recovered.universeId, foreign);
+      expect(
+        SqliteKernel(recovered.database, foreign).journal.head(continuity),
+        genesis,
+      );
+    } finally {
+      recovered.close();
+    }
+  });
+
   test('connections share one recovered writer and retain publication receipt across runtime restart', () async {
     final first = runtime.connect(hello(author.id));
     final second = runtime.connect(hello(author.id));

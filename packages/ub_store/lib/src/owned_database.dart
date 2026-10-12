@@ -13,7 +13,7 @@ import 'projection_recovery.dart';
 /// complete recover() before serving calls; client authorization remains in
 /// the service boundary.
 final class OwnedSqliteDatabase {
-  OwnedSqliteDatabase._(this._database, this._lock) {
+  OwnedSqliteDatabase._(this._database, this._lock, this.path) {
     _connectionLocks[_database] = _lock;
   }
   // Internal journal helpers retain the connection. Its native ownership must
@@ -21,6 +21,7 @@ final class OwnedSqliteDatabase {
   static final _connectionLocks = Expando<OwnedFileLock>();
   final Database _database;
   final OwnedFileLock _lock;
+  final String path;
   bool _closed = false;
 
   static OwnedSqliteDatabase create(String path) => _open(path, create: true);
@@ -48,6 +49,7 @@ final class OwnedSqliteDatabase {
       return OwnedSqliteDatabase._(
         SqliteDatabase.open(actualPath, existing: true),
         lock,
+        actualPath,
       );
     } catch (_) {
       lock.close();
