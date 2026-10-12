@@ -149,6 +149,12 @@ hints establish rule relevance without filtering expression operands, and
 fact admission checks the full authored scope, including explicit universe-wide
 permission. Reference and indexed paths retain their existing lookup semantics.
 Effective instance attributes, initialization and the full evaluator remain pending.
+Exact scalar and uncertain-range comparison now preserves the existing signed
+128-bit parse and cross-product limits without floating-point rounding. Text
+uses UTF-8 ordering; quantities require identical unit identities. Range
+endpoints retain their authored inclusivity, while overlap, invalid bounds,
+overflow and unsupported types remain unresolved. These comparison primitives
+do not perform unit conversion or execute a rule by themselves.
 Typed events preserve occurrence modes, authored participants and ordered effects.
 Action consequences validate exact decimal bounds, slot uniqueness and lifetimes;
 an absent historical contract remains distinct from an explicitly empty contract,
