@@ -7,6 +7,7 @@ enum ConfigurationFailure {
   invalidBackendFlag,
   missingPostgresEndpoint,
   savedEndpointUnavailable,
+  savedEndpointEncryptionFailed,
   invalidEndpoint,
   unsupportedConnectionOption,
   unverifiedTls,
@@ -22,6 +23,8 @@ final class ConfigurationException implements Exception {
       'PostgreSQL is selected but no endpoint is configured.',
     ConfigurationFailure.savedEndpointUnavailable =>
       'The saved PostgreSQL endpoint could not be unlocked.',
+    ConfigurationFailure.savedEndpointEncryptionFailed =>
+      'The PostgreSQL endpoint could not be encrypted for saving.',
     ConfigurationFailure.invalidEndpoint =>
       'Enter a valid PostgreSQL URI with an explicit host and database.',
     ConfigurationFailure.unsupportedConnectionOption => 'The PostgreSQL URI contains an unsupported or incompatible connection option.',
