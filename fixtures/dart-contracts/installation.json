@@ -1,0 +1,72 @@
+[
+  {
+    "type": "Credential",
+    "input_raw": "\"disposable test credential é\"",
+    "expected_wire": "\"disposable test credential é\""
+  },
+  {
+    "type": "EngineHello",
+    "input_raw": "{\"protocol_version\":\"3\",\"profile_id\":\"prf_000000000000000000000001\",\"credential\":\"disposable test credential\",\"client_name\":\"Desktop\"}",
+    "expected_wire": "{\"protocol_version\":\"3\",\"profile_id\":\"prf_000000000000000000000001\",\"credential\":\"disposable test credential\",\"client_name\":\"Desktop\"}"
+  },
+  {
+    "type": "EngineWelcome",
+    "input_raw": "{\"protocol_version\":\"3\",\"service_instance\":\"instance-one\",\"principal\":\"prf_000000000000000000000001\",\"author\":false,\"max_frame_bytes\":18446744073709551615,\"max_in_flight\":16}",
+    "expected_wire": "{\"protocol_version\":\"3\",\"service_instance\":\"instance-one\",\"principal\":\"prf_000000000000000000000001\",\"author\":false,\"max_frame_bytes\":18446744073709551615,\"max_in_flight\":16}"
+  },
+  {
+    "type": "GrantLimits",
+    "input_raw": "{}",
+    "expected_wire": "{\"entities\":null,\"predicates\":null,\"continuities\":null,\"expires_at\":null,\"delegated_commit\":false,\"allow_shared\":false}"
+  },
+  {
+    "type": "GrantLimits",
+    "input_raw": "{\"entities\":[\"rec_000000000000000000000001\"],\"predicates\":[],\"continuities\":[\"cont_000000000000000000000001\"],\"expires_at\":18446744073709551615,\"delegated_commit\":true,\"allow_shared\":true}",
+    "expected_wire": "{\"entities\":[\"rec_000000000000000000000001\"],\"predicates\":[],\"continuities\":[\"cont_000000000000000000000001\"],\"expires_at\":18446744073709551615,\"delegated_commit\":true,\"allow_shared\":true}"
+  },
+  {
+    "type": "GrantLimits",
+    "input_raw": "{\"entities\":[],\"predicates\":null,\"continuities\":[],\"expires_at\":0}",
+    "expected_wire": "{\"entities\":[],\"predicates\":null,\"continuities\":[],\"expires_at\":0,\"delegated_commit\":false,\"allow_shared\":false}"
+  },
+  {
+    "type": "GrantSpec",
+    "input_raw": "{\"profile_id\":\"prf_000000000000000000000001\",\"universe_id\":\"unv_000000000000000000000001\",\"propose\":true,\"edit\":false,\"protected\":false}",
+    "expected_wire": "{\"profile_id\":\"prf_000000000000000000000001\",\"universe_id\":\"unv_000000000000000000000001\",\"worlds\":null,\"propose\":true,\"edit\":false,\"protected\":false,\"limits\":{\"entities\":null,\"predicates\":null,\"continuities\":null,\"expires_at\":null,\"delegated_commit\":false,\"allow_shared\":false}}"
+  },
+  {
+    "type": "GrantSpec",
+    "input_raw": "{\"profile_id\":\"prf_000000000000000000000001\",\"universe_id\":\"unv_000000000000000000000001\",\"propose\":true,\"edit\":false,\"protected\":false,\"worlds\":[],\"limits\":{\"entities\":[\"rec_000000000000000000000001\"],\"predicates\":[],\"continuities\":[\"cont_000000000000000000000001\"],\"expires_at\":18446744073709551615,\"delegated_commit\":true,\"allow_shared\":true}}",
+    "expected_wire": "{\"profile_id\":\"prf_000000000000000000000001\",\"universe_id\":\"unv_000000000000000000000001\",\"worlds\":[],\"propose\":true,\"edit\":false,\"protected\":false,\"limits\":{\"entities\":[\"rec_000000000000000000000001\"],\"predicates\":[],\"continuities\":[\"cont_000000000000000000000001\"],\"expires_at\":18446744073709551615,\"delegated_commit\":true,\"allow_shared\":true}}"
+  },
+  {
+    "type": "GrantSpec",
+    "input_raw": "{\"profile_id\":\"prf_000000000000000000000001\",\"universe_id\":\"unv_000000000000000000000001\",\"propose\":true,\"edit\":false,\"protected\":false,\"worlds\":[\"wld_000000000000000000000001\"]}",
+    "expected_wire": "{\"profile_id\":\"prf_000000000000000000000001\",\"universe_id\":\"unv_000000000000000000000001\",\"worlds\":[\"wld_000000000000000000000001\"],\"propose\":true,\"edit\":false,\"protected\":false,\"limits\":{\"entities\":null,\"predicates\":null,\"continuities\":null,\"expires_at\":null,\"delegated_commit\":false,\"allow_shared\":false}}"
+  },
+  {
+    "type": "DraftContent",
+    "input_raw": "{\"base_revision\":\"rev_000000000000000000000001\",\"represented_context\":\"rec_000000000000000000000001\",\"operations\":[{\"kind\":\"create_world\",\"client_ref\":\"earth\",\"record\":{\"selector\":\"Earth\",\"labels\":{},\"metadata\":{}}}],\"rationale\":\"Authored correction\"}",
+    "expected_wire": "{\"base_revision\":\"rev_000000000000000000000001\",\"represented_context\":\"rec_000000000000000000000001\",\"operations\":[{\"kind\":\"create_world\",\"client_ref\":\"earth\",\"record\":{\"selector\":\"Earth\",\"labels\":{},\"metadata\":{}}}],\"rationale\":\"Authored correction\"}"
+  },
+  {
+    "type": "DraftContent",
+    "input_raw": "{\"base_revision\":\"rev_000000000000000000000001\",\"represented_context\":\"rec_000000000000000000000001\",\"operations\":[{\"kind\":\"create_world\",\"client_ref\":\"earth\",\"record\":{\"selector\":\"Earth\",\"labels\":{},\"metadata\":{}}}],\"rationale\":\"Authored correction\",\"proposal\":{\"proposal_id\":\"prp_000000000000000000000001\",\"version\":18446744073709551615,\"digest\":\"retained digest\"}}",
+    "expected_wire": "{\"base_revision\":\"rev_000000000000000000000001\",\"represented_context\":\"rec_000000000000000000000001\",\"operations\":[{\"kind\":\"create_world\",\"client_ref\":\"earth\",\"record\":{\"selector\":\"Earth\",\"labels\":{},\"metadata\":{}}}],\"rationale\":\"Authored correction\",\"proposal\":{\"proposal_id\":\"prp_000000000000000000000001\",\"version\":18446744073709551615,\"digest\":\"retained digest\"}}"
+  },
+  {
+    "type": "SavedDraft",
+    "input_raw": "{\"version\":18446744073709551615,\"content\":{\"base_revision\":\"rev_000000000000000000000001\",\"represented_context\":\"rec_000000000000000000000001\",\"operations\":[{\"kind\":\"create_world\",\"client_ref\":\"earth\",\"record\":{\"selector\":\"Earth\",\"labels\":{},\"metadata\":{}}}],\"rationale\":\"Authored correction\",\"proposal\":{\"proposal_id\":\"prp_000000000000000000000001\",\"version\":18446744073709551615,\"digest\":\"retained digest\"}}}",
+    "expected_wire": "{\"version\":18446744073709551615,\"content\":{\"base_revision\":\"rev_000000000000000000000001\",\"represented_context\":\"rec_000000000000000000000001\",\"operations\":[{\"kind\":\"create_world\",\"client_ref\":\"earth\",\"record\":{\"selector\":\"Earth\",\"labels\":{},\"metadata\":{}}}],\"rationale\":\"Authored correction\",\"proposal\":{\"proposal_id\":\"prp_000000000000000000000001\",\"version\":18446744073709551615,\"digest\":\"retained digest\"}}}"
+  },
+  {
+    "type": "ImportMode",
+    "input_raw": "\"restore\"",
+    "expected_wire": "\"restore\""
+  },
+  {
+    "type": "ImportMode",
+    "input_raw": "\"clone\"",
+    "expected_wire": "\"clone\""
+  }
+]

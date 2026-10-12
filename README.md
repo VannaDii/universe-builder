@@ -42,7 +42,7 @@ dart test
 dart test test/compiler_test.dart --platform chrome
 cd ../ub_contracts
 dart test
-dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart test/read_response_test.dart test/state_response_test.dart test/response_test.dart test/wire_message_test.dart test/workflow_request_test.dart test/writing_test.dart test/writing_knowledge_test.dart test/writing_delta_test.dart --platform chrome
+dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart test/read_response_test.dart test/state_response_test.dart test/response_test.dart test/wire_message_test.dart test/installation_test.dart test/workflow_request_test.dart test/writing_test.dart test/writing_knowledge_test.dart test/writing_delta_test.dart --platform chrome
 ```
 
 Browser tests must run from the package directory. Set `CHROME_EXECUTABLE` if
@@ -224,6 +224,17 @@ tokens. Exported protocol defaults remain version 3 and 16 in-flight requests.
 These DTOs do not negotiate compatibility, authenticate an instance, schedule work
 or cancel a durable operation. Service and transport execution still need their
 ports.
+Private installation contracts now include the credential/profile handshake and
+instance welcome, grant scopes/limits, structured draft contents/versions and
+restore/clone modes. Credential diagnostic formatting is redacted; explicit wire
+serialization retains the exact credential for the private handshake. Grant
+collections preserve unspecified versus explicitly empty boundaries, and
+delegated commit/shared-write flags default to false. Drafts retain pinned
+revision/context, authored operations and optional exact proposal references.
+Expiry timestamps, draft versions and engine limits preserve exact unsigned
+values on web. These contracts do not authenticate profiles, grant permissions,
+save drafts or implement encrypted settings; private command dispatch and those
+service behaviors remain pending.
 Ordinary writer types now preserve JSON scalar fact values, named objects and
 explicit unit amounts, fact lifetimes, object/definition deltas, claims and
 historical corrections/endings/withdrawals. Research requests for exact object
