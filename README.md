@@ -371,13 +371,20 @@ preparation and completion; a focused isolate case proceeds through approval and
 publication. SQLite uses the same scheduler job interface. The in-process
 PostgreSQL engine now authenticates connections, creates universes with their
 objective context/calendar, manages grants and names, and dispatches retained
-contexts, proposals, assessments, synchronous/queued validation, operation
+contexts, discovery, records/history, search, research briefs, proposals,
+assessments, synchronous/queued validation, operation
 lookup/cancellation, private source staging/review/approval and publication.
 Queued work starts only after submission commits. Engine functional checks cover
 creation through author-reviewed publication, receipt recovery after reopening,
 renamed aliases and current access withdrawal. The runtime drains requests and
 workers before its caller closes the installation store. Unmigrated requests fail
-explicitly. Socket/launcher integration, cross-process worker qualification and
+explicitly. PostgreSQL reads apply the same world/perspective visibility,
+dependency closure and history coverage as SQLite. Search and research cursors
+retain the exact frame, arguments, principal and current scope across reopen;
+advancing canon does not refresh an existing context. Focused engine checks cover
+historical payloads/history, required research dependencies, paging recovery,
+changed-argument refusal and denial of hidden records or another profile's context.
+Socket/launcher integration, cross-process worker qualification and
 the remaining service routes are pending. Import previews/purge coordination,
 transfer and live verified-TLS qualification also remain pending; runtime PostgreSQL selection
 is still explicitly unavailable.

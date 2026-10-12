@@ -12,6 +12,10 @@ import 'assessment_validation.dart';
 import 'candidate_validation.dart';
 import 'context_binding.dart';
 import 'context_opening.dart';
+import 'record_search.dart';
+import 'record_reading.dart';
+import 'discovery.dart';
+import 'context_brief.dart';
 import 'installation_authority.dart';
 import 'operation_state.dart';
 import 'read_cursor.dart';
@@ -171,6 +175,343 @@ final class PostgresValidationWorkflow {
     resolveSelected: (reference) =>
         _assessmentReview(reference, current, publication: publication),
   );
+
+  Future<
+    ({
+      List<RecordVersion> all,
+      List<RecordVersion> accessible,
+      Set<RecordId> visibility,
+      WorldId? focus,
+    })
+  >
+  _readSnapshot({
+    required Frame frame,
+    required Selector? world,
+    required WorldId? guard,
+    required CurrentUniverseAuthority current,
+  }) async {
+    final all = await _canon(frame.continuity, frame.revision);
+    final focus = resolveWorldFocus(
+      world: world,
+      guard: guard,
+      records: all,
+      scope: current.worldScope,
+    );
+    final visibleIds = visibleRecordIds(
+      records: all,
+      worldScope: current.worldScope,
+    );
+    final perspective = await perspectiveRecordIds(
+      records: all,
+      frame: frame,
+      readCanon: _canon,
+    );
+    final visible = all
+        .where(
+          (row) =>
+              visibleIds.contains(row.identity.recordId) &&
+              perspective.contains(row.identity.recordId),
+        )
+        .toList();
+    final seeds = visible
+        .where((row) {
+          final worlds = recordWorlds(row);
+          return focus == null || worlds.isEmpty || worlds.contains(focus);
+        })
+        .map((row) => row.identity.recordId);
+    final included = focus == null
+        ? seeds.toSet()
+        : readDependencyClosure(visible, seeds);
+    final accessible = visible
+        .where((row) => included.contains(row.identity.recordId))
+        .toList();
+    return (
+      all: all,
+      accessible: accessible,
+      visibility: visible.map((row) => row.identity.recordId).toSet(),
+      focus: focus,
+    );
+  }
+
+  Future<({Description description, Frame? frame, WorldId? focus})>
+  describeRequest(ReadRequest request) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _describeRequest(request, current),
+  );
+
+  Future<({Description description, Frame? frame, WorldId? focus})>
+  _describeRequest(
+    ReadRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
+    final (guard, context, world, worldGuard) = switch (request) {
+      DescribeSummaryRequest r => (r.universeId, null, null, null),
+      DescribeCapabilitiesRequest r => (r.universeId, null, null, null),
+      DescribeWorldsRequest r => (r.universeId, r.contextId, null, null),
+      DescribeDefinitionsRequest r => (
+        r.universeId,
+        r.contextId,
+        r.world,
+        r.worldId,
+      ),
+      _ => throw const InvalidArgumentError(
+        field: 'mode',
+        message: 'requires describe request',
+      ),
+    };
+    if (guard != null && guard != universe) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final continuities = <ContinuitySummary>[];
+    if (request is DescribeSummaryRequest) {
+      for (final head in (await _journal.heads()).entries) {
+        final name = await _workflow.get('continuity-name:${head.key.value}');
+        final summary = discoveryContinuity(
+          id: head.key,
+          revision: head.value,
+          name: name is CanonicalString ? name.value : 'Original continuity',
+          records: await _canon(head.key, head.value),
+          worldScope: current.worldScope,
+        );
+        if (summary != null) continuities.add(summary);
+      }
+    }
+    Frame? frame;
+    WorldId? focus;
+    var records = <RecordVersion>[];
+    var visibility = <RecordId>{};
+    if (context != null) {
+      frame = await _contextFrame(context, current);
+      final snapshot = await _readSnapshot(
+        frame: frame,
+        world: world,
+        guard: worldGuard,
+        current: current,
+      );
+      records = snapshot.all;
+      visibility = snapshot.visibility;
+      focus = snapshot.focus;
+    }
+    return (
+      description: discoveryDescription(
+        records: records,
+        visibility: visibility,
+        definitions: request is DescribeDefinitionsRequest,
+        focus: focus,
+        continuities: continuities,
+      ),
+      frame: frame,
+      focus: focus,
+    );
+  }
+
+  Future<Records> getRequest(GetRequest request) =>
+      authority.withUniverseAuthority(
+        principal,
+        universe,
+        (current) async => (await _getRequest(request, current)).records,
+      );
+
+  Future<({Records records, Frame frame, WorldId? focus})> _getRequest(
+    GetRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
+    const denied = NotFoundOrNotAccessibleError(message: 'resource');
+    if (request.universeId != null && request.universeId != universe) {
+      throw denied;
+    }
+    final frame = await _contextFrame(request.contextId, current);
+    final snapshot = await _readSnapshot(
+      frame: frame,
+      world: request.world,
+      guard: request.worldId,
+      current: current,
+    );
+    final accessible = snapshot.accessible;
+    final groups = request.fieldGroups;
+    final historyRequested = groups.contains(FieldGroup.history);
+    final fullHistory =
+        current.worldScope == null && frame.perspective is AuthorPerspective;
+    final records = <RecordVersion>[];
+    final history = <HistoryEntry>[];
+    for (final id in request.recordIds) {
+      final matching = accessible.where((row) => row.identity.recordId == id);
+      List<HistoryEntry>? changes;
+      if (matching.isNotEmpty) {
+        records.add(matching.single);
+      } else {
+        if (!historyRequested || !fullHistory) throw denied;
+        changes = (await _journal.recordHistory(
+          frame.continuity,
+          frame.revision,
+          id,
+        )).map(HistoryEntry.fromWire).toList();
+        if (changes.isEmpty) throw denied;
+      }
+      if (historyRequested && fullHistory) {
+        history.addAll(
+          changes ??
+              (await _journal.recordHistory(
+                frame.continuity,
+                frame.revision,
+                id,
+              )).map(HistoryEntry.fromWire),
+        );
+      }
+    }
+    final needed = groups.contains(FieldGroup.evidence)
+        ? readResearchClosure(accessible, request.recordIds)
+        : <RecordId>{};
+    final result = Records(
+      records: groups.isEmpty || groups.contains(FieldGroup.payload)
+          ? records
+          : [],
+      summaries: groups.contains(FieldGroup.summary)
+          ? records.map(
+              (row) => RecordSummary(
+                recordId: row.identity.recordId,
+                kind: row.identity.recordKind,
+                label: recordReadLabel(row),
+              ),
+            )
+          : [],
+      evidence: accessible.where(
+        (row) =>
+            needed.contains(row.identity.recordId) &&
+            !request.recordIds.contains(row.identity.recordId),
+      ),
+      history: history,
+      historyCoverage: historyRequested
+          ? (fullHistory ? Coverage.complete : Coverage.restricted)
+          : null,
+    );
+    return (records: result, frame: frame, focus: snapshot.focus);
+  }
+
+  Future<({ContextBrief brief, Delivery delivery})> getContextRequest(
+    GetContextRequest request,
+  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    final result = await _getContextRequest(request, current);
+    return (brief: result.brief, delivery: result.delivery);
+  });
+
+  Future<({ContextBrief brief, Delivery delivery, Frame frame, WorldId? focus})>
+  _getContextRequest(
+    GetContextRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
+    const denied = NotFoundOrNotAccessibleError(message: 'resource');
+    if (request.universeId != null && request.universeId != universe) {
+      throw denied;
+    }
+    final frame = await _contextFrame(request.contextId, current);
+    final offset = await _readOffset(
+      request.toArgs(),
+      frame,
+      current,
+      request.cursor,
+    );
+    final snapshot = await _readSnapshot(
+      frame: frame,
+      world: request.world,
+      guard: request.worldId,
+      current: current,
+    );
+    final page = buildContextBrief(
+      all: snapshot.all,
+      accessible: snapshot.accessible,
+      visibility: snapshot.visibility,
+      focusIds: request.focusIds,
+      frame: frame,
+      world: snapshot.focus,
+      restricted:
+          current.worldScope != null || frame.perspective is! AuthorPerspective,
+      byteBudget: request.byteBudget,
+      offset: offset,
+    );
+    final cursor = await _retainReadCursor(
+      request.toArgs(),
+      frame,
+      current,
+      page.complete,
+      page.next,
+    );
+    return (
+      frame: frame,
+      focus: snapshot.focus,
+      brief: page.brief,
+      delivery: Delivery(complete: page.complete, cursor: cursor),
+    );
+  }
+
+  Future<({SearchResults results, Delivery delivery})> searchRequest(
+    SearchRequest request,
+  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    final result = await _searchRequest(request, current);
+    return (results: result.results, delivery: result.delivery);
+  });
+
+  Future<
+    ({SearchResults results, Delivery delivery, Frame frame, WorldId? focus})
+  >
+  _searchRequest(
+    SearchRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
+    const denied = NotFoundOrNotAccessibleError(message: 'resource');
+    if (request.universeId != null && request.universeId != universe) {
+      throw denied;
+    }
+    if (request.limit < 1 || request.limit > 100) {
+      throw const InvalidArgumentError(
+        field: 'limit',
+        message: 'outside request limits',
+      );
+    }
+    final frame = await _contextFrame(request.contextId, current);
+    final snapshot = await _readSnapshot(
+      frame: frame,
+      world: request.world,
+      guard: request.worldId,
+      current: current,
+    );
+    final indexed = (await _kernel.search(
+      frame.continuity,
+      frame.revision,
+      request.query,
+    )).map((row) => row.identity.recordId).toSet();
+    final hits = buildSearchHits(
+      accessible: snapshot.accessible,
+      indexed: indexed,
+      query: request.query,
+      filters: request.typedFilters,
+      world: snapshot.focus,
+      author: frame.perspective is AuthorPerspective,
+    );
+    final offset = await _readOffset(
+      request.toArgs(),
+      frame,
+      current,
+      request.cursor,
+    );
+    if (offset > hits.length) throw denied;
+    final end = (offset + request.limit).clamp(0, hits.length);
+    final complete = end == hits.length;
+    final cursor = await _retainReadCursor(
+      request.toArgs(),
+      frame,
+      current,
+      complete,
+      end,
+    );
+    return (
+      frame: frame,
+      focus: snapshot.focus,
+      results: SearchResults(hits: hits.sublist(offset, end)),
+      delivery: Delivery(complete: complete, cursor: cursor),
+    );
+  }
 
   Future<int> _readOffset(
     CanonicalObject args,
@@ -445,6 +786,34 @@ final class PostgresValidationWorkflow {
             final opened = await _openContext(request, current);
             result = opened.toWire();
             frame = opened.frame;
+          case DescribeSummaryRequest() ||
+              DescribeCapabilitiesRequest() ||
+              DescribeWorldsRequest() ||
+              DescribeDefinitionsRequest():
+            final described = await _describeRequest(
+              request as ReadRequest,
+              current,
+            );
+            result = described.description.toWire();
+            frame = described.frame;
+            focus = described.focus;
+          case GetRequest():
+            final read = await _getRequest(request, current);
+            result = read.records.toWire();
+            frame = read.frame;
+            focus = read.focus;
+          case GetContextRequest():
+            final read = await _getContextRequest(request, current);
+            result = read.brief.toWire();
+            frame = read.frame;
+            focus = read.focus;
+            delivery = read.delivery;
+          case SearchRequest():
+            final read = await _searchRequest(request, current);
+            result = read.results.toWire();
+            frame = read.frame;
+            focus = read.focus;
+            delivery = read.delivery;
           case CreateProposalRequest() ||
               ReviseProposalRequest() ||
               SubmitProposalRequest() ||
