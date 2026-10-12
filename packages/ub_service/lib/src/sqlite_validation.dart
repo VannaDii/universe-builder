@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/sqlite.dart';
+import 'package:ub_store/ub_store.dart' show CommitInput;
 
 import 'assessment_resolution.dart';
 import 'assessment_validation.dart';
@@ -17,8 +18,8 @@ import 'validation_binding.dart';
 import 'validation_task.dart';
 
 /// Internal native workflow for an already recovered, writer-owned package.
-/// It retains assessments, checked results and exact human approvals, never
-/// canonical facts. The caller must produce checked results through the factual
+/// It retains assessments, checked results and exact human approvals, and
+/// publishes reviewed canon. The caller must produce checked results through the factual
 /// evaluator, not client IO.
 final class SqliteValidationWorkflow {
   SqliteValidationWorkflow({
@@ -101,8 +102,9 @@ final class SqliteValidationWorkflow {
 
   Future<ValidationCapture> _capture(
     StoredProposal proposal,
-    CurrentUniverseAuthority current,
-  ) => captureValidationBinding(
+    CurrentUniverseAuthority current, {
+    bool publication = false,
+  }) => captureValidationBinding(
     proposal: proposal,
     authorityDigest: current.validationDigest,
     authoritySequence: current.sequence,
@@ -113,9 +115,10 @@ final class SqliteValidationWorkflow {
       reference: reference,
       universe: universe,
       canObserveMissingMaterial:
-          current.principal.author && current.worldScope == null,
+          publication || current.principal.author && current.worldScope == null,
       readProposal: (reference) => _proposal(reference, current),
       checkAccess: (proposal, body) async {
+        if (publication) return;
         await checkAssessmentAccess(
           proposal: proposal,
           body: body,
@@ -646,6 +649,188 @@ final class SqliteValidationWorkflow {
       },
     );
     return result;
+  });
+
+  /// Publish only a retained, exactly checked and approved/delegated proposal.
+  /// The dispatcher resolves the request's universe before calling this route.
+  Future<CommitReceipt> commit(
+    CommitRequest request, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+    if (request.universeId != null && request.universeId != universe) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final proposal = _proposal(request.proposalReference, current);
+    final p = proposal.proposal;
+    authority.authorizeWrite(
+      principal,
+      universe: universe,
+      worlds: proposal.footprint.worlds,
+      shared: proposal.footprint.shared,
+      protected: proposal.footprint.protected,
+      commit: true,
+    );
+    final key = operationRequestKey(
+      principal.id,
+      'commit',
+      request.idempotencyKey,
+    );
+    final digest = canonicalDigest(request.toArgs());
+    Future<StoredOperation> load() => loadStoredOperation(
+      key: key,
+      principal: principal.id,
+      worldScope: current.worldScope,
+      readWorkflow: _workflow.get,
+      readReceipt: _journal.receipt,
+      isValidationActive: isValidationActive,
+    );
+    StoredOperation? operation;
+    if (_workflow.get(key) != null) {
+      operation = await load();
+      if (operation.digest != digest) {
+        throw const IdempotencyKeyReusedError(message: 'request differs');
+      }
+      if (operation.status.receipt != null) return operation.status.receipt!;
+    }
+    if (_workflow.latestKey('proposal:${p.proposalId.value}:') !=
+            proposal.key ||
+        p.withdrawn ||
+        p.submission != Submission.submitted ||
+        request.expectedBaseRevision != p.baseFrame.revision) {
+      throw const ApprovalStaleError();
+    }
+    final value = _workflow.get('validation:${request.validationRun.value}');
+    if (value == null) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final checked = CheckedValidation.fromWire(value);
+    if (checked.proposalDigest != p.digest ||
+        !checked.admissible ||
+        checked.validation.evaluatorVersion != candidateEvaluatorVersion) {
+      throw const ApprovalStaleError();
+    }
+    final limits = current.limits;
+    final delegated =
+        limits.delegatedCommit &&
+        !proposal.footprint.protected &&
+        (!proposal.footprint.shared || limits.allowShared) &&
+        checked.validation.coverage == Coverage.complete;
+    if (!delegated) {
+      final approval = _workflow.get(
+        'approval:${current.approvalAuthor.value}:${p.digest}:${request.validationRun.value}',
+      );
+      if (approval == null) {
+        throw const ApprovalRequiredError(
+          message: 'author must approve this exact proposal and validation',
+        );
+      }
+      final fields = WireFields(approval, {
+        'author',
+        'proposal',
+        'validation_digest',
+        'evaluator',
+      });
+      if (fields.string('evaluator') != candidateEvaluatorVersion ||
+          fields.string('author') != current.approvalAuthor.value ||
+          fields.string('validation_digest') !=
+              canonicalDigest(checked.toWire())) {
+        throw const ApprovalStaleError();
+      }
+    }
+    Future<ValidationCapture> capture() async {
+      final result = await _capture(proposal, current, publication: true);
+      verifyPublicationReport(
+        report: checked.report,
+        current: result,
+        proposal: request.proposalReference,
+        baseFrame: p.baseFrame,
+        execution: checked.validation,
+      );
+      return result;
+    }
+
+    final captured = await capture();
+    final head = _journal.head(p.baseFrame.continuity);
+    if (head != request.expectedBaseRevision) {
+      throw BaseRevisionConflictError(
+        expected: request.expectedBaseRevision.value,
+        actual: head.value,
+      );
+    }
+    final kernel = SqliteKernel(package.database, universe);
+    final fresh = await checkProposalCandidate(
+      stored: proposal,
+      universe: universe,
+      principal: principal.id,
+      approvalAuthor: current.approvalAuthor,
+      scope: null,
+      preview: (input) => kernel
+          .preview(input)
+          .map((r) => RecordVersion.fromWire(r.toCanonical()))
+          .toList(),
+      readCanon: _canon,
+      readWorkflow: _workflow.get,
+      readVersion: _version,
+    );
+    final v = fresh.validation;
+    final comparable = Validation(
+      operationId: checked.validation.operationId,
+      runId: checked.validation.runId,
+      coverage: v.coverage,
+      findings: v.findings,
+      opposingEvidence: v.opposingEvidence,
+      unsupportedCapabilities: v.unsupportedCapabilities,
+      inputDigest: v.inputDigest,
+      evaluatorVersion: v.evaluatorVersion,
+    );
+    if (!fresh.admissible ||
+        canonicalDigest(comparable.toWire()) !=
+            canonicalDigest(checked.validation.toWire())) {
+      throw const ApprovalStaleError();
+    }
+    await capture();
+    final CommitInput input = await proposalCommitInput(
+      stored: proposal,
+      universe: universe,
+      principal: principal.id,
+      idempotencyKey: request.idempotencyKey,
+      readCanon: _canon,
+    );
+    if (operation == null) {
+      final id = OperationId.generate();
+      operation = StoredOperation(
+        owner: principal.id,
+        digest: digest,
+        input: input,
+        footprint: proposal.footprint,
+        status: OperationStatus(
+          operationId: id,
+          kind: OperationKind.commit,
+          state: OperationState.committing,
+          proposal: p,
+          cancellationRequested: false,
+        ),
+      );
+      _workflow.compareAppend({}, [
+        MapEntry(key, operation.toWire()),
+        MapEntry('operation:${id.value}', operation.toWire()),
+      ]);
+    }
+    if (operation.status.cancellationRequested) {
+      throw const PolicyDeniedError(
+        message: 'operation cancelled before commit',
+      );
+    }
+    verifyValidationAuthority(captured, current.sequence);
+    final revision = kernel.commit(
+      input,
+      expectedWorkflow: captured.comparisons(),
+    );
+    return CommitReceipt(
+      operationId: operation.status.operationId,
+      proposalId: p.proposalId,
+      revision: revision,
+    );
   });
 
   /// Private human approval route. Public model requests cannot supply approval

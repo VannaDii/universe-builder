@@ -1123,6 +1123,278 @@ void main() {
     },
   );
 
+  CommitRequest publication(
+    CheckedValidation checked, {
+    String key = 'publish',
+  }) => CommitRequest(
+    universe: const Selector('World'),
+    universeId: f.u,
+    proposalReference: proposal.reference,
+    expectedBaseRevision: proposal.proposal.baseFrame.revision,
+    validationRun: checked.validation.runId,
+    idempotencyKey: key,
+  );
+
+  test('reviewed publication commits canon once and recovers the exact receipt across reopen', () async {
+    final completed = await completedSubmitted();
+    await authorService().approve(
+      proposal.reference,
+      completed.validation.runId,
+    );
+    final request = publication(completed);
+    final receipt = await service.commit(
+      request,
+      isValidationActive: (_) => false,
+    );
+    expect(kernel.identityExists(f.id(10)), isTrue);
+    expect(kernel.journal.head(continuity), receipt.revision);
+    expect(
+      (await service.commit(
+        request,
+        isValidationActive: (_) => false,
+      )).toWire().toText(),
+      receipt.toWire().toText(),
+    );
+    final recovered = await service.operation(
+      receipt.operationId,
+      isValidationActive: (_) => false,
+    );
+    final changed = CommitRequest(
+      universe: request.universe,
+      universeId: request.universeId,
+      proposalReference: request.proposalReference,
+      expectedBaseRevision: request.expectedBaseRevision,
+      validationRun: ValidationRunId.generate(),
+      idempotencyKey: request.idempotencyKey,
+    );
+    await expectLater(
+      service.commit(changed, isValidationActive: (_) => false),
+      throwsA(isA<IdempotencyKeyReusedError>()),
+    );
+    expect(recovered.status.state, OperationState.succeeded);
+    expect(
+      recovered.status.receipt!.toWire().toText(),
+      receipt.toWire().toText(),
+    );
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    service = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: writer,
+    );
+    expect(
+      (await service.commit(
+        request,
+        isValidationActive: (_) => false,
+      )).toWire().toText(),
+      receipt.toWire().toText(),
+    );
+    expect(kernel.journal.head(continuity), receipt.revision);
+    await expectLater(
+      service.commit(
+        publication(completed, key: 'different-publish'),
+        isValidationActive: (_) => false,
+      ),
+      stale,
+    );
+  });
+
+  test('cancelled retained publication cannot resume into canon', () async {
+    final completed = await completedSubmitted();
+    await authorService().approve(
+      proposal.reference,
+      completed.validation.runId,
+    );
+    final request = publication(completed);
+    final commitInput = await proposalCommitInput(
+      stored: proposal,
+      universe: f.u,
+      principal: writer.id,
+      idempotencyKey: request.idempotencyKey,
+      readCanon: canon,
+    );
+    final id = OperationId.generate();
+    final retained = StoredOperation(
+      owner: writer.id,
+      digest: canonicalDigest(request.toArgs()),
+      input: commitInput,
+      footprint: proposal.footprint,
+      status: OperationStatus(
+        operationId: id,
+        kind: OperationKind.commit,
+        state: OperationState.committing,
+        proposal: proposal.proposal,
+        cancellationRequested: false,
+      ),
+    );
+    WorkflowStorage(package.database).compareAppend({}, [
+      MapEntry(
+        operationRequestKey(writer.id, 'commit', request.idempotencyKey),
+        retained.toWire(),
+      ),
+      MapEntry('operation:${id.value}', retained.toWire()),
+    ]);
+    await service.cancelOperation(
+      cancellation(id),
+      isValidationActive: (_) => false,
+      signalCancellation: (_) {},
+    );
+    await expectLater(
+      service.commit(request, isValidationActive: (_) => false),
+      throwsA(isA<PolicyDeniedError>()),
+    );
+    expect(kernel.identityExists(f.id(10)), isFalse);
+    expect(kernel.journal.receipt(commitInput), isNull);
+    expect(
+      (await service.operation(
+        id,
+        isValidationActive: (_) => false,
+      )).status.state,
+      OperationState.cancelled,
+    );
+  });
+
+  test(
+    'publication requires exact approval and unchanged selected evidence',
+    () async {
+      final completed = await completedSubmitted();
+      final head = kernel.journal.head(continuity);
+      await expectLater(
+        service.commit(
+          publication(completed),
+          isValidationActive: (_) => false,
+        ),
+        throwsA(isA<ApprovalRequiredError>()),
+      );
+      expect(
+        WorkflowStorage(package.database)
+            .keys('request:${writer.id.value}:commit:'),
+        isEmpty,
+      );
+      await authorService().approve(
+        proposal.reference,
+        completed.validation.runId,
+      );
+      await service.selectAssessment(
+        proposal.reference,
+        expectedGeneration: BigInt.one,
+        selected: null,
+        idempotencyKey: 'clear-before-publish',
+      );
+      await expectLater(
+        service.commit(
+          publication(completed),
+          isValidationActive: (_) => false,
+        ),
+        stale,
+      );
+      expect(kernel.identityExists(f.id(10)), isFalse);
+      expect(kernel.journal.head(continuity), head);
+    },
+  );
+
+  test('delegated publication observes explicit shared-work limits', () async {
+    kernel.commit(
+      input('delegation-base', [frames.fixture().first, f.row(2, f.entity())]),
+    );
+    final head = kernel.journal.head(continuity);
+    proposal = proposals.prepare(
+      principal: writer.id,
+      request: CreateProposalRequest(
+        universe: const Selector('World'),
+        contextId: proposals.contextId,
+        operations: [
+          DefinePropositionOperation(
+            clientRef: f.id(10).value,
+            record: PropositionRecord(
+              subject: f.ref(2),
+              predicate: f.ref(1),
+              context: f.ref(99),
+              value: const BooleanValue(true),
+              quantification: Quantification.particular,
+            ),
+          ),
+        ],
+        submission: Submission.submitted,
+        rationale: 'Delegated factual edit',
+        idempotencyKey: 'delegated-proposal',
+      ),
+      frame: Frame(
+        universe: f.u,
+        continuity: continuity,
+        revision: head,
+        context: f.ref(99),
+        time: const TimelessFrameTime(),
+        perspective: const AuthorPerspective(),
+      ),
+      base: canon(continuity, head),
+    );
+    WorkflowStorage(package.database)
+        .compareAppend({}, [MapEntry(proposal.key, proposal.toWire())]);
+    final status = await service.queueValidation(
+      queued(),
+      resolvedFrame: proposal.proposal.baseFrame,
+      isValidationActive: (_) => false,
+    );
+    final task = (await service.prepareValidation(
+      status.operationId,
+      isValidationActive: (_) => true,
+    ))!;
+    final checked = task.evaluate();
+    await service.finishValidation(
+      status.operationId,
+      checked,
+      isValidationActive: (_) => true,
+    );
+    final completed = CheckedValidation.fromWire(
+      WorkflowStorage(package.database)
+          .get('validation:${checked.validation.runId.value}')!,
+    );
+    Future<void> delegation(bool shared) => authority.coordinate(
+      author,
+      () => authority.grant(
+        author,
+        GrantSpec(
+          profileId: writer.id,
+          universeId: f.u,
+          worlds: null,
+          propose: true,
+          edit: true,
+          protected: true,
+          limits: GrantLimits(
+            entities: [f.id(2)],
+            predicates: [f.id(1)],
+            continuities: [continuity],
+            expiresAt: BigInt.from(
+              DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600,
+            ),
+            delegatedCommit: true,
+            allowShared: shared,
+          ),
+        ),
+      ),
+    );
+    await delegation(false);
+    await expectLater(
+      service.commit(publication(completed), isValidationActive: (_) => false),
+      throwsA(isA<ApprovalRequiredError>()),
+    );
+    expect(kernel.identityExists(f.id(10)), isFalse);
+    await delegation(true);
+    final receipt = await service.commit(
+      publication(completed),
+      isValidationActive: (_) => false,
+    );
+    expect(kernel.journal.head(continuity), receipt.revision);
+    expect(kernel.identityExists(f.id(10)), isTrue);
+    expect(WorkflowStorage(package.database).keys('approval:'), isEmpty);
+  });
+
   test('draft proposals cannot receive author approval', () async {
     await service.persist(proposal.reference, checked);
     await expectLater(

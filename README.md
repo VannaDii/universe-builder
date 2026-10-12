@@ -498,8 +498,14 @@ their decision to the exact retained Checked digest and evaluator. It requires
 the latest submitted, unwithdrawn proposal at the pinned head, an admissible
 validation and an unchanged completed assessment report. Report resolution and
 approval retention share the write transaction and current authority section;
-authorized identical retries survive reopen. This retains approval evidence
-only; reviewed canonical publication and human transport/UI wiring remain pending.
+authorized identical retries survive reopen. Reviewed publication now admits
+current write permissions and exact approval, or explicitly bounded delegated
+commit authority. It privately rechecks the complete candidate and compares the
+approved validation and current assessment report before retaining a committing
+operation and publishing canon with expected workflow comparisons and a durable
+receipt. Same-key retries recover that receipt after reopen; changed evidence
+and cancelled operations cannot publish. Human transport/UI and engine dispatch
+wiring remain pending.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.
