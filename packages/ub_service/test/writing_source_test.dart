@@ -19,7 +19,7 @@ import 'knowledge_checks_test.dart' as knowledge;
 import 'proposal_state_test.dart' as proposals;
 
 Matcher denied = throwsA(isA<PolicyDeniedError>());
-void gate(
+Future<void> gate(
   List<DomainOperation> operations, {
   List<RecordVersion> rows = const [],
   bool contracts = false,
@@ -36,7 +36,7 @@ void gate(
 );
 
 void main() {
-  test('source attachment changes only explicit evidence fields and preserves correction metadata', () {
+  test('source attachment changes only explicit evidence fields and preserves correction metadata', () async {
     final assertion = f.assertion(validity: f.interval);
     final belief = knowledge.attitude(
       kind: EpistemicAttitudeKind.believes,
@@ -116,7 +116,7 @@ void main() {
     expect(operations.map((o) => o.toWire().toText()), before);
   });
 
-  test('pinned relationship support can be ended without becoming a general retraction route', () {
+  test('pinned relationship support can be ended without becoming a general retraction route', () async {
     final rows = relations.fixture();
     final target = rows.singleWhere((r) => r.payload is AssertionRecord);
     final ref = RecordRef(universe: f.u, record: target.identity.recordId);
@@ -126,8 +126,8 @@ void main() {
       at: ExactTime(f.cal, '15'),
       basis: const ImportedClaimBasis(),
     );
-    gate([end], rows: rows);
-    expect(
+    await gate([end], rows: rows);
+    await expectLater(
       () => gate([
         EndAssertionAtOperation(
           record: ref,
@@ -138,7 +138,7 @@ void main() {
       ], rows: rows),
       denied,
     );
-    expect(
+    await expectLater(
       () => gate([
         RetractAssertionOperation(
           record: ref,
@@ -154,8 +154,8 @@ void main() {
       expectedVersion: entity.recordVersionId,
       name: const ContextualName(text: 'M', validity: UnspecifiedValidity()),
     );
-    gate([alias], rows: rows);
-    expect(() => gate([alias], rows: []), denied);
+    await gate([alias], rows: rows);
+    await expectLater(() => gate([alias], rows: []), denied);
   });
 
   test('exact author UTF-8 source anchors survive allocated compilation and source verification', () async {
@@ -197,7 +197,7 @@ void main() {
       ],
     );
     final operations = [...types.operations, ...facts.operations];
-    gate(operations, rows: rows);
+    await gate(operations, rows: rows);
     final stage = stageWritingSource(
       universe: f.u,
       author: proposals.actor,
@@ -273,7 +273,7 @@ void main() {
 
   test(
     'staging limits count UTF-8 bytes and retain immutable import metadata',
-    () {
+    () async {
       Object stage(String label, String text) => stageWritingSource(
         universe: f.u,
         author: proposals.actor,
@@ -315,37 +315,37 @@ void main() {
     },
   );
 
-  test('contract review permits finite declarations but not arbitrary author operations', () {
+  test('contract review permits finite declarations but not arbitrary author operations', () async {
     final unit = DefineUnitOperation(
       clientRef: f.id(1).value,
       record: units.unit(),
     );
-    expect(() => gate([unit]), denied);
-    gate([unit], contracts: true);
+    await expectLater(() => gate([unit]), denied);
+    await gate([unit], contracts: true);
     final converted = DefineUnitOperation(
       clientRef: f.id(1).value,
       record: f.patch(units.unit(), {
         'base': CanonicalString(UnitId.fromRecordId(f.id(2)).value),
       }),
     );
-    expect(() => gate([converted], contracts: true), denied);
+    await expectLater(() => gate([converted], contracts: true), denied);
     final unsupported = DefineRuleOperation(
       clientRef: f.id(3).value,
       record: frames.rule(),
     );
-    expect(() => gate([unsupported], contracts: true), denied);
+    await expectLater(() => gate([unsupported], contracts: true), denied);
     final policy = DefineRuleOperation(
       clientRef: f.id(3).value,
       record: knowledge.policy(),
     );
-    gate([policy], contracts: true);
-    expect(
+    await gate([policy], contracts: true);
+    await expectLater(
       () => gate([
         CreateEntityOperation(clientRef: f.id(1).value, record: f.entity()),
       ], contracts: true),
       denied,
     );
-    expect(
+    await expectLater(
       () => gate([
         RecordIssueDecisionOperation(
           clientRef: f.id(1).value,
@@ -362,7 +362,7 @@ void main() {
     );
   });
 
-  test('definition review changes only the supported fields of the exact pinned version', () {
+  test('definition review changes only the supported fields of the exact pinned version', () async {
     ActionDefinitionRecord action({bool contract = true}) =>
         ActionDefinitionRecord(
           namespace: 'authoring',
@@ -376,7 +376,7 @@ void main() {
           validity: const UnspecifiedValidity(),
           consequenceContract: contract ? ConsequenceContract([]) : null,
         );
-    gate(
+    await gate(
       [
         ReviseDefinitionOperation(
           record: f.ref(30),
@@ -401,14 +401,14 @@ void main() {
       expectedVersion: version ?? f.ver(20),
       replacement: replacement,
     );
-    gate([op(changed)], rows: rows, contracts: true);
-    expect(() => gate([op(changed)], rows: rows), denied);
-    expect(
+    await gate([op(changed)], rows: rows, contracts: true);
+    await expectLater(() => gate([op(changed)], rows: rows), denied);
+    await expectLater(
       () =>
           gate([op(changed, version: f.ver(21))], rows: rows, contracts: true),
       denied,
     );
-    expect(
+    await expectLater(
       () => gate(
         [
           op(f.patch(changed, {'name': CanonicalString('Renamed')})),
@@ -434,7 +434,7 @@ void main() {
         ),
       ),
     });
-    gate(
+    await gate(
       [
         ReviseDefinitionOperation(
           record: RecordRef(
@@ -457,7 +457,7 @@ void main() {
         ).toWire(),
       ]),
     });
-    expect(
+    await expectLater(
       () => gate(
         [
           ReviseDefinitionOperation(
@@ -476,7 +476,7 @@ void main() {
     );
   });
 
-  test('author knowledge decisions remain separate from ordinary exact-source preparation', () {
+  test('author knowledge decisions remain separate from ordinary exact-source preparation', () async {
     final record = knowledge.attitude(
       declared: knowledge.acquisition(
         basis: const AuthorEstablishedKnowledge(),
@@ -484,16 +484,16 @@ void main() {
       basis: const AuthorDecisionBasis('Explicit author decision'),
     );
     final add = AddBeliefOperation(clientRef: f.id(6).value, record: record);
-    expect(() => gate([add], authorOrigin: true), denied);
-    expect(
+    await expectLater(() => gate([add], authorOrigin: true), denied);
+    await expectLater(
       () => gate([add], knowledgeRationale: 'Explicit author decision'),
       denied,
     );
-    expect(
+    await expectLater(
       () => gate([add], authorOrigin: true, knowledgeRationale: 'Wrong reason'),
       denied,
     );
-    gate(
+    await gate(
       [add],
       authorOrigin: true,
       knowledgeRationale: 'Explicit author decision',
@@ -507,11 +507,11 @@ void main() {
       replacement: replacement,
       rationale: 'Correct duration',
     );
-    expect(
+    await expectLater(
       () => gate([revise], rows: [f.row(6, record)], authorOrigin: true),
       denied,
     );
-    gate(
+    await gate(
       [revise],
       rows: [f.row(6, record)],
       authorOrigin: true,
@@ -551,9 +551,9 @@ void main() {
     );
   });
 
-  test('narrative disclosure preparation requires exact edition dependency closure', () {
+  test('narrative disclosure preparation requires exact edition dependency closure', () async {
     final rows = narrative.rows();
-    final result = compileWritingNarrative(
+    final result = await compileWritingNarrative(
       frame: disclosures.frame,
       rows: rows,
       input: narrative.delta(
@@ -564,8 +564,8 @@ void main() {
       canonAt: (_, _) => rows,
     );
     expect(result.clarifications, isEmpty);
-    expect(() => gate(result.operations, rows: rows), denied);
-    gate(result.operations, rows: rows, contracts: true);
+    await expectLater(() => gate(result.operations, rows: rows), denied);
+    await gate(result.operations, rows: rows, contracts: true);
     final changed = [
       for (final row in rows)
         row.identity.recordId == f.id(80)
@@ -576,7 +576,7 @@ void main() {
               )
             : row,
     ];
-    expect(
+    await expectLater(
       () => gate(
         result.operations,
         rows: changed,

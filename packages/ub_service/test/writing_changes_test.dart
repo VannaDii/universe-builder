@@ -14,89 +14,93 @@ import 'writing_initializations_test.dart' as initializations;
 import 'action_checks_test.dart' as actions;
 
 void main() {
-  test('new action contracts feed sequential generated resource balances', () {
-    final rows = connected
-        .eventRows()
-        .where((r) => r.payload is! ActionDefinitionRecord)
-        .toList();
-    final result = compileWritingChanges(
-      frame: actions.frame,
-      base: rows,
-      visibleRows: rows,
-      canonAt: (_, _) => rows,
-      input: CheckChangesRequest(
-        universe: const Selector('Test'),
-        contextId: ContextId.generate(),
-        actions: [
-          WritingAction(
-            name: 'Spend',
-            introduce: true,
-            scope: 'universe',
-            requirements: [],
-            effects: [
-              WritingEffect(
-                role: 'actor',
-                property: 'charged',
-                change: WritingDeltaChange(
-                  amount: const CanonicalNumber('-2'),
-                  minimum: const CanonicalNumber('0'),
-                  maximum: const CanonicalNumber('10'),
+  test(
+    'new action contracts feed sequential generated resource balances',
+    () async {
+      final rows = connected
+          .eventRows()
+          .where((r) => r.payload is! ActionDefinitionRecord)
+          .toList();
+      final result = await compileWritingChanges(
+        frame: actions.frame,
+        base: rows,
+        visibleRows: rows,
+        canonAt: (_, _) => rows,
+        input: CheckChangesRequest(
+          universe: const Selector('Test'),
+          contextId: ContextId.generate(),
+          actions: [
+            WritingAction(
+              name: 'Spend',
+              introduce: true,
+              scope: 'universe',
+              requirements: [],
+              effects: [
+                WritingEffect(
+                  role: 'actor',
+                  property: 'charged',
+                  change: WritingDeltaChange(
+                    amount: const CanonicalNumber('-2'),
+                    minimum: const CanonicalNumber('0'),
+                    maximum: const CanonicalNumber('10'),
+                  ),
+                  lifetime: WritingUntilChangedEffectLifetime(),
                 ),
-                lifetime: WritingUntilChangedEffectLifetime(),
-              ),
-            ],
-          ),
-        ],
-        events: [
-          WritingEvent(
-            action: 'Spend',
-            participants: {'actor': 'Actor'},
-            atTick: '11',
-          ),
-          WritingEvent(
-            action: 'Spend',
-            participants: {'actor': 'Actor'},
-            atTick: '12',
-          ),
-        ],
-      ),
-    );
-    expect(result.clarifications, isEmpty);
-    expect(
-      result.operations.whereType<DefinePropositionOperation>().map(
-        (op) => op.record.value,
-      ),
-      [const IntegerValue('3'), const IntegerValue('1')],
-    );
-    final candidate = compileWritingCandidate(
-      universe: f.u,
-      revision: f.revision,
-      base: rows,
-      operations: result.operations,
-    );
-    expect(candidate.where((r) => r.payload is EventRecord), hasLength(2));
-    expect(
-      candidate.where(
-        (r) =>
-            r.payload is AssertionRecord &&
-            (r.payload as AssertionRecord).establishedBy != null,
-      ),
-      hasLength(2),
-    );
-    validateActionConsequences(
-      records: candidate,
-      base: rows,
-      changed: candidate
-          .where(
-            (r) => !rows.any((b) => b.identity.recordId == r.identity.recordId),
-          )
-          .map((r) => r.identity.recordId)
-          .toSet(),
-      frame: actions.frame,
-    );
-  });
+              ],
+            ),
+          ],
+          events: [
+            WritingEvent(
+              action: 'Spend',
+              participants: {'actor': 'Actor'},
+              atTick: '11',
+            ),
+            WritingEvent(
+              action: 'Spend',
+              participants: {'actor': 'Actor'},
+              atTick: '12',
+            ),
+          ],
+        ),
+      );
+      expect(result.clarifications, isEmpty);
+      expect(
+        result.operations.whereType<DefinePropositionOperation>().map(
+          (op) => op.record.value,
+        ),
+        [const IntegerValue('3'), const IntegerValue('1')],
+      );
+      final candidate = compileWritingCandidate(
+        universe: f.u,
+        revision: f.revision,
+        base: rows,
+        operations: result.operations,
+      );
+      expect(candidate.where((r) => r.payload is EventRecord), hasLength(2));
+      expect(
+        candidate.where(
+          (r) =>
+              r.payload is AssertionRecord &&
+              (r.payload as AssertionRecord).establishedBy != null,
+        ),
+        hasLength(2),
+      );
+      validateActionConsequences(
+        records: candidate,
+        base: rows,
+        changed: candidate
+            .where(
+              (r) =>
+                  !rows.any((b) => b.identity.recordId == r.identity.recordId),
+            )
+            .map((r) => r.identity.recordId)
+            .toSet(),
+        frame: actions.frame,
+      );
+    },
+  );
 
-  test('world declarations distinguish normalized existing names and repeated new names', () {
+  test('world declarations distinguish normalized existing names and repeated new names', () async {
     final rows = [
       f.row(80, WorldRecord(selector: 'Campaign', aliases: ['Shared Realm'])),
     ];
@@ -145,13 +149,13 @@ void main() {
     );
   });
 
-  test('world unit property definition object relation and action stages share only intended candidates', () {
+  test('world unit property definition object relation and action stages share only intended candidates', () async {
     final rows = contexts.rows();
     final frame = facts.frame(
       time: AtFrameTime(ExactTime(facts.calendar, '10')),
     );
     final before = rows.map((r) => r.toWire().toText()).toList();
-    final result = compileWritingChanges(
+    final result = await compileWritingChanges(
       frame: frame,
       base: rows,
       visibleRows: rows,
@@ -275,12 +279,12 @@ void main() {
     expect(rows.map((r) => r.toWire().toText()), before);
   });
 
-  test('messages and explicit knowledge can use earlier object facts and policy declarations', () {
+  test('messages and explicit knowledge can use earlier object facts and policy declarations', () async {
     final rows = contexts.rows();
     final frame = facts.frame(
       time: AtFrameTime(ExactTime(facts.calendar, '10')),
     );
-    final result = compileWritingChanges(
+    final result = await compileWritingChanges(
       frame: frame,
       base: rows,
       visibleRows: rows,
@@ -342,9 +346,9 @@ void main() {
     expect(attitude.acquisition!.basis, isA<CommunicationKnowledge>());
   });
 
-  test('unpublished narrative dependencies remain pinned and clarification strings are sorted and unique', () {
+  test('unpublished narrative dependencies remain pinned and clarification strings are sorted and unique', () async {
     final rows = contexts.rows();
-    final result = compileWritingChanges(
+    final result = await compileWritingChanges(
       frame: facts.frame(),
       base: rows,
       visibleRows: rows,
@@ -402,9 +406,9 @@ void main() {
     );
   });
 
-  test('instance initialization uses pinned source versions and compiles only once in the aggregate', () {
+  test('instance initialization uses pinned source versions and compiles only once in the aggregate', () async {
     final rows = initializations.rows();
-    final result = compileWritingChanges(
+    final result = await compileWritingChanges(
       frame: initializations.frame,
       base: rows,
       visibleRows: rows,

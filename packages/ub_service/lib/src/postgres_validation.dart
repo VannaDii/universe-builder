@@ -23,6 +23,11 @@ import 'installation_authority.dart';
 import 'operation_state.dart';
 import 'read_cursor.dart';
 import 'writing_source.dart';
+import 'writing_dates.dart';
+import 'writing_check.dart';
+import 'writing_changes.dart';
+import 'impact.dart';
+import 'proposal_reading.dart';
 import 'proposal_authorization.dart';
 import 'proposal_state.dart';
 import 'proposal_validation.dart';
@@ -693,6 +698,382 @@ final class PostgresValidationWorkflow {
     );
   }
 
+  Future<({ProposalViewResult result, Delivery delivery})> getProposalRequest(
+    GetProposalRequest request,
+  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    final read = await _getProposalRequest(request, current);
+    return (result: read.result, delivery: read.delivery);
+  });
+
+  Future<({ProposalViewResult result, Delivery delivery, Frame frame})>
+  _getProposalRequest(
+    GetProposalRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
+    const denied = NotFoundOrNotAccessibleError(message: 'resource');
+    if (request.universeId != null && request.universeId != universe) {
+      throw denied;
+    }
+    if (request.assessmentReference != null &&
+        request.viewGroup != ProposalView.assessment) {
+      throw const InvalidArgumentError(
+        field: 'assessment_reference',
+        message: 'requires assessment view',
+      );
+    }
+    final key =
+        'proposal:${request.proposalId.value}:${request.version.toString().padLeft(20, '0')}';
+    final value = await _workflow.get(key);
+    if (value == null) throw denied;
+    final stored = StoredProposal.fromWire(value);
+    final reference = ProposalRef(
+      proposalId: request.proposalId,
+      version: request.version,
+      digest: stored.proposal.digest,
+    );
+    try {
+      await _admitProposal(stored, reference, current);
+    } on Object {
+      throw denied;
+    }
+    final frame = stored.proposal.baseFrame;
+    if (request.viewGroup == ProposalView.assessment) {
+      late AssessmentReview review;
+      try {
+        review = await _assessmentReview(
+          reference,
+          current,
+          exact: request.assessmentReference,
+        );
+      } on Object {
+        throw denied;
+      }
+      final binding = assessmentPageBinding(
+        request.toArgs(),
+        reference,
+        review,
+      );
+      final offset = await _readOffset(binding, frame, current, request.cursor);
+      final page = pageAssessmentReview(review, offset);
+      final cursor = await _retainReadCursor(
+        binding,
+        frame,
+        current,
+        page.complete,
+        page.next,
+      );
+      return (
+        frame: frame,
+        result: AssessmentProposalView(page.page),
+        delivery: Delivery(complete: page.complete, cursor: cursor),
+      );
+    }
+    final offset = await _readOffset(
+      request.toArgs(),
+      frame,
+      current,
+      request.cursor,
+    );
+    final page = pageFrozenProposal(stored, offset);
+    final cursor = await _retainReadCursor(
+      request.toArgs(),
+      frame,
+      current,
+      page.complete,
+      page.next,
+    );
+    return (
+      frame: frame,
+      result: FrozenProposalView(page.proposal),
+      delivery: Delivery(complete: page.complete, cursor: cursor),
+    );
+  }
+
+  Future<({Impact impact, Frame frame, WorldId? focus})> getImpactRequest(
+    WorkflowRequest request,
+  ) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _getImpactRequest(request, current),
+  );
+
+  Future<({Impact impact, Frame frame, WorldId? focus})> _getImpactRequest(
+    WorkflowRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
+    final (context, guard, world, worldGuard, budget) = switch (request) {
+      InlineImpactRequest r => (
+        r.contextId,
+        r.universeId,
+        r.world,
+        r.worldId,
+        r.byteBudget,
+      ),
+      ProposalImpactRequest r => (
+        r.contextId,
+        r.universeId,
+        null,
+        null,
+        r.byteBudget,
+      ),
+      _ => throw const InvalidArgumentError(
+        field: 'mode',
+        message: 'requires impact request',
+      ),
+    };
+    if (guard != null && guard != universe) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final frame = await _contextFrame(context, current);
+    if (frame.perspective is! AuthorPerspective) {
+      throw const UnsupportedSemanticsError(
+        message: 'impact requires an author perspective frame',
+      );
+    }
+    final all = await _canon(frame.continuity, frame.revision);
+    final focus = resolveWorldFocus(
+      world: world,
+      guard: worldGuard,
+      records: all,
+      scope: current.worldScope,
+    );
+    late Iterable<RecordId> seeds;
+    if (request is ProposalImpactRequest) {
+      final stored = await _proposal(request.proposalReference, current);
+      if (stored.proposal.baseFrame != frame) throw const ApprovalStaleError();
+      all.addAll([
+        for (final change in stored.changes)
+          if (change.next != null)
+            RecordVersion.fromWire(change.next!.toCanonical()),
+      ]);
+      seeds = stored.changes.map((change) => change.recordId);
+    } else {
+      seeds = (request as InlineImpactRequest).changedRecords;
+    }
+    return (
+      impact: conservativeImpact(
+        records: all,
+        changedRecords: seeds,
+        worldScope: current.worldScope,
+        byteBudget: budget,
+      ),
+      frame: frame,
+      focus: focus,
+    );
+  }
+
+  /// Ordinary writing creates a provisional candidate, never an approval or
+  /// publication. Exact request/frame/principal retries reuse its durable receipt.
+  Future<({WritingCheck check, Frame frame})> checkChangesRequest(
+    CheckChangesRequest request, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _checkChangesRequest(
+      request,
+      current,
+      isValidationActive: isValidationActive,
+    ),
+  );
+
+  Future<({WritingCheck check, Frame frame})> _checkChangesRequest(
+    CheckChangesRequest request,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
+    final frame = await _contextFrame(request.contextId, current);
+    WritingCheck result({
+      String status = 'needs_clarification',
+      List<String> additions = const [],
+      List<String> unchanged = const [],
+      List<String> clarifications = const [],
+      List<String> excluded = const [],
+      List<String> unknowns = const [],
+    }) => WritingCheck(
+      status: status,
+      additions: additions,
+      unchanged: unchanged,
+      clarifications: clarifications,
+      excluded: excluded,
+      unknowns: unknowns,
+    );
+    if (frame.perspective is! AuthorPerspective) {
+      return (
+        check: result(
+          clarifications: [
+            'Canon changes require an explicitly selected authorized author-perspective context; this restricted view is research only.',
+          ],
+        ),
+        frame: frame,
+      );
+    }
+    final base = await _canon(frame.continuity, frame.revision);
+    final visible = visibleRecordIds(
+      records: base,
+      worldScope: current.worldScope,
+    );
+    final rows = base
+        .where((r) => visible.contains(r.identity.recordId))
+        .toList();
+    final CheckChangesRequest input;
+    try {
+      input = normalizeWritingChangesDates(request, frame, rows);
+    } on FormatException catch (error) {
+      return (
+        check: result(clarifications: [error.message.toString()]),
+        frame: frame,
+      );
+    }
+    final binding = canonicalDigest(
+      CanonicalArray([
+        request.toArgs(),
+        frame.toWire(),
+        CanonicalString(principal.id.value),
+      ]),
+    );
+    final key = 'writing:$binding';
+    final receipt = operationRequestKey(principal.id, 'propose', key);
+    if (input.questions.isEmpty && await _workflow.get(receipt) != null) {
+      if (!current.permissions.$1) {
+        throw const PolicyDeniedError(
+          message: 'current grant does not permit proposals',
+        );
+      }
+      final prior = await loadStoredOperation(
+        key: receipt,
+        principal: principal.id,
+        worldScope: current.worldScope,
+        readWorkflow: _workflow.get,
+        readReceipt: _journal.receipt,
+        isValidationActive: isValidationActive,
+      );
+      final proposal = prior.status.proposal;
+      if (proposal == null) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      return (
+        check: await _finishWritingCheck(
+          input,
+          frame,
+          result(
+            additions: ['Reused the exact original uncommitted candidate.'],
+          ),
+          proposal,
+          current,
+        ),
+        frame: frame,
+      );
+    }
+    final compiled = await compileWritingChanges(
+      frame: frame,
+      base: base,
+      visibleRows: rows,
+      input: input,
+      canonAt: _canon,
+      worldScope: current.worldScope,
+    );
+    final check = result(
+      status: compiled.clarifications.isNotEmpty
+          ? 'needs_clarification'
+          : compiled.operations.isEmpty
+          ? current.worldScope != null
+                ? 'incomplete'
+                : 'no_changes'
+          : 'needs_clarification',
+      additions: compiled.additions,
+      unchanged: compiled.unchanged,
+      clarifications: compiled.clarifications,
+      excluded: compiled.excluded,
+      unknowns: compiled.unknowns,
+    );
+    if (compiled.clarifications.isNotEmpty || compiled.operations.isEmpty) {
+      return (check: check, frame: frame);
+    }
+    if (!current.permissions.$1) {
+      throw const PolicyDeniedError(
+        message: 'current grant does not permit proposals',
+      );
+    }
+    final admission = await _openContext(
+      _writingAdmission(input.universe, frame),
+      current,
+    );
+    var rationale =
+        'Provisional factual deltas from author writing; no author approval or source publication implied.';
+    for (final ending in input.factEndings) {
+      rationale += '\nProposed fact ending reason: ${ending.reason}';
+    }
+    for (final correction in input.policyCorrections) {
+      rationale += '\nProposed policy correction reason: ${correction.reason}';
+    }
+    final proposal = await _propose(
+      CreateProposalRequest(
+        universe: input.universe,
+        contextId: admission.contextId,
+        operations: compiled.operations,
+        submission: Submission.draft,
+        rationale: rationale,
+        idempotencyKey: key,
+      ),
+      current,
+      resolvedFrame: admission.frame,
+      worldFocus: null,
+      isValidationActive: isValidationActive,
+    );
+    return (
+      check: await _finishWritingCheck(input, frame, check, proposal, current),
+      frame: frame,
+    );
+  }
+
+  OpenContextRequest _writingAdmission(Selector selector, Frame frame) =>
+      OpenContextRequest(
+        universe: selector,
+        continuityId: frame.continuity,
+        revision: ExactRevisionSelector(revisionId: frame.revision),
+        representedContext: ContextIdSelector(frame.context.record),
+        temporalQuery: const TimelessFrameTime(),
+        temporalSystems: [],
+        perspective: const AuthorPerspective(),
+      );
+
+  Future<WritingCheck> _finishWritingCheck(
+    CheckChangesRequest input,
+    Frame frame,
+    WritingCheck check,
+    Proposal proposal,
+    CurrentUniverseAuthority current,
+  ) async {
+    final admission = await _openContext(
+      _writingAdmission(input.universe, frame),
+      current,
+    );
+    final reference = ProposalRef(
+      proposalId: proposal.proposalId,
+      version: proposal.version,
+      digest: proposal.digest,
+    );
+    final validation = await _validate(reference, admission.frame, current);
+    final impact = await _getImpactRequest(
+      ProposalImpactRequest(
+        universe: input.universe,
+        contextId: admission.contextId,
+        proposalReference: reference,
+        scope: CheckScope.universe,
+        byteBudget: 65536,
+      ),
+      current,
+    );
+    return finishWritingCheck(
+      check: check,
+      proposal: proposal,
+      validation: validation,
+      impact: impact.impact,
+      impactDeliveryComplete: true,
+    );
+  }
+
   Future<int> _readOffset(
     CanonicalObject args,
     Frame frame,
@@ -1008,6 +1389,14 @@ final class PostgresValidationWorkflow {
             final read = await _readContractsRequest(request, current);
             result = read.contracts;
             frame = read.frame;
+          case CheckChangesRequest():
+            final checked = await _checkChangesRequest(
+              request,
+              current,
+              isValidationActive: isValidationActive,
+            );
+            result = checked.check.toWire();
+            frame = checked.frame;
           case CreateProposalRequest() ||
               ReviseProposalRequest() ||
               SubmitProposalRequest() ||
@@ -1020,6 +1409,11 @@ final class PostgresValidationWorkflow {
             result = retained.proposal.toWire();
             frame = retained.frame;
             focus = retained.focus;
+          case GetProposalRequest():
+            final read = await _getProposalRequest(request, current);
+            result = read.result.toWire();
+            frame = read.frame;
+            delivery = read.delivery;
           case ProposalValidationRequest():
             frame = await _validationFrame(request.contextId, current);
             if (request.universeId != null && request.universeId != universe) {
@@ -1073,6 +1467,14 @@ final class PostgresValidationWorkflow {
             )).toWire();
             frame = await _contextFrame(contextId, current);
             focus = (await _proposal(reference, current)).proposal.worldScope;
+          case InlineImpactRequest() || ProposalImpactRequest():
+            final read = await _getImpactRequest(
+              request as WorkflowRequest,
+              current,
+            );
+            result = read.impact.toWire();
+            frame = read.frame;
+            focus = read.focus;
           case CommitRequest():
             frame = (await _proposal(
               request.proposalReference,

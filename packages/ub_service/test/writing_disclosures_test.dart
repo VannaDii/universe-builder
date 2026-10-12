@@ -51,10 +51,10 @@ Matcher fails(String message) => throwsA(
 );
 
 void main() {
-  test('disclosures preserve authored selection order deduplicate identities and check exact canon dependencies', () {
+  test('disclosures preserve authored selection order deduplicate identities and check exact canon dependencies', () async {
     final current = rows();
     var reads = 0;
-    final result = bindWritingDisclosures(
+    final result = await bindWritingDisclosures(
       edition: version,
       frame: frame,
       rows: current,
@@ -64,7 +64,7 @@ void main() {
         WritingObjectDisclosure(name: 'Mara'),
         WritingEventDisclosure(eventHandle: f.ver(70).value),
       ],
-      canonAt: (continuity, revision) {
+      canonAt: (continuity, revision) async {
         reads++;
         expect(continuity, frame.continuity);
         expect(revision, frame.revision);
@@ -83,7 +83,7 @@ void main() {
       for (final row in current)
         row.identity.recordId == f.id(1) ? changed : row,
     ];
-    expect(
+    await expectLater(
       () => bindWritingDisclosures(
         edition: version,
         frame: frame,
@@ -93,7 +93,7 @@ void main() {
       ),
       fails('dependencies must match'),
     );
-    expect(
+    await expectLater(
       () => checkWritingSceneDisclosures(
         edition: version,
         disclosures: [f.ref(3)],
@@ -104,7 +104,7 @@ void main() {
     );
   });
 
-  test('disclosures require exact published editions and their authored continuity', () {
+  test('disclosures require exact published editions and their authored continuity', () async {
     final current = rows();
     final unbound = f.row(
       60,
@@ -118,7 +118,7 @@ void main() {
       for (final row in current)
         row.identity.recordId == f.id(60) ? unbound : row,
     ];
-    expect(
+    await expectLater(
       () => bindWritingDisclosures(
         edition: version,
         frame: frame,
@@ -133,7 +133,7 @@ void main() {
       record: f.id(60),
       version: f.ver(160),
     );
-    expect(
+    await expectLater(
       () => bindWritingDisclosures(
         edition: stale,
         frame: frame,
@@ -151,7 +151,7 @@ void main() {
       time: frame.time,
       perspective: frame.perspective,
     );
-    expect(
+    await expectLater(
       () => bindWritingDisclosures(
         edition: version,
         frame: foreign,
@@ -162,7 +162,7 @@ void main() {
       fails('authored continuity'),
     );
     expect(
-      bindWritingDisclosures(
+      await bindWritingDisclosures(
         edition: stale,
         frame: foreign,
         rows: [],
@@ -173,7 +173,7 @@ void main() {
     );
   });
 
-  test('current disclosure handles cannot link planned events absent facts or generated effects', () {
+  test('current disclosure handles cannot link planned events absent facts or generated effects', () async {
     final current = rows();
     for (final disclosure in [
       WritingEventDisclosure(eventHandle: f.ver(71).value),
@@ -181,7 +181,7 @@ void main() {
       WritingFactDisclosure(factHandle: f.id(3).value),
       WritingObjectDisclosure(name: 'Hidden'),
     ]) {
-      expect(
+      await expectLater(
         () => bindWritingDisclosures(
           edition: version,
           frame: frame,
@@ -203,7 +203,7 @@ void main() {
       for (final row in current)
         row.identity.recordId == f.id(3) ? generated : row,
     ];
-    expect(
+    await expectLater(
       () => bindWritingDisclosures(
         edition: version,
         frame: frame,

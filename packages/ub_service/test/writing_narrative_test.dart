@@ -72,9 +72,9 @@ WritingScene scene({
 );
 
 void main() {
-  test('works and editions require separate published dependencies and explicit universe-wide introductions', () {
+  test('works and editions require separate published dependencies and explicit universe-wide introductions', () async {
     final base = rows();
-    final result = compileWritingNarrative(
+    final result = await compileWritingNarrative(
       frame: disclosures.frame,
       rows: base,
       canonAt: (_, _) => base,
@@ -139,7 +139,7 @@ void main() {
       operations: result.operations,
     );
     expect(candidate.length, base.length + 3);
-    final scoped = compileWritingNarrative(
+    final scoped = await compileWritingNarrative(
       frame: disclosures.frame,
       rows: base,
       canonAt: (_, _) => base,
@@ -163,13 +163,13 @@ void main() {
     expect(scoped.clarifications, hasLength(2));
   });
 
-  test('scenes retain exact edition narrator event and reader order without inferred disclosure', () {
+  test('scenes retain exact edition narrator event and reader order without inferred disclosure', () async {
     final base = rows();
     final request = scene(
       event: f.ver(70).value,
       order: BigInt.parse('9007199254740993'),
     );
-    final result = compileWritingNarrative(
+    final result = await compileWritingNarrative(
       frame: disclosures.frame,
       rows: base,
       canonAt: (_, _) => throw StateError('no inferred disclosures'),
@@ -195,7 +195,7 @@ void main() {
       candidate.where((r) => r.payload is AssertionRecord).length,
       base.where((r) => r.payload is AssertionRecord).length,
     );
-    final duplicate = compileWritingNarrative(
+    final duplicate = await compileWritingNarrative(
       frame: disclosures.frame,
       rows: candidate,
       canonAt: (_, _) => base,
@@ -215,7 +215,7 @@ void main() {
       scene(event: f.id(70).value),
       scene(event: f.ver(71).value),
     ]) {
-      final denied = compileWritingNarrative(
+      final denied = await compileWritingNarrative(
         frame: disclosures.frame,
         rows: base,
         canonAt: (_, _) => base,
@@ -226,7 +226,7 @@ void main() {
     }
   });
 
-  test('scene corrections preserve edition and omitted fields and require exact current handles', () {
+  test('scene corrections preserve edition and omitted fields and require exact current handles', () async {
     final original = SceneRecord(
       workVersion: disclosures.version,
       sceneId: 'Opening',
@@ -237,7 +237,7 @@ void main() {
       worldAssociations: [],
     );
     final base = [...rows(), f.row(63, original)];
-    final result = compileWritingNarrative(
+    final result = await compileWritingNarrative(
       frame: disclosures.frame,
       rows: base,
       canonAt: (_, _) => base,
@@ -270,7 +270,7 @@ void main() {
           .narrativePosition,
       BigInt.parse('18446744073709551615'),
     );
-    final cleared = compileWritingNarrative(
+    final cleared = await compileWritingNarrative(
       frame: disclosures.frame,
       rows: base,
       canonAt: (_, _) => base,
@@ -291,7 +291,7 @@ void main() {
     expect(replacement.viewpoint, isNull);
     expect(replacement.narrativePosition, isNull);
     expect(replacement.depictedEvents, isEmpty);
-    final invalid = compileWritingNarrative(
+    final invalid = await compileWritingNarrative(
       frame: disclosures.frame,
       rows: base,
       canonAt: (_, _) => base,
@@ -314,7 +314,7 @@ void main() {
     );
     expect(invalid.operations, isEmpty);
     expect(invalid.clarifications, hasLength(3));
-    final noop = compileWritingNarrative(
+    final noop = await compileWritingNarrative(
       frame: disclosures.frame,
       rows: base,
       canonAt: (_, _) => base,
@@ -331,9 +331,9 @@ void main() {
     expect(noop.unchanged, ['Scene settings unchanged']);
   });
 
-  test('omitted scene disclosures still recheck pinned dependency versions during corrections', () {
+  test('omitted scene disclosures still recheck pinned dependency versions during corrections', () async {
     final base = rows();
-    final created = compileWritingNarrative(
+    final created = await compileWritingNarrative(
       frame: disclosures.frame,
       rows: base,
       canonAt: (_, _) => base,
@@ -360,7 +360,7 @@ void main() {
             : row,
       f.row(63, payload),
     ];
-    final rejected = compileWritingNarrative(
+    final rejected = await compileWritingNarrative(
       frame: disclosures.frame,
       rows: later,
       canonAt: (_, _) => base,
@@ -376,7 +376,7 @@ void main() {
     );
     expect(rejected.operations, isEmpty);
     expect(rejected.clarifications.single, contains('dependencies must match'));
-    final cleared = compileWritingNarrative(
+    final cleared = await compileWritingNarrative(
       frame: disclosures.frame,
       rows: later,
       canonAt: (_, _) => throw StateError('empty disclosures'),

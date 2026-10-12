@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/ub_store.dart';
@@ -17,12 +19,13 @@ WorkVersionRecord _edition(List<RecordVersion> rows, VersionRef edition) {
 
 /// The service supplies the edition's exact retained canon through [canonAt].
 /// Current visible rows must match it through the complete dependency closure.
-void checkWritingSceneDisclosures({
+Future<void> checkWritingSceneDisclosures({
   required VersionRef edition,
   required List<RecordRef> disclosures,
   required List<RecordVersion> rows,
-  required List<RecordVersion> Function(ContinuityId, RevisionId) canonAt,
-}) {
+  required FutureOr<List<RecordVersion>> Function(ContinuityId, RevisionId)
+  canonAt,
+}) async {
   if (disclosures.isEmpty) return;
   final binding = _edition(rows, edition).binding;
   if (binding is! BoundWork) {
@@ -30,7 +33,7 @@ void checkWritingSceneDisclosures({
       'Reader disclosures require an edition bound to one canon revision.',
     );
   }
-  final canon = canonAt(binding.continuity, binding.revision);
+  final canon = await canonAt(binding.continuity, binding.revision);
   final current = <RecordId, RecordVersion>{};
   for (final row in rows) {
     current.putIfAbsent(row.identity.recordId, () => row);
@@ -68,13 +71,14 @@ void checkWritingSceneDisclosures({
   }
 }
 
-List<RecordRef> bindWritingDisclosures({
+Future<List<RecordRef>> bindWritingDisclosures({
   required List<WritingDisclosure> disclosures,
   required VersionRef edition,
   required Frame frame,
   required List<RecordVersion> rows,
-  required List<RecordVersion> Function(ContinuityId, RevisionId) canonAt,
-}) {
+  required FutureOr<List<RecordVersion>> Function(ContinuityId, RevisionId)
+  canonAt,
+}) async {
   if (disclosures.isEmpty) return [];
   final binding = _edition(rows, edition).binding;
   if (binding is! BoundWork) {
@@ -119,7 +123,7 @@ List<RecordRef> bindWritingDisclosures({
       result.add(RecordRef(universe: frame.universe, record: id));
     }
   }
-  checkWritingSceneDisclosures(
+  await checkWritingSceneDisclosures(
     edition: edition,
     disclosures: result,
     rows: rows,

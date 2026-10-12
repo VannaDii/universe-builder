@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
@@ -11,19 +13,22 @@ final _nonWhitespace = RegExp(
 
 /// Compiles narrative metadata against already admitted pinned rows. New works,
 /// editions and narrator contexts must be published before later references.
-({
-  List<DomainOperation> operations,
-  List<String> additions,
-  List<String> unchanged,
-  List<String> clarifications,
-})
+Future<
+  ({
+    List<DomainOperation> operations,
+    List<String> additions,
+    List<String> unchanged,
+    List<String> clarifications,
+  })
+>
 compileWritingNarrative({
   required Frame frame,
   required List<RecordVersion> rows,
   required CheckChangesRequest input,
-  required List<RecordVersion> Function(ContinuityId, RevisionId) canonAt,
+  required FutureOr<List<RecordVersion>> Function(ContinuityId, RevisionId)
+  canonAt,
   Set<WorldId>? worldScope,
-}) {
+}) async {
   final operations = <DomainOperation>[],
       additions = <String>[],
       unchanged = <String>[],
@@ -238,7 +243,7 @@ compileWritingNarrative({
       final payload = SceneRecord(
         workVersion: version,
         sceneId: declaration.name,
-        disclosedRecords: bindWritingDisclosures(
+        disclosedRecords: await bindWritingDisclosures(
           disclosures: declaration.disclosures,
           edition: version,
           frame: frame,
@@ -348,14 +353,14 @@ compileWritingNarrative({
             );
       final disclosed = correction.disclosures == null
           ? old.disclosedRecords
-          : bindWritingDisclosures(
+          : await bindWritingDisclosures(
               disclosures: correction.disclosures!,
               edition: old.workVersion,
               frame: frame,
               rows: rows,
               canonAt: canonAt,
             );
-      checkWritingSceneDisclosures(
+      await checkWritingSceneDisclosures(
         edition: old.workVersion,
         disclosures: disclosed,
         rows: rows,
@@ -394,9 +399,9 @@ compileWritingNarrative({
     }
   }
   return (
-    operations: List.unmodifiable(operations),
-    additions: List.unmodifiable(additions),
-    unchanged: List.unmodifiable(unchanged),
-    clarifications: List.unmodifiable(clarifications),
+    operations: List<DomainOperation>.unmodifiable(operations),
+    additions: List<String>.unmodifiable(additions),
+    unchanged: List<String>.unmodifiable(unchanged),
+    clarifications: List<String>.unmodifiable(clarifications),
   );
 }

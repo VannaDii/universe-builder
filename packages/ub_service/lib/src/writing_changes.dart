@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
@@ -88,22 +90,25 @@ List<String> _sortedUnique(List<String> values) => [
 /// must already be normalized against admitted pinned rows. Full base rows are
 /// used only for the world candidate, as in the existing workflow; all other
 /// stages receive the admitted pinned view. This does not persist a proposal.
-({
-  List<DomainOperation> operations,
-  List<String> additions,
-  List<String> unchanged,
-  List<String> clarifications,
-  List<String> excluded,
-  List<String> unknowns,
-})
+Future<
+  ({
+    List<DomainOperation> operations,
+    List<String> additions,
+    List<String> unchanged,
+    List<String> clarifications,
+    List<String> excluded,
+    List<String> unknowns,
+  })
+>
 compileWritingChanges({
   required Frame frame,
   required List<RecordVersion> base,
   required List<RecordVersion> visibleRows,
   required CheckChangesRequest input,
-  required List<RecordVersion> Function(ContinuityId, RevisionId) canonAt,
+  required FutureOr<List<RecordVersion>> Function(ContinuityId, RevisionId)
+  canonAt,
   Set<WorldId>? worldScope,
-}) {
+}) async {
   final operations = <DomainOperation>[],
       additions = <String>[],
       unchanged = <String>[],
@@ -146,7 +151,7 @@ compileWritingChanges({
     clarify: contexts.clarifications,
     same: contexts.unchanged,
   );
-  final narrative = compileWritingNarrative(
+  final narrative = await compileWritingNarrative(
     frame: frame,
     rows: visibleRows,
     input: input,
@@ -370,11 +375,11 @@ compileWritingChanges({
     clarify: connected.clarifications,
   );
   return (
-    operations: List.unmodifiable(operations),
-    additions: List.unmodifiable(additions),
-    unchanged: List.unmodifiable(unchanged),
-    clarifications: List.unmodifiable(_sortedUnique(clarifications)),
-    excluded: List.unmodifiable(excluded),
-    unknowns: List.unmodifiable(_sortedUnique(unknowns)),
+    operations: List<DomainOperation>.unmodifiable(operations),
+    additions: List<String>.unmodifiable(additions),
+    unchanged: List<String>.unmodifiable(unchanged),
+    clarifications: List<String>.unmodifiable(_sortedUnique(clarifications)),
+    excluded: List<String>.unmodifiable(excluded),
+    unknowns: List<String>.unmodifiable(_sortedUnique(unknowns)),
   );
 }

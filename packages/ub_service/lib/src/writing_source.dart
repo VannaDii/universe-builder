@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
@@ -92,14 +93,15 @@ bool _permittedDefinition(RecordPayload old, RecordPayload replacement) {
 
 /// Exact source preparation is a private author route, not a general operation
 /// bypass. The caller admits the author and current draft before using this gate.
-void validateWritingSourcePreparation({
+Future<void> validateWritingSourcePreparation({
   required List<DomainOperation> operations,
   required List<RecordVersion> originals,
   required bool contracts,
   required bool authorOrigin,
-  required List<RecordVersion> Function(ContinuityId, RevisionId) canonAt,
+  required FutureOr<List<RecordVersion>> Function(ContinuityId, RevisionId)
+  canonAt,
   String? knowledgeRationale,
-}) {
+}) async {
   RecordPayload? original(RecordRef ref, RecordVersionId version) => originals
       .where(
         (r) =>
@@ -107,9 +109,9 @@ void validateWritingSourcePreparation({
       )
       .firstOrNull
       ?.payload;
-  bool disclosures(SceneRecord scene) {
+  Future<bool> disclosures(SceneRecord scene) async {
     try {
-      checkWritingSceneDisclosures(
+      await checkWritingSceneDisclosures(
         edition: scene.workVersion,
         disclosures: scene.disclosedRecords,
         rows: originals,
@@ -121,7 +123,7 @@ void validateWritingSourcePreparation({
     }
   }
 
-  bool allowed(DomainOperation operation) {
+  Future<bool> allowed(DomainOperation operation) async {
     switch (operation) {
       case RecordNarrativeReferenceOperation(:final record, :final payload):
         if (record == RecordKind.representedContext &&
@@ -144,7 +146,7 @@ void validateWritingSourcePreparation({
                     payload is WorkVersionRecord) ||
                 (record == RecordKind.sceneRef &&
                     payload is SceneRecord &&
-                    disclosures(payload)));
+                    await disclosures(payload)));
       case ReviseSceneOperation(
         :final record,
         :final expectedVersion,
@@ -154,7 +156,7 @@ void validateWritingSourcePreparation({
         final old = original(record, expectedVersion);
         return contracts &&
             _nonWhitespace.hasMatch(rationale) &&
-            disclosures(replacement) &&
+            await disclosures(replacement) &&
             old is SceneRecord &&
             old.sceneId == replacement.sceneId &&
             old.workVersion == replacement.workVersion &&
@@ -283,7 +285,8 @@ void validateWritingSourcePreparation({
     }
   }
 
-  if (operations.any((op) => !allowed(op))) {
+  for (final operation in operations) {
+    if (await allowed(operation)) continue;
     throw const PolicyDeniedError(
       message: 'Source preparation accepts agent factual deltas only; protected contracts require explicit author contract review; creative acceptance requires a separate explicit author decision.',
     );

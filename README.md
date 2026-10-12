@@ -372,7 +372,8 @@ publication. SQLite uses the same scheduler job interface. The in-process
 PostgreSQL engine now authenticates connections, creates universes with their
 objective context/calendar, manages grants and names, and dispatches retained
 contexts, discovery, records/history, search, research briefs, effective state,
-plain facts/contracts, proposals,
+plain facts/contracts, ordinary writing checks, proposals and proposal/assessment
+views, conservative impact,
 assessments, synchronous/queued validation, operation
 lookup/cancellation, private source staging/review/approval and publication.
 Queued work starts only after submission commits. Engine functional checks cover
@@ -390,6 +391,12 @@ initialization history, even when the original assertion has left current canon.
 Plain fact reads await the same state projection under the pinned frame; hidden
 namesakes never change visible name counts. Scoped readers retain restricted
 initialization/contract coverage. These reads retain no validation or publication.
+Ordinary PostgreSQL writing checks normalize dates, compile the existing factual
+stages, retain an exact provisional draft and return validation plus impact.
+Retries recover that draft and recheck it; they grant no approval and do not
+advance canon. The shared writing/disclosure/source-preparation helpers now accept
+asynchronous pinned edition reads, preserving exact dependency checks. Private
+PostgreSQL source preparation and the remaining writing actions are still pending.
 Socket/launcher integration, cross-process worker qualification and
 the remaining service routes are pending. Import previews/purge coordination,
 transfer and live verified-TLS qualification also remain pending; runtime PostgreSQL selection

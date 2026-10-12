@@ -18,6 +18,7 @@ import 'package:ub_store/src/postgres_values.dart';
 
 import 'operation_compilation_test.dart' as f;
 import 'effective_objects_test.dart' as objects;
+import 'writing_units_test.dart' as units;
 
 void main() {
   final port = int.tryParse(
@@ -1040,6 +1041,199 @@ void main() {
           ),
           throwsA(isA<NotFoundOrNotAccessibleError>()),
         );
+      });
+      test('ordinary writing checks retain a provisional exact candidate and recover it without approving or publishing', () async {
+        var author = await runtime.connect(hello(authorId));
+        final created = WireFields(
+          await author.execute(
+            const CreateUniverseEngineRequest(
+              name: 'Disposable engine universe',
+              start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
+            ),
+          ),
+          {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
+        );
+        final universe = UniverseId.parse(created.string('universe_id'));
+        universes.add(universe);
+        final continuity = ContinuityId.parse(created.string('continuity_id'));
+        final opened = await tool(
+          author,
+          OpenContextRequest(
+            universe: selector,
+            continuityId: continuity,
+            revision: const HeadRevisionSelector(),
+            representedContext: ContextIdSelector(
+              RecordId.parse(created.string('context_id')),
+            ),
+            temporalQuery: const TimelessFrameTime(),
+            temporalSystems: [],
+            perspective: const AuthorPerspective(),
+          ),
+          OpenedContext.fromWire,
+        );
+        final request = CheckChangesRequest(
+          universe: selector,
+          contextId: opened.contextId,
+          units: [
+            units.declaration(name: 'league', symbol: 'lg', introduce: true),
+          ],
+        );
+        final check = await tool(author, request, WritingCheck.fromWire);
+        expect(check.candidateHandle, isNotNull);
+        expect(check.clarifications, isEmpty);
+        final validation =
+            ValidationV3.fromWire(check.validation!) as EvaluatedValidation;
+        final candidate = ProposalId.parse(check.candidateHandle!);
+        final get = GetProposalRequest(
+          universe: selector,
+          proposalId: candidate,
+          version: BigInt.one,
+        );
+        final view = await tool(
+          author,
+          get,
+          ProposalViewResult.fromWire,
+        ) as FrozenProposalView;
+        final proposal = view.proposal;
+        expect(proposal.submission, Submission.draft);
+        expect(proposal.operations.single, isA<DefineUnitOperation>());
+        final ref = ProposalRef(
+          proposalId: candidate,
+          version: proposal.version,
+          digest: proposal.digest,
+        );
+        await expectLater(
+          author.execute(
+            ApproveEngineRequest(
+              universe: selector,
+              proposalReference: ref,
+              validationRun: validation.execution.runId,
+            ),
+          ),
+          throwsA(isA<ApprovalStaleError>()),
+        );
+        final impact = await tool(
+          author,
+          ProposalImpactRequest(
+            universe: selector,
+            contextId: opened.contextId,
+            proposalReference: ref,
+            scope: CheckScope.universe,
+            byteBudget: 65536,
+          ),
+          Impact.fromWire,
+        );
+        expect(impact.toWire().toText(), check.impact!.toText());
+        await runtime.close();
+        await store.close();
+        store = await PostgresInstallationStore.openExisting(
+          endpoint(),
+          settings: settings,
+        );
+        runtime = NativePostgresRuntime(store: store);
+        author = await runtime.connect(hello(authorId));
+        final retry = await tool(author, request, WritingCheck.fromWire);
+        expect(retry.candidateHandle, check.candidateHandle);
+        final repeated =
+            ValidationV3.fromWire(retry.validation!) as EvaluatedValidation;
+        expect(
+          repeated.execution.inputDigest,
+          validation.execution.inputDigest,
+        );
+        expect(repeated.execution.runId, isNot(validation.execution.runId));
+        expect(
+          (await tool(
+            author,
+            get,
+            ProposalViewResult.fromWire,
+          ) as FrozenProposalView).proposal.digest,
+          proposal.digest,
+        );
+        final clarified = await tool(
+          author,
+          CheckChangesRequest(
+            universe: selector,
+            contextId: opened.contextId,
+            questions: ['Which unit applies?'],
+          ),
+          WritingCheck.fromWire,
+        );
+        expect(clarified.candidateHandle, isNull);
+        expect(clarified.clarifications, ['Which unit applies?']);
+        final withdrawn = await tool(
+          author,
+          WithdrawProposalRequest(
+            universe: selector,
+            contextId: opened.contextId,
+            proposalReference: ref,
+            idempotencyKey: 'withdraw-writing',
+          ),
+          Proposal.fromWire,
+        );
+        expect(withdrawn.withdrawn, isTrue);
+        expect(
+          (await tool(
+            author,
+            DescribeSummaryRequest(universe: selector),
+            Description.fromWire,
+          )).continuities.single.revisionId,
+          opened.frame.revision,
+        );
+        await author.execute(
+          GrantEngineRequest(
+            grant: GrantSpec(
+              profileId: writerId,
+              universeId: universe,
+              worlds: null,
+              propose: false,
+              edit: false,
+              protected: false,
+            ),
+          ),
+        );
+        final writer = await runtime.connect(hello(writerId));
+        await expectLater(
+          tool(writer, get, ProposalViewResult.fromWire),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        await expectLater(
+          tool(writer, request, WritingCheck.fromWire),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        final writerContext = await tool(
+          writer,
+          OpenContextRequest(
+            universe: selector,
+            continuityId: continuity,
+            revision: const HeadRevisionSelector(),
+            representedContext: ContextIdSelector(
+              RecordId.parse(created.string('context_id')),
+            ),
+            temporalQuery: const TimelessFrameTime(),
+            temporalSystems: [],
+            perspective: const AuthorPerspective(),
+          ),
+          OpenedContext.fromWire,
+        );
+        await expectLater(
+          tool(
+            writer,
+            CheckChangesRequest(
+              universe: selector,
+              contextId: writerContext.contextId,
+              units: request.units,
+            ),
+            WritingCheck.fromWire,
+          ),
+          throwsA(isA<PolicyDeniedError>()),
+        );
+        await store.transaction((s) async {
+          expect(
+            await s.kernel(universe).journal.head(continuity),
+            opened.frame.revision,
+          );
+          expect(await s.workflows(universe).keys('approval:'), isEmpty);
+        });
       });
       test('denies invalid handshake and private universe creation without side effects', () async {
         await expectLater(

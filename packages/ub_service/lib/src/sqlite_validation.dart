@@ -1758,7 +1758,7 @@ final class SqliteValidationWorkflow implements ValidationJobService {
         frame: frame,
       );
     }
-    final compiled = compileWritingChanges(
+    final compiled = await compileWritingChanges(
       frame: frame,
       base: base,
       visibleRows: rows,
@@ -2836,7 +2836,7 @@ final class SqliteValidationWorkflow implements ValidationJobService {
     _writingAuthorCurrent(p);
     if (p.submission != Submission.draft) throw const ApprovalStaleError();
     final originals = _canon(p.baseFrame.continuity, p.baseFrame.revision);
-    validateWritingSourcePreparation(
+    await validateWritingSourcePreparation(
       operations: p.operations,
       originals: originals,
       contracts: contracts,
