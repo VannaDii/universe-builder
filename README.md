@@ -136,6 +136,12 @@ independent support/refutation derivations. Conjunction retains both source
 sets, composition sorts and deduplicates exact record-version identities, and
 absence does not imply refutation. This evidence logic is shared by native and
 browser targets; factual evaluation and Real World obligations remain pending.
+Authored-clock validity and temporal relations now preserve half-open intervals,
+bounded uncertainty and exact signed 128-bit values. Unknown boundaries and
+independent calendars remain unresolved. Strict relative-order cycle checks
+use exact positive assertions partitioned by calendar, scope, validity and
+predicate, retaining the existing 10,000-node work bound. These checks do not
+advance story clocks or resolve event-relative frames.
 Typed events preserve occurrence modes, authored participants and ordered effects.
 Action consequences validate exact decimal bounds, slot uniqueness and lifetimes;
 an absent historical contract remains distinct from an explicitly empty contract,
