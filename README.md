@@ -167,7 +167,7 @@ quantifiers with the existing shared 10,000-step work budget. Incomplete
 collections preserve witnesses/counterexamples without assuming completeness;
 sets deduplicate wire-identical members and nested bindings remain local.
 Rule execution preserves executable/world-applicability gates and reports
-evidence outcome separately from coverage. Factual claims, knowledge attitudes
+evidence outcome separately from coverage. Factual claims
 and opposing-evidence execution remain unported and explicitly unsupported;
 action-precondition admission and public publication workflows are still pending.
 Event-relative validity now resolves before/after boundaries only for occurred
@@ -177,6 +177,13 @@ provenance, ends superseded generated values and refuses simultaneous
 noncommuting effects. Recompilation detects missing, duplicate or forged generated
 assertions. Existing event/effect/precondition and expansion-work limits remain
 in force; expansion does not execute action preconditions or publish canon.
+Attitude expressions now evaluate exact holder/proposition/attitude bindings in
+the selected base snapshot and represented context, retaining source versions
+and authored/event-relative time validity. Belief, suspicion, rejection, memory
+and knowledge remain distinct from objective truth. Missing attitudes do not
+refute; unresolved timing leaves coverage incomplete. Timeless queries accept
+only unspecified attitude validity. Knowledge acquisition/policy admission and
+disclosure permissions still require the remaining service workflows.
 Typed events preserve occurrence modes, authored participants and ordered effects.
 Action consequences validate exact decimal bounds, slot uniqueness and lifetimes;
 an absent historical contract remains distinct from an explicitly empty contract,

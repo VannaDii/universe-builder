@@ -3,6 +3,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'comparison.dart';
 import 'compiler.dart';
 import 'evidence.dart';
+import 'events.dart';
 import 'index.dart';
 import 'time.dart';
 
@@ -62,8 +63,8 @@ EvaluationResult evaluateRule(CompiledRule rule, EvaluationContext context) {
   );
 }
 
-/// Bounded execution. Factual claim/event/knowledge branches are still being
-/// ported; they explicitly remain unsupported until their handlers arrive.
+/// Bounded execution. Factual claim and opposing-evidence branches are still
+/// being ported; they remain unsupported until their handlers arrive.
 (Evidence, bool) evaluateExpression(Expr expr, EvaluationContext context) =>
     _Evaluation(context).eval(expr, const {});
 
@@ -193,8 +194,44 @@ final class _Evaluation {
           );
         }
         return (acc, supported);
+      case AttitudeExpr(:final holder, :final proposition, :final attitude):
+        var evidence = Evidence.notEstablished(), complete = true;
+        final snapshot = context.baseSnapshot, frame = context.frame;
+        if (snapshot.length > budget) return (evidence, false);
+        budget -= snapshot.length;
+        if (!snapshot.any(
+          (r) =>
+              r.identity.recordId == proposition.record &&
+              r.payload is PropositionRecord &&
+              frame != null &&
+              (r.payload as PropositionRecord).context == frame.context,
+        )) {
+          return (evidence, false);
+        }
+        for (final r in snapshot) {
+          final a = r.payload;
+          if (a is! EpistemicAttitudeRecord ||
+              a.holder != holder ||
+              a.proposition != proposition ||
+              a.attitude != attitude) {
+            continue;
+          }
+          if (frame?.time is TimelessFrameTime &&
+              a.validity is! UnspecifiedValidity) {
+            complete = false;
+            continue;
+          }
+          final applies = frame == null
+              ? null
+              : eventApplies(a.validity, frame.time, snapshot);
+          if (applies == true) {
+            evidence = evidence.any(Evidence.supported([r.recordVersionId]));
+          } else if (applies == null) {
+            complete = false;
+          }
+        }
+        return (evidence, complete);
       case NoOpposingEvidenceExpr() ||
-          AttitudeExpr() ||
           ClaimExpr() ||
           NegatedClaimExpr() ||
           ExistenceExpr() ||
