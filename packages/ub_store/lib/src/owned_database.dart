@@ -8,6 +8,7 @@ import 'database.dart';
 import 'journal.dart';
 import 'ownership.dart';
 import 'projection_recovery.dart';
+import 'restore_copy.dart';
 
 /// Internal connection lifetime boundary. Existing initialized packages must
 /// complete recover() before serving calls; client authorization remains in
@@ -27,6 +28,34 @@ final class OwnedSqliteDatabase {
   static OwnedSqliteDatabase create(String path) => _open(path, create: true);
   static OwnedSqliteDatabase openExisting(String path) =>
       _open(path, create: false);
+
+  /// Protected, unpublished restore staging. The caller retains current author
+  /// authority and closes the stage after registration or failure.
+  static StagedSqliteRestore stageRestore(String source, String scratch) {
+    protectedFile(source);
+    if (File(source).lengthSync() > maxPackageBytes) {
+      throw const FormatException('Restore package exceeds 8 GiB limit');
+    }
+    final parent = privateDirectory(scratch);
+    final temporary = Directory(parent).createTempSync('.restore-');
+    OwnedSqliteDatabase? package;
+    try {
+      privateDirectory(temporary.path);
+      package = create('${temporary.path}/package.sqlite');
+      copyRestoreRows(source, package.database);
+      package.recover();
+      CanonicalIntegrity(SqliteJournal(package.database, package.universeId))
+          .verifyComplete();
+      return StagedSqliteRestore._(package, temporary);
+    } on Object {
+      try {
+        package?.close();
+      } finally {
+        temporary.deleteSync(recursive: true);
+      }
+      rethrow;
+    }
+  }
 
   static OwnedSqliteDatabase _open(String path, {required bool create}) {
     final file = File(path).absolute;
@@ -228,6 +257,23 @@ final class OwnedSqliteDatabase {
     } finally {
       _connectionLocks[_database] = null;
       _lock.close();
+    }
+  }
+}
+
+/// Owns only a disposable unpublished copy, never the original restore source.
+final class StagedSqliteRestore {
+  StagedSqliteRestore._(this.package, this._temporary);
+  final OwnedSqliteDatabase package;
+  final Directory _temporary;
+  bool _closed = false;
+  void close() {
+    if (_closed) return;
+    _closed = true;
+    try {
+      package.close();
+    } finally {
+      _temporary.deleteSync(recursive: true);
     }
   }
 }

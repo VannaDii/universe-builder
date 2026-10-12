@@ -7,6 +7,7 @@ import 'dart:isolate';
 
 import 'package:test/test.dart';
 import 'package:crypto/crypto.dart';
+import 'package:sqlite3/sqlite3.dart' show SqliteException;
 import 'package:ub_store/src/ownership.dart';
 import 'package:ub_store/src/owned_database.dart';
 import 'package:ub_store/src/journal.dart';
@@ -86,6 +87,87 @@ void main() {
       owner.close();
     }
   });
+  test('restore staging refuses changed schemas and rolls back invalid row copies without altering the source', () {
+    for (var fixture = 0; fixture < 2; fixture++) {
+      final owner = OwnedSqliteDatabase.create(
+        '${directory.path}/restore-original-$fixture.sqlite',
+      );
+      final source = '${directory.path}/restore-input-$fixture.sqlite';
+      try {
+        owner.database.execute('BEGIN IMMEDIATE');
+        SqliteJournal(owner.database, UniverseId.generate()).initialize(
+          'Restore fixture',
+          ContinuityId.generate(),
+          PrincipalId.generate(),
+        );
+        WorkflowStorage(owner.database).put(
+          'cursor:retained',
+          CanonicalValue.parseJson('{"binding":"original","offset":0}'),
+        );
+        owner.database.execute('COMMIT');
+        owner.backup(source);
+      } finally {
+        owner.close();
+      }
+      final input = OwnedSqliteDatabase.openExisting(source);
+      try {
+        if (fixture == 0) {
+          input.database.execute(
+            'CREATE TABLE unexpected_input_sql (payload TEXT)',
+          );
+        } else {
+          input.database.execute('PRAGMA foreign_keys=OFF');
+          input.database.execute(
+            "INSERT INTO historical_workflow VALUES('cursor:absent')",
+          );
+        }
+      } finally {
+        input.close();
+      }
+      final originalBytes = File(source).readAsBytesSync();
+      final scratch = '${directory.path}/restore-scratch-$fixture';
+      expect(
+        () => OwnedSqliteDatabase.stageRestore(source, scratch),
+        fixture == 0 ? throwsFormatException : throwsA(isA<SqliteException>()),
+      );
+      expect(File(source).readAsBytesSync(), orderedEquals(originalBytes));
+      expect(Directory(scratch).listSync(), isEmpty);
+      final reopened = OwnedSqliteDatabase.openExisting(source);
+      try {
+        expect(
+          WorkflowStorage(reopened.database).evidence('cursor:retained'),
+          isNotNull,
+        );
+      } finally {
+        reopened.close();
+      }
+    }
+  });
+
+  test('restore staging refuses unsafe source paths and sparse packages above the restore budget', () {
+    final source = '${directory.path}/oversized.sqlite';
+    protectedFile(source, createNew: true);
+    final file = File(source).openSync(mode: FileMode.writeOnly);
+    try {
+      file.truncateSync(8 * 1024 * 1024 * 1024 + 1);
+    } finally {
+      file.closeSync();
+    }
+    final scratch = '${directory.path}/unused-scratch';
+    expect(
+      () => OwnedSqliteDatabase.stageRestore(source, scratch),
+      throwsFormatException,
+    );
+    expect(File(source).lengthSync(), 8 * 1024 * 1024 * 1024 + 1);
+    expect(Directory(scratch).existsSync(), isFalse);
+    final link = Link('${directory.path}/linked.sqlite')..createSync(source);
+    expect(
+      () => OwnedSqliteDatabase.stageRestore(link.path, scratch),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect(Directory(scratch).existsSync(), isFalse);
+  });
+
   test('backup refuses missing staged source bytes without publishing a partial snapshot', () {
     final owner = OwnedSqliteDatabase.create('${directory.path}/source.sqlite');
     final destination = '${directory.path}/backup.sqlite';

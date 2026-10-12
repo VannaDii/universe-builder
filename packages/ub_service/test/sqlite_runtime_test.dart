@@ -3075,6 +3075,70 @@ void main() {
     } finally {
       backup.close();
     }
+    final restored = OwnedSqliteDatabase.stageRestore(
+      backupPath,
+      '${root.path}/packages',
+    );
+    final stagedPath = restored.package.path;
+    try {
+      final copy = restored.package;
+      final workflow = WorkflowStorage(copy.database);
+      expect(copy.universeId, f.u);
+      expect(
+        SqliteJournal(copy.database, f.u).head(opened.frame.continuity),
+        CommitReceipt.fromWire(published.result).revision,
+      );
+      expect(
+        workflow.get(workflow.keys('draft:').single)!.toText(),
+        savedDraft.toText(),
+      );
+      expect(workflow.keys('approval:'), isEmpty);
+      expect(workflow.keys('context:'), isEmpty);
+      final historical =
+          copy.database
+                  .select(
+                    "SELECT h.key FROM historical_workflow h JOIN workflow_entries w ON w.key=h.key WHERE w.family='ApprovalEvidence'",
+                  )
+                  .single['key']
+              as String;
+      expect(workflow.evidence(historical), isNotNull);
+      expect(workflow.get(historical), isNull);
+      expect(
+        copy.database
+            .select('SELECT count(*) AS n FROM operation_receipts')
+            .single['n'],
+        2,
+      );
+      expect(
+        copy.database
+            .select('SELECT count(*) AS n FROM historical_receipt')
+            .single['n'],
+        2,
+      );
+      expect(
+        copy.database
+            .select(
+              'SELECT count(*) AS n FROM operation_receipts r WHERE NOT EXISTS(SELECT 1 FROM historical_receipt h WHERE h.universe_id=r.universe_id AND h.principal=r.principal AND h.operation_kind=r.operation_kind AND h.idempotency_key=r.idempotency_key)',
+            )
+            .single['n'],
+        0,
+      );
+      expect(
+        copy.database
+            .select('SELECT utf8_content FROM source_content')
+            .single['utf8_content'],
+        orderedEquals(utf8.encode(stage.text)),
+      );
+      expect(
+        SqliteKernel(copy.database, f.u).imageBytes(image),
+        orderedEquals(imageBytes),
+      );
+    } finally {
+      restored.close();
+    }
+    restored.close();
+    expect(File(stagedPath).existsSync(), isFalse);
+    expect(File(backupPath).existsSync(), isTrue);
     final dry = await maintenance(false);
     expect(dry.string('retention_policy'), 'retain-all-history-v1');
     expect(dry.boolean('canonical'), isFalse);
