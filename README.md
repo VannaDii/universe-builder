@@ -493,6 +493,11 @@ without dropping the original namespace. SQLite file locators use reviewed impor
 or restore instead. Private legacy conversion uses the existing canon-only archive
 converter, preserves the original source and requires separate reviewed admission;
 it never registers its output automatically or overwrites an existing destination.
+Native PostgreSQL runtime checks now use a compiled second OS process to verify
+that connected writers observe grant withdrawal and revocation without restart,
+competing author draft saves retain one winner with an exact version conflict,
+and separate universe drafts recover byte-for-byte after process restart. Retrying
+the winning save returns the same retained draft without another version.
 Coordinated backend cutover and hosted server backup operation remain pending.
 Socket/launcher integration, cross-process worker qualification and
 backend parity qualification are pending. Coordinated transfer and live
