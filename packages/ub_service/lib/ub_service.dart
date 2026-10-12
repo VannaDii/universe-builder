@@ -37,6 +37,7 @@ export 'src/writing_definitions.dart';
 export 'src/writing_relations.dart';
 export 'src/writing_contexts.dart';
 export 'src/writing_disclosures.dart';
+export 'src/writing_narrative.dart';
 export 'src/context_brief.dart';
 export 'src/read_cursor.dart';
 export 'src/knowledge_boundaries.dart';
