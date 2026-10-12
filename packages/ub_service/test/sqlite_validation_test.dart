@@ -1084,6 +1084,155 @@ void main() {
     expect(WorkflowStorage(package.database).keys('proposal:').length, 1);
   });
 
+  test('native impact uses pinned universe closure and includes unpublished proposal changes', () async {
+    kernel.commit(
+      input('impact-worlds', [
+        f.row(50, WorldRecord(selector: 'Campaign')),
+        f.row(51, WorldRecord(selector: 'Private')),
+        f.row(60, permissions.entity(worlds: [50])),
+        f.row(61, permissions.entity(worlds: [51])),
+      ]),
+    );
+    final opened = await service.openContext(contextRequest());
+    InlineImpactRequest inline({int budget = 65536, UniverseId? guard}) =>
+        InlineImpactRequest(
+          universe: const Selector('World'),
+          universeId: guard ?? f.u,
+          contextId: opened.contextId,
+          world: const Selector('Campaign'),
+          changedRecords: [f.id(60)],
+          scope: CheckScope.candidate,
+          byteBudget: budget,
+        );
+    final first = await service.getImpactRequest(inline());
+    expect(first.focus, permissions.world(50));
+    expect(first.frame, opened.frame);
+    expect(first.impact.coverage, Coverage.complete);
+    expect(first.impact.records, contains(f.id(61)));
+    final draft = await service.proposeRequest(
+      CreateProposalRequest(
+        universe: const Selector('World'),
+        universeId: f.u,
+        contextId: opened.contextId,
+        operations: [
+          CreateEntityOperation(
+            clientRef: f.id(20).value,
+            record: permissions.entity(worlds: [50]),
+          ),
+        ],
+        submission: Submission.draft,
+        rationale: 'Impact fixture',
+        idempotencyKey: 'impact-draft',
+      ),
+      isValidationActive: (_) => false,
+    );
+    ProposalImpactRequest proposed(ContextId context, {int budget = 65536}) =>
+        ProposalImpactRequest(
+          universe: const Selector('World'),
+          universeId: f.u,
+          contextId: context,
+          proposalReference: reference(draft),
+          scope: CheckScope.universe,
+          byteBudget: budget,
+        );
+    final candidate = await service.getImpactRequest(
+      proposed(opened.contextId),
+    );
+    expect(candidate.impact.records, contains(f.id(20)));
+    expect(candidate.impact.records, containsAll(first.impact.records));
+    expect(kernel.identityExists(f.id(20)), isFalse);
+    await expectLater(
+      service.getImpactRequest(inline(budget: 0)),
+      throwsA(isA<EvaluationLimitReachedError>()),
+    );
+    await expectLater(
+      service.getImpactRequest(inline(guard: UniverseId.generate())),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    kernel.commit(input('later-impact-canon', [f.row(70, f.entity())]));
+    final fresh = await service.openContext(contextRequest());
+    await expectLater(
+      service.getImpactRequest(proposed(fresh.contextId)),
+      stale,
+    );
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    service = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: writer,
+    );
+    final reopened = await service.getImpactRequest(proposed(opened.contextId));
+    expect(
+      reopened.impact.toWire().toText(),
+      candidate.impact.toWire().toText(),
+    );
+    expect(reopened.impact.records, isNot(contains(f.id(70))));
+    expect(kernel.identityExists(f.id(20)), isFalse);
+  });
+
+  test(
+    'native impact admits read-only scope and denies hidden seed or world',
+    () async {
+      kernel.commit(
+        input('scoped-impact-worlds', [
+          f.row(50, WorldRecord(selector: 'Campaign')),
+          f.row(51, WorldRecord(selector: 'Private')),
+          f.row(60, permissions.entity(worlds: [50])),
+          f.row(61, permissions.entity(worlds: [51])),
+        ]),
+      );
+      await authority.coordinate(
+        author,
+        () => authority.grant(
+          author,
+          GrantSpec(
+            profileId: writer.id,
+            universeId: f.u,
+            worlds: [permissions.world(50)],
+            propose: false,
+            edit: false,
+            protected: false,
+          ),
+        ),
+      );
+      final opened = await service.openContext(contextRequest());
+      InlineImpactRequest request(
+        RecordId seed, {
+        Selector? world,
+        int budget = 65536,
+      }) => InlineImpactRequest(
+        universe: const Selector('World'),
+        universeId: f.u,
+        contextId: opened.contextId,
+        world: world,
+        changedRecords: [seed],
+        scope: CheckScope.universe,
+        byteBudget: budget,
+      );
+      final result = await service.getImpactRequest(request(f.id(60)));
+      expect(result.impact.coverage, Coverage.restricted);
+      expect(result.impact.records, contains(f.id(60)));
+      expect(result.impact.records, isNot(contains(f.id(61))));
+      expect(result.impact.worldIds, [permissions.world(50)]);
+      await expectLater(
+        service.getImpactRequest(request(f.id(61), budget: 0)),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      await expectLater(
+        service.getImpactRequest(
+          request(f.id(60), world: const Selector('Private')),
+        ),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      expect(WorkflowStorage(package.database).keys('validation:'), isEmpty);
+    },
+  );
+
   test('synchronous check retains completed evidence across owned reopen without publishing', () async {
     await retainedContext();
     final before = kernel.journal.head(continuity);
@@ -1159,6 +1308,19 @@ void main() {
         ),
       ]);
     });
+    await expectLater(
+      service.getImpactRequest(
+        InlineImpactRequest(
+          universe: const Selector('World'),
+          universeId: f.u,
+          contextId: proposals.contextId,
+          changedRecords: [f.id(999)],
+          scope: CheckScope.universe,
+          byteBudget: 0,
+        ),
+      ),
+      throwsA(isA<UnsupportedSemanticsError>()),
+    );
     await expectLater(
       service.validateProposalRequest(synchronousCheck()),
       throwsA(isA<UnsupportedSemanticsError>()),

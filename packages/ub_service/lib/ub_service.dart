@@ -21,6 +21,7 @@ export 'src/record_reading.dart';
 export 'src/record_search.dart';
 export 'src/state_reading.dart';
 export 'src/proposal_reading.dart';
+export 'src/impact.dart';
 export 'src/context_brief.dart';
 export 'src/read_cursor.dart';
 export 'src/knowledge_boundaries.dart';

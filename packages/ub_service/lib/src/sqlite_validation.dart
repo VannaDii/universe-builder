@@ -12,6 +12,7 @@ import 'context_binding.dart';
 import 'context_brief.dart';
 import 'context_opening.dart';
 import 'installation_authority.dart';
+import 'impact.dart';
 import 'operation_compilation.dart';
 import 'operation_state.dart';
 import 'proposal_authorization.dart';
@@ -641,6 +642,70 @@ final class SqliteValidationWorkflow {
     return (
       result: FrozenProposalView(page.proposal),
       delivery: Delivery(complete: page.complete, cursor: cursor),
+    );
+  });
+
+  Future<({Impact impact, Frame frame, WorldId? focus})> getImpactRequest(
+    WorkflowRequest request,
+  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    final (context, guard, world, worldGuard, budget) = switch (request) {
+      InlineImpactRequest r => (
+        r.contextId,
+        r.universeId,
+        r.world,
+        r.worldId,
+        r.byteBudget,
+      ),
+      ProposalImpactRequest r => (
+        r.contextId,
+        r.universeId,
+        null,
+        null,
+        r.byteBudget,
+      ),
+      _ => throw const InvalidArgumentError(
+        field: 'mode',
+        message: 'requires impact request',
+      ),
+    };
+    if (guard != null && guard != universe) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final frame = _contextFrame(context, current);
+    if (frame.perspective is! AuthorPerspective) {
+      throw const UnsupportedSemanticsError(
+        message: 'impact requires an author perspective frame',
+      );
+    }
+    final all = _canon(frame.continuity, frame.revision);
+    final focus = resolveWorldFocus(
+      world: world,
+      guard: worldGuard,
+      records: all,
+      scope: current.worldScope,
+    );
+    late Iterable<RecordId> seeds;
+    if (request is ProposalImpactRequest) {
+      final stored = _proposal(request.proposalReference, current);
+      if (stored.proposal.baseFrame != frame) throw const ApprovalStaleError();
+      all.addAll([
+        for (final change in stored.changes)
+          if (change.next != null)
+            RecordVersion.fromWire(change.next!.toCanonical()),
+      ]);
+      seeds = stored.changes.map((change) => change.recordId);
+    } else {
+      seeds = (request as InlineImpactRequest).changedRecords;
+    }
+    return (
+      impact: conservativeImpact(
+        records: all,
+        changedRecords: seeds,
+        worldScope: current.worldScope,
+        byteBudget: budget,
+      ),
+      frame: frame,
+      focus: focus,
     );
   });
 

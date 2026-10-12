@@ -594,6 +594,13 @@ Scoped validation returns restricted output without finding counts or cursors.
 Lookup uses the existing durable receipt and live-worker recovery rules, so a
 committed publication remains successful after a lost response and an inactive
 running validation is reported as interrupted.
+Native impact requests now use retained author-perspective contexts and current
+permissions. Inline requests return the conservative accessible universe closure;
+proposal requests include exact unpublished changes and require the same base
+frame. A named world resolves focus without narrowing that conservative closure.
+Hidden or missing changed records are denied before result sizing; hidden closure
+members produce restricted coverage, and an insufficient byte budget fails
+explicitly. Impact reads do not publish changes or retain validation results.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.
