@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/postgres_installation.dart';
+import 'package:ub_store/installation.dart'
+    show InstallationException, InstallationFailure;
 import 'package:ub_store/ub_store.dart';
 
 import 'assessment_resolution.dart';
@@ -12,6 +14,8 @@ import 'context_binding.dart';
 import 'context_opening.dart';
 import 'installation_authority.dart';
 import 'operation_state.dart';
+import 'read_cursor.dart';
+import 'writing_source.dart';
 import 'proposal_authorization.dart';
 import 'proposal_state.dart';
 import 'proposal_validation.dart';
@@ -167,6 +171,388 @@ final class PostgresValidationWorkflow {
     resolveSelected: (reference) =>
         _assessmentReview(reference, current, publication: publication),
   );
+
+  Future<int> _readOffset(
+    CanonicalObject args,
+    Frame frame,
+    CurrentUniverseAuthority current,
+    String? cursor,
+  ) async {
+    const denied = NotFoundOrNotAccessibleError(message: 'resource');
+    final binding = readCursorBinding(
+      args: args,
+      frame: frame,
+      principal: principal.id,
+      scopeHash: current.scopeHash,
+    );
+    var offset = 0;
+    if (cursor != null) {
+      final value = await _workflow.get('cursor:$cursor');
+      if (value == null) throw denied;
+      final saved = StoredReadCursor.fromWire(value);
+      if (saved.binding != binding) throw denied;
+      offset = saved.offset.toInt();
+      if (BigInt.from(offset) != saved.offset) throw denied;
+    }
+    return offset;
+  }
+
+  Future<String?> _retainReadCursor(
+    CanonicalObject args,
+    Frame frame,
+    CurrentUniverseAuthority current,
+    bool complete,
+    int next,
+  ) async {
+    final binding = readCursorBinding(
+      args: args,
+      frame: frame,
+      principal: principal.id,
+      scopeHash: current.scopeHash,
+    );
+    String? cursor;
+    if (!complete) {
+      cursor = OperationId.generate().value;
+      await _workflow.compareAppend({}, [
+        MapEntry(
+          'cursor:$cursor',
+          StoredReadCursor(
+            binding: binding,
+            offset: BigInt.from(next),
+          ).toWire(),
+        ),
+      ]);
+    }
+    return cursor;
+  }
+
+  Future<({OperationStatusV3 status, Frame? frame, Delivery delivery})>
+  getOperationRequest(
+    WorkflowRequest request, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _getOperationRequest(
+      request,
+      current,
+      isValidationActive: isValidationActive,
+    ),
+  );
+
+  Future<({OperationStatusV3 status, Frame? frame, Delivery delivery})>
+  _getOperationRequest(
+    WorkflowRequest request,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
+    const denied = NotFoundOrNotAccessibleError(message: 'resource');
+    final (key, guard, cursor) = switch (request) {
+      GetOperationIdRequest r => (
+        'operation:${r.operationId.value}',
+        r.universeId,
+        r.cursor,
+      ),
+      GetOperationKeyRequest r => (
+        operationRequestKey(
+          current.principal.id,
+          r.operationKind.wireName,
+          r.idempotencyKey,
+        ),
+        r.universeId,
+        r.cursor,
+      ),
+      _ => throw const InvalidArgumentError(
+        field: 'lookup',
+        message: 'requires operation lookup',
+      ),
+    };
+    if (guard != null && guard != universe) throw denied;
+    var status = (await loadStoredOperation(
+      key: key,
+      principal: current.principal.id,
+      worldScope: current.worldScope,
+      readWorkflow: _workflow.get,
+      readReceipt: _journal.receipt,
+      isValidationActive: isValidationActive,
+    )).status;
+    final frame = status.proposal?.baseFrame;
+    var delivery = Delivery(complete: true, cursor: null);
+    final validation = status.validation;
+    if (current.worldScope != null && validation != null) {
+      if (cursor != null) throw denied;
+    } else if (validation != null) {
+      if (frame == null) throw denied;
+      final binding = CanonicalObject([
+        ...request.toArgs().fields,
+        MapEntry(
+          'result_digest',
+          CanonicalString(canonicalDigest(validation.toWire())),
+        ),
+        MapEntry(
+          'resolved_operation',
+          CanonicalString(status.operationId.value),
+        ),
+      ]);
+      final offset = await _readOffset(binding, frame, current, cursor);
+      final page = pageOperationFindings(status, offset);
+      status = page.status;
+      delivery = Delivery(
+        complete: page.complete,
+        cursor: await _retainReadCursor(
+          binding,
+          frame,
+          current,
+          page.complete,
+          page.next,
+        ),
+      );
+    } else if (cursor != null) {
+      throw denied;
+    }
+    return (
+      status: await publicOperationStatus(
+        status: status,
+        worldScope: current.worldScope,
+        readWorkflow: _workflow.get,
+      ),
+      frame: frame,
+      delivery: delivery,
+    );
+  }
+
+  Future<CanonicalObject> review(ProposalRef reference) =>
+      authority.withUniverseAuthority(
+        principal,
+        universe,
+        (current) => _review(reference, current),
+      );
+
+  Future<CanonicalObject> _review(
+    ProposalRef reference,
+    CurrentUniverseAuthority current,
+  ) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final stored = await _proposal(reference, current);
+    final assessment = await _assessmentReview(reference, current);
+    final originals = {
+      for (final row in await _canon(
+        stored.proposal.baseFrame.continuity,
+        stored.proposal.baseFrame.revision,
+      ))
+        row.identity.recordId: row,
+    };
+    return CanonicalObject([
+      MapEntry('proposal', stored.proposal.toWire()),
+      MapEntry(
+        'changes',
+        CanonicalArray(stored.changes.map((c) => c.toCanonical())),
+      ),
+      MapEntry(
+        'diff',
+        CanonicalArray(
+          stored.changes.map(
+            (change) => CanonicalObject([
+              MapEntry('record', CanonicalString(change.recordId.value)),
+              MapEntry(
+                'before',
+                originals[change.recordId]?.toWire() ?? const CanonicalNull(),
+              ),
+              MapEntry(
+                'after',
+                change.next?.toCanonical() ?? const CanonicalNull(),
+              ),
+            ]),
+          ),
+        ),
+      ),
+      MapEntry('footprint', stored.footprint.toWire()),
+      MapEntry(
+        'latest',
+        CanonicalBool(
+          await _workflow.latestKey(
+                'proposal:${stored.proposal.proposalId.value}:',
+              ) ==
+              stored.key,
+        ),
+      ),
+      MapEntry('assessment_review', assessment.toWire()),
+    ]);
+  }
+
+  Future<CanonicalObject> stageSource({
+    required String label,
+    required String text,
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _stageSource(current, label: label, text: text),
+  );
+
+  Future<CanonicalObject> _stageSource(
+    CurrentUniverseAuthority current, {
+    required String label,
+    required String text,
+  }) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final staged = stageWritingSource(
+      universe: universe,
+      author: principal.id,
+      label: label,
+      text: text,
+      importTime: DateTime.now().toUtc().toIso8601String(),
+    );
+    await _workflow.compareAppend({}, staged.entries);
+    return CanonicalObject([
+      const MapEntry('canonical', CanonicalBool(false)),
+      MapEntry(
+        'operations',
+        CanonicalArray(staged.operations.map((op) => op.toWire())),
+      ),
+    ]);
+  }
+
+  /// Native protocol dispatch for the migrated authoring routes. Unmigrated
+  /// requests fail explicitly; they never fall back to another backend.
+  Future<CanonicalValue> executeToolRequest(
+    Request request, {
+    required bool Function(OperationId) isValidationActive,
+    required void Function(OperationId) signalCancellation,
+  }) async {
+    try {
+      return await authority.withUniverseAuthority(principal, universe, (
+        current,
+      ) async {
+        request.validate();
+        final resolved = await session.authority.resolveUniverseAlias(
+          actor: principal.id,
+          name: request.universe.value,
+          epochSeconds: _epochSeconds(),
+        );
+        if (resolved.universeId != universe) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        CanonicalValue result;
+        Frame? frame;
+        WorldId? focus;
+        var delivery = Delivery(complete: true, cursor: null);
+        switch (request) {
+          case OpenContextRequest():
+            final opened = await _openContext(request, current);
+            result = opened.toWire();
+            frame = opened.frame;
+          case CreateProposalRequest() ||
+              ReviseProposalRequest() ||
+              SubmitProposalRequest() ||
+              WithdrawProposalRequest():
+            final retained = await _proposeRequest(
+              request as WorkflowRequest,
+              current,
+              isValidationActive: isValidationActive,
+            );
+            result = retained.proposal.toWire();
+            frame = retained.frame;
+            focus = retained.focus;
+          case ProposalValidationRequest():
+            frame = await _validationFrame(request.contextId, current);
+            if (request.universeId != null && request.universeId != universe) {
+              throw const NotFoundOrNotAccessibleError(message: 'resource');
+            }
+            result = (await _validate(
+              request.proposalReference,
+              frame,
+              current,
+            )).toWire();
+          case QueuedProposalValidationRequest():
+            frame = await _validationFrame(request.contextId, current);
+            result = (await _queueValidation(
+              request,
+              current,
+              resolvedFrame: frame,
+              isValidationActive: isValidationActive,
+            )).toWire();
+          case GetOperationIdRequest() || GetOperationKeyRequest():
+            final read = await _getOperationRequest(
+              request as WorkflowRequest,
+              current,
+              isValidationActive: isValidationActive,
+            );
+            result = read.status.toWire();
+            frame = read.frame;
+            delivery = read.delivery;
+          case CancelOperationRequest():
+            result = (await _cancelOperation(
+              request,
+              current,
+              isValidationActive: isValidationActive,
+              signalCancellation: signalCancellation,
+            )).toWire();
+          case AttachAssessmentRequest() || SelectAssessmentRequest():
+            final contextId = switch (request) {
+              AttachAssessmentRequest(:final contextId) ||
+              SelectAssessmentRequest(:final contextId) => contextId,
+              _ => throw StateError('Unreachable assessment'),
+            };
+            final reference = switch (request) {
+              AttachAssessmentRequest(:final proposalReference) ||
+              SelectAssessmentRequest(
+                :final proposalReference,
+              ) => proposalReference,
+              _ => throw StateError('Unreachable assessment'),
+            };
+            result = (await _assessmentRequest(
+              request as WorkflowRequest,
+              current,
+            )).toWire();
+            frame = await _contextFrame(contextId, current);
+            focus = (await _proposal(reference, current)).proposal.worldScope;
+          case CommitRequest():
+            frame = (await _proposal(
+              request.proposalReference,
+              current,
+            )).proposal.baseFrame;
+            result = (await _commit(
+              request,
+              current,
+              isValidationActive: isValidationActive,
+            )).toWire();
+          default:
+            throw const UnsupportedSemanticsError(
+              message: 'PostgreSQL request migration incomplete',
+            );
+        }
+        final envelope = Envelope<CanonicalValue>(
+          contractVersion: protocolVersion,
+          requestId: BigInt.zero,
+          universeId: universe,
+          universe: Selector(resolved.name),
+          aliasMatched: request.universe.value != resolved.name,
+          frame: frame,
+          worldFocus: focus,
+          authorizationScope: current.worldScope == null
+              ? 'universe grant'
+              : 'world-scoped grant',
+          delivery: delivery,
+          result: result,
+        ).toWire((value) => value);
+        if (envelope.toBytes().length > 900000) {
+          throw const EvaluationLimitReachedError(
+            message: 'response exceeds bounded transport; narrow the batch',
+          );
+        }
+        return envelope;
+      });
+    } on InstallationException catch (error) {
+      if (error.failure == InstallationFailure.denied) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      rethrow;
+    }
+  }
 
   Future<OpenedContext> openContext(OpenContextRequest request) =>
       authority.withUniverseAuthority(

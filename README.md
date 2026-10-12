@@ -368,10 +368,18 @@ rollback/retry and a real SQL failure inside the savepoint. Worker liveness is
 provided by the owning runtime. The PostgreSQL job bridge now uses the existing
 native isolate scheduler, opening fresh authority-coordinated transactions for
 preparation and completion; a focused isolate case proceeds through approval and
-publication. SQLite uses the same scheduler job interface. Engine dispatch,
-cross-process worker qualification and the remaining service routes still need
-PostgreSQL integration. Import previews/purge coordination, transfer and
-live verified-TLS qualification also remain pending; runtime PostgreSQL selection
+publication. SQLite uses the same scheduler job interface. The in-process
+PostgreSQL engine now authenticates connections, creates universes with their
+objective context/calendar, manages grants and names, and dispatches retained
+contexts, proposals, assessments, synchronous/queued validation, operation
+lookup/cancellation, private source staging/review/approval and publication.
+Queued work starts only after submission commits. Engine functional checks cover
+creation through author-reviewed publication, receipt recovery after reopening,
+renamed aliases and current access withdrawal. The runtime drains requests and
+workers before its caller closes the installation store. Unmigrated requests fail
+explicitly. Socket/launcher integration, cross-process worker qualification and
+the remaining service routes are pending. Import previews/purge coordination,
+transfer and live verified-TLS qualification also remain pending; runtime PostgreSQL selection
 is still explicitly unavailable.
 Run `test/postgres_foundation_test.dart`, `test/postgres_relational_test.dart`,
 `test/postgres_journal_test.dart`, `test/postgres_workflow_test.dart` and
@@ -381,8 +389,10 @@ Run `test/postgres_foundation_test.dart`, `test/postgres_relational_test.dart`,
 `packages/ub_store` with
 `UB_TEST_POSTGRES_PORT` set to a disposable loopback `ub_disposable` database. Without
 that selection the live database cases are explicitly skipped. Service authority cases are in
-`test/postgres_installation_authority_test.dart` under `packages/ub_service` with
-the same disposable database selection. This check uses
+`test/postgres_installation_authority_test.dart`; installation, authoring and
+engine cases are in `test/postgres_open_test.dart`, `test/postgres_validation_test.dart`
+and `test/postgres_runtime_test.dart` under `packages/ub_service` with
+the same disposable database selection. These checks use
 local fixture setup privileges and cleans its generated schemas and role.
 Full-schema operations need enough server object-lock capacity: on the disposable
 PostgreSQL 16.15 server with 100 connections, the default
