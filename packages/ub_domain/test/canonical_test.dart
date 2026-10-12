@@ -5,6 +5,22 @@ import 'package:ub_domain/ub_domain.dart';
 
 void main() {
   test(
+    'exact UTF-8 retains authored BOMs and rejects malformed byte sequences',
+    () {
+      for (final text in [
+        '',
+        'café 世界\r\n',
+        '\uFEFFcafé',
+        '\uFEFF\uFEFF世界',
+        'a\uFEFFb',
+      ]) {
+        expect(decodeExactUtf8(utf8.encode(text)), text);
+      }
+      expect(() => decodeExactUtf8([255]), throwsFormatException);
+      expect(() => decodeExactUtf8([0xef, 0xbb]), throwsFormatException);
+    },
+  );
+  test(
     'canonical ordering uses Unicode scalars and preserves authored text',
     () {
       final value = CanonicalObject([

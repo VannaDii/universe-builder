@@ -3,6 +3,18 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
+/// Strict UTF-8 text without consuming an authored leading U+FEFF character.
+/// Matches Rust String::from_utf8 for retained sources and byte-bound excerpts.
+String decodeExactUtf8(List<int> bytes) {
+  final text = utf8.decode(bytes);
+  return bytes.length >= 3 &&
+          bytes[0] == 0xef &&
+          bytes[1] == 0xbb &&
+          bytes[2] == 0xbf
+      ? '\uFEFF$text'
+      : text;
+}
+
 /// Matches universe-domain's canonical representation. Numeric tokens never
 /// pass through a host floating-point value, including in browser builds.
 sealed class CanonicalValue {

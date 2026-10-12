@@ -98,7 +98,7 @@ Future<void> verifyCandidateSources({
           );
         }
         final excerptBytes = bytes.sublist(start, end);
-        if (utf8.decode(excerptBytes) != anchor.excerpt ||
+        if (decodeExactUtf8(excerptBytes) != anchor.excerpt ||
             sha256.convert(excerptBytes).toString() != anchor.excerptDigest) {
           throw const InvalidArgumentError(
             field: 'anchor',

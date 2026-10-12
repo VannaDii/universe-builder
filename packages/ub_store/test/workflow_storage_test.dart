@@ -244,7 +244,7 @@ void main() {
     expect(database.autocommit, isTrue);
   });
   test('source and media content retain exact bytes and canonical workflow bindings', () {
-    const text = 'A café\nwith exact source bytes 🌲';
+    const text = '\uFEFFA café\r\nwith exact source bytes 🌲';
     final digest = sha256.convert(utf8.encode(text)).toString();
     write(() {
       workflow.put('source:$digest', CanonicalString(text));

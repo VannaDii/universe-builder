@@ -89,14 +89,26 @@ The Dart operator CLI now exposes `convert-package`, `convert-installation` and
 syntax. These commands stay offline: they do not start an engine, resolve backend
 settings, authenticate a profile or register a target. Success writes one JSON
 conversion report to standard output; failures return nonzero status with redacted
-diagnostics. Other author/launcher commands remain pending.
+diagnostics. The same Dart executable now exposes the maintained author commands:
+initialization, status/doctor, universe creation/registration/renaming, profile
+enrollment/grants/revocation, public tool files, library/review/exact approval,
+private author-writing stdin, source staging, backup/restore/maintenance, legacy
+conversion and logical export/import. Service commands require the selected
+profile and use the authenticated local engine; initialization invokes its
+installed sibling explicitly. Approval does not publish. Private stdin is bounded
+at 1,000,000 bytes; tool/source files and encoded requests respect the 1 MiB frame
+limit. Source text retains leading BOM characters, Unicode and line endings;
+JSON inputs use strict parsing without silently removing a BOM.
 For development, run `dart run --verbosity=error apps/ub_cli/bin/universe.dart --help`.
 Build a standalone bundle with
 `dart build cli --target apps/ub_cli/bin/universe.dart --output target/dart-operator-cli`.
 Keep the generated bundle's `bin/` and `lib/` directories together; `dart compile exe`
 does not include this project's required build hooks. The compiled operator bundle
 has been functionally checked on macOS with disposable data, without release signing
-or publication.
+or publication. The compiled author CLI has also exercised sibling initialization,
+on-demand creation and shutdown outside the source tree. Keep the sibling
+`universe-engine` available with its required bundle libraries. MCP/public launcher
+interfaces and complete platform packaging remain pending.
 Focused functional checks currently cover macOS only.
 
 Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter

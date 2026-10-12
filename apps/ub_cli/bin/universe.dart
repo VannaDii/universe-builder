@@ -1,9 +1,9 @@
 import 'dart:io';
 
-import 'package:ub_cli/operator_cli.dart';
+import 'package:ub_cli/universe_cli.dart';
 
-void main(List<String> arguments) {
-  exitCode = runOperatorCli(
+Future<void> main(List<String> arguments) async {
+  exitCode = await runUniverseCli(
     arguments,
     output: stdout.writeln,
     error: stderr.writeln,

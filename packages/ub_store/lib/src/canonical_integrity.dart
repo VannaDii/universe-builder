@@ -80,7 +80,7 @@ final class CanonicalIntegrity {
                 !boundary(locator.end.toInt())) {
               throw const FormatException('Archive anchor UTF-8 boundaries');
             }
-            if (utf8.decode(excerptBytes) != anchor.excerpt ||
+            if (decodeExactUtf8(excerptBytes) != anchor.excerpt ||
                 sha256.convert(excerptBytes).toString() !=
                     anchor.excerptDigest) {
               throw const FormatException('Archive anchor excerpt mismatch');

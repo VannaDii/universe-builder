@@ -70,6 +70,25 @@ Matcher invalid(String field, String message) => throwsA(
 );
 void main() {
   test(
+    'byte-bound source anchors retain a leading BOM as authored evidence',
+    () async {
+      const text = '\uFEFFé😀\r\n';
+      final version = source(text: text);
+      final entries = staging(version, text: text);
+      await verify([
+        f.row(2, version),
+        f.row(
+          3,
+          anchor(start: 0, end: utf8.encode(text).length, excerpt: text),
+        ),
+      ], entries);
+      await verify([
+        f.row(2, version),
+        f.row(3, anchor(start: 0, end: 3, excerpt: '\uFEFF')),
+      ], entries);
+    },
+  );
+  test(
     'exact UTF-8 source imports and multibyte excerpts retain original bytes',
     () async {
       final v = source(), entries = staging(source());

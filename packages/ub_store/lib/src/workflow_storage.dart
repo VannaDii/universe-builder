@@ -205,7 +205,7 @@ final class WorkflowStorage {
           sha256.convert(bytes).toString() != id) {
         throw const FormatException('Source content integrity failure');
       }
-      value = CanonicalString(utf8.decode(bytes));
+      value = CanonicalString(decodeExactUtf8(bytes));
     } else if (key.startsWith('image-bytes:')) {
       final (id, ordinal) = _chunkKey(key);
       final row = _one(

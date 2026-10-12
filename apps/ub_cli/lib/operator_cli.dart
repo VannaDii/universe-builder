@@ -17,7 +17,7 @@ Offline operator commands:
 Each command requires a fresh destination and a clean offline source.
 The installation/profile options preserve the existing command interface;
 offline conversion does not authenticate, start an engine or register packages.
-Other author and launcher commands are not yet available in this Dart executable.''';
+Author commands are available through the shared universe executable entry point.''';
 
 /// Offline operator commands use the same verified store APIs as maintained
 /// conversions. No engine or backend configuration is opened as a side effect.
