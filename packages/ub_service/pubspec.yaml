@@ -16,4 +16,5 @@ dependencies:
   ub_rules: any
   ub_store: any
 dev_dependencies:
+  sqlite3: 3.7.0
   test: 1.33.0

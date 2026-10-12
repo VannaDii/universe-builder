@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:sqlite3/sqlite3.dart' show sqlite3, OpenMode;
 import 'package:test/test.dart' hide Description;
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
@@ -1173,6 +1174,255 @@ void main() {
     NativeSqliteConnection connection,
     EngineRequest request,
   ) => connection.execute(EngineRequest.decode(request.toWire().toBytes()));
+
+  ({UniverseId id, String source, ContinuityId continuity, RevisionId revision})
+  restoreSource() {
+    final id = UniverseId.generate();
+    final continuity = ContinuityId.generate();
+    final source = '${root.path}/restore-source-${id.value}.sqlite';
+    final package = OwnedSqliteDatabase.create(
+      '${root.path}/source-${id.value}/package.sqlite',
+    );
+    try {
+      final journal = SqliteJournal(package.database, id);
+      package.database.execute('BEGIN IMMEDIATE');
+      journal.initialize('Restore fixture', continuity, PrincipalId.generate());
+      package.database.execute('COMMIT');
+      final revision = journal.head(continuity);
+      package.backup(source);
+      return (
+        id: id,
+        source: source,
+        continuity: continuity,
+        revision: revision,
+      );
+    } finally {
+      package.close();
+    }
+  }
+
+  void expectNoRestoreStages() {
+    expect(
+      Directory('${root.path}/packages').listSync().where(
+        (entry) => entry.uri.pathSegments.any(
+          (part) =>
+              part.startsWith('.restore-') ||
+              part.startsWith('.universe-backup-'),
+        ),
+      ),
+      isEmpty,
+    );
+  }
+
+  test(
+    'native restore publishes recovered identity and catalog across restart',
+    () async {
+      final fixture = restoreSource();
+      final original = File(fixture.source).readAsBytesSync();
+      final result = WireFields(
+        await engine(
+          runtime.connect(hello(author.id)),
+          RestoreEngineRequest(source: fixture.source, name: 'Restored'),
+        ),
+        {'universe_id', 'name', 'restored'},
+      );
+      expect(result.string('universe_id'), fixture.id.value);
+      expect(result.string('name'), 'Restored');
+      expect(result.boolean('restored'), isTrue);
+      expect(
+        authority.catalog(author).map((entry) => entry.universeId),
+        contains(fixture.id),
+      );
+      expectNoRestoreStages();
+      expect(File(fixture.source).readAsBytesSync(), orderedEquals(original));
+      await runtime.close();
+      final restored = OwnedSqliteDatabase.openExisting(
+        '${root.path}/packages/${fixture.id.value}.sqlite',
+      );
+      try {
+        restored.recover();
+        expect(restored.universeId, fixture.id);
+        expect(
+          SqliteJournal(restored.database, fixture.id).head(fixture.continuity),
+          fixture.revision,
+        );
+      } finally {
+        restored.close();
+      }
+      runtime = NativeSqliteRuntime(authority: authority);
+      final catalog = WireFields(
+        await engine(
+          runtime.connect(hello(author.id)),
+          const StatusEngineRequest(),
+        ),
+        {
+          'service_instance',
+          'principal',
+          'author',
+          'universes',
+          'canonical_commit',
+          'max_requests_per_principal',
+          'universe_queue_capacity',
+        },
+      );
+      expect(
+        CanonicalArray(catalog.array('universes')).toText(),
+        contains(fixture.id.value),
+      );
+      await engine(
+        runtime.connect(hello(author.id)),
+        const LibraryEngineRequest(universe: Selector('Restored')),
+      );
+    },
+  );
+
+  test('native restore rejects identity and historical name reservations without changing originals', () async {
+    final connection = runtime.connect(hello(author.id));
+    final backup = '${root.path}/registered-backup.sqlite';
+    await engine(
+      connection,
+      BackupEngineRequest(
+        universe: const Selector('World'),
+        destination: backup,
+      ),
+    );
+    final bytes = File(backup).readAsBytesSync();
+    await expectLater(
+      engine(
+        connection,
+        RestoreEngineRequest(source: backup, name: 'New name'),
+      ),
+      throwsA(isA<NameUnavailableError>()),
+    );
+    final fixture = restoreSource();
+    final sourceBytes = File(fixture.source).readAsBytesSync();
+    await engine(
+      connection,
+      RenameUniverseEngineRequest(universeId: f.u, name: 'Campaign'),
+    );
+    for (final name in ['World', 'Campaign']) {
+      await expectLater(
+        engine(
+          connection,
+          RestoreEngineRequest(source: fixture.source, name: name),
+        ),
+        throwsA(isA<NameUnavailableError>()),
+      );
+    }
+    expect(authority.catalog(author), hasLength(1));
+    expect(
+      File('${root.path}/packages/${fixture.id.value}.sqlite').existsSync(),
+      isFalse,
+    );
+    expect(File(backup).readAsBytesSync(), orderedEquals(bytes));
+    expect(File(fixture.source).readAsBytesSync(), orderedEquals(sourceBytes));
+    expectNoRestoreStages();
+  });
+
+  test('native restore denies writers before source IO and refuses destination overwrite', () async {
+    authority.grant(
+      author,
+      GrantSpec(
+        profileId: writer.id,
+        universeId: f.u,
+        worlds: null,
+        propose: true,
+        edit: true,
+        protected: true,
+      ),
+    );
+    await expectLater(
+      engine(
+        runtime.connect(hello(writer.id)),
+        RestoreEngineRequest(
+          source: '${root.path}/absent/source.sqlite',
+          name: 'Denied',
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    final fixture = restoreSource();
+    final destination = File('${root.path}/packages/${fixture.id.value}.sqlite')
+      ..writeAsStringSync('Unregistered original');
+    final connection = runtime.connect(hello(author.id));
+    await expectLater(
+      engine(
+        connection,
+        RestoreEngineRequest(source: fixture.source, name: 'Blocked'),
+      ),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect(destination.readAsStringSync(), 'Unregistered original');
+    expect(authority.catalog(author), hasLength(1));
+    expectNoRestoreStages();
+    destination.deleteSync();
+    final target = File('${root.path}/link-target')
+      ..writeAsStringSync('Link original');
+    final link = Link(destination.path)..createSync(target.path);
+    await expectLater(
+      engine(
+        connection,
+        RestoreEngineRequest(source: fixture.source, name: 'Blocked'),
+      ),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect(link.targetSync(), target.path);
+    expect(target.readAsStringSync(), 'Link original');
+    expect(authority.catalog(author), hasLength(1));
+    expectNoRestoreStages();
+  });
+
+  test('native restore removes only its newly published copy after registration failure and can retry', () async {
+    final fixture = restoreSource();
+    final original = File(fixture.source).readAsBytesSync();
+    final catalogPath = '${root.path}/installation.sqlite';
+    final database = sqlite3.open(catalogPath, mode: OpenMode.readWrite);
+    try {
+      database.execute(
+        "CREATE TRIGGER reject_restore BEFORE INSERT ON catalog BEGIN SELECT RAISE(ABORT, 'Disposable registration failure'); END",
+      );
+    } finally {
+      database.close();
+    }
+    final request = RestoreEngineRequest(source: fixture.source, name: 'Retry');
+    final connection = runtime.connect(hello(author.id));
+    await expectLater(
+      engine(connection, request),
+      throwsA(
+        isA<InstallationException>().having(
+          (error) => error.failure,
+          'failure',
+          InstallationFailure.unavailable,
+        ),
+      ),
+    );
+    for (final suffix in [
+      '.sqlite',
+      '.sqlite-wal',
+      '.sqlite-shm',
+      '.writer.lock',
+    ]) {
+      expect(
+        File('${root.path}/packages/${fixture.id.value}$suffix').existsSync(),
+        isFalse,
+      );
+    }
+    expect(authority.catalog(author), hasLength(1));
+    expect(File(fixture.source).readAsBytesSync(), orderedEquals(original));
+    expectNoRestoreStages();
+    final repaired = sqlite3.open(catalogPath, mode: OpenMode.readWrite);
+    try {
+      repaired.execute('DROP TRIGGER reject_restore');
+    } finally {
+      repaired.close();
+    }
+    await engine(connection, request);
+    expect(authority.catalog(author), hasLength(2));
+    await engine(
+      connection,
+      const LibraryEngineRequest(universe: Selector('Retry')),
+    );
+  });
 
   test('private installation commands expose current catalog and redacted profiles without opening workers', () async {
     final authorConnection = runtime.connect(hello(author.id));
@@ -3139,6 +3389,83 @@ void main() {
     restored.close();
     expect(File(stagedPath).existsSync(), isFalse);
     expect(File(backupPath).existsSync(), isTrue);
+    final otherRoot = Directory('${root.path}/restored-installation');
+    final otherInstallation = SqliteInstallationStore.create(otherRoot.path);
+    final otherAuthority = InstallationAuthority(otherInstallation);
+    final otherAuthor = otherAuthority.initializeAuthor();
+    final otherHello = EngineHello(
+      protocolVersion: protocolVersion,
+      profileId: otherAuthor,
+      credential: Credential(
+        ProfileCredentialStore.read(root: otherRoot.path, profile: otherAuthor),
+      ),
+      clientName: 'Disposable restore client',
+    );
+    var otherRuntime = NativeSqliteRuntime(authority: otherAuthority);
+    try {
+      await engine(
+        otherRuntime.connect(otherHello),
+        RestoreEngineRequest(source: backupPath, name: 'World'),
+      );
+      final importedLibrary = await library(otherRuntime.connect(otherHello));
+      for (final field in ['worlds', 'contexts', 'continuities']) {
+        expect(
+          importedLibrary.require(field).toText(),
+          beforeLibrary.require(field).toText(),
+        );
+      }
+      final importedWriting = WireFields(importedLibrary.require('writing'), {
+        'approved',
+        'proposals',
+      });
+      expect(importedWriting.array('approved'), isEmpty);
+      expect(importedWriting.array('proposals'), hasLength(1));
+      await otherRuntime.close();
+      final imported = OwnedSqliteDatabase.openExisting(
+        '${otherRoot.path}/packages/${f.u.value}.sqlite',
+      );
+      try {
+        imported.recover();
+        final retained = WorkflowStorage(imported.database);
+        expect(retained.keys('approval:'), isEmpty);
+        expect(retained.keys('context:'), isEmpty);
+        expect(
+          imported.database
+              .select('SELECT count(*) AS n FROM historical_receipt')
+              .single['n'],
+          2,
+        );
+        expect(
+          retained.get(retained.keys('draft:').single)!.toText(),
+          savedDraft.toText(),
+        );
+        expect(
+          imported.database
+              .select('SELECT utf8_content FROM source_content')
+              .single['utf8_content'],
+          orderedEquals(utf8.encode(stage.text)),
+        );
+        expect(
+          SqliteKernel(imported.database, f.u).imageBytes(image),
+          orderedEquals(imageBytes),
+        );
+        expect(
+          SqliteJournal(imported.database, f.u).head(opened.frame.continuity),
+          CommitReceipt.fromWire(published.result).revision,
+        );
+      } finally {
+        imported.close();
+      }
+      otherRuntime = NativeSqliteRuntime(authority: otherAuthority);
+      final restartedLibrary = await library(otherRuntime.connect(otherHello));
+      expect(
+        restartedLibrary.require('continuities').toText(),
+        importedLibrary.require('continuities').toText(),
+      );
+    } finally {
+      await otherRuntime.close();
+      otherInstallation.close();
+    }
     final dry = await maintenance(false);
     expect(dry.string('retention_policy'), 'retain-all-history-v1');
     expect(dry.boolean('canonical'), isFalse);

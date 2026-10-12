@@ -2,6 +2,12 @@ import 'dart:ffi';
 
 const _asset = 'package:ub_store/src/native_ownership.dart';
 
+@Native<Int32 Function(Pointer<Char>)>(
+  symbol: 'ub_sync_directory',
+  assetId: _asset,
+)
+external int nativeSyncDirectory(Pointer<Char> path);
+
 @Native<Int32 Function(Pointer<Char>, Pointer<Char>, Pointer<Char>)>(
   symbol: 'ub_publish_snapshot',
   assetId: _asset,

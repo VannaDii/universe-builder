@@ -364,6 +364,30 @@ final class SqliteInstallationStore {
     }
   }
 
+  /// Check identity and historical name reservations before importing a package.
+  List<String> importConflicts({
+    required ProfileId actor,
+    required UniverseId id,
+    required String name,
+  }) {
+    requireAuthor(actor);
+    final key = selectorKey(name);
+    return List.unmodifiable([
+      if (_db.select(
+            'SELECT EXISTS(SELECT 1 FROM catalog WHERE id=?) AS present',
+            [id.value],
+          ).single['present'] ==
+          1)
+        'Universe identity already registered; choose a named clone',
+      if (_db.select(
+            'SELECT EXISTS(SELECT 1 FROM aliases WHERE key=?) AS present',
+            [key],
+          ).single['present'] ==
+          1)
+        'Universe name or alias is already reserved',
+    ]);
+  }
+
   /// Retain caller ownership while publishing the recovered package's identity.
   /// The path comes from its open session, never from a separate caller claim.
   UniverseId registerOwnedPackage({

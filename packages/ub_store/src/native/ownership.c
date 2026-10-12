@@ -8,6 +8,7 @@
 #define UB_EXPORT __declspec(dllexport)
 /* Windows ACL and handle ownership are a separate platform port. Fail closed. */
 UB_EXPORT int32_t ub_private_dir(const char *path) { (void)path; return 50; }
+UB_EXPORT int32_t ub_sync_directory(const char *path) { (void)path; return 50; }
 UB_EXPORT int32_t ub_protected_file(const char *path, int32_t create) {
   (void)path; (void)create; return 50;
 }
@@ -83,6 +84,14 @@ UB_EXPORT int32_t ub_private_dir(const char *path) {
   if (fstat(fd, &info) != 0) error = errno;
   else if (!S_ISDIR(info.st_mode) || info.st_uid != geteuid() ||
            (info.st_mode & 0077) != 0) error = EACCES;
+  close(fd);
+  return error;
+}
+
+UB_EXPORT int32_t ub_sync_directory(const char *path) {
+  int fd = open(path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+  if (fd < 0) return errno;
+  int error = fsync(fd) == 0 ? 0 : errno;
   close(fd);
   return error;
 }

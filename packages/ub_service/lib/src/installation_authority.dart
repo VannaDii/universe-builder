@@ -242,8 +242,21 @@ final class InstallationAuthority {
   }
 
   String newUniversePath(InstallationPrincipal actor, UniverseId id) {
+    return '${universeDirectory(actor)}/${id.value}.sqlite';
+  }
+
+  String universeDirectory(InstallationPrincipal actor) {
     requireAuthor(actor);
-    return '${_store.root}/packages/${id.value}.sqlite';
+    return '${_store.root}/packages';
+  }
+
+  List<String> importConflicts(
+    InstallationPrincipal actor, {
+    required UniverseId id,
+    required String name,
+  }) {
+    requireAuthor(actor);
+    return _store.importConflicts(actor: actor.id, id: id, name: name);
   }
 
   UniverseId registerOpenedUniverse(

@@ -29,6 +29,25 @@ final class OwnedSqliteDatabase {
   static OwnedSqliteDatabase openExisting(String path) =>
       _open(path, create: false);
 
+  /// Only for a newly published copy whose catalog registration has failed.
+  /// The caller closes its owned connection before removing these files.
+  static void removeUnregisteredPackage(String path) {
+    final file = File(path).absolute;
+    final name = file.uri.pathSegments.last;
+    final dot = name.lastIndexOf('.');
+    final stem = dot <= 0 ? name : name.substring(0, dot);
+    for (final owned in [
+      file.path,
+      '${file.path}-wal',
+      '${file.path}-shm',
+      '${file.parent.path}/$stem.writer.lock',
+    ]) {
+      final target = File(owned);
+      if (target.existsSync()) target.deleteSync();
+    }
+    syncPrivateDirectory(file.parent.path);
+  }
+
   /// Protected, unpublished restore staging. The caller retains current author
   /// authority and closes the stage after registration or failure.
   static StagedSqliteRestore stageRestore(String source, String scratch) {

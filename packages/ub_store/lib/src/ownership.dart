@@ -85,6 +85,18 @@ void protectedFile(String path, {bool create = false, bool createNew = false}) {
   });
 }
 
+/// Flush a protected directory after removing an unpublished package.
+void syncPrivateDirectory(String path) {
+  final directory = privateDirectory(path);
+  using(
+    (arena) => _checkError(
+      nativeSyncDirectory(directory.toNativeUtf8(allocator: arena).cast()),
+      'Private directory synchronization failed',
+      directory,
+    ),
+  );
+}
+
 /// Flush the private file and its containing directory after database close.
 void syncPrivateFileAndDirectory(String path) {
   _pathCheck(path);

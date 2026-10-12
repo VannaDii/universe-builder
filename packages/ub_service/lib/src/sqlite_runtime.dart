@@ -48,6 +48,12 @@ final class NativeSqliteRuntime {
     _active.add(finished);
     try {
       if (request is DoctorEngineRequest) return await _doctor(principal);
+      if (request is RestoreEngineRequest) {
+        return await authority.coordinate(
+          principal,
+          () => _restore(principal, request),
+        );
+      }
       if (request
           case StatusEngineRequest() ||
               ProfilesEngineRequest() ||
@@ -241,6 +247,57 @@ final class NativeSqliteRuntime {
         ]),
       ),
     ]);
+  }
+
+  CanonicalObject _restore(
+    InstallationPrincipal principal,
+    RestoreEngineRequest request,
+  ) {
+    authority.requireAuthor(principal);
+    _requireWorkerCapacity();
+    final staged = OwnedSqliteDatabase.stageRestore(
+      request.source,
+      authority.universeDirectory(principal),
+    );
+    try {
+      final id = staged.package.universeId;
+      if (authority
+          .importConflicts(principal, id: id, name: request.name)
+          .isNotEmpty) {
+        throw const NameUnavailableError(
+          message: 'restore identity or name is reserved',
+        );
+      }
+      final destination = authority.newUniversePath(principal, id);
+      staged.package.backup(destination);
+      OwnedSqliteDatabase? opened;
+      try {
+        opened = OwnedSqliteDatabase.openExisting(destination);
+        if (opened.universeId != id) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        authority.registerOpenedUniverse(
+          principal,
+          name: request.name,
+          package: opened,
+        );
+      } on Object {
+        try {
+          opened?.close();
+        } finally {
+          OwnedSqliteDatabase.removeUnregisteredPackage(destination);
+        }
+        rethrow;
+      }
+      _packages[id] = opened;
+      return CanonicalObject([
+        MapEntry('universe_id', CanonicalString(id.value)),
+        MapEntry('name', CanonicalString(request.name)),
+        const MapEntry('restored', CanonicalBool(true)),
+      ]);
+    } finally {
+      staged.close();
+    }
   }
 
   CanonicalValue _installation(
