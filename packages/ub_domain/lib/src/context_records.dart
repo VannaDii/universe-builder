@@ -198,3 +198,71 @@ final class RepresentedContextRecord extends RecordPayload {
     MapEntry('labels', _stringMap(labels)),
   ]);
 }
+
+/// Authored starting coordinates. Decoding never supplies a current timestamp
+/// or builds a calendar; semantic validation belongs to chronology creation.
+sealed class UniverseStart {
+  const UniverseStart();
+  CanonicalObject toWire();
+  static UniverseStart fromWire(CanonicalValue value) {
+    final f = Fields(value);
+    switch (f.string('kind')) {
+      case 'gregorian':
+        f.allow({'kind', 'timestamp'});
+        return GregorianUniverseStart(f.string('timestamp'));
+      case 'fictional':
+        f.allow({
+          'kind',
+          'calendar_name',
+          'initial_tick',
+          'tick_label',
+          'ticks_per_month',
+        });
+        return FictionalUniverseStart(
+          calendarName: f.string('calendar_name'),
+          initialTick: f.string('initial_tick'),
+          tickLabel: f.string('tick_label'),
+          ticksPerMonth:
+              f.values['ticks_per_month'] == null ||
+                  f.values['ticks_per_month'] is CanonicalNull
+              ? null
+              : _u32(f, 'ticks_per_month'),
+        );
+      default:
+        throw const FormatException('Unknown universe start');
+    }
+  }
+}
+
+final class GregorianUniverseStart extends UniverseStart {
+  const GregorianUniverseStart(this.timestamp);
+  final String timestamp;
+  @override
+  CanonicalObject toWire() =>
+      tagged('gregorian', [MapEntry('timestamp', CanonicalString(timestamp))]);
+}
+
+final class FictionalUniverseStart extends UniverseStart {
+  FictionalUniverseStart({
+    required this.calendarName,
+    required this.initialTick,
+    required this.tickLabel,
+    int? ticksPerMonth,
+  }) : ticksPerMonth = ticksPerMonth == null
+           ? null
+           : _checkedU32(ticksPerMonth);
+  final String calendarName, initialTick, tickLabel;
+  final int? ticksPerMonth;
+  @override
+  CanonicalObject toWire() => tagged('fictional', [
+    MapEntry('calendar_name', CanonicalString(calendarName)),
+    MapEntry('initial_tick', CanonicalString(initialTick)),
+    MapEntry('tick_label', CanonicalString(tickLabel)),
+    MapEntry(
+      'ticks_per_month',
+      ticksPerMonth == null
+          ? const CanonicalNull()
+          : CanonicalNumber(ticksPerMonth!.toString()),
+    ),
+  ]);
+}

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:ub_domain/ub_domain.dart';
 
 import 'workflow.dart';
@@ -29,6 +31,8 @@ enum ImportMode {
 // Private installation DTOs are not public tools or authority grants.
 
 final class EngineHello {
+  factory EngineHello.decode(Uint8List bytes) =>
+      EngineHello.fromWire(decodeWireFrame(bytes));
   EngineHello({
     required this.protocolVersion,
     required this.profileId,
@@ -62,6 +66,8 @@ final class EngineHello {
 }
 
 final class EngineWelcome {
+  factory EngineWelcome.decode(Uint8List bytes) =>
+      EngineWelcome.fromWire(decodeWireFrame(bytes));
   EngineWelcome({
     required this.protocolVersion,
     required this.serviceInstance,

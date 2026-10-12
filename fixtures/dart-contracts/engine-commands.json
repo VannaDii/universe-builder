@@ -1,0 +1,207 @@
+[
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"status\"}",
+    "expected_wire": "{\"method\":\"status\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"doctor\"}",
+    "expected_wire": "{\"method\":\"doctor\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"profiles\"}",
+    "expected_wire": "{\"method\":\"profiles\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"withdraw_grant\",\"profile_id\":\"prf_000000000000000000000001\",\"universe_id\":\"unv_000000000000000000000001\"}",
+    "expected_wire": "{\"method\":\"withdraw_grant\",\"profile_id\":\"prf_000000000000000000000001\",\"universe_id\":\"unv_000000000000000000000001\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"preview_purge\",\"universe\":\"Cycle\"}",
+    "expected_wire": "{\"method\":\"preview_purge\",\"universe\":\"Cycle\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"purge\",\"universe\":\"Cycle\",\"digest\":\"retained digest\",\"confirmation\":\"explicit test confirmation\"}",
+    "expected_wire": "{\"method\":\"purge\",\"universe\":\"Cycle\",\"digest\":\"retained digest\",\"confirmation\":\"explicit test confirmation\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"tool\",\"request\":{\"tool\":\"universe_describe\",\"args\":{\"universe\":\"Cycle\",\"mode\":\"summary\"}}}",
+    "expected_wire": "{\"method\":\"tool\",\"request\":{\"tool\":\"universe_describe\",\"args\":{\"mode\":\"summary\",\"universe\":\"Cycle\"}}}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"library\",\"universe\":\"Cycle\"}",
+    "expected_wire": "{\"method\":\"library\",\"universe\":\"Cycle\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"fork_continuity\",\"universe\":\"Cycle\",\"name\":\"Authored name\",\"continuity_id\":\"cont_000000000000000000000001\",\"source\":\"cont_000000000000000000000002\",\"revision\":\"rev_000000000000000000000001\"}",
+    "expected_wire": "{\"method\":\"fork_continuity\",\"universe\":\"Cycle\",\"name\":\"Authored name\",\"continuity_id\":\"cont_000000000000000000000001\",\"source\":\"cont_000000000000000000000002\",\"revision\":\"rev_000000000000000000000001\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"compare_continuities\",\"universe\":\"Cycle\",\"target\":\"cont_000000000000000000000001\",\"target_revision\":\"rev_000000000000000000000001\",\"source\":\"cont_000000000000000000000002\",\"source_revision\":\"rev_000000000000000000000002\"}",
+    "expected_wire": "{\"method\":\"compare_continuities\",\"universe\":\"Cycle\",\"target\":\"cont_000000000000000000000001\",\"target_revision\":\"rev_000000000000000000000001\",\"source\":\"cont_000000000000000000000002\",\"source_revision\":\"rev_000000000000000000000002\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"prepare_adoption\",\"universe\":\"Cycle\",\"target\":\"cont_000000000000000000000001\",\"target_revision\":\"rev_000000000000000000000001\",\"source\":\"cont_000000000000000000000002\",\"source_revision\":\"rev_000000000000000000000002\",\"record_ids\":[\"rec_000000000000000000000002\",\"rec_000000000000000000000001\"]}",
+    "expected_wire": "{\"method\":\"prepare_adoption\",\"universe\":\"Cycle\",\"target\":\"cont_000000000000000000000001\",\"target_revision\":\"rev_000000000000000000000001\",\"source\":\"cont_000000000000000000000002\",\"source_revision\":\"rev_000000000000000000000002\",\"record_ids\":[\"rec_000000000000000000000002\",\"rec_000000000000000000000001\"]}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"load_draft\",\"universe\":\"Cycle\",\"continuity_id\":\"cont_000000000000000000000001\"}",
+    "expected_wire": "{\"method\":\"load_draft\",\"universe\":\"Cycle\",\"continuity_id\":\"cont_000000000000000000000001\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"save_draft\",\"universe\":\"Cycle\",\"continuity_id\":\"cont_000000000000000000000001\",\"expected_version\":18446744073709551615,\"content\":{\"base_revision\":\"rev_000000000000000000000001\",\"represented_context\":\"rec_000000000000000000000001\",\"operations\":[],\"rationale\":\"Authored draft\"}}",
+    "expected_wire": "{\"method\":\"save_draft\",\"universe\":\"Cycle\",\"continuity_id\":\"cont_000000000000000000000001\",\"expected_version\":18446744073709551615,\"content\":{\"base_revision\":\"rev_000000000000000000000001\",\"represented_context\":\"rec_000000000000000000000001\",\"operations\":[],\"rationale\":\"Authored draft\"}}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"stage_image\",\"universe\":\"Cycle\",\"source\":\"/disposable test/data é/source\"}",
+    "expected_wire": "{\"method\":\"stage_image\",\"universe\":\"Cycle\",\"source\":\"/disposable test/data é/source\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"image_preview\",\"universe\":\"Cycle\",\"context_id\":\"ctx_000000000000000000000001\",\"asset\":\"rec_000000000000000000000001\"}",
+    "expected_wire": "{\"method\":\"image_preview\",\"universe\":\"Cycle\",\"context_id\":\"ctx_000000000000000000000001\",\"asset\":\"rec_000000000000000000000001\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"author_writing\",\"universe\":\"Cycle\",\"action\":{\"action\":\"inspect\",\"candidate\":{\"proposal_id\":\"prp_000000000000000000000001\",\"version\":18446744073709551615,\"digest\":\"exact retained digest\"}}}",
+    "expected_wire": "{\"method\":\"author_writing\",\"universe\":\"Cycle\",\"action\":{\"action\":\"inspect\",\"candidate\":{\"proposal_id\":\"prp_000000000000000000000001\",\"version\":18446744073709551615,\"digest\":\"exact retained digest\"}}}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"stage_source\",\"universe\":\"Cycle\",\"label\":\"Source\",\"text\":\"Authored source é\"}",
+    "expected_wire": "{\"method\":\"stage_source\",\"universe\":\"Cycle\",\"label\":\"Source\",\"text\":\"Authored source é\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"backup\",\"universe\":\"Cycle\",\"destination\":\"/disposable test/data é/destination\"}",
+    "expected_wire": "{\"method\":\"backup\",\"universe\":\"Cycle\",\"destination\":\"/disposable test/data é/destination\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"restore\",\"source\":\"/disposable test/data é/source\",\"name\":\"Authored name\"}",
+    "expected_wire": "{\"method\":\"restore\",\"source\":\"/disposable test/data é/source\",\"name\":\"Authored name\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"maintain\",\"universe\":\"Cycle\",\"collect\":true}",
+    "expected_wire": "{\"method\":\"maintain\",\"universe\":\"Cycle\",\"collect\":true}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"convert_legacy\",\"source\":\"/disposable test/data é/source\",\"destination\":\"/disposable test/data é/destination\"}",
+    "expected_wire": "{\"method\":\"convert_legacy\",\"source\":\"/disposable test/data é/source\",\"destination\":\"/disposable test/data é/destination\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"export_logical\",\"universe\":\"Cycle\",\"destination\":\"/disposable test/data é/destination\",\"record_ids\":[\"rec_000000000000000000000002\",\"rec_000000000000000000000001\"],\"complete_history\":true}",
+    "expected_wire": "{\"method\":\"export_logical\",\"universe\":\"Cycle\",\"destination\":\"/disposable test/data é/destination\",\"record_ids\":[\"rec_000000000000000000000002\",\"rec_000000000000000000000001\"],\"complete_history\":true}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"preview_import\",\"source\":\"/disposable test/data é/source\",\"name\":\"Authored name\",\"mode\":\"clone\"}",
+    "expected_wire": "{\"method\":\"preview_import\",\"source\":\"/disposable test/data é/source\",\"name\":\"Authored name\",\"mode\":\"clone\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"accept_import\",\"preview_id\":\"op_000000000000000000000001\",\"digest\":\"retained digest\"}",
+    "expected_wire": "{\"method\":\"accept_import\",\"preview_id\":\"op_000000000000000000000001\",\"digest\":\"retained digest\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"review\",\"universe\":\"Cycle\",\"proposal_reference\":{\"proposal_id\":\"prp_000000000000000000000001\",\"version\":18446744073709551615,\"digest\":\"exact retained digest\"}}",
+    "expected_wire": "{\"method\":\"review\",\"universe\":\"Cycle\",\"proposal_reference\":{\"proposal_id\":\"prp_000000000000000000000001\",\"version\":18446744073709551615,\"digest\":\"exact retained digest\"}}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"approve\",\"universe\":\"Cycle\",\"proposal_reference\":{\"proposal_id\":\"prp_000000000000000000000001\",\"version\":18446744073709551615,\"digest\":\"exact retained digest\"},\"validation_run\":\"val_000000000000000000000001\"}",
+    "expected_wire": "{\"method\":\"approve\",\"universe\":\"Cycle\",\"proposal_reference\":{\"proposal_id\":\"prp_000000000000000000000001\",\"version\":18446744073709551615,\"digest\":\"exact retained digest\"},\"validation_run\":\"val_000000000000000000000001\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"create_universe\",\"name\":\"Authored name\",\"start\":{\"kind\":\"fictional\",\"calendar_name\":\"Story calendar\",\"initial_tick\":\"-9007199254740993\",\"tick_label\":\"day\",\"ticks_per_month\":4294967295}}",
+    "expected_wire": "{\"method\":\"create_universe\",\"name\":\"Authored name\",\"start\":{\"kind\":\"fictional\",\"calendar_name\":\"Story calendar\",\"initial_tick\":\"-9007199254740993\",\"tick_label\":\"day\",\"ticks_per_month\":4294967295}}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"register_universe\",\"path\":\"/disposable test/data é/path\",\"name\":\"Authored name\"}",
+    "expected_wire": "{\"method\":\"register_universe\",\"path\":\"/disposable test/data é/path\",\"name\":\"Authored name\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"rename_universe\",\"universe_id\":\"unv_000000000000000000000001\",\"name\":\"Authored name\"}",
+    "expected_wire": "{\"method\":\"rename_universe\",\"universe_id\":\"unv_000000000000000000000001\",\"name\":\"Authored name\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"enroll\"}",
+    "expected_wire": "{\"method\":\"enroll\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"grant\",\"grant\":{\"profile_id\":\"prf_000000000000000000000001\",\"universe_id\":\"unv_000000000000000000000001\",\"worlds\":[],\"propose\":true,\"edit\":false,\"protected\":false}}",
+    "expected_wire": "{\"method\":\"grant\",\"grant\":{\"profile_id\":\"prf_000000000000000000000001\",\"universe_id\":\"unv_000000000000000000000001\",\"worlds\":[],\"propose\":true,\"edit\":false,\"protected\":false,\"limits\":{\"entities\":null,\"predicates\":null,\"continuities\":null,\"expires_at\":null,\"delegated_commit\":false,\"allow_shared\":false}}}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"revoke\",\"profile_id\":\"prf_000000000000000000000001\"}",
+    "expected_wire": "{\"method\":\"revoke\",\"profile_id\":\"prf_000000000000000000000001\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"shutdown\"}",
+    "expected_wire": "{\"method\":\"shutdown\"}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"export_logical\",\"universe\":\"Cycle\",\"destination\":\"/disposable test/data é/destination\",\"record_ids\":[\"rec_000000000000000000000002\",\"rec_000000000000000000000001\"]}",
+    "expected_wire": "{\"method\":\"export_logical\",\"universe\":\"Cycle\",\"destination\":\"/disposable test/data é/destination\",\"record_ids\":[\"rec_000000000000000000000002\",\"rec_000000000000000000000001\"],\"complete_history\":false}"
+  },
+  {
+    "type": "EngineRequest",
+    "input_raw": "{\"method\":\"create_universe\",\"name\":\"Real-world account\",\"start\":{\"kind\":\"gregorian\",\"timestamp\":\"1900-01-01T00:00:00+00:00\"}}",
+    "expected_wire": "{\"method\":\"create_universe\",\"name\":\"Real-world account\",\"start\":{\"kind\":\"gregorian\",\"timestamp\":\"1900-01-01T00:00:00+00:00\"}}"
+  },
+  {
+    "type": "UniverseStart",
+    "input_raw": "{\"kind\":\"fictional\",\"calendar_name\":\"Story calendar\",\"initial_tick\":\"-9007199254740993\",\"tick_label\":\"day\",\"ticks_per_month\":4294967295}",
+    "expected_wire": "{\"kind\":\"fictional\",\"calendar_name\":\"Story calendar\",\"initial_tick\":\"-9007199254740993\",\"tick_label\":\"day\",\"ticks_per_month\":4294967295}"
+  },
+  {
+    "type": "UniverseStart",
+    "input_raw": "{\"kind\":\"gregorian\",\"timestamp\":\"1900-01-01T00:00:00+00:00\"}",
+    "expected_wire": "{\"kind\":\"gregorian\",\"timestamp\":\"1900-01-01T00:00:00+00:00\"}"
+  },
+  {
+    "type": "EngineCall",
+    "input_raw": "{\"id\":18446744073709551615,\"request\":{\"method\":\"tool\",\"request\":{\"tool\":\"universe_describe\",\"args\":{\"universe\":\"Cycle\",\"mode\":\"summary\"}}}}",
+    "expected_wire": "{\"id\":18446744073709551615,\"request\":{\"method\":\"tool\",\"request\":{\"tool\":\"universe_describe\",\"args\":{\"mode\":\"summary\",\"universe\":\"Cycle\"}}}}"
+  },
+  {
+    "type": "EngineCall",
+    "input_raw": "{\"id\":0,\"request\":{\"method\":\"shutdown\"}}",
+    "expected_wire": "{\"id\":0,\"request\":{\"method\":\"shutdown\"}}"
+  },
+  {
+    "type": "EngineReply",
+    "input_raw": "{\"id\":18446744073709551615,\"result\":{\"Ok\":{\"declared_value\":9007199254740993}}}",
+    "expected_wire": "{\"id\":18446744073709551615,\"result\":{\"Ok\":{\"declared_value\":9007199254740993}}}"
+  },
+  {
+    "type": "EngineReply",
+    "input_raw": "{\"id\":0,\"result\":{\"Err\":{\"code\":\"APPROVAL_REQUIRED\",\"message\":\"Exact approval required\"}}}",
+    "expected_wire": "{\"id\":0,\"result\":{\"Err\":{\"code\":\"APPROVAL_REQUIRED\",\"message\":\"Exact approval required\"}}}"
+  }
+]
