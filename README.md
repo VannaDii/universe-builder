@@ -342,8 +342,13 @@ Name matching uses the shared pinned Unicode normalization; renames preserve
 old aliases for the original universe. Alias/file collisions roll back catalog
 and audit changes, and resolution refuses replaced files, symlinks and hard
 links. Catalog listing retains the original 1,000-entry bound and name order.
-These catalog operations currently require author authority; agent visibility
-must wait for the universe grant checks. Universe grant operations,
+Author-controlled grant replacement and withdrawal now persist ordered scope
+boundaries, exact unsigned expiry values and transactional authority audit
+entries. Agent catalog and alias access require a current, unexpired universe
+grant. Base write checks enforce proposal/edit, protected and world permissions;
+withdrawal, expiry and revocation invalidate cached principals. Authority
+sequences distinguish withdrawal and identical regrant. Exact proposal footprint,
+approval and delegated-publication checks remain pending, as do
 transport handshake integration, pending-purge recovery and existing-installation
 cutover remain pending; these profile components do not start the Dart engine.
 Ordinary writer types now preserve JSON scalar fact values, named objects and

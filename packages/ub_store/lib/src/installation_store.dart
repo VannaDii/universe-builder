@@ -2,10 +2,13 @@ import 'dart:io';
 
 import 'package:sqlite3/sqlite3.dart';
 import 'package:ub_domain/ub_domain.dart';
+import 'package:ub_contracts/ub_contracts.dart';
 
 import 'installation_schema.g.dart';
 import 'ownership.dart';
 import 'owned_database.dart';
+
+part 'installation_grants.dart';
 
 const _normalization = selectorNormalizationVersion;
 
@@ -15,6 +18,7 @@ enum InstallationFailure {
   identityNotInitialized,
   denied,
   alreadyEnrolled,
+  invalidGrant,
 }
 
 final class InstallationException implements Exception {
@@ -394,8 +398,9 @@ final class SqliteInstallationStore {
   InstallationCatalogEntry resolveUniverseAlias({
     required ProfileId actor,
     required String name,
+    BigInt? epochSeconds,
   }) {
-    requireAuthor(actor);
+    _activeProfile(actor);
     final rows = _db.select(
       'SELECT c.id,c.name,c.path,c.device,c.inode FROM catalog c JOIN aliases a ON a.universe=c.id WHERE a.key=?',
       [selectorKey(name)],
@@ -404,35 +409,56 @@ final class SqliteInstallationStore {
       throw const InstallationException(InstallationFailure.denied);
     }
     final row = rows.single;
+    final id = UniverseId.parse(row['id'] as String);
+    universeScope(
+      actor,
+      id,
+      epochSeconds ??
+          BigInt.from(DateTime.now().millisecondsSinceEpoch ~/ 1000),
+    );
     final path = row['path'] as String;
     final identity = fileIdentity(path);
     if (identity.device != row['device'] || identity.inode != row['inode']) {
       throw const InstallationException(InstallationFailure.denied);
     }
     return InstallationCatalogEntry(
-      universeId: UniverseId.parse(row['id'] as String),
+      universeId: id,
       name: row['name'] as String,
       path: path,
     );
   }
 
-  List<InstallationCatalogEntry> catalog(ProfileId actor) {
-    requireAuthor(actor);
+  List<InstallationCatalogEntry> catalog(
+    ProfileId actor, {
+    BigInt? epochSeconds,
+  }) {
+    _activeProfile(actor);
     final rows = _db.select(
       'SELECT id,name,path FROM catalog ORDER BY name LIMIT 1001',
     );
     if (rows.length > 1000) {
       throw const InstallationException(InstallationFailure.unavailable);
     }
-    return List<InstallationCatalogEntry>.unmodifiable(
-      rows.map(
-        (r) => InstallationCatalogEntry(
-          universeId: UniverseId.parse(r['id'] as String),
-          name: r['name'] as String,
-          path: r['path'] as String,
+    final entries = <InstallationCatalogEntry>[];
+    final now =
+        epochSeconds ??
+        BigInt.from(DateTime.now().millisecondsSinceEpoch ~/ 1000);
+    for (final row in rows) {
+      final id = UniverseId.parse(row['id'] as String);
+      try {
+        universeScope(actor, id, now);
+      } on Object {
+        continue;
+      }
+      entries.add(
+        InstallationCatalogEntry(
+          universeId: id,
+          name: row['name'] as String,
+          path: row['path'] as String,
         ),
-      ),
-    );
+      );
+    }
+    return List<InstallationCatalogEntry>.unmodifiable(entries);
   }
 
   void _transaction(void Function() action) {

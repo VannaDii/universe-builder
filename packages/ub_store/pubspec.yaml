@@ -7,6 +7,7 @@ environment:
 dependencies:
   crypto: 3.0.7
   ub_domain: 0.1.0
+  ub_contracts: any
   sqlite3: 3.7.0
   ffi: 2.2.0
   code_assets: 2.1.0

@@ -194,7 +194,7 @@ void main() {
         ),
         throwsA(isA<InstallationException>()),
       );
-      expect(() => store.catalog(agent), throwsA(isA<InstallationException>()));
+      expect(store.catalog(agent), isEmpty);
       final empty = OwnedSqliteDatabase.create(
         '${directory.path}/packages/empty.sqlite',
       );

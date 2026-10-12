@@ -28,11 +28,15 @@ final class LocalProfileSummary {
   final bool revoked;
 }
 
-/// Service authority over installation profiles and catalog. This is not universe grant
-/// authorization; that scope check is required before exposing universe content.
+/// Installation profiles, catalog and base universe grant permissions. Exact
+/// proposal footprint and publication authority remain separate workflow checks.
 final class InstallationAuthority {
-  const InstallationAuthority(this._store);
+  const InstallationAuthority(this._store, {BigInt Function()? epochSeconds})
+    : _epochSeconds = epochSeconds ?? _now;
   final SqliteInstallationStore _store;
+  final BigInt Function() _epochSeconds;
+  static BigInt _now() =>
+      BigInt.from(DateTime.now().millisecondsSinceEpoch ~/ 1000);
 
   ProfileId initializeAuthor() {
     if (_store.hasProfiles) {
@@ -150,12 +154,88 @@ final class InstallationAuthority {
     InstallationPrincipal actor,
     String name,
   ) {
-    requireAuthor(actor);
-    return _store.resolveUniverseAlias(actor: actor.id, name: name);
+    _requireCurrent(actor);
+    return _store.resolveUniverseAlias(
+      actor: actor.id,
+      name: name,
+      epochSeconds: _epochSeconds(),
+    );
   }
 
   List<InstallationCatalogEntry> catalog(InstallationPrincipal actor) {
+    _requireCurrent(actor);
+    return _store.catalog(actor.id, epochSeconds: _epochSeconds());
+  }
+
+  void grant(InstallationPrincipal actor, GrantSpec grant) {
     requireAuthor(actor);
-    return _store.catalog(actor.id);
+    _store.putGrant(
+      actor: actor.id,
+      grant: grant,
+      epochSeconds: _epochSeconds(),
+    );
+  }
+
+  void withdrawGrant(
+    InstallationPrincipal actor, {
+    required ProfileId profile,
+    required UniverseId universe,
+  }) {
+    requireAuthor(actor);
+    _store.withdrawGrant(actor: actor.id, profile: profile, universe: universe);
+  }
+
+  void _requireCurrent(InstallationPrincipal principal) {
+    if (principal.instanceId != _store.instanceId) {
+      throw const InstallationException(InstallationFailure.denied);
+    }
+    final current = _store.profile(principal.id);
+    if (current == null || current.revoked) {
+      throw const InstallationException(InstallationFailure.denied);
+    }
+  }
+
+  Set<WorldId>? universeScope(
+    InstallationPrincipal principal,
+    UniverseId universe,
+  ) {
+    _requireCurrent(principal);
+    return _store.universeScope(principal.id, universe, _epochSeconds());
+  }
+
+  GrantLimits limits(InstallationPrincipal principal, UniverseId universe) {
+    _requireCurrent(principal);
+    return _store.limits(principal.id, universe, _epochSeconds());
+  }
+
+  BigInt validationAuthoritySequence(
+    InstallationPrincipal principal,
+    UniverseId universe,
+  ) {
+    _requireCurrent(principal);
+    _store.universeScope(principal.id, universe, _epochSeconds());
+    return _store.validationAuthoritySequence(principal.id, universe);
+  }
+
+  /// Base world/write permissions only; no proposal footprint, approval or
+  /// delegated publication is admitted by this check alone.
+  void authorizeWrite(
+    InstallationPrincipal principal, {
+    required UniverseId universe,
+    required Set<WorldId> worlds,
+    required bool shared,
+    required bool protected,
+    required bool commit,
+  }) {
+    _requireCurrent(principal);
+    _store.authorizeWrite(
+      profile: principal.id,
+      universe: universe,
+      worlds: worlds,
+      shared: shared,
+      protected: protected,
+      commit: commit,
+      epochSeconds: _epochSeconds(),
+    );
   }
 }
