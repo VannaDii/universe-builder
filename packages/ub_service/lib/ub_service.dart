@@ -8,3 +8,4 @@ export 'src/postgres_endpoint.dart';
 export 'src/rule_checks.dart';
 export 'src/instance_initialization.dart';
 export 'src/operation_lowering.dart';
+export 'src/event_compilation.dart';

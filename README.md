@@ -226,6 +226,12 @@ an explicit revision. Submitted uncertainty and evidence remain intact, and even
 or initialization provenance cannot be manufactured through a named attribute.
 This preparation does not admit changes; full operation compilation and reviewed
 publication remain pending.
+Event compilation now freezes derived assertions into the exact changes for
+review. Revisions and withdrawals replace or remove their effects and recompute
+affected intervals; unchanged effects retain their versions. Generated assertions
+cannot be edited directly or overwrite an existing record. A surviving instance
+initialization prevents removal of its occurred start. This preparation does not
+publish changes or grant approval rights.
 Typed events preserve occurrence modes, authored participants and ordered effects.
 Action consequences validate exact decimal bounds, slot uniqueness and lifetimes;
 an absent historical contract remains distinct from an explicitly empty contract,
