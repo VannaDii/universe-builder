@@ -28,3 +28,9 @@ external Pointer<Void> nativeAcquireLock(
   assetId: _asset,
 )
 external void nativeReleaseLock(Pointer<Void> handle);
+
+@Native<Int32 Function(Pointer<Char>, Pointer<Char>)>(
+  symbol: 'ub_sync_private',
+  assetId: _asset,
+)
+external int nativeSyncPrivate(Pointer<Char> path, Pointer<Char> directory);

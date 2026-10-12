@@ -63,6 +63,22 @@ void protectedFile(String path, {bool create = false, bool createNew = false}) {
   );
 }
 
+/// Flush the private file and its containing directory after database close.
+void syncPrivateFileAndDirectory(String path) {
+  _pathCheck(path);
+  final directory = privateDirectory(File(path).parent.path);
+  using(
+    (arena) => _checkError(
+      nativeSyncPrivate(
+        path.toNativeUtf8(allocator: arena).cast(),
+        directory.toNativeUtf8(allocator: arena).cast(),
+      ),
+      'Private file/directory synchronization failed',
+      path,
+    ),
+  );
+}
+
 /// Descriptor-owned flock, compatible with the original POSIX runtime and
 /// exclusive across both processes and isolates. No PID file grants ownership.
 final class OwnedFileLock implements Finalizable {

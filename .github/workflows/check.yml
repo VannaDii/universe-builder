@@ -10,7 +10,7 @@ jobs:
           sdk: '3.13.4'
       - run: dart pub get --enforce-lockfile
       - run: dart run tool/embed_schema.dart
-      - run: git diff --exit-code -- packages/ub_store/lib/src/schema.g.dart
+      - run: git diff --exit-code -- packages/ub_store/lib/src/schema.g.dart packages/ub_store/lib/src/credential_schema.g.dart
       - run: dart format --output=none --set-exit-if-changed packages tool
       - run: dart analyze packages tool
       - run: dart test

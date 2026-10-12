@@ -316,6 +316,16 @@ Driver integration/connection verification, setup orchestration and backend
 startup remain pending; these components do not make PostgreSQL available in the
 Dart engine yet. Native ownership remains qualified on macOS; the other platform
 ports still need their required checks.
+`ub_store/profile_credentials.dart` now ports the existing create-only
+`profiles/{profile}.sqlite` credential format. Exact UTF-8 secrets remain in
+separate private installation files, with file and directory synchronization
+after the committed database closes. Reads require one matching profile row,
+strict UTF-8 and private ownership; missing files never synthesize a credential.
+Replacement writes, unsafe links and permissive paths are refused with redacted
+errors. The normative credential DDL is embedded by the existing schema build
+tool. This is credential persistence only: installation profile enrollment,
+hash authentication, revocation and grant enforcement remain pending. These
+files are separate from encrypted PostgreSQL settings and universe canon.
 Ordinary writer types now preserve JSON scalar fact values, named objects and
 explicit unit amounts, fact lifetimes, object/definition deltas, claims and
 historical corrections/endings/withdrawals. Research requests for exact object

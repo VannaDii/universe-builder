@@ -14,6 +14,9 @@ UB_EXPORT void *ub_lock_acquire(const char *path, int32_t *error) {
   (void)path; *error = 50; return NULL;
 }
 UB_EXPORT void ub_lock_release(void *handle) { (void)handle; }
+UB_EXPORT int32_t ub_sync_private(const char *path, const char *directory) {
+  (void)path; (void)directory; return 50;
+}
 #else
 #include <fcntl.h>
 #include <sys/file.h>
@@ -59,6 +62,23 @@ UB_EXPORT int32_t ub_protected_file(const char *path, int32_t create) {
 }
 
 struct owned_lock { int fd; };
+
+UB_EXPORT int32_t ub_sync_private(const char *path, const char *directory) {
+  int error = 0;
+  int file = protected_open(path, 0, &error);
+  if (file < 0) return error;
+  if (fsync(file) != 0) error = errno;
+  close(file);
+  if (error != 0) return error;
+  int dir = open(directory, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+  if (dir < 0) return errno;
+  struct stat info;
+  if (fstat(dir, &info) != 0) error = errno;
+  else if (info.st_uid != geteuid() || (info.st_mode & 0077) != 0) error = EACCES;
+  else if (fsync(dir) != 0) error = errno;
+  close(dir);
+  return error;
+}
 
 UB_EXPORT void *ub_lock_acquire(const char *path, int32_t *error) {
   *error = 0;
