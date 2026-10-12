@@ -57,6 +57,15 @@ final class SqliteValidationWorkflow {
       throw const NotFoundOrNotAccessibleError(message: 'resource');
     }
     final proposal = StoredProposal.fromWire(value);
+    _admitProposal(proposal, reference, current);
+    return proposal;
+  }
+
+  void _admitProposal(
+    StoredProposal proposal,
+    ProposalRef reference,
+    CurrentUniverseAuthority current,
+  ) {
     if (proposal.proposal.baseFrame.universe != universe) {
       throw const NotFoundOrNotAccessibleError(message: 'resource');
     }
@@ -97,7 +106,6 @@ final class SqliteValidationWorkflow {
     } on Object {
       throw const NotFoundOrNotAccessibleError(message: 'resource');
     }
-    return proposal;
   }
 
   Future<ValidationCapture> _capture(
@@ -135,6 +143,147 @@ final class SqliteValidationWorkflow {
       readVersion: _version,
     ),
   );
+
+  /// The dispatcher resolves context and world focus under current read access.
+  /// Compilation/preview is outside the workflow transaction, which the kernel
+  /// owns; proposal history, reservation and request receipts append together.
+  Future<Proposal> propose(
+    WorkflowRequest request, {
+    required Frame resolvedFrame,
+    required WorldId? worldFocus,
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+    final (
+      String idempotencyKey,
+      UniverseId? requestedUniverse,
+      ProposalRef? reference,
+      bool compile,
+    ) = switch (request) {
+      CreateProposalRequest() => (
+        request.idempotencyKey,
+        request.universeId,
+        null,
+        true,
+      ),
+      ReviseProposalRequest() => (
+        request.idempotencyKey,
+        request.universeId,
+        request.proposalReference,
+        true,
+      ),
+      SubmitProposalRequest() => (
+        request.idempotencyKey,
+        request.universeId,
+        request.proposalReference,
+        false,
+      ),
+      WithdrawProposalRequest() => (
+        request.idempotencyKey,
+        request.universeId,
+        request.proposalReference,
+        false,
+      ),
+      _ => throw ArgumentError.value(
+        request,
+        'request',
+        'Expected proposal state action',
+      ),
+    };
+    if (resolvedFrame.universe != universe ||
+        requestedUniverse != null && requestedUniverse != universe) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    if (resolvedFrame.time is! TimelessFrameTime) {
+      throw const UnsupportedSemanticsError(
+        message:
+            'create or revise proposals from an all-validities author frame',
+      );
+    }
+    final key = operationRequestKey(principal.id, 'propose', idempotencyKey);
+    final digest = canonicalDigest(request.toArgs());
+    if (_workflow.get(key) != null) {
+      final op = await loadStoredOperation(
+        key: key,
+        principal: principal.id,
+        worldScope: current.worldScope,
+        readWorkflow: _workflow.get,
+        readReceipt: _journal.receipt,
+        isValidationActive: isValidationActive,
+      );
+      if (op.digest != digest) {
+        throw const IdempotencyKeyReusedError(message: 'request differs');
+      }
+      final saved = op.status.proposal;
+      if (saved == null) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      return saved;
+    }
+    final previous = reference == null ? null : _proposal(reference, current);
+    if (previous != null &&
+        _workflow.latestKey('proposal:${reference!.proposalId.value}:') !=
+            previous.key) {
+      throw const ApprovalStaleError();
+    }
+    final base = _canon(resolvedFrame.continuity, resolvedFrame.revision);
+    final prepared = prepareProposal(
+      request: request,
+      frame: resolvedFrame,
+      base: base,
+      principal: principal.id,
+      author: principal.author,
+      worldFocus: worldFocus,
+      previous: previous,
+    );
+    _admitProposal(prepared, prepared.reference, current);
+    final kernel = SqliteKernel(package.database, universe);
+    if (compile) {
+      await checkProposalReservations(
+        stored: prepared,
+        readWorkflow: _workflow.get,
+        identityExists: kernel.identityExists,
+        readVersion: _version,
+      );
+      final input = await proposalCommitInput(
+        stored: prepared,
+        universe: universe,
+        principal: principal.id,
+        idempotencyKey: 'proposal-preview',
+        readCanon: _canon,
+      );
+      kernel.preview(input);
+    }
+    final p = prepared.proposal;
+    final op = StoredOperation(
+      owner: principal.id,
+      digest: digest,
+      input: null,
+      footprint: prepared.footprint,
+      status: OperationStatus(
+        operationId: p.operationId,
+        kind: OperationKind.propose,
+        state: OperationState.succeeded,
+        proposal: p,
+        cancellationRequested: false,
+      ),
+    );
+    final entries = [
+      MapEntry(prepared.key, prepared.toWire()),
+      MapEntry(key, op.toWire()),
+      MapEntry('operation:${p.operationId.value}', op.toWire()),
+      ...await proposalReservationEntries(
+        stored: prepared,
+        readWorkflow: _workflow.get,
+      ),
+    ];
+    final comparisons = <String, String?>{};
+    if (previous != null) {
+      comparisons['proposal:${previous.proposal.proposalId.value}:'] =
+          previous.key;
+    }
+    _workflow.compareAppend(comparisons, entries);
+    return p;
+  });
 
   Future<ValidationCapture> capture(ProposalRef reference) =>
       authority.withUniverseAuthority(

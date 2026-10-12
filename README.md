@@ -506,6 +506,15 @@ operation and publishing canon with expected workflow comparisons and a durable
 receipt. Same-key retries recover that receipt after reopen; changed evidence
 and cancelled operations cannot publish. Human transport/UI and engine dispatch
 wiring remain pending.
+The native proposal route now creates, revises, submits and withdraws immutable
+proposal versions under current authority. Creation/revision checks record
+reservations and structural kernel preview before admission; failed preview
+retains no proposal receipt or reservation. Proposal history, operation/request
+receipts and new reservations append atomically. Latest-version checks reject
+stale transitions; exact retries preserve their original result after newer
+versions or reopen. The native functional journey now covers creation through
+submission, isolated validation, author approval and receipt-backed publication.
+Context/world resolution and public engine dispatch remain caller-owned work.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

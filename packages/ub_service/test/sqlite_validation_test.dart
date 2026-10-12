@@ -169,6 +169,168 @@ void main() {
     idempotencyKey: 'queued-check',
   );
 
+  CreateProposalRequest creation({
+    String key = 'native-create',
+    int record = 20,
+  }) => CreateProposalRequest(
+    universe: const Selector('World'),
+    universeId: f.u,
+    contextId: proposals.contextId,
+    operations: [
+      CreateEntityOperation(clientRef: f.id(record).value, record: f.entity()),
+    ],
+    submission: Submission.draft,
+    rationale: 'Native authoring',
+    idempotencyKey: key,
+  );
+  ProposalRef reference(Proposal p) => ProposalRef(
+    proposalId: p.proposalId,
+    version: p.version,
+    digest: p.digest,
+  );
+  Future<Proposal> propose(WorkflowRequest request) => service.propose(
+    request,
+    resolvedFrame: proposal.proposal.baseFrame,
+    worldFocus: null,
+    isValidationActive: (_) => false,
+  );
+
+  test(
+    'native proposal history, reservations and retries survive owned reopen',
+    () async {
+      final first = await propose(creation());
+      final workflow = WorkflowStorage(package.database);
+      final original = workflow.get(proposalKey(reference(first)))!.toText();
+      expect(first.version, BigInt.one);
+      expect(
+        (await propose(creation())).toWire().toText(),
+        first.toWire().toText(),
+      );
+      expect(workflow.get(proposalReservationKey(f.id(20))), isNotNull);
+      final revised = await propose(
+        ReviseProposalRequest(
+          universe: const Selector('World'),
+          contextId: proposals.contextId,
+          proposalReference: reference(first),
+          operations: first.operations,
+          submission: Submission.draft,
+          rationale: 'Revised native draft',
+          idempotencyKey: 'native-revise',
+        ),
+      );
+      expect(revised.version, BigInt.two);
+      final submit = SubmitProposalRequest(
+        universe: const Selector('World'),
+        contextId: proposals.contextId,
+        proposalReference: reference(revised),
+        idempotencyKey: 'native-submit',
+      );
+      final submitted = await propose(submit);
+      expect(submitted.submission, Submission.submitted);
+      final withdrawn = await propose(
+        WithdrawProposalRequest(
+          universe: const Selector('World'),
+          contextId: proposals.contextId,
+          proposalReference: reference(submitted),
+          idempotencyKey: 'native-withdraw',
+        ),
+      );
+      expect(withdrawn.withdrawn, isTrue);
+      expect(withdrawn.version, BigInt.from(4));
+      expect(workflow.get(proposalKey(reference(first)))!.toText(), original);
+      expect(kernel.identityExists(f.id(20)), isFalse);
+      package.close();
+      package = OwnedSqliteDatabase.openExisting(
+        '${directory.path}/packages/world.sqlite',
+      );
+      package.recover();
+      kernel = SqliteKernel(package.database, f.u);
+      service = SqliteValidationWorkflow(
+        package: package,
+        authority: authority,
+        principal: writer,
+      );
+      expect(
+        (await propose(submit)).toWire().toText(),
+        submitted.toWire().toText(),
+      );
+      expect(
+        (await propose(creation())).toWire().toText(),
+        first.toWire().toText(),
+      );
+      expect(
+        WorkflowStorage(package.database)
+            .latestKey('proposal:${first.proposalId.value}:'),
+        proposalKey(reference(withdrawn)),
+      );
+    },
+  );
+
+  test('native proposal admission rejects conflicting reservations and changed request keys', () async {
+    final first = await propose(creation());
+    await expectLater(
+      propose(creation(key: 'other-create')),
+      throwsA(isA<InvalidArgumentError>()),
+    );
+    await expectLater(
+      propose(creation(record: 21)),
+      throwsA(isA<IdempotencyKeyReusedError>()),
+    );
+    final submitted = await propose(
+      SubmitProposalRequest(
+        universe: const Selector('World'),
+        contextId: proposals.contextId,
+        proposalReference: reference(first),
+        idempotencyKey: 'submit-new',
+      ),
+    );
+    await expectLater(
+      propose(
+        WithdrawProposalRequest(
+          universe: const Selector('World'),
+          contextId: proposals.contextId,
+          proposalReference: reference(first),
+          idempotencyKey: 'withdraw-old',
+        ),
+      ),
+      stale,
+    );
+    final workflow = WorkflowStorage(package.database);
+    expect(
+      workflow.latestKey('proposal:${first.proposalId.value}:'),
+      proposalKey(reference(submitted)),
+    );
+    expect(workflow.keys('request:${writer.id.value}:propose:').length, 2);
+    expect(workflow.get(proposalReservationKey(f.id(21))), isNull);
+    expect(kernel.identityExists(f.id(20)), isFalse);
+  });
+
+  test(
+    'failed native preview retains no proposal receipt or reservation',
+    () async {
+      final request = CreateProposalRequest(
+        universe: const Selector('World'),
+        contextId: proposals.contextId,
+        operations: [
+          CreateEntityOperation(
+            clientRef: f.id(20).value,
+            record: f.entity(classification: f.id(999)),
+          ),
+        ],
+        submission: Submission.draft,
+        rationale: 'Invalid missing classification',
+        idempotencyKey: 'invalid-preview',
+      );
+      await expectLater(propose(request), throwsA(isA<FormatException>()));
+      final workflow = WorkflowStorage(package.database);
+      expect(workflow.keys('request:${writer.id.value}:propose:'), isEmpty);
+      expect(workflow.keys('reserved-record:'), isEmpty);
+      expect(workflow.keys('proposal:').length, 1);
+      expect(kernel.identityExists(f.id(20)), isFalse);
+      expect(package.database.autocommit, isTrue);
+    },
+  );
+
   test('preparation freezes the actual preview and retains running without publishing', () async {
     final head = kernel.journal.head(continuity);
     final queuedStatus = await service.queueValidation(
@@ -1134,6 +1296,51 @@ void main() {
     validationRun: checked.validation.runId,
     idempotencyKey: key,
   );
+
+  test('native authoring journey submits checks approves and publishes without seeded proposals', () async {
+    final draft = await propose(creation());
+    final submitted = await propose(
+      SubmitProposalRequest(
+        universe: const Selector('World'),
+        contextId: proposals.contextId,
+        proposalReference: reference(draft),
+        idempotencyKey: 'journey-submit',
+      ),
+    );
+    proposal = StoredProposal.fromWire(
+      WorkflowStorage(package.database).get(proposalKey(reference(submitted)))!,
+    );
+    final scheduler = NativeValidationScheduler();
+    bool active(OperationId id) => scheduler.isActive(f.u, id);
+    final queuedStatus = await service.queueValidation(
+      queued(),
+      resolvedFrame: submitted.baseFrame,
+      isValidationActive: active,
+    );
+    await scheduler.schedule(service, queuedStatus.operationId);
+    final status = await service.operationStatus(
+      queuedStatus.operationId,
+      isValidationActive: active,
+    );
+    expect(status.state, OperationState.succeeded);
+    final report = status.validation as EvaluatedValidation;
+    expect(report.finalBindingDigest, isNotNull);
+    final completed = CheckedValidation.fromWire(
+      WorkflowStorage(package.database)
+          .get('validation:${report.execution.runId.value}')!,
+    );
+    await authorService().approve(
+      proposal.reference,
+      completed.validation.runId,
+    );
+    final receipt = await service.commit(
+      publication(completed),
+      isValidationActive: active,
+    );
+    expect(kernel.identityExists(f.id(20)), isTrue);
+    expect(kernel.journal.head(continuity), receipt.revision);
+    await scheduler.close();
+  });
 
   test('reviewed publication commits canon once and recovers the exact receipt across reopen', () async {
     final completed = await completedSubmitted();
