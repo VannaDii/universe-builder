@@ -42,7 +42,7 @@ dart test
 dart test test/compiler_test.dart --platform chrome
 cd ../ub_contracts
 dart test
-dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart test/read_response_test.dart test/state_response_test.dart test/workflow_request_test.dart test/writing_test.dart test/writing_knowledge_test.dart test/writing_delta_test.dart --platform chrome
+dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart test/read_response_test.dart test/state_response_test.dart test/response_test.dart test/workflow_request_test.dart test/writing_test.dart test/writing_knowledge_test.dart test/writing_delta_test.dart --platform chrome
 ```
 
 Browser tests must run from the package directory. Set `CHROME_EXECUTABLE` if
@@ -208,6 +208,15 @@ decoding never advances time or selects a candidate as fact. Initialization
 receipts are shared domain DTOs used by both the store and response contracts,
 preserving admission and source revisions independently. State evaluation remains
 pending; these types only carry its eventual results.
+Typed response dispatch now covers all 16 public tools and exposes both the IPC
+wrapper and the envelope body used by MCP. It preserves the historical `ReadFacts`
+IPC tag while accepting `universe_read_facts` for public tool/body dispatch.
+Proposal outcomes and review views preserve their untagged semantic/assessment
+variants; assessment selection does not modify or authorize the frozen proposal.
+Response decoding bounds frames and rejects invalid UTF-8, duplicate keys and
+unknown wrapper fields. Generic research JSON retains exact numeric tokens too.
+Owning Rust fixtures cover all tool variants and both assessment alternatives.
+IPC messages/handshakes and service transport execution still need their ports.
 Ordinary writer types now preserve JSON scalar fact values, named objects and
 explicit unit amounts, fact lifetimes, object/definition deltas, claims and
 historical corrections/endings/withdrawals. Research requests for exact object
@@ -239,7 +248,7 @@ do not imply approval. Omitted correction collections retain authored values;
 explicit empty collections remain replacements. Exact numeric JSON and immutable
 participant collections work on VM and web. Historical Rust serialization fixtures
 cover the remaining writing families and a fully populated delta. These are input
-contracts; remaining response contracts, attachment admission,
+contracts; attachment admission,
 evaluator execution and exact approval enforcement still need their ports. Byte verification remains
 distinct from factual support; it does not establish truth or authenticate an
 assessor.

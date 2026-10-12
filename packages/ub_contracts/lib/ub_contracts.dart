@@ -12,3 +12,4 @@ export 'src/request.dart';
 export 'src/read_response.dart';
 export 'src/envelope.dart';
 export 'src/state_response.dart';
+export 'src/response.dart';
