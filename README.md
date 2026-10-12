@@ -251,10 +251,22 @@ metadata bodies. Writes retain the universe lock through awaited verification;
 the caller retains installation authority and owns final commit/rollback. Focused
 checks cover retained draft/approval evidence, exact counters, complete batch
 rollback, content/digest corruption refusal, family constraints and matching keys
-in independent namespaces. Installation authority, complete publication/projection
-coordination, service parity, transfer and verified TLS remain pending.
+in independent namespaces. The internal PostgreSQL control schema and authority
+primitives now retain installation identity/normalization, profile hashes,
+revocation, typed ordered grants, exact unsigned expiry, administration audit,
+permission-filtered catalog reads and historical rename aliases. Catalog entries
+use validated universe namespace locators without filesystem device/inode fields.
+All authority reads and changes acquire the installation singleton row before
+universe locks, preserving the existing serialized authority section across
+database connections, including absent-grant insertion and withdrawal. Focused
+checks cover reconnect, scope/expiry/delegation bounds, relevant authority sequence,
+audit-failure rollback and lock conflicts for grant/revocation/author changes.
+Control-schema discovery/opening, import previews/purge coordination, complete
+publication/projection coordination, service integration, transfer and verified
+TLS remain pending; runtime PostgreSQL selection is still explicitly unavailable.
 Run `test/postgres_foundation_test.dart`, `test/postgres_relational_test.dart`,
-`test/postgres_journal_test.dart` and `test/postgres_workflow_test.dart` from
+`test/postgres_journal_test.dart`, `test/postgres_workflow_test.dart` and
+`test/postgres_authority_test.dart` from
 `packages/ub_store` with
 `UB_TEST_POSTGRES_PORT` set to a disposable loopback `ub_disposable` database. Without
 that selection the live database cases are explicitly skipped. This check uses
