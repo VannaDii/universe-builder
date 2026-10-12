@@ -14,6 +14,7 @@ import 'package:ub_service/sqlite_validation.dart';
 import 'package:ub_service/validation_binding.dart';
 import 'package:ub_service/validation_scheduler.dart';
 import 'package:ub_service/context_binding.dart';
+import 'package:ub_service/instance_initialization.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_store/sqlite.dart';
@@ -26,6 +27,7 @@ import 'rule_checks_test.dart' as frames;
 import 'structural_checks_test.dart' as structure;
 import 'assessment_validation_test.dart' as assessments;
 import 'source_verification_test.dart' as sources;
+import 'instance_initialization_test.dart' as initialization;
 import '../../ub_contracts/test/assessment_integrity_test.dart' as accounting;
 
 void main() {
@@ -345,6 +347,137 @@ void main() {
     cursor: cursor,
   );
 
+  test('native state reads retain exact initialization history only at the pinned revision', () async {
+    final rows = [
+      ...initialization.fixture(),
+      f.row(
+        6,
+        CalendarRecord(
+          namespace: 'test',
+          key: 'clock',
+          labels: {},
+          unitStructure: {},
+        ),
+      ),
+    ];
+    kernel.commit(input('state-initial-base', rows));
+    OpenContextRequest request() => contextRequest(
+      represented: ContextIdSelector(f.id(5)),
+      time: AtFrameTime(ExactTime(initialization.calendar, '10')),
+    );
+    final before = await service.openContext(request());
+    final changes = <Assignment>[];
+    compileInitializations(
+      universe: f.u,
+      revision: before.frame.revision,
+      base: canon(continuity, before.frame.revision),
+      operations: [initialization.operation()],
+      changes: changes,
+    );
+    kernel.commit(
+      CommitInput(
+        universe: f.u,
+        continuity: continuity,
+        expectedHead: before.frame.revision,
+        principal: PrincipalId.parse(
+          author.id.value.replaceFirst('prf_', 'prn_'),
+        ),
+        decision: 'Already admitted initialization fixture',
+        reason: 'Functional fixture',
+        idempotencyKey: 'state-init',
+        changes: changes,
+      ),
+    );
+    final after = await service.openContext(request());
+    GetStateRequest state(ContextId context) => GetStateRequest(
+      universe: const Selector('World'),
+      contextId: context,
+      entityIds: [f.id(3)],
+      predicateFilters: [f.id(4)],
+    );
+    final old = await service.getStateRequest(state(before.contextId));
+    expect(old.state.objects.single.initializationReceipts, isEmpty);
+    final current = await service.getStateRequest(state(after.contextId));
+    final receipt = current.state.objects.single.initializationReceipts.single;
+    expect(receipt.sourceRevision, before.frame.revision);
+    expect(
+      current.state.objects.single.initializationHistoryCoverage,
+      Coverage.complete,
+    );
+    expect(current.frame.revision, after.frame.revision);
+    final entry = await service.getStateRequest(
+      GetStateRequest(
+        universe: const Selector('World'),
+        contextId: after.contextId,
+        entityIds: [f.id(3)],
+        predicateFilters: [f.id(4)],
+        event: f.id(9),
+        eventSide: EventTimeSide.before,
+      ),
+    );
+    final exit = await service.getStateRequest(
+      GetStateRequest(
+        universe: const Selector('World'),
+        contextId: after.contextId,
+        entityIds: [f.id(3)],
+        predicateFilters: [f.id(4)],
+        event: f.id(9),
+        eventSide: EventTimeSide.after,
+      ),
+    );
+    expect(entry.state.assertions, isEmpty);
+    expect(exit.state.assertions.length, 1);
+    expect(exit.frame.time, isA<AtEventFrameTime>());
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    service = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: writer,
+    );
+    final reopened = await service.getStateRequest(state(after.contextId));
+    expect(
+      reopened.state.objects.single.initializationReceipts.single
+          .toWire()
+          .toText(),
+      receipt.toWire().toText(),
+    );
+  });
+
+  test(
+    'native state read denies expired contexts and unavailable entities',
+    () async {
+      await retainedContext(expires: BigInt.zero);
+      await expectLater(
+        service.getStateRequest(
+          GetStateRequest(
+            universe: const Selector('World'),
+            contextId: proposals.contextId,
+            entityIds: [f.id(20)],
+            predicateFilters: [],
+          ),
+        ),
+        throwsA(isA<ContextExpiredError>()),
+      );
+      final opened = await service.openContext(contextRequest());
+      await expectLater(
+        service.getStateRequest(
+          GetStateRequest(
+            universe: const Selector('World'),
+            contextId: opened.contextId,
+            entityIds: [f.id(20)],
+            predicateFilters: [],
+          ),
+        ),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+    },
+  );
+
   test('native search pins indexed results and pages across restart with exact cursor admission', () async {
     final rows = [
       f.row(20, permissions.entity(labels: {'en': 'Alpha Québec'})),
@@ -562,6 +695,30 @@ void main() {
     expect(scopeRead.summaries.single.label, 'Visible');
     expect(scopeRead.historyCoverage, Coverage.restricted);
     expect(scopeRead.history, isEmpty);
+    final scopedState = await service.getStateRequest(
+      GetStateRequest(
+        universe: const Selector('World'),
+        contextId: scoped.contextId,
+        entityIds: [f.id(20)],
+        predicateFilters: [],
+      ),
+    );
+    expect(
+      scopedState.state.objects.single.initializationHistoryCoverage,
+      Coverage.restricted,
+    );
+    expect(scopedState.state.objects.single.initializationReceipts, isEmpty);
+    await expectLater(
+      service.getStateRequest(
+        GetStateRequest(
+          universe: const Selector('World'),
+          contextId: scoped.contextId,
+          entityIds: [f.id(21)],
+          predicateFilters: [],
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
     final scopedSearch = await service.searchRequest(
       searchRecords(scoped.contextId, kinds: [RecordKind.entity]),
     );

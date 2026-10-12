@@ -19,6 +19,7 @@ export 'src/resource_checks.dart';
 export 'src/effective_objects.dart';
 export 'src/record_reading.dart';
 export 'src/record_search.dart';
+export 'src/state_reading.dart';
 export 'src/context_brief.dart';
 export 'src/read_cursor.dart';
 export 'src/knowledge_boundaries.dart';

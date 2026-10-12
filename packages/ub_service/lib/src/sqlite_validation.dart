@@ -21,6 +21,7 @@ import 'record_reading.dart';
 import 'record_search.dart';
 import 'read_cursor.dart';
 import 'source_verification.dart';
+import 'state_reading.dart';
 import 'validation_binding.dart';
 import 'validation_task.dart';
 
@@ -506,6 +507,51 @@ final class SqliteValidationWorkflow {
       results: SearchResults(hits: hits.sublist(offset, end)),
       delivery: Delivery(complete: complete, cursor: cursor),
     );
+  });
+
+  Future<({State state, Frame frame})> getStateRequest(
+    GetStateRequest request,
+  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    if (request.universeId != null && request.universeId != universe) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final retained = _contextFrame(request.contextId, current);
+    final snapshot = await _readSnapshot(
+      frame: retained,
+      world: request.world,
+      guard: request.worldId,
+      current: current,
+    );
+    for (final id in request.entityIds) {
+      if (!snapshot.accessible.any((row) => row.identity.recordId == id)) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+    }
+    final frame = stateReadFrame(
+      retained,
+      snapshot.accessible,
+      request.event,
+      request.eventSide,
+    );
+    final restricted =
+        current.worldScope != null || frame.perspective is! AuthorPerspective;
+    final receipts = restricted
+        ? <InitializationReceipt>[]
+        : SqliteKernel(
+            package.database,
+            universe,
+          ).initializationReceiptsAt(frame.continuity, frame.revision);
+    final state = assembleReadState(
+      records: snapshot.accessible,
+      frame: frame,
+      ids: request.entityIds,
+      predicates: request.predicateFilters,
+      world: snapshot.focus,
+      restricted: restricted,
+      receipts: receipts,
+      readVersion: _version,
+    );
+    return (state: state, frame: frame);
   });
 
   /// Native dispatch entry: admit the retained context and resolve named world

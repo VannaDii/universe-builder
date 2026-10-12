@@ -568,6 +568,15 @@ knowledge without inferring facts or disclosing unavailable dependencies.
 Search pages use exact bound cursors and survive package restart; later canon
 and hidden records do not enter a pinned result. Invalid limits and queries
 exceeding the existing 1 KiB search bound fail explicitly.
+Native state retrieval now selects explicit propositions, assertions,
+completeness and epistemic evidence at the retained frame, with predicate and
+named-world filters. Unknown validity remains visible and overall state coverage
+remains partial. Visible occurred events support distinct before/after reads;
+plans and inaccessible events cannot supply an event frame. Effective objects
+and explicit possession powers use the shared evaluator without persisting
+derived facts. Unrestricted author-perspective reads include exact initialization
+receipts from the pinned revision and fork ancestry, including after restart;
+scoped and fictional-perspective reads disclose restricted history coverage.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

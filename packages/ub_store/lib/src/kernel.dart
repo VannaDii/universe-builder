@@ -39,6 +39,11 @@ final class SqliteKernel {
     String query,
   ) => ProjectionRecovery(journal).search(continuity, revision, query);
 
+  List<InitializationReceipt> initializationReceiptsAt(
+    ContinuityId continuity,
+    RevisionId revision,
+  ) => InitializationEvidence(journal).readAt(continuity, revision);
+
   RevisionId commit(
     CommitInput input, {
     Map<String, String?> expectedWorkflow = const {},
