@@ -259,6 +259,16 @@ final class InstallationAuthority {
     return _store.importConflicts(actor: actor.id, id: id, name: name);
   }
 
+  void beginPurge(InstallationPrincipal actor, UniverseId universe) {
+    requireAuthor(actor);
+    _store.beginPurge(actor: actor.id, universe: universe);
+  }
+
+  void finishPurges(InstallationPrincipal actor) {
+    requireAuthor(actor);
+    _store.finishPurges(actor: actor.id);
+  }
+
   UniverseId registerOpenedUniverse(
     InstallationPrincipal actor, {
     required String name,

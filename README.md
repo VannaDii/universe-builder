@@ -860,8 +860,14 @@ grant. Base write checks enforce proposal/edit, protected and world permissions;
 withdrawal, expiry and revocation invalidate cached principals. Authority
 sequences distinguish withdrawal and identical regrant. Exact proposal footprint,
 approval and delegated-publication checks remain pending, as do
-transport handshake integration, pending-purge recovery and existing-installation
-cutover remain pending; these profile components do not start the Dart engine.
+transport handshake integration and existing-installation cutover; these profile
+components do not start the Dart engine. The native Dart runtime now provides
+author-only whole-package purge preview and execution. Purge checks the current
+impact digest and exact `PURGE <current catalog name>` confirmation, retires
+validation jobs and atomically removes catalog access, aliases and grants before
+deleting the owned package files. Startup resumes durable pending deletion and
+refuses a changed file identity. Installation identities and audit history remain;
+external backups and exports are untouched, and forensic erasure is not promised.
 Ordinary writer types now preserve JSON scalar fact values, named objects and
 explicit unit amounts, fact lifetimes, object/definition deltas, claims and
 historical corrections/endings/withdrawals. Research requests for exact object

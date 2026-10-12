@@ -54,6 +54,13 @@ final class NativeSqliteRuntime {
           () => _restore(principal, request),
         );
       }
+      if (request is PreviewPurgeEngineRequest ||
+          request is PurgeEngineRequest) {
+        return await authority.coordinate(
+          principal,
+          () => _purge(principal, request),
+        );
+      }
       if (request
           case StatusEngineRequest() ||
               ProfilesEngineRequest() ||
@@ -298,6 +305,37 @@ final class NativeSqliteRuntime {
     } finally {
       staged.close();
     }
+  }
+
+  CanonicalObject _purge(
+    InstallationPrincipal principal,
+    EngineRequest request,
+  ) {
+    authority.requireAuthor(principal);
+    final selector = switch (request) {
+      PreviewPurgeEngineRequest(:final universe) => universe,
+      PurgeEngineRequest(:final universe) => universe,
+      _ => throw StateError('Expected a purge request'),
+    };
+    final catalog = authority.resolveUniverseAlias(principal, selector.value);
+    if (request is PurgeEngineRequest &&
+        request.confirmation != 'PURGE ${catalog.name}') {
+      throw const FormatException(
+        'type the exact purge confirmation shown in the preview',
+      );
+    }
+    final package = _openPackage(principal, selector);
+    if (request is PreviewPurgeEngineRequest) return package.purgePreview();
+    final purge = request as PurgeEngineRequest;
+    package.preparePurge(purge.digest);
+    _scheduler.cancelUniverse(catalog.universeId);
+    authority.beginPurge(principal, catalog.universeId);
+    _packages.remove(catalog.universeId)?.close();
+    authority.finishPurges(principal);
+    return CanonicalObject([
+      MapEntry('purged', CanonicalString(catalog.universeId.value)),
+      const MapEntry('external_copies_removed', CanonicalBool(false)),
+    ]);
   }
 
   CanonicalValue _installation(

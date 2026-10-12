@@ -1175,6 +1175,282 @@ void main() {
     EngineRequest request,
   ) => connection.execute(EngineRequest.decode(request.toWire().toBytes()));
 
+  Future<WireFields> purgePreview(NativeSqliteConnection connection) async =>
+      WireFields(
+        await engine(
+          connection,
+          const PreviewPurgeEngineRequest(universe: Selector('World')),
+        ),
+        {'digest', 'impact'},
+      );
+
+  test('native purge preview binds exact retained impact and rejects stale workflow or confirmation', () async {
+    final connection = runtime.connect(hello(author.id));
+    final preview = await purgePreview(connection);
+    final impact = WireFields(preview.require('impact'), {
+      'universe_id',
+      'heads',
+      'revisions',
+      'record_versions',
+      'workflow_entries',
+      'commit_receipts',
+      'scope',
+      'retained',
+      'erasure',
+    });
+    expect(
+      preview.string('digest'),
+      canonicalDigest(preview.require('impact')),
+    );
+    expect(impact.string('universe_id'), f.u.value);
+    expect(impact.require('revisions').toText(), '2');
+    expect(impact.require('record_versions').toText(), '1');
+    expect(impact.require('commit_receipts').toText(), '1');
+    expect(impact.array('heads'), hasLength(1));
+    expect(
+      (await purgePreview(connection)).require('impact').toText(),
+      preview.require('impact').toText(),
+    );
+    await expectLater(
+      engine(
+        connection,
+        PurgeEngineRequest(
+          universe: const Selector('World'),
+          digest: preview.string('digest'),
+          confirmation: 'PURGE world',
+        ),
+      ),
+      throwsFormatException,
+    );
+    await engine(connection, stage);
+    final changed = await purgePreview(connection);
+    expect(changed.string('digest'), isNot(preview.string('digest')));
+    await expectLater(
+      engine(
+        connection,
+        PurgeEngineRequest(
+          universe: const Selector('World'),
+          digest: preview.string('digest'),
+          confirmation: 'PURGE World',
+        ),
+      ),
+      throwsFormatException,
+    );
+    expect(File(path).existsSync(), isTrue);
+    expect(authority.catalog(author), hasLength(1));
+    expect(
+      installation.audit(author.id).where((entry) => entry.action == 'purge'),
+      isEmpty,
+    );
+  });
+
+  test('native purge rolls back installation retirement when its audit write fails', () async {
+    final connection = runtime.connect(hello(author.id));
+    authority.grant(
+      author,
+      GrantSpec(
+        profileId: writer.id,
+        universeId: f.u,
+        worlds: null,
+        propose: true,
+        edit: true,
+        protected: true,
+      ),
+    );
+    final preview = await purgePreview(connection);
+    final db = sqlite3.open(
+      '${root.path}/installation.sqlite',
+      mode: OpenMode.readWrite,
+    );
+    try {
+      db.execute(
+        "CREATE TRIGGER reject_purge BEFORE INSERT ON audit WHEN NEW.action='purge' BEGIN SELECT RAISE(ABORT, 'Disposable purge failure'); END",
+      );
+    } finally {
+      db.close();
+    }
+    final request = PurgeEngineRequest(
+      universe: const Selector('World'),
+      digest: preview.string('digest'),
+      confirmation: 'PURGE World',
+    );
+    await expectLater(
+      engine(connection, request),
+      throwsA(isA<InstallationException>()),
+    );
+    expect(authority.catalog(author), hasLength(1));
+    expect(authority.grants(author), hasLength(1));
+    expect(File(path).existsSync(), isTrue);
+    await engine(
+      connection,
+      const LibraryEngineRequest(universe: Selector('World')),
+    );
+    final repaired = sqlite3.open(
+      '${root.path}/installation.sqlite',
+      mode: OpenMode.readWrite,
+    );
+    try {
+      expect(
+        repaired.select('SELECT count(*) AS n FROM purge_pending').single['n'],
+        0,
+      );
+      repaired.execute('DROP TRIGGER reject_purge');
+    } finally {
+      repaired.close();
+    }
+    await engine(connection, request);
+    expect(authority.catalog(author), isEmpty);
+    expect(File(path).existsSync(), isFalse);
+  });
+
+  test(
+    'native purge denies fully granted writers before opening a worker',
+    () async {
+      authority.grant(
+        author,
+        GrantSpec(
+          profileId: writer.id,
+          universeId: f.u,
+          worlds: null,
+          propose: true,
+          edit: true,
+          protected: true,
+        ),
+      );
+      final blocker = OwnedSqliteDatabase.openExisting(path);
+      try {
+        final connection = runtime.connect(hello(writer.id));
+        for (final request in <EngineRequest>[
+          const PreviewPurgeEngineRequest(universe: Selector('World')),
+          const PurgeEngineRequest(
+            universe: Selector('World'),
+            digest: 'denied',
+            confirmation: 'PURGE World',
+          ),
+        ]) {
+          await expectLater(
+            engine(connection, request),
+            throwsA(isA<NotFoundOrNotAccessibleError>()),
+          );
+        }
+      } finally {
+        blocker.close();
+      }
+      expect(File(path).existsSync(), isTrue);
+      expect(authority.catalog(author), hasLength(1));
+    },
+  );
+
+  test('native confirmed purge removes all local package access while retaining external backup and installation identity', () async {
+    final connection = runtime.connect(hello(author.id));
+    authority.grant(
+      author,
+      GrantSpec(
+        profileId: writer.id,
+        universeId: f.u,
+        worlds: [WorldId.generate()],
+        propose: true,
+        edit: true,
+        protected: true,
+        limits: GrantLimits(
+          entities: [RecordId.generate()],
+          predicates: [RecordId.generate()],
+          continuities: [frames.frame().continuity],
+        ),
+      ),
+    );
+    final backup = '${root.path}/external-backup.sqlite';
+    await engine(
+      connection,
+      BackupEngineRequest(
+        universe: const Selector('World'),
+        destination: backup,
+      ),
+    );
+    final original = File(backup).readAsBytesSync();
+    await engine(
+      connection,
+      RenameUniverseEngineRequest(universeId: f.u, name: 'Campaign'),
+    );
+    final preview = await purgePreview(connection);
+    await expectLater(
+      engine(
+        connection,
+        PurgeEngineRequest(
+          universe: const Selector('World'),
+          digest: preview.string('digest'),
+          confirmation: 'PURGE World',
+        ),
+      ),
+      throwsFormatException,
+    );
+    final result = WireFields(
+      await engine(
+        connection,
+        PurgeEngineRequest(
+          universe: const Selector('World'),
+          digest: preview.string('digest'),
+          confirmation: 'PURGE Campaign',
+        ),
+      ),
+      {'purged', 'external_copies_removed'},
+    );
+    expect(result.string('purged'), f.u.value);
+    expect(result.boolean('external_copies_removed'), isFalse);
+    for (final suffix in ['', '-wal', '-shm']) {
+      expect(File('$path$suffix').existsSync(), isFalse);
+    }
+    expect(File(backup).readAsBytesSync(), orderedEquals(original));
+    expect(authority.catalog(author), isEmpty);
+    expect(authority.grants(author), isEmpty);
+    expect(installation.audit(author.id).last.action, 'purge');
+    expect(installation.audit(author.id).last.target, f.u.value);
+    for (final name in ['World', 'Campaign']) {
+      await expectLater(
+        engine(connection, LibraryEngineRequest(universe: Selector(name))),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+    }
+    final db = sqlite3.open(
+      '${root.path}/installation.sqlite',
+      mode: OpenMode.readOnly,
+    );
+    try {
+      for (final table in [
+        'catalog',
+        'aliases',
+        'grants',
+        'grant_worlds',
+        'grant_entities',
+        'grant_predicates',
+        'grant_continuities',
+        'purge_pending',
+      ]) {
+        expect(db.select('SELECT count(*) AS n FROM $table').single['n'], 0);
+      }
+      expect(db.select('SELECT count(*) AS n FROM profiles').single['n'], 2);
+    } finally {
+      db.close();
+    }
+    await runtime.close();
+    installation.close();
+    installation = SqliteInstallationStore.openExisting(root.path);
+    authority = InstallationAuthority(installation);
+    author = authority.authenticateHello(hello(author.id));
+    runtime = NativeSqliteRuntime(authority: authority);
+    expect(authority.catalog(author), isEmpty);
+    final restored = WireFields(
+      await engine(
+        runtime.connect(hello(author.id)),
+        RestoreEngineRequest(source: backup, name: 'World'),
+      ),
+      {'universe_id', 'name', 'restored'},
+    );
+    expect(restored.string('universe_id'), f.u.value);
+    expect(restored.boolean('restored'), isTrue);
+    expect(authority.catalog(author), hasLength(1));
+  });
+
   ({UniverseId id, String source, ContinuityId continuity, RevisionId revision})
   restoreSource() {
     final id = UniverseId.generate();

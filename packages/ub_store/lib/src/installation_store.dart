@@ -170,7 +170,9 @@ final class SqliteInstallationStore {
       for (final suffix in ['-wal', '-shm']) {
         if (File('$path$suffix').existsSync()) protectedFile('$path$suffix');
       }
-      return SqliteInstallationStore._(db, lock, directory, instanceId);
+      final store = SqliteInstallationStore._(db, lock, directory, instanceId);
+      store._finishPurges();
+      return store;
     } on InstallationException {
       db?.close();
       lock.close();
@@ -543,6 +545,81 @@ final class SqliteInstallationStore {
     } on Object {
       if (!_db.autocommit) _db.execute('ROLLBACK');
       throw const InstallationException(InstallationFailure.unavailable);
+    }
+  }
+
+  /// Retire installation access atomically before removing any package bytes.
+  /// The service closes its owned package before calling [finishPurges].
+  void beginPurge({required ProfileId actor, required UniverseId universe}) {
+    requireAuthor(actor);
+    _transaction(() {
+      requireAuthor(actor);
+      final registered = _db.select('SELECT id FROM catalog WHERE id=?', [
+        universe.value,
+      ]);
+      if (registered.length != 1) {
+        throw const InstallationException(InstallationFailure.denied);
+      }
+      _db.execute(
+        'INSERT INTO purge_pending SELECT id,path,device,inode FROM catalog WHERE id=?',
+        [universe.value],
+      );
+      for (final table in [
+        'grant_worlds',
+        'grant_entities',
+        'grant_predicates',
+        'grant_continuities',
+        'grants',
+        'aliases',
+        'catalog',
+      ]) {
+        final column = table == 'catalog' ? 'id' : 'universe';
+        _db.execute('DELETE FROM $table WHERE $column=?', [universe.value]);
+      }
+      _db.execute(
+        "INSERT INTO audit(actor,action,target) VALUES(?,'purge',?)",
+        [actor.value, universe.value],
+      );
+    });
+  }
+
+  void finishPurges({required ProfileId actor}) {
+    requireAuthor(actor);
+    _finishPurges();
+  }
+
+  void _finishPurges() {
+    final pending = _db.select(
+      'SELECT universe,path,device,inode FROM purge_pending',
+    );
+    for (final entry in pending) {
+      final path = entry['path'] as String;
+      ({String device, String inode})? identity;
+      try {
+        identity = fileIdentity(path);
+      } on FileSystemException catch (error) {
+        if (error.osError?.errorCode != 2) rethrow;
+      }
+      if (identity != null) {
+        if (identity.device != entry['device'] ||
+            identity.inode != entry['inode']) {
+          throw const InstallationException(InstallationFailure.unavailable);
+        }
+        File(path).deleteSync();
+      }
+      for (final suffix in ['-wal', '-shm']) {
+        try {
+          File('$path$suffix').deleteSync();
+        } on FileSystemException catch (error) {
+          if (error.osError?.errorCode != 2) rethrow;
+        }
+      }
+      syncPrivateDirectory(File(path).parent.path);
+      _transaction(() {
+        _db.execute('DELETE FROM purge_pending WHERE universe=?', [
+          entry['universe'],
+        ]);
+      });
     }
   }
 

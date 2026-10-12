@@ -4038,6 +4038,51 @@ void main() {
     },
   );
 
+  test('purge retirement stops queued preparation without retaining evidence and leaves scheduler reusable', () async {
+    final scheduler = NativeValidationScheduler();
+    final status = await service.queueValidation(
+      queued(),
+      resolvedFrame: proposal.proposal.baseFrame,
+      isValidationActive: (_) => false,
+    );
+    final done = scheduler.schedule(service, status.operationId);
+    scheduler.cancelUniverse(f.u);
+    await done;
+    expect(scheduler.isActive(f.u, status.operationId), isFalse);
+    expect(WorkflowStorage(package.database).keys('validation:'), isEmpty);
+    await scheduler.schedule(service, status.operationId);
+    expect(
+      (await service.operation(
+        status.operationId,
+        isValidationActive: (_) => false,
+      )).status.state,
+      OperationState.succeeded,
+    );
+    await scheduler.close();
+  });
+
+  test(
+    'retired validation cannot retain failure evidence after package close',
+    () async {
+      final scheduler = NativeValidationScheduler();
+      final status = await service.queueValidation(
+        queued(),
+        resolvedFrame: proposal.proposal.baseFrame,
+        isValidationActive: (_) => false,
+      );
+      final done = scheduler.schedule(service, status.operationId);
+      scheduler.cancelUniverse(f.u);
+      final path = package.path;
+      package.close();
+      await done;
+      expect(scheduler.isActive(f.u, status.operationId), isFalse);
+      package = OwnedSqliteDatabase.openExisting(path);
+      package.recover();
+      expect(WorkflowStorage(package.database).keys('validation:'), isEmpty);
+      await scheduler.close();
+    },
+  );
+
   test('scheduler cancellation during preparation never retains completed evidence', () async {
     final scheduler = NativeValidationScheduler();
     bool active(OperationId id) => scheduler.isActive(f.u, id);

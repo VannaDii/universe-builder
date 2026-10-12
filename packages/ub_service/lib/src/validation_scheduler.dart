@@ -31,7 +31,7 @@ final class NativeValidationScheduler {
     }
     final job = _ValidationJob();
     _jobs[key] = job;
-    job.done = _run(service, id, job);
+    job.done = _run(service, id, job, key.$1);
     return job.done;
   }
 
@@ -39,20 +39,21 @@ final class NativeValidationScheduler {
     SqliteValidationWorkflow service,
     OperationId id,
     _ValidationJob job,
+    UniverseId universe,
   ) async {
-    bool active(OperationId operation) => isActive(service.universe, operation);
+    bool active(OperationId operation) => isActive(universe, operation);
     try {
       try {
         final task = await service.prepareValidation(
           id,
           isValidationActive: active,
         );
-        if (task == null || _stopping) return;
+        if (task == null || _stopping || job.retired) return;
         final worker = ValidationEvaluationWorker(task);
         job.worker = worker;
         if (job.cancelled) worker.cancel();
         final checked = await worker.result;
-        if (!_stopping) {
+        if (!_stopping && !job.retired) {
           await service.finishValidation(
             id,
             checked,
@@ -60,13 +61,13 @@ final class NativeValidationScheduler {
           );
         }
       } on Object catch (error) {
-        if (!_stopping) {
+        if (!_stopping && !job.retired) {
           await service.failValidation(id, error, isValidationActive: active);
         }
       }
     } finally {
       await job.worker?.ready;
-      _jobs.remove((service.universe, id));
+      _jobs.remove((universe, id));
     }
   }
 
@@ -76,6 +77,17 @@ final class NativeValidationScheduler {
     if (job == null) return;
     job.cancelled = true;
     job.worker?.cancel();
+  }
+
+  /// Confirmed package purge retires evaluation without writing terminal rows
+  /// into a package whose installation authority is being removed.
+  void cancelUniverse(UniverseId universe) {
+    for (final entry in _jobs.entries) {
+      if (entry.key.$1 != universe) continue;
+      entry.value.retired = true;
+      entry.value.cancelled = true;
+      entry.value.worker?.cancel();
+    }
   }
 
   /// Stop evaluation without manufacturing terminal evidence during shutdown.
@@ -94,4 +106,5 @@ final class _ValidationJob {
   late Future<void> done;
   ValidationEvaluationWorker? worker;
   bool cancelled = false;
+  bool retired = false;
 }

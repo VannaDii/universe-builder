@@ -3,6 +3,7 @@ library;
 
 import 'dart:io';
 
+import 'package:sqlite3/sqlite3.dart' show sqlite3, OpenMode;
 import 'package:test/test.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/installation.dart';
@@ -75,6 +76,105 @@ void main() {
       'register',
       'rename',
     ]);
+  });
+
+  test(
+    'pending purge finishes on startup after interruption before file deletion',
+    () {
+      final fixture = package('pending');
+      store.registerExistingPackage(
+        actor: author,
+        name: 'Pending',
+        path: fixture.path,
+      );
+      store.beginPurge(actor: author, universe: fixture.id);
+      expect(store.catalog(author), isEmpty);
+      expect(File(fixture.path).existsSync(), isTrue);
+      expect(store.audit(author).last.action, 'purge');
+      store.close();
+      store = SqliteInstallationStore.openExisting(directory.path);
+      expect(File(fixture.path).existsSync(), isFalse);
+      expect(store.catalog(author), isEmpty);
+      final db = sqlite3.open(
+        '${directory.path}/installation.sqlite',
+        mode: OpenMode.readOnly,
+      );
+      try {
+        expect(
+          db.select('SELECT count(*) AS n FROM purge_pending').single['n'],
+          0,
+        );
+      } finally {
+        db.close();
+      }
+    },
+  );
+
+  test('interrupted purge retains its pending row until sidecar removal and directory sync succeed', () {
+    final fixture = package('sidecar');
+    store.registerExistingPackage(
+      actor: author,
+      name: 'Sidecar',
+      path: fixture.path,
+    );
+    store.beginPurge(actor: author, universe: fixture.id);
+    final blocked = Directory('${fixture.path}-wal')..createSync();
+    expect(
+      () => store.finishPurges(actor: author),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect(File(fixture.path).existsSync(), isFalse);
+    final db = sqlite3.open(
+      '${directory.path}/installation.sqlite',
+      mode: OpenMode.readOnly,
+    );
+    try {
+      expect(
+        db.select('SELECT universe FROM purge_pending').single['universe'],
+        fixture.id.value,
+      );
+    } finally {
+      db.close();
+    }
+    blocked.deleteSync();
+    store.close();
+    store = SqliteInstallationStore.openExisting(directory.path);
+    expect(store.catalog(author), isEmpty);
+    expect(File('${fixture.path}-wal').existsSync(), isFalse);
+  });
+
+  test('startup refuses changed identity and symlink at a pending purge path without deleting either file', () {
+    final fixture = package('identity');
+    store.registerExistingPackage(
+      actor: author,
+      name: 'Identity',
+      path: fixture.path,
+    );
+    store.beginPurge(actor: author, universe: fixture.id);
+    final original = '${fixture.path}.original';
+    File(fixture.path).renameSync(original);
+    final replacement = File(fixture.path)
+      ..writeAsStringSync('Replacement data');
+    store.close();
+    expect(
+      () => SqliteInstallationStore.openExisting(directory.path),
+      throwsA(isA<InstallationException>()),
+    );
+    expect(replacement.readAsStringSync(), 'Replacement data');
+    expect(File(original).existsSync(), isTrue);
+    replacement.deleteSync();
+    final link = Link(fixture.path)..createSync(original);
+    expect(
+      () => SqliteInstallationStore.openExisting(directory.path),
+      throwsA(isA<InstallationException>()),
+    );
+    expect(link.targetSync(), original);
+    expect(File(original).existsSync(), isTrue);
+    link.deleteSync();
+    File(original).renameSync(fixture.path);
+    store = SqliteInstallationStore.openExisting(directory.path);
+    expect(File(fixture.path).existsSync(), isFalse);
+    expect(store.catalog(author), isEmpty);
   });
 
   test('alias and package collisions rollback without losing historical reservations', () {

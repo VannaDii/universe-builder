@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:sqlite3/sqlite3.dart';
+import 'package:ub_contracts/ub_contracts.dart' show WireFields;
 import 'package:ub_domain/ub_domain.dart';
 
 import 'canonical_integrity.dart';
@@ -201,6 +202,75 @@ final class OwnedSqliteDatabase {
     } finally {
       temporary.deleteSync(recursive: true);
     }
+  }
+
+  /// Whole-package impact, bound to the exact retained heads and history counts.
+  CanonicalObject purgePreview() {
+    final db = database;
+    if (!db.autocommit) {
+      throw StateError('Purge preview requires no active transaction');
+    }
+    db.execute('BEGIN');
+    try {
+      CanonicalNumber count(String table) => CanonicalNumber(
+        db.select('SELECT count(*) AS n FROM $table').single['n'].toString(),
+      );
+      final impact = CanonicalObject([
+        MapEntry('universe_id', CanonicalString(universeId.value)),
+        MapEntry(
+          'heads',
+          CanonicalArray(
+            SqliteJournal(db, universeId).heads().entries.map(
+              (head) => CanonicalArray([
+                CanonicalString(head.key.value),
+                CanonicalString(head.value.value),
+              ]),
+            ),
+          ),
+        ),
+        MapEntry('revisions', count('commits')),
+        MapEntry('record_versions', count('record_versions')),
+        MapEntry('workflow_entries', count('workflow_index')),
+        MapEntry('commit_receipts', count('operation_receipts')),
+        MapEntry(
+          'scope',
+          CanonicalString(
+            'entire registered universe package: all continuities, history, sources, images, drafts, approvals and operation logs',
+          ),
+        ),
+        MapEntry(
+          'retained',
+          CanonicalString(
+            'installation audit records only the universe identity and purge action; external backups, exports, client transcripts and filesystem snapshots remain outside this operation',
+          ),
+        ),
+        MapEntry(
+          'erasure',
+          CanonicalString(
+            'removes owned package files; does not promise forensic erasure',
+          ),
+        ),
+      ]);
+      final preview = CanonicalObject([
+        MapEntry('digest', CanonicalString(canonicalDigest(impact))),
+        MapEntry('impact', impact),
+      ]);
+      db.execute('COMMIT');
+      return preview;
+    } on Object {
+      if (!db.autocommit) db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  void preparePurge(String expectedDigest) {
+    final preview = WireFields(purgePreview(), {'digest', 'impact'});
+    if (preview.string('digest') != expectedDigest) {
+      throw const FormatException(
+        'purge preview is stale; review current impact',
+      );
+    }
+    database.execute('PRAGMA wal_checkpoint(TRUNCATE)');
   }
 
   /// Retain all author history and evidence. Only disposable snapshot caches
