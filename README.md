@@ -111,6 +111,17 @@ on-demand creation and shutdown outside the source tree. Keep the sibling
 interfaces and complete platform packaging remain pending.
 Focused functional checks currently cover macOS only.
 
+The Dart MCP foundation now embeds the maintained tool schemas, descriptions and
+initialization instructions, preserving ordinary discovery of 11 tools and advanced
+discovery of all 16. Regenerate these resources with `dart run tool/embed_mcp.dart`;
+the maintained contracts and Rust instructions remain their owners during parity.
+The portable stdio codec bounds raw input lines at 1 MiB, rejects duplicate keys,
+malformed UTF-8 and JSON BOMs, and preserves exact numeric tokens. Output contains
+canonical JSON plus a newline; the full advanced catalog legitimately exceeds the
+engine's separate response frame limit. Functional tests cover VM and browser codec
+behavior and compare the embedded catalog against its owning contracts. MCP
+handshake, dispatch, cancellation responses and the executable remain pending.
+
 Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter
 **3.47.5** (recorded in `.flutter-version`). Dependency resolution is locked in
 the root `pubspec.lock`. Run `dart pub get` at the repository root, then:
