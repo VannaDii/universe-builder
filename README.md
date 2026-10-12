@@ -421,8 +421,11 @@ Assessment access now checks continuity limits before reads, complete-candidate
 entity/predicate boundaries, and scoped visibility including historical
 dependencies. Resolver and SQLite-retention tests use these checks. The owner
 must still supply current installation grants within its consistent authority
-context. Authority coordination and durable attachment/validation routes still
-require integration. Validation
+context. The SQLite installation owner now serializes asynchronous authority
+sections, queues coordinated grant/revocation work, and refuses outside mutations
+or closure while a section is held. The service must route authority-sensitive
+capture, persistence and grant changes through those sections; durable
+attachment/validation routes still require integration. Validation
 capture now resolves selected assessments into exact submitted source/inventory
 bindings, preserves stale/unavailable states as record input, and captures current
 head, proposal key and supplied authority digest/sequence. Unassessed proposals

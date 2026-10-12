@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:sqlite3/sqlite3.dart';
@@ -78,6 +79,35 @@ final class SqliteInstallationStore {
   final String root;
   final OperationId instanceId;
   bool _closed = false;
+  final Object _authorityZoneKey = Object();
+  Object? _authorityToken;
+  Future<void> _authorityTail = Future.value();
+
+  /// Serialize authority-sensitive workflows across asynchronous universe reads.
+  /// The service owns this installation exclusively via its existing file lock.
+  /// Grant/revocation routes must use the same section; direct mutations from
+  /// outside an active section are refused rather than changing captured rights.
+  /// Acquire installation authority before the universe writer/read context.
+  Future<T> withAuthority<T>(FutureOr<T> Function() action) async {
+    _ensureOpen();
+    if (_authorityToken != null &&
+        Zone.current[_authorityZoneKey] == _authorityToken) {
+      throw StateError('Installation authority section is not reentrant');
+    }
+    final previous = _authorityTail;
+    final release = Completer<void>();
+    _authorityTail = release.future;
+    await previous;
+    try {
+      _ensureOpen();
+      final token = Object();
+      _authorityToken = token;
+      return await runZoned(action, zoneValues: {_authorityZoneKey: token});
+    } finally {
+      _authorityToken = null;
+      release.complete();
+    }
+  }
 
   static SqliteInstallationStore create(String root) =>
       _open(root, create: true);
@@ -463,6 +493,10 @@ final class SqliteInstallationStore {
 
   void _transaction(void Function() action) {
     _ensureOpen();
+    if (_authorityToken != null &&
+        Zone.current[_authorityZoneKey] != _authorityToken) {
+      throw const InstallationException(InstallationFailure.unavailable);
+    }
     _db.execute('BEGIN IMMEDIATE');
     try {
       action();
@@ -478,6 +512,9 @@ final class SqliteInstallationStore {
 
   void close() {
     if (_closed) return;
+    if (_authorityToken != null) {
+      throw StateError('Installation authority section is still active');
+    }
     _closed = true;
     try {
       _db.close();
