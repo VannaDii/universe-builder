@@ -307,8 +307,9 @@ definition universes, retains active versions and rejects duplicate family names
 Registry admission checks typed references, parent consistency and cycles,
 property units/dimensions/inverses, relation roles, unit scales and bases, calendar
 conversion targets, structured definition recursion and exact pack dependencies.
-Packs remain limited to the existing declared capability allowlist. This registry
-still requires integration into candidate validation/publication.
+Packs remain limited to the existing declared capability allowlist. The registry
+now participates in complete-candidate evaluation; durable workflow integration
+remains pending.
 Creative boundary checks now follow transitive record references, exact predicate
 subjects and declared classifications through both candidate and historical
 records. Assertions and event effects retain their own context, world, realm and
@@ -336,6 +337,17 @@ contexts. Complete support is required; conflicting or missing evidence retains
 its original sources and numbered repair message. Final finding binding fills
 references from candidate versions and preserves exact Rust fingerprints or
 existing authored fingerprints. These stages still need full workflow integration.
+Complete-candidate evaluation now composes registry and structural admission,
+action requirements and consequences, event prerequisites, typed knowledge,
+communication and cardinality policies, resource accounting, creative boundaries,
+ordinary rules, scalar conflicts, definition applicability and collection
+completeness. It checks unchanged records as well as proposed changes, preserves
+blocking versus advisory policies and binds findings and opposing diagnostics to
+the pinned frame, candidate digest and evaluator. New issue decisions require the
+installation author and actual author origin; author-established knowledge cannot
+be manufactured by ordinary approval. Cancellation propagates without returning
+an execution. Snapshot preview, immutable source/import verification, validation
+storage, exact approval and publication still require the service workflow.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

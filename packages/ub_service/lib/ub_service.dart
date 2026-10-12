@@ -26,3 +26,4 @@ export 'src/definition_registry.dart';
 export 'src/validation_findings.dart';
 export 'src/consequence_execution.dart';
 export 'src/boundary_checks.dart';
+export 'src/candidate_validation.dart';
