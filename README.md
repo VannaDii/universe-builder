@@ -396,6 +396,15 @@ stored source version. Reservation entries retain their original owner after
 withdrawal; SQLite persists them across reopen and rolls back competing appends.
 Preparation alone does not admit a proposal: these checks must run inside the
 owning workflow, with kernel preview and atomic proposal/operation/receipt writes.
+Proposal candidate checks now assemble the exact frozen commit input, verify
+immutable adoptions, run kernel preview, verify retained sources and evaluate
+the candidate against its pinned base. Changed scene disclosures require the
+exact edition and complete dependencies to match that edition's bound canon;
+unbound or segmented editions cannot establish reader disclosures. Restricted
+checks return restricted coverage without reading complete canon or sources.
+SQLite integration rejects stale heads and blocking rules without publishing
+facts or approvals. Current permission admission, source-assessment capture,
+final report binding and atomic validation retention remain owning-workflow work.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.
