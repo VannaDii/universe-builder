@@ -425,7 +425,7 @@ context. The SQLite installation owner now serializes asynchronous authority
 sections, queues coordinated grant/revocation work, and refuses outside mutations
 or closure while a section is held. The service must route authority-sensitive
 capture, persistence and grant changes through those sections; durable
-attachment and queued operation routes still require integration.
+queued operation routes still require integration.
 The native authority API now resolves authenticated current scope, permissions,
 limits, approval author and audit sequence within those sections. Its validation
 digest preserves the existing canonical authority tuple. An owned SQLite package
@@ -443,6 +443,13 @@ selection/proposal comparisons share the SQLite write transaction with the
 append. Authority changes, stale heads and competing selections reject retention;
 verification or append failures roll back every entry. This path stores checked
 results only; it does not approve or publish canonical facts.
+The same native owner now attaches byte-verified external assessments and changes
+their selections under current authority and a SQLite write transaction. The
+immutable body, generation and principal-bound idempotency receipt are retained
+together. Fresh changes require the submitted latest proposal and pinned head;
+exact authorized retries return their original selection, including after clear,
+reselection and package reopen. Selecting retained evidence rechecks its bindings
+and bytes; clearing evidence retains its original history.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

@@ -21,6 +21,9 @@ import 'operation_compilation_test.dart' as f;
 import 'proposal_state_test.dart' as proposals;
 import 'rule_checks_test.dart' as frames;
 import 'structural_checks_test.dart' as structure;
+import 'assessment_validation_test.dart' as assessments;
+import 'source_verification_test.dart' as sources;
+import '../../ub_contracts/test/assessment_integrity_test.dart' as accounting;
 
 void main() {
   late Directory directory;
@@ -152,6 +155,252 @@ void main() {
   });
   String key() => 'validation:${checked.validation.runId.value}';
   final stale = throwsA(isA<ApprovalStaleError>());
+
+  Future<SourceAssessmentV1> submittedAssessment() async {
+    final workflow = WorkflowStorage(package.database);
+    workflow.compareAppend(
+      {},
+      sources.staging(sources.source()).entries.toList(),
+    );
+    kernel.commit(
+      input('sources', [
+        f.row(
+          1,
+          SourceRecord(
+            label: 'External source',
+            origin: const OriginMetadata(),
+            versions: [f.id(2)],
+          ),
+        ),
+        f.row(2, sources.source()),
+      ]),
+    );
+    final head = kernel.journal.head(continuity);
+    proposal = proposals.prepare(
+      principal: writer.id,
+      request: CreateProposalRequest(
+        universe: const Selector('World'),
+        contextId: proposals.contextId,
+        operations: proposals.create().operations,
+        submission: Submission.submitted,
+        rationale: 'External evidence review',
+        idempotencyKey: 'submitted',
+      ),
+      frame: Frame(
+        universe: f.u,
+        continuity: continuity,
+        revision: head,
+        context: f.ref(99),
+        time: const TimelessFrameTime(),
+        perspective: const AuthorPerspective(),
+      ),
+      base: canon(continuity, head),
+    );
+    workflow.compareAppend({}, [MapEntry(proposal.key, proposal.toWire())]);
+    var wire = accounting.replace(assessments.body().toWire(), [
+      'proposal',
+    ], proposal.reference.toWire());
+    wire = accounting.replace(wire, [
+      'base_frame',
+    ], proposal.proposal.baseFrame.toWire());
+    wire = accounting.replace(wire, [
+      'assessor',
+      'principal',
+    ], CanonicalString(writer.id.value.replaceFirst('prf_', 'prn_')));
+    return SourceAssessmentV1.fromWire(wire);
+  }
+
+  test('attachment, clear, reselection and historical retry retain exact immutable evidence', () async {
+    final body = await submittedAssessment();
+    final first = await service.attachAssessment(
+      proposal.reference,
+      expectedGeneration: BigInt.zero,
+      body: body,
+      idempotencyKey: 'attach',
+    );
+    expect(first.generation, BigInt.one);
+    final reference = first.selected!;
+    final envelopeKey = 'assessment:${reference.assessmentId.value}';
+    final original = WorkflowStorage(package.database)
+        .get(envelopeKey)!
+        .toText();
+    final captured = await service.capture(proposal.reference);
+    expect(captured.submittedInput, isA<SourceAssessedCandidateInput>());
+    final clear = await service.selectAssessment(
+      proposal.reference,
+      expectedGeneration: BigInt.one,
+      selected: null,
+      idempotencyKey: 'clear',
+    );
+    expect(clear.generation, BigInt.two);
+    expect(clear.selected, isNull);
+    final retry = await service.attachAssessment(
+      proposal.reference,
+      expectedGeneration: BigInt.zero,
+      body: body,
+      idempotencyKey: 'attach',
+    );
+    expect(retry.toWire().toText(), first.toWire().toText());
+    expect(
+      (await service.capture(proposal.reference)).selection.generation,
+      BigInt.two,
+    );
+    final selected = await service.selectAssessment(
+      proposal.reference,
+      expectedGeneration: BigInt.two,
+      selected: reference,
+      idempotencyKey: 'select',
+    );
+    expect(selected.generation, BigInt.from(3));
+    expect(selected.selected!.toWire().toText(), reference.toWire().toText());
+    await expectLater(
+      service.selectAssessment(
+        proposal.reference,
+        expectedGeneration: BigInt.from(3),
+        selected: reference,
+        idempotencyKey: 'unchanged',
+      ),
+      f.fails('selection is unchanged', field: 'assessment'),
+    );
+    await expectLater(
+      service.attachAssessment(
+        proposal.reference,
+        expectedGeneration: BigInt.one,
+        body: body,
+        idempotencyKey: 'attach',
+      ),
+      throwsA(isA<IdempotencyKeyReusedError>()),
+    );
+    expect(
+      WorkflowStorage(package.database).get(envelopeKey)!.toText(),
+      original,
+    );
+    expect(
+      WorkflowStorage(package.database).keys('assessment-receipt:').length,
+      3,
+    );
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    service = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: writer,
+    );
+    final reopenedRetry = await service.attachAssessment(
+      proposal.reference,
+      expectedGeneration: BigInt.zero,
+      body: body,
+      idempotencyKey: 'attach',
+    );
+    expect(reopenedRetry.toWire().toText(), first.toWire().toText());
+    expect(
+      WorkflowStorage(package.database).get(envelopeKey)!.toText(),
+      original,
+    );
+    expect(WorkflowStorage(package.database).keys('approval:'), isEmpty);
+    expect(package.database.autocommit, isTrue);
+  });
+
+  test(
+    'wrong assessor, generation and invalid key retain no partial attachment',
+    () async {
+      final body = await submittedAssessment();
+      final wrong = SourceAssessmentV1.fromWire(
+        accounting.replace(body.toWire(), [
+          'assessor',
+          'principal',
+        ], CanonicalString(author.id.value.replaceFirst('prf_', 'prn_'))),
+      );
+      await expectLater(
+        service.attachAssessment(
+          proposal.reference,
+          expectedGeneration: BigInt.zero,
+          body: wrong,
+          idempotencyKey: 'wrong',
+        ),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      await expectLater(
+        service.attachAssessment(
+          proposal.reference,
+          expectedGeneration: BigInt.one,
+          body: body,
+          idempotencyKey: 'stale',
+        ),
+        stale,
+      );
+      await expectLater(
+        service.attachAssessment(
+          proposal.reference,
+          expectedGeneration: BigInt.zero,
+          body: body,
+          idempotencyKey: '',
+        ),
+        f.fails('invalid idempotency key', field: 'assessment'),
+      );
+      final workflow = WorkflowStorage(package.database);
+      expect(workflow.keys('assessment:'), isEmpty);
+      expect(workflow.keys('assessment-receipt:'), isEmpty);
+      expect(workflow.keys('assessment-selection:'), isEmpty);
+      expect(package.database.autocommit, isTrue);
+    },
+  );
+
+  test(
+    'fresh attachment requires submitted current proposal and pinned head',
+    () async {
+      final body = await submittedAssessment();
+      kernel.commit(input('advance-assessment-head', [f.row(40, f.entity())]));
+      await expectLater(
+        service.attachAssessment(
+          proposal.reference,
+          expectedGeneration: BigInt.zero,
+          body: body,
+          idempotencyKey: 'advanced',
+        ),
+        stale,
+      );
+      final head = kernel.journal.head(continuity);
+      final draft = proposals.prepare(
+        principal: writer.id,
+        frame: Frame(
+          universe: f.u,
+          continuity: continuity,
+          revision: head,
+          context: f.ref(99),
+          time: const TimelessFrameTime(),
+          perspective: const AuthorPerspective(),
+        ),
+        base: canon(continuity, head),
+      );
+      WorkflowStorage(package.database)
+          .compareAppend({}, [MapEntry(draft.key, draft.toWire())]);
+      var wire = accounting.replace(body.toWire(), [
+        'proposal',
+      ], draft.reference.toWire());
+      wire = accounting.replace(wire, [
+        'base_frame',
+      ], draft.proposal.baseFrame.toWire());
+      await expectLater(
+        service.attachAssessment(
+          draft.reference,
+          expectedGeneration: BigInt.zero,
+          body: SourceAssessmentV1.fromWire(wire),
+          idempotencyKey: 'draft',
+        ),
+        stale,
+      );
+      expect(
+        WorkflowStorage(package.database).keys('assessment-receipt:'),
+        isEmpty,
+      );
+      expect(package.database.autocommit, isTrue);
+    },
+  );
 
   test('kernel-checked capture is retained atomically and survives owned package reopen', () async {
     expect(checked.admissible, isTrue);
