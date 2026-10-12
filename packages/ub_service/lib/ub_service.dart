@@ -31,3 +31,4 @@ export 'src/source_verification.dart';
 export 'src/validation_binding.dart';
 export 'src/proposal_state.dart';
 export 'src/proposal_validation.dart';
+export 'src/assessment_validation.dart';

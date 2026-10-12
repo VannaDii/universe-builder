@@ -405,6 +405,14 @@ checks return restricted coverage without reading complete canon or sources.
 SQLite integration rejects stale heads and blocking rules without publishing
 facts or approvals. Current permission admission, source-assessment capture,
 final report binding and atomic validation retention remain owning-workflow work.
+External source-assessment admission now builds the complete frozen candidate
+from its pinned base, verifies accounting/frame bindings, distinguishes proposed,
+unchanged and explicit historical links, and requires semantic prerequisites to
+remain active. Source editions/passages and dependency anchors must match their
+declared byte ranges; original staging receipts and exact UTF-8 bytes are checked.
+Retained assessments revalidate after SQLite reopen without replacing externally
+declared unresolved conclusions. Selection/access resolution, capture and durable
+attachment/validation routes still require workflow integration.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.
