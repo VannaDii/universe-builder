@@ -295,6 +295,102 @@ void main() {
         ]);
       });
 
+  ProposalValidationRequest synchronousCheck({UniverseId? guard}) =>
+      ProposalValidationRequest(
+        universe: const Selector('World'),
+        universeId: guard ?? f.u,
+        contextId: proposals.contextId,
+        proposalReference: proposal.reference,
+        checkScope: CheckScope.candidate,
+      );
+
+  test('synchronous check retains completed evidence across owned reopen without publishing', () async {
+    await retainedContext();
+    final before = kernel.journal.head(continuity);
+    final report = await service.validateProposalRequest(synchronousCheck());
+    expect(report, isA<EvaluatedValidation>());
+    final execution = report.execution!;
+    expect(execution.operationId, isNull);
+    expect(execution.coverage, Coverage.complete);
+    final validationKey = 'validation:${execution.runId.value}';
+    final workflow = WorkflowStorage(package.database);
+    final retained = CheckedValidation.fromWire(workflow.get(validationKey)!);
+    expect(retained.admissible, isTrue);
+    expect(retained.capture, isNotNull);
+    expect(retained.report!.toWire().toText(), report.toWire().toText());
+    expect(workflow.keys('operation:'), isEmpty);
+    expect(workflow.keys('request:${writer.id.value}:validate:'), isEmpty);
+    expect(kernel.journal.head(continuity), before);
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    expect(
+      CheckedValidation.fromWire(
+        WorkflowStorage(package.database).get(validationKey)!,
+      ).report!.toWire().toText(),
+      report.toWire().toText(),
+    );
+    expect(kernel.journal.head(continuity), before);
+  });
+
+  test('synchronous check rejects expired context and universe guard without retaining evidence', () async {
+    await retainedContext(expires: BigInt.zero);
+    await expectLater(
+      service.validateProposalRequest(synchronousCheck()),
+      throwsA(isA<ContextExpiredError>()),
+    );
+    await expectLater(
+      service.validateProposalRequest(
+        synchronousCheck(guard: UniverseId.generate()),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    expect(WorkflowStorage(package.database).keys('validation:'), isEmpty);
+  });
+
+  test('context validation rejects non-author perspective before proposal frame comparison', () async {
+    await authority.withUniverseAuthority(writer, f.u, (current) {
+      final frame = proposal.proposal.baseFrame;
+      WorkflowStorage(package.database).compareAppend({}, [
+        MapEntry(
+          'context:${proposals.contextId.value}',
+          StoredContext(
+            owner: writer.id,
+            scope: current.scopeHash,
+            expires: BigInt.from(
+              DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600,
+            ),
+            frame: Frame(
+              universe: frame.universe,
+              continuity: frame.continuity,
+              revision: frame.revision,
+              context: frame.context,
+              time: frame.time,
+              perspective: CharacterPerspective(f.id(20)),
+            ),
+          ).toWire(),
+        ),
+      ]);
+    });
+    await expectLater(
+      service.validateProposalRequest(synchronousCheck()),
+      throwsA(isA<UnsupportedSemanticsError>()),
+    );
+    await expectLater(
+      service.queueValidationRequest(
+        queued(),
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<UnsupportedSemanticsError>()),
+    );
+    final workflow = WorkflowStorage(package.database);
+    expect(workflow.keys('validation:'), isEmpty);
+    expect(workflow.keys('operation:'), isEmpty);
+  });
+
   test(
     'context-backed proposal dispatch retains an exact native proposal',
     () async {
@@ -1216,6 +1312,18 @@ void main() {
         ),
       ),
     );
+    await retainedContext();
+    final restricted = await service.validateProposalRequest(
+      synchronousCheck(),
+    );
+    expect(restricted, isA<RestrictedValidation>());
+    final retainedSynchronous = CheckedValidation.fromWire(
+      WorkflowStorage(package.database)
+          .get(WorkflowStorage(package.database).keys('validation:').single)!,
+    );
+    expect(retainedSynchronous.admissible, isFalse);
+    expect(retainedSynchronous.capture, isNull);
+    expect(retainedSynchronous.validation.coverage, Coverage.restricted);
     final result = await service.queueValidation(
       queued(),
       resolvedFrame: proposal.proposal.baseFrame,
@@ -1487,6 +1595,19 @@ void main() {
         (await service.assessmentRequest(attach)).toWire().toText(),
         attached.toWire().toText(),
       );
+      final completed = await service.validateProposalRequest(
+        ProposalValidationRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          proposalReference: proposal.reference,
+          checkScope: CheckScope.candidate,
+        ),
+      );
+      expect(
+        (completed as EvaluatedValidation).submittedInput,
+        isA<SourceAssessedCandidateInput>(),
+      );
+      expect(completed.execution.operationId, isNull);
       final queued = await service.queueValidationRequest(
         QueuedProposalValidationRequest(
           universe: const Selector('World'),
@@ -1562,6 +1683,17 @@ void main() {
           temporalSystems: [],
           perspective: const AuthorPerspective(),
         ),
+      );
+      await expectLater(
+        service.validateProposalRequest(
+          ProposalValidationRequest(
+            universe: const Selector('World'),
+            contextId: opened.contextId,
+            proposalReference: proposal.reference,
+            checkScope: CheckScope.candidate,
+          ),
+        ),
+        stale,
       );
       await expectLater(
         service.queueValidationRequest(
@@ -1682,6 +1814,35 @@ void main() {
     validationRun: checked.validation.runId,
     idempotencyKey: key,
   );
+
+  test('synchronous source check feeds exact author approval and reviewed publication', () async {
+    final body = await submittedAssessment();
+    await service.attachAssessment(
+      proposal.reference,
+      expectedGeneration: BigInt.zero,
+      body: body,
+      idempotencyKey: 'synchronous-assessment',
+    );
+    await retainedContext();
+    final report = await service.validateProposalRequest(
+      synchronousCheck(),
+    ) as EvaluatedValidation;
+    expect(report.finalBindingDigest, isNotNull);
+    final completed = CheckedValidation.fromWire(
+      WorkflowStorage(package.database)
+          .get('validation:${report.execution.runId.value}')!,
+    );
+    await authorService().approve(
+      proposal.reference,
+      completed.validation.runId,
+    );
+    final receipt = await service.commit(
+      publication(completed),
+      isValidationActive: (_) => false,
+    );
+    expect(kernel.identityExists(f.id(10)), isTrue);
+    expect(kernel.journal.head(continuity), receipt.revision);
+  });
 
   test('native authoring journey submits checks approves and publishes without seeded proposals', () async {
     final opened = await service.openContext(contextRequest());

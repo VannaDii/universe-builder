@@ -212,6 +212,16 @@ final class SqliteValidationWorkflow {
     );
   }
 
+  Frame _validationFrame(ContextId id, CurrentUniverseAuthority current) {
+    final frame = _contextFrame(id, current);
+    if (frame.perspective is! AuthorPerspective) {
+      throw const UnsupportedSemanticsError(
+        message: 'validation requires an author perspective frame',
+      );
+    }
+    return frame;
+  }
+
   /// Native dispatch entry: admit the retained context and resolve named world
   /// focus under the same current authority section as proposal retention.
   Future<Proposal> proposeRequest(
@@ -466,10 +476,65 @@ final class SqliteValidationWorkflow {
     (current) => _queueValidation(
       request,
       current,
-      resolvedFrame: _contextFrame(request.contextId, current),
+      resolvedFrame: _validationFrame(request.contextId, current),
       isValidationActive: isValidationActive,
     ),
   );
+
+  /// Complete a proposal check and retain its exact evidence under current
+  /// authority. This does not create a queued operation or publish canon.
+  Future<ValidationV3> validateProposalRequest(
+    ProposalValidationRequest request,
+  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    if (request.universeId != null && request.universeId != universe) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final frame = _validationFrame(request.contextId, current);
+    final stored = _proposal(request.proposalReference, current);
+    if (stored.proposal.baseFrame != frame) {
+      throw const ApprovalStaleError();
+    }
+    final captured = current.worldScope == null
+        ? await _capture(stored, current)
+        : null;
+    final kernel = SqliteKernel(package.database, universe);
+    final result = await checkProposalCandidate(
+      stored: stored,
+      universe: universe,
+      principal: principal.id,
+      approvalAuthor: current.approvalAuthor,
+      scope: current.worldScope,
+      preview: (input) => kernel
+          .preview(input)
+          .map((row) => RecordVersion.fromWire(row.toCanonical()))
+          .toList(),
+      readCanon: _canon,
+      readWorkflow: _workflow.get,
+      readVersion: _version,
+    );
+    final report =
+        captured?.report(
+          proposal: request.proposalReference,
+          baseFrame: frame,
+          execution: result.validation,
+          finished: true,
+        ) ??
+        ValidationV3.restricted();
+    final completed = CheckedValidation(
+      proposalDigest: result.proposalDigest,
+      validation: result.validation,
+      admissible: result.admissible,
+      capture: captured,
+      report: report,
+    );
+    await _persistValidation(request.proposalReference, completed, current, [
+      MapEntry(
+        'validation:${result.validation.runId.value}',
+        completed.toWire(),
+      ),
+    ]);
+    return report;
+  });
 
   Future<OperationStatusV3> _queueValidation(
     QueuedProposalValidationRequest request,

@@ -529,7 +529,14 @@ mutation authority section and require the proposal's exact base frame. Expiry
 and scope admission precede retry lookup; source checks and historical assessment
 receipts retain their existing semantics. The native authoring journey now uses
 an opened context through proposal submission and queued validation. Remaining
-read/check routes and public engine dispatch remain pending.
+read/check routes and public engine dispatch remain pending. Synchronous native
+proposal validation now admits the retained author-perspective context, checks
+the exact proposal frame and retains completed evidence with current source and
+selection bindings. Its result can feed exact author approval and publication;
+the check itself creates no queued operation and does not publish canon. Scoped
+checks retain only restricted evidence. Both context-backed validation modes
+reject non-author perspectives before loading the proposal. Inline checks remain
+pending.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.
