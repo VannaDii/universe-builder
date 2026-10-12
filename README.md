@@ -300,6 +300,12 @@ Candidate definition applicability rechecks unchanged assertions after definitio
 changes. Objective collection completeness constrains only exact supported entity
 members in the declared scope; observer-known sets do not close reality. These
 checks still require proposal validation/publication integration.
+Opposing-evidence diagnostics now bind original assertion/proposition chains,
+their exact dependency versions, evaluation frame, candidate digest, evaluator,
+policy and exception versions to fingerprints matching the Rust service. Definite
+opposition and partial provenance remain distinct; unresolved comparisons do not
+select a truth winner. This diagnostic adapter still needs validation/publication
+integration.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

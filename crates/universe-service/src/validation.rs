@@ -1229,3 +1229,107 @@ fn intersect_applicability(a: &Applicability, b: &Applicability) -> Applicabilit
         _ => Applicability::Unspecified,
     }
 }
+
+#[cfg(test)]
+mod opposing_fingerprint_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn dart_opposing_diagnostic_fingerprint_keeps_serde_intersection() {
+        let u = UniverseId::parse("unv_000000000000000000000001").unwrap();
+        let rr = |n: u64| json!({"universe":u,"record":format!("rec_{n:024x}")});
+        let validity = json!({"kind":"calendar_interval","calendar":"cal_000000000000000000000001","start":{"kind":"exact","value":"10"},"end":{"kind":"exact","value":"20"}});
+        let scope = json!({"applicability":{"kind":"universe_wide"},"context":rr(3),"realm":null});
+        let bodies = vec![
+            (
+                1,
+                json!({"record_kind":"entity","names":[],"classificationResolution":"unclassified","worldAssociations":[],"labels":{},"metadata":{}}),
+            ),
+            (
+                3,
+                json!({"record_kind":"represented_context","universe":u,"kind":{"kind":"objective"},"labels":{}}),
+            ),
+            (
+                10,
+                json!({"record_kind":"property","namespace":"test","key":"open","labels":{},"value":{"kind":"boolean"},"multiplicity":"multiple","persistence":"explicit_interval","exclusive":false,"symmetric":false,"transitive":false}),
+            ),
+            (
+                20,
+                json!({"record_kind":"proposition","predicate":rr(10),"subject":rr(1),"roles":[],"value":{"kind":"boolean","value":true},"quantification":"particular","context":rr(3)}),
+            ),
+            (
+                30,
+                json!({"record_kind":"assertion","attributeMode":"instance","proposition":rr(20),"polarity":"support","scope":scope,"validity":validity,"persistence":"explicit_interval","precision":"exact","basis":{"kind":"author_decision","note":"opposition fixture"}}),
+            ),
+            (
+                31,
+                json!({"record_kind":"assertion","attributeMode":"instance","proposition":rr(20),"polarity":"refutation","scope":scope,"validity":validity,"persistence":"explicit_interval","precision":"exact","basis":{"kind":"author_decision","note":"opposition fixture"}}),
+            ),
+        ];
+        let rows: Vec<_> = bodies
+            .into_iter()
+            .map(|(n, body)| {
+                let payload: Payload = serde_json::from_value(body).unwrap();
+                RecordVersion::build(
+                    RecordVersionId::parse(&format!("ver_{n:024x}")).unwrap(),
+                    RecordIdentity::new(
+                        u.clone(),
+                        RecordId::parse(&format!("rec_{n:024x}")).unwrap(),
+                        payload.kind(),
+                    ),
+                    payload,
+                )
+                .unwrap()
+            })
+            .collect();
+        let frame = serde_json::from_value(json!({"universe":u,"continuity":"cont_000000000000000000000001","revision":"rev_000000000000000000000001","context":rr(3),"time":{"kind":"at","time":{"kind":"exact","calendar":"cal_000000000000000000000001","value":"15"}},"perspective":"author"})).unwrap();
+        let mut unsupported = vec![];
+        let diagnostics = opposing_evidence(
+            &rows,
+            &frame,
+            "candidate-digest",
+            "evaluator-v1",
+            &mut unsupported,
+        )
+        .unwrap();
+        assert!(unsupported.is_empty());
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(
+            diagnostics[0].fingerprint.0,
+            "b5f1c19d724e99922199fdeb559aba812d343ee47e06e86bcd04b08d8e176e8f"
+        );
+        let mut pins = vec![];
+        for validity in [
+            json!({"kind":"unknown"}),
+            json!({"kind":"calendar_interval","calendar":"cal_000000000000000000000001","start":{"kind":"bounded_uncertainty","lower":"10","upper":"12"},"end":{"kind":"exact","value":"20"}}),
+        ] {
+            let mut changed = rows.clone();
+            let last = changed.last_mut().unwrap();
+            let mut payload = serde_json::to_value(&last.payload).unwrap();
+            payload["validity"] = validity;
+            *last = RecordVersion::build(
+                last.record_version_id.clone(),
+                last.identity.clone(),
+                serde_json::from_value(payload).unwrap(),
+            )
+            .unwrap();
+            let diagnostic = opposing_evidence(
+                &changed,
+                &frame,
+                "candidate-digest",
+                "evaluator-v1",
+                &mut vec![],
+            )
+            .unwrap();
+            pins.push(diagnostic[0].fingerprint.0.clone());
+        }
+        assert_eq!(
+            pins,
+            [
+                "10d7c17f07d326708986dc6e876d2ef745a973a4cb860bbee8ec93eb628ede0e",
+                "5e881c46f96a7ac859d3501f3f6cb464c949f2f7778375b44c42326d167071fc",
+            ]
+        );
+    }
+}
