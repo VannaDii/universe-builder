@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
@@ -2294,6 +2295,87 @@ final class PostgresValidationWorkflow {
     ]);
   }
 
+  Future<CanonicalValue> imageRequest(EngineRequest request) async {
+    try {
+      return await authority.withUniverseAuthority(principal, universe, (
+        current,
+      ) async {
+        if (!current.principal.author) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        final selector = switch (request) {
+          StageImageEngineRequest(:final universe) ||
+          ImagePreviewEngineRequest(:final universe) => universe,
+          _ => throw const InvalidArgumentError(
+            field: 'method',
+            message: 'requires image staging or preview',
+          ),
+        };
+        final resolved = await session.authority.resolveUniverseAlias(
+          actor: principal.id,
+          name: selector.value,
+          epochSeconds: _epochSeconds(),
+        );
+        if (resolved.universeId != universe) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        final kernel = _kernel;
+        final RecordId id;
+        final ImageAssetRecord asset;
+        final staged = request is StageImageEngineRequest;
+        if (request is StageImageEngineRequest) {
+          final imported = await kernel.stageImageBytes(
+            readImageFile(request.source),
+            File(request.source).uri.pathSegments.last,
+          );
+          id = imported.record;
+          asset = imported.asset;
+        } else {
+          final preview = request as ImagePreviewEngineRequest;
+          final frame = await _contextFrame(preview.contextId, current);
+          final record = (await _canon(
+            frame.continuity,
+            frame.revision,
+          )).where((r) => r.identity.recordId == preview.asset).firstOrNull;
+          if (record?.payload is! ImageAssetRecord) {
+            throw const NotFoundOrNotAccessibleError(message: 'resource');
+          }
+          id = preview.asset;
+          asset = record!.payload as ImageAssetRecord;
+        }
+        return CanonicalObject([
+          if (staged) const MapEntry('canonical', CanonicalBool(false)),
+          MapEntry('asset_id', CanonicalString(id.value)),
+          MapEntry(
+            'metadata',
+            CanonicalObject(
+              asset.toWire().fields.where((f) => f.key != 'record_kind'),
+            ),
+          ),
+          MapEntry(
+            'preview',
+            CanonicalString(await kernel.imagePreview(asset)),
+          ),
+          if (staged)
+            MapEntry(
+              'operations',
+              CanonicalArray([
+                AddImageAssetOperation(
+                  clientRef: id.value,
+                  record: asset,
+                ).toWire(),
+              ]),
+            ),
+        ]);
+      });
+    } on InstallationException catch (error) {
+      if (error.failure == InstallationFailure.denied) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      rethrow;
+    }
+  }
+
   /// Private, versioned author drafts retain their original base edition.
   Future<CanonicalValue> draftRequest(EngineRequest request) async {
     try {
@@ -2503,6 +2585,236 @@ final class PostgresValidationWorkflow {
       ),
     ]);
     return (validation: report, frame: frame, focus: focus);
+  }
+
+  /// Private author library, including pending writing and historical approvals.
+  Future<CanonicalObject> libraryRequest(LibraryEngineRequest request) async {
+    try {
+      return await authority.withUniverseAuthority(principal, universe, (
+        current,
+      ) async {
+        if (!current.principal.author) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        final resolved = await session.authority.resolveUniverseAlias(
+          actor: principal.id,
+          name: request.universe.value,
+          epochSeconds: _epochSeconds(),
+        );
+        if (resolved.universeId != universe) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        final heads = await _journal.heads();
+        final worlds = <CanonicalValue>[];
+        final contexts = <CanonicalValue>[];
+        final continuities = <CanonicalValue>[];
+        for (final head in heads.entries) {
+          continuities.add(
+            CanonicalObject([
+              MapEntry('id', CanonicalString(head.key.value)),
+              MapEntry('revision', CanonicalString(head.value.value)),
+              MapEntry(
+                'name',
+                (await _workflow.get('continuity-name:${head.key.value}')) ??
+                    CanonicalString('Original continuity'),
+              ),
+            ]),
+          );
+          for (final row in await _canon(head.key, head.value)) {
+            switch (row.payload) {
+              case WorldRecord(:final selector):
+                worlds.add(
+                  CanonicalObject([
+                    MapEntry(
+                      'id',
+                      CanonicalString(recordWorld(row.identity.recordId).value),
+                    ),
+                    MapEntry('name', CanonicalString(selector)),
+                    MapEntry('continuity_id', CanonicalString(head.key.value)),
+                  ]),
+                );
+              case RepresentedContextRecord():
+                contexts.add(CanonicalString(row.identity.recordId.value));
+              default:
+                break;
+            }
+          }
+        }
+        final latest = <ProposalId, ({Proposal proposal, String label})>{};
+        for (final key in await _workflow.keys('proposal:')) {
+          final stored = StoredProposal.fromWire((await _workflow.get(key))!);
+          final proposal = stored.proposal;
+          final previous = latest[proposal.proposalId];
+          if (previous == null ||
+              proposal.version > previous.proposal.version) {
+            latest[proposal.proposalId] = (
+              proposal: proposal,
+              label: await _libraryLabel(stored),
+            );
+          }
+        }
+        final published = <String>{};
+        for (final key in await _workflow.keys('operation:')) {
+          final operation = StoredOperation.fromWire(
+            (await _workflow.get(key))!,
+          );
+          final input = operation.input;
+          if (input != null && await _journal.receipt(input) != null) {
+            final digest = operation.status.proposal?.digest;
+            if (digest != null) published.add(digest);
+          }
+        }
+        final ids = latest.keys.toList()
+          ..sort((a, b) => a.value.compareTo(b.value));
+        final pending = <CanonicalValue>[];
+        for (final id in ids) {
+          final entry = latest[id]!;
+          final proposal = entry.proposal;
+          if (proposal.withdrawn || published.contains(proposal.digest)) {
+            continue;
+          }
+          pending.add(
+            CanonicalObject([
+              MapEntry(
+                'candidate',
+                ProposalRef(
+                  proposalId: id,
+                  version: proposal.version,
+                  digest: proposal.digest,
+                ).toWire(),
+              ),
+              MapEntry('label', CanonicalString(entry.label)),
+              MapEntry(
+                'submission',
+                CanonicalString(proposal.submission.wireName),
+              ),
+              MapEntry(
+                'base_revision',
+                CanonicalString(proposal.baseFrame.revision.value),
+              ),
+              MapEntry(
+                'continuity',
+                CanonicalString(proposal.baseFrame.continuity.value),
+              ),
+            ]),
+          );
+        }
+        final approved = <CanonicalValue>[];
+        for (final key in await _workflow.keys(
+          'approval:${principal.id.value}:',
+        )) {
+          final value = WireFields((await _workflow.get(key))!, {
+            'author',
+            'proposal',
+            'validation_digest',
+            'evaluator',
+          });
+          if (value.string('author') != principal.id.value) continue;
+          final reference = ProposalRef.fromWire(value.require('proposal'));
+          approved.add(
+            CanonicalObject([
+              MapEntry('candidate', reference.toWire()),
+              MapEntry('validation_run', CanonicalString(key.split(':').last)),
+              MapEntry(
+                'label',
+                CanonicalString(
+                  latest[reference.proposalId]?.label ?? 'Approved writing',
+                ),
+              ),
+            ]),
+          );
+        }
+        return CanonicalObject([
+          MapEntry('storage', await _kernel.storageStatus()),
+          MapEntry('worlds', CanonicalArray(worlds)),
+          MapEntry('contexts', CanonicalArray(contexts)),
+          MapEntry('continuities', CanonicalArray(continuities)),
+          MapEntry(
+            'writing',
+            CanonicalObject([
+              MapEntry('proposals', CanonicalArray(pending)),
+              MapEntry('approved', CanonicalArray(approved)),
+            ]),
+          ),
+        ]);
+      });
+    } on InstallationException catch (error) {
+      if (error.failure == InstallationFailure.denied) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      rethrow;
+    }
+  }
+
+  Future<String> _libraryLabel(StoredProposal stored) async {
+    final proposal = stored.proposal;
+    final rows = await _canon(
+      proposal.baseFrame.continuity,
+      proposal.baseFrame.revision,
+    );
+    for (final change in stored.changes) {
+      final next = change.next;
+      if (next == null) continue;
+      rows.removeWhere((row) => row.identity.recordId == change.recordId);
+      rows.add(RecordVersion.fromWire(next.toCanonical()));
+    }
+    RecordPayload? payload(RecordId id) =>
+        rows.where((row) => row.identity.recordId == id).firstOrNull?.payload;
+    String? name(RecordId id) {
+      return switch (payload(id)) {
+        EntityRecord(:final labels, :final names) =>
+          labels.isNotEmpty
+              ? labels[(labels.keys.toList()..sort()).first]
+              : names.firstOrNull?.text,
+        PropertyRecord(:final key) ||
+        RelationRecord(:final key) ||
+        ActionDefinitionRecord(:final key) => key,
+        _ => null,
+      };
+    }
+
+    String? pair(RecordId subject, RecordId predicate) {
+      final left = name(subject), right = name(predicate);
+      return left == null || right == null ? null : '$left — $right';
+    }
+
+    final labels = <String>[];
+    for (final change in stored.changes) {
+      final next = change.next;
+      final row = next == null
+          ? payload(change.recordId)
+          : RecordVersion.fromWire(next.toCanonical()).payload;
+      final label = switch (row) {
+        EntityRecord(:final names) => names.firstOrNull?.text,
+        SourceRecord(:final label) => label,
+        PropertyRecord(:final key) ||
+        RelationRecord(:final key) ||
+        RuleRecord(:final key) ||
+        ActionDefinitionRecord(:final key) => key,
+        EntityTypeRecord(:final name) => name,
+        SceneRecord(:final sceneId) => sceneId,
+        ItemPowerRecord(:final item, :final powerPredicate) => pair(
+          item.record,
+          powerPredicate.record,
+        ),
+        EventRecord(:final action) =>
+          action == null || name(action.record) == null
+              ? null
+              : 'Occurred action: ${name(action.record)}',
+        AssertionRecord(:final proposition) => switch (payload(
+          proposition.record,
+        )) {
+          PropositionRecord(:final subject, :final predicate) => pair(
+            subject.record,
+            predicate.record,
+          ),
+          _ => null,
+        },
+        _ => null,
+      };
+      if (label != null) labels.add(label);
+    }
+    return labels.isEmpty ? proposal.rationale : labels.join(' · ');
   }
 
   /// Native protocol dispatch for the public tool request contract.

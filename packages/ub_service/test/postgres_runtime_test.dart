@@ -96,6 +96,486 @@ void main() {
           await observer.close();
         }
       });
+      test('private image routes preserve originals and preview only admitted pinned assets after reviewed publication', () async {
+        final directory = Directory.systemTemp.createTempSync(
+          'ub-postgres-images-',
+        );
+        addTearDown(() => directory.deleteSync(recursive: true));
+        final bytes = base64.decode(
+          'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR4nGP4z8DwHwQBEPgD/U6VwW8AAAAASUVORK5CYII=',
+        );
+        final source = File('${directory.path}/Portrait é.png')
+          ..writeAsBytesSync(bytes);
+        var author = await runtime.connect(hello(authorId));
+        final writer = await runtime.connect(hello(writerId));
+        final created = WireFields(
+          await author.execute(
+            const CreateUniverseEngineRequest(
+              name: 'Disposable engine universe',
+              start: GregorianUniverseStart('2040-03-15T12:30:00+02:00'),
+            ),
+          ),
+          {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
+        );
+        final universe = UniverseId.parse(created.string('universe_id'));
+        universes.add(universe);
+        final continuity = ContinuityId.parse(created.string('continuity_id'));
+        final represented = RecordId.parse(created.string('context_id'));
+        final revision = RevisionId.parse(created.string('revision'));
+        Future<OpenedContext> open() => tool(
+          author,
+          OpenContextRequest(
+            universe: selector,
+            continuityId: continuity,
+            revision: const HeadRevisionSelector(),
+            representedContext: ContextIdSelector(represented),
+            temporalQuery: const TimelessFrameTime(),
+            temporalSystems: [],
+            perspective: const AuthorPerspective(),
+          ),
+          OpenedContext.fromWire,
+        );
+        StageImageEngineRequest stage(String path) =>
+            StageImageEngineRequest(universe: selector, source: path);
+        await author.execute(
+          GrantEngineRequest(
+            grant: GrantSpec(
+              profileId: writerId,
+              universeId: universe,
+              worlds: null,
+              propose: true,
+              edit: true,
+              protected: true,
+            ),
+          ),
+        );
+        await expectLater(
+          writer.execute(stage('/unreadable/never-opened')),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        final invalid = File('${directory.path}/invalid.png')
+          ..writeAsStringSync('not an image');
+        final link = Link('${directory.path}/linked.png')
+          ..createSync(source.path);
+        await expectLater(
+          author.execute(stage(invalid.path)),
+          throwsA(isA<FormatException>()),
+        );
+        await expectLater(
+          author.execute(stage(link.path)),
+          throwsA(isA<FileSystemException>()),
+        );
+        await expectLater(
+          author.execute(stage(directory.path)),
+          throwsA(isA<FileSystemException>()),
+        );
+        await expectLater(
+          store.transaction((s) async {
+            await s
+                .kernel(universe)
+                .stageImageBytes(bytes, 'Interrupted import.png');
+            throw StateError('Disposable interrupted staging');
+          }),
+          throwsA(isA<StateError>()),
+        );
+        await store.transaction((s) async {
+          expect(await s.workflows(universe).keys('image-asset:'), isEmpty);
+          expect(await s.workflows(universe).keys('image-bytes:'), isEmpty);
+        });
+        final old = await open();
+        final imported = WireFields(await author.execute(stage(source.path)), {
+          'canonical',
+          'asset_id',
+          'preview',
+          'metadata',
+          'operations',
+        });
+        expect(imported.boolean('canonical'), isFalse);
+        expect(
+          imported.string('preview'),
+          startsWith('data:image/jpeg;base64,'),
+        );
+        final operation = DomainOperation.fromWire(
+          imported.array('operations').single,
+        ) as AddImageAssetOperation;
+        final asset = operation.record;
+        final id = RecordId.parse(imported.string('asset_id'));
+        expect(operation.clientRef, id.value);
+        expect(asset.originalName, 'Portrait é.png');
+        expect(asset.mediaType, 'image/png');
+        expect(asset.byteSize, BigInt.from(bytes.length));
+        expect(
+          imported.require('metadata').toText(),
+          CanonicalObject(
+            asset.toWire().fields.where((f) => f.key != 'record_kind'),
+          ).toText(),
+        );
+        ImagePreviewEngineRequest preview(
+          ContextId context, {
+          RecordId? record,
+        }) => ImagePreviewEngineRequest(
+          universe: selector,
+          contextId: context,
+          asset: record ?? id,
+        );
+        await expectLater(
+          author.execute(preview(old.contextId)),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        await store.transaction((s) async {
+          expect(
+            await s.kernel(universe).imageBytes(asset),
+            orderedEquals(bytes),
+          );
+          expect(await s.kernel(universe).journal.head(continuity), revision);
+          expect(await s.kernel(universe).journal.identityExists(id), isFalse);
+          expect(await s.workflows(universe).keys('approval:'), isEmpty);
+        });
+        final candidate = await tool(
+          author,
+          CreateProposalRequest(
+            universe: selector,
+            contextId: old.contextId,
+            operations: [operation],
+            submission: Submission.submitted,
+            rationale: 'Reviewed portrait asset',
+            idempotencyKey: 'image-candidate',
+          ),
+          Proposal.fromWire,
+        );
+        final reference = ProposalRef(
+          proposalId: candidate.proposalId,
+          version: candidate.version,
+          digest: candidate.digest,
+        );
+        final checked = await tool(
+          author,
+          ProposalValidationRequest(
+            universe: selector,
+            contextId: old.contextId,
+            proposalReference: reference,
+            checkScope: CheckScope.candidate,
+          ),
+          ValidationV3.fromWire,
+        ) as EvaluatedValidation;
+        await author.execute(
+          ApproveEngineRequest(
+            universe: selector,
+            proposalReference: reference,
+            validationRun: checked.execution.runId,
+          ),
+        );
+        final published = await tool(
+          author,
+          CommitRequest(
+            universe: selector,
+            proposalReference: reference,
+            expectedBaseRevision: revision,
+            validationRun: checked.execution.runId,
+            idempotencyKey: 'publish-image',
+          ),
+          CommitReceipt.fromWire,
+        );
+        expect(published.revision, isNot(revision));
+        await expectLater(
+          author.execute(preview(old.contextId)),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        final current = await open();
+        await expectLater(
+          author.execute(preview(current.contextId, record: represented)),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        await expectLater(
+          writer.execute(preview(current.contextId)),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        final result = await author.execute(preview(current.contextId));
+        expect(
+          WireFields(result, {
+            'asset_id',
+            'metadata',
+            'preview',
+          }).string('preview'),
+          imported.string('preview'),
+        );
+        await runtime.close();
+        await store.close();
+        store = await PostgresInstallationStore.openExisting(
+          endpoint(),
+          settings: settings,
+        );
+        runtime = NativePostgresRuntime(store: store);
+        author = await runtime.connect(hello(authorId));
+        expect(
+          (await author.execute(preview(current.contextId))).toText(),
+          result.toText(),
+        );
+        await store.transaction((s) async {
+          expect(
+            await s.kernel(universe).imageBytes(asset),
+            orderedEquals(bytes),
+          );
+        });
+      });
+
+      test('private library shows current heads and latest named writing while retaining immutable revisions', () async {
+        final author = await runtime.connect(hello(authorId));
+        final writer = await runtime.connect(hello(writerId));
+        final created = WireFields(
+          await author.execute(
+            const CreateUniverseEngineRequest(
+              name: 'Disposable engine universe',
+              start: GregorianUniverseStart('2040-03-15T12:30:00+02:00'),
+            ),
+          ),
+          {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
+        );
+        final universe = UniverseId.parse(created.string('universe_id'));
+        universes.add(universe);
+        final continuity = ContinuityId.parse(created.string('continuity_id'));
+        final context = RecordId.parse(created.string('context_id'));
+        final revision = RevisionId.parse(created.string('revision'));
+        const request = LibraryEngineRequest(universe: selector);
+        Future<WireFields> library() async => WireFields(
+          await author.execute(request),
+          {'storage', 'worlds', 'contexts', 'continuities', 'writing'},
+        );
+        List<WireFields> pending(WireFields value) =>
+            WireFields(value.require('writing'), {'proposals', 'approved'})
+                .array('proposals')
+                .map(
+                  (v) => WireFields(v, {
+                    'candidate',
+                    'label',
+                    'submission',
+                    'base_revision',
+                    'continuity',
+                  }),
+                )
+                .toList();
+        final initial = await library();
+        final storage = WireFields(initial.require('storage'), {
+          'universe',
+          'backend',
+          'postgres_version',
+          'synchronous_commit',
+          'heads',
+        });
+        expect(storage.string('universe'), universe.value);
+        expect(storage.string('backend'), 'postgres');
+        expect(storage.string('postgres_version'), isNotEmpty);
+        expect(storage.string('synchronous_commit'), 'on');
+        expect(
+          storage.array('heads').single.toText(),
+          CanonicalArray([
+            CanonicalString(continuity.value),
+            CanonicalString(revision.value),
+          ]).toText(),
+        );
+        expect(initial.array('contexts').map(wireString), [context.value]);
+        expect(initial.array('worlds'), isEmpty);
+        expect(
+          WireFields(initial.array('continuities').single, {
+            'id',
+            'revision',
+            'name',
+          }).string('name'),
+          'Original continuity',
+        );
+        await author.execute(
+          GrantEngineRequest(
+            grant: GrantSpec(
+              profileId: writerId,
+              universeId: universe,
+              worlds: null,
+              propose: true,
+              edit: true,
+              protected: true,
+            ),
+          ),
+        );
+        await expectLater(
+          writer.execute(request),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        final opened = await tool(
+          author,
+          OpenContextRequest(
+            universe: selector,
+            continuityId: continuity,
+            revision: const HeadRevisionSelector(),
+            representedContext: ContextIdSelector(context),
+            temporalQuery: const TimelessFrameTime(),
+            temporalSystems: [],
+            perspective: const AuthorPerspective(),
+          ),
+          OpenedContext.fromWire,
+        );
+        EntityRecord person(String name) => EntityRecord(
+          names: [
+            ContextualName(text: name, validity: const UnspecifiedValidity()),
+          ],
+          classificationResolution: ClassificationResolution.unclassified,
+          worldAssociations: [],
+          labels: {'en': 'Display label'},
+          metadata: {},
+        );
+        ProposalRef reference(Proposal p) => ProposalRef(
+          proposalId: p.proposalId,
+          version: p.version,
+          digest: p.digest,
+        );
+        final proposal = await tool(
+          author,
+          CreateProposalRequest(
+            universe: selector,
+            contextId: opened.contextId,
+            operations: [
+              CreateEntityOperation(
+                clientRef: f.id(20).value,
+                record: person('Mara'),
+              ),
+            ],
+            submission: Submission.draft,
+            rationale: 'Named authoring',
+            idempotencyKey: 'library-create',
+          ),
+          Proposal.fromWire,
+        );
+        expect(pending(await library()).single.string('label'), 'Mara');
+        final revised = await tool(
+          author,
+          ReviseProposalRequest(
+            universe: selector,
+            contextId: opened.contextId,
+            proposalReference: reference(proposal),
+            operations: [
+              CreateEntityOperation(
+                clientRef: f.id(20).value,
+                record: person('Mara corrected'),
+              ),
+            ],
+            submission: Submission.draft,
+            rationale: 'Corrected identity',
+            idempotencyKey: 'library-revise',
+          ),
+          Proposal.fromWire,
+        );
+        final latest = pending(await library());
+        expect(latest, hasLength(1));
+        expect(latest.single.string('label'), 'Mara corrected');
+        expect(
+          ProposalRef.fromWire(latest.single.require('candidate')),
+          reference(revised),
+        );
+        await tool(
+          author,
+          WithdrawProposalRequest(
+            universe: selector,
+            contextId: opened.contextId,
+            proposalReference: reference(revised),
+            idempotencyKey: 'library-withdraw',
+          ),
+          Proposal.fromWire,
+        );
+        expect(pending(await library()), isEmpty);
+        await store.transaction((s) async {
+          expect(await s.workflows(universe).keys('proposal:'), hasLength(3));
+          expect(await s.workflows(universe).keys('approval:'), isEmpty);
+          expect(await s.kernel(universe).journal.head(continuity), revision);
+          final world = StoredVersion.build(
+            RecordVersionId.generate(),
+            RecordIdentity(
+              universeId: universe,
+              recordId: f.id(50),
+              recordKind: RecordKind.world,
+            ),
+            WorldRecord(selector: 'Campaign').toWire(),
+          );
+          await s
+              .kernel(universe)
+              .commit(
+                CommitInput(
+                  universe: universe,
+                  continuity: continuity,
+                  expectedHead: revision,
+                  principal: PrincipalId.generate(),
+                  decision: 'Disposable setup',
+                  reason: 'Library world',
+                  idempotencyKey: 'library-world',
+                  changes: [
+                    Assignment(
+                      recordId: world.identity.recordId,
+                      expected: null,
+                      next: world,
+                    ),
+                  ],
+                ),
+              );
+          await s.workflows(universe).compareAppend({}, [
+            MapEntry(
+              'continuity-name:${continuity.value}',
+              CanonicalString('Campaign edition'),
+            ),
+          ]);
+        });
+        final current = await library();
+        final world = WireFields(current.array('worlds').single, {
+          'id',
+          'name',
+          'continuity_id',
+        });
+        expect(world.string('id'), recordWorld(f.id(50)).value);
+        expect(world.string('name'), 'Campaign');
+        expect(world.string('continuity_id'), continuity.value);
+        final edition = WireFields(current.array('continuities').single, {
+          'id',
+          'revision',
+          'name',
+        });
+        expect(edition.string('name'), 'Campaign edition');
+        expect(edition.string('revision'), isNot(revision.value));
+        await author.execute(
+          GrantEngineRequest(
+            grant: GrantSpec(
+              profileId: writerId,
+              universeId: universe,
+              worlds: [recordWorld(f.id(50))],
+              propose: false,
+              edit: false,
+              protected: false,
+            ),
+          ),
+        );
+        await expectLater(
+          writer.execute(request),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        await runtime.close();
+        runtime = NativePostgresRuntime(store: store);
+        final reopened = await runtime.connect(hello(authorId));
+        final recovered = WireFields(await reopened.execute(request), {
+          'storage',
+          'worlds',
+          'contexts',
+          'continuities',
+          'writing',
+        });
+        expect(
+          recovered.require('writing').toText(),
+          current.require('writing').toText(),
+        );
+        expect(
+          recovered.require('continuities').toText(),
+          current.require('continuities').toText(),
+        );
+        expect(
+          recovered.require('worlds').toText(),
+          current.require('worlds').toText(),
+        );
+      });
+
       test('private drafts recover exact saves across reconnect and keep old bases without publication', () async {
         var author = await runtime.connect(hello(authorId));
         final other = await runtime.connect(hello(authorId));
@@ -670,7 +1150,36 @@ void main() {
           proposal.digest,
         );
         expect((review.require('diff') as CanonicalArray).items, hasLength(1));
+        const libraryRequest = LibraryEngineRequest(universe: selector);
+        WireFields writing(CanonicalValue value) => WireFields(
+          WireFields(value, {
+            'storage',
+            'worlds',
+            'contexts',
+            'continuities',
+            'writing',
+          }).require('writing'),
+          {'proposals', 'approved'},
+        );
+        final beforeApproval = writing(await author.execute(libraryRequest));
+        expect(beforeApproval.array('proposals'), hasLength(1));
+        expect(beforeApproval.array('approved'), isEmpty);
         await author.execute(approve);
+        final approvedWriting = writing(await author.execute(libraryRequest));
+        expect(approvedWriting.array('proposals'), hasLength(1));
+        expect(approvedWriting.array('approved'), hasLength(1));
+        final historical = WireFields(
+          approvedWriting.array('approved').single,
+          {'candidate', 'validation_run', 'label'},
+        );
+        expect(
+          ProposalRef.fromWire(historical.require('candidate')),
+          reference,
+        );
+        expect(
+          historical.string('validation_run'),
+          report.execution.runId.value,
+        );
         final commit = CommitRequest(
           universe: selector,
           universeId: universe,
@@ -680,6 +1189,12 @@ void main() {
           idempotencyKey: 'publish',
         );
         final receipt = await tool(writer, commit, CommitReceipt.fromWire);
+        final publishedLibrary = writing(await author.execute(libraryRequest));
+        expect(publishedLibrary.array('proposals'), isEmpty);
+        expect(
+          publishedLibrary.require('approved').toText(),
+          approvedWriting.require('approved').toText(),
+        );
         final oldInstance = runtime.instance;
         final installation = store.instanceId;
         await runtime.close();
@@ -693,6 +1208,15 @@ void main() {
         expect(runtime.instance, isNot(oldInstance));
         author = await runtime.connect(hello(authorId));
         writer = await runtime.connect(hello(writerId));
+        final recoveredLibrary = writing(await author.execute(libraryRequest));
+        expect(
+          recoveredLibrary.require('proposals').toText(),
+          publishedLibrary.require('proposals').toText(),
+        );
+        expect(
+          recoveredLibrary.require('approved').toText(),
+          publishedLibrary.require('approved').toText(),
+        );
         expect(
           (await tool(
             writer,

@@ -411,6 +411,15 @@ candidate definitions. Private author drafts retain immutable expected-version
 saves, recover exact retries across reconnect, reject competing edits and keep
 an old base edition after canon advances. Draft size and represented-context
 checks match SQLite; saving a draft creates no proposal, approval or publication.
+The private PostgreSQL library now reads current continuity/world/context views,
+latest named pending candidates and immutable approval history. Published writing
+leaves the pending list only when its durable publication receipt exists.
+Owner-wide library and image routes remain author-only. Image staging uses the
+same bounded regular-file reader, decoder and retained original-byte checks;
+staging creates no canonical identity. Preview requires an image asset in the
+selected pinned edition, and originals/previews survive installation reopen.
+Library storage status identifies PostgreSQL and reports actual server/durability
+settings and heads without exposing connection credentials.
 Socket/launcher integration, cross-process worker qualification and
 the remaining service routes are pending. Import previews/purge coordination,
 transfer and live verified-TLS qualification also remain pending; runtime PostgreSQL selection

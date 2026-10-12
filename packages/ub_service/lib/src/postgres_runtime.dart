@@ -156,6 +156,9 @@ final class NativePostgresRuntime {
             ReviewEngineRequest(:final universe) ||
             AuthorWritingEngineRequest(:final universe) ||
             StageSourceEngineRequest(:final universe) ||
+            StageImageEngineRequest(:final universe) ||
+            ImagePreviewEngineRequest(:final universe) ||
+            LibraryEngineRequest(:final universe) ||
             LoadDraftEngineRequest(:final universe) ||
             SaveDraftEngineRequest(:final universe) => universe,
             _ => throw const UnsupportedSemanticsError(
@@ -195,6 +198,10 @@ final class NativePostgresRuntime {
               return workflow.review(proposalReference);
             case StageSourceEngineRequest(:final label, :final text):
               return workflow.stageSource(label: label, text: text);
+            case StageImageEngineRequest() || ImagePreviewEngineRequest():
+              return workflow.imageRequest(request);
+            case LibraryEngineRequest():
+              return workflow.libraryRequest(request);
             case LoadDraftEngineRequest() || SaveDraftEngineRequest():
               return workflow.draftRequest(request);
             case AuthorWritingEngineRequest():

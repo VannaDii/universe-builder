@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:postgres/postgres.dart';
 import 'package:ub_domain/ub_domain.dart';
@@ -27,6 +29,69 @@ final class PostgresKernel {
   final TxSession _session;
   final UniverseId universe;
   final PostgresJournal journal;
+
+  /// Backend status for the private author library, without connection secrets.
+  Future<CanonicalObject> storageStatus() async {
+    final status = (await _session.execute(
+      "SELECT pg_catalog.current_setting('server_version'),pg_catalog.current_setting('synchronous_commit')",
+    )).single;
+    final heads = await journal.heads();
+    return CanonicalObject([
+      MapEntry('universe', CanonicalString(universe.value)),
+      MapEntry('backend', CanonicalString('postgres')),
+      MapEntry('postgres_version', CanonicalString(status[0] as String)),
+      MapEntry('synchronous_commit', CanonicalString(status[1] as String)),
+      MapEntry(
+        'heads',
+        CanonicalArray(
+          heads.entries.map(
+            (head) => CanonicalArray([
+              CanonicalString(head.key.value),
+              CanonicalString(head.value.value),
+            ]),
+          ),
+        ),
+      ),
+    ]);
+  }
+
+  /// Retain an authorized original within the caller's universe transaction.
+  /// Staging alone creates no canonical identity or publication.
+  Future<({RecordId record, ImageAssetRecord asset})> stageImageBytes(
+    Uint8List bytes,
+    String originalName,
+  ) async {
+    final asset = media.inspectImageBytes(bytes, originalName);
+    final record = RecordId.generate();
+    final entries = <MapEntry<String, CanonicalValue>>[];
+    for (var offset = 0; offset < bytes.length; offset += imageChunkBytes) {
+      final end = offset + imageChunkBytes < bytes.length
+          ? offset + imageChunkBytes
+          : bytes.length;
+      entries.add(
+        MapEntry(
+          'image-bytes:${asset.contentDigest}:${offset ~/ imageChunkBytes}',
+          CanonicalString(
+            base64.encode(Uint8List.sublistView(bytes, offset, end)),
+          ),
+        ),
+      );
+    }
+    entries.add(MapEntry('image-asset:${record.value}', asset.toWire()));
+    await PostgresWorkflowStorage(
+      _session,
+      universe,
+    ).compareAppend({}, entries);
+    return (record: record, asset: asset);
+  }
+
+  Future<Uint8List> imageBytes(ImageAssetRecord asset) =>
+      readRetainedImageBytes(
+        asset,
+        PostgresWorkflowStorage(_session, universe).get,
+      );
+  Future<String> imagePreview(ImageAssetRecord asset) async =>
+      media.imagePreview(asset, await imageBytes(asset));
 
   Future<List<StoredVersion>> search(
     ContinuityId continuity,
