@@ -6,6 +6,7 @@ import 'package:ub_domain/ub_domain.dart';
 
 import 'canonical_integrity.dart';
 import 'archive_checksum.dart';
+import 'archive_reconstruction.dart';
 import 'archive_schema.g.dart';
 import 'database.dart';
 import 'journal.dart';
@@ -269,7 +270,18 @@ final class OwnedSqliteDatabase {
 
   /// Complete retained history and editorial evidence in the existing logical
   /// archive format. Filtered/canon-only reconstruction uses a separate path.
-  CanonicalObject exportCompleteHistory(String destination) {
+  CanonicalObject exportCompleteHistory(String destination) =>
+      _exportLogical(destination, completeHistory: true);
+
+  /// All factual records and revision history, excluding editorial workflow
+  /// and uncommitted assets. Dependency-filtered selection is a separate path.
+  CanonicalObject exportCanonOnly(String destination) =>
+      _exportLogical(destination, completeHistory: false);
+
+  CanonicalObject _exportLogical(
+    String destination, {
+    required bool completeHistory,
+  }) {
     final target = File(destination).absolute;
     final temporary = target.parent.createTempSync('.relational-export-');
     try {
@@ -282,7 +294,6 @@ final class OwnedSqliteDatabase {
       late CanonicalObject manifest;
       try {
         archive = create(archivePath);
-        copyTrustedPackageRows(snapshotPath, archive.database);
         manifest = CanonicalObject([
           MapEntry('format', CanonicalString('universe-relational')),
           MapEntry('universe', CanonicalString(snapshot.universeId.value)),
@@ -298,8 +309,28 @@ final class OwnedSqliteDatabase {
           const MapEntry('complete', CanonicalBool(true)),
           const MapEntry('omitted_records', CanonicalNumber('0')),
           const MapEntry('includes_history', CanonicalBool(true)),
-          const MapEntry('includes_workflow', CanonicalBool(true)),
+          MapEntry('includes_workflow', CanonicalBool(completeHistory)),
         ]);
+        if (completeHistory) {
+          copyTrustedPackageRows(snapshotPath, archive.database);
+        } else {
+          reconstructArchive(
+            snapshot.database,
+            archive.database,
+            manifest: manifest,
+            digest: '',
+            target: snapshot.universeId,
+            name:
+                snapshot.database
+                        .select('SELECT name FROM universes')
+                        .single['name']
+                    as String,
+          );
+          archive.recover();
+          CanonicalIntegrity(
+            SqliteJournal(archive.database, archive.universeId),
+          ).verifyComplete();
+        }
         final db = archive.database;
         db.execute(archiveSchema);
         db.execute('BEGIN IMMEDIATE');
@@ -573,6 +604,58 @@ final class VerifiedLogicalArchive {
   final String digest;
   final Directory _temporary;
   bool _closed = false;
+
+  /// Reconstruct canon-only history or a named clone with remapped canonical
+  /// references. Original editorial evidence retains its original bindings.
+  StagedSqliteRestore reconstruct(
+    String scratch, {
+    required UniverseId target,
+    required String name,
+  }) {
+    if (_closed) throw StateError('Verified archive is closed');
+    selectorKey(name);
+    final fields = WireFields(manifest, {
+      'format',
+      'universe',
+      'name',
+      'complete',
+      'omitted_records',
+      'includes_history',
+      'includes_workflow',
+    });
+    if (!fields.boolean('complete') &&
+        target.value == fields.string('universe')) {
+      throw const FormatException(
+        'Filtered archives require an explicitly named clone',
+      );
+    }
+    final parent = privateDirectory(scratch);
+    final temporary = Directory(parent).createTempSync('.logical-import-');
+    OwnedSqliteDatabase? output;
+    try {
+      privateDirectory(temporary.path);
+      output = OwnedSqliteDatabase.create('${temporary.path}/package.sqlite');
+      reconstructArchive(
+        package.database,
+        output.database,
+        manifest: manifest,
+        digest: digest,
+        target: target,
+        name: name,
+      );
+      output.recover();
+      CanonicalIntegrity(SqliteJournal(output.database, target))
+          .verifyComplete();
+      return StagedSqliteRestore._(output, temporary);
+    } on Object {
+      try {
+        output?.close();
+      } finally {
+        temporary.deleteSync(recursive: true);
+      }
+      rethrow;
+    }
+  }
 
   /// Stage a complete retained-history identity-preserving import. Canon-only
   /// and clone reconstruction are separate paths; installation authority is absent.

@@ -25,6 +25,17 @@ codec,
 revision journal and connection policy. It is not yet a
 replacement engine or application.
 
+The owned SQLite store now exports verified complete-history and canon-only
+logical archives, and stages identity-preserving imports or named clones.
+Reconstruction preserves record/version IDs and pinned revision history, maps
+canonical universe references, retains original digest provenance across repeated
+clones, and leaves authored strings and historical editorial evidence unchanged.
+Imported approvals and receipts remain historical rather than granting authority.
+Canon-only exports retain canonical source/image bytes and omit editorial workflow
+and uncommitted assets. Filtered archives cannot restore the source universe ID.
+These are store APIs; service import preview/admission and dependency-filtered
+export remain pending. Focused functional checks currently cover macOS only.
+
 Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter
 **3.47.5** (recorded in `.flutter-version`). Dependency resolution is locked in
 the root `pubspec.lock`. Run `dart pub get` at the repository root, then:

@@ -2,12 +2,16 @@
 library;
 
 import 'dart:io';
+import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
+import 'package:image/image.dart' as img;
 import 'package:sqlite3/sqlite3.dart' show sqlite3, OpenMode;
 import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/sqlite.dart';
+import 'package:ub_store/ub_store.dart';
 import 'package:ub_store/src/archive_checksum.dart';
 import 'package:ub_store/src/ownership.dart';
 import 'package:ub_store/src/relational.dart';
@@ -189,6 +193,345 @@ void main() {
     noStages();
   });
 
+  test('clone reconstruction preserves history identities and original editorial evidence in a new universe', () {
+    final path = export();
+    final original = File(path).readAsBytesSync();
+    final archive = OwnedSqliteDatabase.stageLogicalArchive(path, root.path);
+    final target = UniverseId.generate();
+    final clone = archive.reconstruct(
+      root.path,
+      target: target,
+      name: 'Named clone',
+    );
+    try {
+      final copy = clone.package;
+      expect(copy.universeId, target);
+      expect(SqliteJournal(copy.database, target).head(continuity), revision);
+      expect(
+        copy.database.select('SELECT name FROM universes').single['name'],
+        'Named clone',
+      );
+      final workflow = WorkflowStorage(copy.database);
+      expect(workflow.get('cursor:one'), isNull);
+      expect(
+        workflow.evidence('cursor:one')!.toText(),
+        WorkflowStorage(source.database).get('cursor:one')!.toText(),
+      );
+      final origin = WireFields(
+        workflow.get('logical-import-origin:${archive.digest}')!,
+        {
+          'digest',
+          'source_universe',
+          'target_universe',
+          'complete',
+          'omitted_records',
+        },
+      );
+      expect(origin.string('source_universe'), universe.value);
+      expect(origin.string('target_universe'), target.value);
+      expect(File(path).readAsBytesSync(), orderedEquals(original));
+    } finally {
+      clone.close();
+      archive.close();
+    }
+    noStages();
+  });
+
+  test('clone remaps record and version references retains pinned branches and keeps earliest digest provenance', () {
+    const text = 'Aé😀\r\nZ';
+    String hash(String value) => sha256.convert(utf8.encode(value)).toString();
+    final actor = PrincipalId.generate();
+    source.database.execute('BEGIN IMMEDIATE');
+    WorkflowStorage(source.database)
+        .put('source:${hash(text)}', CanonicalString(text));
+    source.database.execute('COMMIT');
+    final sourceId = RecordId.generate(),
+        versionId = RecordId.generate(),
+        anchorId = RecordId.generate();
+    StoredVersion version(RecordId id, RecordPayload payload) =>
+        StoredVersion.build(
+          RecordVersionId.generate(),
+          RecordIdentity(
+            universeId: universe,
+            recordId: id,
+            recordKind: payload.recordKind,
+          ),
+          payload.toWire(),
+        );
+    final sourceRecord = version(
+      sourceId,
+      SourceRecord(
+        label: 'Authored ${universe.value}',
+        origin: const OriginMetadata(),
+        versions: [versionId],
+      ),
+    );
+    final sourceVersion = version(
+      versionId,
+      SourceVersionRecord(
+        source: RecordRef(universe: universe, record: sourceId),
+        contentDigest: hash(text),
+        mediaType: 'text/plain; charset=utf-8',
+        byteSize: BigInt.from(utf8.encode(text).length),
+        importActor: actor,
+        importTime: '2026-10-12T00:00:00Z',
+        decoding: DecodingDescriptor(
+          encoding: 'UTF-8',
+          representation: 'exact-utf8-v1',
+          byteLength: BigInt.from(utf8.encode(text).length),
+        ),
+        origin: const OriginMetadata(),
+      ),
+    );
+    final anchor = version(
+      anchorId,
+      AnchorRecord(
+        sourceVersion: VersionRef(
+          universe: universe,
+          record: versionId,
+          version: sourceVersion.versionId,
+        ),
+        locator: ByteRangeLocator(BigInt.one, BigInt.from(7)),
+        excerpt: 'é😀',
+        excerptDigest: hash('é😀'),
+      ),
+    );
+    final kernel = SqliteKernel(source.database, universe);
+    final canonical = kernel.commit(
+      CommitInput(
+        universe: universe,
+        continuity: continuity,
+        expectedHead: revision,
+        principal: actor,
+        decision: 'Admitted fixture',
+        reason: 'Reference pins',
+        idempotencyKey: 'source-canon',
+        changes: [
+          for (final value in [sourceRecord, sourceVersion, anchor])
+            Assignment(recordId: value.identity.recordId, next: value),
+        ],
+      ),
+    );
+    final branch = ContinuityId.generate();
+    source.database.execute('BEGIN IMMEDIATE');
+    final branchHead = kernel.journal.branch(
+      branch,
+      continuity,
+      canonical,
+      actor,
+    );
+    source.database.execute('COMMIT');
+    final head = kernel.commit(
+      CommitInput(
+        universe: universe,
+        continuity: continuity,
+        expectedHead: canonical,
+        principal: actor,
+        decision: 'Admitted fixture',
+        reason: 'Historical anchor',
+        idempotencyKey: 'retire-anchor',
+        changes: [Assignment(recordId: anchorId, expected: anchor.versionId)],
+      ),
+    );
+    final path = export();
+    final original = File(path).readAsBytesSync();
+    final archive = OwnedSqliteDatabase.stageLogicalArchive(path, root.path);
+    final target = UniverseId.generate();
+    final clone = archive.reconstruct(
+      root.path,
+      target: target,
+      name: 'Reference clone',
+    );
+    try {
+      final journal = SqliteJournal(clone.package.database, target);
+      expect(journal.head(continuity), head);
+      expect(journal.head(branch), branchHead);
+      expect(journal.snapshot(branch, branchHead)[anchorId], anchor.versionId);
+      final mappedVersion = journal.load(sourceVersion.versionId);
+      expect(
+        SourceVersionRecord.fromWire(mappedVersion.payload).source.universe,
+        target,
+      );
+      final mappedAnchor = AnchorRecord.fromWire(
+        journal.load(anchor.versionId).payload,
+      );
+      expect(mappedAnchor.sourceVersion.universe, target);
+      expect(mappedAnchor.sourceVersion.version, sourceVersion.versionId);
+      expect(
+        SourceRecord.fromWire(journal.load(sourceRecord.versionId).payload)
+            .label,
+        'Authored ${universe.value}',
+      );
+      expect(journal.load(sourceRecord.versionId).digest, sourceRecord.digest);
+      final provenance = clone.package.database.select(
+        'SELECT source_digest,normalized_digest FROM import_record_digest WHERE version_id=?',
+        [sourceVersion.versionId.value],
+      ).single;
+      expect(provenance['source_digest'], sourceVersion.digest);
+      expect(provenance['normalized_digest'], mappedVersion.digest);
+      expect(mappedVersion.digest, isNot(sourceVersion.digest));
+      expect(
+        WorkflowStorage(clone.package.database)
+            .evidence('source:${hash(text)}')!
+            .toText(),
+        CanonicalString(text).toText(),
+      );
+      expect(
+        clone.package.database
+            .select('SELECT count(*) AS n FROM historical_receipt')
+            .single['n'],
+        2,
+      );
+      final nextPath = '${root.path}/cloned-history.sqlite';
+      clone.package.exportCompleteHistory(nextPath);
+      final nextArchive = OwnedSqliteDatabase.stageLogicalArchive(
+        nextPath,
+        root.path,
+      );
+      final nextTarget = UniverseId.generate();
+      final next = nextArchive.reconstruct(
+        root.path,
+        target: nextTarget,
+        name: 'Second clone',
+      );
+      try {
+        final current = SqliteJournal(
+          next.package.database,
+          nextTarget,
+        ).load(sourceVersion.versionId);
+        final retained = next.package.database.select(
+          'SELECT source_digest,normalized_digest FROM import_record_digest WHERE version_id=?',
+          [sourceVersion.versionId.value],
+        ).single;
+        expect(retained['source_digest'], sourceVersion.digest);
+        expect(retained['normalized_digest'], current.digest);
+        expect(
+          SourceVersionRecord.fromWire(current.payload).source.universe,
+          nextTarget,
+        );
+      } finally {
+        next.close();
+        nextArchive.close();
+      }
+    } finally {
+      clone.close();
+      archive.close();
+    }
+    expect(File(path).readAsBytesSync(), orderedEquals(original));
+    noStages();
+  });
+
+  test('canon-only export excludes editorial authority and reconstructs under the retained identity', () {
+    final path = '${root.path}/canon-only-export.sqlite';
+    final manifest = source.exportCanonOnly(path);
+    final archive = OwnedSqliteDatabase.stageLogicalArchive(path, root.path);
+    final rebuilt = archive.reconstruct(
+      root.path,
+      target: universe,
+      name: 'Canon only',
+    );
+    try {
+      expect(archive.manifest.toText(), manifest.toText());
+      expect(
+        WireFields(manifest, {
+          'format',
+          'universe',
+          'name',
+          'complete',
+          'omitted_records',
+          'includes_history',
+          'includes_workflow',
+        }).boolean('includes_workflow'),
+        isFalse,
+      );
+      expect(
+        WorkflowStorage(archive.package.database).keys('cursor:'),
+        isEmpty,
+      );
+      expect(rebuilt.package.universeId, universe);
+      expect(
+        SqliteJournal(rebuilt.package.database, universe).head(continuity),
+        revision,
+      );
+      expect(
+        WorkflowStorage(rebuilt.package.database).keys('cursor:'),
+        isEmpty,
+      );
+      expect(WorkflowStorage(source.database).get('cursor:one'), isNotNull);
+    } finally {
+      rebuilt.close();
+      archive.close();
+    }
+    noStages();
+  });
+
+  test('canon-only reconstruction retains a canonical image across multiple byte chunks', () {
+    final bytes = img.encodePng(img.Image(width: 400, height: 400), level: 0);
+    expect(bytes.length, greaterThan(imageChunkBytes));
+    final kernel = SqliteKernel(source.database, universe);
+    final staged = kernel.stageImageBytes(bytes, 'canonical.png');
+    final assetVersion = StoredVersion.build(
+      RecordVersionId.generate(),
+      RecordIdentity(
+        universeId: universe,
+        recordId: staged.record,
+        recordKind: RecordKind.imageAsset,
+      ),
+      staged.asset.toWire(),
+    );
+    final head = kernel.commit(
+      CommitInput(
+        universe: universe,
+        continuity: continuity,
+        expectedHead: revision,
+        principal: PrincipalId.generate(),
+        decision: 'Admitted fixture',
+        reason: 'Canonical image',
+        idempotencyKey: 'canonical-image',
+        changes: [Assignment(recordId: staged.record, next: assetVersion)],
+      ),
+    );
+    final path = '${root.path}/canon-image.sqlite';
+    source.exportCanonOnly(path);
+    final archive = OwnedSqliteDatabase.stageLogicalArchive(path, root.path);
+    final target = UniverseId.generate();
+    final rebuilt = archive.reconstruct(
+      root.path,
+      target: target,
+      name: 'Image clone',
+    );
+    try {
+      expect(
+        SqliteJournal(rebuilt.package.database, target).head(continuity),
+        head,
+      );
+      expect(
+        SqliteKernel(rebuilt.package.database, target).imageBytes(staged.asset),
+        orderedEquals(bytes),
+      );
+      expect(
+        WorkflowStorage(rebuilt.package.database).keys('cursor:'),
+        isEmpty,
+      );
+      expect(
+        rebuilt.package.database
+            .select('SELECT count(*) AS n FROM operation_receipts')
+            .single['n'],
+        0,
+      );
+      expect(
+        rebuilt.package.database
+            .select('SELECT count(*) AS n FROM media_chunk')
+            .single['n'],
+        2,
+      );
+    } finally {
+      rebuilt.close();
+      archive.close();
+    }
+    noStages();
+  });
+
   test('invalid import names and closed archives refuse staging before directory creation', () {
     final path = export();
     final archive = OwnedSqliteDatabase.stageLogicalArchive(path, root.path);
@@ -197,10 +540,18 @@ void main() {
       () => archive.stageRestore(scratch, name: ' '),
       throwsFormatException,
     );
+    expect(
+      () => archive.reconstruct(scratch, target: universe, name: ' '),
+      throwsFormatException,
+    );
     expect(Directory(scratch).existsSync(), isFalse);
     archive.close();
     expect(
       () => archive.stageRestore(scratch, name: 'Closed'),
+      throwsStateError,
+    );
+    expect(
+      () => archive.reconstruct(scratch, target: universe, name: 'Closed'),
       throwsStateError,
     );
     expect(Directory(scratch).existsSync(), isFalse);
@@ -223,6 +574,14 @@ void main() {
         );
         expect(
           () => archive.stageRestore(root.path, name: 'Rejected'),
+          throwsFormatException,
+        );
+        expect(
+          () => archive.reconstruct(
+            root.path,
+            target: UniverseId.generate(),
+            name: 'Rejected clone',
+          ),
           throwsFormatException,
         );
         expect(
@@ -310,6 +669,17 @@ void main() {
             throwsFormatException,
           );
           expect(Directory(scratch).existsSync(), isFalse);
+          if (!complete) {
+            expect(
+              () => verified.reconstruct(
+                scratch,
+                target: empty.universeId,
+                name: 'Invalid retained identity',
+              ),
+              throwsFormatException,
+            );
+            expect(Directory(scratch).existsSync(), isFalse);
+          }
           expect(File(path).readAsBytesSync(), orderedEquals(original));
         } finally {
           verified.close();

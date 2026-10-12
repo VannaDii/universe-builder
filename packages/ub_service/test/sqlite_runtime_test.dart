@@ -3633,6 +3633,114 @@ void main() {
         } finally {
           staged.close();
         }
+        final clonedId = UniverseId.generate();
+        final cloned = archive.reconstruct(
+          '${root.path}/packages',
+          target: clonedId,
+          name: 'Historical clone',
+        );
+        try {
+          final imported = cloned.package;
+          final retained = WorkflowStorage(imported.database);
+          expect(imported.universeId, clonedId);
+          expect(retained.keys('approval:'), isEmpty);
+          expect(retained.keys('context:'), isEmpty);
+          final approval = workflow.keys('approval:').single;
+          expect(
+            retained.evidence(approval)!.toText(),
+            workflow.get(approval)!.toText(),
+          );
+          expect(
+            retained.get(retained.keys('draft:').single)!.toText(),
+            savedDraft.toText(),
+          );
+          expect(
+            imported.database
+                .select('SELECT count(*) AS n FROM historical_receipt')
+                .single['n'],
+            2,
+          );
+          expect(
+            SqliteKernel(imported.database, clonedId).imageBytes(image),
+            orderedEquals(imageBytes),
+          );
+          expect(
+            imported.database
+                .select('SELECT utf8_content FROM source_content')
+                .single['utf8_content'],
+            orderedEquals(utf8.encode(stage.text)),
+          );
+          for (final row in copy.database.select(
+            'SELECT id FROM record_versions',
+          )) {
+            final id = RecordVersionId.parse(row['id'] as String);
+            final original = SqliteJournal(copy.database, f.u).load(id);
+            final mapped = SqliteJournal(imported.database, clonedId).load(id);
+            expect(mapped.identity.recordId, original.identity.recordId);
+            if (mapped.identity.recordKind == RecordKind.representedContext) {
+              expect(
+                RepresentedContextRecord.fromWire(mapped.payload).universe,
+                clonedId,
+              );
+              final provenance = imported.database.select(
+                'SELECT source_digest,normalized_digest FROM import_record_digest WHERE version_id=?',
+                [id.value],
+              ).single;
+              expect(provenance['source_digest'], original.digest);
+              expect(provenance['normalized_digest'], mapped.digest);
+            }
+          }
+          expect(
+            SqliteJournal(
+              imported.database,
+              clonedId,
+            ).snapshot(opened.frame.continuity, opened.frame.revision),
+            hasLength(1),
+          );
+        } finally {
+          cloned.close();
+        }
+        final canonPath = '${root.path}/canon-only-history.sqlite';
+        backup.exportCanonOnly(canonPath);
+        final canonArchive = OwnedSqliteDatabase.stageLogicalArchive(
+          canonPath,
+          '${root.path}/packages',
+        );
+        final rebuilt = canonArchive.reconstruct(
+          '${root.path}/packages',
+          target: f.u,
+          name: 'Canon only',
+        );
+        try {
+          final imported = rebuilt.package;
+          expect(
+            SqliteJournal(imported.database, f.u).head(opened.frame.continuity),
+            CommitReceipt.fromWire(published.result).revision,
+          );
+          expect(WorkflowStorage(imported.database).keys('approval:'), isEmpty);
+          expect(WorkflowStorage(imported.database).keys('draft:'), isEmpty);
+          expect(
+            imported.database
+                .select('SELECT count(*) AS n FROM operation_receipts')
+                .single['n'],
+            0,
+          );
+          expect(
+            imported.database
+                .select('SELECT count(*) AS n FROM source_content')
+                .single['n'],
+            0,
+          );
+          expect(
+            imported.database
+                .select('SELECT count(*) AS n FROM media_chunk')
+                .single['n'],
+            0,
+          );
+        } finally {
+          rebuilt.close();
+          canonArchive.close();
+        }
         expect(copy.universeId, f.u);
         expect(
           SqliteJournal(copy.database, f.u).head(opened.frame.continuity),
