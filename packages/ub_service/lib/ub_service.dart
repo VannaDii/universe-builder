@@ -48,6 +48,7 @@ export 'src/writing_objects.dart';
 export 'src/writing_changes.dart';
 export 'src/writing_check.dart';
 export 'src/writing_source.dart';
+export 'src/writing_author_review.dart';
 export 'src/context_brief.dart';
 export 'src/read_cursor.dart';
 export 'src/knowledge_boundaries.dart';

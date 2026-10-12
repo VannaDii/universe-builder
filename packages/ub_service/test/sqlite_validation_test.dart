@@ -226,6 +226,17 @@ void main() {
       service.review(proposal.reference),
       throwsA(isA<NotFoundOrNotAccessibleError>()),
     );
+    final validationCount = WorkflowStorage(package.database)
+        .keys('validation:')
+        .length;
+    await expectLater(
+      service.writingAuthorReview(proposal.reference),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    expect(
+      WorkflowStorage(package.database).keys('validation:'),
+      hasLength(validationCount),
+    );
     final first = await owner().review(proposal.reference);
     final fields = WireFields(first, {
       'proposal',
@@ -267,6 +278,10 @@ void main() {
     });
     expect(old.boolean('latest'), isFalse);
     expect(old.require('diff').toText(), fields.require('diff').toText());
+    await expectLater(
+      owner().writingAuthorReview(proposal.reference),
+      throwsA(isA<ApprovalStaleError>()),
+    );
     kernel.commit(input('advance-after-review', [f.row(77, f.entity())]));
     package.close();
     package = OwnedSqliteDatabase.openExisting(
@@ -429,6 +444,35 @@ void main() {
     expect(workflow.keys('source-version:'), hasLength(1));
     expect(workflow.keys('approval:'), isEmpty);
     expect(kernel.journal.head(continuity), head);
+    final reviewed = WireFields(
+      await owner().writingAuthorReview(reference(prepared)),
+      {
+        'acceptance_options',
+        'summary',
+        'candidate',
+        'validation',
+        'impact',
+        'publishable',
+        'review',
+      },
+    );
+    expect(reviewed.boolean('publishable'), isTrue);
+    expect(
+      ProposalRef.fromWire(reviewed.require('candidate')),
+      reference(prepared),
+    );
+    final summary = reviewed.array('summary').map(wireString).toList();
+    expect(summary, contains(startsWith('Exact author source:')));
+    expect(summary, contains(contains('Iris — colour = "red"')));
+    final reviewValidation = ValidationV3.fromWire(
+      reviewed.require('validation'),
+    );
+    expect(
+      workflow.get('validation:${reviewValidation.execution!.runId.value}'),
+      isNotNull,
+    );
+    expect(workflow.keys('approval:'), isEmpty);
+    expect(kernel.journal.head(continuity), head);
     package.close();
     package = OwnedSqliteDatabase.openExisting(
       '${directory.path}/packages/world.sqlite',
@@ -470,6 +514,10 @@ void main() {
     );
     expect(kernel.journal.head(continuity), receipt.revision);
     expect(kernel.identityExists(source.identity.recordId), isTrue);
+    await expectLater(
+      owner().writingAuthorReview(reference(prepared)),
+      throwsA(isA<ApprovalStaleError>()),
+    );
     await expectLater(
       owner().prepareWritingSource(
         candidate: candidate,
@@ -804,6 +852,29 @@ void main() {
     );
     expect(result.check.status, 'conflict');
     expect(result.check.candidateHandle, isNotNull);
+    final retained = StoredProposal.fromWire(
+      WorkflowStorage(package.database).get(
+        WorkflowStorage(package.database)
+            .latestKey('proposal:${result.check.candidateHandle}:')!,
+      )!,
+    );
+    final review = WireFields(
+      await SqliteValidationWorkflow(
+        package: package,
+        authority: authority,
+        principal: author,
+      ).writingAuthorReview(retained.reference),
+      {
+        'acceptance_options',
+        'summary',
+        'candidate',
+        'validation',
+        'impact',
+        'publishable',
+        'review',
+      },
+    );
+    expect(review.boolean('publishable'), isFalse);
     expect(
       ValidationV3.fromWire(result.check.validation!)
           .execution!

@@ -33,6 +33,8 @@ import 'writing_changes.dart';
 import 'writing_check.dart';
 import 'writing_dates.dart';
 import 'writing_source.dart';
+import 'writing_author_review.dart';
+import 'resource_checks.dart';
 
 /// Internal native workflow for an already recovered, writer-owned package.
 /// It retains assessments, checked results and exact human approvals, and
@@ -962,6 +964,107 @@ final class SqliteValidationWorkflow {
             proposal.baseFrame.revision) {
       throw const ApprovalStaleError();
     }
+  }
+
+  /// Recheck the exact author candidate and present its frozen changes. A
+  /// publishable review is not approval and does not authorize publication.
+  Future<CanonicalObject> writingAuthorReview(ProposalRef reference) =>
+      authority.withUniverseAuthority(
+        principal,
+        universe,
+        (current) => _writingAuthorReview(reference, current),
+      );
+
+  Future<CanonicalObject> _writingAuthorReview(
+    ProposalRef reference,
+    CurrentUniverseAuthority current,
+  ) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final stored = _proposal(reference, current);
+    final p = stored.proposal;
+    _writingAuthorCurrent(p);
+    final selector = Selector(universe.value);
+    final opened = await _openContext(
+      _writingAdmission(selector, p.baseFrame),
+      current,
+    );
+    final validation = await _validateProposalRequest(
+      ProposalValidationRequest(
+        universe: selector,
+        contextId: opened.contextId,
+        proposalReference: reference,
+        checkScope: CheckScope.universe,
+      ),
+      current,
+    );
+    final impact = await _getImpactRequest(
+      ProposalImpactRequest(
+        universe: selector,
+        contextId: opened.contextId,
+        proposalReference: reference,
+        scope: CheckScope.universe,
+        byteBudget: 65536,
+      ),
+      current,
+    );
+    final execution = validation.execution;
+    if (execution == null) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final checked = CheckedValidation.fromWire(
+      _workflow.get('validation:${execution.runId.value}')!,
+    );
+    final originals = _canon(p.baseFrame.continuity, p.baseFrame.revision);
+    final records = {for (final row in originals) row.identity.recordId: row};
+    for (final change in stored.changes) {
+      records.remove(change.recordId);
+      if (change.next != null) {
+        records[change.recordId] = RecordVersion.fromWire(
+          change.next!.toCanonical(),
+        );
+      }
+    }
+    final gaps = assessResourceAccounting(records.values.toList(), p.baseFrame);
+    return CanonicalObject([
+      MapEntry(
+        'acceptance_options',
+        CanonicalArray(
+          gaps
+              .where((g) => g.acceptance == null)
+              .map(
+                (g) => CanonicalObject([
+                  MapEntry('fingerprint', CanonicalString(g.fingerprint.value)),
+                  MapEntry(
+                    'scope',
+                    CanonicalString('resource:${g.proposition.value}'),
+                  ),
+                ]),
+              ),
+        ),
+      ),
+      MapEntry(
+        'summary',
+        CanonicalArray(
+          summarizeWritingAuthorReview(
+            stored: stored,
+            originals: originals,
+          ).map(CanonicalString.new),
+        ),
+      ),
+      MapEntry('candidate', reference.toWire()),
+      MapEntry('validation', validation.toWire()),
+      MapEntry('impact', impact.impact.toWire()),
+      // This native route returns a whole impact or fails its delivery budget.
+      MapEntry(
+        'publishable',
+        CanonicalBool(
+          checked.admissible && impact.impact.coverage == Coverage.complete,
+        ),
+      ),
+      MapEntry('review', await _review(reference, current)),
+    ]);
   }
 
   /// Retain the author-selected exact-source revision. This does not approve or
