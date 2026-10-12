@@ -395,4 +395,107 @@ extension PostgresInstallationMoves on PostgresInstallationSession {
       targetInstance: targetInstance,
     );
   });
+  Future<CanonicalObject> listMoves({
+    required ProfileId actor,
+    OperationId? after,
+    int limit = 100,
+  }) async {
+    await authority.requireAuthor(actor);
+    ListMovesEngineRequest(after: after, limit: limit).validate();
+    final schema = postgresAuthorityNamespace(authority.instanceId);
+    final rows = await _tx.execute(
+      'SELECT m.universe,m.operation,m.target_instance,c.name,r.state FROM $schema.move_quiescence m '
+      'JOIN $schema.catalog c ON c.id=m.universe LEFT JOIN $schema.move_review r ON r.operation=m.operation '
+      'WHERE (\$1::text IS NULL OR m.operation>\$1) ORDER BY m.operation LIMIT \$2',
+      parameters: [after?.value, limit + 1],
+    );
+    final page = rows.take(limit).map((row) => row.toColumnMap()).toList();
+    return CanonicalObject([
+      MapEntry('source_instance', CanonicalString(authority.instanceId.value)),
+      MapEntry(
+        'moves',
+        CanonicalArray(
+          page.map(
+            (row) => CanonicalObject([
+              MapEntry(
+                'universe_id',
+                CanonicalString(
+                  UniverseId.parse(row['universe'] as String).value,
+                ),
+              ),
+              MapEntry(
+                'operation_id',
+                CanonicalString(
+                  OperationId.parse(row['operation'] as String).value,
+                ),
+              ),
+              MapEntry(
+                'target_instance',
+                CanonicalString(
+                  OperationId.parse(row['target_instance'] as String).value,
+                ),
+              ),
+              MapEntry(
+                'name',
+                CanonicalString(
+                  readPostgresAuthoredText(row['name'] as List<int>),
+                ),
+              ),
+              MapEntry(
+                'state',
+                CanonicalString(
+                  row['state'] == null
+                      ? 'suspended'
+                      : MoveAdmissionState.values
+                            .byName(row['state'] as String)
+                            .name,
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ),
+      MapEntry(
+        'next_after',
+        rows.length > limit
+            ? CanonicalString(page.last['operation'] as String)
+            : const CanonicalNull(),
+      ),
+    ]);
+  }
+
+  Future<CanonicalObject> getMove({
+    required ProfileId actor,
+    required OperationId operation,
+  }) async {
+    await authority.requireAuthor(actor);
+    final schema = postgresAuthorityNamespace(authority.instanceId);
+    final rows = await _tx.execute(
+      'SELECT m.universe,m.target_instance,c.name,r.state FROM $schema.move_quiescence m '
+      'JOIN $schema.catalog c ON c.id=m.universe LEFT JOIN $schema.move_review r ON r.operation=m.operation WHERE m.operation=\$1',
+      parameters: [operation.value],
+    );
+    if (rows.length != 1) {
+      throw const NotFoundOrNotAccessibleError(message: 'move');
+    }
+    final row = rows.single.toColumnMap();
+    final universe = UniverseId.parse(row['universe'] as String);
+    final target = OperationId.parse(row['target_instance'] as String);
+    final review = row['state'] == null
+        ? null
+        : await loadMoveReview(
+            actor: actor,
+            universe: universe,
+            operation: operation,
+            targetInstance: target,
+          );
+    return moveRecoveryReport(
+      sourceInstance: authority.instanceId,
+      universe: universe,
+      operation: operation,
+      targetInstance: target,
+      name: readPostgresAuthoredText(row['name'] as List<int>),
+      review: review,
+    );
+  }
 }

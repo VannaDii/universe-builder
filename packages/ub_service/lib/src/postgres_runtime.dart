@@ -321,6 +321,17 @@ final class NativePostgresRuntime {
               return CanonicalObject([
                 MapEntry('profile_id', CanonicalString(id.value)),
               ]);
+            case ListMovesEngineRequest():
+              return session.listMoves(
+                actor: principal.id,
+                after: request.after,
+                limit: request.limit,
+              );
+            case GetMoveEngineRequest():
+              return session.getMove(
+                actor: principal.id,
+                operation: request.operationId,
+              );
             case ProfilesEngineRequest():
               final profiles = await session.authority.profiles(principal.id);
               final grants = await session.authority.grants(principal.id);

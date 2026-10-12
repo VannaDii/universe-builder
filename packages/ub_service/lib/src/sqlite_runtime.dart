@@ -154,6 +154,8 @@ final class NativeSqliteRuntime {
       if (request
           case StatusEngineRequest() ||
               ProfilesEngineRequest() ||
+              ListMovesEngineRequest() ||
+              GetMoveEngineRequest() ||
               EnrollEngineRequest() ||
               GrantEngineRequest() ||
               RevokeEngineRequest() ||
@@ -573,6 +575,10 @@ final class NativeSqliteRuntime {
           // Global request admission is tighter than this legacy queue bound.
           MapEntry('universe_queue_capacity', CanonicalNumber('16')),
         ]);
+      case ListMovesEngineRequest():
+        return authority.listMoves(principal, request);
+      case GetMoveEngineRequest():
+        return authority.getMove(principal, request);
       case ProfilesEngineRequest():
         return CanonicalObject([
           MapEntry(

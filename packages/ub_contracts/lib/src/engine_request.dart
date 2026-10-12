@@ -20,6 +20,7 @@ sealed class EngineRequest {
   static EngineRequest fromWire(CanonicalValue value) {
     final f = WireFields(value, {
       'action',
+      'after',
       'asset',
       'collect',
       'complete_history',
@@ -32,9 +33,11 @@ sealed class EngineRequest {
       'expected_version',
       'grant',
       'label',
+      'limit',
       'method',
       'mode',
       'name',
+      'operation_id',
       'path',
       'preview_id',
       'profile_id',
@@ -56,6 +59,8 @@ sealed class EngineRequest {
       'status' => StatusEngineRequest.fromWire(value),
       'doctor' => DoctorEngineRequest.fromWire(value),
       'profiles' => ProfilesEngineRequest.fromWire(value),
+      'list_moves' => ListMovesEngineRequest.fromWire(value),
+      'get_move' => GetMoveEngineRequest.fromWire(value),
       'withdraw_grant' => WithdrawGrantEngineRequest.fromWire(value),
       'preview_purge' => PreviewPurgeEngineRequest.fromWire(value),
       'purge' => PurgeEngineRequest.fromWire(value),
@@ -107,6 +112,62 @@ final class StatusEngineRequest extends EngineRequest {
   @override
   CanonicalObject toWire() =>
       CanonicalObject([MapEntry('method', CanonicalString('status'))]);
+}
+
+final class ListMovesEngineRequest extends EngineRequest {
+  const ListMovesEngineRequest({this.after, this.limit = 100});
+  final OperationId? after;
+  final int limit;
+  @override
+  String get method => 'list_moves';
+  void validate() {
+    if (limit < 1 || limit > 100) {
+      throw const FormatException('Move page limit must be 1..100');
+    }
+  }
+
+  factory ListMovesEngineRequest.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {'method', 'after', 'limit'});
+    if (f.string('method') != 'list_moves') {
+      throw const FormatException('Wrong engine method');
+    }
+    final request = ListMovesEngineRequest(
+      after: f.optional('after', (v) => OperationId.parse(wireString(v))),
+      limit: f.values.containsKey('limit') ? f.u64('limit').toInt() : 100,
+    );
+    request.validate();
+    return request;
+  }
+  @override
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('method', CanonicalString(method)),
+    MapEntry(
+      'after',
+      after == null ? const CanonicalNull() : CanonicalString(after!.value),
+    ),
+    MapEntry('limit', CanonicalNumber('$limit')),
+  ]);
+}
+
+final class GetMoveEngineRequest extends EngineRequest {
+  const GetMoveEngineRequest({required this.operationId});
+  final OperationId operationId;
+  @override
+  String get method => 'get_move';
+  factory GetMoveEngineRequest.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {'method', 'operation_id'});
+    if (f.string('method') != 'get_move') {
+      throw const FormatException('Wrong engine method');
+    }
+    return GetMoveEngineRequest(
+      operationId: OperationId.parse(f.string('operation_id')),
+    );
+  }
+  @override
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('method', CanonicalString(method)),
+    MapEntry('operation_id', CanonicalString(operationId.value)),
+  ]);
 }
 
 final class DoctorEngineRequest extends EngineRequest {

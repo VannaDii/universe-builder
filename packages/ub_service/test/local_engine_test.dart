@@ -82,6 +82,60 @@ void main() {
   CanonicalValue field(CanonicalValue value, String key) =>
       (value as CanonicalObject).fields.singleWhere((f) => f.key == key).value;
 
+  test('move recovery metadata crosses the authenticated socket after restart without exposing paths', () async {
+    final original = await client(author);
+    final created = await original.call(
+      CreateUniverseEngineRequest(
+        name: 'Recoverable move',
+        start: const GregorianUniverseStart('2040-01-01T00:00:00Z'),
+      ),
+    );
+    final universe = UniverseId.parse(
+      wireString(field(created, 'universe_id')),
+    );
+    await original.close();
+    await server.close();
+    final store = SqliteInstallationStore.openExisting(root.path);
+    final operation = OperationId.generate(), target = OperationId.generate();
+    try {
+      final authority = InstallationAuthority(store);
+      await authority.quiesceUniverseForMove(
+        authority.authenticateHello(hello(author)),
+        universe: universe,
+        operation: operation,
+        targetInstance: target,
+      );
+    } finally {
+      store.close();
+    }
+    server = await LocalSqliteEngineServer.start(root.path);
+    final owner = await client(author);
+    final page = await owner.call(const ListMovesEngineRequest(limit: 1));
+    expect((field(page, 'moves') as CanonicalArray).items, hasLength(1));
+    final report = await owner.call(
+      GetMoveEngineRequest(operationId: operation),
+    );
+    expect(wireString(field(report, 'state')), 'suspended');
+    expect(wireString(field(report, 'universe_id')), universe.value);
+    expect(wireString(field(report, 'target_instance')), target.value);
+    expect(report.toText(), isNot(contains(root.path)));
+    expect(
+      report.toText(),
+      isNot(
+        contains(ProfileCredentialStore.read(root: root.path, profile: author)),
+      ),
+    );
+    final contributor = await client(writer);
+    await expectLater(
+      contributor.call(const ListMovesEngineRequest()),
+      throwsA(isA<ProtocolError>()),
+    );
+    await expectLater(
+      contributor.call(GetMoveEngineRequest(operationId: operation)),
+      throwsA(isA<ProtocolError>()),
+    );
+  });
+
   test('real client authenticates, executes service operations and retains enrollment across restart', () async {
     checkLocalSocketEndpoint('${root.path}/engine.sock');
     final connection = await client(author);

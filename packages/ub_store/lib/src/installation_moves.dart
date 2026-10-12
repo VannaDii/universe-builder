@@ -20,6 +20,37 @@ final class InstallationMoveReview {
       AcceptImportEngineRequest(previewId: preview.id, digest: preview.digest);
 }
 
+/// Recovery metadata carries no host paths or installation credentials.
+CanonicalObject moveRecoveryReport({
+  required OperationId sourceInstance,
+  required UniverseId universe,
+  required OperationId operation,
+  required OperationId targetInstance,
+  required String name,
+  required InstallationMoveReview? review,
+}) => CanonicalObject([
+  MapEntry('source_instance', CanonicalString(sourceInstance.value)),
+  MapEntry('universe_id', CanonicalString(universe.value)),
+  MapEntry('operation_id', CanonicalString(operation.value)),
+  MapEntry('target_instance', CanonicalString(targetInstance.value)),
+  MapEntry('name', CanonicalString(name)),
+  MapEntry('state', CanonicalString(review?.state.name ?? 'suspended')),
+  MapEntry(
+    'target_review',
+    review?.preview.toCanonical() ?? const CanonicalNull(),
+  ),
+  MapEntry(
+    'accept_request',
+    review?.acceptRequest.toWire() ?? const CanonicalNull(),
+  ),
+  MapEntry(
+    'receipt',
+    review?.state == MoveAdmissionState.admitted
+        ? review!.preview.receipt
+        : const CanonicalNull(),
+  ),
+]);
+
 extension InstallationMoves on SqliteInstallationStore {
   InstallationMoveReview reviewMoveTarget({
     required ProfileId actor,
@@ -104,7 +135,7 @@ extension InstallationMoves on SqliteInstallationStore {
     required OperationId operation,
     required OperationId targetInstance,
   }) {
-    moveSource(
+    _requireSourceMoveBinding(
       actor: actor,
       universe: universe,
       operation: operation,
@@ -218,6 +249,119 @@ extension InstallationMoves on SqliteInstallationStore {
       universe: universe,
       operation: operation,
       targetInstance: targetInstance,
+    );
+  }
+
+  void _requireSourceMoveBinding({
+    required ProfileId actor,
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+  }) {
+    requireAuthor(actor);
+    if (_db.select(
+          'SELECT operation FROM move_quiescence WHERE universe=? AND operation=? AND target_instance=?',
+          [universe.value, operation.value, targetInstance.value],
+        ).length !=
+        1) {
+      throw const InstallationException(InstallationFailure.denied);
+    }
+  }
+
+  CanonicalObject listMoves({
+    required ProfileId actor,
+    OperationId? after,
+    int limit = 100,
+  }) {
+    requireAuthor(actor);
+    ListMovesEngineRequest(after: after, limit: limit).validate();
+    final rows = _db.select(
+      'SELECT m.universe,m.operation,m.target_instance,c.name,r.state FROM move_quiescence m '
+      'JOIN catalog c ON c.id=m.universe LEFT JOIN move_review r ON r.operation=m.operation '
+      'WHERE (? IS NULL OR m.operation>?) ORDER BY m.operation LIMIT ?',
+      [after?.value, after?.value, limit + 1],
+    );
+    final page = rows.take(limit).toList();
+    return CanonicalObject([
+      MapEntry('source_instance', CanonicalString(instanceId.value)),
+      MapEntry(
+        'moves',
+        CanonicalArray(
+          page.map(
+            (row) => CanonicalObject([
+              MapEntry(
+                'universe_id',
+                CanonicalString(
+                  UniverseId.parse(row['universe'] as String).value,
+                ),
+              ),
+              MapEntry(
+                'operation_id',
+                CanonicalString(
+                  OperationId.parse(row['operation'] as String).value,
+                ),
+              ),
+              MapEntry(
+                'target_instance',
+                CanonicalString(
+                  OperationId.parse(row['target_instance'] as String).value,
+                ),
+              ),
+              MapEntry('name', CanonicalString(row['name'] as String)),
+              MapEntry(
+                'state',
+                CanonicalString(
+                  row['state'] == null
+                      ? 'suspended'
+                      : MoveAdmissionState.values
+                            .byName(row['state'] as String)
+                            .name,
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ),
+      MapEntry(
+        'next_after',
+        rows.length > limit
+            ? CanonicalString(page.last['operation'] as String)
+            : const CanonicalNull(),
+      ),
+    ]);
+  }
+
+  CanonicalObject getMove({
+    required ProfileId actor,
+    required OperationId operation,
+  }) {
+    requireAuthor(actor);
+    final rows = _db.select(
+      'SELECT m.universe,m.target_instance,c.name,r.state FROM move_quiescence m '
+      'JOIN catalog c ON c.id=m.universe LEFT JOIN move_review r ON r.operation=m.operation WHERE m.operation=?',
+      [operation.value],
+    );
+    if (rows.length != 1) {
+      throw const NotFoundOrNotAccessibleError(message: 'move');
+    }
+    final row = rows.single;
+    final universe = UniverseId.parse(row['universe'] as String);
+    final target = OperationId.parse(row['target_instance'] as String);
+    final review = row['state'] == null
+        ? null
+        : loadMoveReview(
+            actor: actor,
+            universe: universe,
+            operation: operation,
+            targetInstance: target,
+          );
+    return moveRecoveryReport(
+      sourceInstance: instanceId,
+      universe: universe,
+      operation: operation,
+      targetInstance: target,
+      name: row['name'] as String,
+      review: review,
     );
   }
 }

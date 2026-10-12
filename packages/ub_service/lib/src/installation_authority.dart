@@ -315,6 +315,26 @@ final class InstallationAuthority {
     );
   }
 
+  CanonicalObject listMoves(
+    InstallationPrincipal principal,
+    ListMovesEngineRequest request,
+  ) {
+    requireAuthor(principal);
+    return _store.listMoves(
+      actor: principal.id,
+      after: request.after,
+      limit: request.limit,
+    );
+  }
+
+  CanonicalObject getMove(
+    InstallationPrincipal principal,
+    GetMoveEngineRequest request,
+  ) {
+    requireAuthor(principal);
+    return _store.getMove(actor: principal.id, operation: request.operationId);
+  }
+
   Future<InstallationMoveReview> reviewMoveTarget(
     InstallationPrincipal principal, {
     required UniverseId universe,

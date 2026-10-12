@@ -12,7 +12,8 @@ import 'installation_store.dart'
         InstallationFailure,
         InstallationImportPreview,
         InstallationMoveReview,
-        MoveAdmissionState;
+        MoveAdmissionState,
+        moveRecoveryReport;
 import 'owned_database.dart';
 import 'legacy_conversion.dart' as legacy;
 import 'ownership.dart';

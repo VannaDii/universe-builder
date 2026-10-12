@@ -538,6 +538,34 @@ void main() {
         )).state,
         MoveAdmissionState.admitted,
       );
+      final control = sqlite3.open(
+        '${store.root}/installation.sqlite',
+        mode: OpenMode.readOnly,
+      );
+      final originalPath =
+          control.select('SELECT path FROM catalog WHERE id=?', [
+                universe.value,
+              ]).single['path']
+              as String;
+      control.close();
+      final unavailable = '$originalPath.unavailable';
+      File(originalPath).renameSync(unavailable);
+      try {
+        final report = await runtime
+            .connect(hello(authorId))
+            .execute(GetMoveEngineRequest(operationId: operation));
+        final fields = Map.fromEntries((report as CanonicalObject).fields);
+        expect(text(report, 'state'), 'admitted');
+        expect(
+          fields['target_review']!.toText(),
+          targetReview.toCanonical().toText(),
+        );
+        expect(fields['accept_request']!.toText(), accept.toWire().toText());
+        expect(fields['receipt']!.toText(), receipt.toText());
+        expect(report.toText(), isNot(contains(originalPath)));
+      } finally {
+        File(unavailable).renameSync(originalPath);
+      }
       final targetPrincipal = targetAuthority.authenticateHello(targetHello());
       final targetPath = targetAuthority
           .resolveUniverseAlias(targetPrincipal, 'Moved source')
@@ -666,6 +694,84 @@ void main() {
       hasLength(1),
     );
   });
+
+  test(
+    'private discovery pages retained moves after restart and denies writers',
+    () async {
+      var author = runtime.connect(hello(authorId));
+      final principal = authority.authenticateHello(hello(authorId));
+      final operations = <OperationId>[];
+      for (var i = 0; i < 3; i++) {
+        final source = await create(author, 'Move $i');
+        final operation = OperationId.generate();
+        operations.add(operation);
+        await authority.quiesceUniverseForMove(
+          principal,
+          universe: UniverseId.parse(text(source, 'universe_id')),
+          operation: operation,
+          targetInstance: OperationId.generate(),
+        );
+      }
+      operations.sort((a, b) => a.value.compareTo(b.value));
+      await runtime.close();
+      store.close();
+      store = SqliteInstallationStore.openExisting(root.path);
+      authority = InstallationAuthority(store);
+      runtime = NativeSqliteRuntime(authority: authority);
+      author = runtime.connect(hello(authorId));
+      OperationId? after;
+      for (var i = 0; i < operations.length; i++) {
+        final page = await author.execute(
+          EngineRequest.decode(
+            ListMovesEngineRequest(after: after, limit: 1).toWire().toBytes(),
+          ),
+        );
+        final fields = Map.fromEntries((page as CanonicalObject).fields);
+        final rows = (fields['moves'] as CanonicalArray).items;
+        expect(rows, hasLength(1));
+        expect(text(rows.single, 'operation_id'), operations[i].value);
+        expect(text(rows.single, 'state'), 'suspended');
+        expect(text(page, 'source_instance'), store.instanceId.value);
+        if (i == operations.length - 1) {
+          expect(fields['next_after'], isA<CanonicalNull>());
+        } else {
+          after = OperationId.parse(wireString(fields['next_after']!));
+          expect(after, operations[i]);
+        }
+        final report = await author.execute(
+          GetMoveEngineRequest(operationId: operations[i]),
+        );
+        final data = Map.fromEntries((report as CanonicalObject).fields);
+        expect(text(report, 'operation_id'), operations[i].value);
+        expect(data['target_review'], isA<CanonicalNull>());
+        expect(data['accept_request'], isA<CanonicalNull>());
+        expect(report.toText(), isNot(contains(root.path)));
+      }
+      final writer = runtime.connect(hello(writerId));
+      await expectLater(
+        writer.execute(const ListMovesEngineRequest()),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      await expectLater(
+        writer.execute(GetMoveEngineRequest(operationId: operations.first)),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      await expectLater(
+        author.execute(const ListMovesEngineRequest(limit: 0)),
+        throwsFormatException,
+      );
+      await expectLater(
+        author.execute(
+          GetMoveEngineRequest(operationId: OperationId.generate()),
+        ),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      expect(
+        store.audit(authorId).where((e) => e.action == 'quiesce_move'),
+        hasLength(3),
+      );
+    },
+  );
 
   test('opening an older layout refuses it unchanged', () async {
     await runtime.close();

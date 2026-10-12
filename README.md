@@ -543,9 +543,17 @@ The coordinator must obtain a receipt from
 the authenticated target; the source accepts only an exact match to its retained
 review. Changed reviews and receipts refuse, retries retain one audit
 event per transition, and failed source writes preserve the previous state.
-The original stays suspended and retained after admission. These are internal
-coordinator entries; authenticated cross-instance transport wiring is still
-required before exposing them as operator commands. PostgreSQL stores the exact
+The original stays suspended and retained after admission. Mutation entries are
+internal coordinator calls; authenticated cross-instance transport wiring is
+still required before exposing them as operator commands. The private
+author-only `list_moves` command discovers retained operations in pages of
+1–100, with an operation-ID cursor. `get_move` returns the retained state, target
+review, exact target retry request and completed receipt without host-path or
+credential fields. These reads do not resume or alter the source. Recovery
+metadata remains readable if a package file or archive chunks are unavailable;
+staging still verifies original file identity and archive integrity. The SQLite
+socket regression covers authenticated author discovery and contributor denial.
+PostgreSQL stores the exact
 authored target name as bytes and binds its review to the retained source archive
 digest and record count. Functional checks cover source/target restart and audit
 failure before target admission and after target completion, with one retained
