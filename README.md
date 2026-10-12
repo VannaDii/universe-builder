@@ -211,6 +211,13 @@ cannot widen the rule's validity or jurisdiction; a waiver retains the original
 finding. Unsupported semantics/capabilities and unresolved partitions cannot be
 waived into acceptance. This candidate checker does not grant publication rights;
 the remaining authoring workflows must bind its results to exact review inputs.
+Explicit instance initialization now compiles an approved initial-value assertion
+into separate frozen instance facts. The source assertion/proposition must remain
+unchanged at the review base, and an exact occurred start must establish the
+requested interval and every applicable world. Conflicting or unresolved ancestor
+candidates prevent compilation. Generated facts retain the exact source, start
+version and revision; classification and application lifecycle do not initialize
+state. These changes still require the remaining reviewed publication workflow.
 Typed events preserve occurrence modes, authored participants and ordered effects.
 Action consequences validate exact decimal bounds, slot uniqueness and lifetimes;
 an absent historical contract remains distinct from an explicitly empty contract,
