@@ -86,6 +86,86 @@ final class NativePostgresRuntime {
     }
   }
 
+  Future<T> _coordinateMove<T>(
+    InstallationPrincipal principal,
+    Future<T> Function(PostgresInstallationSession) action,
+  ) async {
+    final done = _enter();
+    try {
+      return await store.transaction(
+        (s) =>
+            PostgresServiceAuthority(s.authority)
+                .coordinate(principal, () => action(s)),
+      );
+    } finally {
+      _leave(done);
+    }
+  }
+
+  Future<InstallationMoveReview> reviewMoveTarget(
+    InstallationPrincipal principal, {
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+    required InstallationImportPreview preview,
+  }) => _coordinateMove(
+    principal,
+    (s) => s.reviewMoveTarget(
+      actor: principal.id,
+      universe: universe,
+      operation: operation,
+      targetInstance: targetInstance,
+      preview: preview,
+    ),
+  );
+
+  Future<InstallationMoveReview> loadMoveReview(
+    InstallationPrincipal principal, {
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+  }) => _coordinateMove(
+    principal,
+    (s) => s.loadMoveReview(
+      actor: principal.id,
+      universe: universe,
+      operation: operation,
+      targetInstance: targetInstance,
+    ),
+  );
+
+  Future<InstallationMoveReview> beginMoveAdmission(
+    InstallationPrincipal principal, {
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+  }) => _coordinateMove(
+    principal,
+    (s) => s.beginMoveAdmission(
+      actor: principal.id,
+      universe: universe,
+      operation: operation,
+      targetInstance: targetInstance,
+    ),
+  );
+
+  Future<InstallationMoveReview> recordMoveAdmission(
+    InstallationPrincipal principal, {
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+    required CanonicalObject receipt,
+  }) => _coordinateMove(
+    principal,
+    (s) => s.recordMoveAdmission(
+      actor: principal.id,
+      universe: universe,
+      operation: operation,
+      targetInstance: targetInstance,
+      receipt: receipt,
+    ),
+  );
+
   Completer<void> _enter() {
     if (_stopping) throw StateError('Runtime is stopping');
     final done = Completer<void>();

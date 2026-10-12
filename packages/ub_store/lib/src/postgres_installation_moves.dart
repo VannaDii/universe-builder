@@ -75,8 +75,14 @@ extension PostgresInstallationMoves on PostgresInstallationSession {
       try {
         _verifyMoveManifest(archive, universe);
         await _tx.execute(
-          'INSERT INTO $schema.move_stage VALUES(\$1,\$2)',
-          parameters: [operation.value, archive.digest],
+          'INSERT INTO $schema.move_stage VALUES(\$1,\$2,\$3)',
+          parameters: [
+            operation.value,
+            archive.digest,
+            archive.package.database
+                .select('SELECT count(*) AS n FROM record_identities')
+                .single['n'],
+          ],
         );
       } finally {
         archive.close();
@@ -194,4 +200,199 @@ extension PostgresInstallationMoves on PostgresInstallationSession {
       temporary.deleteSync(recursive: true);
     }
   }
+
+  Future<void> _moveAudit(
+    ProfileId actor,
+    String action,
+    UniverseId universe,
+  ) async {
+    final schema = postgresAuthorityNamespace(authority.instanceId);
+    await _tx.execute(
+      'INSERT INTO $schema.audit SELECT COALESCE(MAX(sequence),0)+1,\$1,\$2,\$3 FROM $schema.audit',
+      parameters: [actor.value, action, universe.value],
+    );
+  }
+
+  Future<InstallationMoveReview> reviewMoveTarget({
+    required ProfileId actor,
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+    required InstallationImportPreview preview,
+  }) => rollbackOnFailure(() async {
+    await _requireMoveBinding(
+      actor: actor,
+      universe: universe,
+      operation: operation,
+      targetInstance: targetInstance,
+    );
+    selectorKey(preview.name);
+    final schema = postgresAuthorityNamespace(authority.instanceId);
+    final stage = await _tx.execute(
+      'SELECT digest,records FROM $schema.move_stage WHERE operation=\$1',
+      parameters: [operation.value],
+    );
+    if (stage.length != 1 ||
+        preview.source != universe ||
+        preview.target != universe ||
+        !preview.complete ||
+        !preview.includesWorkflow ||
+        preview.omittedRecords != 0 ||
+        preview.sourceDigest != stage.single[0] ||
+        preview.records != stage.single[1]) {
+      throw const FormatException(
+        'Target review does not match complete move archive',
+      );
+    }
+    if ((await _tx.execute(
+      'SELECT operation FROM $schema.move_review WHERE operation=\$1',
+      parameters: [operation.value],
+    )).isNotEmpty) {
+      final retained = await loadMoveReview(
+        actor: actor,
+        universe: universe,
+        operation: operation,
+        targetInstance: targetInstance,
+      );
+      if (retained.preview.digest != preview.digest) {
+        throw const FormatException('Move is bound to another target review');
+      }
+      return retained;
+    }
+    await _tx.execute(
+      'INSERT INTO $schema.move_review VALUES(\$1,\$2,\$3,\$4,\$5,\$6,\$7,\$8)',
+      parameters: [
+        operation.value,
+        preview.id.value,
+        preview.owner.value,
+        postgresAuthoredText(preview.name),
+        preview.sourceDigest,
+        preview.records,
+        preview.digest,
+        'reviewed',
+      ],
+    );
+    await _moveAudit(actor, 'review_move', universe);
+    return loadMoveReview(
+      actor: actor,
+      universe: universe,
+      operation: operation,
+      targetInstance: targetInstance,
+    );
+  });
+
+  Future<InstallationMoveReview> loadMoveReview({
+    required ProfileId actor,
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+  }) async {
+    await _requireMoveBinding(
+      actor: actor,
+      universe: universe,
+      operation: operation,
+      targetInstance: targetInstance,
+    );
+    final schema = postgresAuthorityNamespace(authority.instanceId);
+    final rows = await _tx.execute(
+      'SELECT * FROM $schema.move_review WHERE operation=\$1',
+      parameters: [operation.value],
+    );
+    if (rows.length != 1) {
+      throw const NotFoundOrNotAccessibleError(message: 'move target review');
+    }
+    final row = rows.single.toColumnMap();
+    final preview = InstallationImportPreview(
+      id: OperationId.parse(row['preview_id'] as String),
+      owner: ProfileId.parse(row['owner'] as String),
+      sourceDigest: row['source_digest'] as String,
+      source: universe,
+      target: universe,
+      name: readPostgresAuthoredText(row['name'] as List<int>),
+      complete: true,
+      includesWorkflow: true,
+      omittedRecords: 0,
+      records: row['records'] as int,
+    );
+    selectorKey(preview.name);
+    if (preview.digest != row['preview_digest']) {
+      throw const FormatException('Retained move review integrity mismatch');
+    }
+    return InstallationMoveReview(
+      operation: operation,
+      universe: universe,
+      targetInstance: targetInstance,
+      preview: preview,
+      state: MoveAdmissionState.values.byName(row['state'] as String),
+    );
+  }
+
+  /// Commit before invoking the target. An uncertain result must be recovered
+  /// through this exact retained target review, never by resuming the source.
+  Future<InstallationMoveReview> beginMoveAdmission({
+    required ProfileId actor,
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+  }) => rollbackOnFailure(() async {
+    final review = await loadMoveReview(
+      actor: actor,
+      universe: universe,
+      operation: operation,
+      targetInstance: targetInstance,
+    );
+    if (review.state == MoveAdmissionState.reviewed) {
+      final schema = postgresAuthorityNamespace(authority.instanceId);
+      await _tx.execute(
+        "UPDATE $schema.move_review SET state='admitting' WHERE operation=\$1",
+        parameters: [operation.value],
+      );
+      await _moveAudit(actor, 'begin_move_admission', universe);
+    }
+    return loadMoveReview(
+      actor: actor,
+      universe: universe,
+      operation: operation,
+      targetInstance: targetInstance,
+    );
+  });
+
+  /// Trusted coordinator only: use the authenticated target's exact receipt.
+  /// Successful cutover keeps the original source suspended and retained.
+  Future<InstallationMoveReview> recordMoveAdmission({
+    required ProfileId actor,
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+    required CanonicalObject receipt,
+  }) => rollbackOnFailure(() async {
+    final review = await loadMoveReview(
+      actor: actor,
+      universe: universe,
+      operation: operation,
+      targetInstance: targetInstance,
+    );
+    if (review.state == MoveAdmissionState.reviewed) {
+      throw StateError('Record admission attempt before invoking the target');
+    }
+    if (review.preview.receipt.toText() != receipt.toText()) {
+      throw const FormatException(
+        'Target receipt does not match retained move review',
+      );
+    }
+    if (review.state != MoveAdmissionState.admitted) {
+      final schema = postgresAuthorityNamespace(authority.instanceId);
+      await _tx.execute(
+        "UPDATE $schema.move_review SET state='admitted' WHERE operation=\$1",
+        parameters: [operation.value],
+      );
+      await _moveAudit(actor, 'complete_move_admission', universe);
+    }
+    return loadMoveReview(
+      actor: actor,
+      universe: universe,
+      operation: operation,
+      targetInstance: targetInstance,
+    );
+  });
 }

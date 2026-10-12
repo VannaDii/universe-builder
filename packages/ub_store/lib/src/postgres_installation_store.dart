@@ -7,7 +7,12 @@ import 'package:ub_domain/ub_domain.dart';
 
 import 'archive_checksum.dart';
 import 'installation_store.dart'
-    show InstallationException, InstallationFailure, InstallationImportPreview;
+    show
+        InstallationException,
+        InstallationFailure,
+        InstallationImportPreview,
+        InstallationMoveReview,
+        MoveAdmissionState;
 import 'owned_database.dart';
 import 'legacy_conversion.dart' as legacy;
 import 'ownership.dart';
@@ -162,7 +167,7 @@ final class PostgresInstallationStore {
           if (rows.length != 1 ||
               rows.single[0] != id.value ||
               rows.single[1] != selectorNormalizationVersion ||
-              rows.single[2] != 4) {
+              rows.single[2] != 5) {
             throw const InstallationException(
               InstallationFailure.incompatibleSchema,
             );
@@ -173,7 +178,8 @@ final class PostgresInstallationStore {
             'profiles': 'id,hash,author,revoked',
             'catalog': 'id,name,schema_name',
             'move_quiescence': 'universe,operation,target_instance',
-            'move_stage': 'operation,digest',
+            'move_stage': 'operation,digest,records',
+            'move_review': 'operation,preview_id,owner,name,source_digest,records,preview_digest,state',
             'move_archive': 'operation,ordinal,content',
             'aliases': 'key,universe',
             'grants': 'profile,universe,worlds_state,propose,edit,protected,entities_state,predicates_state,continuities_state,expires_at,delegated_commit,allow_shared',

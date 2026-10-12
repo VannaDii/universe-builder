@@ -530,6 +530,91 @@ void main() {
                   mode: ImportMode.restore,
                 ),
               );
+          final targetReview = targetAuthority.loadImport(
+            targetAuthority.authenticateHello(targetHello()),
+            AcceptImportEngineRequest(
+              previewId: OperationId.parse(text(preview, 'preview_id')),
+              digest: text(preview, 'digest'),
+            ),
+          );
+          for (var i = 0; i < 2; i++) {
+            await runtime.reviewMoveTarget(
+              principal,
+              universe: universe,
+              operation: operation,
+              targetInstance: targetInstance,
+              preview: targetReview,
+            );
+          }
+          final changedPreview = await targetRuntime
+              .connect(targetHello())
+              .execute(
+                PreviewImportEngineRequest(
+                  source: copy,
+                  name: 'Another move review',
+                  mode: ImportMode.restore,
+                ),
+              );
+          final changedReview = targetAuthority.loadImport(
+            targetAuthority.authenticateHello(targetHello()),
+            AcceptImportEngineRequest(
+              previewId: OperationId.parse(text(changedPreview, 'preview_id')),
+              digest: text(changedPreview, 'digest'),
+            ),
+          );
+          await expectLater(
+            runtime.reviewMoveTarget(
+              principal,
+              universe: universe,
+              operation: operation,
+              targetInstance: targetInstance,
+              preview: changedReview,
+            ),
+            throwsFormatException,
+          );
+          await expectLater(
+            runtime.recordMoveAdmission(
+              principal,
+              universe: universe,
+              operation: operation,
+              targetInstance: targetInstance,
+              receipt: targetReview.receipt,
+            ),
+            throwsStateError,
+          );
+          await observer.execute(
+            'CREATE FUNCTION $control.reject_move() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION \'Disposable move audit failure\'; RETURN NEW; END \$\$',
+          );
+          await observer.execute(
+            "CREATE TRIGGER reject_move BEFORE INSERT ON $control.audit FOR EACH ROW WHEN (NEW.action='begin_move_admission') EXECUTE FUNCTION $control.reject_move()",
+          );
+          await expectLater(
+            runtime.beginMoveAdmission(
+              principal,
+              universe: universe,
+              operation: operation,
+              targetInstance: targetInstance,
+            ),
+            throwsA(isA<ServerException>()),
+          );
+          expect(
+            (await runtime.loadMoveReview(
+              principal,
+              universe: universe,
+              operation: operation,
+              targetInstance: targetInstance,
+            )).state,
+            MoveAdmissionState.reviewed,
+          );
+          await observer.execute('DROP TRIGGER reject_move ON $control.audit');
+          for (var i = 0; i < 2; i++) {
+            await runtime.beginMoveAdmission(
+              principal,
+              universe: universe,
+              operation: operation,
+              targetInstance: targetInstance,
+            );
+          }
           await targetRuntime.close();
           targetStore.close();
           File(copy).deleteSync();
@@ -576,9 +661,113 @@ void main() {
             previewId: OperationId.parse(text(preview, 'preview_id')),
             digest: text(preview, 'digest'),
           );
+          final pending = await runtime.loadMoveReview(
+            principal,
+            universe: universe,
+            operation: operation,
+            targetInstance: targetInstance,
+          );
+          expect(pending.state, MoveAdmissionState.admitting);
+          expect(pending.acceptRequest.previewId, accept.previewId);
+          expect(pending.acceptRequest.digest, accept.digest);
           final receipt = await client.execute(accept);
           expect(text(receipt, 'universe_id'), universe.value);
           expect((await client.execute(accept)).toText(), receipt.toText());
+          await expectLater(
+            runtime.recordMoveAdmission(
+              principal,
+              universe: universe,
+              operation: operation,
+              targetInstance: targetInstance,
+              receipt: CanonicalObject([]),
+            ),
+            throwsFormatException,
+          );
+          final writerPrincipal = await store.transaction(
+            (s) => PostgresServiceAuthority(s.authority).authenticate(
+              profile: writerId,
+              credential: const Credential(secret),
+            ),
+          );
+          await expectLater(
+            runtime.beginMoveAdmission(
+              writerPrincipal,
+              universe: universe,
+              operation: operation,
+              targetInstance: targetInstance,
+            ),
+            throwsA(isA<InstallationException>()),
+          );
+          await observer.execute(
+            "CREATE TRIGGER reject_move BEFORE INSERT ON $control.audit FOR EACH ROW WHEN (NEW.action='complete_move_admission') EXECUTE FUNCTION $control.reject_move()",
+          );
+          await expectLater(
+            runtime.recordMoveAdmission(
+              principal,
+              universe: universe,
+              operation: operation,
+              targetInstance: targetInstance,
+              receipt: receipt as CanonicalObject,
+            ),
+            throwsA(isA<ServerException>()),
+          );
+          expect(
+            (await runtime.loadMoveReview(
+              principal,
+              universe: universe,
+              operation: operation,
+              targetInstance: targetInstance,
+            )).state,
+            MoveAdmissionState.admitting,
+          );
+          await observer.execute('DROP TRIGGER reject_move ON $control.audit');
+          for (var i = 0; i < 2; i++) {
+            expect(
+              (await runtime.recordMoveAdmission(
+                principal,
+                universe: universe,
+                operation: operation,
+                targetInstance: targetInstance,
+                receipt: receipt,
+              )).state,
+              MoveAdmissionState.admitted,
+            );
+          }
+          for (final action in [
+            'review_move',
+            'begin_move_admission',
+            'complete_move_admission',
+          ]) {
+            expect(
+              (await observer.execute(
+                'SELECT count(*) FROM $control.audit WHERE action=\$1',
+                parameters: [action],
+              )).single.single,
+              1,
+            );
+          }
+          await runtime.close();
+          await store.close();
+          store = await PostgresInstallationStore.openExisting(
+            endpoint(),
+            settings: settings,
+          );
+          runtime = NativePostgresRuntime(store: store);
+          principal = await store.transaction(
+            (s) => PostgresServiceAuthority(s.authority).authenticate(
+              profile: authorId,
+              credential: const Credential(secret),
+            ),
+          );
+          expect(
+            (await runtime.loadMoveReview(
+              principal,
+              universe: universe,
+              operation: operation,
+              targetInstance: targetInstance,
+            )).state,
+            MoveAdmissionState.admitted,
+          );
           final path = targetAuthority
               .resolveUniverseAlias(
                 targetAuthority.authenticateHello(targetHello()),
@@ -769,6 +958,59 @@ void main() {
           0,
         );
       });
+      test('prior PostgreSQL control version refuses opening without rewriting its layout', () async {
+        await runtime.close();
+        await store.close();
+        final control = postgresAuthorityNamespace(store.instanceId);
+        await observer.execute('DROP TABLE $control.move_review');
+        await observer.execute(
+          'ALTER TABLE $control.move_stage DROP COLUMN records',
+        );
+        await observer.execute(
+          'ALTER TABLE $control.authority DROP CONSTRAINT authority_schema_version_check',
+        );
+        await observer.execute(
+          'UPDATE $control.authority SET schema_version=4',
+        );
+        await observer.execute(
+          'ALTER TABLE $control.authority ADD CHECK(schema_version=4)',
+        );
+        await expectLater(
+          PostgresInstallationStore.openExisting(
+            endpoint(),
+            settings: settings,
+          ),
+          throwsA(
+            isA<InstallationException>().having(
+              (e) => e.failure,
+              'failure',
+              InstallationFailure.incompatibleSchema,
+            ),
+          ),
+        );
+        expect(
+          (await observer.execute(
+            'SELECT schema_version FROM $control.authority',
+          )).single.single,
+          4,
+        );
+        final name = 'ub_install_${store.instanceId.value}';
+        expect(
+          (await observer.execute(
+            "SELECT count(*) FROM information_schema.tables WHERE table_schema=\$1 AND table_name='move_review'",
+            parameters: [name],
+          )).single.single,
+          0,
+        );
+        expect(
+          (await observer.execute(
+            "SELECT count(*) FROM information_schema.columns WHERE table_schema=\$1 AND table_name='move_stage' AND column_name='records'",
+            parameters: [name],
+          )).single.single,
+          0,
+        );
+      });
+
       test('missing move layout refuses existing installation without recreating it', () async {
         await runtime.close();
         await store.close();

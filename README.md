@@ -520,7 +520,7 @@ installation identity, suspends ordinary source access across connected service
 workers and restart, and retains the source catalog, aliases, grants and universe
 data. Exact retries retain one audit event; changed bindings and self-targets are
 refused. This metadata lives in SQLite's installation database or PostgreSQL
-control schema version 4 and never enters universe exports. Opening older or
+control schema version 5 and never enters universe exports. Opening older or
 incomplete control layouts refuses them unchanged. Explicit SQLite installation
 conversion adds the move table to the prior normative layout and retains existing
 move bindings and any complete retained move archives; PostgreSQL control
@@ -535,17 +535,21 @@ reuses those exact chunks; failed file publication retains them, and a failed
 stage transaction leaves no partial archive. Missing or changed chunks refuse
 recovery without regenerating the original. Checks cover PostgreSQL-to-SQLite
 admission, retained revision/draft evidence and independent source/target restart.
-The trusted SQLite source coordinator also retains the exact target review and
-its `reviewed`, `admitting` or `admitted` state. It records the admission attempt
-before calling the target; restart and installation conversion retain that
-binding for an exact target retry. The coordinator must obtain a receipt from
+The trusted SQLite and PostgreSQL source coordinators retain the exact target
+review and its `reviewed`, `admitting` or `admitted` state. They record the
+admission attempt before calling the target. Restart retains that binding, and
+explicit SQLite installation conversion preserves it for an exact target retry.
+The coordinator must obtain a receipt from
 the authenticated target; the source accepts only an exact match to its retained
 review. Changed reviews and receipts refuse, retries retain one audit
 event per transition, and failed source writes preserve the previous state.
 The original stays suspended and retained after admission. These are internal
 coordinator entries; authenticated cross-instance transport wiring is still
-required before exposing them as operator commands. PostgreSQL source admission
-state, source retirement
+required before exposing them as operator commands. PostgreSQL stores the exact
+authored target name as bytes and binds its review to the retained source archive
+digest and record count. Functional checks cover source/target restart and audit
+failure before target admission and after target completion, with one retained
+audit event per successful transition. Source retirement
 and the operator/UI move flow remain pending.
 Coordinated backend cutover and hosted server backup operation remain pending.
 Socket/launcher integration, cross-process worker qualification and
