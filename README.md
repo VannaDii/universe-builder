@@ -184,6 +184,14 @@ and knowledge remain distinct from objective truth. Missing attitudes do not
 refute; unresolved timing leaves coverage incomplete. Timeless queries accept
 only unspecified attitude validity. Knowledge acquisition/policy admission and
 disclosure permissions still require the remaining service workflows.
+Possession-derived item powers now retain their rule, owning holder and complete
+positive evidence chain. Competing or uncertain custody, applicable refutation
+and recipient suspension prevent a grant; explicit transfer and expiry remove
+prior-holder access without changing authored records. World/context/realm and
+event-time constraints remain explicit, and timeless queries grant no powers.
+Derivation retains the existing one-million-step work bound. These transient
+facts are not persisted as independent assertions; factual claim integration
+and canonical publication remain pending.
 Typed events preserve occurrence modes, authored participants and ordered effects.
 Action consequences validate exact decimal bounds, slot uniqueness and lifetimes;
 an absent historical contract remains distinct from an explicitly empty contract,
