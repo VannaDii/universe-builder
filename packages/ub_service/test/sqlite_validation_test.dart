@@ -12,6 +12,7 @@ import 'package:ub_service/proposal_state.dart';
 import 'package:ub_service/proposal_validation.dart';
 import 'package:ub_service/sqlite_validation.dart';
 import 'package:ub_service/validation_binding.dart';
+import 'package:ub_service/validation_scheduler.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_store/sqlite.dart';
@@ -219,6 +220,92 @@ void main() {
     universeId: f.u,
     operationId: id,
     idempotencyKey: key,
+  );
+
+  test(
+    'scheduler deduplicates, bounds validation and retains isolate results',
+    () async {
+      final status = await service.queueValidation(
+        queued(),
+        resolvedFrame: proposal.proposal.baseFrame,
+        isValidationActive: (_) => false,
+      );
+      final scheduler = NativeValidationScheduler(capacity: 1);
+      final done = scheduler.schedule(service, status.operationId);
+      expect(scheduler.isActive(f.u, status.operationId), isTrue);
+      expect(scheduler.schedule(service, status.operationId), same(done));
+      expect(
+        () => scheduler.schedule(service, OperationId.generate()),
+        throwsA(isA<EvaluationLimitReachedError>()),
+      );
+      await done;
+      expect(scheduler.isActive(f.u, status.operationId), isFalse);
+      expect(
+        (await service.operation(
+          status.operationId,
+          isValidationActive: (_) => false,
+        )).status.state,
+        OperationState.succeeded,
+      );
+      await scheduler.schedule(service, status.operationId);
+      expect(WorkflowStorage(package.database).keys('validation:').length, 1);
+      await scheduler.close();
+      expect(
+        () => scheduler.schedule(service, OperationId.generate()),
+        throwsA(isA<EvaluationLimitReachedError>()),
+      );
+    },
+  );
+
+  test('scheduler cancellation during preparation never retains completed evidence', () async {
+    final scheduler = NativeValidationScheduler();
+    bool active(OperationId id) => scheduler.isActive(f.u, id);
+    final status = await service.queueValidation(
+      queued(),
+      resolvedFrame: proposal.proposal.baseFrame,
+      isValidationActive: active,
+    );
+    final done = scheduler.schedule(service, status.operationId);
+    final cancelled = await service.cancelOperation(
+      cancellation(status.operationId),
+      isValidationActive: active,
+      signalCancellation: (id) => scheduler.cancel(f.u, id),
+    );
+    await done;
+    expect(cancelled.state, OperationState.cancelled);
+    expect(WorkflowStorage(package.database).keys('validation:'), isEmpty);
+    expect(
+      (await service.operation(
+        status.operationId,
+        isValidationActive: active,
+      )).status.state,
+      OperationState.cancelled,
+    );
+    await scheduler.close();
+  });
+
+  test(
+    'shutdown drains preparation without retaining a completed result',
+    () async {
+      final scheduler = NativeValidationScheduler();
+      final status = await service.queueValidation(
+        queued(),
+        resolvedFrame: proposal.proposal.baseFrame,
+        isValidationActive: (_) => false,
+      );
+      final done = scheduler.schedule(service, status.operationId);
+      await scheduler.close();
+      await done;
+      expect(scheduler.isActive(f.u, status.operationId), isFalse);
+      expect(WorkflowStorage(package.database).keys('validation:'), isEmpty);
+      expect(
+        (await service.operation(
+          status.operationId,
+          isValidationActive: (_) => false,
+        )).status.state,
+        OperationState.interrupted,
+      );
+    },
   );
 
   test(

@@ -478,7 +478,14 @@ suppresses late results. Restricted completion remains inadmissible. The native
 cancellation route admits the retained owner and current world scope, atomically
 retains its marker and principal-bound request receipt, then signals the live
 worker. Authorized retries survive reopen; changed requests are refused and
-succeeded/failed results remain unchanged. Scheduler and transport integration
+succeeded/failed results remain unchanged. A native scheduler now admits two
+concurrent validations, deduplicates active universe/operation pairs and reports
+busy capacity with the existing same-key retry instruction. Evaluation runs in
+isolates receiving frozen inputs only; the owning service prepares and retains
+results. Cancellation terminates evaluation without undoing facts. Shutdown
+drains preparation and abandons evaluation without completed evidence, allowing
+the retained running state to resolve as interrupted. Engine dispatch, general
+database-worker isolation, author-reserved admission and transport integration
 remain pending.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
