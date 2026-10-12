@@ -23,3 +23,4 @@ export 'src/structural_checks.dart';
 export 'src/candidate_checks.dart';
 export 'src/opposing_diagnostics.dart';
 export 'src/definition_registry.dart';
+export 'src/validation_findings.dart';

@@ -313,6 +313,12 @@ policy and exception versions to fingerprints matching the Rust service. Definit
 opposition and partial provenance remain distinct; unresolved comparisons do not
 select a truth winner. This diagnostic adapter still needs validation/publication
 integration.
+Event prerequisite assessment now checks every occurred event in its pre-event
+frame, with the first effect context taking precedence over action and proposal
+contexts. Complete support is required; conflicting or missing evidence retains
+its original sources and numbered repair message. Final finding binding fills
+references from candidate versions and preserves exact Rust fingerprints or
+existing authored fingerprints. These stages still need full workflow integration.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

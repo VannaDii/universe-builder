@@ -1299,6 +1299,21 @@ mod opposing_fingerprint_tests {
             diagnostics[0].fingerprint.0,
             "b5f1c19d724e99922199fdeb559aba812d343ee47e06e86bcd04b08d8e176e8f"
         );
+        assert_eq!(
+            crate::workflow::hash(&(
+                &frame,
+                "candidate-digest",
+                "evaluator-v1",
+                RecordId::parse("rec_00000000000000000000001e").unwrap(),
+                universe_protocol::response::EvidenceOutcome::Refuted,
+                vec![
+                    RecordVersionId::parse("ver_00000000000000000000001e").unwrap(),
+                    RecordVersionId::parse("ver_00000000000000000000001f").unwrap(),
+                    RecordVersionId::parse("ver_00000000000000000000000a").unwrap()
+                ],
+            )),
+            "168f36895f5ed3e078fe8e6148353ed9d242382868d35d705e16823af734347f"
+        );
         let mut pins = vec![];
         for validity in [
             json!({"kind":"unknown"}),
