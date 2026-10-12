@@ -67,6 +67,16 @@ final class SqliteJournal {
         as String,
   );
 
+  Map<ContinuityId, RevisionId> heads() => Map.unmodifiable({
+    for (final row in database.select(
+      'SELECT id,head_commit FROM continuities WHERE universe_id=? ORDER BY id',
+      [universe.value],
+    ))
+      ContinuityId.parse(row['id'] as String): RevisionId.parse(
+        row['head_commit'] as String,
+      ),
+  });
+
   /// Historical receipts marked by transfer cannot authorize a new write or
   /// satisfy an active retry. Exact active retries precede workflow/head checks.
   RevisionId? receipt(CommitInput input) {

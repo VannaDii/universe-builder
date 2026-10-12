@@ -601,6 +601,14 @@ frame. A named world resolves focus without narrowing that conservative closure.
 Hidden or missing changed records are denied before result sizing; hidden closure
 members produce restricted coverage, and an insufficient byte budget fails
 explicitly. Impact reads do not publish changes or retain validation results.
+Native discovery now supports summary, capabilities, worlds and definitions.
+Summary lists current continuity heads, retained names and accessible represented
+contexts, omitting continuities with no accessible context. World and definition
+views use retained frames and intersect current permissions with the fictional
+perspective; named-world definition selection retains applicable shared policy.
+Pinned views and typed continuity names survive package restart. Capability
+descriptions distinguish the remaining native fork/adoption, reviewed restoration
+and image staging/retrieval gaps from the implemented factual evaluator paths.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

@@ -11,6 +11,7 @@ import 'candidate_validation.dart';
 import 'context_binding.dart';
 import 'context_brief.dart';
 import 'context_opening.dart';
+import 'discovery.dart';
 import 'installation_authority.dart';
 import 'impact.dart';
 import 'operation_compilation.dart';
@@ -295,6 +296,73 @@ final class SqliteValidationWorkflow {
       focus: focus,
     );
   }
+
+  Future<({Description description, Frame? frame, WorldId? focus})>
+  describeRequest(ReadRequest request) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) async {
+      final (guard, context, world, worldGuard) = switch (request) {
+        DescribeSummaryRequest r => (r.universeId, null, null, null),
+        DescribeCapabilitiesRequest r => (r.universeId, null, null, null),
+        DescribeWorldsRequest r => (r.universeId, r.contextId, null, null),
+        DescribeDefinitionsRequest r => (
+          r.universeId,
+          r.contextId,
+          r.world,
+          r.worldId,
+        ),
+        _ => throw const InvalidArgumentError(
+          field: 'mode',
+          message: 'requires describe request',
+        ),
+      };
+      if (guard != null && guard != universe) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      final continuities = <ContinuitySummary>[];
+      if (request is DescribeSummaryRequest) {
+        for (final head in _journal.heads().entries) {
+          final name = _workflow.get('continuity-name:${head.key.value}');
+          final summary = discoveryContinuity(
+            id: head.key,
+            revision: head.value,
+            name: name is CanonicalString ? name.value : 'Original continuity',
+            records: _canon(head.key, head.value),
+            worldScope: current.worldScope,
+          );
+          if (summary != null) continuities.add(summary);
+        }
+      }
+      Frame? frame;
+      WorldId? focus;
+      var records = <RecordVersion>[];
+      var visibility = <RecordId>{};
+      if (context != null) {
+        frame = _contextFrame(context, current);
+        final snapshot = await _readSnapshot(
+          frame: frame,
+          world: world,
+          guard: worldGuard,
+          current: current,
+        );
+        records = snapshot.all;
+        visibility = snapshot.visibility;
+        focus = snapshot.focus;
+      }
+      return (
+        description: discoveryDescription(
+          records: records,
+          visibility: visibility,
+          definitions: request is DescribeDefinitionsRequest,
+          focus: focus,
+          continuities: continuities,
+        ),
+        frame: frame,
+        focus: focus,
+      );
+    },
+  );
 
   Future<Records> getRequest(
     GetRequest request,

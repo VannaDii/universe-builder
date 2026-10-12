@@ -213,6 +213,234 @@ void main() {
     perspective: perspective,
   );
 
+  test('native descriptions discover current continuity and pin visible world definitions', () async {
+    RuleRecord rule(int n, Applicability applicability) => RuleRecord(
+      namespace: 'discovery',
+      key: 'rule$n',
+      labels: {},
+      kind: RuleKind.physicalConstraint,
+      commitPolicy: CommitPolicy.blockUnlessException,
+      applicability: applicability,
+      targetPredicates: [],
+      expression: const LiteralExpr(true),
+      capabilities: ['basic.v1'],
+      executable: true,
+      validity: const UnspecifiedValidity(),
+    );
+    kernel.commit(
+      input('discovery-worlds', [
+        f.row(50, WorldRecord(selector: 'Campaign', aliases: ['Play'])),
+        f.row(51, WorldRecord(selector: 'Private')),
+        f.row(80, rule(80, const UniverseApplicability())),
+        f.row(81, rule(81, WorldsApplicability([permissions.world(50)]))),
+        f.row(82, rule(82, WorldsApplicability([permissions.world(51)]))),
+      ]),
+    );
+    final summary = await service.describeRequest(
+      DescribeSummaryRequest(
+        universe: const Selector('World'),
+        universeId: f.u,
+      ),
+    );
+    expect(summary.frame, isNull);
+    expect(summary.description.worlds, isEmpty);
+    expect(summary.description.continuities.single.id, continuity);
+    expect(
+      summary.description.continuities.single.revisionId,
+      kernel.journal.head(continuity),
+    );
+    expect(
+      summary.description.continuities.single.representedContexts.single.id,
+      f.id(99),
+    );
+    final opened = await service.openContext(contextRequest());
+    final definitions = DescribeDefinitionsRequest(
+      universe: const Selector('World'),
+      universeId: f.u,
+      contextId: opened.contextId,
+      world: const Selector('Play'),
+      worldId: permissions.world(50),
+    );
+    final first = await service.describeRequest(definitions);
+    expect(first.frame, opened.frame);
+    expect(first.focus, permissions.world(50));
+    expect(first.description.definitionIds, containsAll([f.id(80), f.id(81)]));
+    expect(first.description.definitionIds, isNot(contains(f.id(82))));
+    expect(first.description.worlds.map((w) => w.name.value), [
+      'Campaign',
+      'Private',
+    ]);
+    kernel.commit(
+      input('discovery-later', [f.row(52, WorldRecord(selector: 'Later'))]),
+    );
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    service = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: writer,
+    );
+    final reopened = await service.describeRequest(definitions);
+    expect(
+      reopened.description.toWire().toText(),
+      first.description.toWire().toText(),
+    );
+    final fresh = await service.describeRequest(
+      DescribeSummaryRequest(universe: const Selector('World')),
+    );
+    expect(
+      fresh.description.continuities.single.revisionId,
+      kernel.journal.head(continuity),
+    );
+    await expectLater(
+      service.describeRequest(
+        DescribeCapabilitiesRequest(
+          universe: const Selector('World'),
+          universeId: UniverseId.generate(),
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+  });
+
+  test('native discovery hides a private continuity and retains readable context kinds after reopen', () async {
+    kernel.commit(
+      input('private-discovery', [
+        f.row(50, WorldRecord(selector: 'Campaign')),
+        f.row(51, WorldRecord(selector: 'Private')),
+        f.row(61, permissions.entity(worlds: [51])),
+        f.row(
+          31,
+          RepresentedContextRecord(
+            universe: f.u,
+            kind: CharacterContext(f.ref(61)),
+            labels: {'en': 'Private narrator'},
+          ),
+        ),
+      ]),
+    );
+    final fork = ContinuityId.generate();
+    final genesis = RevisionId.parse(
+      package.database.select(
+            'SELECT id FROM commits WHERE universe_id=? AND continuity_id=? AND sequence=0',
+            [f.u.value, continuity.value],
+          ).single['id']
+          as String,
+    );
+    package.database.execute('BEGIN IMMEDIATE');
+    kernel.journal.branch(fork, continuity, genesis, PrincipalId.generate());
+    package.database.execute('COMMIT');
+    final rows =
+        [
+              f.row(51, WorldRecord(selector: 'Private')),
+              f.row(61, permissions.entity(worlds: [51])),
+              f.row(
+                31,
+                RepresentedContextRecord(
+                  universe: f.u,
+                  kind: CharacterContext(f.ref(61)),
+                  labels: {'en': 'Private narrator'},
+                ),
+              ),
+            ]
+            .map(
+              (row) => RecordVersion.build(
+                recordVersionId: RecordVersionId.generate(),
+                identity: row.identity,
+                payload: row.payload,
+              ),
+            )
+            .toList();
+    kernel.commit(
+      CommitInput(
+        universe: f.u,
+        continuity: fork,
+        expectedHead: kernel.journal.head(fork),
+        principal: PrincipalId.generate(),
+        decision: 'Disposable private continuity',
+        reason: 'Discovery fixture',
+        idempotencyKey: 'private-fork',
+        changes: rows.map(
+          (r) => Assignment(
+            recordId: r.identity.recordId,
+            next: StoredVersion(
+              versionId: r.recordVersionId,
+              identity: r.identity,
+              payload: r.payload.toWire(),
+              digest: r.payloadDigest,
+            ),
+          ),
+        ),
+      ),
+    );
+    WorkflowStorage(package.database).compareAppend({}, [
+      MapEntry(
+        'continuity-name:${fork.value}',
+        CanonicalString('Private continuity'),
+      ),
+    ]);
+    final request = DescribeSummaryRequest(
+      universe: const Selector('World'),
+      universeId: f.u,
+    );
+    final complete = await service.describeRequest(request);
+    expect(complete.description.continuities.length, 2);
+    expect(
+      complete.description.continuities.firstWhere((c) => c.id == fork).name,
+      'Private continuity',
+    );
+    await authority.coordinate(
+      author,
+      () => authority.grant(
+        author,
+        GrantSpec(
+          profileId: writer.id,
+          universeId: f.u,
+          worlds: [permissions.world(50)],
+          propose: false,
+          edit: false,
+          protected: false,
+        ),
+      ),
+    );
+    final scoped = await service.describeRequest(request);
+    expect(scoped.description.continuities.single.id, continuity);
+    expect(
+      scoped.description.continuities.single.representedContexts.map(
+        (c) => c.id,
+      ),
+      [f.id(99)],
+    );
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    service = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: writer,
+    );
+    final reopened = await service.describeRequest(request);
+    expect(
+      reopened.description.toWire().toText(),
+      scoped.description.toWire().toText(),
+    );
+    final opened = await service.openContext(contextRequest());
+    final worlds = await service.describeRequest(
+      DescribeWorldsRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+      ),
+    );
+    expect(worlds.description.worlds.map((w) => w.name.value), ['Campaign']);
+  });
+
   test('native context opening pins current canon and feeds proposal dispatch after reopen', () async {
     final opened = await service.openContext(contextRequest());
     expect(opened.frame.revision, kernel.journal.head(continuity));
@@ -661,6 +889,16 @@ void main() {
         [FieldGroup.payload, FieldGroup.history],
       ),
     );
+    final perspectiveWorlds = await service.describeRequest(
+      DescribeWorldsRequest(
+        universe: const Selector('World'),
+        universeId: f.u,
+        contextId: character.contextId,
+      ),
+    );
+    expect(perspectiveWorlds.description.worlds.map((w) => w.name.value), [
+      'Campaign',
+    ]);
     expect(perspectiveRead.historyCoverage, Coverage.restricted);
     expect(perspectiveRead.history, isEmpty);
     await expectLater(
