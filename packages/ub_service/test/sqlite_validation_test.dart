@@ -330,6 +330,120 @@ void main() {
     fieldGroups: groups,
   );
 
+  SearchRequest searchRecords(
+    ContextId context, {
+    String query = '',
+    int limit = 100,
+    String? cursor,
+    List<RecordKind> kinds = const [],
+  }) => SearchRequest(
+    universe: const Selector('World'),
+    contextId: context,
+    query: query,
+    typedFilters: Filters(recordKinds: kinds),
+    limit: limit,
+    cursor: cursor,
+  );
+
+  test('native search pins indexed results and pages across restart with exact cursor admission', () async {
+    final rows = [
+      f.row(20, permissions.entity(labels: {'en': 'Alpha Québec'})),
+      f.row(21, permissions.entity(labels: {'en': 'Alpha second'})),
+    ];
+    kernel.commit(input('search-records', rows));
+    final opened = await service.openContext(contextRequest());
+    kernel.commit(
+      input('search-later', [
+        f.row(22, permissions.entity(labels: {'en': 'Alpha later'})),
+      ]),
+    );
+    final first = await service.searchRequest(
+      searchRecords(
+        opened.contextId,
+        query: 'Alpha',
+        limit: 1,
+        kinds: [RecordKind.entity],
+      ),
+    );
+    expect(first.results.hits.single.recordId, f.id(20));
+    expect(first.delivery.complete, isFalse);
+    await expectLater(
+      service.searchRequest(
+        searchRecords(
+          opened.contextId,
+          query: 'Changed',
+          limit: 1,
+          cursor: first.delivery.cursor,
+          kinds: [RecordKind.entity],
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    service = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: writer,
+    );
+    final last = await service.searchRequest(
+      searchRecords(
+        opened.contextId,
+        query: 'Alpha',
+        limit: 1,
+        cursor: first.delivery.cursor,
+        kinds: [RecordKind.entity],
+      ),
+    );
+    expect(last.results.hits.single.recordId, f.id(21));
+    expect(last.delivery.complete, isTrue);
+    expect(last.delivery.cursor, isNull);
+    final fallback = await service.searchRequest(
+      searchRecords(opened.contextId, query: 'QUÉ', kinds: [RecordKind.entity]),
+    );
+    expect(fallback.results.hits.single.recordId, f.id(20));
+    final exact = await service.searchRequest(
+      searchRecords(opened.contextId, query: f.id(21).value),
+    );
+    expect(exact.results.hits.single.recordId, f.id(21));
+    final literal = await service.searchRequest(
+      searchRecords(opened.contextId, query: 'Alpha OR second'),
+    );
+    expect(literal.results.hits, isEmpty);
+    final cursorCount = WorkflowStorage(package.database)
+        .keys('cursor:')
+        .length;
+    await expectLater(
+      service.searchRequest(
+        searchRecords(opened.contextId, query: List.filled(1025, 'x').join()),
+      ),
+      throwsA(isA<FormatException>()),
+    );
+    expect(
+      WorkflowStorage(package.database).keys('cursor:').length,
+      cursorCount,
+    );
+  });
+
+  test('native search denies expired context and invalid limits without retaining cursor state', () async {
+    await retainedContext(expires: BigInt.zero);
+    await expectLater(
+      service.searchRequest(
+        searchRecords(proposals.contextId, cursor: 'unknown'),
+      ),
+      throwsA(isA<ContextExpiredError>()),
+    );
+    await expectLater(
+      service.searchRequest(searchRecords(proposals.contextId, limit: 0)),
+      throwsA(isA<InvalidArgumentError>()),
+    );
+    expect(WorkflowStorage(package.database).keys('cursor:'), isEmpty);
+  });
+
   test('record reads pin payload summary and tombstone history to the admitted revision', () async {
     final original = f.row(20, permissions.entity(labels: {'en': 'Original'}));
     kernel.commit(input('read-record', [original]));
@@ -448,6 +562,14 @@ void main() {
     expect(scopeRead.summaries.single.label, 'Visible');
     expect(scopeRead.historyCoverage, Coverage.restricted);
     expect(scopeRead.history, isEmpty);
+    final scopedSearch = await service.searchRequest(
+      searchRecords(scoped.contextId, kinds: [RecordKind.entity]),
+    );
+    expect(scopedSearch.results.hits.map((hit) => hit.recordId), [f.id(20)]);
+    final hiddenSearch = await service.searchRequest(
+      searchRecords(scoped.contextId, query: 'Hidden'),
+    );
+    expect(hiddenSearch.results.hits, isEmpty);
     final scopedBrief = await service.getContextRequest(
       GetContextRequest(
         universe: const Selector('World'),

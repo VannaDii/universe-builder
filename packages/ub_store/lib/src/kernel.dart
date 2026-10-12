@@ -12,6 +12,7 @@ import 'journal.dart';
 import 'media_bytes.dart';
 import 'media_decode.dart' as media;
 import 'projections.dart';
+import 'projection_recovery.dart';
 import 'revision_input.dart';
 import 'workflow_storage.dart';
 
@@ -31,6 +32,12 @@ final class SqliteKernel {
     : journal = SqliteJournal(database, universe);
   final Database database;
   final SqliteJournal journal;
+
+  List<StoredVersion> search(
+    ContinuityId continuity,
+    RevisionId revision,
+    String query,
+  ) => ProjectionRecovery(journal).search(continuity, revision, query);
 
   RevisionId commit(
     CommitInput input, {

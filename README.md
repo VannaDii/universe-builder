@@ -559,6 +559,15 @@ Pagination survives package restart. Delivery completion is distinct from
 evidence coverage: paginated, scoped or perspective-limited briefs remain
 partial, as do briefs with missing dependencies or hidden rules/active appearance
 references. A budget that cannot fit the next mandatory record fails explicitly.
+Native search now intersects literal-phrase index matches with the retained
+revision, current world permissions and fictional perspective. Name/alias
+substring and exact-record-ID fallbacks stay within that visibility; typed
+filters and selected/shared/unassigned/dependency categories are preserved.
+Author-perspective research labels describe visible item powers, messages and
+knowledge without inferring facts or disclosing unavailable dependencies.
+Search pages use exact bound cursors and survive package restart; later canon
+and hidden records do not enter a pinned result. Invalid limits and queries
+exceeding the existing 1 KiB search bound fail explicitly.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

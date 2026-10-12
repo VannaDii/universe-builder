@@ -18,6 +18,7 @@ import 'proposal_authorization.dart';
 import 'proposal_state.dart';
 import 'proposal_validation.dart';
 import 'record_reading.dart';
+import 'record_search.dart';
 import 'read_cursor.dart';
 import 'source_verification.dart';
 import 'validation_binding.dart';
@@ -354,6 +355,60 @@ final class SqliteValidationWorkflow {
     );
   });
 
+  int _readOffset(
+    CanonicalObject args,
+    Frame frame,
+    CurrentUniverseAuthority current,
+    String? cursor,
+  ) {
+    const denied = NotFoundOrNotAccessibleError(message: 'resource');
+    final binding = readCursorBinding(
+      args: args,
+      frame: frame,
+      principal: principal.id,
+      scopeHash: current.scopeHash,
+    );
+    var offset = 0;
+    if (cursor != null) {
+      final value = _workflow.get('cursor:$cursor');
+      if (value == null) throw denied;
+      final saved = StoredReadCursor.fromWire(value);
+      if (saved.binding != binding) throw denied;
+      offset = saved.offset.toInt();
+      if (BigInt.from(offset) != saved.offset) throw denied;
+    }
+    return offset;
+  }
+
+  String? _retainReadCursor(
+    CanonicalObject args,
+    Frame frame,
+    CurrentUniverseAuthority current,
+    bool complete,
+    int next,
+  ) {
+    final binding = readCursorBinding(
+      args: args,
+      frame: frame,
+      principal: principal.id,
+      scopeHash: current.scopeHash,
+    );
+    String? cursor;
+    if (!complete) {
+      cursor = OperationId.generate().value;
+      _workflow.compareAppend({}, [
+        MapEntry(
+          'cursor:$cursor',
+          StoredReadCursor(
+            binding: binding,
+            offset: BigInt.from(next),
+          ).toWire(),
+        ),
+      ]);
+    }
+    return cursor;
+  }
+
   Future<({ContextBrief brief, Delivery delivery})> getContextRequest(
     GetContextRequest request,
   ) => authority.withUniverseAuthority(principal, universe, (current) async {
@@ -362,21 +417,12 @@ final class SqliteValidationWorkflow {
       throw denied;
     }
     final frame = _contextFrame(request.contextId, current);
-    final binding = readCursorBinding(
-      args: request.toArgs(),
-      frame: frame,
-      principal: principal.id,
-      scopeHash: current.scopeHash,
+    final offset = _readOffset(
+      request.toArgs(),
+      frame,
+      current,
+      request.cursor,
     );
-    var offset = 0;
-    if (request.cursor != null) {
-      final value = _workflow.get('cursor:${request.cursor}');
-      if (value == null) throw denied;
-      final saved = StoredReadCursor.fromWire(value);
-      if (saved.binding != binding) throw denied;
-      offset = saved.offset.toInt();
-      if (BigInt.from(offset) != saved.offset) throw denied;
-    }
     final snapshot = await _readSnapshot(
       frame: frame,
       world: request.world,
@@ -395,22 +441,70 @@ final class SqliteValidationWorkflow {
       byteBudget: request.byteBudget,
       offset: offset,
     );
-    String? cursor;
-    if (!page.complete) {
-      cursor = OperationId.generate().value;
-      _workflow.compareAppend({}, [
-        MapEntry(
-          'cursor:$cursor',
-          StoredReadCursor(
-            binding: binding,
-            offset: BigInt.from(page.next),
-          ).toWire(),
-        ),
-      ]);
-    }
+    final cursor = _retainReadCursor(
+      request.toArgs(),
+      frame,
+      current,
+      page.complete,
+      page.next,
+    );
     return (
       brief: page.brief,
       delivery: Delivery(complete: page.complete, cursor: cursor),
+    );
+  });
+
+  Future<({SearchResults results, Delivery delivery})> searchRequest(
+    SearchRequest request,
+  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    const denied = NotFoundOrNotAccessibleError(message: 'resource');
+    if (request.universeId != null && request.universeId != universe) {
+      throw denied;
+    }
+    if (request.limit < 1 || request.limit > 100) {
+      throw const InvalidArgumentError(
+        field: 'limit',
+        message: 'outside request limits',
+      );
+    }
+    final frame = _contextFrame(request.contextId, current);
+    final snapshot = await _readSnapshot(
+      frame: frame,
+      world: request.world,
+      guard: request.worldId,
+      current: current,
+    );
+    final indexed = SqliteKernel(package.database, universe)
+        .search(frame.continuity, frame.revision, request.query)
+        .map((row) => row.identity.recordId)
+        .toSet();
+    final hits = buildSearchHits(
+      accessible: snapshot.accessible,
+      indexed: indexed,
+      query: request.query,
+      filters: request.typedFilters,
+      world: snapshot.focus,
+      author: frame.perspective is AuthorPerspective,
+    );
+    final offset = _readOffset(
+      request.toArgs(),
+      frame,
+      current,
+      request.cursor,
+    );
+    if (offset > hits.length) throw denied;
+    final end = (offset + request.limit).clamp(0, hits.length);
+    final complete = end == hits.length;
+    final cursor = _retainReadCursor(
+      request.toArgs(),
+      frame,
+      current,
+      complete,
+      end,
+    );
+    return (
+      results: SearchResults(hits: hits.sublist(offset, end)),
+      delivery: Delivery(complete: complete, cursor: cursor),
     );
   });
 
