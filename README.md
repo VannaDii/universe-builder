@@ -155,6 +155,12 @@ uses UTF-8 ordering; quantities require identical unit identities. Range
 endpoints retain their authored inclusivity, while overlap, invalid bounds,
 overflow and unsupported types remain unresolved. These comparison primitives
 do not perform unit conversion or execute a rule by themselves.
+Candidate claim lookup now groups property/relation definitions, matching
+propositions, all assertions, completeness declarations and rule exceptions
+without interpreting their truth or applicability. Exact subject/context
+references and existing record order remain intact. This index captures one
+supplied candidate and must be rebuilt for changed snapshots; it carries no
+permission authority and does not admit exceptions or completeness by itself.
 Typed events preserve occurrence modes, authored participants and ordered effects.
 Action consequences validate exact decimal bounds, slot uniqueness and lifetimes;
 an absent historical contract remains distinct from an explicitly empty contract,
