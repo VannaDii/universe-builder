@@ -101,6 +101,19 @@ final class InstallationAuthority {
     }
   }
 
+  /// Compatibility and credential admission for the private engine handshake.
+  /// Transports must call this again for each request; a handshake is not a
+  /// lasting permission grant or a reservation of engine capacity.
+  InstallationPrincipal authenticateHello(EngineHello hello) {
+    final nameBytes = utf8.encode(hello.clientName);
+    if (hello.protocolVersion != protocolVersion ||
+        nameBytes.length > 128 ||
+        utf8.decode(nameBytes) != hello.clientName) {
+      throw const FormatException('Incompatible engine handshake');
+    }
+    return authenticate(profile: hello.profileId, credential: hello.credential);
+  }
+
   void requireAuthor(InstallationPrincipal principal) {
     if (principal.instanceId != _store.instanceId) {
       throw const InstallationException(InstallationFailure.denied);

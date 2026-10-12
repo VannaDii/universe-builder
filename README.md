@@ -334,7 +334,10 @@ enrollment, exact UTF-8 SHA-256 credential authentication and revocation. Author
 operations recheck current registry authority, and authenticated principals bind
 to their installation identity. Profile listings expose no hash or secret.
 Unknown, wrong and revoked credentials receive the same denial. Failed audit
-appends roll back authority mutations. Author catalog operations now register an
+appends roll back authority mutations. Private engine handshake authentication
+checks the exact protocol and 128-byte UTF-8 client-name bound before checking
+current credentials. It does not reserve transport capacity or grant lasting
+access; request transport integration remains pending. Author catalog operations now register an
 existing package only after owned startup recovery and derive its universe ID
 from that package. Registration stores its canonical path and exact device/inode
 identity while retaining the package writer lock through catalog publication.

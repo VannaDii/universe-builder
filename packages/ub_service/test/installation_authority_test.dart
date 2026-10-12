@@ -34,6 +34,78 @@ void main() {
     isA<InstallationException>().having((e) => e.failure, 'failure', expected),
   );
 
+  test(
+    'engine handshake admits current credentials with the exact protocol',
+    () {
+      final id = authority.initializeAuthor();
+      final hello = EngineHello(
+        protocolVersion: protocolVersion,
+        profileId: id,
+        credential: credential(id),
+        clientName: 'External writer',
+      );
+      final principal = authority.authenticateHello(hello);
+      expect(principal.id, id);
+      expect(principal.author, isTrue);
+      expect(principal.instanceId, store.instanceId);
+      expect(store.audit(id).length, 1);
+    },
+  );
+
+  test(
+    'handshake name bound counts UTF-8 bytes and diagnostics omit inputs',
+    () {
+      final id = authority.initializeAuthor();
+      InstallationPrincipal admit(
+        String name, {
+        String version = protocolVersion,
+      }) => authority.authenticateHello(
+        EngineHello(
+          protocolVersion: version,
+          profileId: id,
+          credential: credential(id),
+          clientName: name,
+        ),
+      );
+      expect(admit('é' * 64).id, id);
+      expect(admit('').id, id);
+      for (final name in ['é' * 65, 'x' * 129, '\ud800']) {
+        expect(() => admit(name), throwsFormatException);
+      }
+      expect(
+        () => admit('writer', version: 'secret-in-version'),
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.toString(),
+            'redacted diagnostic',
+            isNot(contains('secret-in-version')),
+          ),
+        ),
+      );
+    },
+  );
+
+  test('repeating handshake authentication refuses withdrawn credentials', () {
+    final ownerId = authority.initializeAuthor();
+    final owner = authority.authenticate(
+      profile: ownerId,
+      credential: credential(ownerId),
+    );
+    final agent = authority.enroll(owner);
+    final hello = EngineHello(
+      protocolVersion: protocolVersion,
+      profileId: agent,
+      credential: credential(agent),
+      clientName: 'writer',
+    );
+    expect(authority.authenticateHello(hello).author, isFalse);
+    authority.revoke(owner, agent);
+    expect(
+      () => authority.authenticateHello(hello),
+      failure(InstallationFailure.denied),
+    );
+  });
+
   test('bootstrap persists exact credentials, hash and audit before authenticating', () {
     final id = authority.initializeAuthor();
     final secret = credential(id);
