@@ -233,10 +233,20 @@ the same normative mapping catalog as SQLite, generating all 886 typed body
 tables. Focused checks cover restricted-role provisioning, complete provisioning
 rollback, frozen payload/digest reconstruction through a new connection, absent
 versus null fields, ordered collections, exact numbers/text, immutable rows,
-foreign keys, collection gaps and recursive-graph refusal. Kernel, installation,
+foreign keys, collection gaps and recursive-graph refusal. The internal canonical
+journal now has qualified history/membership tables, deferred continuity/head
+references, transaction-held universe locks, exact authored commit text and
+idempotency keys, durable receipts, pinned branching/history, and immutable world
+name reservations. Focused connection tests cover rollback at history write
+boundaries, reconnect/retry, historical receipt exclusion, stale writers and
+independent universe namespaces with matching record/version IDs. This journal
+is not an application publication entry point: candidate/definition/initialization
+admission, current installation authority, workflow comparisons and semantic/search
+projection work must be integrated by the complete PostgreSQL kernel. Installation,
 workflow and projection schemas, service parity, transfer and verified TLS remain
-pending. Run `test/postgres_foundation_test.dart` and
-`test/postgres_relational_test.dart` from `packages/ub_store` with
+pending. Run `test/postgres_foundation_test.dart`,
+`test/postgres_relational_test.dart` and `test/postgres_journal_test.dart` from
+`packages/ub_store` with
 `UB_TEST_POSTGRES_PORT` set to a disposable loopback `ub_disposable` database. Without
 that selection the live database cases are explicitly skipped. This check uses
 local fixture setup privileges and cleans its generated schemas and role.

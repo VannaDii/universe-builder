@@ -12,7 +12,7 @@ final class WorldNames {
   static void validateRecords(Iterable<StoredVersion> records) {
     final names = <String, RecordId>{};
     for (final record in records) {
-      for (final key in _keys(record)) {
+      for (final key in keys(record)) {
         final old = names[key];
         if (old != null && old != record.identity.recordId) {
           throw const FormatException('Duplicate world selector');
@@ -34,7 +34,7 @@ final class WorldNames {
           next.identity.recordId != change.recordId) {
         throw const FormatException('World reservation identity mismatch');
       }
-      for (final key in _keys(next)) {
+      for (final key in keys(next)) {
         final rows = database.select(
           'SELECT record_id FROM world_name_reservations WHERE universe_id=? AND name=?',
           [input.universe.value, key],
@@ -53,7 +53,7 @@ final class WorldNames {
     }
   }
 
-  static Iterable<String> _keys(StoredVersion record) sync* {
+  static Iterable<String> keys(StoredVersion record) sync* {
     if (record.identity.recordKind != RecordKind.world) return;
     final world = WorldRecord.fromWire(record.payload);
     yield selectorKey(world.selector);
