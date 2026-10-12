@@ -5,7 +5,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/sqlite.dart';
 import 'package:ub_store/installation.dart'
     show InstallationException, InstallationFailure;
-import 'package:ub_store/ub_store.dart' show CommitInput;
+import 'package:ub_store/ub_store.dart' show CommitInput, recordWorld;
 
 import 'assessment_resolution.dart';
 import 'assessment_validation.dart';
@@ -389,6 +389,289 @@ final class SqliteValidationWorkflow {
       frame: frame,
       focus: focus,
     );
+  }
+
+  /// Private author library, including pending writing and historical approvals.
+  Future<CanonicalObject> libraryRequest(LibraryEngineRequest request) async {
+    try {
+      return await authority.withUniverseAuthority(principal, universe, (
+        current,
+      ) {
+        if (!current.principal.author) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        if (authority
+                .resolveUniverseAlias(principal, request.universe.value)
+                .universeId !=
+            universe) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        final heads = _journal.heads();
+        final worlds = <CanonicalValue>[];
+        final contexts = <CanonicalValue>[];
+        final continuities = <CanonicalValue>[];
+        for (final head in heads.entries) {
+          continuities.add(
+            CanonicalObject([
+              MapEntry('id', CanonicalString(head.key.value)),
+              MapEntry('revision', CanonicalString(head.value.value)),
+              MapEntry(
+                'name',
+                _workflow.get('continuity-name:${head.key.value}') ??
+                    CanonicalString('Original continuity'),
+              ),
+            ]),
+          );
+          for (final row in _canon(head.key, head.value)) {
+            switch (row.payload) {
+              case WorldRecord(:final selector):
+                worlds.add(
+                  CanonicalObject([
+                    MapEntry(
+                      'id',
+                      CanonicalString(recordWorld(row.identity.recordId).value),
+                    ),
+                    MapEntry('name', CanonicalString(selector)),
+                    MapEntry('continuity_id', CanonicalString(head.key.value)),
+                  ]),
+                );
+              case RepresentedContextRecord():
+                contexts.add(CanonicalString(row.identity.recordId.value));
+              default:
+                break;
+            }
+          }
+        }
+        final latest = <ProposalId, ({Proposal proposal, String label})>{};
+        for (final key in _workflow.keys('proposal:')) {
+          final stored = StoredProposal.fromWire(_workflow.get(key)!);
+          final proposal = stored.proposal;
+          final previous = latest[proposal.proposalId];
+          if (previous == null ||
+              proposal.version > previous.proposal.version) {
+            latest[proposal.proposalId] = (
+              proposal: proposal,
+              label: _libraryLabel(stored),
+            );
+          }
+        }
+        final published = <String>{};
+        for (final key in _workflow.keys('operation:')) {
+          final operation = StoredOperation.fromWire(_workflow.get(key)!);
+          final input = operation.input;
+          if (input != null && _journal.receipt(input) != null) {
+            final digest = operation.status.proposal?.digest;
+            if (digest != null) published.add(digest);
+          }
+        }
+        final ids = latest.keys.toList()
+          ..sort((a, b) => a.value.compareTo(b.value));
+        final pending = <CanonicalValue>[];
+        for (final id in ids) {
+          final entry = latest[id]!;
+          final proposal = entry.proposal;
+          if (proposal.withdrawn || published.contains(proposal.digest)) {
+            continue;
+          }
+          pending.add(
+            CanonicalObject([
+              MapEntry(
+                'candidate',
+                ProposalRef(
+                  proposalId: id,
+                  version: proposal.version,
+                  digest: proposal.digest,
+                ).toWire(),
+              ),
+              MapEntry('label', CanonicalString(entry.label)),
+              MapEntry(
+                'submission',
+                CanonicalString(proposal.submission.wireName),
+              ),
+              MapEntry(
+                'base_revision',
+                CanonicalString(proposal.baseFrame.revision.value),
+              ),
+              MapEntry(
+                'continuity',
+                CanonicalString(proposal.baseFrame.continuity.value),
+              ),
+            ]),
+          );
+        }
+        final approved = <CanonicalValue>[];
+        for (final key in _workflow.keys('approval:${principal.id.value}:')) {
+          final value = WireFields(_workflow.get(key)!, {
+            'author',
+            'proposal',
+            'validation_digest',
+            'evaluator',
+          });
+          if (value.string('author') != principal.id.value) continue;
+          final reference = ProposalRef.fromWire(value.require('proposal'));
+          approved.add(
+            CanonicalObject([
+              MapEntry('candidate', reference.toWire()),
+              MapEntry('validation_run', CanonicalString(key.split(':').last)),
+              MapEntry(
+                'label',
+                CanonicalString(
+                  latest[reference.proposalId]?.label ?? 'Approved writing',
+                ),
+              ),
+            ]),
+          );
+        }
+        return CanonicalObject([
+          MapEntry(
+            'storage',
+            CanonicalObject([
+              MapEntry('universe', CanonicalString(universe.value)),
+              MapEntry(
+                'sqlite_version',
+                CanonicalString(
+                  package.database
+                          .select('SELECT sqlite_version() AS version')
+                          .single['version']
+                      as String,
+                ),
+              ),
+              MapEntry(
+                'journal_mode',
+                CanonicalString(
+                  package.database
+                          .select('PRAGMA journal_mode')
+                          .single
+                          .values
+                          .single
+                      as String,
+                ),
+              ),
+              MapEntry(
+                'synchronous',
+                CanonicalNumber(
+                  (package.database
+                              .select('PRAGMA synchronous')
+                              .single
+                              .values
+                              .single
+                          as int)
+                      .toString(),
+                ),
+              ),
+              MapEntry(
+                'foreign_keys',
+                CanonicalBool(
+                  package.database
+                          .select('PRAGMA foreign_keys')
+                          .single
+                          .values
+                          .single ==
+                      1,
+                ),
+              ),
+              MapEntry(
+                'heads',
+                CanonicalArray(
+                  heads.entries.map(
+                    (head) => CanonicalArray([
+                      CanonicalString(head.key.value),
+                      CanonicalString(head.value.value),
+                    ]),
+                  ),
+                ),
+              ),
+            ]),
+          ),
+          MapEntry('worlds', CanonicalArray(worlds)),
+          MapEntry('contexts', CanonicalArray(contexts)),
+          MapEntry('continuities', CanonicalArray(continuities)),
+          MapEntry(
+            'writing',
+            CanonicalObject([
+              MapEntry('proposals', CanonicalArray(pending)),
+              MapEntry('approved', CanonicalArray(approved)),
+            ]),
+          ),
+        ]);
+      });
+    } on InstallationException catch (error) {
+      if (error.failure == InstallationFailure.denied) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      rethrow;
+    }
+  }
+
+  String _libraryLabel(StoredProposal stored) {
+    final proposal = stored.proposal;
+    final rows = _canon(
+      proposal.baseFrame.continuity,
+      proposal.baseFrame.revision,
+    );
+    for (final change in stored.changes) {
+      final next = change.next;
+      if (next == null) continue;
+      rows.removeWhere((row) => row.identity.recordId == change.recordId);
+      rows.add(RecordVersion.fromWire(next.toCanonical()));
+    }
+    RecordPayload? payload(RecordId id) =>
+        rows.where((row) => row.identity.recordId == id).firstOrNull?.payload;
+    String? name(RecordId id) {
+      return switch (payload(id)) {
+        EntityRecord(:final labels, :final names) =>
+          labels.isNotEmpty
+              ? labels[(labels.keys.toList()..sort()).first]
+              : names.firstOrNull?.text,
+        PropertyRecord(:final key) ||
+        RelationRecord(:final key) ||
+        ActionDefinitionRecord(:final key) => key,
+        _ => null,
+      };
+    }
+
+    String? pair(RecordId subject, RecordId predicate) {
+      final left = name(subject), right = name(predicate);
+      return left == null || right == null ? null : '$left — $right';
+    }
+
+    final labels = <String>[];
+    for (final change in stored.changes) {
+      final next = change.next;
+      final row = next == null
+          ? payload(change.recordId)
+          : RecordVersion.fromWire(next.toCanonical()).payload;
+      final label = switch (row) {
+        EntityRecord(:final names) => names.firstOrNull?.text,
+        SourceRecord(:final label) => label,
+        PropertyRecord(:final key) ||
+        RelationRecord(:final key) ||
+        RuleRecord(:final key) ||
+        ActionDefinitionRecord(:final key) => key,
+        EntityTypeRecord(:final name) => name,
+        SceneRecord(:final sceneId) => sceneId,
+        ItemPowerRecord(:final item, :final powerPredicate) => pair(
+          item.record,
+          powerPredicate.record,
+        ),
+        EventRecord(:final action) =>
+          action == null || name(action.record) == null
+              ? null
+              : 'Occurred action: ${name(action.record)}',
+        AssertionRecord(:final proposition) => switch (payload(
+          proposition.record,
+        )) {
+          PropositionRecord(:final subject, :final predicate) => pair(
+            subject.record,
+            predicate.record,
+          ),
+          _ => null,
+        },
+        _ => null,
+      };
+      if (label != null) labels.add(label);
+    }
+    return labels.isEmpty ? proposal.rationale : labels.join(' · ');
   }
 
   /// Public tool boundary. Result and envelope bindings are selected in the same

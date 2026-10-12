@@ -1625,6 +1625,334 @@ void main() {
     }
   });
 
+  Future<WireFields> library(NativeSqliteConnection connection) async =>
+      WireFields(
+        await engine(
+          connection,
+          const LibraryEngineRequest(universe: Selector('World')),
+        ),
+        {'storage', 'worlds', 'contexts', 'continuities', 'writing'},
+      );
+
+  test('private library retains all continuity heads worlds and contexts without writer disclosure', () async {
+    seedReadRows([
+      f.row(50, WorldRecord(selector: 'Campaign', aliases: ['Play'])),
+    ]);
+    final branch = ContinuityId.generate();
+    final package = OwnedSqliteDatabase.openExisting(path);
+    try {
+      package.recover();
+      final kernel = SqliteKernel(package.database, f.u);
+      package.database.execute('BEGIN IMMEDIATE');
+      kernel.journal.branch(
+        branch,
+        draft.proposal.baseFrame.continuity,
+        kernel.journal.head(draft.proposal.baseFrame.continuity),
+        PrincipalId.generate(),
+      );
+      package.database.execute('COMMIT');
+      WorkflowStorage(package.database).compareAppend({}, [
+        MapEntry(
+          'continuity-name:${branch.value}',
+          CanonicalString('Alternate continuity'),
+        ),
+      ]);
+    } finally {
+      package.close();
+    }
+    authority.grant(
+      author,
+      GrantSpec(
+        profileId: writer.id,
+        universeId: f.u,
+        worlds: null,
+        propose: true,
+        edit: true,
+        protected: true,
+      ),
+    );
+    final writerConnection = runtime.connect(hello(writer.id));
+    final blocker = OwnedSqliteDatabase.openExisting(path);
+    try {
+      await expectLater(
+        library(writerConnection),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+    } finally {
+      blocker.close();
+    }
+    final authorConnection = runtime.connect(hello(author.id));
+    final response = await library(authorConnection);
+    final storage = WireFields(response.require('storage'), {
+      'universe',
+      'sqlite_version',
+      'journal_mode',
+      'synchronous',
+      'foreign_keys',
+      'heads',
+    });
+    expect(storage.string('universe'), f.u.value);
+    expect(storage.string('sqlite_version'), isNotEmpty);
+    expect(storage.string('journal_mode'), 'wal');
+    expect(storage.u64('synchronous'), BigInt.two);
+    expect(storage.boolean('foreign_keys'), isTrue);
+    expect(storage.array('heads'), hasLength(2));
+    expect(response.array('worlds'), hasLength(2));
+    expect(
+      response
+          .array('worlds')
+          .map(
+            (v) => WireFields(v, {'id', 'name', 'continuity_id'}).string('id'),
+          )
+          .toSet(),
+      {permissions.world(50).value},
+    );
+    expect(response.array('contexts').map(wireString), [
+      f.id(99).value,
+      f.id(99).value,
+    ]);
+    expect(
+      response
+          .array('continuities')
+          .map((v) => WireFields(v, {'id', 'revision', 'name'}).string('name'))
+          .toSet(),
+      {'Original continuity', 'Alternate continuity'},
+    );
+    final writing = WireFields(response.require('writing'), {
+      'proposals',
+      'approved',
+    });
+    expect(writing.array('proposals'), hasLength(1));
+    final entry = WireFields(writing.array('proposals').single, {
+      'candidate',
+      'label',
+      'submission',
+      'base_revision',
+      'continuity',
+    });
+    expect(entry.string('label'), draft.proposal.rationale);
+    expect(
+      ProposalRef.fromWire(entry.require('candidate')).toWire().toText(),
+      draft.reference.toWire().toText(),
+    );
+    await expectLater(
+      engine(
+        authorConnection,
+        const LibraryEngineRequest(universe: Selector('Missing')),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+  });
+
+  test('private library displays latest named proposal and suppresses its withdrawn revision', () async {
+    final connection = runtime.connect(hello(author.id));
+    final opened = await readContext(connection);
+    EntityRecord person(String name) => EntityRecord(
+      names: [
+        ContextualName(text: name, validity: const UnspecifiedValidity()),
+      ],
+      classificationResolution: ClassificationResolution.unclassified,
+      worldAssociations: [],
+      labels: {'en': 'Display label'},
+      metadata: {},
+    );
+    final created = Proposal.fromWire(
+      (await tool(
+        connection,
+        CreateProposalRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          operations: [
+            CreateEntityOperation(
+              clientRef: f.id(20).value,
+              record: person('Mara'),
+            ),
+          ],
+          submission: Submission.draft,
+          rationale: 'Authored identity',
+          idempotencyKey: 'library-create',
+        ),
+      )).result,
+    );
+    ProposalRef reference(Proposal p) => ProposalRef(
+      proposalId: p.proposalId,
+      version: p.version,
+      digest: p.digest,
+    );
+    List<WireFields> pending(WireFields value) =>
+        WireFields(value.require('writing'), {'proposals', 'approved'})
+            .array('proposals')
+            .map(
+              (v) => WireFields(v, {
+                'candidate',
+                'label',
+                'submission',
+                'base_revision',
+                'continuity',
+              }),
+            )
+            .toList();
+    final original = pending(await library(connection)).singleWhere(
+      (v) =>
+          ProposalRef.fromWire(v.require('candidate')).proposalId ==
+          created.proposalId,
+    );
+    expect(original.string('label'), 'Mara');
+    final revised = Proposal.fromWire(
+      (await tool(
+        connection,
+        ReviseProposalRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          proposalReference: reference(created),
+          operations: [
+            CreateEntityOperation(
+              clientRef: f.id(20).value,
+              record: person('Mara corrected'),
+            ),
+          ],
+          submission: Submission.draft,
+          rationale: 'Corrected identity',
+          idempotencyKey: 'library-revise',
+        ),
+      )).result,
+    );
+    final latest = pending(await library(connection))
+        .where(
+          (v) =>
+              ProposalRef.fromWire(v.require('candidate')).proposalId ==
+              created.proposalId,
+        )
+        .toList();
+    expect(latest, hasLength(1));
+    expect(latest.single.string('label'), 'Mara corrected');
+    expect(
+      ProposalRef.fromWire(latest.single.require('candidate')).version,
+      revised.version,
+    );
+    await tool(
+      connection,
+      WithdrawProposalRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        proposalReference: reference(revised),
+        idempotencyKey: 'library-withdraw',
+      ),
+    );
+    expect(
+      pending(await library(connection))
+          .map((v) => ProposalRef.fromWire(v.require('candidate')).proposalId),
+      isNot(contains(created.proposalId)),
+    );
+  });
+
+  test('private library keeps approval history and hides publication only after durable receipt across restart', () async {
+    var connection = runtime.connect(hello(author.id));
+    final prepared = WireFields(
+      await engine(
+        connection,
+        AuthorWritingEngineRequest(
+          universe: const Selector('World'),
+          action: PrepareContractsWritingAction(
+            candidate: draft.proposal.proposalId,
+            label: 'Unit definition',
+            text: 'Metres measure length.',
+          ),
+        ),
+      ),
+      {
+        'acceptance_options',
+        'summary',
+        'candidate',
+        'validation',
+        'impact',
+        'publishable',
+        'review',
+      },
+    );
+    final reference = ProposalRef.fromWire(prepared.require('candidate'));
+    final validation = ValidationV3.fromWire(
+      prepared.require('validation'),
+    ) as EvaluatedValidation;
+    final before = WireFields((await library(connection)).require('writing'), {
+      'proposals',
+      'approved',
+    });
+    expect(before.array('proposals'), hasLength(1));
+    expect(
+      WireFields(before.array('proposals').single, {
+        'candidate',
+        'label',
+        'submission',
+        'base_revision',
+        'continuity',
+      }).string('label'),
+      'Unit definition',
+    );
+    expect(before.array('approved'), isEmpty);
+    await engine(
+      connection,
+      ApproveEngineRequest(
+        universe: const Selector('World'),
+        proposalReference: reference,
+        validationRun: validation.execution.runId,
+      ),
+    );
+    final approved = WireFields(
+      (await library(connection)).require('writing'),
+      {'proposals', 'approved'},
+    );
+    expect(approved.array('proposals'), hasLength(1));
+    final card = WireFields(approved.array('approved').single, {
+      'candidate',
+      'validation_run',
+      'label',
+    });
+    expect(card.string('validation_run'), validation.execution.runId.value);
+    expect(card.string('label'), 'Unit definition');
+    expect(
+      ProposalRef.fromWire(card.require('candidate')).digest,
+      reference.digest,
+    );
+    await engine(
+      connection,
+      AuthorWritingEngineRequest(
+        universe: const Selector('World'),
+        action: PublishWritingAction(
+          candidate: reference,
+          validationRun: validation.execution.runId,
+          idempotencyKey: 'library-publish',
+        ),
+      ),
+    );
+    final published = await engine(
+      connection,
+      const LibraryEngineRequest(universe: Selector('World')),
+    );
+    final completed = WireFields(
+      WireFields(published, {
+        'storage',
+        'worlds',
+        'contexts',
+        'continuities',
+        'writing',
+      }).require('writing'),
+      {'proposals', 'approved'},
+    );
+    expect(completed.array('proposals'), isEmpty);
+    expect(completed.array('approved'), hasLength(1));
+    await runtime.close();
+    runtime = NativeSqliteRuntime(authority: authority);
+    connection = runtime.connect(hello(author.id));
+    expect(
+      (await engine(
+        connection,
+        const LibraryEngineRequest(universe: Selector('World')),
+      )).toText(),
+      published.toText(),
+    );
+  });
+
   test('connections share one recovered writer and retain publication receipt across runtime restart', () async {
     final first = runtime.connect(hello(author.id));
     final second = runtime.connect(hello(author.id));

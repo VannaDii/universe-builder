@@ -72,6 +72,7 @@ final class NativeSqliteRuntime {
         if (request case ToolEngineRequest(:final request)) request.validate();
         final selector = switch (request) {
           ToolEngineRequest(:final request) => request.universe,
+          LibraryEngineRequest(:final universe) => universe,
           AuthorWritingEngineRequest(:final universe) ||
           StageSourceEngineRequest(:final universe) ||
           ReviewEngineRequest(:final universe) ||
@@ -109,6 +110,9 @@ final class NativeSqliteRuntime {
         authority: authority,
         principal: principal,
       );
+      if (request is LibraryEngineRequest) {
+        return await workflow.libraryRequest(request);
+      }
       if (request case ToolEngineRequest(:final request)) {
         final response = await workflow.executeToolRequest(
           request,
