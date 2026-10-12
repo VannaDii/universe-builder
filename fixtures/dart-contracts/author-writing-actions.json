@@ -1,0 +1,34 @@
+[
+  {
+    "input_raw": "{\"action\":\"inspect\",\"candidate\":{\"proposal_id\":\"prp_000000000000000000000001\",\"version\":18446744073709551615,\"digest\":\"exact retained digest\"}}",
+    "expected_wire": "{\"action\":\"inspect\",\"candidate\":{\"proposal_id\":\"prp_000000000000000000000001\",\"version\":18446744073709551615,\"digest\":\"exact retained digest\"}}"
+  },
+  {
+    "input_raw": "{\"action\":\"prepare\",\"candidate\":\"prp_000000000000000000000001\",\"label\":\"Remembered account\",\"text\":\"Authored source é\"}",
+    "expected_wire": "{\"action\":\"prepare\",\"candidate\":\"prp_000000000000000000000001\",\"label\":\"Remembered account\",\"text\":\"Authored source é\"}"
+  },
+  {
+    "input_raw": "{\"action\":\"prepare_contracts\",\"candidate\":\"prp_000000000000000000000001\",\"label\":\"Rules\",\"text\":\"Authored contract source\"}",
+    "expected_wire": "{\"action\":\"prepare_contracts\",\"candidate\":\"prp_000000000000000000000001\",\"label\":\"Rules\",\"text\":\"Authored contract source\"}"
+  },
+  {
+    "input_raw": "{\"action\":\"edit_knowledge\",\"context_id\":\"ctx_000000000000000000000001\",\"correction\":{\"attitude_handle\":\"opaque attitude\",\"reason\":\"Correct testimony\",\"clear_certainty\":true,\"value\":false},\"label\":\"Account\",\"text\":\"Authored correction\"}",
+    "expected_wire": "{\"action\":\"edit_knowledge\",\"context_id\":\"ctx_000000000000000000000001\",\"correction\":{\"attitude_handle\":\"opaque attitude\",\"reason\":\"Correct testimony\",\"value\":false,\"certainty\":null,\"clear_certainty\":true,\"at_tick\":null,\"lifetime\":null,\"end_tick\":null},\"label\":\"Account\",\"text\":\"Authored correction\"}"
+  },
+  {
+    "input_raw": "{\"action\":\"establish_knowledge\",\"context_id\":\"ctx_000000000000000000000001\",\"declaration\":{\"holder\":\"Mara\",\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true},\"lifetime\":{\"kind\":\"until_changed\"}},\"rationale\":\"Explicit author declaration\",\"label\":\"Account\",\"text\":\"Authored knowledge source\"}",
+    "expected_wire": "{\"action\":\"establish_knowledge\",\"context_id\":\"ctx_000000000000000000000001\",\"declaration\":{\"holder\":\"Mara\",\"claim\":{\"subject\":\"Door\",\"property\":\"open\",\"value\":true},\"at_tick\":\"\",\"lifetime\":{\"kind\":\"until_changed\"},\"world\":null},\"rationale\":\"Explicit author declaration\",\"label\":\"Account\",\"text\":\"Authored knowledge source\"}"
+  },
+  {
+    "input_raw": "{\"action\":\"reject\",\"candidate\":\"prp_000000000000000000000001\"}",
+    "expected_wire": "{\"action\":\"reject\",\"candidate\":\"prp_000000000000000000000001\"}"
+  },
+  {
+    "input_raw": "{\"action\":\"publish\",\"candidate\":{\"proposal_id\":\"prp_000000000000000000000001\",\"version\":18446744073709551615,\"digest\":\"exact retained digest\"},\"validation_run\":\"val_000000000000000000000001\",\"idempotency_key\":\"retry-one\"}",
+    "expected_wire": "{\"action\":\"publish\",\"candidate\":{\"proposal_id\":\"prp_000000000000000000000001\",\"version\":18446744073709551615,\"digest\":\"exact retained digest\"},\"validation_run\":\"val_000000000000000000000001\",\"idempotency_key\":\"retry-one\"}"
+  },
+  {
+    "input_raw": "{\"action\":\"accept\",\"candidate\":{\"proposal_id\":\"prp_000000000000000000000001\",\"version\":18446744073709551615,\"digest\":\"exact retained digest\"},\"fingerprint\":\"opaque authored fingerprint\",\"scope\":\"selected world/context\",\"rationale\":\"Explicit finding acceptance\"}",
+    "expected_wire": "{\"action\":\"accept\",\"candidate\":{\"proposal_id\":\"prp_000000000000000000000001\",\"version\":18446744073709551615,\"digest\":\"exact retained digest\"},\"fingerprint\":\"opaque authored fingerprint\",\"scope\":\"selected world/context\",\"rationale\":\"Explicit finding acceptance\"}"
+  }
+]

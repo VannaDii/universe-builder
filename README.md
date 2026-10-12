@@ -42,7 +42,7 @@ dart test
 dart test test/compiler_test.dart --platform chrome
 cd ../ub_contracts
 dart test
-dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart test/read_response_test.dart test/state_response_test.dart test/response_test.dart test/wire_message_test.dart test/installation_test.dart test/workflow_request_test.dart test/writing_test.dart test/writing_knowledge_test.dart test/writing_delta_test.dart --platform chrome
+dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart test/read_response_test.dart test/state_response_test.dart test/response_test.dart test/wire_message_test.dart test/installation_test.dart test/author_writing_action_test.dart test/workflow_request_test.dart test/writing_test.dart test/writing_knowledge_test.dart test/writing_delta_test.dart --platform chrome
 ```
 
 Browser tests must run from the package directory. Set `CHROME_EXECUTABLE` if
@@ -235,6 +235,15 @@ Expiry timestamps, draft versions and engine limits preserve exact unsigned
 values on web. These contracts do not authenticate profiles, grant permissions,
 save drafts or implement encrypted settings; private command dispatch and those
 service behaviors remain pending.
+Private author-writing action contracts now cover exact inspection, source and
+contract preparation, knowledge correction/establishment, rejection, publication
+and finding acceptance. Publication retains the exact proposal version/digest,
+validation run and retry key; finding acceptance keeps its authored fingerprint,
+scope and rationale. Knowledge corrections preserve explicit clear flags and
+remain separate from new knowledge declarations. All eight variants retain their
+existing closed wire shapes and cannot be decoded as public model requests.
+Decoding does not stage source, approve changes, accept a finding or publish;
+private command routing and service enforcement remain pending.
 Ordinary writer types now preserve JSON scalar fact values, named objects and
 explicit unit amounts, fact lifetimes, object/definition deltas, claims and
 historical corrections/endings/withdrawals. Research requests for exact object

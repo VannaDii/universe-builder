@@ -16,3 +16,4 @@ export 'src/response.dart';
 export 'src/wire_message.dart';
 export 'src/wire.dart' show protocolVersion, maxFrameBytes, maxInFlight;
 export 'src/installation.dart';
+export 'src/author_writing_action.dart';
