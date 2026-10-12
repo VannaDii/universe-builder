@@ -1165,6 +1165,157 @@ final class SqliteValidationWorkflow {
     );
   });
 
+  /// Accept only an exact unresolved opt-in resource finding. This retains a
+  /// new submitted proposal; its validation and approval are separate decisions.
+  Future<CanonicalObject> acceptWriting(
+    AcceptWritingAction action, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    if (!RegExp(
+      r'[^\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]',
+    ).hasMatch(action.rationale)) {
+      throw const InvalidArgumentError(
+        field: 'rationale',
+        message: 'author acceptance requires a reason',
+      );
+    }
+    final binding = canonicalDigest(
+      CanonicalArray([
+        action.candidate.toWire(),
+        CanonicalString(action.fingerprint.value),
+        CanonicalString(action.scope),
+        CanonicalString(action.rationale),
+      ]),
+    );
+    final key = 'writing-accept:$binding';
+    final receipt = operationRequestKey(principal.id, 'propose', key);
+    if (_workflow.get(receipt) != null) {
+      final prior = await loadStoredOperation(
+        key: receipt,
+        principal: principal.id,
+        worldScope: current.worldScope,
+        readWorkflow: _workflow.get,
+        readReceipt: _journal.receipt,
+        isValidationActive: isValidationActive,
+      );
+      final proposal = prior.status.proposal;
+      if (proposal == null) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      return _writingAuthorReview(
+        ProposalRef(
+          proposalId: proposal.proposalId,
+          version: proposal.version,
+          digest: proposal.digest,
+        ),
+        current,
+      );
+    }
+    final stored = _proposal(action.candidate, current);
+    final p = stored.proposal;
+    _writingAuthorCurrent(p);
+    final kernel = SqliteKernel(package.database, universe);
+    final checked = await checkProposalCandidate(
+      stored: stored,
+      universe: universe,
+      principal: principal.id,
+      approvalAuthor: current.approvalAuthor,
+      scope: current.worldScope,
+      preview: (input) => kernel
+          .preview(input)
+          .map((r) => RecordVersion.fromWire(r.toCanonical()))
+          .toList(),
+      readCanon: _canon,
+      readWorkflow: _workflow.get,
+      readVersion: _version,
+    );
+    final input = await proposalCommitInput(
+      stored: stored,
+      universe: universe,
+      principal: principal.id,
+      idempotencyKey: 'acceptance-review',
+      readCanon: _canon,
+    );
+    final records = kernel
+        .preview(input)
+        .map((r) => RecordVersion.fromWire(r.toCanonical()))
+        .toList();
+    final matching = assessResourceAccounting(records, p.baseFrame).where(
+      (g) =>
+          g.fingerprint == action.fingerprint &&
+          g.acceptance == null &&
+          action.scope == 'resource:${g.proposition.value}',
+    );
+    if (matching.isEmpty) {
+      throw const InvalidArgumentError(
+        field: 'scope',
+        message: 'select an exact current unresolved resource finding and its resource scope',
+      );
+    }
+    final gap = matching.first;
+    final findings = checked.validation.findings.where(
+      (f) => f.fingerprint == gap.fingerprint,
+    );
+    if (findings.isEmpty) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final operations = [
+      ...p.operations,
+      RecordIssueDecisionOperation(
+        clientRef: RecordId.generate().value,
+        record: IssueDecisionRecord(
+          fingerprints: [findings.first.fingerprint],
+          mode: IssueDecisionMode.accept,
+          scope: action.scope,
+          rationale: action.rationale,
+          principal: PrincipalId.parse(
+            principal.id.value.replaceFirst('prf_', 'prn_'),
+          ),
+        ),
+      ),
+    ];
+    final versions = <RecordId, RecordVersionId>{};
+    for (final change in stored.changes) {
+      if (change.next != null) {
+        final row = RecordVersion.fromWire(change.next!.toCanonical());
+        if (row.payload is SourceVersionRecord) {
+          versions[row.identity.recordId] = row.recordVersionId;
+        }
+      }
+    }
+    final opened = await _openContext(
+      _writingAdmission(Selector(universe.value), p.baseFrame),
+      current,
+    );
+    final proposed = await _propose(
+      ReviseProposalRequest(
+        universe: Selector(universe.value),
+        contextId: opened.contextId,
+        proposalReference: action.candidate,
+        operations: operations,
+        submission: Submission.submitted,
+        rationale: action.rationale,
+        idempotencyKey: key,
+      ),
+      current,
+      resolvedFrame: opened.frame,
+      worldFocus: null,
+      isValidationActive: isValidationActive,
+      versions: versions,
+    );
+    return _writingAuthorReview(
+      ProposalRef(
+        proposalId: proposed.proposalId,
+        version: proposed.version,
+        digest: proposed.digest,
+      ),
+      current,
+    );
+  });
+
   Future<CommitReceipt> publishWriting(
     PublishWritingAction action, {
     required bool Function(OperationId) isValidationActive,

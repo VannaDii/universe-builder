@@ -31,6 +31,7 @@ import 'instance_initialization_test.dart' as initialization;
 import 'effective_objects_test.dart' as objects;
 import 'writing_projection_test.dart' as writing;
 import 'action_checks_test.dart' as actions;
+import 'resource_checks_test.dart' as resources;
 import '../../ub_contracts/test/assessment_integrity_test.dart' as accounting;
 
 void main() {
@@ -427,6 +428,208 @@ void main() {
     'impact',
     'publishable',
     'review',
+  });
+
+  Future<WireFields> resourceWritingReview() async {
+    final clock = FictionalUniverseStart(
+      calendarName: 'Campaign clock',
+      initialTick: '0',
+      tickLabel: 'ticks',
+    ).build(resources.cal);
+    kernel.commit(
+      input('resource-writing-fixture', [
+        ...resources.fixture(),
+        f.row(6, clock.$2),
+        f.row(
+          5,
+          RepresentedContextRecord(
+            universe: f.u,
+            kind: const ObjectiveContext(),
+            chronology: clock.$1,
+            labels: {},
+          ),
+        ),
+      ]),
+    );
+    final owner = authorService();
+    final opened = await owner.openContext(
+      contextRequest(represented: ContextIdSelector(f.id(5))),
+    );
+    final draft = await owner.proposeRequest(
+      CreateProposalRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        operations: [
+          AddNameOperation(
+            record: f.ref(3),
+            expectedVersion: f.ver(3),
+            name: const ContextualName(
+              text: 'Actor',
+              validity: UnspecifiedValidity(),
+            ),
+          ),
+        ],
+        submission: Submission.draft,
+        rationale: 'Resource timeline review',
+        idempotencyKey: 'resource-writing-draft',
+      ),
+      isValidationActive: (_) => false,
+    );
+    return writingReview(
+      await owner.prepareWritingReview(
+        candidate: draft.proposalId,
+        label: 'Session notes',
+        text: 'The actor acquired another round at tick five.',
+        isValidationActive: (_) => false,
+      ),
+    );
+  }
+
+  test('private resource acceptance preserves exact source versions and requires separate approval across retry and reopen', () async {
+    final reviewed = await resourceWritingReview();
+    expect(reviewed.boolean('publishable'), isFalse);
+    final ref = ProposalRef.fromWire(reviewed.require('candidate'));
+    final option = WireFields(reviewed.array('acceptance_options').single, {
+      'fingerprint',
+      'scope',
+    });
+    final action = AcceptWritingAction(
+      candidate: ref,
+      fingerprint: FindingFingerprint(option.string('fingerprint')),
+      scope: option.string('scope'),
+      rationale: 'Author accepts this exact unexplained arrival',
+    );
+    final workflow = WorkflowStorage(package.database);
+    final original = StoredProposal.fromWire(workflow.get(proposalKey(ref))!);
+    final sourceVersions = original.changes
+        .where((c) => c.next != null)
+        .map((c) => RecordVersion.fromWire(c.next!.toCanonical()))
+        .where((r) => r.payload is SourceVersionRecord)
+        .map((r) => r.toWire().toText())
+        .toList();
+    final head = kernel.journal.head(continuity);
+    final accepted = writingReview(
+      await authorService().acceptWriting(
+        action,
+        isValidationActive: (_) => false,
+      ),
+    );
+    final next = ProposalRef.fromWire(accepted.require('candidate'));
+    expect(next.proposalId, ref.proposalId);
+    expect(next.version, ref.version + BigInt.one);
+    expect(accepted.boolean('publishable'), isTrue);
+    expect(accepted.array('acceptance_options'), isEmpty);
+    final retained = StoredProposal.fromWire(workflow.get(proposalKey(next))!);
+    expect(
+      retained.changes
+          .where((c) => c.next != null)
+          .map((c) => RecordVersion.fromWire(c.next!.toCanonical()))
+          .where((r) => r.payload is SourceVersionRecord)
+          .map((r) => r.toWire().toText())
+          .toList(),
+      sourceVersions,
+    );
+    expect(
+      retained.proposal.operations
+          .whereType<RecordIssueDecisionOperation>()
+          .single
+          .record
+          .rationale,
+      action.rationale,
+    );
+    expect(kernel.journal.head(continuity), head);
+    expect(workflow.keys('approval:'), isEmpty);
+    expect(workflow.keys('source-version:'), hasLength(1));
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    final retry = writingReview(
+      await authorService().acceptWriting(
+        action,
+        isValidationActive: (_) => false,
+      ),
+    );
+    expect(ProposalRef.fromWire(retry.require('candidate')), next);
+    expect(
+      WorkflowStorage(package.database).keys('source-version:'),
+      hasLength(1),
+    );
+    final report = ValidationV3.fromWire(retry.require('validation'));
+    final receipt = await authorService().publishWriting(
+      PublishWritingAction(
+        candidate: next,
+        validationRun: report.execution!.runId,
+        idempotencyKey: 'publish-resource-acceptance',
+      ),
+      isValidationActive: (_) => false,
+    );
+    expect(kernel.journal.head(continuity), receipt.revision);
+    await expectLater(
+      authorService().acceptWriting(action, isValidationActive: (_) => false),
+      throwsA(isA<ApprovalStaleError>()),
+    );
+  });
+
+  test('private resource acceptance denies wrong scope fingerprint blank reason and writer authority before revision', () async {
+    final reviewed = await resourceWritingReview();
+    final ref = ProposalRef.fromWire(reviewed.require('candidate'));
+    final option = WireFields(reviewed.array('acceptance_options').single, {
+      'fingerprint',
+      'scope',
+    });
+    AcceptWritingAction action({
+      String? scope,
+      String? fingerprint,
+      String reason = 'Explicit acceptance',
+    }) => AcceptWritingAction(
+      candidate: ref,
+      fingerprint: FindingFingerprint(
+        fingerprint ?? option.string('fingerprint'),
+      ),
+      scope: scope ?? option.string('scope'),
+      rationale: reason,
+    );
+    final workflow = WorkflowStorage(package.database);
+    final proposalKeys = workflow.keys('proposal:');
+    await expectLater(
+      authorService().acceptWriting(
+        action(scope: 'general'),
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<InvalidArgumentError>()),
+    );
+    await expectLater(
+      authorService().acceptWriting(
+        action(fingerprint: 'a' * 64),
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<InvalidArgumentError>()),
+    );
+    await expectLater(
+      authorService().acceptWriting(
+        action(reason: '\u2003\n'),
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<InvalidArgumentError>()),
+    );
+    await expectLater(
+      service.acceptWriting(action(), isValidationActive: (_) => false),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    expect(workflow.keys('proposal:'), proposalKeys);
+    expect(workflow.keys('approval:'), isEmpty);
+    expect(workflow.keys('source-version:'), hasLength(1));
+    kernel.commit(
+      input('advance-before-resource-acceptance', [f.row(77, f.entity())]),
+    );
+    await expectLater(
+      authorService().acceptWriting(action(), isValidationActive: (_) => false),
+      throwsA(isA<ApprovalStaleError>()),
+    );
+    expect(workflow.keys('proposal:'), proposalKeys);
   });
 
   test('private writing actions prepare inspect and publish once across changed head and reopen', () async {
