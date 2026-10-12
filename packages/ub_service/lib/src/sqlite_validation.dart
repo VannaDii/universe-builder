@@ -152,6 +152,25 @@ final class SqliteValidationWorkflow {
     ),
   );
 
+  Future<OperationStatusV3> operationStatus(
+    OperationId id, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+    final op = await loadStoredOperation(
+      key: 'operation:${id.value}',
+      principal: current.principal.id,
+      worldScope: current.worldScope,
+      readWorkflow: _workflow.get,
+      readReceipt: _journal.receipt,
+      isValidationActive: isValidationActive,
+    );
+    return publicOperationStatus(
+      status: op.status,
+      worldScope: current.worldScope,
+      readWorkflow: _workflow.get,
+    );
+  });
+
   Future<AssessmentSelection> attachAssessment(
     ProposalRef reference, {
     required BigInt expectedGeneration,

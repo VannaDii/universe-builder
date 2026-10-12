@@ -5,6 +5,8 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/ub_store.dart';
 
 import 'proposal_authorization.dart';
+import 'proposal_state.dart';
+import 'candidate_validation.dart';
 import 'validation_binding.dart';
 
 CommitInput _input(CanonicalValue value) {
@@ -194,5 +196,95 @@ Future<StoredOperation> loadStoredOperation({
       receipt: receipt,
       cancellationRequested: cancelled,
     ),
+  );
+}
+
+/// Render an already admitted operation without exposing complete evidence to
+/// a scoped viewer. Pending, failed and legacy fallback reports never create a
+/// final approval/publication binding; completed retained reports remain exact.
+Future<OperationStatusV3> publicOperationStatus({
+  required OperationStatus status,
+  required Set<WorldId>? worldScope,
+  required FutureOr<CanonicalValue?> Function(String) readWorkflow,
+}) async {
+  const denied = NotFoundOrNotAccessibleError(message: 'resource');
+  final execution = status.validation;
+  ValidationV3? report;
+  if (execution != null) {
+    if (worldScope != null || execution.coverage == Coverage.restricted) {
+      report = ValidationV3.restricted();
+    } else {
+      final saved = await readWorkflow('validation:${execution.runId.value}');
+      final checked = saved == null ? null : CheckedValidation.fromWire(saved);
+      final retained = checked?.report;
+      if (retained != null) {
+        report = retained is EvaluatedValidation
+            ? EvaluatedValidation(
+                execution: execution,
+                submittedInput: retained.submittedInput,
+                assessment: retained.assessment,
+                finalBindingDigest: retained.finalBindingDigest,
+              )
+            : retained;
+      } else {
+        final proposal = status.proposal;
+        if (proposal == null) throw denied;
+        final reference = ProposalRef(
+          proposalId: proposal.proposalId,
+          version: proposal.version,
+          digest: proposal.digest,
+        );
+        final rawProposal = await readWorkflow(proposalKey(reference));
+        final rawOperation = await readWorkflow(
+          'operation:${status.operationId.value}',
+        );
+        if (rawProposal == null || rawOperation == null) throw denied;
+        final p = StoredProposal.fromWire(rawProposal);
+        final operation = StoredOperation.fromWire(rawOperation);
+        final capture = operation.validationCapture;
+        var evaluated = capture != null
+            ? capture.report(
+                proposal: reference,
+                baseFrame: p.proposal.baseFrame,
+                execution: execution,
+                finished: false,
+              )
+            : EvaluatedValidation(
+                execution: execution,
+                submittedInput: recordCandidateInput(reference, p.changes),
+                assessment:
+                    execution.evaluatorVersion != candidateEvaluatorVersion
+                    ? const LegacyUnavailableAssessment()
+                    : const AbsentAssessment(),
+                finalBindingDigest: null,
+              );
+        if ({
+          OperationState.failed,
+          OperationState.cancelled,
+          OperationState.interrupted,
+        }.contains(status.state)) {
+          evaluated = EvaluatedValidation(
+            execution: evaluated.execution,
+            submittedInput: recordCandidateInput(reference, p.changes),
+            assessment: const UnavailableAssessment(
+              reason: UnavailableReason.failedOrCancelledCheck,
+            ),
+            finalBindingDigest: evaluated.finalBindingDigest,
+          );
+        }
+        report = evaluated;
+      }
+    }
+  }
+  final restricted = worldScope != null && report != null;
+  return OperationStatusV3(
+    validation: report,
+    failure: restricted ? null : status.failure,
+    operationId: status.operationId,
+    kind: status.kind,
+    state: status.state,
+    proposal: restricted ? null : status.proposal,
+    receipt: status.receipt,
+    cancellationRequested: status.cancellationRequested,
   );
 }

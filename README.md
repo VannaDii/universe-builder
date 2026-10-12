@@ -455,9 +455,13 @@ and validation capture. The native owner resolves terminal/running markers,
 current cancellation and durable commit receipts under current authority without
 rewriting immutable history. Running validation becomes interrupted when the
 live scheduler reports no active job; committed receipts remain successful after
-a lost response even when a cancellation marker exists. Queue submission,
-execution, terminal-result retention and public status redaction still require
-workflow integration.
+a lost response even when a cancellation marker exists. Public status now
+preserves completed retained reports and renders captured pending checks without
+a final binding. Failed/cancelled/interrupted fallback reports mark assessment
+unavailable and use record input; legacy reports cannot manufacture completion.
+Scoped validation responses avoid complete evidence reads and hide failure and
+proposal contents. These responses also work after owned package reopen. Queue
+submission, execution and terminal-result retention still require integration.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

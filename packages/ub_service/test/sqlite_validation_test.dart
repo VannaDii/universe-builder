@@ -192,6 +192,17 @@ void main() {
       isValidationActive: (_) => false,
     );
     expect(recovered.status.state, OperationState.interrupted);
+    final public = await service.operationStatus(
+      id,
+      isValidationActive: (_) => false,
+    );
+    expect(public.state, OperationState.interrupted);
+    final unfinished = public.validation as EvaluatedValidation;
+    expect(
+      (unfinished.assessment as UnavailableAssessment).reason,
+      UnavailableReason.failedOrCancelledCheck,
+    );
+    expect(unfinished.finalBindingDigest, isNull);
     expect(
       recovered.validationCapture!.toWire().toText(),
       checked.capture!.toWire().toText(),
@@ -520,6 +531,25 @@ void main() {
     await service.persist(proposal.reference, checked);
     expect(kernel.journal.head(continuity), head);
     expect(kernel.identityExists(proposal.changes.single.recordId), isFalse);
+    final id = OperationId.generate();
+    final completed = StoredOperation(
+      owner: writer.id,
+      digest: 'c' * 64,
+      input: null,
+      footprint: proposal.footprint,
+      validationCapture: checked.capture,
+      status: OperationStatus(
+        operationId: id,
+        kind: OperationKind.validate,
+        state: OperationState.succeeded,
+        proposal: proposal.proposal,
+        validation: checked.validation,
+        cancellationRequested: false,
+      ),
+    );
+    WorkflowStorage(package.database).compareAppend({}, [
+      MapEntry('operation:${id.value}', completed.toWire()),
+    ]);
     package.close();
     package = OwnedSqliteDatabase.openExisting(
       '${directory.path}/packages/world.sqlite',
@@ -529,6 +559,20 @@ void main() {
       WorkflowStorage(package.database).get(key())!,
     );
     expect(retained.toWire().toText(), checked.toWire().toText());
+    service = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: writer,
+    );
+    final status = await service.operationStatus(
+      id,
+      isValidationActive: (_) => false,
+    );
+    expect(status.state, OperationState.succeeded);
+    expect(
+      status.validation!.toWire().toText(),
+      checked.report!.toWire().toText(),
+    );
     expect(package.database.autocommit, isTrue);
     expect(WorkflowStorage(package.database).keys('approval:'), isEmpty);
   });
