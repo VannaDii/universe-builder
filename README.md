@@ -45,7 +45,7 @@ keeps global definitions/policies and contexts, and includes universe appearance
 selected entry appearances and initialization attachments. Omitted counts are
 explicit; incomplete archives require a named clone. Full-history export rejects
 a record filter, and all exports refuse an existing destination.
-Public transport/CLI integration remains pending.
+Author transport/CLI integration remains pending.
 The native author service now supports explicit bounded v0.3 `convert_legacy`.
 It reads the original without modification and emits a verified canon-only
 archive for separate import review. Record/version IDs remain intact; old
@@ -84,7 +84,19 @@ creating journal files in the source directory; final hashes and credential
 inventory are rechecked before publication. This mode is never used for live
 runtime connections.
 Conversion does not move or convert catalog packages or switch a live engine.
-These are store APIs; the Dart operator CLI remains pending.
+The Dart operator CLI now exposes `convert-package`, `convert-installation` and
+`convert-credential` with the maintained `--installation` and optional `--profile`
+syntax. These commands stay offline: they do not start an engine, resolve backend
+settings, authenticate a profile or register a target. Success writes one JSON
+conversion report to standard output; failures return nonzero status with redacted
+diagnostics. Other author/launcher commands remain pending.
+For development, run `dart run --verbosity=error apps/ub_cli/bin/universe.dart --help`.
+Build a standalone bundle with
+`dart build cli --target apps/ub_cli/bin/universe.dart --output target/dart-operator-cli`.
+Keep the generated bundle's `bin/` and `lib/` directories together; `dart compile exe`
+does not include this project's required build hooks. The compiled operator bundle
+has been functionally checked on macOS with disposable data, without release signing
+or publication.
 Focused functional checks currently cover macOS only.
 
 Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter

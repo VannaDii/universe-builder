@@ -112,3 +112,43 @@ any later cutover. Changing catalog paths/device/inode values, replacing the act
 installation, authenticating live credentials or converting live author packages is
 outside this procedure's qualified execution. Startup continues to refuse legacy
 layouts and does not call the conversion routines.
+
+## Dart development operator
+
+The Dart conversion now exposes the three offline commands above in
+`apps/ub_cli/bin/universe.dart`. The existing Rust execution history remains its
+own qualification; Dart operator checks currently cover macOS with disposable data.
+Author/launcher commands and distribution signing/publication remain pending.
+
+From the repository root with the pinned Dart SDK:
+
+```sh
+dart run --verbosity=error apps/ub_cli/bin/universe.dart \
+  --installation /private/legacy-installation convert-package \
+  /private/original.sqlite /private/fresh/package.sqlite
+dart run --verbosity=error apps/ub_cli/bin/universe.dart \
+  --installation /private/legacy-installation convert-installation \
+  /private/legacy-installation /private/fresh-installation
+dart run --verbosity=error apps/ub_cli/bin/universe.dart \
+  --installation /private/legacy-installation convert-credential \
+  /private/original-profile.json /private/fresh-profile.sqlite
+dart build cli --target apps/ub_cli/bin/universe.dart \
+  --output target/dart-operator-cli
+```
+
+Run the resulting `bundle/bin/universe` with its adjacent `bundle/lib` directory
+intact. It requires no source-tree working directory. Offline conversion retains
+the existing required `--installation` and optional `--profile` options without
+opening those settings or enrolling/authenticating a profile. It returns a JSON
+report on success; invalid syntax exits with status 2 and conversion failure with
+status 1. Errors redact credential/content-bearing parser and driver diagnostics.
+
+The Dart installation command recognizes both maintained serialized authority and
+the exact normative relational installation schema. Existing instance identity is
+retained; explicit conversion establishes a missing identity for the Dart handshake.
+Catalog package paths stay exact, packages are not moved or converted implicitly,
+and pending purges/import previews require recovery/restaging before conversion.
+Original SQLite files are opened offline with immutable read-only access after
+sidecar refusal, avoiding new WAL/SHM files even for clean WAL-format headers.
+Original database/credential hashes and credential inventory are rechecked before
+exclusive publication. Live cutover continues to require separate authorization.

@@ -8,5 +8,6 @@ workspace:
   - packages/ub_rules
   - packages/ub_contracts
   - packages/ub_service
+  - apps/ub_cli
 dev_dependencies:
   lints: 6.1.0
