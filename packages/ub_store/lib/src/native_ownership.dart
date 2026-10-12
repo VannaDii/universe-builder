@@ -2,6 +2,16 @@ import 'dart:ffi';
 
 const _asset = 'package:ub_store/src/native_ownership.dart';
 
+@Native<Int32 Function(Pointer<Char>, Pointer<Char>, Pointer<Char>)>(
+  symbol: 'ub_publish_conversion_directory',
+  assetId: _asset,
+)
+external int nativePublishConversionDirectory(
+  Pointer<Char> source,
+  Pointer<Char> destination,
+  Pointer<Char> directory,
+);
+
 @Native<Pointer<Void> Function(Pointer<Char>, Pointer<Int32>)>(
   symbol: 'ub_original_open',
   assetId: _asset,

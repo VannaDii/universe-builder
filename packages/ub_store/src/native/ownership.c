@@ -34,6 +34,9 @@ UB_EXPORT int32_t ub_publish_snapshot(const char *source, const char *destinatio
 UB_EXPORT int32_t ub_publish_conversion(const char *source, const char *destination, const char *directory) {
   (void)source; (void)destination; (void)directory; return 50;
 }
+UB_EXPORT int32_t ub_publish_conversion_directory(const char *source, const char *destination, const char *directory) {
+  (void)source; (void)destination; (void)directory; return 50;
+}
 UB_EXPORT int32_t ub_read_credential(const char *path, uint8_t *bytes, int32_t capacity, int32_t *length) {
   (void)path; (void)bytes; (void)capacity; (void)length; return 50;
 }
@@ -165,9 +168,17 @@ UB_EXPORT int32_t ub_read_credential(const char *path, uint8_t *bytes, int32_t c
 }
 
 /* Offline conversion publishes exclusively by rename, with no extra hard link. */
-UB_EXPORT int32_t ub_publish_conversion(const char *source, const char *destination, const char *directory) {
+static int32_t publish_conversion(const char *source, const char *destination, const char *directory, int source_is_directory) {
   int error = 0;
-  int fd = protected_open(source, 0, &error);
+  int fd;
+  if (source_is_directory) {
+    fd = open(source, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    if (fd < 0) return errno;
+    struct stat info;
+    if (fstat(fd, &info) != 0) error = errno;
+    else if (!S_ISDIR(info.st_mode) || info.st_uid != geteuid() || (info.st_mode & 0077) != 0) error = EACCES;
+    if (error) { close(fd); return error; }
+  } else fd = protected_open(source, 0, &error);
   if (fd < 0) return error;
   int parent = open(directory, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
   if (parent < 0) { error = errno; close(fd); return error; }
@@ -188,6 +199,14 @@ UB_EXPORT int32_t ub_publish_conversion(const char *source, const char *destinat
   close(parent);
   close(fd);
   return error;
+}
+
+UB_EXPORT int32_t ub_publish_conversion(const char *source, const char *destination, const char *directory) {
+  return publish_conversion(source, destination, directory, 0);
+}
+
+UB_EXPORT int32_t ub_publish_conversion_directory(const char *source, const char *destination, const char *directory) {
+  return publish_conversion(source, destination, directory, 1);
 }
 
 UB_EXPORT int32_t ub_private_dir(const char *path) {

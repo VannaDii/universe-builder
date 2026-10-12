@@ -150,6 +150,30 @@ void publishConversionFile(String source, String destination) {
   );
 }
 
+/// Publish one complete offline installation directory without replacing a
+/// raced file, directory or link. Callers first close and sync its retained files.
+void publishConversionDirectory(String source, String destination) {
+  _pathCheck(source);
+  _pathCheck(destination);
+  if (FileSystemEntity.typeSync(source, followLinks: false) !=
+      FileSystemEntityType.directory) {
+    throw const FormatException('Private conversion directory required');
+  }
+  final actual = privateDirectory(source);
+  final parent = privateDirectory(Directory(destination).absolute.parent.path);
+  using(
+    (arena) => _checkError(
+      nativePublishConversionDirectory(
+        actual.toNativeUtf8(allocator: arena).cast(),
+        destination.toNativeUtf8(allocator: arena).cast(),
+        parent.toNativeUtf8(allocator: arena).cast(),
+      ),
+      'Installation conversion publication refused or durability uncertain',
+      destination,
+    ),
+  );
+}
+
 /// Exact private read-only input, capped at the existing 4096-byte credential limit.
 Uint8List readOriginalCredential(String source) {
   _pathCheck(source);
