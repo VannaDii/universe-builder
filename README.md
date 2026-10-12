@@ -257,7 +257,13 @@ and retain exact signed 128-bit coordinates. Decoding and arithmetic never read
 the system clock. Clock changes now compile into exact review changes; reviewed
 publication remains pending.
 Storing these declarations does not execute effects, advance clocks or promote
-a report to objective fact. Consequence execution still needs its port.
+a report to objective fact. Mechanical consequence realization now uses authored
+mandatory slots, exact owner references, pre-event conditions and explicit direct
+resource balances. Conditions and resource results must agree across event worlds;
+optional consequences require author choice. Checked coefficient/scale arithmetic
+preserves exact values and enforces resource bounds and declared lifetimes. This
+function produces proposed effects without writing or approving them. Validation
+of submitted consequences and workflow integration remain pending.
 Candidate action checks now require new or revised events to name a declared
 action and each mandatory role to identify exactly one owning entity. Occurred
 events must establish every required attribute before the event in every declared

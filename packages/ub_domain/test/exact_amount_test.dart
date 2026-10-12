@@ -32,4 +32,16 @@ void main() {
       expect(ExactAmount.isConsequenceDecimal(text), isFalse, reason: text);
     }
   });
+  test('checked arithmetic preserves normalized exact decimals and rejects alignment overflow', () {
+    final a = ExactAmount.tryParse('0.01')!, b = ExactAmount.tryParse('-0.01')!;
+    expect(a.addChecked(b)!.digits, '0');
+    expect(ExactAmount.tryParse('-0.25')!.digits, '-0.25');
+    final max = ExactAmount(ExactAmount.maximum, 0);
+    expect(max.addChecked(ExactAmount(BigInt.one, 0)), isNull);
+    expect(max.compareChecked(a), isNull);
+    expect(
+      ExactAmount.tryParse('1.0')!.compareChecked(ExactAmount.tryParse('1')!),
+      0,
+    );
+  });
 }
