@@ -289,10 +289,23 @@ PostgreSQL without encrypted credentials. The writer lock lasts through close;
 unsupported schemas, unsafe files and competing owners are refused. It accepts
 only encrypted endpoint values, never plaintext endpoints or installation keys.
 This storage component does not unlock keys or test/drain/restart an engine.
-Driver integration/connection verification, OS key access, setup orchestration
-and backend startup remain pending; these components do not make PostgreSQL
-available in the Dart engine yet. Native ownership remains qualified on macOS;
-the other platform ports still need their required checks.
+`ub_service/native_credentials.dart` now provides macOS Keychain installation-key
+creation, exact-reference retrieval and cleanup for headless Dart callers.
+Blocking OS calls run in worker isolates. The fixed service namespace and random
+account references avoid overwriting existing keys; missing keys never regenerate
+on read, and diagnostics expose no key/reference values. The current macOS bridge
+uses the file-based Keychain for unsigned local development, with synchronization
+disabled. It serializes calls while temporarily disabling legacy Keychain
+authentication UI, then restores the prior process setting. Those interaction
+APIs are deprecated by Apple; signed application/helper access still requires
+packaging qualification. Disposable native tests cover settings restart, key
+isolation, cleanup, and a compiled CLI reading the same key across processes.
+Other OS adapters explicitly refuse saved-key operations until ported; the
+environment configuration path remains independent of them.
+Driver integration/connection verification, setup orchestration and backend
+startup remain pending; these components do not make PostgreSQL available in the
+Dart engine yet. Native ownership remains qualified on macOS; the other platform
+ports still need their required checks.
 Ordinary writer types now preserve JSON scalar fact values, named objects and
 explicit unit amounts, fact lifetimes, object/definition deltas, claims and
 historical corrections/endings/withdrawals. Research requests for exact object
