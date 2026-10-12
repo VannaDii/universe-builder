@@ -204,6 +204,13 @@ provenance gaps; absent archived versions never resolve to active replacements.
 The no-opposing-evidence expression shares the existing evaluation work budget,
 and incomplete scans cannot establish a completed check. Service admission and
 publication workflows remain pending.
+The Dart service now checks a rule at every relevant exact evidence boundary and
+each world in its requested footprint, preserving half-open intervals and point
+boundaries. Exact-version exceptions require an accepted scoped decision and
+cannot widen the rule's validity or jurisdiction; a waiver retains the original
+finding. Unsupported semantics/capabilities and unresolved partitions cannot be
+waived into acceptance. This candidate checker does not grant publication rights;
+the remaining authoring workflows must bind its results to exact review inputs.
 Typed events preserve occurrence modes, authored participants and ordered effects.
 Action consequences validate exact decimal bounds, slot uniqueness and lifetimes;
 an absent historical contract remains distinct from an explicitly empty contract,

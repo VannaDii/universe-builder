@@ -13,6 +13,7 @@ dependencies:
   native_toolchain_c: 0.19.5
   ub_contracts: any
   ub_domain: any
+  ub_rules: any
   ub_store: any
 dev_dependencies:
   test: 1.33.0
