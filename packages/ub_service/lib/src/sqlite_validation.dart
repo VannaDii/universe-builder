@@ -391,6 +391,112 @@ final class SqliteValidationWorkflow {
     );
   }
 
+  /// Immutable private editor saves. This retains typed intent without compiling
+  /// operations, creating proposals, approving facts or advancing canon.
+  Future<CanonicalValue> draftRequest(EngineRequest request) async {
+    try {
+      return await authority.withUniverseAuthority(principal, universe, (
+        current,
+      ) {
+        if (!current.principal.author) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        final (selector, continuity) = switch (request) {
+          LoadDraftEngineRequest(:final universe, :final continuityId) ||
+          SaveDraftEngineRequest(
+            :final universe,
+            :final continuityId,
+          ) => (universe, continuityId),
+          _ => throw const InvalidArgumentError(
+            field: 'method',
+            message: 'requires draft load or save',
+          ),
+        };
+        if (authority
+                .resolveUniverseAlias(principal, selector.value)
+                .universeId !=
+            universe) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        final prefix = 'draft:${principal.id.value}:${continuity.value}:';
+        if (request is SaveDraftEngineRequest) {
+          final content = request.content;
+          if (CanonicalArray(
+                    content.operations.map((operation) => operation.toWire()),
+                  ).toBytes().length >
+                  128000 ||
+              utf8.encode(content.rationale).length > 16000) {
+            throw const InvalidArgumentError(
+              field: 'draft',
+              message: 'draft content exceeds draft size limit',
+            );
+          }
+          final records = _canon(continuity, content.baseRevision);
+          if (!records.any(
+            (row) =>
+                row.identity.recordId == content.representedContext &&
+                row.payload is RepresentedContextRecord,
+          )) {
+            throw const NotFoundOrNotAccessibleError(
+              message: 'draft represented context',
+            );
+          }
+        }
+        _journal.head(continuity);
+        final keys = _workflow.keys(prefix);
+        if (keys.length > 10000) {
+          throw const EvaluationLimitReachedError(
+            message: 'draft history limit reached',
+          );
+        }
+        final latest = keys.lastOrNull;
+        final currentDraft = latest == null
+            ? null
+            : SavedDraft.fromWire(_workflow.get(latest)!);
+        if (request is LoadDraftEngineRequest) {
+          return currentDraft?.toWire() ?? const CanonicalNull();
+        }
+        final save = request as SaveDraftEngineRequest;
+        final version = currentDraft?.version ?? BigInt.zero;
+        if (version != save.expectedVersion) {
+          if (version == save.expectedVersion + BigInt.one &&
+              currentDraft!.content.toWire().toText() ==
+                  save.content.toWire().toText()) {
+            return currentDraft.toWire();
+          }
+          throw BaseRevisionConflictError(
+            expected: 'draft:${save.expectedVersion}',
+            actual: 'draft:$version',
+          );
+        }
+        if (version >= BigInt.from(10000)) {
+          throw const EvaluationLimitReachedError(
+            message: 'draft history limit reached; export the draft before further editing',
+          );
+        }
+        final saved = SavedDraft(
+          version: version + BigInt.one,
+          content: save.content,
+        );
+        _workflow.compareAppend(
+          {prefix: latest},
+          [
+            MapEntry(
+              '$prefix${saved.version.toString().padLeft(20, '0')}',
+              saved.toWire(),
+            ),
+          ],
+        );
+        return saved.toWire();
+      });
+    } on InstallationException catch (error) {
+      if (error.failure == InstallationFailure.denied) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      rethrow;
+    }
+  }
+
   /// Private author library, including pending writing and historical approvals.
   Future<CanonicalObject> libraryRequest(LibraryEngineRequest request) async {
     try {

@@ -1953,6 +1953,241 @@ void main() {
     );
   });
 
+  DraftContent editorContent(
+    String rationale, {
+    List<DomainOperation> operations = const [],
+    RecordId? context,
+  }) => DraftContent(
+    baseRevision: draft.proposal.baseFrame.revision,
+    representedContext: context ?? f.id(99),
+    operations: operations,
+    rationale: rationale,
+    proposal: draft.reference,
+  );
+  SaveDraftEngineRequest saveEditor(DraftContent content, BigInt expected) =>
+      SaveDraftEngineRequest(
+        universe: const Selector('World'),
+        continuityId: draft.proposal.baseFrame.continuity,
+        expectedVersion: expected,
+        content: content,
+      );
+  LoadDraftEngineRequest loadEditor() => LoadDraftEngineRequest(
+    universe: const Selector('World'),
+    continuityId: draft.proposal.baseFrame.continuity,
+  );
+
+  test('private drafts retain immutable edits and recover lost saves without overwriting another window', () async {
+    var first = runtime.connect(hello(author.id));
+    final second = runtime.connect(hello(author.id));
+    expect(await engine(first, loadEditor()), isA<CanonicalNull>());
+    final content = editorContent(
+      'Unfinished author text é😀',
+      operations: [
+        DefineUnitOperation(clientRef: 'unfinished-unit', record: units.unit()),
+      ],
+    );
+    final request = saveEditor(content, BigInt.zero);
+    final saved = await engine(first, request);
+    expect(SavedDraft.fromWire(saved).version, BigInt.one);
+    expect(
+      SavedDraft.fromWire(saved).content.toWire().toText(),
+      content.toWire().toText(),
+    );
+    expect((await engine(second, request)).toText(), saved.toText());
+    await expectLater(
+      engine(second, saveEditor(editorContent('Competing text'), BigInt.zero)),
+      throwsA(
+        isA<BaseRevisionConflictError>()
+            .having((e) => e.expected, 'expected', 'draft:0')
+            .having((e) => e.actual, 'actual', 'draft:1'),
+      ),
+    );
+    expect((await engine(second, loadEditor())).toText(), saved.toText());
+    final writerConnection = runtime.connect(hello(writer.id));
+    authority.grant(
+      author,
+      GrantSpec(
+        profileId: writer.id,
+        universeId: f.u,
+        worlds: null,
+        propose: true,
+        edit: true,
+        protected: true,
+      ),
+    );
+    await expectLater(
+      engine(writerConnection, loadEditor()),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    await expectLater(
+      engine(writerConnection, request),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    await runtime.close();
+    runtime = NativeSqliteRuntime(authority: authority);
+    first = runtime.connect(hello(author.id));
+    expect((await engine(first, request)).toText(), saved.toText());
+    final changed = editorContent('Second immutable edit');
+    final revised = SavedDraft.fromWire(
+      await engine(first, saveEditor(changed, BigInt.one)),
+    );
+    expect(revised.version, BigInt.two);
+    final summary = await library(first);
+    expect(
+      WireFields(summary.require('writing'), {
+        'proposals',
+        'approved',
+      }).array('proposals'),
+      hasLength(1),
+    );
+    await runtime.close();
+    final package = OwnedSqliteDatabase.openExisting(path);
+    try {
+      package.recover();
+      final workflow = WorkflowStorage(package.database);
+      final keys = workflow.keys(
+        'draft:${author.id.value}:${draft.proposal.baseFrame.continuity.value}:',
+      );
+      expect(keys, hasLength(2));
+      expect(workflow.get(keys.first)!.toText(), saved.toText());
+      expect(workflow.get(keys.last)!.toText(), revised.toWire().toText());
+      expect(
+        SqliteKernel(
+          package.database,
+          f.u,
+        ).journal.head(draft.proposal.baseFrame.continuity),
+        draft.proposal.baseFrame.revision,
+      );
+      expect(workflow.keys('approval:'), isEmpty);
+    } finally {
+      package.close();
+    }
+  });
+
+  test('private drafts enforce UTF-8 budgets and represented context before retaining a revision', () async {
+    final connection = runtime.connect(hello(author.id));
+    await expectLater(
+      engine(connection, saveEditor(editorContent('😀' * 4001), BigInt.zero)),
+      throwsA(
+        isA<InvalidArgumentError>().having((e) => e.field, 'field', 'draft'),
+      ),
+    );
+    final oversized = editorContent(
+      'Oversized operations',
+      operations: List.generate(
+        2000,
+        (_) => DefineUnitOperation(
+          clientRef: 'unfinished-unit',
+          record: units.unit(),
+        ),
+      ),
+    );
+    expect(
+      CanonicalArray(oversized.operations.map((op) => op.toWire()))
+          .toBytes()
+          .length,
+      greaterThan(128000),
+    );
+    expect(
+      saveEditor(oversized, BigInt.zero).toWire().toBytes().length,
+      lessThan(maxFrameBytes),
+    );
+    await expectLater(
+      engine(connection, saveEditor(oversized, BigInt.zero)),
+      throwsA(isA<InvalidArgumentError>()),
+    );
+    await expectLater(
+      engine(
+        connection,
+        saveEditor(
+          editorContent('Unknown represented context', context: f.id(20)),
+          BigInt.zero,
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    expect(await engine(connection, loadEditor()), isA<CanonicalNull>());
+    final boundary = editorContent('😀' * 4000);
+    final saved = SavedDraft.fromWire(
+      await engine(connection, saveEditor(boundary, BigInt.zero)),
+    );
+    expect(saved.content.rationale, boundary.rationale);
+    expect(saved.version, BigInt.one);
+  });
+
+  test('private drafts preserve an old base after canon advances without refreshing or publishing intent', () async {
+    var connection = runtime.connect(hello(author.id));
+    final content = editorContent('Draft at the original base');
+    final saved = await engine(connection, saveEditor(content, BigInt.zero));
+    await runtime.close();
+    seedReadRows([f.row(20, f.entity())]);
+    runtime = NativeSqliteRuntime(authority: authority);
+    connection = runtime.connect(hello(author.id));
+    expect((await engine(connection, loadEditor())).toText(), saved.toText());
+    final revised = SavedDraft.fromWire(
+      await engine(
+        connection,
+        saveEditor(
+          editorContent('Edited against the same old base'),
+          BigInt.one,
+        ),
+      ),
+    );
+    expect(revised.content.baseRevision, content.baseRevision);
+    final libraryResponse = await library(connection);
+    final heads = WireFields(libraryResponse.require('storage'), {
+      'universe',
+      'sqlite_version',
+      'journal_mode',
+      'synchronous',
+      'foreign_keys',
+      'heads',
+    }).array('heads');
+    expect(
+      wireString((heads.single as CanonicalArray).items.last),
+      isNot(content.baseRevision.value),
+    );
+  });
+
+  test('private draft version limit allows recovery of the final save and prevents further append', () async {
+    final content = editorContent('Last retained editor revision');
+    final last = SavedDraft(version: BigInt.from(10000), content: content);
+    final prefix =
+        'draft:${author.id.value}:${draft.proposal.baseFrame.continuity.value}:';
+    final package = OwnedSqliteDatabase.openExisting(path);
+    try {
+      package.recover();
+      WorkflowStorage(package.database).compareAppend({}, [
+        MapEntry('${prefix}00000000000000010000', last.toWire()),
+      ]);
+    } finally {
+      package.close();
+    }
+    final connection = runtime.connect(hello(author.id));
+    expect(
+      (await engine(connection, loadEditor())).toText(),
+      last.toWire().toText(),
+    );
+    expect(
+      (await engine(
+        connection,
+        saveEditor(content, BigInt.from(9999)),
+      )).toText(),
+      last.toWire().toText(),
+    );
+    await expectLater(
+      engine(
+        connection,
+        saveEditor(editorContent('Further edit'), BigInt.from(10000)),
+      ),
+      throwsA(isA<EvaluationLimitReachedError>()),
+    );
+    expect(
+      (await engine(connection, loadEditor())).toText(),
+      last.toWire().toText(),
+    );
+  });
+
   test('connections share one recovered writer and retain publication receipt across runtime restart', () async {
     final first = runtime.connect(hello(author.id));
     final second = runtime.connect(hello(author.id));

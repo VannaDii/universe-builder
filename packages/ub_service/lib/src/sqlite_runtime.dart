@@ -73,6 +73,8 @@ final class NativeSqliteRuntime {
         final selector = switch (request) {
           ToolEngineRequest(:final request) => request.universe,
           LibraryEngineRequest(:final universe) => universe,
+          LoadDraftEngineRequest(:final universe) ||
+          SaveDraftEngineRequest(:final universe) => universe,
           AuthorWritingEngineRequest(:final universe) ||
           StageSourceEngineRequest(:final universe) ||
           ReviewEngineRequest(:final universe) ||
@@ -112,6 +114,10 @@ final class NativeSqliteRuntime {
       );
       if (request is LibraryEngineRequest) {
         return await workflow.libraryRequest(request);
+      }
+      if (request is LoadDraftEngineRequest ||
+          request is SaveDraftEngineRequest) {
+        return await workflow.draftRequest(request);
       }
       if (request case ToolEngineRequest(:final request)) {
         final response = await workflow.executeToolRequest(
