@@ -8,6 +8,7 @@ import 'package:ub_domain/ub_domain.dart';
 
 import 'catalog.dart';
 import 'relational.dart';
+import 'workflow_keys.dart';
 
 /// Internal closed storage envelopes. Canonical values are transient boundary
 /// objects; stored application metadata always uses the normative typed rows.
@@ -127,7 +128,7 @@ final class WorkflowStorage {
         hash,
       ]);
     } else if (key.startsWith('image-bytes:')) {
-      final (id, ordinal) = _chunkKey(key);
+      final (id, ordinal) = workflowChunkKey(key);
       final text = _string(value);
       final bytes = base64.decode(text);
       if (base64.encode(bytes) != text) {
@@ -163,7 +164,7 @@ final class WorkflowStorage {
       final table = source ? 'source_staging' : 'image_staging';
       database.execute('INSERT INTO $table VALUES(?,?,?)', [key, hash, row]);
     } else {
-      final family = _family(key);
+      final family = workflowFamily(key);
       final row = codec.put(family, value);
       database.execute(
         'INSERT INTO workflow_entries(key,family,digest,digest_recipe,${quoteIdentifier(family)}) VALUES(?,?,?,\'workflow-canonical\',?)',
@@ -207,7 +208,7 @@ final class WorkflowStorage {
       }
       value = CanonicalString(decodeExactUtf8(bytes));
     } else if (key.startsWith('image-bytes:')) {
-      final (id, ordinal) = _chunkKey(key);
+      final (id, ordinal) = workflowChunkKey(key);
       final row = _one(
         'SELECT byte_size,content FROM media_chunk WHERE digest=? AND ordinal=?',
         [id, ordinal],
@@ -232,7 +233,7 @@ final class WorkflowStorage {
         _one('SELECT $column FROM $table WHERE key=?', [key])[column],
       );
     } else {
-      final family = _family(key);
+      final family = workflowFamily(key);
       final row = _one(
         'SELECT family,digest_recipe,${quoteIdentifier(family)} FROM workflow_entries WHERE key=?',
         [key],
@@ -264,33 +265,3 @@ String _string(CanonicalValue value) {
   }
   return value.value;
 }
-
-(String, int) _chunkKey(String key) {
-  final suffix = key.substring('image-bytes:'.length);
-  final colon = suffix.lastIndexOf(':');
-  if (colon < 0) throw const FormatException('Invalid media key');
-  final digits = suffix.substring(colon + 1);
-  final ordinal = int.tryParse(digits);
-  if (ordinal == null || ordinal < 0 || ordinal.toString() != digits) {
-    throw const FormatException('Invalid media ordinal');
-  }
-  return (suffix.substring(0, colon), ordinal);
-}
-
-String _family(String key) => switch (key.split(':').first) {
-  'context' => 'StoredContext',
-  'proposal' => 'StoredProposal',
-  'reserved-record' => 'ReservedRecord',
-  'validation' => 'Checked',
-  'operation' || 'request' || 'job' => 'StoredOperation',
-  'cancel' => 'Cancellation',
-  'approval' => 'ApprovalEvidence',
-  'assessment' => 'AssessmentEnvelope',
-  'assessment-selection' => 'AssessmentSelection',
-  'assessment-receipt' => 'AssessmentReceipt',
-  'cursor' => 'Cursor',
-  'draft' => 'SavedDraft',
-  'logical-import-origin' => 'ImportOrigin',
-  'logical-import-admission' => 'ImportAdmission',
-  _ => throw const FormatException('Unknown workflow key family'),
-};

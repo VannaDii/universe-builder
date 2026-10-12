@@ -6,6 +6,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'journal.dart' show Membership, maxRecords, maxVersions, maxChain;
 import 'postgres_relational.dart';
 import 'postgres_values.dart';
+import 'postgres_workflow_storage.dart';
 import 'revision_input.dart';
 import 'world_names.dart';
 
@@ -32,6 +33,11 @@ final class PostgresJournal {
 
   void _writeRequired() {
     if (!_locked) throw StateError('Journal write requires the universe lock');
+  }
+
+  Future<void> compareWorkflow(Map<String, String?> expected) async {
+    _writeRequired();
+    await PostgresWorkflowStorage(_session, universe).compare(expected);
   }
 
   Future<RevisionId> initialize(

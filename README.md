@@ -241,11 +241,20 @@ name reservations. Focused connection tests cover rollback at history write
 boundaries, reconnect/retry, historical receipt exclusion, stale writers and
 independent universe namespaces with matching record/version IDs. This journal
 is not an application publication entry point: candidate/definition/initialization
-admission, current installation authority, workflow comparisons and semantic/search
-projection work must be integrated by the complete PostgreSQL kernel. Installation,
-workflow and projection schemas, service parity, transfer and verified TLS remain
-pending. Run `test/postgres_foundation_test.dart`,
-`test/postgres_relational_test.dart` and `test/postgres_journal_test.dart` from
+admission, current installation authority and semantic/search projection work must
+be integrated by the complete PostgreSQL kernel. PostgreSQL's retained workflow
+schema and transaction-owned storage now support all closed evidence families,
+source/media content, typed staging, continuity names, historical authority
+exclusion, exact retries and compared append. Workflow keys and authored names
+use strict UTF-8 byte columns, preserving BOM/NUL characters without opaque
+metadata bodies. Writes retain the universe lock through awaited verification;
+the caller retains installation authority and owns final commit/rollback. Focused
+checks cover retained draft/approval evidence, exact counters, complete batch
+rollback, content/digest corruption refusal, family constraints and matching keys
+in independent namespaces. Installation authority, complete publication/projection
+coordination, service parity, transfer and verified TLS remain pending.
+Run `test/postgres_foundation_test.dart`, `test/postgres_relational_test.dart`,
+`test/postgres_journal_test.dart` and `test/postgres_workflow_test.dart` from
 `packages/ub_store` with
 `UB_TEST_POSTGRES_PORT` set to a disposable loopback `ub_disposable` database. Without
 that selection the live database cases are explicitly skipped. This check uses
