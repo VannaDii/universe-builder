@@ -141,7 +141,7 @@ bounded uncertainty and exact signed 128-bit values. Unknown boundaries and
 independent calendars remain unresolved. Strict relative-order cycle checks
 use exact positive assertions partitioned by calendar, scope, validity and
 predicate, retaining the existing 10,000-node work bound. These checks do not
-advance story clocks or resolve event-relative frames.
+advance story clocks. Event-relative queries use separate event checks.
 Definition ancestry and type applicability now resolve from one supplied factual
 snapshot. Missing, ambiguous, cyclic, nonexecutable or cross-universe ancestry
 remains unresolved; each ancestor retains its own world applicability. Type
@@ -167,9 +167,16 @@ quantifiers with the existing shared 10,000-step work budget. Incomplete
 collections preserve witnesses/counterexamples without assuming completeness;
 sets deduplicate wire-identical members and nested bindings remain local.
 Rule execution preserves executable/world-applicability gates and reports
-evidence outcome separately from coverage. Factual claims, knowledge attitudes,
-event handling and opposing-evidence execution remain unported and explicitly
-unsupported; public publication workflows are still pending.
+evidence outcome separately from coverage. Factual claims, knowledge attitudes
+and opposing-evidence execution remain unported and explicitly unsupported;
+action-precondition admission and public publication workflows are still pending.
+Event-relative validity now resolves before/after boundaries only for occurred
+events with exact named-calendar coordinates and matching universe references.
+Deterministic `events-v1` expansion preserves hashed effect identities and exact
+provenance, ends superseded generated values and refuses simultaneous
+noncommuting effects. Recompilation detects missing, duplicate or forged generated
+assertions. Existing event/effect/precondition and expansion-work limits remain
+in force; expansion does not execute action preconditions or publish canon.
 Typed events preserve occurrence modes, authored participants and ordered effects.
 Action consequences validate exact decimal bounds, slot uniqueness and lifetimes;
 an absent historical contract remains distinct from an explicitly empty contract,
