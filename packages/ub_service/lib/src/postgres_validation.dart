@@ -2295,6 +2295,39 @@ final class PostgresValidationWorkflow {
     ]);
   }
 
+  Future<CanonicalObject> exportRequest(
+    ExportLogicalEngineRequest request,
+  ) async {
+    try {
+      return await authority.withUniverseAuthority(principal, universe, (
+        current,
+      ) async {
+        if (!current.principal.author) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        final resolved = await session.authority.resolveUniverseAlias(
+          actor: principal.id,
+          name: request.universe.value,
+          epochSeconds: _epochSeconds(),
+        );
+        if (resolved.universeId != universe) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        return session.exportUniverse(
+          universe,
+          request.destination,
+          recordIds: request.recordIds,
+          completeHistory: request.completeHistory,
+        );
+      });
+    } on InstallationException catch (error) {
+      if (error.failure == InstallationFailure.denied) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      rethrow;
+    }
+  }
+
   Future<CanonicalObject> maintainRequest(MaintainEngineRequest request) async {
     try {
       return await authority.withUniverseAuthority(principal, universe, (

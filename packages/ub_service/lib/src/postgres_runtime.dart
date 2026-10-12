@@ -242,6 +242,7 @@ final class NativePostgresRuntime {
             ReviewEngineRequest(:final universe) ||
             AuthorWritingEngineRequest(:final universe) ||
             StageSourceEngineRequest(:final universe) ||
+            ExportLogicalEngineRequest(:final universe) ||
             MaintainEngineRequest(:final universe) ||
             ForkContinuityEngineRequest(:final universe) ||
             CompareContinuitiesEngineRequest(:final universe) ||
@@ -292,6 +293,8 @@ final class NativePostgresRuntime {
               return workflow.review(proposalReference);
             case StageSourceEngineRequest(:final label, :final text):
               return workflow.stageSource(label: label, text: text);
+            case ExportLogicalEngineRequest():
+              return workflow.exportRequest(request);
             case MaintainEngineRequest():
               return workflow.maintainRequest(request);
             case ForkContinuityEngineRequest() ||

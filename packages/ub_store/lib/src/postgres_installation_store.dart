@@ -7,6 +7,7 @@ import 'installation_store.dart'
     show InstallationException, InstallationFailure;
 import 'postgres_authority.dart';
 import 'postgres_canonical_integrity.dart';
+import 'postgres_export.dart';
 import 'postgres_authority_schema.dart';
 import 'postgres_journal.dart';
 import 'postgres_kernel.dart';
@@ -281,6 +282,16 @@ final class PostgresInstallationSession {
       const MapEntry('canonical', CanonicalBool(false)),
     ]);
   }
+
+  Future<CanonicalObject> exportUniverse(
+    UniverseId universe,
+    String destination, {
+    Iterable<RecordId> recordIds = const [],
+    bool completeHistory = false,
+  }) => PostgresLogicalExport(
+    _tx,
+    universe,
+  ).export(destination, recordIds: recordIds, completeHistory: completeHistory);
 
   Future<void> verifyUniverse(UniverseId universe, {bool complete = false}) =>
       complete

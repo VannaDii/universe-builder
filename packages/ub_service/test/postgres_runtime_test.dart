@@ -13,6 +13,7 @@ import 'package:ub_service/postgres_runtime.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/ub_store.dart';
 import 'package:ub_store/postgres_installation.dart';
+import 'package:ub_store/sqlite.dart' as local;
 import 'package:ub_store/src/postgres_authority_schema.dart';
 import 'package:ub_store/src/postgres_values.dart';
 
@@ -97,6 +98,229 @@ void main() {
           await observer.close();
         }
       });
+      test('PostgreSQL logical export streams multiple pages and preserves filtered typed dependencies without workflow authority', () async {
+        final author = await runtime.connect(hello(authorId));
+        final created = WireFields(
+          await author.execute(
+            const CreateUniverseEngineRequest(
+              name: 'Disposable engine universe',
+              start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
+            ),
+          ),
+          {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
+        );
+        final universe = UniverseId.parse(created.string('universe_id'));
+        universes.add(universe);
+        final continuity = ContinuityId.parse(created.string('continuity_id'));
+        final base = RevisionId.parse(created.string('revision'));
+        final represented = RecordId.parse(created.string('context_id'));
+        final worldId = f.id(60), typeId = f.id(61);
+        final world = recordWorld(worldId);
+        final payloads = <RecordId, RecordPayload>{
+          worldId: WorldRecord(selector: 'Campaign é😀'),
+          typeId: f.type(61),
+          for (var n = 100; n < 170; n++)
+            f.id(n): EntityRecord(
+              names: [],
+              classification: typeId,
+              classificationResolution: ClassificationResolution.resolved,
+              worldAssociations: [
+                WorldAssociation(
+                  world: world,
+                  role: 'setting',
+                  validity: const UnspecifiedValidity(),
+                  qualifiers: {},
+                ),
+              ],
+              labels: {'en': 'Mara $n é😀'},
+              metadata: {},
+            ),
+        };
+        final rows = [
+          for (final entry in payloads.entries)
+            StoredVersion.build(
+              RecordVersionId.generate(),
+              RecordIdentity(
+                universeId: universe,
+                recordId: entry.key,
+                recordKind: entry.value.recordKind,
+              ),
+              entry.value.toWire(),
+            ),
+        ];
+        final head = await store.transaction(
+          (s) => s
+              .kernel(universe)
+              .commit(
+                CommitInput(
+                  universe: universe,
+                  continuity: continuity,
+                  expectedHead: base,
+                  principal: PrincipalId.generate(),
+                  decision: 'Disposable setup',
+                  reason: 'Paged transfer fixture',
+                  idempotencyKey: 'paged-export-fixture',
+                  changes: [
+                    for (final row in rows)
+                      Assignment(
+                        recordId: row.identity.recordId,
+                        expected: null,
+                        next: row,
+                      ),
+                  ],
+                ),
+              ),
+        );
+        final directory = Directory.systemTemp.createTempSync(
+          'ub-postgres-filtered-',
+        );
+        addTearDown(() => directory.deleteSync(recursive: true));
+        final draft = DraftContent(
+          baseRevision: head,
+          representedContext: represented,
+          operations: [],
+          rationale: 'Private draft not included in canon-only export',
+          proposal: null,
+        );
+        await author.execute(
+          SaveDraftEngineRequest(
+            universe: selector,
+            continuityId: continuity,
+            expectedVersion: BigInt.zero,
+            content: draft,
+          ),
+        );
+        final complete = '${directory.path}/complete.sqlite';
+        await author.execute(
+          ExportLogicalEngineRequest(
+            universe: selector,
+            destination: complete,
+            recordIds: [],
+            completeHistory: true,
+          ),
+        );
+        final full = local.OwnedSqliteDatabase.stageLogicalArchive(
+          complete,
+          directory.path,
+        );
+        try {
+          final journal = local.SqliteJournal(full.package.database, universe);
+          expect(journal.head(continuity), head);
+          expect(journal.snapshot(continuity, head), hasLength(74));
+          for (final row in rows) {
+            expect(
+              journal.load(row.versionId).toCanonical().toText(),
+              row.toCanonical().toText(),
+            );
+          }
+          expect(
+            local.WorkflowStorage(full.package.database).keys('draft:'),
+            hasLength(1),
+          );
+          expect(
+            full.package.database
+                .select('SELECT name FROM type_definition')
+                .single['name'],
+            (payloads[typeId] as EntityTypeRecord).name,
+          );
+        } finally {
+          full.close();
+        }
+        final destination = '${directory.path}/filtered.sqlite';
+        final manifest = WireFields(
+          await author.execute(
+            ExportLogicalEngineRequest(
+              universe: selector,
+              destination: destination,
+              recordIds: [f.id(100)],
+              completeHistory: false,
+            ),
+          ),
+          {
+            'format',
+            'universe',
+            'name',
+            'complete',
+            'omitted_records',
+            'includes_history',
+            'includes_workflow',
+          },
+        );
+        expect(manifest.boolean('complete'), isFalse);
+        expect(manifest.boolean('includes_workflow'), isFalse);
+        final filtered = local.OwnedSqliteDatabase.stageLogicalArchive(
+          destination,
+          directory.path,
+        );
+        try {
+          final journal = local.SqliteJournal(
+            filtered.package.database,
+            universe,
+          );
+          final ids = filtered.package.database
+              .select('SELECT id FROM record_identities')
+              .map((r) => r['id'] as String)
+              .toSet();
+          expect(
+            ids,
+            containsAll([f.id(100).value, worldId.value, typeId.value]),
+          );
+          expect(ids, isNot(contains(f.id(101).value)));
+          expect(journal.head(continuity), head);
+          expect(
+            local.WorkflowStorage(filtered.package.database).keys('draft:'),
+            isEmpty,
+          );
+          final clone = filtered.reconstruct(
+            directory.path,
+            target: UniverseId.generate(),
+            name: 'Filtered campaign',
+          );
+          try {
+            expect(
+              clone.package.database
+                  .select('SELECT count(*) AS n FROM record_versions')
+                  .single['n'],
+              ids.length,
+            );
+          } finally {
+            clone.close();
+          }
+        } finally {
+          filtered.close();
+        }
+        final refused = '${directory.path}/invalid.sqlite';
+        await expectLater(
+          author.execute(
+            ExportLogicalEngineRequest(
+              universe: selector,
+              destination: refused,
+              recordIds: [f.id(100)],
+              completeHistory: true,
+            ),
+          ),
+          throwsA(isA<FormatException>()),
+        );
+        expect(File(refused).existsSync(), isFalse);
+        await expectLater(
+          author.execute(
+            ExportLogicalEngineRequest(
+              universe: selector,
+              destination: refused,
+              recordIds: [RecordId.generate()],
+              completeHistory: false,
+            ),
+          ),
+          throwsA(isA<FormatException>()),
+        );
+        expect(File(refused).existsSync(), isFalse);
+        expect(directory.listSync().whereType<Directory>(), isEmpty);
+        await store.transaction((s) async {
+          expect(await s.kernel(universe).journal.head(continuity), head);
+          expect(await s.workflows(universe).keys('draft:'), hasLength(1));
+        });
+      }, timeout: const Timeout(Duration(minutes: 2)));
+
       test('health recovery isolates damaged universes and maintenance collects only disposable caches', () async {
         final author = await runtime.connect(hello(authorId));
         final writer = await runtime.connect(hello(writerId));
@@ -1103,10 +1327,7 @@ void main() {
           'operations',
         });
         expect(imported.boolean('canonical'), isFalse);
-        expect(
-          imported.string('preview'),
-          startsWith('data:image/jpeg;base64,'),
-        );
+        expect(imported.string('preview'), startsWith('data:image/jpeg;base64,'));
         final operation = DomainOperation.fromWire(
           imported.array('operations').single,
         ) as AddImageAssetOperation;
@@ -1229,6 +1450,59 @@ void main() {
             orderedEquals(bytes),
           );
         });
+        final destination = '${directory.path}/portrait-export.sqlite';
+        await author.execute(
+          ExportLogicalEngineRequest(
+            universe: selector,
+            destination: destination,
+            recordIds: [],
+            completeHistory: true,
+          ),
+        );
+        final archived = local.OwnedSqliteDatabase.stageLogicalArchive(
+          destination,
+          directory.path,
+        );
+        try {
+          expect(
+            local.SqliteKernel(
+              archived.package.database,
+              universe,
+            ).imageBytes(asset),
+            orderedEquals(bytes),
+          );
+          expect(
+            local.SqliteKernel(
+              archived.package.database,
+              universe,
+            ).imagePreview(asset),
+            imported.string('preview'),
+          );
+          final restored = archived.stageRestore(
+            directory.path,
+            name: 'Restored portrait',
+          );
+          try {
+            expect(
+              local.SqliteKernel(
+                restored.package.database,
+                universe,
+              ).imageBytes(asset),
+              orderedEquals(bytes),
+            );
+            expect(
+              local.SqliteJournal(
+                restored.package.database,
+                universe,
+              ).head(continuity),
+              published.revision,
+            );
+          } finally {
+            restored.close();
+          }
+        } finally {
+          archived.close();
+        }
       });
 
       test('private library shows current heads and latest named writing while retaining immutable revisions', () async {
@@ -1973,8 +2247,7 @@ void main() {
                 record: EntityRecord(
                   names: [],
                   classification: null,
-                  classificationResolution:
-                      ClassificationResolution.unclassified,
+                  classificationResolution: ClassificationResolution.unclassified,
                   worldAssociations: [],
                   labels: {},
                   metadata: {},
@@ -2035,19 +2308,13 @@ void main() {
         );
         await expectLater(
           writer.execute(
-            ReviewEngineRequest(
-              universe: selector,
-              proposalReference: reference,
-            ),
+            ReviewEngineRequest(universe: selector, proposalReference: reference),
           ),
           throwsA(isA<NotFoundOrNotAccessibleError>()),
         );
         final review = WireFields(
           await author.execute(
-            ReviewEngineRequest(
-              universe: selector,
-              proposalReference: reference,
-            ),
+            ReviewEngineRequest(universe: selector, proposalReference: reference),
           ),
           {
             'proposal',
@@ -2081,18 +2348,13 @@ void main() {
         final approvedWriting = writing(await author.execute(libraryRequest));
         expect(approvedWriting.array('proposals'), hasLength(1));
         expect(approvedWriting.array('approved'), hasLength(1));
-        final historical = WireFields(
-          approvedWriting.array('approved').single,
-          {'candidate', 'validation_run', 'label'},
-        );
-        expect(
-          ProposalRef.fromWire(historical.require('candidate')),
-          reference,
-        );
-        expect(
-          historical.string('validation_run'),
-          report.execution.runId.value,
-        );
+        final historical = WireFields(approvedWriting.array('approved').single, {
+          'candidate',
+          'validation_run',
+          'label',
+        });
+        expect(ProposalRef.fromWire(historical.require('candidate')), reference);
+        expect(historical.string('validation_run'), report.execution.runId.value);
         final commit = CommitRequest(
           universe: selector,
           universeId: universe,
@@ -2108,6 +2370,115 @@ void main() {
           publishedLibrary.require('approved').toText(),
           approvedWriting.require('approved').toText(),
         );
+        final directory = Directory.systemTemp.createTempSync(
+          'ub-postgres-export-',
+        );
+        addTearDown(() => directory.deleteSync(recursive: true));
+        final destination = '${directory.path}/complete.sqlite';
+        final export = ExportLogicalEngineRequest(
+          universe: selector,
+          destination: destination,
+          recordIds: [],
+          completeHistory: true,
+        );
+        await expectLater(
+          writer.execute(export),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        expect(File(destination).existsSync(), isFalse);
+        final manifest = await author.execute(export);
+        final archived = local.OwnedSqliteDatabase.stageLogicalArchive(
+          destination,
+          directory.path,
+        );
+        try {
+          expect(archived.manifest.toText(), manifest.toText());
+          final source = await store.transaction((s) async {
+            final workflow = s.workflows(universe);
+            final rows = <String, String>{};
+            for (final key in await workflow.keys('')) {
+              rows[key] = (await workflow.evidence(key))!.toText();
+            }
+            return rows;
+          });
+          final evidence = local.WorkflowStorage(archived.package.database);
+          for (final entry in source.entries) {
+            expect(evidence.evidence(entry.key)!.toText(), entry.value);
+          }
+          expect(archived.package.universeId, universe);
+          expect(
+            local.SqliteJournal(
+              archived.package.database,
+              universe,
+            ).head(continuity),
+            receipt.revision,
+          );
+          expect(wireString(evidence.evidence('source:$digest')!), sourceText);
+          final records = await observer.execute(
+            'SELECT id FROM ${postgresUniverseSchema(universe)}.record_versions ORDER BY id',
+          );
+          await store.transaction((s) async {
+            for (final row in records) {
+              final id = RecordVersionId.parse(row.single as String);
+              expect(
+                local.SqliteJournal(
+                  archived.package.database,
+                  universe,
+                ).load(id).toCanonical().toText(),
+                (await s.kernel(universe).journal.load(id))
+                    .toCanonical()
+                    .toText(),
+              );
+            }
+          });
+          final restored = archived.stageRestore(
+            directory.path,
+            name: 'Restored PostgreSQL export',
+          );
+          try {
+            expect(
+              local.SqliteJournal(
+                restored.package.database,
+                universe,
+              ).head(continuity),
+              receipt.revision,
+            );
+            final restoredWorkflow = local.WorkflowStorage(
+              restored.package.database,
+            );
+            for (final entry in source.entries) {
+              expect(restoredWorkflow.evidence(entry.key)!.toText(), entry.value);
+            }
+            for (final key in source.keys.where(
+              (key) => key.startsWith('approval:') || key.startsWith('context:'),
+            )) {
+              expect(restoredWorkflow.get(key), isNull);
+            }
+            expect(
+              restored.package.database.select(
+                'SELECT revision_id FROM operation_receipts WHERE revision_id=?',
+                [receipt.revision.value],
+              ),
+              isNotEmpty,
+            );
+            expect(
+              restored.package.database.select(
+                'SELECT * FROM historical_receipt',
+              ),
+              isNotEmpty,
+            );
+          } finally {
+            restored.close();
+          }
+        } finally {
+          archived.close();
+        }
+        final before = File(destination).readAsBytesSync();
+        await expectLater(
+          author.execute(export),
+          throwsA(isA<FileSystemException>()),
+        );
+        expect(File(destination).readAsBytesSync(), orderedEquals(before));
         final oldInstance = runtime.instance;
         final installation = store.instanceId;
         await runtime.close();
@@ -2131,11 +2502,7 @@ void main() {
           publishedLibrary.require('approved').toText(),
         );
         expect(
-          (await tool(
-            writer,
-            commit,
-            CommitReceipt.fromWire,
-          )).toWire().toText(),
+          (await tool(writer, commit, CommitReceipt.fromWire)).toWire().toText(),
           receipt.toWire().toText(),
         );
         await author.execute(

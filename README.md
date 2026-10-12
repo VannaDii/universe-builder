@@ -441,6 +441,16 @@ removes only reconstructible snapshot caches. PostgreSQL manages physical vacuum
 outside these service transactions. Complete retained-content verification for
 transfer additionally checks staged media/source metadata, exact anchor excerpts,
 historical world-name reservations and unique historical memberships.
+Private PostgreSQL logical export now streams retained rows in bounded server
+cursor pages into a fresh trusted SQLite carrier, preserving canonical record
+and workflow digests while translating private typed-row pointers. It uses the
+existing checksummed relational archive format and its dependency-closed filtered
+export/reconstruction. Complete export includes exact source/media bytes, history,
+drafts, approvals and receipts; importing into SQLite retains approvals, contexts
+and receipts as historical evidence. Existing destinations are never overwritten,
+failed export removes unpublished temporary files, and installation authority or
+connection credentials are excluded. PostgreSQL import/restore and coordinated
+backend cutover remain pending.
 Socket/launcher integration, cross-process worker qualification and
 the remaining service routes are pending. Import previews/purge coordination,
 transfer and live verified-TLS qualification also remain pending; runtime PostgreSQL selection
