@@ -28,6 +28,8 @@ extension PostgresInstallationImports on PostgresInstallationSession {
     required String source,
     required String name,
     required ImportMode mode,
+    OperationId? previewId,
+    String? expectedDigest,
   }) => rollbackOnFailure(() async {
     await authority.requireAuthor(actor);
     selectorKey(name);
@@ -41,6 +43,9 @@ extension PostgresInstallationImports on PostgresInstallationSession {
         temporary.path,
       );
       try {
+        if (expectedDigest != null && archive.digest != expectedDigest) {
+          throw const ApprovalStaleError();
+        }
         final fields = WireFields(archive.manifest, {
           'format',
           'universe',
@@ -61,7 +66,7 @@ extension PostgresInstallationImports on PostgresInstallationSession {
         );
         staged.close();
         final preview = InstallationImportPreview(
-          id: OperationId.generate(),
+          id: previewId ?? OperationId.generate(),
           owner: actor,
           sourceDigest: archive.digest,
           target: target,

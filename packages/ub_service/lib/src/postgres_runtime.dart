@@ -363,6 +363,16 @@ final class NativePostgresRuntime {
               return CanonicalObject([
                 MapEntry('profile_id', CanonicalString(id.value)),
               ]);
+            case BeginArchiveUploadEngineRequest():
+              return session.beginArchiveUpload(
+                actor: principal.id,
+                request: request,
+              );
+            case WriteArchiveChunkEngineRequest():
+              return session.writeArchiveChunk(
+                actor: principal.id,
+                request: request,
+              );
             case ReadMoveChunkEngineRequest():
               return (await session.readMoveArchiveChunk(
                 actor: principal.id,
@@ -403,6 +413,18 @@ final class NativePostgresRuntime {
                   CanonicalArray(grants.map((grant) => grant.toWire())),
                 ),
               ]);
+            case ReviewArchiveUploadEngineRequest():
+              final preview = await session.reviewArchiveUpload(
+                actor: principal.id,
+                request: request,
+              );
+              return preview.report(
+                await session.importConflicts(
+                  actor: principal.id,
+                  id: preview.target,
+                  name: preview.name,
+                ),
+              );
             case PreviewImportEngineRequest():
               final preview = await session.prepareImport(
                 actor: principal.id,

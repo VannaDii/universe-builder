@@ -9,7 +9,8 @@ export 'src/postgres_installation_store.dart'
         PostgresInstallationStore,
         PostgresInstallationSession,
         PostgresInstallationImports,
-        PostgresInstallationMoves;
+        PostgresInstallationMoves,
+        PostgresInstallationUploads;
 export 'src/postgres_kernel.dart' show PostgresKernel;
 export 'src/postgres_journal.dart' show PostgresJournal;
 export 'src/postgres_workflow_storage.dart' show PostgresWorkflowStorage;

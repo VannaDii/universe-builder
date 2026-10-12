@@ -47,7 +47,7 @@ final class PostgresInstallationAuthority {
     if (rows.length != 1 ||
         rows.single['instance_id'] != instanceId.value ||
         rows.single['normalization'] != selectorNormalizationVersion ||
-        rows.single['schema_version'] != 5) {
+        rows.single['schema_version'] != 6) {
       throw const InstallationException(InstallationFailure.incompatibleSchema);
     }
     _locked = true;

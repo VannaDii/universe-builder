@@ -158,6 +158,7 @@ final class NativeSqliteRuntime {
         });
       }
       if (request is PreviewImportEngineRequest ||
+          request is ReviewArchiveUploadEngineRequest ||
           request is AcceptImportEngineRequest) {
         return await authority.coordinate(
           principal,
@@ -183,6 +184,8 @@ final class NativeSqliteRuntime {
               ListMovesEngineRequest() ||
               GetMoveEngineRequest() ||
               ReadMoveChunkEngineRequest() ||
+              BeginArchiveUploadEngineRequest() ||
+              WriteArchiveChunkEngineRequest() ||
               EnrollEngineRequest() ||
               GrantEngineRequest() ||
               RevokeEngineRequest() ||
@@ -388,8 +391,14 @@ final class NativeSqliteRuntime {
     EngineRequest request,
   ) {
     authority.requireAuthor(principal);
-    if (request is PreviewImportEngineRequest) {
-      final preview = authority.prepareImport(principal, request);
+    if (request is PreviewImportEngineRequest ||
+        request is ReviewArchiveUploadEngineRequest) {
+      final preview = request is ReviewArchiveUploadEngineRequest
+          ? authority.reviewArchiveUpload(principal, request)
+          : authority.prepareImport(
+              principal,
+              request as PreviewImportEngineRequest,
+            );
       return preview.report(
         authority.importConflicts(
           principal,
@@ -602,6 +611,10 @@ final class NativeSqliteRuntime {
           // Global request admission is tighter than this legacy queue bound.
           MapEntry('universe_queue_capacity', CanonicalNumber('16')),
         ]);
+      case BeginArchiveUploadEngineRequest():
+        return authority.beginArchiveUpload(principal, request);
+      case WriteArchiveChunkEngineRequest():
+        return authority.writeArchiveChunk(principal, request);
       case ReadMoveChunkEngineRequest():
         return authority.readMoveArchiveChunk(principal, request).toWire();
       case ListMovesEngineRequest():

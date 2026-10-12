@@ -19,6 +19,8 @@ CREATE TABLE grant_continuities(profile TEXT NOT NULL, universe TEXT NOT NULL, o
 CREATE TABLE purge_pending(universe TEXT PRIMARY KEY, path TEXT NOT NULL, device TEXT NOT NULL, inode TEXT NOT NULL) STRICT;
 CREATE TABLE audit(sequence INTEGER PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL, target TEXT NOT NULL) STRICT;
 CREATE TABLE import_preview(id TEXT PRIMARY KEY, owner TEXT NOT NULL REFERENCES profiles(id), source_digest TEXT NOT NULL, target TEXT NOT NULL, source TEXT NOT NULL, name TEXT NOT NULL, complete INTEGER NOT NULL CHECK(complete IN(0,1)), omitted_records INTEGER NOT NULL, records INTEGER NOT NULL, includes_workflow INTEGER NOT NULL CHECK(includes_workflow IN(0,1)), preview_digest TEXT NOT NULL, staged_path TEXT NOT NULL) STRICT;
+CREATE TABLE archive_upload(id TEXT PRIMARY KEY, owner TEXT NOT NULL REFERENCES profiles(id), source_digest TEXT NOT NULL, bytes INTEGER NOT NULL CHECK(bytes>0 AND bytes<=8589934592)) STRICT;
+CREATE TABLE archive_upload_chunk(upload TEXT NOT NULL REFERENCES archive_upload(id) ON DELETE CASCADE, ordinal INTEGER NOT NULL CHECK(ordinal>=0 AND ordinal<32768), content BLOB NOT NULL CHECK(length(content)>0 AND length(content)<=262144), PRIMARY KEY(upload,ordinal)) STRICT;
 -- A separate protected per-profile credential.sqlite (0600, directory 0700):
 -- credential(profile_id TEXT PK, credential TEXT NOT NULL).
 -- Preserve credential and hash exactly; never include them in exports/proof output.

@@ -8,6 +8,7 @@ import 'package:crypto/crypto.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';
 import 'package:ub_domain/ub_domain.dart';
+import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_store/src/installation_conversion.dart';
@@ -164,6 +165,85 @@ CREATE TABLE audit(sequence INTEGER PRIMARY KEY,actor TEXT,action TEXT,target TE
     destination = '${root.path}/cutover';
   }
 
+  test('older upload-free layout refuses ordinary opening and converts explicitly unchanged', () {
+    useRelationalSource();
+    final db = sqlite3.open(databasePath);
+    try {
+      db.execute('DROP TABLE archive_upload_chunk; DROP TABLE archive_upload');
+    } finally {
+      db.close();
+    }
+    final before = originals();
+    expect(
+      () => SqliteInstallationStore.openExisting(source),
+      throwsA(
+        isA<InstallationException>().having(
+          (e) => e.failure,
+          'failure',
+          InstallationFailure.incompatibleSchema,
+        ),
+      ),
+    );
+    convertInstallation(source, destination);
+    unchanged(before);
+    final converted = SqliteInstallationStore.openExisting(destination);
+    converted.close();
+  });
+
+  test('explicit cutover preserves partial upload bytes and resumes exact chunk retries', () {
+    useRelationalSource();
+    final original = SqliteInstallationStore.openExisting(source);
+    final begin = BeginArchiveUploadEngineRequest(
+      uploadId: OperationId.generate(),
+      digest: 'a' * 64,
+      bytes: 262145,
+    );
+    final write = WriteArchiveChunkEngineRequest(
+      uploadId: begin.uploadId,
+      chunk: MoveArchiveChunk(
+        ordinal: 0,
+        content: List<int>.generate(262144, (i) => i % 256),
+      ),
+    );
+    original.beginArchiveUpload(actor: author, request: begin);
+    expect(
+      () => original.writeArchiveChunk(
+        actor: author,
+        request: WriteArchiveChunkEngineRequest(
+          uploadId: begin.uploadId,
+          chunk: MoveArchiveChunk(ordinal: 1, content: [255]),
+        ),
+      ),
+      throwsFormatException,
+    );
+    final expected = original
+        .writeArchiveChunk(actor: author, request: write)
+        .toText();
+    original.close();
+    convertInstallation(source, destination);
+    final converted = SqliteInstallationStore.openExisting(destination);
+    try {
+      expect(
+        converted.beginArchiveUpload(actor: author, request: begin).toText(),
+        expected,
+      );
+      expect(
+        converted.writeArchiveChunk(actor: author, request: write).toText(),
+        expected,
+      );
+      final complete = converted.writeArchiveChunk(
+        actor: author,
+        request: WriteArchiveChunkEngineRequest(
+          uploadId: begin.uploadId,
+          chunk: MoveArchiveChunk(ordinal: 1, content: [255]),
+        ),
+      );
+      expect(complete.toText(), contains('"received_bytes":262145'));
+    } finally {
+      converted.close();
+    }
+  });
+
   test('relational cutover retains every authority row and read-only SQLite credential', () {
     useRelationalSource();
     final reader = SqliteInstallationStore.openExisting(source);
@@ -176,7 +256,7 @@ CREATE TABLE audit(sequence INTEGER PRIMARY KEY,actor TEXT,action TEXT,target TE
     }
     final report = convertInstallation(source, destination).toText();
     expect(report, contains('"instance_identity_established":false'));
-    expect(report, contains('"compared_tables":14'));
+    expect(report, contains('"compared_tables":16'));
     unchanged(before);
     final target = SqliteInstallationStore.openExisting(destination);
     try {

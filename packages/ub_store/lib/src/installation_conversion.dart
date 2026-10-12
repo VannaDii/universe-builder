@@ -87,6 +87,11 @@ CanonicalObject convertInstallationWithHook(
         'move_quiescence',
       if (relational && conversionColumns(input, 'move_review').isNotEmpty)
         'move_review',
+      if (relational && conversionColumns(input, 'archive_upload').isNotEmpty)
+        'archive_upload',
+      if (relational &&
+          conversionColumns(input, 'archive_upload_chunk').isNotEmpty)
+        'archive_upload_chunk',
       'grants',
       'import_preview',
       if (relational) ...[
@@ -97,6 +102,10 @@ CanonicalObject convertInstallationWithHook(
       ] else
         'grant_limits',
     };
+    if (allowed.contains('archive_upload') !=
+        allowed.contains('archive_upload_chunk')) {
+      throw const FormatException('Incomplete upload storage layout');
+    }
     for (final row in input.select(
       "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
     )) {
@@ -147,6 +156,9 @@ CanonicalObject convertInstallationWithHook(
           omitOutputTables: {
             if (!allowed.contains('move_quiescence')) 'move_quiescence',
             if (!allowed.contains('move_review')) 'move_review',
+            if (!allowed.contains('archive_upload')) 'archive_upload',
+            if (!allowed.contains('archive_upload_chunk'))
+              'archive_upload_chunk',
           },
         )) {
       throw const FormatException('Unsupported relational installation schema');

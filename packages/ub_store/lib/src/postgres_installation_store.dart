@@ -13,7 +13,8 @@ import 'installation_store.dart'
         InstallationImportPreview,
         InstallationMoveReview,
         MoveAdmissionState,
-        moveRecoveryReport;
+        moveRecoveryReport,
+        archiveUploadProgress;
 import 'owned_database.dart';
 import 'legacy_conversion.dart' as legacy;
 import 'ownership.dart';
@@ -34,6 +35,7 @@ import 'postgres_workflow_schema.dart';
 import 'postgres_workflow_storage.dart';
 
 part 'postgres_installation_imports.dart';
+part 'postgres_installation_uploads.dart';
 part 'postgres_installation_moves.dart';
 
 String _validationLockKey(
@@ -168,7 +170,7 @@ final class PostgresInstallationStore {
           if (rows.length != 1 ||
               rows.single[0] != id.value ||
               rows.single[1] != selectorNormalizationVersion ||
-              rows.single[2] != 5) {
+              rows.single[2] != 6) {
             throw const InstallationException(
               InstallationFailure.incompatibleSchema,
             );
@@ -191,6 +193,8 @@ final class PostgresInstallationStore {
             'audit': 'sequence,actor,action,target',
             'import_preview': 'id,owner,source_digest,target,source,name,complete,omitted_records,records,includes_workflow,preview_digest',
             'import_archive': 'preview_id,ordinal,content',
+            'archive_upload': 'id,owner,source_digest,bytes',
+            'archive_upload_chunk': 'upload,ordinal,content',
           }.entries) {
             await tx.execute(
               'SELECT ${entry.value} FROM $schema.${entry.key} LIMIT 0',

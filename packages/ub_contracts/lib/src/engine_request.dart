@@ -23,6 +23,7 @@ sealed class EngineRequest {
       'action',
       'after',
       'asset',
+      'bytes',
       'collect',
       'complete_history',
       'confirmation',
@@ -56,6 +57,7 @@ sealed class EngineRequest {
       'text',
       'universe',
       'universe_id',
+      'upload_id',
       'validation_run',
     });
     return switch (f.string('method')) {
@@ -66,6 +68,11 @@ sealed class EngineRequest {
       'get_move' => GetMoveEngineRequest.fromWire(value),
       'stage_move' => StageMoveEngineRequest.fromWire(value),
       'read_move_chunk' => ReadMoveChunkEngineRequest.fromWire(value),
+      'begin_archive_upload' => BeginArchiveUploadEngineRequest.fromWire(value),
+      'write_archive_chunk' => WriteArchiveChunkEngineRequest.fromWire(value),
+      'review_archive_upload' => ReviewArchiveUploadEngineRequest.fromWire(
+        value,
+      ),
       'withdraw_grant' => WithdrawGrantEngineRequest.fromWire(value),
       'preview_purge' => PreviewPurgeEngineRequest.fromWire(value),
       'purge' => PurgeEngineRequest.fromWire(value),
@@ -291,6 +298,114 @@ final class MoveArchiveChunk {
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('ordinal', CanonicalNumber('$ordinal')),
     MapEntry('content', CanonicalString(base64Encode(content))),
+  ]);
+}
+
+final class BeginArchiveUploadEngineRequest extends EngineRequest {
+  const BeginArchiveUploadEngineRequest({
+    required this.uploadId,
+    required this.digest,
+    required this.bytes,
+  });
+  final OperationId uploadId;
+  final String digest;
+  final int bytes;
+  @override
+  String get method => 'begin_archive_upload';
+  void validate() {
+    if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(digest) ||
+        bytes < 1 ||
+        bytes >
+            ReadMoveChunkEngineRequest.chunkBytes *
+                ReadMoveChunkEngineRequest.maxChunks) {
+      throw const FormatException(
+        'Invalid archive upload digest or byte budget',
+      );
+    }
+  }
+
+  factory BeginArchiveUploadEngineRequest.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {'method', 'upload_id', 'digest', 'bytes'});
+    if (f.string('method') != 'begin_archive_upload') {
+      throw const FormatException('Wrong engine method');
+    }
+    final request = BeginArchiveUploadEngineRequest(
+      uploadId: OperationId.parse(f.string('upload_id')),
+      digest: f.string('digest'),
+      bytes: f.u64('bytes').toInt(),
+    );
+    request.validate();
+    return request;
+  }
+  @override
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('method', CanonicalString(method)),
+    MapEntry('upload_id', CanonicalString(uploadId.value)),
+    MapEntry('digest', CanonicalString(digest)),
+    MapEntry('bytes', CanonicalNumber('$bytes')),
+  ]);
+}
+
+final class WriteArchiveChunkEngineRequest extends EngineRequest {
+  const WriteArchiveChunkEngineRequest({
+    required this.uploadId,
+    required this.chunk,
+  });
+  final OperationId uploadId;
+  final MoveArchiveChunk chunk;
+  @override
+  String get method => 'write_archive_chunk';
+  factory WriteArchiveChunkEngineRequest.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {'method', 'upload_id', 'ordinal', 'content'});
+    if (f.string('method') != 'write_archive_chunk') {
+      throw const FormatException('Wrong engine method');
+    }
+    return WriteArchiveChunkEngineRequest(
+      uploadId: OperationId.parse(f.string('upload_id')),
+      chunk: MoveArchiveChunk.fromWire(
+        CanonicalObject([
+          MapEntry('ordinal', f.require('ordinal')),
+          MapEntry('content', f.require('content')),
+        ]),
+      ),
+    );
+  }
+  @override
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('method', CanonicalString(method)),
+    MapEntry('upload_id', CanonicalString(uploadId.value)),
+    ...chunk.toWire().fields,
+  ]);
+}
+
+final class ReviewArchiveUploadEngineRequest extends EngineRequest {
+  const ReviewArchiveUploadEngineRequest({
+    required this.uploadId,
+    required this.name,
+    required this.mode,
+  });
+  final OperationId uploadId;
+  final String name;
+  final ImportMode mode;
+  @override
+  String get method => 'review_archive_upload';
+  factory ReviewArchiveUploadEngineRequest.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {'method', 'upload_id', 'name', 'mode'});
+    if (f.string('method') != 'review_archive_upload') {
+      throw const FormatException('Wrong engine method');
+    }
+    return ReviewArchiveUploadEngineRequest(
+      uploadId: OperationId.parse(f.string('upload_id')),
+      name: f.string('name'),
+      mode: ImportMode.fromName(f.string('mode')),
+    );
+  }
+  @override
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('method', CanonicalString(method)),
+    MapEntry('upload_id', CanonicalString(uploadId.value)),
+    MapEntry('name', CanonicalString(name)),
+    MapEntry('mode', CanonicalString(mode.name)),
   ]);
 }
 

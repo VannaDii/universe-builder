@@ -13,6 +13,20 @@ void main() {
         const ListMovesEngineRequest(),
         ListMovesEngineRequest(after: operation, limit: 1),
         GetMoveEngineRequest(operationId: operation),
+        BeginArchiveUploadEngineRequest(
+          uploadId: operation,
+          digest: 'a' * 64,
+          bytes: 8589934592,
+        ),
+        WriteArchiveChunkEngineRequest(
+          uploadId: operation,
+          chunk: MoveArchiveChunk(ordinal: 0, content: [0, 255]),
+        ),
+        ReviewArchiveUploadEngineRequest(
+          uploadId: operation,
+          name: 'Exact é😀',
+          mode: ImportMode.restore,
+        ),
         ReadMoveChunkEngineRequest(
           universeId: UniverseId.generate(),
           operationId: operation,
@@ -114,6 +128,58 @@ void main() {
       );
     },
   );
+  test('archive upload refuses unbounded sizes, malformed digests and caller paths', () {
+    final id = OperationId.generate();
+    for (final bytes in [
+      '0',
+      '-1',
+      '1.0',
+      '1e0',
+      '8589934593',
+      '18446744073709551616',
+    ]) {
+      expect(
+        () => EngineRequest.fromWire(
+          CanonicalValue.parseWireJson(
+            '{"method":"begin_archive_upload","upload_id":"${id.value}","digest":"${'a' * 64}","bytes":$bytes}',
+          ),
+        ),
+        throwsFormatException,
+      );
+    }
+    for (final digest in ['bad', 'A' * 64, 'a' * 65]) {
+      expect(
+        () => BeginArchiveUploadEngineRequest(
+          uploadId: id,
+          digest: digest,
+          bytes: 1,
+        ).validate(),
+        throwsFormatException,
+      );
+    }
+    for (final request in [
+      BeginArchiveUploadEngineRequest(uploadId: id, digest: 'a' * 64, bytes: 1),
+      WriteArchiveChunkEngineRequest(
+        uploadId: id,
+        chunk: MoveArchiveChunk(ordinal: 0, content: [0]),
+      ),
+      ReviewArchiveUploadEngineRequest(
+        uploadId: id,
+        name: 'Target',
+        mode: ImportMode.restore,
+      ),
+    ]) {
+      expect(
+        () => EngineRequest.fromWire(
+          CanonicalObject([
+            ...request.toWire().fields,
+            MapEntry('path', CanonicalString('private')),
+          ]),
+        ),
+        throwsFormatException,
+      );
+    }
+  });
   test('move staging refuses caller paths and malformed identities', () {
     final request = StageMoveEngineRequest(
       universeId: UniverseId.generate(),

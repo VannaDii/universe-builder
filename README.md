@@ -556,8 +556,24 @@ bindings. Reconnects can request the same ordinal; reads never restage the sourc
 Clients use the staging byte count to bound reconstruction and verify the complete
 archive digest before target import review. Socket and PostgreSQL regressions
 cover multiple chunks, exact Unicode/source bytes and reconstruction after restart.
-Target review and admission mutations remain internal coordinator calls;
-authenticated cross-instance transport wiring is still required before exposing
+The target's author-only `begin_archive_upload` command binds an upload ID to
+the expected archive digest and byte count (up to 8 GiB). Its progress reports
+allow reconnects to resume at the next ordinal. `write_archive_chunk` retains
+fixed 256 KiB chunks, with the exact remaining length for the final chunk;
+identical retries reuse bytes, while changed metadata/bytes and out-of-order
+writes refuse. Uploads belong to the current author and survive service restart.
+`review_archive_upload` reconstructs the private archive, verifies its expected
+digest and prepares the existing restore/clone review without caller server
+paths. The upload ID becomes the retained preview ID; identical review retries
+preserve the target identity and review digest, and changed names/modes refuse.
+Ordinary `accept_import` still requires that exact review digest before admission.
+Received upload bytes are not an admitted universe. SQLite explicit installation
+conversion preserves partial uploads; ordinary opening refuses older upload-free
+layouts unchanged. PostgreSQL control layout version 6 includes durable uploads;
+older control layouts require explicit conversion rather than startup repair.
+Explicit conversion of older PostgreSQL control layouts remains pending.
+Source recording of the authenticated target review and admission remains internal
+coordinator work; authenticated cross-instance transport wiring is still required before exposing
 them as operator commands. The private
 author-only `list_moves` command discovers retained operations in pages of
 1–100, with an operation-ID cursor. `get_move` returns the retained state, target

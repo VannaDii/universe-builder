@@ -214,6 +214,30 @@ final class InstallationAuthority {
     return '${universeDirectory(actor)}/${id.value}.sqlite';
   }
 
+  CanonicalObject beginArchiveUpload(
+    InstallationPrincipal principal,
+    BeginArchiveUploadEngineRequest request,
+  ) {
+    requireAuthor(principal);
+    return _store.beginArchiveUpload(actor: principal.id, request: request);
+  }
+
+  CanonicalObject writeArchiveChunk(
+    InstallationPrincipal principal,
+    WriteArchiveChunkEngineRequest request,
+  ) {
+    requireAuthor(principal);
+    return _store.writeArchiveChunk(actor: principal.id, request: request);
+  }
+
+  InstallationImportPreview reviewArchiveUpload(
+    InstallationPrincipal principal,
+    ReviewArchiveUploadEngineRequest request,
+  ) {
+    requireAuthor(principal);
+    return _store.reviewArchiveUpload(actor: principal.id, request: request);
+  }
+
   InstallationImportPreview prepareImport(
     InstallationPrincipal actor,
     PreviewImportEngineRequest request,

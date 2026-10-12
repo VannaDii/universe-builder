@@ -63,7 +63,7 @@ void main() {
             previewId: OperationId.parse(text(report, 'preview_id')),
             digest: text(report, 'digest'),
           );
-      String source({bool canonOnly = false}) {
+      String source({bool canonOnly = false, bool large = false}) {
         final path = '${directory.path}/${OperationId.generate().value}.sqlite';
         final package = local.OwnedSqliteDatabase.create(
           '${directory.path}/${OperationId.generate().value}.sqlite',
@@ -86,6 +86,13 @@ void main() {
           );
           local.WorkflowStorage(package.database)
               .put('source:$sourceDigest', CanonicalString(sourceText));
+          if (large) {
+            final body = List.filled(50000, 'é😀\r\n').join();
+            local.WorkflowStorage(package.database).put(
+              'source:${sha256.convert(utf8.encode(body))}',
+              CanonicalString(body),
+            );
+          }
           package.database.execute('COMMIT');
           if (canonOnly) {
             package.exportLogical(path);
@@ -159,6 +166,166 @@ void main() {
           await observer.close();
           directory.deleteSync(recursive: true);
         }
+      });
+
+      test('bounded uploaded archive survives restart and exact review and admission retries', () async {
+        var author = await runtime.connect(hello(authorId));
+        final writer = await runtime.connect(hello(writerId));
+        final path = source(large: true);
+        final archive = local.OwnedSqliteDatabase.stageLogicalArchive(
+          path,
+          directory.path,
+        );
+        late String digest;
+        try {
+          digest = archive.digest;
+        } finally {
+          archive.close();
+        }
+        final begin = BeginArchiveUploadEngineRequest(
+          uploadId: OperationId.generate(),
+          digest: digest,
+          bytes: File(path).lengthSync(),
+        );
+        final review = ReviewArchiveUploadEngineRequest(
+          uploadId: begin.uploadId,
+          name: 'Uploaded target é😀',
+          mode: ImportMode.restore,
+        );
+        await expectLater(
+          writer.execute(begin),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        await author.execute(EngineRequest.decode(begin.toWire().toBytes()));
+        await expectLater(author.execute(review), throwsFormatException);
+        await expectLater(
+          author.execute(
+            BeginArchiveUploadEngineRequest(
+              uploadId: begin.uploadId,
+              digest: '0' * 64,
+              bytes: begin.bytes,
+            ),
+          ),
+          throwsFormatException,
+        );
+        final input = File(path).openSync();
+        var ordinal = 0, received = 0;
+        try {
+          while (received < begin.bytes) {
+            final chunk = MoveArchiveChunk(
+              ordinal: ordinal,
+              content: input.readSync(ReadMoveChunkEngineRequest.chunkBytes),
+            );
+            final request = WriteArchiveChunkEngineRequest(
+              uploadId: begin.uploadId,
+              chunk: chunk,
+            );
+            if (ordinal == 0) {
+              await expectLater(
+                writer.execute(request),
+                throwsA(isA<NotFoundOrNotAccessibleError>()),
+              );
+              await expectLater(
+                author.execute(
+                  WriteArchiveChunkEngineRequest(
+                    uploadId: begin.uploadId,
+                    chunk: MoveArchiveChunk(ordinal: 1, content: chunk.content),
+                  ),
+                ),
+                throwsFormatException,
+              );
+            }
+            final progress = await author.execute(
+              EngineRequest.decode(request.toWire().toBytes()),
+            );
+            expect((await author.execute(request)).toText(), progress.toText());
+            received += chunk.content.length;
+            ordinal++;
+            if (ordinal == 1) {
+              final changed = Uint8List.fromList(chunk.content)..[0] ^= 1;
+              await expectLater(
+                author.execute(
+                  WriteArchiveChunkEngineRequest(
+                    uploadId: begin.uploadId,
+                    chunk: MoveArchiveChunk(ordinal: 0, content: changed),
+                  ),
+                ),
+                throwsFormatException,
+              );
+              await runtime.close();
+              await store.close();
+              store = await PostgresInstallationStore.openExisting(
+                endpoint(),
+                settings: settings,
+              );
+              runtime = NativePostgresRuntime(store: store);
+              author = await runtime.connect(hello(authorId));
+              expect((await author.execute(begin)).toText(), progress.toText());
+            }
+          }
+        } finally {
+          input.closeSync();
+        }
+        expect(ordinal, greaterThan(1));
+        File(path).deleteSync();
+        await observer.execute(
+          'UPDATE ${getControl()}.archive_upload SET source_digest=\$1 WHERE id=\$2',
+          parameters: ['0' * 64, begin.uploadId.value],
+        );
+        await expectLater(
+          author.execute(review),
+          throwsA(isA<ApprovalStaleError>()),
+        );
+        expect(
+          (await observer.execute(
+            'SELECT count(*) FROM ${getControl()}.import_preview',
+          )).single.single,
+          0,
+        );
+        await observer.execute(
+          'UPDATE ${getControl()}.archive_upload SET source_digest=\$1 WHERE id=\$2',
+          parameters: [digest, begin.uploadId.value],
+        );
+        final report = await author.execute(review);
+        final target = UniverseId.parse(text(report, 'target_universe'));
+        targets.add(target);
+        expect(text(report, 'preview_id'), begin.uploadId.value);
+        expect((await author.execute(review)).toText(), report.toText());
+        await expectLater(
+          author.execute(
+            ReviewArchiveUploadEngineRequest(
+              uploadId: begin.uploadId,
+              name: 'Changed',
+              mode: ImportMode.restore,
+            ),
+          ),
+          throwsFormatException,
+        );
+        final contributor = await runtime.connect(hello(writerId));
+        await expectLater(
+          contributor.execute(review),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        await runtime.close();
+        await store.close();
+        store = await PostgresInstallationStore.openExisting(
+          endpoint(),
+          settings: settings,
+        );
+        runtime = NativePostgresRuntime(store: store);
+        author = await runtime.connect(hello(authorId));
+        expect((await author.execute(review)).toText(), report.toText());
+        final receipt = await author.execute(accept(report));
+        expect(
+          (await author.execute(accept(report))).toText(),
+          receipt.toText(),
+        );
+        expect(
+          (await store.transaction(
+            (s) => s.workflows(target).get('source:$sourceDigest'),
+          ))?.toText(),
+          CanonicalString(sourceText).toText(),
+        );
       });
 
       test('complete and canon-only exact previews survive deleted input and service restart with durable admission retries', () async {

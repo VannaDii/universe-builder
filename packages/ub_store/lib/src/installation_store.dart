@@ -11,6 +11,7 @@ import 'owned_database.dart';
 
 part 'installation_grants.dart';
 part 'installation_imports.dart';
+part 'installation_uploads.dart';
 part 'installation_moves.dart';
 
 const _normalization = selectorNormalizationVersion;
@@ -256,7 +257,17 @@ final class SqliteInstallationStore {
     final normalization = db.select(
       "SELECT value FROM settings WHERE key='normalization'",
     );
-    if (reviews !=
+    final uploads = db
+        .select('PRAGMA table_info(archive_upload)')
+        .map((r) => r['name'])
+        .join(',');
+    final chunks = db
+        .select('PRAGMA table_info(archive_upload_chunk)')
+        .map((r) => r['name'])
+        .join(',');
+    if (uploads != 'id,owner,source_digest,bytes' ||
+        chunks != 'upload,ordinal,content' ||
+        reviews !=
             'operation,preview_id,owner,name,source_digest,records,preview_digest,state' ||
         moves != 'universe,operation,target_instance' ||
         !grants.contains('worlds_state') ||

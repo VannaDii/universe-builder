@@ -86,12 +86,17 @@ extension InstallationImports on SqliteInstallationStore {
     required String source,
     required String name,
     required ImportMode mode,
+    OperationId? previewId,
+    String? expectedDigest,
   }) {
     requireAuthor(actor);
     selectorKey(name);
     final directory = privateDirectory('$root/imports');
     final archive = OwnedSqliteDatabase.stageLogicalArchive(source, directory);
     try {
+      if (expectedDigest != null && archive.digest != expectedDigest) {
+        throw const ApprovalStaleError();
+      }
       final f = WireFields(archive.manifest, {
         'format',
         'universe',
@@ -112,7 +117,7 @@ extension InstallationImports on SqliteInstallationStore {
       );
       staged.close();
       final preview = InstallationImportPreview(
-        id: OperationId.generate(),
+        id: previewId ?? OperationId.generate(),
         owner: actor,
         sourceDigest: archive.digest,
         target: target,
@@ -130,7 +135,27 @@ extension InstallationImports on SqliteInstallationStore {
         includesWorkflow: f.boolean('includes_workflow'),
       );
       final path = preview.archivePath(root);
-      archive.persistReviewedSource(path);
+      final created =
+          FileSystemEntity.typeSync(path, followLinks: false) ==
+          FileSystemEntityType.notFound;
+      if (created) {
+        archive.persistReviewedSource(path);
+      } else {
+        // A crash can retain the deterministic upload archive before its
+        // preview transaction commits. Recover only the same protected bytes.
+        protectedFile(path);
+        final retained = OwnedSqliteDatabase.stageLogicalArchive(
+          path,
+          directory,
+        );
+        try {
+          if (retained.digest != archive.digest) {
+            throw const ApprovalStaleError();
+          }
+        } finally {
+          retained.close();
+        }
+      }
       try {
         _transaction(() {
           requireAuthor(actor);
@@ -153,8 +178,10 @@ extension InstallationImports on SqliteInstallationStore {
           );
         });
       } on Object {
-        File(path).deleteSync();
-        syncPrivateDirectory(directory);
+        if (created) {
+          File(path).deleteSync();
+          syncPrivateDirectory(directory);
+        }
         rethrow;
       }
       return preview;

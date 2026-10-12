@@ -240,6 +240,200 @@ void main() {
     );
   });
 
+  test('socket transfer resumes target upload after restart and reviews exact retained bytes before admission', () async {
+    final targetRoot = '${root.path}/target';
+    final targetStore = SqliteInstallationStore.create(targetRoot);
+    final targetAuthority = InstallationAuthority(targetStore);
+    final targetAuthor = targetAuthority.initializeAuthor();
+    final targetInstance = targetStore.instanceId;
+    targetStore.close();
+    var targetServer = await LocalSqliteEngineServer.start(targetRoot);
+    Future<LocalEngineClient> destination() async {
+      final connection = await LocalEngineClient.connect(
+        root: targetRoot,
+        profile: targetAuthor,
+        clientName: 'Disposable target',
+      );
+      clients.add(connection);
+      return connection;
+    }
+
+    var destinationClient = await destination();
+    try {
+      final source = await client(author);
+      final created = await source.call(
+        CreateUniverseEngineRequest(
+          name: 'Transfer source',
+          start: const GregorianUniverseStart('2040-01-01T00:00:00Z'),
+        ),
+      );
+      await source.call(
+        StageSourceEngineRequest(
+          universe: const Selector('Transfer source'),
+          label: 'Retained source',
+          text: List.filled(50000, 'é😀\r\n').join(),
+        ),
+      );
+      final universe = UniverseId.parse(
+        wireString(field(created, 'universe_id')),
+      );
+      final operation = OperationId.generate(),
+          uploadId = OperationId.generate();
+      final stage = await source.call(
+        StageMoveEngineRequest(
+          universeId: universe,
+          operationId: operation,
+          targetInstance: targetInstance,
+        ),
+      );
+      final begin = BeginArchiveUploadEngineRequest(
+        uploadId: uploadId,
+        digest: wireString(field(stage, 'digest')),
+        bytes: int.parse((field(stage, 'bytes') as CanonicalNumber).digits),
+      );
+      final wrongDigest = BeginArchiveUploadEngineRequest(
+        uploadId: OperationId.generate(),
+        digest: '0' * 64,
+        bytes: begin.bytes,
+      );
+      await destinationClient.call(wrongDigest);
+      final review = ReviewArchiveUploadEngineRequest(
+        uploadId: uploadId,
+        name: 'Transferred universe',
+        mode: ImportMode.restore,
+      );
+      await destinationClient.call(begin);
+      await expectLater(
+        destinationClient.call(review),
+        throwsA(isA<ProtocolError>()),
+      );
+      await expectLater(
+        destinationClient.call(
+          BeginArchiveUploadEngineRequest(
+            uploadId: uploadId,
+            digest: '0' * 64,
+            bytes: begin.bytes,
+          ),
+        ),
+        throwsA(isA<ProtocolError>()),
+      );
+      final denied = await client(writer);
+      await expectLater(denied.call(begin), throwsA(isA<ProtocolError>()));
+      var received = 0, ordinal = 0;
+      while (received < begin.bytes) {
+        final chunk = MoveArchiveChunk.fromWire(
+          await source.call(
+            ReadMoveChunkEngineRequest(
+              universeId: universe,
+              operationId: operation,
+              targetInstance: targetInstance,
+              ordinal: ordinal,
+            ),
+          ),
+        );
+        final write = WriteArchiveChunkEngineRequest(
+          uploadId: uploadId,
+          chunk: chunk,
+        );
+        await destinationClient.call(
+          WriteArchiveChunkEngineRequest(
+            uploadId: wrongDigest.uploadId,
+            chunk: chunk,
+          ),
+        );
+        final progress = await destinationClient.call(write);
+        expect(
+          (await destinationClient.call(write)).toText(),
+          progress.toText(),
+        );
+        received += chunk.content.length;
+        ordinal++;
+        if (ordinal == 1) {
+          final changed = Uint8List.fromList(chunk.content)..[0] ^= 1;
+          await expectLater(
+            destinationClient.call(
+              WriteArchiveChunkEngineRequest(
+                uploadId: uploadId,
+                chunk: MoveArchiveChunk(ordinal: 0, content: changed),
+              ),
+            ),
+            throwsA(isA<ProtocolError>()),
+          );
+          await destinationClient.close();
+          await targetServer.close();
+          targetServer = await LocalSqliteEngineServer.start(targetRoot);
+          destinationClient = await destination();
+          expect(
+            (await destinationClient.call(begin)).toText(),
+            progress.toText(),
+          );
+          await expectLater(
+            destinationClient.call(review),
+            throwsA(isA<ProtocolError>()),
+          );
+        }
+      }
+      expect(ordinal, greaterThan(1));
+      await expectLater(
+        destinationClient.call(
+          ReviewArchiveUploadEngineRequest(
+            uploadId: wrongDigest.uploadId,
+            name: 'Rejected digest',
+            mode: ImportMode.restore,
+          ),
+        ),
+        throwsA(isA<ProtocolError>()),
+      );
+      // Recover a crash after the deterministic archive publish but before
+      // import-preview commit, retaining the exact protected original bytes.
+      final retained = '$targetRoot/imports/${uploadId.value}.sqlite';
+      protectedFile(retained, createNew: true);
+      File(retained).writeAsBytesSync(
+        File('${root.path}/moves/${operation.value}.sqlite').readAsBytesSync(),
+      );
+      final preview = await destinationClient.call(review);
+      expect(wireString(field(preview, 'preview_id')), uploadId.value);
+      expect(wireString(field(preview, 'target_universe')), universe.value);
+      expect(
+        (field(preview, 'includes_workflow') as CanonicalBool).value,
+        isTrue,
+      );
+      expect(preview.toText(), isNot(contains(root.path)));
+      expect((await destinationClient.call(review)).toText(), preview.toText());
+      await expectLater(
+        destinationClient.call(
+          ReviewArchiveUploadEngineRequest(
+            uploadId: uploadId,
+            name: 'Changed target',
+            mode: ImportMode.restore,
+          ),
+        ),
+        throwsA(isA<ProtocolError>()),
+      );
+      await destinationClient.close();
+      await targetServer.close();
+      targetServer = await LocalSqliteEngineServer.start(targetRoot);
+      destinationClient = await destination();
+      expect((await destinationClient.call(review)).toText(), preview.toText());
+      final accept = AcceptImportEngineRequest(
+        previewId: uploadId,
+        digest: wireString(field(preview, 'digest')),
+      );
+      final receipt = await destinationClient.call(accept);
+      expect((await destinationClient.call(accept)).toText(), receipt.toText());
+      expect(wireString(field(receipt, 'universe_id')), universe.value);
+      final catalog = field(
+        await destinationClient.call(const StatusEngineRequest()),
+        'universes',
+      ) as CanonicalArray;
+      expect(catalog.items, hasLength(1));
+      expect(wireString(field(catalog.items.single, 'id')), universe.value);
+    } finally {
+      await destinationClient.close();
+      await targetServer.close();
+    }
+  });
+
   test('real client authenticates, executes service operations and retains enrollment across restart', () async {
     checkLocalSocketEndpoint('${root.path}/engine.sock');
     final connection = await client(author);
