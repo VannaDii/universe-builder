@@ -13,6 +13,7 @@ import 'package:ub_service/proposal_validation.dart';
 import 'package:ub_service/sqlite_validation.dart';
 import 'package:ub_service/validation_binding.dart';
 import 'package:ub_service/validation_scheduler.dart';
+import 'package:ub_service/context_binding.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_store/sqlite.dart';
@@ -194,6 +195,173 @@ void main() {
     worldFocus: null,
     isValidationActive: (_) => false,
   );
+
+  Future<void> retainedContext({ProfileId? owner, BigInt? expires}) =>
+      authority.withUniverseAuthority(writer, f.u, (current) {
+        final stored = StoredContext(
+          owner: owner ?? writer.id,
+          scope: current.scopeHash,
+          expires:
+              expires ??
+              BigInt.from(DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600),
+          frame: proposal.proposal.baseFrame,
+        );
+        WorkflowStorage(package.database).compareAppend({}, [
+          MapEntry('context:${proposals.contextId.value}', stored.toWire()),
+        ]);
+      });
+
+  test(
+    'context-backed proposal dispatch retains an exact native proposal',
+    () async {
+      await retainedContext();
+      final created = await service.proposeRequest(
+        creation(),
+        isValidationActive: (_) => false,
+      );
+      expect(
+        created.baseFrame.toWire().toText(),
+        proposal.proposal.baseFrame.toWire().toText(),
+      );
+      expect(
+        (await service.proposeRequest(
+          creation(),
+          isValidationActive: (_) => false,
+        )).toWire().toText(),
+        created.toWire().toText(),
+      );
+      await authority.coordinate(
+        author,
+        () => authority.grant(
+          author,
+          GrantSpec(
+            profileId: writer.id,
+            universeId: f.u,
+            worlds: null,
+            propose: true,
+            edit: false,
+            protected: true,
+          ),
+        ),
+      );
+      await expectLater(
+        service.proposeRequest(
+          creation(key: 'changed-scope', record: 21),
+          isValidationActive: (_) => false,
+        ),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      expect(
+        WorkflowStorage(package.database).get(proposalReservationKey(f.id(21))),
+        isNull,
+      );
+    },
+  );
+
+  test('context-backed dispatch resolves scoped world aliases and guards before reservation', () async {
+    kernel.commit(
+      input('context-world', [
+        f.row(50, WorldRecord(selector: 'Campaign', aliases: ['The Realm'])),
+      ]),
+    );
+    await authority.coordinate(
+      author,
+      () => authority.grant(
+        author,
+        GrantSpec(
+          profileId: writer.id,
+          universeId: f.u,
+          worlds: [permissions.world(50)],
+          propose: true,
+          edit: true,
+          protected: false,
+        ),
+      ),
+    );
+    final frame = Frame(
+      universe: f.u,
+      continuity: continuity,
+      revision: kernel.journal.head(continuity),
+      context: f.ref(99),
+      time: const TimelessFrameTime(),
+      perspective: const AuthorPerspective(),
+    );
+    await authority.withUniverseAuthority(
+      writer,
+      f.u,
+      (current) => WorkflowStorage(package.database).compareAppend({}, [
+        MapEntry(
+          'context:${proposals.contextId.value}',
+          StoredContext(
+            owner: writer.id,
+            scope: current.scopeHash,
+            expires: BigInt.from(
+              DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600,
+            ),
+            frame: frame,
+          ).toWire(),
+        ),
+      ]),
+    );
+    CreateProposalRequest scoped(WorldId guard) => CreateProposalRequest(
+      universe: const Selector('World'),
+      contextId: proposals.contextId,
+      world: const Selector('the realm'),
+      worldId: guard,
+      operations: [
+        CreateEntityOperation(
+          clientRef: f.id(20).value,
+          record: permissions.entity(worlds: [50]),
+        ),
+      ],
+      submission: Submission.draft,
+      rationale: 'Scoped campaign entity',
+      idempotencyKey: 'scoped-native-create',
+    );
+    await expectLater(
+      service.proposeRequest(
+        scoped(permissions.world(51)),
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<WorldScopeConflictError>()),
+    );
+    expect(
+      WorkflowStorage(package.database).get(proposalReservationKey(f.id(20))),
+      isNull,
+    );
+    final created = await service.proposeRequest(
+      scoped(permissions.world(50)),
+      isValidationActive: (_) => false,
+    );
+    expect(created.worldScope, permissions.world(50));
+    expect(created.baseFrame.toWire().toText(), frame.toWire().toText());
+    expect(kernel.identityExists(f.id(20)), isFalse);
+  });
+
+  test(
+    'expired retained context denies dispatch before idempotent retry',
+    () async {
+      await retainedContext(expires: BigInt.zero);
+      await propose(creation());
+      await expectLater(
+        service.proposeRequest(creation(), isValidationActive: (_) => false),
+        throwsA(isA<ContextExpiredError>()),
+      );
+    },
+  );
+
+  test('another context owner cannot supply a proposal frame', () async {
+    await retainedContext(owner: author.id);
+    await expectLater(
+      service.proposeRequest(creation(), isValidationActive: (_) => false),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    expect(
+      WorkflowStorage(package.database)
+          .keys('request:${writer.id.value}:propose:'),
+      isEmpty,
+    );
+  });
 
   test(
     'native proposal history, reservations and retries survive owned reopen',

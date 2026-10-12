@@ -8,6 +8,7 @@ import 'package:ub_store/ub_store.dart' show CommitInput;
 import 'assessment_resolution.dart';
 import 'assessment_validation.dart';
 import 'candidate_validation.dart';
+import 'context_binding.dart';
 import 'installation_authority.dart';
 import 'operation_state.dart';
 import 'proposal_authorization.dart';
@@ -152,7 +153,81 @@ final class SqliteValidationWorkflow {
     required Frame resolvedFrame,
     required WorldId? worldFocus,
     required bool Function(OperationId) isValidationActive,
-  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _propose(
+      request,
+      current,
+      resolvedFrame: resolvedFrame,
+      worldFocus: worldFocus,
+      isValidationActive: isValidationActive,
+    ),
+  );
+
+  /// Native dispatch entry: admit the retained context and resolve named world
+  /// focus under the same current authority section as proposal retention.
+  Future<Proposal> proposeRequest(
+    WorkflowRequest request, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(principal, universe, (current) {
+    final (
+      ContextId contextId,
+      Selector? world,
+      WorldId? guard,
+    ) = switch (request) {
+      CreateProposalRequest() => (
+        request.contextId,
+        request.world,
+        request.worldId,
+      ),
+      ReviseProposalRequest() => (
+        request.contextId,
+        request.world,
+        request.worldId,
+      ),
+      SubmitProposalRequest() => (request.contextId, null, null),
+      WithdrawProposalRequest() => (request.contextId, null, null),
+      _ => throw ArgumentError.value(
+        request,
+        'request',
+        'Expected proposal state action',
+      ),
+    };
+    final value = _workflow.get('context:${contextId.value}');
+    if (value == null) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final frame = StoredContext.fromWire(value).admit(
+      principal: principal.id,
+      scopeHash: current.scopeHash,
+      universe: universe,
+      epochSeconds: BigInt.from(DateTime.now().millisecondsSinceEpoch ~/ 1000),
+    );
+    final focus = world == null
+        ? null
+        : resolveWorldFocus(
+            world: world,
+            guard: guard,
+            records: _canon(frame.continuity, frame.revision),
+            scope: current.worldScope,
+          );
+    return _propose(
+      request,
+      current,
+      resolvedFrame: frame,
+      worldFocus: focus,
+      isValidationActive: isValidationActive,
+    );
+  });
+
+  Future<Proposal> _propose(
+    WorkflowRequest request,
+    CurrentUniverseAuthority current, {
+    required Frame resolvedFrame,
+    required WorldId? worldFocus,
+    required bool Function(OperationId) isValidationActive,
+  }) async {
     final (
       String idempotencyKey,
       UniverseId? requestedUniverse,
@@ -283,7 +358,7 @@ final class SqliteValidationWorkflow {
     }
     _workflow.compareAppend(comparisons, entries);
     return p;
-  });
+  }
 
   Future<ValidationCapture> capture(ProposalRef reference) =>
       authority.withUniverseAuthority(

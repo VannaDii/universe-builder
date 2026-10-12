@@ -514,7 +514,12 @@ receipts and new reservations append atomically. Latest-version checks reject
 stale transitions; exact retries preserve their original result after newer
 versions or reopen. The native functional journey now covers creation through
 submission, isolated validation, author approval and receipt-backed publication.
-Context/world resolution and public engine dispatch remain caller-owned work.
+Context-backed native proposal dispatch now admits the retained context's owner,
+scope hash, universe and expiry before retry or mutation, then resolves visible
+world selectors/aliases and exact world guards within the same authority section
+as retention. Context scope changes and expiry cannot be bypassed by a retained
+request receipt. Context creation, other context-backed routes and public engine
+dispatch remain pending.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.
