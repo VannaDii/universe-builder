@@ -92,11 +92,30 @@ final class NativeSqliteRuntime {
         principal: principal,
       );
       if (request case ToolEngineRequest(:final request)) {
-        return await workflow.executeToolRequest(
+        final response = await workflow.executeToolRequest(
           request,
           isValidationActive: (id) =>
               _scheduler.isActive(package.universeId, id),
+          signalCancellation: (id) => _scheduler.cancel(package.universeId, id),
         );
+        if (request is QueuedProposalValidationRequest) {
+          final status = Envelope.fromWire(
+            response,
+            OperationStatusV3.fromWire,
+          ).result;
+          if (!{
+            OperationState.succeeded,
+            OperationState.failed,
+            OperationState.cancelled,
+          }.contains(status.state)) {
+            // Start only after the authority section has finished. Execution
+            // persists its own result; if retaining it is denied or fails, the
+            // durable operation remains recoverable through polling and retry,
+            // matching the existing engine's background completion behavior.
+            _scheduler.schedule(workflow, status.operationId).ignore();
+          }
+        }
+        return response;
       }
       return await workflow.executeWritingEngineRequest(
         request,
@@ -120,11 +139,14 @@ final class NativeSqliteRuntime {
       connection.close();
     }
     await Future.wait(_active.map((c) => c.future));
-    await _scheduler.close();
-    for (final package in _packages.values) {
-      package.close();
+    try {
+      await _scheduler.close();
+    } finally {
+      for (final package in _packages.values) {
+        package.close();
+      }
+      _packages.clear();
     }
-    _packages.clear();
   }
 }
 

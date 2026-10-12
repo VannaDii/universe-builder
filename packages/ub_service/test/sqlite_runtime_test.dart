@@ -21,6 +21,9 @@ import 'proposal_authorization_test.dart' as permissions;
 import 'rule_checks_test.dart' as frames;
 import 'structural_checks_test.dart' as structure;
 import 'writing_units_test.dart' as units;
+import 'source_verification_test.dart' as sources;
+import 'assessment_validation_test.dart' as assessments;
+import '../../ub_contracts/test/assessment_integrity_test.dart' as accounting;
 
 void main() {
   late Directory root;
@@ -839,6 +842,328 @@ void main() {
         ),
       ),
       throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+  });
+
+  QueuedProposalValidationRequest queueRequest(
+    OpenedContext opened, {
+    String key = 'runtime-queue',
+  }) => QueuedProposalValidationRequest(
+    universe: const Selector('World'),
+    contextId: opened.contextId,
+    proposalReference: draft.reference,
+    checkScope: CheckScope.candidate,
+    idempotencyKey: key,
+  );
+
+  Future<OperationStatusV3> completedOperation(
+    NativeSqliteConnection connection,
+    OperationId id,
+  ) async {
+    final timer = Stopwatch()..start();
+    while (true) {
+      final response = await tool(
+        connection,
+        GetOperationIdRequest(
+          universe: const Selector('World'),
+          operationId: id,
+        ),
+      );
+      final status = OperationStatusV3.fromWire(response.result);
+      if ({
+        OperationState.succeeded,
+        OperationState.failed,
+        OperationState.cancelled,
+      }.contains(status.state)) {
+        return status;
+      }
+      if (timer.elapsed > const Duration(seconds: 10)) {
+        fail('Retained validation did not settle: ${status.state}');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+  }
+
+  test('public queued validation completes through native scheduler and survives restart', () async {
+    var connection = runtime.connect(hello(author.id));
+    final opened = await readContext(connection);
+    final request = queueRequest(opened);
+    final response = await tool(connection, request);
+    final queued = OperationStatusV3.fromWire(response.result);
+    expect(queued.state, OperationState.queued);
+    expect(response.frame!.revision, opened.frame.revision);
+    final finished = await completedOperation(connection, queued.operationId);
+    expect(finished.state, OperationState.succeeded);
+    final validation = finished.validation as EvaluatedValidation;
+    expect(validation.finalBindingDigest, isNotNull);
+    expect(validation.execution.coverage, Coverage.complete);
+    await runtime.close();
+    runtime = NativeSqliteRuntime(authority: authority);
+    connection = runtime.connect(hello(author.id));
+    final byKey = await tool(
+      connection,
+      GetOperationKeyRequest(
+        universe: const Selector('World'),
+        operationKind: OperationKind.validate,
+        idempotencyKey: 'runtime-queue',
+      ),
+    );
+    expect(
+      OperationStatusV3.fromWire(byKey.result).toWire().toText(),
+      finished.toWire().toText(),
+    );
+    expect(byKey.frame!.revision, opened.frame.revision);
+    expect(byKey.delivery.complete, isTrue);
+    expect(
+      OperationStatusV3.fromWire((await tool(connection, request)).result)
+          .operationId,
+      queued.operationId,
+    );
+    await expectLater(
+      tool(
+        connection,
+        QueuedProposalValidationRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          proposalReference: draft.reference,
+          checkScope: CheckScope.universe,
+          idempotencyKey: 'runtime-queue',
+        ),
+      ),
+      throwsA(isA<IdempotencyKeyReusedError>()),
+    );
+  });
+
+  test(
+    'public cancellation retains its marker and denies other profiles',
+    () async {
+      final connection = runtime.connect(hello(author.id));
+      final opened = await readContext(connection);
+      final request = queueRequest(opened);
+      final queued = OperationStatusV3.fromWire(
+        (await tool(connection, request)).result,
+      );
+      final cancel = CancelOperationRequest(
+        universe: const Selector('World'),
+        operationId: queued.operationId,
+        idempotencyKey: 'runtime-cancel',
+      );
+      final response = await tool(connection, cancel);
+      final cancelled = OperationStatusV3.fromWire(response.result);
+      expect(cancelled.state, OperationState.cancelled);
+      expect(cancelled.cancellationRequested, isTrue);
+      expect(response.frame, isNull);
+      final terminal = await completedOperation(connection, queued.operationId);
+      expect(terminal.state, OperationState.cancelled);
+      authority.grant(
+        author,
+        GrantSpec(
+          profileId: writer.id,
+          universeId: f.u,
+          worlds: null,
+          propose: false,
+          edit: false,
+          protected: false,
+        ),
+      );
+      final writerConnection = runtime.connect(hello(writer.id));
+      await expectLater(
+        tool(writerConnection, cancel),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      await expectLater(
+        tool(
+          writerConnection,
+          GetOperationIdRequest(
+            universe: const Selector('World'),
+            operationId: queued.operationId,
+          ),
+        ),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      await runtime.close();
+      runtime = NativeSqliteRuntime(authority: authority);
+      final reopened = runtime.connect(hello(author.id));
+      expect(
+        OperationStatusV3.fromWire((await tool(reopened, cancel)).result).state,
+        OperationState.cancelled,
+      );
+      expect(
+        OperationStatusV3.fromWire((await tool(reopened, request)).result)
+            .state,
+        OperationState.cancelled,
+      );
+    },
+  );
+
+  test(
+    'native shutdown preserves interrupted queued work for exact retry',
+    () async {
+      var connection = runtime.connect(hello(author.id));
+      final opened = await readContext(connection);
+      final request = queueRequest(opened);
+      final queued = OperationStatusV3.fromWire(
+        (await tool(connection, request)).result,
+      );
+      await runtime.close();
+      runtime = NativeSqliteRuntime(authority: authority);
+      connection = runtime.connect(hello(author.id));
+      final recovered = OperationStatusV3.fromWire(
+        (await tool(
+          connection,
+          GetOperationIdRequest(
+            universe: const Selector('World'),
+            operationId: queued.operationId,
+          ),
+        )).result,
+      );
+      expect(recovered.state, OperationState.interrupted);
+      expect(
+        (recovered.validation as EvaluatedValidation).finalBindingDigest,
+        isNull,
+      );
+      final retry = OperationStatusV3.fromWire(
+        (await tool(connection, request)).result,
+      );
+      expect(retry.operationId, queued.operationId);
+      expect(
+        (await completedOperation(connection, queued.operationId)).state,
+        OperationState.succeeded,
+      );
+    },
+  );
+
+  test('public source assessments retain immutable attachment selection and historical retry', () async {
+    seedReadRows([
+      f.row(
+        1,
+        SourceRecord(
+          label: 'External source',
+          origin: const OriginMetadata(),
+          versions: [f.id(2)],
+        ),
+      ),
+      f.row(2, sources.source()),
+    ]);
+    final sourcePackage = OwnedSqliteDatabase.openExisting(path);
+    try {
+      sourcePackage.recover();
+      WorkflowStorage(
+        sourcePackage.database,
+      ).compareAppend({}, sources.staging(sources.source()).entries.toList());
+    } finally {
+      sourcePackage.close();
+    }
+    var connection = runtime.connect(hello(author.id));
+    final opened = await readContext(connection);
+    final proposal = Proposal.fromWire(
+      (await tool(
+        connection,
+        CreateProposalRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          operations: [
+            CreateEntityOperation(
+              clientRef: f.id(20).value,
+              record: f.entity(),
+            ),
+          ],
+          submission: Submission.submitted,
+          rationale: 'External source review',
+          idempotencyKey: 'assessment-proposal',
+        ),
+      )).result,
+    );
+    final ref = ProposalRef(
+      proposalId: proposal.proposalId,
+      version: proposal.version,
+      digest: proposal.digest,
+    );
+    var wire = accounting.replace(assessments.body().toWire(), [
+      'proposal',
+    ], ref.toWire());
+    wire = accounting.replace(wire, ['base_frame'], opened.frame.toWire());
+    wire = accounting.replace(wire, [
+      'assessor',
+      'principal',
+    ], CanonicalString(author.id.value.replaceFirst('prf_', 'prn_')));
+    final attach = AttachAssessmentRequest(
+      universe: const Selector('World'),
+      contextId: opened.contextId,
+      proposalReference: ref,
+      expectedSelectionGeneration: BigInt.zero,
+      body: SourceAssessmentV1.fromWire(wire),
+      idempotencyKey: 'public-attach',
+    );
+    final response = await tool(connection, attach);
+    final selected = AssessmentSelection.fromWire(response.result);
+    expect(selected.selected, isNotNull);
+    expect(response.frame!.toWire().toText(), opened.frame.toWire().toText());
+    final clear = SelectAssessmentRequest(
+      universe: const Selector('World'),
+      contextId: opened.contextId,
+      proposalReference: ref,
+      expectedSelectionGeneration: selected.generation,
+      assessmentReference: null,
+      idempotencyKey: 'public-clear',
+    );
+    final cleared = AssessmentSelection.fromWire(
+      (await tool(connection, clear)).result,
+    );
+    expect(cleared.selected, isNull);
+    expect(cleared.generation, selected.generation + BigInt.one);
+    await runtime.close();
+    runtime = NativeSqliteRuntime(authority: authority);
+    connection = runtime.connect(hello(author.id));
+    expect(
+      (await tool(connection, attach)).toWire((v) => v).toText(),
+      response.toWire((v) => v).toText(),
+    );
+    final historic = await tool(
+      connection,
+      GetProposalRequest(
+        universe: const Selector('World'),
+        proposalId: proposal.proposalId,
+        version: proposal.version,
+        viewGroup: ProposalView.assessment,
+        assessmentReference: selected.selected,
+      ),
+    );
+    expect(
+      ProposalViewResult.fromWire(historic.result),
+      isA<AssessmentProposalView>(),
+    );
+    expect(historic.frame!.revision, opened.frame.revision);
+    final reselected = AssessmentSelection.fromWire(
+      (await tool(
+        connection,
+        SelectAssessmentRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          proposalReference: ref,
+          expectedSelectionGeneration: cleared.generation,
+          assessmentReference: selected.selected,
+          idempotencyKey: 'public-reselect',
+        ),
+      )).result,
+    );
+    expect(
+      reselected.selected!.toWire().toText(),
+      selected.selected!.toWire().toText(),
+    );
+    await expectLater(
+      tool(
+        connection,
+        SelectAssessmentRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          proposalReference: ref,
+          expectedSelectionGeneration: BigInt.zero,
+          assessmentReference: null,
+          idempotencyKey: 'public-stale-selection',
+        ),
+      ),
+      throwsA(isA<ApprovalStaleError>()),
     );
   });
 

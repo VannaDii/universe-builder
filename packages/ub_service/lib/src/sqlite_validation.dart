@@ -396,6 +396,7 @@ final class SqliteValidationWorkflow {
   Future<CanonicalValue> executeToolRequest(
     Request request, {
     required bool Function(OperationId) isValidationActive,
+    required void Function(OperationId) signalCancellation,
   }) async {
     try {
       return await authority.withUniverseAuthority(principal, universe, (
@@ -514,10 +515,49 @@ final class SqliteValidationWorkflow {
               current,
               isValidationActive: isValidationActive,
             )).toWire();
-          default:
-            throw const UnsupportedSemanticsError(
-              message: 'public tool is not yet connected to native runtime',
+          case QueuedProposalValidationRequest():
+            frame = _validationFrame(request.contextId, current);
+            result = (await _queueValidation(
+              request,
+              current,
+              resolvedFrame: frame,
+              isValidationActive: isValidationActive,
+            )).toWire();
+          case GetOperationIdRequest() || GetOperationKeyRequest():
+            final read = await _getOperationRequest(
+              request as WorkflowRequest,
+              current,
+              isValidationActive: isValidationActive,
             );
+            result = read.status.toWire();
+            frame = read.frame;
+            delivery = read.delivery;
+          case CancelOperationRequest():
+            result = (await _cancelOperation(
+              request,
+              current,
+              isValidationActive: isValidationActive,
+              signalCancellation: signalCancellation,
+            )).toWire();
+          case AttachAssessmentRequest() || SelectAssessmentRequest():
+            final contextId = switch (request) {
+              AttachAssessmentRequest(:final contextId) ||
+              SelectAssessmentRequest(:final contextId) => contextId,
+              _ => throw StateError('Unreachable assessment request'),
+            };
+            final reference = switch (request) {
+              AttachAssessmentRequest(:final proposalReference) ||
+              SelectAssessmentRequest(
+                :final proposalReference,
+              ) => proposalReference,
+              _ => throw StateError('Unreachable assessment request'),
+            };
+            result = (await _assessmentRequest(
+              request as WorkflowRequest,
+              current,
+            )).toWire();
+            frame = _contextFrame(contextId, current);
+            focus = _proposal(reference, current).proposal.worldScope;
         }
         final envelope = Envelope<CanonicalValue>(
           contractVersion: protocolVersion,
@@ -2676,7 +2716,22 @@ final class SqliteValidationWorkflow {
   getOperationRequest(
     WorkflowRequest request, {
     required bool Function(OperationId) isValidationActive,
-  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _getOperationRequest(
+      request,
+      current,
+      isValidationActive: isValidationActive,
+    ),
+  );
+
+  Future<({OperationStatusV3 status, Frame? frame, Delivery delivery})>
+  _getOperationRequest(
+    WorkflowRequest request,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
     const denied = NotFoundOrNotAccessibleError(message: 'resource');
     final (key, guard, cursor) = switch (request) {
       GetOperationIdRequest r => (
@@ -2750,7 +2805,7 @@ final class SqliteValidationWorkflow {
       frame: frame,
       delivery: delivery,
     );
-  });
+  }
 
   /// The dispatcher resolves the request's universe/context before passing its
   /// exact frame here. Submission retains work; execution is a separate step.
@@ -3048,7 +3103,23 @@ final class SqliteValidationWorkflow {
     CancelOperationRequest request, {
     required bool Function(OperationId) isValidationActive,
     required void Function(OperationId) signalCancellation,
-  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _cancelOperation(
+      request,
+      current,
+      isValidationActive: isValidationActive,
+      signalCancellation: signalCancellation,
+    ),
+  );
+
+  Future<OperationStatusV3> _cancelOperation(
+    CancelOperationRequest request,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
+    required void Function(OperationId) signalCancellation,
+  }) async {
     if (request.universeId != null && request.universeId != universe) {
       throw const NotFoundOrNotAccessibleError(message: 'resource');
     }
@@ -3126,7 +3197,7 @@ final class SqliteValidationWorkflow {
       worldScope: current.worldScope,
       readWorkflow: _workflow.get,
     );
-  });
+  }
 
   Future<PreparedValidationTask?> prepareValidation(
     OperationId id, {
@@ -3279,63 +3350,72 @@ final class SqliteValidationWorkflow {
   );
 
   Future<AssessmentSelection> assessmentRequest(WorkflowRequest request) =>
-      authority.withUniverseAuthority(principal, universe, (current) {
-        final (
-          ContextId contextId,
-          UniverseId? requestedUniverse,
-          ProposalRef reference,
-          BigInt expected,
-          SourceAssessmentV1? body,
-          AssessmentRef? selected,
-          String key,
-        ) = switch (request) {
-          AttachAssessmentRequest() => (
-            request.contextId,
-            request.universeId,
-            request.proposalReference,
-            request.expectedSelectionGeneration,
-            request.body,
-            null,
-            request.idempotencyKey,
-          ),
-          SelectAssessmentRequest() => (
-            request.contextId,
-            request.universeId,
-            request.proposalReference,
-            request.expectedSelectionGeneration,
-            null,
-            request.assessmentReference,
-            request.idempotencyKey,
-          ),
-          _ => throw ArgumentError.value(
-            request,
-            'request',
-            'Expected assessment action',
-          ),
-        };
-        const denied = NotFoundOrNotAccessibleError(message: 'resource');
-        if (requestedUniverse != null && requestedUniverse != universe) {
-          throw denied;
-        }
-        final frame = _contextFrame(contextId, current);
-        final StoredProposal proposal;
-        try {
-          proposal = _proposal(reference, current);
-        } on Object {
-          throw denied;
-        }
-        if (frame != proposal.proposal.baseFrame) {
-          throw const ApprovalStaleError();
-        }
-        return _changeAssessmentUnderAuthority(
-          reference,
-          expected,
-          body,
-          selected,
-          key,
-          current,
-        );
-      });
+      authority.withUniverseAuthority(
+        principal,
+        universe,
+        (current) => _assessmentRequest(request, current),
+      );
+
+  Future<AssessmentSelection> _assessmentRequest(
+    WorkflowRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
+    final (
+      ContextId contextId,
+      UniverseId? requestedUniverse,
+      ProposalRef reference,
+      BigInt expected,
+      SourceAssessmentV1? body,
+      AssessmentRef? selected,
+      String key,
+    ) = switch (request) {
+      AttachAssessmentRequest() => (
+        request.contextId,
+        request.universeId,
+        request.proposalReference,
+        request.expectedSelectionGeneration,
+        request.body,
+        null,
+        request.idempotencyKey,
+      ),
+      SelectAssessmentRequest() => (
+        request.contextId,
+        request.universeId,
+        request.proposalReference,
+        request.expectedSelectionGeneration,
+        null,
+        request.assessmentReference,
+        request.idempotencyKey,
+      ),
+      _ => throw ArgumentError.value(
+        request,
+        'request',
+        'Expected assessment action',
+      ),
+    };
+    const denied = NotFoundOrNotAccessibleError(message: 'resource');
+    if (requestedUniverse != null && requestedUniverse != universe) {
+      throw denied;
+    }
+    final frame = _contextFrame(contextId, current);
+    final StoredProposal proposal;
+    try {
+      proposal = _proposal(reference, current);
+    } on Object {
+      throw denied;
+    }
+    if (frame != proposal.proposal.baseFrame) {
+      throw const ApprovalStaleError();
+    }
+    return _changeAssessmentUnderAuthority(
+      reference,
+      expected,
+      body,
+      selected,
+      key,
+      current,
+    );
+  }
 
   Future<AssessmentSelection> _changeAssessmentUnderAuthority(
     ProposalRef reference,
