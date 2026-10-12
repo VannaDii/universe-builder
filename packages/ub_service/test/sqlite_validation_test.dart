@@ -198,6 +198,134 @@ void main() {
     expect(package.database.autocommit, isTrue);
   });
 
+  Future<OperationId> startValidation() async {
+    final status = await service.queueValidation(
+      queued(),
+      resolvedFrame: proposal.proposal.baseFrame,
+      isValidationActive: (_) => false,
+    );
+    await service.prepareValidation(
+      status.operationId,
+      isValidationActive: (_) => true,
+    );
+    return status.operationId;
+  }
+
+  test('completion atomically retains exact evidence and terminal status across reopen', () async {
+    final id = await startValidation();
+    await service.finishValidation(
+      id,
+      checked,
+      isValidationActive: (_) => true,
+    );
+    final workflow = WorkflowStorage(package.database);
+    final retained = CheckedValidation.fromWire(workflow.get(key())!);
+    expect(retained.validation.operationId, id);
+    expect(
+      (retained.report as EvaluatedValidation).finalBindingDigest,
+      isNotNull,
+    );
+    final status = await service.operationStatus(
+      id,
+      isValidationActive: (_) => false,
+    );
+    expect(status.state, OperationState.succeeded);
+    expect(
+      status.validation!.toWire().toText(),
+      retained.report!.toWire().toText(),
+    );
+    final terminal = workflow.get('job:${id.value}:terminal')!.toText();
+    await service.failValidation(
+      id,
+      StateError('late failure'),
+      isValidationActive: (_) => false,
+    );
+    expect(workflow.get('job:${id.value}:terminal')!.toText(), terminal);
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    service = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: writer,
+    );
+    expect(
+      (await service.operationStatus(
+        id,
+        isValidationActive: (_) => false,
+      )).toWire().toText(),
+      status.toWire().toText(),
+    );
+    expect(kernel.identityExists(f.id(10)), isFalse);
+  });
+
+  test(
+    'stale completion retains failure with original pending validation only',
+    () async {
+      final id = await startValidation();
+      await authority.coordinate(
+        author,
+        () => authority.grant(author, grant()),
+      );
+      await service.finishValidation(
+        id,
+        checked,
+        isValidationActive: (_) => true,
+      );
+      final workflow = WorkflowStorage(package.database);
+      expect(workflow.keys('validation:'), isEmpty);
+      final status = await service.operationStatus(
+        id,
+        isValidationActive: (_) => false,
+      );
+      expect(status.state, OperationState.failed);
+      expect(status.failure, isNotNull);
+      final initial = StoredOperation.fromWire(
+        workflow.get('operation:${id.value}')!,
+      );
+      final terminal = StoredOperation.fromWire(
+        workflow.get('job:${id.value}:terminal')!,
+      );
+      expect(
+        terminal.status.validation!.toWire().toText(),
+        initial.status.validation!.toWire().toText(),
+      );
+      expect(
+        (status.validation as EvaluatedValidation).finalBindingDigest,
+        isNull,
+      );
+    },
+  );
+
+  test(
+    'worker failure retains terminal state and suppresses late completion',
+    () async {
+      final id = await startValidation();
+      await service.failValidation(
+        id,
+        StateError('evaluation failed'),
+        isValidationActive: (_) => true,
+      );
+      expect(
+        (await service.operation(
+          id,
+          isValidationActive: (_) => false,
+        )).status.state,
+        OperationState.failed,
+      );
+      expect(WorkflowStorage(package.database).keys('validation:'), isEmpty);
+      await service.finishValidation(
+        id,
+        checked,
+        isValidationActive: (_) => false,
+      );
+      expect(WorkflowStorage(package.database).keys('validation:'), isEmpty);
+    },
+  );
+
   test(
     'preparation rejects stale authority before retaining running',
     () async {
@@ -245,6 +373,18 @@ void main() {
       isNull,
     );
     expect(workflow.get('job:${status.operationId.value}:running'), isNull);
+    await service.finishValidation(
+      status.operationId,
+      checked,
+      isValidationActive: (_) => false,
+    );
+    await service.failValidation(
+      status.operationId,
+      StateError('late failure'),
+      isValidationActive: (_) => false,
+    );
+    expect(workflow.get('job:${status.operationId.value}:terminal'), isNull);
+    expect(workflow.keys('validation:'), isEmpty);
   });
 
   test('queued validation retains one exact capture and retry identity across owned reopen', () async {
@@ -447,6 +587,25 @@ void main() {
     expect(evaluated.validation.coverage, Coverage.restricted);
     expect(evaluated.admissible, isFalse);
     expect(evaluated.capture, isNull);
+    await service.finishValidation(
+      result.operationId,
+      evaluated,
+      isValidationActive: (_) => true,
+    );
+    final completed = await service.operationStatus(
+      result.operationId,
+      isValidationActive: (_) => false,
+    );
+    expect(completed.state, OperationState.succeeded);
+    expect(completed.validation, isA<RestrictedValidation>());
+    expect(completed.proposal, isNull);
+    final retained = CheckedValidation.fromWire(
+      WorkflowStorage(package.database)
+          .get('validation:${evaluated.validation.runId.value}')!,
+    );
+    expect(retained.admissible, isFalse);
+    expect(retained.capture, isNull);
+    expect(retained.report, isA<RestrictedValidation>());
     expect(package.database.autocommit, isTrue);
   });
 
@@ -625,6 +784,45 @@ void main() {
     return SourceAssessmentV1.fromWire(wire);
   }
 
+  test('source-assessed completion retains the submitted inventory and final binding', () async {
+    final body = await submittedAssessment();
+    await service.attachAssessment(
+      proposal.reference,
+      expectedGeneration: BigInt.zero,
+      body: body,
+      idempotencyKey: 'attach-completed',
+    );
+    final status = await service.queueValidation(
+      queued(),
+      resolvedFrame: proposal.proposal.baseFrame,
+      isValidationActive: (_) => false,
+    );
+    final task = (await service.prepareValidation(
+      status.operationId,
+      isValidationActive: (_) => true,
+    ))!;
+    final result = task.evaluate();
+    await service.finishValidation(
+      status.operationId,
+      result,
+      isValidationActive: (_) => true,
+    );
+    final completed = await service.operationStatus(
+      status.operationId,
+      isValidationActive: (_) => false,
+    );
+    expect(completed.state, OperationState.succeeded);
+    final report = completed.validation as EvaluatedValidation;
+    expect(
+      report.submittedInput.toWire().toText(),
+      task.capture!.submittedInput.toWire().toText(),
+    );
+    expect(report.assessment, isA<BoundAssessment>());
+    expect(report.finalBindingDigest, isNotNull);
+    expect(report.execution.operationId, status.operationId);
+    expect(kernel.identityExists(f.id(10)), isFalse);
+  });
+
   test('attachment, clear, reselection and historical retry retain exact immutable evidence', () async {
     final body = await submittedAssessment();
     final first = await service.attachAssessment(
@@ -675,6 +873,19 @@ void main() {
       ),
       stale,
     );
+    await service.finishValidation(
+      queue.operationId,
+      task.evaluate(),
+      isValidationActive: (_) => true,
+    );
+    expect(
+      (await service.operation(
+        queue.operationId,
+        isValidationActive: (_) => false,
+      )).status.state,
+      OperationState.failed,
+    );
+    expect(WorkflowStorage(package.database).keys('validation:'), isEmpty);
     final retry = await service.attachAssessment(
       proposal.reference,
       expectedGeneration: BigInt.zero,

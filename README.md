@@ -470,8 +470,12 @@ selected inventory. Preparation rechecks current authority and exact captures,
 previews the candidate without canonical writes, verifies adopted versions and
 source bytes, then retains the running state. The portable evaluator receives
 frozen snapshots and supports cancellation probes; scoped preparation supplies
-no complete snapshots and produces restricted evidence. Scheduler integration
-and terminal-result retention remain pending.
+no complete snapshots and produces restricted evidence. Completion revalidates
+captured bindings in the transaction retaining both the finished report and
+terminal state. A stale capture or worker failure retains failure with the
+original pending validation, and cancellation or an existing terminal state
+suppresses late results. Restricted completion remains inadmissible. Scheduler
+integration and the public cancellation route remain pending.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

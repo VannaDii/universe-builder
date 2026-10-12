@@ -562,33 +562,166 @@ final class SqliteValidationWorkflow {
     return result;
   });
 
+  Future<void> finishValidation(
+    OperationId id,
+    CheckedValidation checked, {
+    required bool Function(OperationId) isValidationActive,
+  }) => _finishValidation(id, checked, null, isValidationActive);
+
+  Future<void> failValidation(
+    OperationId id,
+    Object error, {
+    required bool Function(OperationId) isValidationActive,
+  }) => _finishValidation(id, null, error, isValidationActive);
+
+  Future<void> _finishValidation(
+    OperationId id,
+    CheckedValidation? checked,
+    Object? error,
+    bool Function(OperationId) isValidationActive,
+  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    final op = await loadStoredOperation(
+      key: 'operation:${id.value}',
+      principal: principal.id,
+      worldScope: current.worldScope,
+      readWorkflow: _workflow.get,
+      readReceipt: _journal.receipt,
+      isValidationActive: isValidationActive,
+    );
+    if ({
+      OperationState.cancelled,
+      OperationState.succeeded,
+      OperationState.failed,
+    }.contains(op.status.state)) {
+      return;
+    }
+    final terminalKey = 'job:${id.value}:terminal';
+    StoredOperation terminal(
+      OperationState state,
+      Validation? validation,
+      String? failure,
+    ) => StoredOperation(
+      owner: op.owner,
+      digest: op.digest,
+      input: op.input,
+      footprint: op.footprint,
+      validationCapture: op.validationCapture,
+      status: OperationStatus(
+        operationId: id,
+        kind: op.status.kind,
+        state: state,
+        proposal: op.status.proposal,
+        validation: validation,
+        failure: failure,
+        receipt: op.status.receipt,
+        cancellationRequested: op.status.cancellationRequested,
+      ),
+    );
+    if (checked != null) {
+      final proposal = op.status.proposal;
+      if (proposal == null) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      final reference = ProposalRef(
+        proposalId: proposal.proposalId,
+        version: proposal.version,
+        digest: proposal.digest,
+      );
+      final stored = StoredProposal.fromWire(
+        _workflow.get(proposalKey(reference))!,
+      );
+      final v = checked.validation;
+      final validation = Validation(
+        operationId: id,
+        runId: v.runId,
+        coverage: v.coverage,
+        findings: v.findings,
+        opposingEvidence: v.opposingEvidence,
+        unsupportedCapabilities: v.unsupportedCapabilities,
+        inputDigest: v.inputDigest,
+        evaluatorVersion: v.evaluatorVersion,
+      );
+      final captured = checked.capture;
+      final completed = CheckedValidation(
+        proposalDigest: checked.proposalDigest,
+        validation: validation,
+        admissible: checked.admissible,
+        capture: captured,
+        report:
+            captured?.report(
+              proposal: reference,
+              baseFrame: stored.proposal.baseFrame,
+              execution: validation,
+              finished: true,
+            ) ??
+            ValidationV3.restricted(),
+      );
+      try {
+        await _persistValidation(reference, completed, current, [
+          MapEntry('validation:${validation.runId.value}', completed.toWire()),
+          MapEntry(
+            terminalKey,
+            terminal(
+              OperationState.succeeded,
+              validation,
+              op.status.failure,
+            ).toWire(),
+          ),
+        ]);
+        return;
+      } on Object catch (failure) {
+        error = failure;
+      }
+    }
+    final initial = StoredOperation.fromWire(
+      _workflow.get('operation:${id.value}')!,
+    );
+    _workflow.compareAppend({}, [
+      MapEntry(
+        terminalKey,
+        terminal(
+          OperationState.failed,
+          initial.status.validation,
+          error.toString(),
+        ).toWire(),
+      ),
+    ]);
+  });
+
   Future<void> persist(ProposalRef reference, CheckedValidation checked) =>
       authority.withUniverseAuthority(
         principal,
         universe,
-        (current) => _workflow.compareAppendWithVerification(
-          verify: () async {
-            final proposal = _proposal(reference, current);
-            if (checked.proposalDigest != proposal.proposal.digest) {
-              throw const ApprovalStaleError();
-            }
-            final captured = checked.capture;
-            if (captured == null) return const {};
-            verifyValidationAuthority(captured, current.sequence);
-            final fresh = await _capture(proposal, current);
-            verifyValidationCapture(
-              proposal: reference,
-              captured: captured,
-              current: fresh,
-            );
-            return captured.comparisons();
-          },
-          entries: [
-            MapEntry(
-              'validation:${checked.validation.runId.value}',
-              checked.toWire(),
-            ),
-          ],
-        ),
+        (current) => _persistValidation(reference, checked, current, [
+          MapEntry(
+            'validation:${checked.validation.runId.value}',
+            checked.toWire(),
+          ),
+        ]),
       );
+
+  Future<void> _persistValidation(
+    ProposalRef reference,
+    CheckedValidation checked,
+    CurrentUniverseAuthority current,
+    List<MapEntry<String, CanonicalValue>> entries,
+  ) => _workflow.compareAppendWithVerification(
+    verify: () async {
+      final proposal = _proposal(reference, current);
+      if (checked.proposalDigest != proposal.proposal.digest) {
+        throw const ApprovalStaleError();
+      }
+      final captured = checked.capture;
+      if (captured == null) return const {};
+      verifyValidationAuthority(captured, current.sequence);
+      final fresh = await _capture(proposal, current);
+      verifyValidationCapture(
+        proposal: reference,
+        captured: captured,
+        current: fresh,
+      );
+      return captured.comparisons();
+    },
+    entries: entries,
+  );
 }
