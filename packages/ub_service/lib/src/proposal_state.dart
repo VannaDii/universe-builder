@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/ub_store.dart' show Assignment, StoredVersion;
@@ -101,6 +103,100 @@ void authorizeStoredProposal({
 /// Keys must be the owning store's ordered immutable proposal namespace.
 bool isLatestProposal(StoredProposal stored, List<String> keys) =>
     keys.isNotEmpty && keys.last == stored.key;
+
+String proposalReservationKey(RecordId record) =>
+    'reserved-record:${record.value}';
+
+/// Create/revise admission only. Reads must belong to the owning workflow's
+/// consistent transaction; these checks neither authorize nor persist changes.
+Future<void> checkProposalReservations({
+  required StoredProposal stored,
+  required FutureOr<CanonicalValue?> Function(String) readWorkflow,
+  required FutureOr<bool> Function(RecordId) identityExists,
+  required FutureOr<RecordVersion> Function(RecordVersionId) readVersion,
+}) async {
+  for (final change in stored.changes) {
+    if (change.expected != null) continue;
+    final reserved = await readWorkflow(
+      proposalReservationKey(change.recordId),
+    );
+    RecordVersion? adoption;
+    for (final op in stored.proposal.operations) {
+      if (op is AdoptRecordVersionOperation &&
+          op.source.identity.recordId == change.recordId) {
+        adoption = op.source;
+        break;
+      }
+    }
+    final historical =
+        adoption != null &&
+        (await readVersion(adoption.recordVersionId)).toWire().toText() ==
+            adoption.toWire().toText();
+    final sameOwner =
+        reserved is CanonicalObject &&
+        reserved.fields.any(
+          (f) =>
+              f.key == 'proposal_id' &&
+              f.value is CanonicalString &&
+              (f.value as CanonicalString).value ==
+                  stored.proposal.proposalId.value,
+        );
+    if (!historical &&
+        (await identityExists(change.recordId) ||
+            reserved != null && !sameOwner)) {
+      throw const InvalidArgumentError(
+        field: 'client_ref',
+        message:
+            'record identity is already reserved by another proposal or canon',
+      );
+    }
+  }
+}
+
+/// Append these entries atomically with the proposal, operation and receipt.
+/// Existing reservations are retained, including after withdrawal or adoption.
+Future<List<MapEntry<String, CanonicalValue>>> proposalReservationEntries({
+  required StoredProposal stored,
+  required FutureOr<CanonicalValue?> Function(String) readWorkflow,
+}) async {
+  final entries = <MapEntry<String, CanonicalValue>>[];
+  for (final change in stored.changes) {
+    if (change.expected != null) continue;
+    final key = proposalReservationKey(change.recordId);
+    if (await readWorkflow(key) == null) {
+      entries.add(
+        MapEntry(
+          key,
+          CanonicalObject([
+            MapEntry(
+              'proposal_id',
+              CanonicalString(stored.proposal.proposalId.value),
+            ),
+          ]),
+        ),
+      );
+    }
+  }
+  return List.unmodifiable(entries);
+}
+
+/// Full immutable version equality, before synchronous candidate validation.
+/// Missing/inaccessible versions retain the owning store's lookup error.
+Future<void> verifyImmutableAdoptions({
+  required StoredProposal stored,
+  required FutureOr<RecordVersion> Function(RecordVersionId) readVersion,
+}) async {
+  for (final op in stored.proposal.operations) {
+    if (op is AdoptRecordVersionOperation &&
+        (await readVersion(op.source.recordVersionId)).toWire().toText() !=
+            op.source.toWire().toText()) {
+      throw const InvalidArgumentError(
+        field: 'adoption',
+        message: 'source must be an existing immutable version',
+      );
+    }
+  }
+}
 
 /// Prepares the next frozen state after request, context, prior-proposal and
 /// latest-version admission. Callers must still authorize its full footprint,

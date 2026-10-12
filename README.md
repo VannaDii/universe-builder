@@ -375,8 +375,12 @@ changes and origin. Exact represented frames are required for these transitions,
 and named-world focus cannot narrow a shared or cross-world footprint. Proposal
 version keys retain twenty-digit ordering; immutable versions survive SQLite
 reopen and competing updates can be rejected by an atomic latest-key comparison.
-Preparation alone does not admit a proposal: reservation/adoption checks, kernel
-preview and atomic operation/receipt publication remain required integration.
+Portable reservation checks reject identities owned by canon or another proposal,
+except for exact historical adoption. Immutable adoption compares the complete
+stored source version. Reservation entries retain their original owner after
+withdrawal; SQLite persists them across reopen and rolls back competing appends.
+Preparation alone does not admit a proposal: these checks must run inside the
+owning workflow, with kernel preview and atomic proposal/operation/receipt writes.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.
