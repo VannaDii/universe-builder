@@ -347,8 +347,16 @@ owner/scope/expiry-bound context, and admits proposal and validation requests fr
 that context under current authority. The PostgreSQL authoring tests now use
 these request routes, including reconnect, foreign/expired/changed-scope context
 denial, unknown represented context/universe guards and a different pinned
-validation frame. Engine dispatch, source-assessment mutation, queued validation
-and the remaining service routes still need PostgreSQL adapters. Import previews/purge coordination, transfer and
+validation frame. Assessment request routes now verify the authenticated
+assessor, retained source bytes, candidate dependencies, current footprint access,
+proposal/head and expected selection generation before atomically retaining the
+immutable envelope, selection and exact retry receipt. Clearing and reselection
+preserve original evidence; changed selections invalidate prior validation and
+approval bindings. Focused cases cover source-assessed validation/approval/
+publication, reconnect and historical retry, stale generations, changed-key reuse,
+wrong attribution and unverifiable source refusal without partial retention.
+Engine dispatch, queued validation and the remaining service routes still need
+PostgreSQL adapters. Import previews/purge coordination, transfer and
 live verified-TLS qualification also remain pending; runtime PostgreSQL selection
 is still explicitly unavailable.
 Run `test/postgres_foundation_test.dart`, `test/postgres_relational_test.dart`,
