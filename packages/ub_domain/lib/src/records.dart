@@ -23,6 +23,7 @@ part 'rule_records.dart';
 part 'event_records.dart';
 part 'consequences.dart';
 part 'context_records.dart';
+part 'chronology.dart';
 part 'operations.dart';
 
 enum AttributeMode {

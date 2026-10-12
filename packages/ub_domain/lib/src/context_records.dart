@@ -128,8 +128,8 @@ final class FictionalClock extends ClockSystem {
   ]);
 }
 
-/// Authored coordinates are distinct from editorial time. Arithmetic and time
-/// advancement need the chronology service; decoding never reads a system clock.
+/// Authored coordinates are distinct from editorial time. Decoding never reads
+/// a system clock; explicit arithmetic is provided by [AuthoredChronology].
 final class Chronology {
   const Chronology({
     required this.calendar,

@@ -236,9 +236,15 @@ Typed events preserve occurrence modes, authored participants and ordered effect
 Action consequences validate exact decimal bounds, slot uniqueness and lifetimes;
 an absent historical contract remains distinct from an explicitly empty contract,
 and an explicit null contract is rejected. Represented contexts retain authored
-Gregorian or fictional clock data. Storing these declarations does not execute
-effects, advance clocks or promote a report to objective fact. Consequence
-execution and chronology arithmetic still need their ports. Typed operation
+Gregorian or fictional clock data. Explicit chronology arithmetic now builds
+the authored starting calendar, preserves the first interaction, and distinguishes
+forward elapsed time from deliberate time travel. Gregorian inputs require an
+explicit offset and whole seconds; month offsets use pinned time and reject a
+nonexistent target day. Fictional month offsets require a declared month length
+and retain exact signed 128-bit coordinates. Decoding and arithmetic never read
+the system clock. Wiring clock changes into reviewed publication remains pending.
+Storing these declarations does not execute effects, advance clocks or promote
+a report to objective fact. Consequence execution still needs its port. Typed operation
 contracts preserve bare nested record DTOs separately from tagged stored
 payloads, snake-case operation fields and exact expected versions. Decoding an
 adoption request preserves its supplied digest; digest verification and current
