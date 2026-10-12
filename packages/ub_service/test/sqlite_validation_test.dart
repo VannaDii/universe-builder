@@ -30,6 +30,7 @@ import 'source_verification_test.dart' as sources;
 import 'instance_initialization_test.dart' as initialization;
 import 'effective_objects_test.dart' as objects;
 import 'writing_projection_test.dart' as writing;
+import 'action_checks_test.dart' as actions;
 import '../../ub_contracts/test/assessment_integrity_test.dart' as accounting;
 
 void main() {
@@ -576,6 +577,134 @@ void main() {
     limit: limit,
     cursor: cursor,
   );
+
+  test('native plain contracts retain pinned declarations and filter current scope before handles', () async {
+    final rows = actions.fixture();
+    final original = rows.firstWhere((r) => r.identity.recordId == f.id(5));
+    rows[rows.indexOf(original)] = f.row(
+      5,
+      f.patch(original.payload, {
+        'labels': CanonicalObject([MapEntry('en', CanonicalString('Charge'))]),
+      }),
+    );
+    rows.addAll([
+      structure.context(10),
+      f.row(
+        9,
+        CalendarRecord(
+          namespace: 'test',
+          key: 'clock',
+          labels: {},
+          unitStructure: {},
+        ),
+      ),
+      f.row(50, WorldRecord(selector: 'Campaign')),
+      f.row(51, WorldRecord(selector: 'Private')),
+      f.row(
+        81,
+        ActionDefinitionRecord(
+          namespace: 'private',
+          key: 'Hidden',
+          labels: {},
+          requirements: [],
+          scope: Scope(
+            context: f.ref(10),
+            applicability: WorldsApplicability([permissions.world(51)]),
+          ),
+          validity: const UnspecifiedValidity(),
+        ),
+      ),
+    ]);
+    kernel.commit(input('contract-read-base', rows));
+    OpenContextRequest context() =>
+        contextRequest(represented: ContextIdSelector(f.id(10)));
+    final opened = await service.openContext(context());
+    ReadContractsRequest request(
+      ContextId id, {
+      List<String> names = const [],
+    }) => ReadContractsRequest(
+      universe: const Selector('World'),
+      contextId: id,
+      actionNames: names,
+    );
+    final head = kernel.journal.head(continuity);
+    final first = await service.readContractsRequest(request(opened.contextId));
+    expect(writing.list(first.contracts, 'actions').length, 2);
+    final alias = await service.readContractsRequest(
+      request(opened.contextId, names: ['Charge']),
+    );
+    expect(
+      wireString(
+        writing.field(writing.list(alias.contracts, 'actions').single, 'name'),
+      ),
+      'charged_action',
+    );
+    expect(kernel.journal.head(continuity), head);
+    kernel.commit(
+      input('later-contract', [
+        f.row(
+          82,
+          ActionDefinitionRecord(
+            namespace: 'test',
+            key: 'Future',
+            labels: {},
+            requirements: [],
+            scope: actions.scope,
+            validity: const UnspecifiedValidity(),
+          ),
+        ),
+      ]),
+    );
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    service = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: writer,
+    );
+    final reopened = await service.readContractsRequest(
+      request(opened.contextId),
+    );
+    expect(reopened.contracts.toText(), first.contracts.toText());
+    await authority.coordinate(
+      author,
+      () => authority.grant(
+        author,
+        GrantSpec(
+          profileId: writer.id,
+          universeId: f.u,
+          worlds: [permissions.world(50)],
+          propose: false,
+          edit: false,
+          protected: false,
+        ),
+      ),
+    );
+    await expectLater(
+      service.readContractsRequest(request(opened.contextId)),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    final scoped = await service.openContext(context());
+    final restricted = await service.readContractsRequest(
+      request(scoped.contextId),
+    );
+    expect(writing.list(restricted.contracts, 'actions').length, 2);
+    expect(
+      writing
+          .list(restricted.contracts, 'actions')
+          .map((value) => wireString(writing.field(value, 'name'))),
+      isNot(contains('Hidden')),
+    );
+    expect(
+      wireString(writing.field(restricted.contracts, 'coverage')),
+      'restricted',
+    );
+    expect(WorkflowStorage(package.database).keys('validation:'), isEmpty);
+  });
 
   test('native plain facts preserve pinned evidence and hide name counts after scope changes', () async {
     final rows = objects.withInstance();

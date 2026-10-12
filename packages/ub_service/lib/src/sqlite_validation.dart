@@ -28,6 +28,7 @@ import 'state_reading.dart';
 import 'validation_binding.dart';
 import 'validation_task.dart';
 import 'writing_projection.dart';
+import 'writing_contract_projection.dart';
 
 /// Internal native workflow for an already recovered, writer-owned package.
 /// It retains assessments, checked results and exact human approvals, and
@@ -701,6 +702,29 @@ final class SqliteValidationWorkflow {
       ),
       frame: frame,
       focus: focus,
+    );
+  });
+
+  Future<({CanonicalObject contracts, Frame frame})> readContractsRequest(
+    ReadContractsRequest request,
+  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    final frame = _contextFrame(request.contextId, current);
+    final snapshot = await _readSnapshot(
+      frame: frame,
+      world: null,
+      guard: null,
+      current: current,
+    );
+    return (
+      contracts: projectWritingContracts(
+        request: request,
+        rows: snapshot.accessible,
+        frame: frame,
+        restricted:
+            current.worldScope != null ||
+            frame.perspective is! AuthorPerspective,
+      ),
+      frame: frame,
     );
   });
 

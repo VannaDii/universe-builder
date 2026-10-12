@@ -617,6 +617,14 @@ conflicts, unsupported plain values and unresolved applicability remain visible.
 The read includes explicit occurred events and authored clock information without
 promoting plans to occurrences or inventing time. Numeric presentation preserves
 exact tokens on native and web, and research creates no proposal or validation.
+Native plain contract research now projects visible pinned actions, effects,
+properties, units, policies, relationship declarations, powers and exhaustive
+sets, alongside communications, attributed attitudes and narrative disclosures.
+Action-name selection includes authored labels. Conditional/optional effects and
+exact deltas remain declarations; they do not execute on read. Private edit
+handles, narrative metadata and knowledge boundaries follow author-perspective
+rules, with current scope filtering applied first. Scene depiction and reader
+disclosure stay distinct, and ordinary research creates no approval or canon.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.
