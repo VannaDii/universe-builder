@@ -231,6 +231,13 @@ base versions, and retains the existing correction restrictions. Classification
 refinements use the candidate definition graph, including same-batch revisions,
 adoptions and removals. Explicit initialization and event effects compile last.
 Privately allocated immutable source versions remain an internal service input.
+Proposal scope now includes both old and new world assignments and worlds reached
+through the existing typed dependency traversal. Unassigned changes remain shared,
+and removals require protected-write authority. Entity, predicate and continuity
+boundaries check the complete old/new changes. Scoped visibility hides private
+source records and closes over hidden or missing dependencies, including cycles.
+Prose that resembles an identity does not grant access. These helpers still need
+the remaining workflow integration with current grants and exact approval.
 Event compilation now freezes derived assertions into the exact changes for
 review. Revisions and withdrawals replace or remove their effects and recompute
 affected intervals; unchanged effects retain their versions. Generated assertions

@@ -1,6 +1,24 @@
 import 'package:ub_domain/ub_domain.dart';
 
 import 'catalog.dart';
+import 'revision_input.dart';
+
+/// Dependencies use the same closed traversal as candidate integrity checks.
+Set<RecordId> recordDependencies(StoredVersion record) {
+  final refs = ReferenceScan.collect(
+    record.payload,
+    record.identity.universeId,
+  );
+  final ids = {
+    for (final r in refs.records) r.record,
+    for (final r in refs.typed) r.record,
+    for (final w in refs.worlds) worldRecord(w),
+  }.toList()..sort((a, b) => a.value.compareTo(b.value));
+  return Set.unmodifiable(ids);
+}
+
+WorldId recordWorld(RecordId record) =>
+    WorldId.parse('wld_${record.value.substring(RecordId.prefix.length)}');
 
 final class RecordDependency {
   const RecordDependency(this.record, this.version, this.path);

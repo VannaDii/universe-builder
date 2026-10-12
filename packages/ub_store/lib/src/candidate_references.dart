@@ -66,17 +66,8 @@ final class CandidateReferences {
     }
   }
 
-  Set<RecordId> dependencies(StoredVersion record) {
-    final refs = ReferenceScan.collect(
-      record.payload,
-      record.identity.universeId,
-    );
-    return {
-      for (final reference in refs.records) reference.record,
-      for (final reference in refs.typed) reference.record,
-      for (final world in refs.worlds) worldRecord(world),
-    };
-  }
+  Set<RecordId> dependencies(StoredVersion record) =>
+      recordDependencies(record);
 
   void _edition(VersionRef edition) {
     if (journal.load(edition.version).identity.recordKind !=
