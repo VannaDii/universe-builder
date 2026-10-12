@@ -157,6 +157,123 @@ CREATE TABLE audit(sequence INTEGER PRIMARY KEY,actor TEXT,action TEXT,target TE
     noStages();
   }
 
+  void useRelationalSource() {
+    convertInstallation(source, destination);
+    source = destination;
+    databasePath = '$source/installation.sqlite';
+    destination = '${root.path}/cutover';
+  }
+
+  test('relational cutover retains every authority row and read-only SQLite credential', () {
+    useRelationalSource();
+    final reader = SqliteInstallationStore.openExisting(source);
+    final identity = reader.instanceId;
+    final expectedGrant = reader.readGrant(revoked, universe).toWire().toText();
+    reader.close();
+    final before = originals();
+    for (final path in before.keys) {
+      expect(Process.runSync('chmod', ['400', path]).exitCode, 0);
+    }
+    final report = convertInstallation(source, destination).toText();
+    expect(report, contains('"instance_identity_established":false'));
+    expect(report, contains('"compared_tables":12'));
+    unchanged(before);
+    final target = SqliteInstallationStore.openExisting(destination);
+    try {
+      expect(target.instanceId, identity);
+      expect(target.profile(revoked)!.revoked, isTrue);
+      expect(target.profile(unenrolled), isNull);
+      expect(
+        target.readGrant(revoked, universe).toWire().toText(),
+        expectedGrant,
+      );
+    } finally {
+      target.close();
+    }
+    for (final profile in [author, revoked, unenrolled]) {
+      expect(
+        ProfileCredentialStore.read(root: destination, profile: profile),
+        credential(profile),
+      );
+    }
+    noStages();
+  });
+
+  test('explicit relational cutover establishes identity where ordinary opening refuses', () {
+    useRelationalSource();
+    edit(
+      (db) =>
+          db.execute("DELETE FROM settings WHERE key='installation_instance'"),
+    );
+    final before = originals();
+    expect(
+      () => SqliteInstallationStore.openExisting(source),
+      throwsA(
+        isA<InstallationException>().having(
+          (e) => e.failure,
+          'failure',
+          InstallationFailure.identityNotInitialized,
+        ),
+      ),
+    );
+    unchanged(before);
+    expect(
+      convertInstallation(source, destination).toText(),
+      contains('"instance_identity_established":true'),
+    );
+    unchanged(before);
+    final reader = SqliteInstallationStore.openExisting(destination);
+    final identity = reader.instanceId;
+    reader.close();
+    final restarted = SqliteInstallationStore.openExisting(destination);
+    try {
+      expect(restarted.instanceId, identity);
+    } finally {
+      restarted.close();
+    }
+    noStages();
+  });
+
+  test('relational installation and credential schema changes are refused', () {
+    useRelationalSource();
+    edit((db) => db.execute('CREATE TABLE unknown_authority(value TEXT)'));
+    refused();
+    edit((db) => db.execute('DROP TABLE unknown_authority'));
+    final credentialDb = sqlite3.open(
+      '$source/profiles/${author.value}.sqlite',
+    );
+    try {
+      credentialDb.execute('ALTER TABLE credential ADD COLUMN unknown TEXT');
+    } finally {
+      credentialDb.close();
+    }
+    refused();
+  });
+
+  test('relational pending imports are retained for explicit restaging rather than omitted', () {
+    useRelationalSource();
+    edit(
+      (db) => db.execute(
+        'INSERT INTO import_preview VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
+        [
+          'pending',
+          author.value,
+          'digest',
+          universe.value,
+          universe.value,
+          'Retained import',
+          1,
+          0,
+          3,
+          0,
+          'preview-digest',
+          '/retained/staged.sqlite',
+        ],
+      ),
+    );
+    refused();
+  });
+
   test('converts exact authority credentials and ordered limits without moving catalog packages', () {
     final before = originals();
     for (final path in before.keys) {

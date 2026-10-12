@@ -170,4 +170,35 @@ void main() {
       expect(() => openOriginalDatabase(path), throwsA(isA<SqliteException>()));
     },
   );
+
+  test('clean offline WAL-format databases never create journal sidecars while read-only', () {
+    path = File(path).renameSync('${root.path}/offline ?#é%.sqlite').path;
+    createDatabase();
+    final writer = sqlite3.open(path);
+    try {
+      writer.execute('PRAGMA journal_mode=WAL');
+    } finally {
+      writer.close();
+    }
+    final before = File(path).readAsBytesSync();
+    expect(before[18], 2);
+    expect(Process.runSync('chmod', ['400', path]).exitCode, 0);
+    final original = openOriginalDatabase(path);
+    try {
+      expect(
+        original.database.select('SELECT value FROM factual').single['value'],
+        'Original fact',
+      );
+      for (final suffix in ['-wal', '-shm', '-journal']) {
+        expect(
+          FileSystemEntity.typeSync('$path$suffix', followLinks: false),
+          FileSystemEntityType.notFound,
+        );
+      }
+    } finally {
+      original.database.close();
+    }
+    verifyOriginalDatabase(path, original.hash);
+    expect(File(path).readAsBytesSync(), orderedEquals(before));
+  });
 }

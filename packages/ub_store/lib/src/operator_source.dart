@@ -38,7 +38,16 @@ void _offline(String path) {
   _offline(path);
   final hash = originalFileHash(path);
   _offline(path);
-  final database = sqlite3.open(path, mode: OpenMode.readOnly);
+  // A clean closed WAL-format file can otherwise create WAL/SHM even under
+  // SQLITE_OPEN_READONLY. This is an offline input, never a live connection;
+  // refuse sidecars above and compare its hash again immediately before publish.
+  final database = sqlite3.open(
+    Uri.file(File(path).absolute.path)
+        .replace(queryParameters: {'immutable': '1'})
+        .toString(),
+    mode: OpenMode.readOnly,
+    uri: true,
+  );
   try {
     database.execute('PRAGMA trusted_schema=OFF; PRAGMA query_only=ON; BEGIN');
     final check = database.select('PRAGMA integrity_check');

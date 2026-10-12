@@ -68,14 +68,21 @@ private target, then revalidates the read-only original before exclusive durable
 publication. Unknown schemas, journal sidecars, changed sources and existing
 destinations are refused. It creates no installation or catalog registration.
 The installation store exposes offline `convertInstallation` for the maintained
-serialized authority layout. It preserves enrolled/revoked profiles, exact
+serialized and relational authority layouts. Relational input requires an exact
+normative schema match and all authority tables are copied and compared. It
+preserves enrolled/revoked profiles, exact
 credentials (including unenrolled files), catalog paths, aliases, audit entries
-and ordered grant scopes/limits. Pending purges, retained legacy import previews,
+and ordered grant scopes/limits. Pending purges, retained import previews,
 unknown tables, orphan limits and missing/mismatched credentials block publication.
 It compares the converted grants through the ordinary installation reader and
 rechecks the original database and credential inventory before exclusively
 publishing the complete private directory. Existing installation identity is
 preserved; explicit conversion establishes one when absent for the Dart handshake.
+Offline SQLite originals use immutable read-only access after journal-sidecar
+refusal, including clean databases retaining a WAL-format header. This avoids
+creating journal files in the source directory; final hashes and credential
+inventory are rechecked before publication. This mode is never used for live
+runtime connections.
 Conversion does not move or convert catalog packages or switch a live engine.
 These are store APIs; the Dart operator CLI remains pending.
 Focused functional checks currently cover macOS only.
