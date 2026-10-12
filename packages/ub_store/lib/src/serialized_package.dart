@@ -427,3 +427,106 @@ void _ancestry(SqliteJournal journal, Membership membership) {
     visit(id);
   }
 }
+
+/// Copy the maintained relational layout, allowing only the previously absent
+/// workflow digest provenance table. Source SQL is compared, never installed.
+({int records, int workflows, int comparedTables}) constructRelationalPackage(
+  Database input,
+  Database output,
+) {
+  if (input.autocommit ||
+      input.select('PRAGMA query_only').single.values.single != 1 ||
+      !output.autocommit ||
+      output.select('SELECT count(*) AS n FROM universes').single['n'] != 0) {
+    throw StateError(
+      'Conversion requires a pinned read-only input and fresh private target',
+    );
+  }
+  List<(String, String, String, String)> schema(Database db) => [
+    for (final row in db.select(
+      "SELECT type,name,tbl_name,coalesce(sql,'') AS sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name",
+    ))
+      (
+        row['type'] as String,
+        row['name'] as String,
+        row['tbl_name'] as String,
+        row['sql'] as String,
+      ),
+  ];
+  final source = schema(input);
+  final missing = !source.any((entry) => entry.$2 == 'import_workflow_digest');
+  final expected = schema(output)
+      .where((entry) => !missing || entry.$3 != 'import_workflow_digest')
+      .toList();
+  if (source.length != expected.length ||
+      Iterable<int>.generate(source.length)
+          .any((i) => source[i] != expected[i])) {
+    throw const FormatException(
+      'Unrecognized relational conversion schema; original retained',
+    );
+  }
+  final tables = [
+    for (final row in input.select(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'search_index%' ORDER BY name",
+    ))
+      row['name'] as String,
+  ];
+  output.execute(
+    'BEGIN IMMEDIATE; PRAGMA defer_foreign_keys=ON; DELETE FROM projection_state',
+  );
+  try {
+    for (final table in tables) {
+      final columns = _columns(output, table);
+      final write = output.prepare(
+        'INSERT INTO ${quoteIdentifier(table)} VALUES(${List.filled(columns.length, '?').join(',')})',
+      );
+      try {
+        _rows(
+          input,
+          table,
+          (row) => write.execute([for (final column in columns) row[column]]),
+        );
+      } finally {
+        write.close();
+      }
+    }
+    for (final table in tables) {
+      _compare(input, output, table);
+    }
+    final universes = output.select('SELECT id FROM universes LIMIT 2');
+    if (universes.length != 1) {
+      throw const FormatException('Conversion requires one universe');
+    }
+    final journal = SqliteJournal(
+      output,
+      UniverseId.parse(universes.single['id'] as String),
+    );
+    CanonicalIntegrity(journal).verifyComplete();
+    _rows(
+      output,
+      'commits',
+      (row) => _ancestry(
+        journal,
+        journal.snapshot(
+          ContinuityId.parse(row['continuity_id'] as String),
+          RevisionId.parse(row['id'] as String),
+        ),
+      ),
+    );
+    final records =
+        output.select('SELECT count(*) AS n FROM record_versions').single['n']
+            as int;
+    final workflows =
+        output.select('SELECT count(*) AS n FROM workflow_index').single['n']
+            as int;
+    output.execute('COMMIT');
+    return (
+      records: records,
+      workflows: workflows,
+      comparedTables: tables.length,
+    );
+  } on Object {
+    if (!output.autocommit) output.execute('ROLLBACK');
+    rethrow;
+  }
+}

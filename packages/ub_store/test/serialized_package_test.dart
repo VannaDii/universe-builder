@@ -10,6 +10,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/sqlite.dart';
 import 'package:ub_store/ub_store.dart';
 import 'package:ub_store/src/serialized_package.dart';
+import 'package:ub_store/src/ownership.dart';
 
 void main() {
   late Directory root;
@@ -305,6 +306,37 @@ void main() {
       0,
     );
   }
+
+  test('offline serialized conversion publishes a usable package without changing its original', () {
+    final source = '${root.path}/serialized.sqlite';
+    final destination = '${root.path}/converted.sqlite';
+    protectedFile(source, createNew: true);
+    mutate(() => input.execute('VACUUM INTO ?', [source]));
+    final bytes = File(source).readAsBytesSync();
+    expect(Process.runSync('chmod', ['400', source]).exitCode, 0);
+    expect(
+      convertPackage(source, destination).toText(),
+      contains('"records":3'),
+    );
+    expect(File(source).readAsBytesSync(), orderedEquals(bytes));
+    final converted = OwnedSqliteDatabase.openExisting(destination);
+    try {
+      converted.recover();
+      expect(
+        SqliteJournal(
+          converted.database,
+          universe,
+        ).snapshot(branch, branchHead)[entity.identity.recordId],
+        entity.versionId,
+      );
+      expect(
+        WorkflowStorage(converted.database).get('cursor:retained')!.toText(),
+        '{"binding":"exact é😀","offset":0}',
+      );
+    } finally {
+      converted.close();
+    }
+  });
 
   test('unversioned serialized bodies retain their original digest recipe', () {
     mutate(() {
