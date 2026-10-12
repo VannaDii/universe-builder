@@ -1,0 +1,12 @@
+name: ub_client
+version: 0.1.0
+publish_to: none
+resolution: workspace
+environment:
+  sdk: 3.13.4
+dependencies:
+  ub_domain: any
+  ub_contracts: any
+  ub_store: any
+dev_dependencies:
+  test: 1.33.0

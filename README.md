@@ -828,8 +828,14 @@ protect newly bound endpoints and remove only owned stale sockets. Links, regula
 files, permissive endpoints and TCP substitutions are refused. The native bridge
 uses each platform's declared credential structure rather than Dart byte offsets;
 functional peer/endpoint checks currently cover macOS. Unsupported platforms fail
-closed. Engine startup and authenticated client/server transport integration remain
-pending.
+closed. The native `ub_client` local adapter now checks endpoint ownership and OS
+peer identity before reading/sending a profile credential, authenticates through
+the strict welcome contract, and correlates sequential requests. Typed service
+errors leave the connection usable; interrupted, malformed, mismatched or timed-out
+replies require an explicit reconnect and never replay the request. Connection and
+handshake deadlines are five seconds; request deadlines are fifteen seconds.
+Focused Unix-socket client checks currently cover macOS. Engine startup, server
+transport integration and remote/web client adapters remain pending.
 Expiry timestamps, draft versions and engine limits preserve exact unsigned
 values on web. These contracts do not authenticate profiles, grant permissions,
 save drafts or implement encrypted settings; private command dispatch and those
