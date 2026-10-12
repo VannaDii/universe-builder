@@ -8,3 +8,4 @@ export 'src/journal.dart' show SqliteJournal;
 export 'src/workflow_storage.dart' show WorkflowStorage;
 export 'src/kernel.dart' show SqliteKernel;
 export 'src/media_file.dart' show readImageFile;
+export 'src/legacy_conversion.dart' show convertLegacy;

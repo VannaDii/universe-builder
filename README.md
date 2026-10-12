@@ -46,6 +46,14 @@ selected entry appearances and initialization attachments. Omitted counts are
 explicit; incomplete archives require a named clone. Full-history export rejects
 a record filter, and all exports refuse an existing destination.
 Public transport/CLI integration remains pending.
+The native author service now supports explicit bounded v0.3 `convert_legacy`.
+It reads the original without modification and emits a verified canon-only
+archive for separate import review. Record/version IDs remain intact; old
+continuity/revision IDs have explicit deterministic mappings. Create, replace
+and tombstone history is retained. Unsupported source/workflow side tables,
+digest/identity mismatches, inherited baselines and broken history are refused.
+This limited command is separate from the identity-preserving offline operator
+conversion procedure, whose Dart implementation remains pending.
 Focused functional checks currently cover macOS only.
 
 Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter

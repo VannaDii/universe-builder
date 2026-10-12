@@ -49,6 +49,16 @@ final class NativeSqliteRuntime {
     _active.add(finished);
     try {
       if (request is DoctorEngineRequest) return await _doctor(principal);
+      if (request is ConvertLegacyEngineRequest) {
+        return await authority.coordinate(principal, () {
+          authority.requireAuthor(principal);
+          return convertLegacy(
+            request.source,
+            request.destination,
+            authority.universeDirectory(principal),
+          );
+        });
+      }
       if (request is PreviewImportEngineRequest ||
           request is AcceptImportEngineRequest) {
         return await authority.coordinate(

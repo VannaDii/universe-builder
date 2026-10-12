@@ -16,6 +16,7 @@ import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_store/sqlite.dart';
 import 'package:ub_store/ub_store.dart';
+import 'package:ub_store/src/ownership.dart' show protectedFile;
 
 import 'operation_compilation_test.dart' as f;
 import 'proposal_state_test.dart' as proposals;
@@ -1721,6 +1722,129 @@ void main() {
       }
     }
     expect(authority.catalog(author), hasLength(2));
+  });
+
+  test('native legacy conversion requires author authority and produces a reviewed archive without registration', () async {
+    final source = '${root.path}/legacy.sqlite';
+    final destination = '${root.path}/legacy-converted.sqlite';
+    final request = ConvertLegacyEngineRequest(
+      source: source,
+      destination: destination,
+    );
+    await expectLater(
+      engine(runtime.connect(hello(writer.id)), request),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    expect(File(destination).existsSync(), isFalse);
+    protectedFile(source, createNew: true);
+    final universe = UniverseId.generate(), id = RecordId.generate();
+    final version = StoredVersion.build(
+      RecordVersionId.generate(),
+      RecordIdentity(
+        universeId: universe,
+        recordId: id,
+        recordKind: RecordKind.representedContext,
+      ),
+      RepresentedContextRecord(
+        universe: universe,
+        kind: const ObjectiveContext(),
+        labels: {'name': 'Legacy'},
+      ).toWire(),
+    );
+    final db = sqlite3.open(source);
+    try {
+      db.execute(
+        File('../../crates/universe-store/src/schema_v0.sql')
+            .readAsStringSync(),
+      );
+      db.execute('INSERT INTO universes(id,name,created_at) VALUES(?,?,?)', [
+        universe.value,
+        'Legacy',
+        'then',
+      ]);
+      db.execute(
+        'INSERT INTO record_identities(id,universe_id,kind,created_at) VALUES(?,?,?,?)',
+        [id.value, universe.value, 'represented_context', 'then'],
+      );
+      db.execute(
+        'INSERT INTO record_versions(id,record_id,universe_id,kind,payload,digest,created_at) VALUES(?,?,?,?,?,?,?)',
+        [
+          version.versionId.value,
+          id.value,
+          universe.value,
+          'represented_context',
+          version.payload.toBytes(),
+          version.digest,
+          'then',
+        ],
+      );
+      db.execute(
+        'INSERT INTO commits(id,universe_id,continuity_id,author,reason,created_at) VALUES(?,?,?,?,?,?)',
+        [
+          'old-commit',
+          universe.value,
+          'cont_main',
+          'Historical author',
+          'Original genesis',
+          'then',
+        ],
+      );
+      db.execute('INSERT INTO commit_changes VALUES(?,?,?,?,?)', [
+        'old-change',
+        'old-commit',
+        id.value,
+        'create',
+        version.versionId.value,
+      ]);
+      db.execute('INSERT INTO continuities VALUES(?,?,?,?,?,?)', [
+        'cont_main',
+        universe.value,
+        'old-commit',
+        null,
+        'then',
+        'then',
+      ]);
+    } finally {
+      db.close();
+    }
+    final original = File(source).readAsBytesSync();
+    final connection = runtime.connect(hello(author.id));
+    final report = WireFields(await engine(connection, request), {
+      'converted',
+      'canonical',
+      'universe',
+      'continuity_mapping',
+      'revision_mapping',
+      'record_and_version_ids',
+      'workflow_authority',
+      'next_step',
+    });
+    expect(report.boolean('converted'), isTrue);
+    expect(report.boolean('canonical'), isFalse);
+    expect(authority.catalog(author), hasLength(1));
+    final preview = importReport(
+      await engine(
+        connection,
+        PreviewImportEngineRequest(
+          source: destination,
+          name: 'Legacy clone',
+          mode: ImportMode.clone,
+        ),
+      ),
+    );
+    await engine(
+      connection,
+      AcceptImportEngineRequest(
+        previewId: OperationId.parse(preview.string('preview_id')),
+        digest: preview.string('digest'),
+      ),
+    );
+    expect(authority.catalog(author), hasLength(2));
+    await engine(
+      connection,
+      const LibraryEngineRequest(universe: Selector('Legacy clone')),
+    );
+    expect(File(source).readAsBytesSync(), orderedEquals(original));
   });
 
   test('native logical export supplies complete canon and filtered archives through exact clone admission', () async {
