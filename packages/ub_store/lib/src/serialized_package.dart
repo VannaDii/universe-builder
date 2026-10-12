@@ -7,6 +7,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'canonical_integrity.dart';
 import 'definition_index.dart';
 import 'journal.dart';
+import 'operator_rows.dart';
 import 'relational.dart';
 import 'serialized_conversion.dart';
 import 'workflow_storage.dart';
@@ -40,73 +41,6 @@ const _allowed = {
   'search_index_docsize',
   'search_index_config',
 };
-List<String> _columns(Database db, String table) => [
-  for (final row in db.select('PRAGMA table_info(${quoteIdentifier(table)})'))
-    row['name'] as String,
-];
-bool _same(List<String> a, List<String> b) =>
-    a.length == b.length &&
-    Iterable<int>.generate(a.length).every((i) => a[i] == b[i]);
-
-void _rows(Database db, String table, void Function(Row) accept) {
-  final columns = _columns(db, table);
-  if (columns.isEmpty) throw FormatException('Missing conversion table $table');
-  final read = db.prepare(
-    'SELECT * FROM ${quoteIdentifier(table)} ORDER BY ${columns.map(quoteIdentifier).join(',')} LIMIT 2000001',
-  );
-  try {
-    final rows = read.selectCursor();
-    var count = 0;
-    while (rows.moveNext()) {
-      if (++count > 2000000) {
-        throw const FormatException('Conversion row budget exceeded');
-      }
-      accept(rows.current);
-    }
-  } finally {
-    read.close();
-  }
-}
-
-bool _cell(Object? a, Object? b) {
-  if (a is Uint8List && b is Uint8List) {
-    return a.length == b.length &&
-        Iterable<int>.generate(a.length).every((i) => a[i] == b[i]);
-  }
-  return a.runtimeType == b.runtimeType && a == b;
-}
-
-void _compare(Database input, Database output, String table) {
-  final columns = _columns(input, table);
-  if (!_same(columns, _columns(output, table))) {
-    throw FormatException('Unsupported columns in $table');
-  }
-  final sql =
-      'SELECT * FROM ${quoteIdentifier(table)} ORDER BY ${columns.map(quoteIdentifier).join(',')}';
-  final read = input.prepare(sql);
-  try {
-    final retained = output.prepare(sql);
-    try {
-      final source = read.selectCursor(), target = retained.selectCursor();
-      while (true) {
-        final a = source.moveNext(), b = target.moveNext();
-        if (a != b ||
-            a &&
-                columns.any(
-                  (column) =>
-                      !_cell(source.current[column], target.current[column]),
-                )) {
-          throw FormatException('Retained scalar table differs: $table');
-        }
-        if (!a) break;
-      }
-    } finally {
-      retained.close();
-    }
-  } finally {
-    read.close();
-  }
-}
 
 /// Construct one private normative target from the maintained serialized v1/v2
 /// layouts. The offline caller owns source-file protection and publication.
@@ -134,12 +68,12 @@ void _compare(Database input, Database output, String table) {
       );
     }
   }
-  final metadata = _columns(input, 'schema_meta');
+  final metadata = conversionColumns(input, 'schema_meta');
   if (metadata.isNotEmpty) {
-    if (!_same(metadata, ['key', 'value'])) {
+    if (!sameConversionColumns(metadata, ['key', 'value'])) {
       throw const FormatException('Unsupported legacy schema metadata');
     }
-    _rows(input, 'schema_meta', (row) {
+    conversionRows(input, 'schema_meta', (row) {
       if (row['key'] != 'schema_version' ||
           row['value'] is! int ||
           !{1, 2}.contains(row['value'])) {
@@ -147,9 +81,9 @@ void _compare(Database input, Database output, String table) {
       }
     });
   }
-  final versionColumns = _columns(input, 'record_versions');
+  final versionColumns = conversionColumns(input, 'record_versions');
   final versioned = versionColumns.contains('schema_version');
-  if (!_same(versionColumns, [
+  if (!sameConversionColumns(versionColumns, [
         'universe_id',
         'id',
         'record_id',
@@ -158,12 +92,12 @@ void _compare(Database input, Database output, String table) {
         'payload',
         'digest',
       ]) ||
-      !_same(_columns(input, 'workflow_entries'), [
+      !sameConversionColumns(conversionColumns(input, 'workflow_entries'), [
         'key',
         'payload',
         'digest',
       ]) ||
-      !_same(_columns(input, 'snapshot_membership'), [
+      !sameConversionColumns(conversionColumns(input, 'snapshot_membership'), [
         'universe_id',
         'revision_id',
         'membership',
@@ -174,15 +108,15 @@ void _compare(Database input, Database output, String table) {
   output.execute('BEGIN IMMEDIATE; PRAGMA defer_foreign_keys=ON');
   try {
     for (final table in _scalars) {
-      final columns = _columns(output, table);
-      if (!_same(columns, _columns(input, table))) {
+      final columns = conversionColumns(output, table);
+      if (!sameConversionColumns(columns, conversionColumns(input, table))) {
         throw FormatException('Unsupported columns in $table');
       }
       final write = output.prepare(
         'INSERT INTO ${quoteIdentifier(table)} VALUES(${List.filled(columns.length, '?').join(',')})',
       );
       try {
-        _rows(
+        conversionRows(
           input,
           table,
           (row) => write.execute([for (final column in columns) row[column]]),
@@ -199,7 +133,7 @@ void _compare(Database input, Database output, String table) {
     final journal = SqliteJournal(output, universe);
     final codec = RelationalCodec(output);
     var recordCount = 0, workflowCount = 0;
-    _rows(input, 'record_versions', (row) {
+    conversionRows(input, 'record_versions', (row) {
       if (++recordCount > maxVersions) {
         throw const FormatException('Conversion version budget exceeded');
       }
@@ -260,7 +194,7 @@ void _compare(Database input, Database output, String table) {
       }
     });
     final workflow = WorkflowStorage(output);
-    _rows(input, 'workflow_entries', (row) {
+    conversionRows(input, 'workflow_entries', (row) {
       workflowCount++;
       final bytes = row['payload'];
       if (bytes is! Uint8List) {
@@ -280,7 +214,7 @@ void _compare(Database input, Database output, String table) {
         );
       }
     });
-    _rows(input, 'snapshot_membership', (row) {
+    conversionRows(input, 'snapshot_membership', (row) {
       final bytes = row['membership'];
       if (bytes is! Uint8List ||
           bytes.length > 4194304 ||
@@ -329,7 +263,7 @@ void _compare(Database input, Database output, String table) {
       }
     });
     final indexed = <RecordVersionId>{};
-    _rows(output, 'commits', (row) {
+    conversionRows(output, 'commits', (row) {
       final membership = journal.snapshot(
         ContinuityId.parse(row['continuity_id'] as String),
         RevisionId.parse(row['id'] as String),
@@ -366,7 +300,7 @@ void _compare(Database input, Database output, String table) {
     }
     CanonicalIntegrity(journal).verifyComplete();
     for (final table in _scalars) {
-      _compare(input, output, table);
+      compareConversionRows(input, output, table);
     }
     output.execute('COMMIT');
     return (
@@ -476,12 +410,12 @@ void _ancestry(SqliteJournal journal, Membership membership) {
   );
   try {
     for (final table in tables) {
-      final columns = _columns(output, table);
+      final columns = conversionColumns(output, table);
       final write = output.prepare(
         'INSERT INTO ${quoteIdentifier(table)} VALUES(${List.filled(columns.length, '?').join(',')})',
       );
       try {
-        _rows(
+        conversionRows(
           input,
           table,
           (row) => write.execute([for (final column in columns) row[column]]),
@@ -491,7 +425,7 @@ void _ancestry(SqliteJournal journal, Membership membership) {
       }
     }
     for (final table in tables) {
-      _compare(input, output, table);
+      compareConversionRows(input, output, table);
     }
     final universes = output.select('SELECT id FROM universes LIMIT 2');
     if (universes.length != 1) {
@@ -502,7 +436,7 @@ void _ancestry(SqliteJournal journal, Membership membership) {
       UniverseId.parse(universes.single['id'] as String),
     );
     CanonicalIntegrity(journal).verifyComplete();
-    _rows(
+    conversionRows(
       output,
       'commits',
       (row) => _ancestry(

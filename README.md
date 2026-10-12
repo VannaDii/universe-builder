@@ -67,8 +67,17 @@ checks source digests, retained rows, snapshots and historical ancestry in a
 private target, then revalidates the read-only original before exclusive durable
 publication. Unknown schemas, journal sidecars, changed sources and existing
 destinations are refused. It creates no installation or catalog registration.
-These are store APIs; the Dart operator CLI and installation conversion remain
-pending.
+The installation store exposes offline `convertInstallation` for the maintained
+serialized authority layout. It preserves enrolled/revoked profiles, exact
+credentials (including unenrolled files), catalog paths, aliases, audit entries
+and ordered grant scopes/limits. Pending purges, retained legacy import previews,
+unknown tables, orphan limits and missing/mismatched credentials block publication.
+It compares the converted grants through the ordinary installation reader and
+rechecks the original database and credential inventory before exclusively
+publishing the complete private directory. Existing installation identity is
+preserved; explicit conversion establishes one when absent for the Dart handshake.
+Conversion does not move or convert catalog packages or switch a live engine.
+These are store APIs; the Dart operator CLI remains pending.
 Focused functional checks currently cover macOS only.
 
 Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter

@@ -1,0 +1,391 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:crypto/crypto.dart';
+import 'package:sqlite3/sqlite3.dart';
+import 'package:ub_contracts/ub_contracts.dart';
+import 'package:ub_domain/ub_domain.dart';
+
+import 'credential_conversion.dart';
+import 'installation_schema.g.dart';
+import 'installation_store.dart';
+import 'operator_rows.dart';
+import 'operator_source.dart';
+import 'ownership.dart';
+import 'profile_credentials.dart';
+import 'relational.dart';
+
+enum InstallationConversionPoint { constructed, verified, beforePublish }
+
+enum InstallationConversionFailure {
+  invalidInput,
+  destinationExists,
+  sourceChanged,
+  verificationFailed,
+  unavailable,
+}
+
+/// Authority and credentials must never appear in parser/driver diagnostics.
+final class InstallationConversionException implements Exception {
+  const InstallationConversionException(this.failure);
+  final InstallationConversionFailure failure;
+  @override
+  String toString() => 'InstallationConversionException(${failure.name})';
+}
+
+CanonicalObject convertInstallation(String source, String destination) =>
+    convertInstallationWithHook(source, destination, (_) {});
+
+/// Internal seam for interrupted conversion and exclusive publication cases.
+CanonicalObject convertInstallationWithHook(
+  String source,
+  String destination,
+  void Function(InstallationConversionPoint) hook,
+) {
+  Directory? temporary;
+  Database? input, output;
+  try {
+    if (FileSystemEntity.typeSync(destination, followLinks: false) !=
+        FileSystemEntityType.notFound) {
+      throw const InstallationConversionException(
+        InstallationConversionFailure.destinationExists,
+      );
+    }
+    final parent = privateDirectory(
+      Directory(destination).absolute.parent.path,
+    );
+    if (FileSystemEntity.typeSync(source, followLinks: false) !=
+            FileSystemEntityType.directory ||
+        FileSystemEntity.typeSync('$source/profiles', followLinks: false) !=
+            FileSystemEntityType.directory) {
+      throw const InstallationConversionException(
+        InstallationConversionFailure.invalidInput,
+      );
+    }
+    final originalRoot = privateDirectory(source);
+    privateDirectory('$originalRoot/profiles');
+    final originalPath = '$originalRoot/installation.sqlite';
+    final original = openOriginalDatabase(originalPath);
+    input = original.database;
+    const scalars = [
+      'settings',
+      'profiles',
+      'catalog',
+      'aliases',
+      'purge_pending',
+      'audit',
+    ];
+    const allowed = {...scalars, 'grants', 'grant_limits', 'import_preview'};
+    for (final row in input.select(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
+    )) {
+      if (!allowed.contains(row['name'])) {
+        throw const FormatException('Unknown installation evidence table');
+      }
+    }
+    if (!sameConversionColumns(conversionColumns(input, 'grants'), [
+          'profile',
+          'universe',
+          'worlds',
+          'propose',
+          'edit',
+          'protected',
+        ]) ||
+        !sameConversionColumns(conversionColumns(input, 'grant_limits'), [
+          'profile',
+          'universe',
+          'limits',
+        ])) {
+      throw const FormatException('Unsupported serialized authority columns');
+    }
+    if (input.select('SELECT count(*) AS n FROM purge_pending').single['n'] !=
+            0 ||
+        conversionColumns(input, 'import_preview').isNotEmpty &&
+            input
+                    .select('SELECT count(*) AS n FROM import_preview')
+                    .single['n'] !=
+                0) {
+      throw const FormatException(
+        'Pending purge or legacy preview requires operator recovery',
+      );
+    }
+    temporary = Directory(parent).createTempSync('.installation-conversion-');
+    privateDirectory(temporary.path);
+    final root = privateDirectory('${temporary.path}/target');
+    privateDirectory('$root/profiles');
+    privateDirectory('$root/packages');
+    final path = '$root/installation.sqlite';
+    protectedFile(path, createNew: true);
+    output = sqlite3.open(path, mode: OpenMode.readWrite);
+    output.execute(installationSchema);
+    output.execute(
+      'PRAGMA synchronous=FULL; BEGIN IMMEDIATE; PRAGMA defer_foreign_keys=ON',
+    );
+    for (final table in scalars) {
+      final columns = conversionColumns(output, table);
+      if (!sameConversionColumns(columns, conversionColumns(input, table))) {
+        throw const FormatException('Unsupported installation scalar columns');
+      }
+      final write = output.prepare(
+        'INSERT INTO ${quoteIdentifier(table)} VALUES(${List.filled(columns.length, '?').join(',')})',
+      );
+      try {
+        conversionRows(
+          input,
+          table,
+          (row) => write.execute([for (final column in columns) row[column]]),
+        );
+      } finally {
+        write.close();
+      }
+    }
+    final grants = <GrantSpec>[];
+    conversionRows(input, 'grants', (row) {
+      final profile = ProfileId.parse(row['profile'] as String);
+      final universe = UniverseId.parse(row['universe'] as String);
+      bool flag(String column) {
+        if (row[column] != 0 && row[column] != 1) {
+          throw const FormatException('Invalid legacy grant flag');
+        }
+        return row[column] == 1;
+      }
+
+      final worldBody = row['worlds'];
+      final worlds = worldBody == null ? null : _worlds(worldBody as String);
+      final limitsRows = input!.select(
+        'SELECT limits FROM grant_limits WHERE profile=? AND universe=?',
+        [profile.value, universe.value],
+      );
+      if (limitsRows.length > 1) {
+        throw const FormatException('Duplicate grant limits');
+      }
+      final limits = limitsRows.isEmpty
+          ? GrantLimits()
+          : GrantLimits.fromWire(
+              _boundedJson(limitsRows.single['limits'] as String),
+            );
+      final grant = GrantSpec(
+        profileId: profile,
+        universeId: universe,
+        worlds: worlds,
+        propose: flag('propose'),
+        edit: flag('edit'),
+        protected: flag('protected'),
+        limits: limits,
+      );
+      grants.add(grant);
+      String state(Object? values) => values == null ? 'all' : 'listed';
+      output!.execute('INSERT INTO grants VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', [
+        profile.value,
+        universe.value,
+        state(grant.worlds),
+        grant.propose ? 1 : 0,
+        grant.edit ? 1 : 0,
+        grant.protected ? 1 : 0,
+        state(limits.entities),
+        state(limits.predicates),
+        state(limits.continuities),
+        limits.expiresAt?.toString(),
+        limits.delegatedCommit ? 1 : 0,
+        limits.allowShared ? 1 : 0,
+      ]);
+      final collections = <String, List<String>?>{
+        'grant_worlds': grant.worlds?.map((id) => id.value).toList(),
+        'grant_entities': limits.entities?.map((id) => id.value).toList(),
+        'grant_predicates': limits.predicates?.map((id) => id.value).toList(),
+        'grant_continuities': limits.continuities
+            ?.map((id) => id.value)
+            .toList(),
+      };
+      for (final entry in collections.entries) {
+        final values = entry.value ?? const <String>[];
+        for (var ordinal = 0; ordinal < values.length; ordinal++) {
+          output.execute('INSERT INTO ${entry.key} VALUES(?,?,?,?)', [
+            profile.value,
+            universe.value,
+            ordinal,
+            values[ordinal],
+          ]);
+        }
+      }
+    });
+    if (input
+            .select(
+              'SELECT count(*) AS n FROM grant_limits l WHERE NOT EXISTS(SELECT 1 FROM grants g WHERE g.profile=l.profile AND g.universe=l.universe)',
+            )
+            .single['n'] !=
+        0) {
+      throw const FormatException('Orphan grant limits');
+    }
+    for (final table in scalars) {
+      compareConversionRows(input, output, table);
+    }
+    // The new handshake requires an identity. Explicit offline cutover establishes
+    // it only when absent; ordinary opening never assigns or replaces one.
+    final instance = output.select(
+      "SELECT value FROM settings WHERE key='installation_instance'",
+    );
+    final instanceEstablished = instance.isEmpty;
+    if (instanceEstablished) {
+      output.execute("INSERT INTO settings VALUES('installation_instance',?)", [
+        OperationId.generate().value,
+      ]);
+    } else {
+      OperationId.parse(instance.single['value'] as String);
+    }
+    output.execute('COMMIT');
+    final profiles = <ProfileId, String>{};
+    conversionRows(input, 'profiles', (row) {
+      profiles[ProfileId.parse(row['id'] as String)] = row['hash'] as String;
+    });
+    final credentials = <String, String>{};
+    for (final entry in Directory(
+      '$originalRoot/profiles',
+    ).listSync(followLinks: false)) {
+      final name = entry.uri.pathSegments.last;
+      if (!name.endsWith('.json')) {
+        throw const FormatException('Unsupported credential inventory');
+      }
+      final profile = ProfileId.parse(name.substring(0, name.length - 5));
+      final report = convertCredential(
+        entry.path,
+        '$root/profiles/${profile.value}.sqlite',
+      );
+      final credential = ProfileCredentialStore.read(
+        root: root,
+        profile: profile,
+      );
+      final expected = profiles[profile];
+      if (expected != null &&
+          sha256.convert(utf8.encode(credential)).toString() != expected) {
+        throw const FormatException('Enrolled credential hash mismatch');
+      }
+      credentials[entry.path] = WireFields(report, {
+        'source_sha256',
+        'original_preserved',
+        'credential_verified',
+      }).string('source_sha256');
+    }
+    for (final profile in profiles.keys) {
+      if (!credentials.containsKey(
+        '$originalRoot/profiles/${profile.value}.json',
+      )) {
+        throw const FormatException('Missing enrolled credential');
+      }
+    }
+    hook(InstallationConversionPoint.constructed);
+    if (output.select('PRAGMA foreign_key_check').isNotEmpty) {
+      throw const FormatException('Installation foreign key mismatch');
+    }
+    output.close();
+    output = null;
+    final reader = SqliteInstallationStore.openExisting(root);
+    try {
+      for (final grant in grants) {
+        if (reader
+                .readGrant(grant.profileId, grant.universeId)
+                .toWire()
+                .toText() !=
+            grant.toWire().toText()) {
+          throw const FormatException('Whole grant comparison failed');
+        }
+      }
+    } finally {
+      reader.close();
+    }
+    hook(InstallationConversionPoint.verified);
+    output = sqlite3.open(path, mode: OpenMode.readWrite);
+    output.execute(
+      'PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE',
+    );
+    output.close();
+    output = null;
+    syncPrivateFileAndDirectory(path);
+    syncPrivateDirectory('$root/profiles');
+    syncPrivateDirectory('$root/packages');
+    syncPrivateDirectory(root);
+    hook(InstallationConversionPoint.beforePublish);
+    if (originalFileHash(originalPath) != original.hash) {
+      throw const InstallationConversionException(
+        InstallationConversionFailure.sourceChanged,
+      );
+    }
+    verifyOriginalDatabase(originalPath, original.hash);
+    final currentPaths = Directory('$originalRoot/profiles')
+        .listSync(followLinks: false)
+        .map((entry) => entry.path)
+        .toSet();
+    if (currentPaths.length != credentials.length ||
+        credentials.keys.any((path) => !currentPaths.contains(path))) {
+      throw const InstallationConversionException(
+        InstallationConversionFailure.sourceChanged,
+      );
+    }
+    for (final entry in credentials.entries) {
+      if (originalFileHash(entry.key) != entry.value) {
+        throw const InstallationConversionException(
+          InstallationConversionFailure.sourceChanged,
+        );
+      }
+    }
+    publishConversionDirectory(root, destination);
+    return CanonicalObject([
+      MapEntry('source_sha256', CanonicalString(original.hash)),
+      MapEntry('profiles', CanonicalNumber(profiles.length.toString())),
+      MapEntry('credentials', CanonicalNumber(credentials.length.toString())),
+      MapEntry('grants', CanonicalNumber(grants.length.toString())),
+      MapEntry('compared_tables', CanonicalNumber(scalars.length.toString())),
+      MapEntry(
+        'instance_identity_established',
+        CanonicalBool(instanceEstablished),
+      ),
+      const MapEntry('original_preserved', CanonicalBool(true)),
+      const MapEntry('catalog_paths_preserved', CanonicalBool(true)),
+    ]);
+  } on InstallationConversionException {
+    rethrow;
+  } on CredentialConversionException {
+    throw const InstallationConversionException(
+      InstallationConversionFailure.invalidInput,
+    );
+  } on FormatException {
+    throw const InstallationConversionException(
+      InstallationConversionFailure.invalidInput,
+    );
+  } on Object {
+    throw const InstallationConversionException(
+      InstallationConversionFailure.unavailable,
+    );
+  } finally {
+    try {
+      try {
+        output?.close();
+      } finally {
+        try {
+          input?.close();
+        } finally {
+          temporary?.deleteSync(recursive: true);
+        }
+      }
+    } on Object {
+      throw const InstallationConversionException(
+        InstallationConversionFailure.unavailable,
+      );
+    }
+  }
+}
+
+CanonicalValue _boundedJson(String body) {
+  if (utf8.encode(body).length > 4194304) {
+    throw const FormatException('Serialized grant bound exceeded');
+  }
+  return CanonicalValue.parseWireJson(body);
+}
+
+List<WorldId> _worlds(String body) {
+  final value = _boundedJson(body);
+  if (value is! CanonicalArray) {
+    throw const FormatException('Invalid world scope');
+  }
+  return [for (final id in value.items) WorldId.parse(wireString(id))];
+}
