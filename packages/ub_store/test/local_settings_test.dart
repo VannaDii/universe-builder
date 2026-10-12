@@ -235,6 +235,29 @@ void main() {
     }
   });
 
+  test(
+    'nonsecret startup selection does not read a damaged unused endpoint',
+    () {
+      final store = LocalSettingsStore.create(
+        path,
+        installationId: 'installation',
+      );
+      store.save(usePostgres: false, endpoint: endpoint);
+      store.close();
+      final db = sqlite3.open(path);
+      db.execute('PRAGMA ignore_check_constraints=ON');
+      db.execute('UPDATE local_settings SET endpoint_nonce=?', [Uint8List(1)]);
+      db.close();
+      final reopened = LocalSettingsStore.openExisting(path);
+      try {
+        expect(reopened.readBackendSelection(), isFalse);
+        expect(reopened.read, throwsFormatException);
+      } finally {
+        reopened.close();
+      }
+    },
+  );
+
   test('partial encrypted rows cannot be saved by SQLite', () {
     final store = LocalSettingsStore.create(
       path,

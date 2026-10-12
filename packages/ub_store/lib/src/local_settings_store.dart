@@ -92,7 +92,7 @@ final class LocalSettingsStore {
         }
       }
       final store = LocalSettingsStore._(db, lock);
-      store.read();
+      store.readBackendSelection();
       for (final suffix in ['-wal', '-shm']) {
         if (File('$actualPath$suffix').existsSync()) {
           protectedFile('$actualPath$suffix');
@@ -130,9 +130,17 @@ final class LocalSettingsStore {
     if (_closed) throw StateError('Local settings store is closed');
   }
 
-  SavedLocalSettings read() {
+  /// Startup reads only nonsecret columns until PostgreSQL is selected.
+  bool readBackendSelection() {
     _ensureOpen();
-    final rows = _db.select('SELECT * FROM local_settings');
+    return _metadata(
+      _db.select(
+        'SELECT singleton, installation_id, use_postgres FROM local_settings',
+      ),
+    ).usePostgres;
+  }
+
+  ({String id, bool usePostgres}) _metadata(ResultSet rows) {
     if (rows.length != 1) {
       throw const FormatException('Missing or ambiguous local settings.');
     }
@@ -147,6 +155,14 @@ final class LocalSettingsStore {
         (backend != 0 && backend != 1)) {
       throw const FormatException('Invalid local settings.');
     }
+    return (id: id, usePostgres: backend == 1);
+  }
+
+  SavedLocalSettings read() {
+    _ensureOpen();
+    final rows = _db.select('SELECT * FROM local_settings');
+    final metadata = _metadata(rows);
+    final row = rows.single;
     final reference = row['endpoint_key_reference'];
     final ciphertext = row['endpoint_ciphertext'];
     final nonce = row['endpoint_nonce'];
@@ -156,7 +172,7 @@ final class LocalSettingsStore {
         ciphertext == null &&
         nonce == null &&
         tag == null &&
-        backend == 0) {
+        !metadata.usePostgres) {
       endpoint = null;
     } else if (reference is String &&
         ciphertext is Uint8List &&
@@ -172,8 +188,8 @@ final class LocalSettingsStore {
       throw const FormatException('Invalid encrypted local settings.');
     }
     return SavedLocalSettings(
-      installationId: id,
-      usePostgres: backend == 1,
+      installationId: metadata.id,
+      usePostgres: metadata.usePostgres,
       endpoint: endpoint,
     );
   }

@@ -278,7 +278,7 @@ scalar encryption with pinned `cryptography` 2.9.0 AES-256-GCM, random 256-bit
 installation keys and fresh 96-bit nonces. Authenticated associated data binds
 the installation identity, endpoint field purpose, format version and key
 reference. Immutable ciphertext/nonce/tag columns contain neither plaintext nor
-key material. Explicit key import/export is for the future OS credential-store
+key material. Explicit key import/export is for the native OS credential-store
 adapter; keys must not be saved beside these columns. Unlocking rejects altered
 columns, another installation or a wrong key with redacted errors, and saving
 rejects Unicode that cannot round-trip exactly. `ub_store/local_settings.dart`
@@ -302,6 +302,16 @@ packaging qualification. Disposable native tests cover settings restart, key
 isolation, cleanup, and a compiled CLI reading the same key across processes.
 Other OS adapters explicitly refuse saved-key operations until ported; the
 environment configuration path remains independent of them.
+`ub_service/local_configuration.dart` now connects protected saved settings and
+OS key retrieval to the same backend resolver used for environment inputs.
+Saved backend selection reads only nonsecret columns. An explicit environment
+backend selection takes precedence without reading saved settings; a supplied
+endpoint overrides the saved secret without unlocking or persisting it. Selected
+saved PostgreSQL credentials use their exact key reference and installation
+identity; missing/unavailable keys or failed decryption stop resolution with
+redacted errors and preserve settings. The loader never regenerates keys,
+creates settings, transfers data or starts a backend. Empty/invalid environment
+values keep the shared resolver's existing failure behavior.
 Driver integration/connection verification, setup orchestration and backend
 startup remain pending; these components do not make PostgreSQL available in the
 Dart engine yet. Native ownership remains qualified on macOS; the other platform

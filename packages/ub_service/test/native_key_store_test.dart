@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_service/native_credentials.dart';
+import 'package:ub_service/local_configuration.dart';
 import 'package:ub_service/ub_service.dart';
 import 'package:ub_store/local_settings.dart';
 
@@ -51,27 +52,27 @@ void main() {
           '${directory.path}/settings.sqlite',
         );
         final saved = settings.read();
-        final resolved = await BackendConfiguration.resolve(
+        final resolved = await LocalBackendConfiguration.resolve(
           environment: {},
-          savedUsePostgres: saved.usePostgres,
-          readSavedEndpoint: () async {
-            final unlocked = await keys.read(saved.endpoint!.keyReference);
-            if (unlocked == null) {
-              throw const ConfigurationException(
-                ConfigurationFailure.savedEndpointUnavailable,
-              );
-            }
-            return cipher.decrypt(
-              encrypted: saved.endpoint!,
-              installationId: saved.installationId,
-              key: unlocked,
-            );
-          },
+          settings: settings,
         ) as PostgresConfiguration;
         expect(resolved.endpoint.expose(), endpoint.expose());
         expect(await keys.remove(reference), isTrue);
         expect(await keys.read(reference), isNull);
         expect(await keys.remove(reference), isFalse);
+        await expectLater(
+          LocalBackendConfiguration.resolve(
+            environment: {},
+            settings: settings,
+          ),
+          throwsA(
+            isA<ConfigurationException>().having(
+              (e) => e.failure,
+              'failure',
+              ConfigurationFailure.savedEndpointUnavailable,
+            ),
+          ),
+        );
         expect(settings.read().usePostgres, isTrue);
         expect(
           settings.read().endpoint!.ciphertext,

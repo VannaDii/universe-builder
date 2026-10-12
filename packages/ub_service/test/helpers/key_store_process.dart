@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_service/native_credentials.dart';
+import 'package:ub_service/local_configuration.dart';
 import 'package:ub_service/ub_service.dart';
 import 'package:ub_store/local_settings.dart';
 
@@ -43,14 +44,11 @@ Future<void> main(List<String> args) async {
         await keys.remove(saved.endpoint!.keyReference);
         stdout.writeln('removed');
       } else {
-        final key = await keys.read(saved.endpoint!.keyReference);
-        if (key == null) throw StateError('Disposable key absent');
-        final restored = await cipher.decrypt(
-          encrypted: saved.endpoint!,
-          installationId: saved.installationId,
-          key: key,
-        );
-        if (restored.expose() != endpoint.expose()) {
+        final restored = await LocalBackendConfiguration.resolve(
+          environment: {},
+          settings: store,
+        ) as PostgresConfiguration;
+        if (restored.endpoint.expose() != endpoint.expose()) {
           throw StateError('Disposable endpoint mismatch');
         }
         stdout.writeln('read');
