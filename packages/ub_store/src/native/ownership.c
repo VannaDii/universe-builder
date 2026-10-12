@@ -21,12 +21,38 @@ UB_EXPORT int32_t ub_sync_private(const char *path, const char *directory) {
 UB_EXPORT int32_t ub_file_identity(const char *path, char *device, char *inode) {
   (void)path; (void)device; (void)inode; return 50;
 }
+UB_EXPORT int32_t ub_read_image(const char *path, uint8_t *bytes, int32_t capacity, int32_t *length) {
+  (void)path; (void)bytes; (void)capacity; (void)length; return 50;
+}
 #else
 #include <fcntl.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #define UB_EXPORT __attribute__((visibility("default")))
+
+/* Read the same checked descriptor; never follow a final symlink or block on a FIFO. */
+UB_EXPORT int32_t ub_read_image(const char *path, uint8_t *bytes, int32_t capacity, int32_t *length) {
+  if (capacity != 10485761) return EINVAL;
+  int fd = open(path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
+  if (fd < 0) return errno;
+  struct stat info;
+  int error = 0;
+  if (fstat(fd, &info) != 0) error = errno;
+  else if (!S_ISREG(info.st_mode)) error = EINVAL;
+  int32_t total = 0;
+  while (!error && total < capacity) {
+    ssize_t count = read(fd, bytes + total, (size_t)(capacity - total));
+    if (count == 0) break;
+    if (count < 0) {
+      if (errno == EINTR) continue;
+      error = errno;
+    } else total += (int32_t)count;
+  }
+  close(fd);
+  *length = total;
+  return error;
+}
 
 static int protected_open(const char *path, int32_t create, int *error) {
   int flags = O_RDWR | O_NOFOLLOW | O_CLOEXEC;

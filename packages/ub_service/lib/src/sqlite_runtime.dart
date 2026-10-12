@@ -75,6 +75,8 @@ final class NativeSqliteRuntime {
           LibraryEngineRequest(:final universe) => universe,
           LoadDraftEngineRequest(:final universe) ||
           SaveDraftEngineRequest(:final universe) => universe,
+          StageImageEngineRequest(:final universe) ||
+          ImagePreviewEngineRequest(:final universe) => universe,
           AuthorWritingEngineRequest(:final universe) ||
           StageSourceEngineRequest(:final universe) ||
           ReviewEngineRequest(:final universe) ||
@@ -114,6 +116,10 @@ final class NativeSqliteRuntime {
       );
       if (request is LibraryEngineRequest) {
         return await workflow.libraryRequest(request);
+      }
+      if (request is StageImageEngineRequest ||
+          request is ImagePreviewEngineRequest) {
+        return await workflow.imageRequest(request);
       }
       if (request is LoadDraftEngineRequest ||
           request is SaveDraftEngineRequest) {

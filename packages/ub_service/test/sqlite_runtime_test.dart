@@ -2,6 +2,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:test/test.dart' hide Description;
@@ -1951,6 +1952,174 @@ void main() {
       )).toText(),
       published.toText(),
     );
+  });
+
+  test('private images retain originals without publication and preview only a pinned canonical asset', () async {
+    final bytes = base64.decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR4nGP4z8DwHwQBEPgD/U6VwW8AAAAASUVORK5CYII=',
+    );
+    final source = File('${root.path}/Portrait é.png')..writeAsBytesSync(bytes);
+    final connection = runtime.connect(hello(author.id));
+    final oldContext = await readContext(connection);
+    final imported = WireFields(
+      await engine(
+        connection,
+        StageImageEngineRequest(
+          universe: const Selector('World'),
+          source: source.path,
+        ),
+      ),
+      {'canonical', 'asset_id', 'preview', 'metadata', 'operations'},
+    );
+    expect(imported.boolean('canonical'), isFalse);
+    expect(imported.string('preview'), startsWith('data:image/jpeg;base64,'));
+    final operation = DomainOperation.fromWire(
+      imported.array('operations').single,
+    ) as AddImageAssetOperation;
+    final asset = operation.record;
+    final id = RecordId.parse(imported.string('asset_id'));
+    expect(operation.clientRef, id.value);
+    expect(asset.originalName, 'Portrait é.png');
+    expect(asset.mediaType, 'image/png');
+    expect(asset.byteSize, BigInt.from(bytes.length));
+    expect(
+      imported.require('metadata').toText(),
+      CanonicalObject(
+        asset.toWire().fields.where((f) => f.key != 'record_kind'),
+      ).toText(),
+    );
+    ImagePreviewEngineRequest preview(ContextId context) =>
+        ImagePreviewEngineRequest(
+          universe: const Selector('World'),
+          contextId: context,
+          asset: id,
+        );
+    await expectLater(
+      engine(connection, preview(oldContext.contextId)),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    await runtime.close();
+    final package = OwnedSqliteDatabase.openExisting(path);
+    try {
+      package.recover();
+      final kernel = SqliteKernel(package.database, f.u);
+      expect(kernel.imageBytes(asset), orderedEquals(bytes));
+      expect(
+        kernel.journal.head(draft.proposal.baseFrame.continuity),
+        draft.proposal.baseFrame.revision,
+      );
+      expect(kernel.identityExists(id), isFalse);
+    } finally {
+      package.close();
+    }
+    seedReadRows([
+      RecordVersion.build(
+        recordVersionId: RecordVersionId.generate(),
+        identity: RecordIdentity(
+          universeId: f.u,
+          recordId: id,
+          recordKind: RecordKind.imageAsset,
+        ),
+        payload: asset,
+      ),
+    ]);
+    runtime = NativeSqliteRuntime(authority: authority);
+    final restarted = runtime.connect(hello(author.id));
+    await expectLater(
+      engine(restarted, preview(oldContext.contextId)),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    final current = await readContext(restarted);
+    await expectLater(
+      engine(
+        restarted,
+        ImagePreviewEngineRequest(
+          universe: const Selector('World'),
+          contextId: current.contextId,
+          asset: f.id(99),
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    final result = await engine(restarted, preview(current.contextId));
+    expect(
+      WireFields(result, {'asset_id', 'metadata', 'preview'}).string('preview'),
+      imported.string('preview'),
+    );
+    await runtime.close();
+    runtime = NativeSqliteRuntime(authority: authority);
+    expect(
+      (await engine(
+        runtime.connect(hello(author.id)),
+        preview(current.contextId),
+      )).toText(),
+      result.toText(),
+    );
+  });
+
+  test('private image import refuses writers symlinks nonregular files and invalid bounded content', () async {
+    final connection = runtime.connect(hello(author.id));
+    final source = File('${root.path}/invalid.png')
+      ..writeAsStringSync('not an image');
+    final link = Link('${root.path}/linked.png')..createSync(source.path);
+    final fifo = '${root.path}/pipe.png';
+    expect((await Process.run('mkfifo', [fifo])).exitCode, 0);
+    authority.grant(
+      author,
+      GrantSpec(
+        profileId: writer.id,
+        universeId: f.u,
+        worlds: null,
+        propose: true,
+        edit: true,
+        protected: true,
+      ),
+    );
+    StageImageEngineRequest request(String path) => StageImageEngineRequest(
+      universe: const Selector('World'),
+      source: path,
+    );
+    await expectLater(
+      engine(
+        runtime.connect(hello(writer.id)),
+        request('/unreadable/never-opened'),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    await expectLater(
+      engine(connection, request(link.path)),
+      throwsA(isA<FileSystemException>()),
+    );
+    await expectLater(
+      engine(connection, request(root.path)),
+      throwsA(isA<FileSystemException>()),
+    );
+    await expectLater(
+      engine(connection, request(fifo)),
+      throwsA(isA<FileSystemException>()),
+    );
+    await expectLater(
+      engine(connection, request(source.path)),
+      throwsA(isA<FormatException>()),
+    );
+    source.writeAsBytesSync(List.filled(maxImageBytes + 1, 0));
+    await expectLater(
+      engine(connection, request(source.path)),
+      throwsA(isA<FormatException>()),
+    );
+    source.writeAsBytesSync([]);
+    await expectLater(
+      engine(connection, request(source.path)),
+      throwsA(isA<FormatException>()),
+    );
+    await runtime.close();
+    final package = OwnedSqliteDatabase.openExisting(path);
+    try {
+      package.recover();
+      expect(WorkflowStorage(package.database).keys('image-asset:'), isEmpty);
+    } finally {
+      package.close();
+    }
   });
 
   DraftContent editorContent(

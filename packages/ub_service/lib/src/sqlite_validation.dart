@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
@@ -389,6 +390,83 @@ final class SqliteValidationWorkflow {
       frame: frame,
       focus: focus,
     );
+  }
+
+  /// Private image import retains originals but never publishes a record.
+  Future<CanonicalValue> imageRequest(EngineRequest request) async {
+    try {
+      return await authority.withUniverseAuthority(principal, universe, (
+        current,
+      ) {
+        if (!current.principal.author) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        final selector = switch (request) {
+          StageImageEngineRequest(:final universe) ||
+          ImagePreviewEngineRequest(:final universe) => universe,
+          _ => throw const InvalidArgumentError(
+            field: 'method',
+            message: 'requires image staging or preview',
+          ),
+        };
+        if (authority
+                .resolveUniverseAlias(principal, selector.value)
+                .universeId !=
+            universe) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        final kernel = SqliteKernel(package.database, universe);
+        final RecordId id;
+        final ImageAssetRecord asset;
+        final staged = request is StageImageEngineRequest;
+        if (request is StageImageEngineRequest) {
+          final imported = kernel.stageImageBytes(
+            readImageFile(request.source),
+            File(request.source).uri.pathSegments.last,
+          );
+          id = imported.record;
+          asset = imported.asset;
+        } else {
+          final preview = request as ImagePreviewEngineRequest;
+          final frame = _contextFrame(preview.contextId, current);
+          final record = _canon(
+            frame.continuity,
+            frame.revision,
+          ).where((r) => r.identity.recordId == preview.asset).firstOrNull;
+          if (record?.payload is! ImageAssetRecord) {
+            throw const NotFoundOrNotAccessibleError(message: 'resource');
+          }
+          id = preview.asset;
+          asset = record!.payload as ImageAssetRecord;
+        }
+        return CanonicalObject([
+          if (staged) const MapEntry('canonical', CanonicalBool(false)),
+          MapEntry('asset_id', CanonicalString(id.value)),
+          MapEntry(
+            'metadata',
+            CanonicalObject(
+              asset.toWire().fields.where((f) => f.key != 'record_kind'),
+            ),
+          ),
+          MapEntry('preview', CanonicalString(kernel.imagePreview(asset))),
+          if (staged)
+            MapEntry(
+              'operations',
+              CanonicalArray([
+                AddImageAssetOperation(
+                  clientRef: id.value,
+                  record: asset,
+                ).toWire(),
+              ]),
+            ),
+        ]);
+      });
+    } on InstallationException catch (error) {
+      if (error.failure == InstallationFailure.denied) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      rethrow;
+    }
   }
 
   /// Immutable private editor saves. This retains typed intent without compiling

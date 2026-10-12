@@ -2,6 +2,17 @@ import 'dart:ffi';
 
 const _asset = 'package:ub_store/src/native_ownership.dart';
 
+@Native<Int32 Function(Pointer<Char>, Pointer<Uint8>, Int32, Pointer<Int32>)>(
+  symbol: 'ub_read_image',
+  assetId: _asset,
+)
+external int nativeReadImage(
+  Pointer<Char> path,
+  Pointer<Uint8> bytes,
+  int capacity,
+  Pointer<Int32> length,
+);
+
 @Native<Int32 Function(Pointer<Char>)>(
   symbol: 'ub_private_dir',
   assetId: _asset,
