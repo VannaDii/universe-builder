@@ -1,6 +1,61 @@
+import 'dart:async';
+
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/ub_store.dart' show Assignment;
+
+import 'assessment_resolution.dart';
+import 'proposal_state.dart';
+
+/// Capture after proposal admission while the owning authority lock and universe
+/// read context remain held. Authority values must come from the current owner.
+/// Unassessed proposals keep their ordinary write-boundary admission; only an
+/// actual selection invokes complete assessment visibility and byte verification.
+Future<ValidationCapture> captureValidationBinding({
+  required StoredProposal proposal,
+  required String authorityDigest,
+  required BigInt? authoritySequence,
+  required FutureOr<String?> Function(String) readLatestKey,
+  required FutureOr<CanonicalValue?> Function(String) readWorkflow,
+  required FutureOr<RevisionId> Function(ContinuityId) readHead,
+  required FutureOr<AssessmentReview> Function(ProposalRef) resolveSelected,
+}) async {
+  final reference = proposal.reference;
+  var selection = await readAssessmentSelection(
+    reference: reference,
+    readLatestKey: readLatestKey,
+    readWorkflow: readWorkflow,
+  );
+  AssessmentState assessment = const AbsentAssessment();
+  AssessmentEnvelope? envelope;
+  if (selection.selected != null) {
+    final resolved = await resolveSelected(reference);
+    selection = resolved.selection;
+    assessment = resolved.state;
+    envelope = resolved.envelope;
+  }
+  final SubmittedInput input;
+  if (assessment is BoundAssessment && envelope != null) {
+    input = SourceAssessedCandidateInput(
+      proposal: reference,
+      sources: envelope.body.sources,
+      inventoryDigest: assessment.inventoryDigest,
+    );
+  } else {
+    input = recordCandidateInput(reference, proposal.changes);
+  }
+  return ValidationCapture(
+    selection: selection,
+    assessment: assessment,
+    submittedInput: input,
+    head: await readHead(proposal.proposal.baseFrame.continuity),
+    latestProposalKey: await readLatestKey(
+      'proposal:${reference.proposalId.value}:',
+    ),
+    authorityDigest: authorityDigest,
+    authoritySequence: authoritySequence,
+  );
+}
 
 BigInt? _sequence(BigInt? value) {
   if (value != null &&

@@ -13,6 +13,26 @@ String assessmentSelectionPrefix(ProposalRef proposal) =>
 String assessmentEnvelopeKey(AssessmentRef reference) =>
     'assessment:${reference.assessmentId.value}';
 
+Future<AssessmentSelection> readAssessmentSelection({
+  required ProposalRef reference,
+  required FutureOr<String?> Function(String) readLatestKey,
+  required FutureOr<CanonicalValue?> Function(String) readWorkflow,
+}) async {
+  final key = await readLatestKey(assessmentSelectionPrefix(reference));
+  if (key == null) {
+    return AssessmentSelection(
+      proposal: reference,
+      generation: BigInt.zero,
+      selected: null,
+    );
+  }
+  final value = await readWorkflow(key);
+  if (value == null) {
+    throw const NotFoundOrNotAccessibleError(message: 'resource');
+  }
+  return AssessmentSelection.fromWire(value);
+}
+
 /// Admit the whole frozen candidate, including retained historical dependencies.
 /// The owner must supply current grants/scope after installation admission and
 /// hold its consistent authority/universe context throughout the reads.
@@ -110,19 +130,11 @@ Future<AssessmentReview> resolveAssessment({
     throw denied;
   }
   await checkAccess(proposal, null);
-  final key = await readLatestKey(assessmentSelectionPrefix(reference));
-  final AssessmentSelection selection;
-  if (key == null) {
-    selection = AssessmentSelection(
-      proposal: reference,
-      generation: BigInt.zero,
-      selected: null,
-    );
-  } else {
-    final value = await readWorkflow(key);
-    if (value == null) throw denied;
-    selection = AssessmentSelection.fromWire(value);
-  }
+  final selection = await readAssessmentSelection(
+    reference: reference,
+    readLatestKey: readLatestKey,
+    readWorkflow: readWorkflow,
+  );
   Future<AssessmentEnvelope> load(AssessmentRef requested) async {
     final value = await readWorkflow(assessmentEnvelopeKey(requested));
     if (value == null) throw denied;

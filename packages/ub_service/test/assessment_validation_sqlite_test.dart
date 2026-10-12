@@ -9,6 +9,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/assessment_validation.dart';
 import 'package:ub_service/assessment_resolution.dart';
 import 'package:ub_service/proposal_state.dart';
+import 'package:ub_service/validation_binding.dart';
 import 'package:ub_store/src/database.dart';
 import 'package:ub_store/src/workflow_storage.dart';
 
@@ -114,6 +115,22 @@ void main() {
           DeclaredConclusion.unresolved,
         );
         expect(review.envelope!.toWire().toText(), envelope.toWire().toText());
+        final capture = await captureValidationBinding(
+          proposal: proposal,
+          authorityDigest: 'disposable owner authority',
+          authoritySequence: BigInt.parse('9007199254740993'),
+          readLatestKey: workflow.latestKey,
+          readWorkflow: workflow.get,
+          readHead: (_) => proposal.proposal.baseFrame.revision,
+          resolveSelected: (_) => review,
+        );
+        expect(capture.submittedInput, isA<SourceAssessedCandidateInput>());
+        expect(
+          capture.selection.toWire().toText(),
+          selection.toWire().toText(),
+        );
+        expect(capture.latestProposalKey, proposal.key);
+        expect(capture.authoritySequence, BigInt.parse('9007199254740993'));
         expect(workflow.keys('approval:'), isEmpty);
         expect(workflow.keys('validation:'), isEmpty);
       } finally {

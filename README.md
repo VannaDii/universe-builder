@@ -421,8 +421,13 @@ Assessment access now checks continuity limits before reads, complete-candidate
 entity/predicate boundaries, and scoped visibility including historical
 dependencies. Resolver and SQLite-retention tests use these checks. The owner
 must still supply current installation grants within its consistent authority
-context; authority coordination,
-capture and durable attachment/validation routes still require integration.
+context. Authority coordination and durable attachment/validation routes still
+require integration. Validation
+capture now resolves selected assessments into exact submitted source/inventory
+bindings, preserves stale/unavailable states as record input, and captures current
+head, proposal key and supplied authority digest/sequence. Unassessed proposals
+retain ordinary write-boundary admission. The owner must hold authority and
+universe coordination while capturing and revalidating before atomic retention.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.
