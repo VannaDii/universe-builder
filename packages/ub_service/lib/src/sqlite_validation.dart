@@ -1096,6 +1096,69 @@ final class SqliteValidationWorkflow {
     );
   });
 
+  /// Exact private author review, including the frozen historical diff. Reading
+  /// an older proposal remains possible; latest reports version currentness.
+  Future<CanonicalObject> review(ProposalRef reference) =>
+      authority.withUniverseAuthority(
+        principal,
+        universe,
+        (current) => _review(reference, current),
+      );
+
+  Future<CanonicalObject> _review(
+    ProposalRef reference,
+    CurrentUniverseAuthority current,
+  ) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final stored = _proposal(reference, current);
+    final assessment = await _assessmentReview(reference, current);
+    final originals = {
+      for (final row in _canon(
+        stored.proposal.baseFrame.continuity,
+        stored.proposal.baseFrame.revision,
+      ))
+        row.identity.recordId: row,
+    };
+    return CanonicalObject([
+      MapEntry('proposal', stored.proposal.toWire()),
+      MapEntry(
+        'changes',
+        CanonicalArray(stored.changes.map((c) => c.toCanonical())),
+      ),
+      MapEntry(
+        'diff',
+        CanonicalArray(
+          stored.changes.map(
+            (change) => CanonicalObject([
+              MapEntry('record', CanonicalString(change.recordId.value)),
+              MapEntry(
+                'before',
+                originals[change.recordId]?.toWire() ?? const CanonicalNull(),
+              ),
+              MapEntry(
+                'after',
+                change.next?.toCanonical() ?? const CanonicalNull(),
+              ),
+            ]),
+          ),
+        ),
+      ),
+      MapEntry('footprint', stored.footprint.toWire()),
+      MapEntry(
+        'latest',
+        CanonicalBool(
+          _workflow.latestKey(
+                'proposal:${stored.proposal.proposalId.value}:',
+              ) ==
+              stored.key,
+        ),
+      ),
+      MapEntry('assessment_review', assessment.toWire()),
+    ]);
+  }
+
   Future<({ProposalViewResult result, Delivery delivery})> getProposalRequest(
     GetProposalRequest request,
   ) => authority.withUniverseAuthority(principal, universe, (current) async {

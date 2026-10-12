@@ -216,6 +216,163 @@ void main() {
     perspective: perspective,
   );
 
+  test('private author review retains exact frozen history across revision and reopen', () async {
+    SqliteValidationWorkflow owner() => SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: author,
+    );
+    await expectLater(
+      service.review(proposal.reference),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    final first = await owner().review(proposal.reference);
+    final fields = WireFields(first, {
+      'proposal',
+      'changes',
+      'diff',
+      'footprint',
+      'latest',
+      'assessment_review',
+    });
+    expect(
+      fields.require('proposal').toText(),
+      proposal.proposal.toWire().toText(),
+    );
+    expect(fields.boolean('latest'), isTrue);
+    final changes = fields.array('changes');
+    final diff = fields.array('diff');
+    expect(diff, hasLength(changes.length));
+    for (var i = 0; i < diff.length; i++) {
+      final entry = WireFields(diff[i], {'record', 'before', 'after'});
+      expect(entry.require('before'), const CanonicalNull());
+      expect(
+        entry.require('after').toText(),
+        proposal.changes[i].next!.toCanonical().toText(),
+      );
+    }
+    expect(
+      AssessmentReview.fromWire(fields.require('assessment_review')).envelope,
+      isNull,
+    );
+    final revised = await propose(proposals.revise(proposal));
+    final historical = await owner().review(proposal.reference);
+    final old = WireFields(historical, {
+      'proposal',
+      'changes',
+      'diff',
+      'footprint',
+      'latest',
+      'assessment_review',
+    });
+    expect(old.boolean('latest'), isFalse);
+    expect(old.require('diff').toText(), fields.require('diff').toText());
+    kernel.commit(input('advance-after-review', [f.row(77, f.entity())]));
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    final reopened = await owner().review(proposal.reference);
+    expect(reopened.toText(), historical.toText());
+    final latest = WireFields(await owner().review(reference(revised)), {
+      'proposal',
+      'changes',
+      'diff',
+      'footprint',
+      'latest',
+      'assessment_review',
+    });
+    expect(latest.boolean('latest'), isTrue);
+    expect(WorkflowStorage(package.database).keys('approval:'), isEmpty);
+  });
+
+  test('private author review binds edited records to their pinned before versions', () async {
+    final original = f.row(77, f.entity());
+    kernel.commit(input('review-original', [original]));
+    final owner = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: author,
+    );
+    final opened = await owner.openContext(contextRequest());
+    final edit = await owner.proposeRequest(
+      CreateProposalRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        operations: [
+          AddNameOperation(
+            record: f.ref(77),
+            expectedVersion: f.ver(77),
+            name: const ContextualName(
+              text: 'Iris',
+              validity: UnspecifiedValidity(),
+            ),
+          ),
+        ],
+        submission: Submission.draft,
+        rationale: 'An explicit name',
+        idempotencyKey: 'review-edit',
+      ),
+      isValidationActive: (_) => false,
+    );
+    final reviewed = await owner.review(reference(edit));
+    final fields = WireFields(reviewed, {
+      'proposal',
+      'changes',
+      'diff',
+      'footprint',
+      'latest',
+      'assessment_review',
+    });
+    final diff = WireFields(fields.array('diff').single, {
+      'record',
+      'before',
+      'after',
+    });
+    expect(diff.require('before').toText(), original.toWire().toText());
+    final after = RecordVersion.fromWire(diff.require('after'));
+    expect(after.recordVersionId, isNot(original.recordVersionId));
+    expect((after.payload as EntityRecord).names.single.text, 'Iris');
+    final later = RecordVersion.build(
+      recordVersionId: f.ver(78),
+      identity: original.identity,
+      payload: f.patch<EntityRecord>(original.payload as EntityRecord, {
+        'labels': CanonicalObject([
+          MapEntry('en', CanonicalString('Later canon')),
+        ]),
+      }),
+    );
+    kernel.commit(
+      CommitInput(
+        universe: f.u,
+        continuity: continuity,
+        expectedHead: kernel.journal.head(continuity),
+        principal: PrincipalId.parse(
+          author.id.value.replaceFirst('prf_', 'prn_'),
+        ),
+        decision: 'Already admitted disposable edit',
+        reason: 'Historical review fixture',
+        idempotencyKey: 'review-concurrent-edit',
+        changes: [
+          Assignment(
+            recordId: original.identity.recordId,
+            expected: original.recordVersionId,
+            next: StoredVersion(
+              versionId: later.recordVersionId,
+              identity: later.identity,
+              payload: later.payload.toWire(),
+              digest: later.payloadDigest,
+            ),
+          ),
+        ],
+      ),
+    );
+    // A review remains an exact historical read; approval separately checks head.
+    expect((await owner.review(reference(edit))).toText(), reviewed.toText());
+  });
+
   test('author exact-source preparation retains immutable source versions across retry and owned reopen', () async {
     final opened = await service.openContext(contextRequest());
     final checked = await service.checkChangesRequest(
@@ -4084,6 +4241,20 @@ void main() {
   test('author approval binds the exact retained assessment and checked digest across reopen', () async {
     final completed = await completedSubmitted();
     expect(completed.admissible, isTrue);
+    final review = await authorService().review(proposal.reference);
+    final reviewFields = WireFields(review, {
+      'proposal',
+      'changes',
+      'diff',
+      'footprint',
+      'latest',
+      'assessment_review',
+    });
+    final assessment = AssessmentReview.fromWire(
+      reviewFields.require('assessment_review'),
+    );
+    expect(assessment.envelope, isNotNull);
+    final reviewHead = kernel.journal.head(continuity);
     final approved = await authorService().approve(
       proposal.reference,
       completed.validation.runId,
@@ -4104,12 +4275,17 @@ void main() {
     );
     expect(evidence.string('evaluator'), completed.validation.evaluatorVersion);
     expect(kernel.identityExists(f.id(10)), isFalse);
+    expect(kernel.journal.head(continuity), reviewHead);
     package.close();
     package = OwnedSqliteDatabase.openExisting(
       '${directory.path}/packages/world.sqlite',
     );
     package.recover();
     kernel = SqliteKernel(package.database, f.u);
+    expect(
+      (await authorService().review(proposal.reference)).toText(),
+      review.toText(),
+    );
     expect(
       (await authorService().approve(
         proposal.reference,
