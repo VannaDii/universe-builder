@@ -821,8 +821,15 @@ frames, checks the 1 MiB declared size before payload allocation, handles split
 and coalesced packets, preserves backpressure and rejects truncated final frames.
 Strict DTO decoding remains separate. The private engine welcome advertises eight
 in-flight requests, matching the maintained engine/client protocol; the general
-fixture protocol retains its separate sixteen-request default. Socket peer checks,
-engine startup and client transport integration remain pending.
+fixture protocol retains its separate sixteen-request default.
+Native Unix socket helpers now check OS peer credentials against the effective
+user before a profile handshake, validate private owned single-link socket paths,
+protect newly bound endpoints and remove only owned stale sockets. Links, regular
+files, permissive endpoints and TCP substitutions are refused. The native bridge
+uses each platform's declared credential structure rather than Dart byte offsets;
+functional peer/endpoint checks currently cover macOS. Unsupported platforms fail
+closed. Engine startup and authenticated client/server transport integration remain
+pending.
 Expiry timestamps, draft versions and engine limits preserve exact unsigned
 values on web. These contracts do not authenticate profiles, grant permissions,
 save drafts or implement encrypted settings; private command dispatch and those

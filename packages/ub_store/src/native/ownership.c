@@ -6,9 +6,19 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <stdio.h>
+#include <string.h>
 
 #if defined(_WIN32)
 #define UB_EXPORT __declspec(dllexport)
+UB_EXPORT int32_t ub_peer_options(int32_t *level, int32_t *option, int32_t *length) {
+  (void)level; (void)option; (void)length; return 50;
+}
+UB_EXPORT int32_t ub_peer_matches(const uint8_t *bytes, int32_t length) {
+  (void)bytes; (void)length; return 50;
+}
+UB_EXPORT int32_t ub_socket_path(const char *path, int32_t action) {
+  (void)path; (void)action; return 50;
+}
 /* Windows ACL and handle ownership are a separate platform port. Fail closed. */
 UB_EXPORT int32_t ub_private_dir(const char *path) { (void)path; return 50; }
 UB_EXPORT int32_t ub_sync_directory(const char *path) { (void)path; return 50; }
@@ -52,10 +62,51 @@ UB_EXPORT void ub_original_close(void *handle) { (void)handle; }
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <sys/socket.h>
+#if defined(__APPLE__)
+#include <sys/un.h>
+#include <sys/ucred.h>
+#endif
 #if defined(__linux__)
 #include <sys/syscall.h>
 #endif
 #define UB_EXPORT __attribute__((visibility("default")))
+
+/* Dart obtains getsockopt bytes from its owned socket. Keep ABI/layout and
+ * effective-user comparison here instead of guessing struct offsets in Dart. */
+UB_EXPORT int32_t ub_peer_options(int32_t *level, int32_t *option, int32_t *length) {
+#if defined(__APPLE__)
+  *level = SOL_LOCAL; *option = LOCAL_PEERCRED; *length = sizeof(struct xucred); return 0;
+#elif defined(__linux__)
+  *level = SOL_SOCKET; *option = SO_PEERCRED; *length = sizeof(struct ucred); return 0;
+#else
+  return ENOTSUP;
+#endif
+}
+
+UB_EXPORT int32_t ub_peer_matches(const uint8_t *bytes, int32_t length) {
+#if defined(__APPLE__)
+  if (length != sizeof(struct xucred)) return EINVAL;
+  struct xucred peer; memcpy(&peer, bytes, sizeof(peer));
+  return peer.cr_version == XUCRED_VERSION && peer.cr_uid == geteuid() ? 0 : EACCES;
+#elif defined(__linux__)
+  if (length != sizeof(struct ucred)) return EINVAL;
+  struct ucred peer; memcpy(&peer, bytes, sizeof(peer));
+  return peer.uid == geteuid() ? 0 : EACCES;
+#else
+  return ENOTSUP;
+#endif
+}
+
+UB_EXPORT int32_t ub_socket_path(const char *path, int32_t action) {
+  if (action < 0 || action > 2) return EINVAL;
+  struct stat info;
+  if (lstat(path, &info) != 0) return errno;
+  if (!S_ISSOCK(info.st_mode) || info.st_uid != geteuid() || info.st_nlink != 1) return EACCES;
+  if (action == 0) return (info.st_mode & 0077) == 0 ? 0 : EACCES;
+  if (action == 1) return chmod(path, 0600) == 0 ? 0 : errno;
+  return unlink(path) == 0 ? 0 : errno;
+}
 
 struct original_file { int fd; uint64_t consumed; };
 #define UB_ORIGINAL_LIMIT UINT64_C(8589934592)

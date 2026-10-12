@@ -2,6 +2,28 @@ import 'dart:ffi';
 
 const _asset = 'package:ub_store/src/native_ownership.dart';
 
+@Native<Int32 Function(Pointer<Int32>, Pointer<Int32>, Pointer<Int32>)>(
+  symbol: 'ub_peer_options',
+  assetId: _asset,
+)
+external int nativePeerOptions(
+  Pointer<Int32> level,
+  Pointer<Int32> option,
+  Pointer<Int32> length,
+);
+
+@Native<Int32 Function(Pointer<Uint8>, Int32)>(
+  symbol: 'ub_peer_matches',
+  assetId: _asset,
+)
+external int nativePeerMatches(Pointer<Uint8> bytes, int length);
+
+@Native<Int32 Function(Pointer<Char>, Int32)>(
+  symbol: 'ub_socket_path',
+  assetId: _asset,
+)
+external int nativeSocketPath(Pointer<Char> path, int action);
+
 @Native<Int32 Function(Pointer<Char>, Pointer<Char>, Pointer<Char>)>(
   symbol: 'ub_publish_conversion_directory',
   assetId: _asset,
