@@ -286,8 +286,12 @@ do not certify absence; unresolved world or temporal overlap remains unsupported
 Boundaries require a protected wrapper, finite exact period and resolved typed
 targets. Typed citation-link checks separately require source evidence and
 passage citations to reference anchor records, regardless of a writer's verified
-flag. Retained-byte verification and structural admission integration remain
-pending.
+flag. The candidate structural validator now composes these typed rule and
+citation checks with chronology and event expansion verification, declaration
+value shapes, context nesting, typed fact targets, appearances and bounded image
+metadata. Passing structure does not establish conflict resolution, permissions
+or author approval. Retained-image byte verification, remaining schema admission
+and proposal validation/publication integration remain pending.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

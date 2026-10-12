@@ -19,3 +19,4 @@ export 'src/resource_checks.dart';
 export 'src/effective_objects.dart';
 export 'src/knowledge_boundaries.dart';
 export 'src/provenance_checks.dart';
+export 'src/structural_checks.dart';
