@@ -20,3 +20,4 @@ export 'src/effective_objects.dart';
 export 'src/knowledge_boundaries.dart';
 export 'src/provenance_checks.dart';
 export 'src/structural_checks.dart';
+export 'src/candidate_checks.dart';

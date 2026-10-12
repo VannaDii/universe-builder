@@ -292,6 +292,14 @@ value shapes, context nesting, typed fact targets, appearances and bounded image
 metadata. Passing structure does not establish conflict resolution, permissions
 or author approval. Retained-image byte verification, remaining schema admission
 and proposal validation/publication integration remain pending.
+Candidate scalar comparisons now retain original shared witnesses when checking
+known descendants, separate initial values from ongoing facts and account for
+exact numeric equality, definition jurisdiction, worlds, realms and temporal
+overlap. Unresolved scopes and exhausted comparison budgets remain explicit gaps.
+Candidate definition applicability rechecks unchanged assertions after definition
+changes. Objective collection completeness constrains only exact supported entity
+members in the declared scope; observer-known sets do not close reality. These
+checks still require proposal validation/publication integration.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.
