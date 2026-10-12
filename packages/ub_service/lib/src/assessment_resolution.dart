@@ -2,14 +2,84 @@ import 'dart:async';
 
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
+import 'package:ub_store/ub_store.dart' show Assignment, StoredVersion;
 
 import 'assessment_validation.dart';
+import 'proposal_authorization.dart';
 import 'proposal_state.dart';
 
 String assessmentSelectionPrefix(ProposalRef proposal) =>
     'assessment-selection:${proposal.proposalId.value}:${proposal.version.toString().padLeft(20, '0')}:';
 String assessmentEnvelopeKey(AssessmentRef reference) =>
     'assessment:${reference.assessmentId.value}';
+
+/// Admit the whole frozen candidate, including retained historical dependencies.
+/// The owner must supply current grants/scope after installation admission and
+/// hold its consistent authority/universe context throughout the reads.
+Future<List<RecordVersion>> checkAssessmentAccess({
+  required StoredProposal proposal,
+  required SourceAssessmentV1? body,
+  required GrantLimits limits,
+  required Set<WorldId>? worldScope,
+  required FutureOr<List<RecordVersion>> Function(ContinuityId, RevisionId)
+  readCanon,
+  required FutureOr<RecordVersion> Function(RecordVersionId) readVersion,
+}) async {
+  const denied = NotFoundOrNotAccessibleError(message: 'resource');
+  final frame = proposal.proposal.baseFrame;
+  List<RecordVersion>? base;
+  Future<void> boundaries(List<Assignment> changes) async {
+    try {
+      if (limits.continuities != null &&
+          !limits.continuities!.contains(frame.continuity)) {
+        throw denied;
+      }
+      if (limits.entities != null || limits.predicates != null) {
+        base ??= await readCanon(frame.continuity, frame.revision);
+      }
+      checkWriteBoundaries(
+        base: base ?? const [],
+        changes: changes,
+        continuity: frame.continuity,
+        limits: limits,
+      );
+    } on Object {
+      throw denied;
+    }
+  }
+
+  await boundaries(proposal.changes);
+  base ??= await readCanon(frame.continuity, frame.revision);
+  final records = [...assessmentCandidate(proposal, base!)];
+  if (body != null) {
+    for (final dependency in body.dependencies) {
+      if (!records.any((r) => r.recordVersionId == dependency.version)) {
+        try {
+          records.add(await readVersion(dependency.version));
+        } on Object {
+          // Missing history does not grant access; later admission rejects it.
+        }
+      }
+    }
+  }
+  final visible = visibleRecordIds(records: records, worldScope: worldScope);
+  if (records.any((r) => !visible.contains(r.identity.recordId))) {
+    throw denied;
+  }
+  await boundaries([
+    for (final record in records)
+      Assignment(
+        recordId: record.identity.recordId,
+        next: StoredVersion(
+          versionId: record.recordVersionId,
+          identity: record.identity,
+          payload: record.payload.toWire(),
+          digest: record.payloadDigest,
+        ),
+      ),
+  ]);
+  return List.unmodifiable(records);
+}
 
 /// Resolve in the owning workflow's consistent authority/universe context.
 /// [readProposal] must admit the exact reference. [checkAccess] must check the

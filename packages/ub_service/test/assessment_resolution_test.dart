@@ -40,13 +40,29 @@ Future<AssessmentReview> resolve({
   CanonicalValue? Function(String)? read,
 }) {
   final values = stored ?? entries();
+  final records = [
+    a.source,
+    f.row(10, f.entity()),
+    f.row(50, f.entity()),
+    structure.context(99),
+  ];
   return resolveAssessment(
     reference: a.proposal.reference,
     exact: exact,
     universe: f.u,
     canObserveMissingMaterial: mayObserveMissing,
     readProposal: (_) => a.proposal,
-    checkAccess: (_, body) => access?.call(body),
+    checkAccess: (proposal, body) async {
+      access?.call(body);
+      await checkAssessmentAccess(
+        proposal: proposal,
+        body: body,
+        limits: GrantLimits(),
+        worldScope: null,
+        readCanon: (_, _) => records,
+        readVersion: (_) => throw StateError('Missing history'),
+      );
+    },
     readLatestKey: (prefix) {
       final keys = values.keys.where((k) => k.startsWith(prefix)).toList()
         ..sort();
@@ -54,12 +70,7 @@ Future<AssessmentReview> resolve({
     },
     readWorkflow: read ?? (key) => values[key],
     readHead: (_) => head ?? a.proposal.proposal.baseFrame.revision,
-    readCanon: (_, _) => [
-      a.source,
-      f.row(10, f.entity()),
-      f.row(50, f.entity()),
-      structure.context(99),
-    ],
+    readCanon: (_, _) => records,
     readVersion: (_) => throw StateError('Unexpected historical lookup'),
   );
 }

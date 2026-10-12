@@ -417,7 +417,11 @@ only exact historical evidence is exempt from dependency drift.
 Selection resolution now preserves exact historical views separately from the
 current selected state, hides missing selected bodies from partial viewers, and
 distinguishes stale, missing and byte-verified evidence after SQLite reopen.
-The resolver requires owning-workflow access admission; authority coordination,
+Assessment access now checks continuity limits before reads, complete-candidate
+entity/predicate boundaries, and scoped visibility including historical
+dependencies. Resolver and SQLite-retention tests use these checks. The owner
+must still supply current installation grants within its consistent authority
+context; authority coordination,
 capture and durable attachment/validation routes still require integration.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated

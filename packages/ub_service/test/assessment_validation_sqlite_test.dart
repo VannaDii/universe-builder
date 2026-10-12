@@ -67,16 +67,17 @@ void main() {
         final version = SourceVersionRecord.fromWire(
           workflow.get('source-version:${f.id(2).value}')!,
         );
+        final records = [
+          f.row(2, version),
+          f.row(10, f.entity()),
+          f.row(50, f.entity()),
+          structure.context(99),
+        ];
         await verifyAssessmentCandidate(
           proposal: proposal,
           universe: f.u,
           body: retained.body,
-          readCanon: (_, _) => [
-            f.row(2, version),
-            f.row(10, f.entity()),
-            f.row(50, f.entity()),
-            structure.context(99),
-          ],
+          readCanon: (_, _) => records,
           readWorkflow: workflow.get,
           readVersion: (_) => throw StateError('Unexpected history read'),
         );
@@ -88,16 +89,20 @@ void main() {
           universe: f.u,
           canObserveMissingMaterial: true,
           readProposal: (_) => proposal,
-          checkAccess: (_, _) {},
+          checkAccess: (proposal, body) async {
+            await checkAssessmentAccess(
+              proposal: proposal,
+              body: body,
+              limits: GrantLimits(),
+              worldScope: null,
+              readCanon: (_, _) => records,
+              readVersion: (_) => throw StateError('Missing history'),
+            );
+          },
           readLatestKey: workflow.latestKey,
           readWorkflow: workflow.get,
           readHead: (_) => proposal.proposal.baseFrame.revision,
-          readCanon: (_, _) => [
-            f.row(2, version),
-            f.row(10, f.entity()),
-            f.row(50, f.entity()),
-            structure.context(99),
-          ],
+          readCanon: (_, _) => records,
           readVersion: (_) => throw StateError('Unexpected history read'),
         );
         expect(
