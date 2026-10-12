@@ -136,23 +136,8 @@ final class InstallationAuthority {
   }
 
   ProfileId _enroll({ProfileId? actor}) {
-    final id = ProfileId.generate();
-    final random = Random.secure();
-    final credential = List.generate(
-      32,
-      (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
-    ).join();
-    // Private file + containing directory are durable before hash publication.
-    ProfileCredentialStore.write(
-      root: _store.root,
-      profile: id,
-      credential: credential,
-    );
-    _store.enroll(
-      id: id,
-      credentialHash: sha256.convert(utf8.encode(credential)).toString(),
-      actor: actor,
-    );
+    final (id, hash) = _writeProfileCredential(_store.root);
+    _store.enroll(id: id, credentialHash: hash, actor: actor);
     return id;
   }
 
@@ -396,6 +381,21 @@ final class InstallationAuthority {
       epochSeconds: _epochSeconds(),
     );
   }
+}
+
+/// Write and flush the create-only local secret before publishing its hash.
+/// Keep the file after a failed registry transaction: an uncertain commit must
+/// never leave an enrolled identity without its only credential copy.
+(ProfileId, String) _writeProfileCredential(String root) {
+  final id = ProfileId.generate();
+  final random = Random.secure();
+  final credential = List.generate(
+    32,
+    (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+  ).join();
+  // Private file + containing directory are durable before hash publication.
+  ProfileCredentialStore.write(root: root, profile: id, credential: credential);
+  return (id, sha256.convert(utf8.encode(credential)).toString());
 }
 
 InstallationPrincipal _authenticateInstallationProfile(

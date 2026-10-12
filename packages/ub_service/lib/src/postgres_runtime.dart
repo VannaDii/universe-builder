@@ -16,12 +16,19 @@ import 'validation_scheduler.dart';
 /// until runtime close has drained requests and validation workers. Socket/host
 /// startup remains separate; this does not advertise complete backend support.
 final class NativePostgresRuntime {
-  NativePostgresRuntime({required this.store, BigInt Function()? epochSeconds})
-    : _epochSeconds = epochSeconds ?? _now;
+  NativePostgresRuntime({
+    required this.store,
+    this.profileRoot,
+    BigInt Function()? epochSeconds,
+  }) : _epochSeconds = epochSeconds ?? _now;
   static BigInt _now() =>
       BigInt.from(DateTime.now().millisecondsSinceEpoch ~/ 1000);
   final BigInt Function() _epochSeconds;
   final PostgresInstallationStore store;
+
+  /// Trusted local credential storage, supplied explicitly by the native launcher.
+  /// It is not a caller path or a default derived from database endpoint data.
+  final String? profileRoot;
   final _recovered = <UniverseId>{};
   final OperationId instance = OperationId.generate();
   final _admission = NativeRuntimeAdmission();
@@ -174,6 +181,17 @@ final class NativePostgresRuntime {
                     const MapEntry('queue_per_universe', CanonicalNumber('16')),
                   ]),
                 ),
+              ]);
+            case EnrollEngineRequest():
+              final root = profileRoot;
+              if (root == null) {
+                throw const InstallationException(
+                  InstallationFailure.unavailable,
+                );
+              }
+              final id = await authority.enroll(principal, profileRoot: root);
+              return CanonicalObject([
+                MapEntry('profile_id', CanonicalString(id.value)),
               ]);
             case ProfilesEngineRequest():
               final profiles = await session.authority.profiles(principal.id);

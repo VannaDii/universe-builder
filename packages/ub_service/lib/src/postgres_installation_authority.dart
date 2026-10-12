@@ -12,6 +12,31 @@ final class PostgresServiceAuthority {
   final PostgresInstallationAuthority _store;
   final BigInt Function() _epochSeconds;
 
+  /// Explicit local setup only; never invoked implicitly by connection/startup.
+  Future<ProfileId> initializeAuthor({required String profileRoot}) async {
+    if (await _store.hasProfiles) {
+      throw const InstallationException(InstallationFailure.alreadyEnrolled);
+    }
+    return _enroll(profileRoot: profileRoot);
+  }
+
+  Future<ProfileId> enroll(
+    InstallationPrincipal actor, {
+    required String profileRoot,
+  }) async {
+    await requireAuthor(actor);
+    return _enroll(actor: actor.id, profileRoot: profileRoot);
+  }
+
+  Future<ProfileId> _enroll({
+    ProfileId? actor,
+    required String profileRoot,
+  }) async {
+    final (id, hash) = _writeProfileCredential(profileRoot);
+    await _store.enroll(id: id, credentialHash: hash, actor: actor);
+    return id;
+  }
+
   Future<InstallationPrincipal> authenticate({
     required ProfileId profile,
     required Credential credential,

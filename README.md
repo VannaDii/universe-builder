@@ -477,6 +477,14 @@ reader, preserves IDs, history, exact source/media bytes and workflow evidence,
 keeps restored approvals/contexts/receipts historical, and atomically provisions
 and verifies the namespace before catalog admission. Identity/name conflicts,
 incompatible sources and failed registration leave the original unchanged.
+Explicit PostgreSQL author bootstrap and private enrollment now reuse the
+existing protected, create-only local profile credential files. Supply the trusted
+`profileRoot` when constructing the native runtime; an absent/unusable root cannot
+publish a new hash. Generated secrets are durable before registry enrollment,
+PostgreSQL retains only hashes, and enrollment responses expose only the profile
+identity. Writers cannot enroll other profiles, and current revocation still
+applies after restart. Failed registry transactions retain the credential file
+for an uncertain outcome, while unpublished profiles cannot authenticate.
 Coordinated backend cutover and hosted server backup operation remain pending.
 Socket/launcher integration, cross-process worker qualification and
 the remaining service routes are pending. Coordinated transfer and live
