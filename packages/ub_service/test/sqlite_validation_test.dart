@@ -388,6 +388,229 @@ void main() {
     expect((await owner.review(reference(edit))).toText(), reviewed.toText());
   });
 
+  SqliteValidationWorkflow authorService() => SqliteValidationWorkflow(
+    package: package,
+    authority: authority,
+    principal: author,
+  );
+
+  Future<ProposalId> writingDraft() async {
+    final opened = await service.openContext(contextRequest());
+    final result = await service.checkChangesRequest(
+      CheckChangesRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        changes: [
+          ObjectChange(
+            name: 'Iris',
+            introduce: true,
+            facts: [
+              FactChange(
+                property: 'colour',
+                value: const FactTextValue('red'),
+                scope: 'universe',
+              ),
+            ],
+          ),
+        ],
+      ),
+      isValidationActive: (_) => false,
+    );
+    return ProposalId.parse(result.check.candidateHandle!);
+  }
+
+  WireFields writingReview(CanonicalValue value) => WireFields(value, {
+    'acceptance_options',
+    'summary',
+    'candidate',
+    'validation',
+    'impact',
+    'publishable',
+    'review',
+  });
+
+  test('private writing actions prepare inspect and publish once across changed head and reopen', () async {
+    final candidate = await writingDraft();
+    final owner = authorService();
+    final head = kernel.journal.head(continuity);
+    final prepared = writingReview(
+      await owner.prepareWritingReview(
+        candidate: candidate,
+        label: 'Author passage',
+        text: 'Iris is red.',
+        isValidationActive: (_) => false,
+      ),
+    );
+    final ref = ProposalRef.fromWire(prepared.require('candidate'));
+    expect(prepared.boolean('publishable'), isTrue);
+    expect(kernel.journal.head(continuity), head);
+    expect(WorkflowStorage(package.database).keys('approval:'), isEmpty);
+    final inspected = writingReview(
+      await owner.inspectWriting(InspectWritingAction(candidate: ref)),
+    );
+    expect(ProposalRef.fromWire(inspected.require('candidate')), ref);
+    final report = ValidationV3.fromWire(inspected.require('validation'));
+    final action = PublishWritingAction(
+      candidate: ref,
+      validationRun: report.execution!.runId,
+      idempotencyKey: 'writing-publication',
+    );
+    final receipt = await owner.publishWriting(
+      action,
+      isValidationActive: (_) => false,
+    );
+    expect(kernel.journal.head(continuity), receipt.revision);
+    expect(WorkflowStorage(package.database).keys('approval:'), hasLength(1));
+    kernel.commit(input('after-writing-publication', [f.row(77, f.entity())]));
+    final advanced = kernel.journal.head(continuity);
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    final retry = await authorService().publishWriting(
+      action,
+      isValidationActive: (_) => false,
+    );
+    expect(retry.toWire().toText(), receipt.toWire().toText());
+    expect(kernel.journal.head(continuity), advanced);
+    expect(WorkflowStorage(package.database).keys('approval:'), hasLength(1));
+    await expectLater(
+      authorService().publishWriting(
+        PublishWritingAction(
+          candidate: ref,
+          validationRun: ValidationRunId.generate(),
+          idempotencyKey: action.idempotencyKey,
+        ),
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<IdempotencyKeyReusedError>()),
+    );
+  });
+
+  test('private writing rejection retains its original withdrawn receipt across changed head and reopen', () async {
+    final candidate = await writingDraft();
+    final action = RejectWritingAction(candidate: candidate);
+    final head = kernel.journal.head(continuity);
+    final withdrawn = await authorService().rejectWriting(
+      action,
+      isValidationActive: (_) => false,
+    );
+    expect(withdrawn.withdrawn, isTrue);
+    expect(withdrawn.version, BigInt.two);
+    expect(kernel.journal.head(continuity), head);
+    expect(WorkflowStorage(package.database).keys('approval:'), isEmpty);
+    final frozen = StoredProposal.fromWire(
+      WorkflowStorage(package.database).get(proposalKey(reference(withdrawn)))!,
+    );
+    expect(kernel.identityExists(frozen.changes.first.recordId), isFalse);
+    kernel.commit(input('after-writing-rejection', [f.row(77, f.entity())]));
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    final retry = await authorService().rejectWriting(
+      action,
+      isValidationActive: (_) => false,
+    );
+    expect(retry.toWire().toText(), withdrawn.toWire().toText());
+    await expectLater(
+      authorService().prepareWritingReview(
+        candidate: candidate,
+        label: 'Rejected',
+        text: 'Iris is red.',
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<ApprovalStaleError>()),
+    );
+  });
+
+  test(
+    'private writing inspect requires a submitted author-prepared exact source',
+    () async {
+      await expectLater(
+        authorService().inspectWriting(
+          InspectWritingAction(candidate: proposal.reference),
+        ),
+        throwsA(isA<ApprovalStaleError>()),
+      );
+      final submitted = await propose(proposals.transition(proposal));
+      await expectLater(
+        authorService().inspectWriting(
+          InspectWritingAction(candidate: reference(submitted)),
+        ),
+        throwsA(isA<PolicyDeniedError>()),
+      );
+      final opened = await authorService().openContext(contextRequest());
+      final authored = await authorService().proposeRequest(
+        CreateProposalRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          operations: [
+            CreateEntityOperation(
+              clientRef: f.id(88).value,
+              record: f.entity(),
+            ),
+          ],
+          submission: Submission.submitted,
+          rationale: 'An explicit author edit',
+          idempotencyKey: 'author-without-source',
+        ),
+        isValidationActive: (_) => false,
+      );
+      await expectLater(
+        authorService().inspectWriting(
+          InspectWritingAction(candidate: reference(authored)),
+        ),
+        throwsA(isA<PolicyDeniedError>()),
+      );
+      expect(WorkflowStorage(package.database).keys('approval:'), isEmpty);
+    },
+  );
+
+  test('writer profiles cannot perform private writing actions or retain author decisions', () async {
+    final workflow = WorkflowStorage(package.database);
+    final keys = workflow.keys('');
+    final denied = throwsA(isA<NotFoundOrNotAccessibleError>());
+    await expectLater(
+      service.prepareWritingReview(
+        candidate: proposal.proposal.proposalId,
+        label: 'Writer',
+        text: 'Text',
+        isValidationActive: (_) => false,
+      ),
+      denied,
+    );
+    await expectLater(
+      service.inspectWriting(
+        InspectWritingAction(candidate: proposal.reference),
+      ),
+      denied,
+    );
+    await expectLater(
+      service.rejectWriting(
+        RejectWritingAction(candidate: proposal.proposal.proposalId),
+        isValidationActive: (_) => false,
+      ),
+      denied,
+    );
+    await expectLater(
+      service.publishWriting(
+        PublishWritingAction(
+          candidate: proposal.reference,
+          validationRun: checked.validation.runId,
+          idempotencyKey: 'writer-publication',
+        ),
+        isValidationActive: (_) => false,
+      ),
+      denied,
+    );
+    expect(workflow.keys(''), keys);
+  });
+
   test('author exact-source preparation retains immutable source versions across retry and owned reopen', () async {
     final opened = await service.openContext(contextRequest());
     final checked = await service.checkChangesRequest(
@@ -613,6 +836,24 @@ void main() {
     );
     expect(prepared.submission, Submission.submitted);
     expect(prepared.rationale, contains('explicitly declared'));
+    final reviewed = writingReview(
+      await owner.prepareWritingReview(
+        candidate: candidate,
+        label: 'Units',
+        text: 'A metre is the declared unit.',
+        contracts: true,
+        isValidationActive: (_) => false,
+      ),
+    );
+    expect(
+      ProposalRef.fromWire(reviewed.require('candidate')),
+      reference(prepared),
+    );
+    expect(
+      reviewed.array('summary').map(wireString),
+      contains(contains('Author unit declaration: metre;')),
+    );
+    expect(WorkflowStorage(package.database).keys('approval:'), isEmpty);
     await expectLater(
       owner.prepareWritingSource(
         candidate: candidate,
@@ -4301,12 +4542,6 @@ void main() {
         isEmpty,
       );
     },
-  );
-
-  SqliteValidationWorkflow authorService() => SqliteValidationWorkflow(
-    package: package,
-    authority: authority,
-    principal: author,
   );
 
   test('author approval binds the exact retained assessment and checked digest across reopen', () async {

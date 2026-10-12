@@ -1067,6 +1067,130 @@ final class SqliteValidationWorkflow {
     ]);
   }
 
+  /// Prepare exact source and return the current checked private review.
+  Future<CanonicalObject> prepareWritingReview({
+    required ProposalId candidate,
+    required String label,
+    required String text,
+    bool contracts = false,
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+    final proposal = await _prepareWritingSource(
+      current,
+      candidate: candidate,
+      label: label,
+      text: text,
+      contracts: contracts,
+      isValidationActive: isValidationActive,
+    );
+    return _writingAuthorReview(
+      ProposalRef(
+        proposalId: proposal.proposalId,
+        version: proposal.version,
+        digest: proposal.digest,
+      ),
+      current,
+    );
+  });
+
+  Future<CanonicalObject> inspectWriting(
+    InspectWritingAction action,
+  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final stored = _proposal(action.candidate, current);
+    if (stored.proposal.submission != Submission.submitted) {
+      throw const ApprovalStaleError();
+    }
+    if (!stored.authorOrigin ||
+        !stored.proposal.operations.any(
+          (op) => op is AddSourceAnchorOperation,
+        )) {
+      throw const PolicyDeniedError(
+        message:
+            'Reopen requires an author-prepared exact-source writing review.',
+      );
+    }
+    return _writingAuthorReview(action.candidate, current);
+  });
+
+  Future<Proposal> rejectWriting(
+    RejectWritingAction action, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final key =
+        'writing-reject:${canonicalDigest(CanonicalString(action.candidate.value))}';
+    final receipt = operationRequestKey(principal.id, 'propose', key);
+    if (_workflow.get(receipt) != null) {
+      final prior = await loadStoredOperation(
+        key: receipt,
+        principal: principal.id,
+        worldScope: current.worldScope,
+        readWorkflow: _workflow.get,
+        readReceipt: _journal.receipt,
+        isValidationActive: isValidationActive,
+      );
+      final proposal = prior.status.proposal;
+      if (proposal == null) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      return proposal;
+    }
+    final latest = _workflow.latestKey('proposal:${action.candidate.value}:');
+    if (latest == null) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final retained = StoredProposal.fromWire(_workflow.get(latest)!);
+    final stored = _proposal(retained.reference, current);
+    _writingAuthorCurrent(stored.proposal);
+    final opened = await _openContext(
+      _writingAdmission(Selector(universe.value), stored.proposal.baseFrame),
+      current,
+    );
+    return _propose(
+      WithdrawProposalRequest(
+        universe: Selector(universe.value),
+        contextId: opened.contextId,
+        proposalReference: stored.reference,
+        idempotencyKey: key,
+      ),
+      current,
+      resolvedFrame: opened.frame,
+      worldFocus: null,
+      isValidationActive: isValidationActive,
+    );
+  });
+
+  Future<CommitReceipt> publishWriting(
+    PublishWritingAction action, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final stored = _proposal(action.candidate, current);
+    final request = CommitRequest(
+      universe: Selector(universe.value),
+      proposalReference: action.candidate,
+      expectedBaseRevision: stored.proposal.baseFrame.revision,
+      validationRun: action.validationRun,
+      idempotencyKey: action.idempotencyKey,
+    );
+    final key = operationRequestKey(
+      principal.id,
+      'commit',
+      action.idempotencyKey,
+    );
+    if (_workflow.get(key) == null) {
+      await _approve(action.candidate, action.validationRun, current);
+    }
+    return _commit(request, current, isValidationActive: isValidationActive);
+  });
+
   /// Retain the author-selected exact-source revision. This does not approve or
   /// publish it; the private review route must inspect the returned exact state.
   Future<Proposal> prepareWritingSource({
@@ -1076,7 +1200,29 @@ final class SqliteValidationWorkflow {
     bool contracts = false,
     String? knowledgeRationale,
     required bool Function(OperationId) isValidationActive,
-  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _prepareWritingSource(
+      current,
+      candidate: candidate,
+      label: label,
+      text: text,
+      contracts: contracts,
+      knowledgeRationale: knowledgeRationale,
+      isValidationActive: isValidationActive,
+    ),
+  );
+
+  Future<Proposal> _prepareWritingSource(
+    CurrentUniverseAuthority current, {
+    required ProposalId candidate,
+    required String label,
+    required String text,
+    bool contracts = false,
+    String? knowledgeRationale,
+    required bool Function(OperationId) isValidationActive,
+  }) async {
     if (!current.principal.author) {
       throw const NotFoundOrNotAccessibleError(message: 'resource');
     }
@@ -1174,7 +1320,7 @@ final class SqliteValidationWorkflow {
       isValidationActive: isValidationActive,
       versions: attached.versions,
     );
-  });
+  }
 
   Future<({CanonicalObject contracts, Frame frame})> readContractsRequest(
     ReadContractsRequest request,
@@ -2472,7 +2618,18 @@ final class SqliteValidationWorkflow {
   Future<CommitReceipt> commit(
     CommitRequest request, {
     required bool Function(OperationId) isValidationActive,
-  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) =>
+        _commit(request, current, isValidationActive: isValidationActive),
+  );
+
+  Future<CommitReceipt> _commit(
+    CommitRequest request,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
     if (request.universeId != null && request.universeId != universe) {
       throw const NotFoundOrNotAccessibleError(message: 'resource');
     }
@@ -2647,14 +2804,22 @@ final class SqliteValidationWorkflow {
       proposalId: p.proposalId,
       revision: revision,
     );
-  });
+  }
 
   /// Private human approval route. Public model requests cannot supply approval
   /// evidence; this binds the current author's decision to retained Checked data.
-  Future<CanonicalObject> approve(
+  Future<CanonicalObject> approve(ProposalRef reference, ValidationRunId run) =>
+      authority.withUniverseAuthority(
+        principal,
+        universe,
+        (current) => _approve(reference, run, current),
+      );
+
+  Future<CanonicalObject> _approve(
     ProposalRef reference,
     ValidationRunId run,
-  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    CurrentUniverseAuthority current,
+  ) async {
     if (!current.principal.author) {
       throw const NotFoundOrNotAccessibleError(message: 'resource');
     }
@@ -2713,7 +2878,7 @@ final class SqliteValidationWorkflow {
       MapEntry('approved', reference.toWire()),
       MapEntry('validation_run', CanonicalString(run.value)),
     ]);
-  });
+  }
 
   Future<void> finishValidation(
     OperationId id,
