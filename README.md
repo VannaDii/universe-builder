@@ -281,9 +281,18 @@ reference. Immutable ciphertext/nonce/tag columns contain neither plaintext nor
 key material. Explicit key import/export is for the future OS credential-store
 adapter; keys must not be saved beside these columns. Unlocking rejects altered
 columns, another installation or a wrong key with redacted errors, and saving
-rejects Unicode that cannot round-trip exactly. Driver integration/connection
-verification, settings persistence, OS key access and backend startup remain
-pending; these components do not make PostgreSQL available in the Dart engine yet.
+rejects Unicode that cannot round-trip exactly. `ub_store/local_settings.dart`
+now provides a separate protected native settings database with a stable
+installation identity, backend flag and fixed encrypted endpoint columns.
+Explicit saves atomically replace these fields, preserve identity, and reject
+PostgreSQL without encrypted credentials. The writer lock lasts through close;
+unsupported schemas, unsafe files and competing owners are refused. It accepts
+only encrypted endpoint values, never plaintext endpoints or installation keys.
+This storage component does not unlock keys or test/drain/restart an engine.
+Driver integration/connection verification, OS key access, setup orchestration
+and backend startup remain pending; these components do not make PostgreSQL
+available in the Dart engine yet. Native ownership remains qualified on macOS;
+the other platform ports still need their required checks.
 Ordinary writer types now preserve JSON scalar fact values, named objects and
 explicit unit amounts, fact lifetimes, object/definition deltas, claims and
 historical corrections/endings/withdrawals. Research requests for exact object

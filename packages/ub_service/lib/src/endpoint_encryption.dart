@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:ub_contracts/ub_contracts.dart';
+import 'package:ub_store/ub_store.dart';
 
 import 'configuration.dart';
 
@@ -27,37 +28,6 @@ final class InstallationEncryptionKey {
 
   @override
   String toString() => 'InstallationEncryptionKey([redacted])';
-}
-
-/// Fixed encrypted endpoint columns. This value contains no plaintext or key.
-final class EncryptedPostgresEndpoint {
-  EncryptedPostgresEndpoint({
-    required this.keyReference,
-    required List<int> ciphertext,
-    required List<int> nonce,
-    required List<int> tag,
-  }) : ciphertext = List<int>.unmodifiable(ciphertext),
-       nonce = List<int>.unmodifiable(nonce),
-       tag = List<int>.unmodifiable(tag) {
-    if (keyReference.isEmpty ||
-        nonce.length != 12 ||
-        tag.length != 16 ||
-        [
-          this.ciphertext,
-          this.nonce,
-          this.tag,
-        ].any((bytes) => bytes.any((b) => b < 0 || b > 255))) {
-      throw const FormatException('Invalid encrypted endpoint columns.');
-    }
-  }
-
-  final String keyReference;
-  final List<int> ciphertext;
-  final List<int> nonce;
-  final List<int> tag;
-
-  @override
-  String toString() => 'EncryptedPostgresEndpoint([redacted])';
 }
 
 /// Encrypts only the endpoint scalar, not a configuration document.

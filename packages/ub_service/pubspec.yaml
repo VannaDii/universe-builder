@@ -7,5 +7,6 @@ environment:
 dependencies:
   cryptography: 2.9.0
   ub_contracts: any
+  ub_store: any
 dev_dependencies:
   test: 1.33.0
