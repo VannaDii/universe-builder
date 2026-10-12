@@ -131,7 +131,12 @@ final class McpSession {
         execute(),
         cancellation.future.then((_) => mcpCancelledToolResult()),
       ]);
-      return _closed ? null : mcpResultResponse(id, result);
+      return _closed
+          ? null
+          : mcpResultResponse(
+              id,
+              cancellation.isCompleted ? mcpCancelledToolResult() : result,
+            );
     } finally {
       if (identical(_active[id], cancellation)) _active.remove(id);
     }

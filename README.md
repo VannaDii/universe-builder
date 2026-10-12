@@ -107,7 +107,7 @@ does not include this project's required build hooks. The compiled operator bund
 has been functionally checked on macOS with disposable data, without release signing
 or publication. The compiled author CLI has also exercised sibling initialization,
 on-demand creation and shutdown outside the source tree. Keep the sibling
-`universe-engine` available with its required bundle libraries. MCP/public launcher
+`universe-engine` available with its required bundle libraries. Public launcher
 interfaces and complete platform packaging remain pending.
 Focused functional checks currently cover macOS only.
 
@@ -132,14 +132,30 @@ dispatch against a supplied backend: pre-initialization ping, version negotiatio
 ordinary/advanced discovery, strict application request admission, structured
 service failures and responsive cancellation. Disconnect signals backend cleanup
 and suppresses late output; cancellation never claims an admitted mutation was
-rolled back. Session behavior is checked on VM and Chrome. This session is not
-yet connected to the local engine or a stdio executable; stateless MCP and remote
-HTTP remain pending. The conversion uses the plan's narrow application-owned
+rolled back. Session and stdio behavior are checked on VM and Chrome. The native
+`universe-mcp` executable now connects this session to the local SQLite engine.
+Startup uses the installed sibling engine once; each tool authenticates a fresh
+connection using the selected profile, without replaying uncertain calls. Retained
+calls, including blocked output, are bounded at the engine's eight-call capacity;
+excess calls receive `EVALUATION_LIMIT_REACHED`. Controls remain responsive during
+tool work, stdout contains serialized protocol frames, and diagnostics go to
+stderr. Its compiled bundle has exercised handshake and service retrieval on
+macOS outside the source tree with an empty PATH. Real service checks cover scope
+denial and profile revocation. Fixture mode, stateless MCP and remote HTTP remain
+pending. The conversion uses the plan's narrow application-owned
 adapter fallback. Candidate review found `mcp_dart` validates JSON numbers as Dart
 `num`, while `dart_mcp`'s standard channel uses generic JSON codecs; preserving UB's
 exact tokens would require replacing those boundaries. See the
 [mcp_dart value validator](https://github.com/leehack/mcp_dart/blob/main/lib/src/types/validation.dart)
 and [dart_mcp channel](https://github.com/dart-lang/ai/blob/main/pkgs/dart_mcp/lib/stdio.dart).
+
+For development, run
+`dart run apps/ub_mcp/bin/universe-mcp.dart --installation /absolute/installation --profile PROFILE_ID`
+and add `--advanced-tools` for all 16 tools. Build with
+`dart build cli --target apps/ub_mcp/bin/universe-mcp.dart --output target/dart-mcp`.
+Keep the generated `bin/` and `lib/` directories together, with the engine sibling
+and its bundle libraries available for on-demand startup. These development checks
+do not qualify other platforms, release packaging, signing or publication.
 
 Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter
 **3.47.5** (recorded in `.flutter-version`). Dependency resolution is locked in

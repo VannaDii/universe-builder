@@ -5,7 +5,10 @@ resolution: workspace
 environment:
   sdk: 3.13.4
 dependencies:
+  ub_client: any
   ub_contracts: any
   ub_domain: any
 dev_dependencies:
   test: 1.33.0
+  ub_service: any
+  ub_store: any
