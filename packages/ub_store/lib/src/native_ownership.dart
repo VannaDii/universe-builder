@@ -2,6 +2,32 @@ import 'dart:ffi';
 
 const _asset = 'package:ub_store/src/native_ownership.dart';
 
+@Native<Pointer<Void> Function(Pointer<Char>, Pointer<Int32>)>(
+  symbol: 'ub_original_open',
+  assetId: _asset,
+)
+external Pointer<Void> nativeOriginalOpen(
+  Pointer<Char> path,
+  Pointer<Int32> error,
+);
+
+@Native<Int32 Function(Pointer<Void>, Pointer<Uint8>, Int32, Pointer<Int32>)>(
+  symbol: 'ub_original_read',
+  assetId: _asset,
+)
+external int nativeOriginalRead(
+  Pointer<Void> handle,
+  Pointer<Uint8> bytes,
+  int capacity,
+  Pointer<Int32> length,
+);
+
+@Native<Void Function(Pointer<Void>)>(
+  symbol: 'ub_original_close',
+  assetId: _asset,
+)
+external void nativeOriginalClose(Pointer<Void> handle);
+
 @Native<Int32 Function(Pointer<Char>, Pointer<Char>, Pointer<Char>)>(
   symbol: 'ub_publish_conversion',
   assetId: _asset,

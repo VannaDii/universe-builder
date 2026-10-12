@@ -172,6 +172,44 @@ Uint8List readOriginalCredential(String source) {
   });
 }
 
+/// Stream an owned private read-only regular file through one checked descriptor.
+/// Each callback receives at most 64 KiB; the 8 GiB bound also covers file growth.
+void readOriginalChunks(String source, void Function(Uint8List) accept) {
+  _pathCheck(source);
+  using((arena) {
+    final error = arena<Int32>();
+    final handle = nativeOriginalOpen(
+      source.toNativeUtf8(allocator: arena).cast(),
+      error,
+    );
+    _checkError(
+      error.value,
+      'Protected offline conversion input refused',
+      source,
+    );
+    if (handle == nullptr) {
+      throw StateError('Native original reader returned no handle');
+    }
+    try {
+      final bytes = arena<Uint8>(65536), length = arena<Int32>();
+      while (true) {
+        _checkError(
+          nativeOriginalRead(handle, bytes, 65536, length),
+          'Protected offline conversion read refused',
+          source,
+        );
+        if (length.value < 0 || length.value > 65536) {
+          throw const FormatException('Original input chunk size');
+        }
+        if (length.value == 0) break;
+        accept(Uint8List.fromList(bytes.asTypedList(length.value)));
+      }
+    } finally {
+      nativeOriginalClose(handle);
+    }
+  });
+}
+
 /// Descriptor-owned flock, compatible with the original POSIX runtime and
 /// exclusive across both processes and isolates. No PID file grants ownership.
 final class OwnedFileLock implements Finalizable {
