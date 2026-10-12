@@ -290,8 +290,15 @@ flag. The candidate structural validator now composes these typed rule and
 citation checks with chronology and event expansion verification, declaration
 value shapes, context nesting, typed fact targets, appearances and bounded image
 metadata. Passing structure does not establish conflict resolution, permissions
-or author approval. Retained-image byte verification, remaining schema admission
-and proposal validation/publication integration remain pending.
+or author approval. Retained-image byte verification and proposal
+validation/publication integration remain pending.
+The Dart definition registry now verifies incoming payload digests, isolates
+definition universes, retains active versions and rejects duplicate family names.
+Registry admission checks typed references, parent consistency and cycles,
+property units/dimensions/inverses, relation roles, unit scales and bases, calendar
+conversion targets, structured definition recursion and exact pack dependencies.
+Packs remain limited to the existing declared capability allowlist. This registry
+still requires integration into candidate validation/publication.
 Candidate scalar comparisons now retain original shared witnesses when checking
 known descendants, separate initial values from ongoing facts and account for
 exact numeric equality, definition jurisdiction, worlds, realms and temporal
