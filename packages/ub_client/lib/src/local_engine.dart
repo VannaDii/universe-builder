@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/local_socket.dart';
+import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
 
 enum LocalEngineFailure {
@@ -18,6 +19,8 @@ enum LocalEngineFailure {
   busy,
   closed,
   invalidRequest,
+  helperUnavailable,
+  startupTimeout,
 }
 
 /// Never retain socket/parser exceptions that could embed credentials or content.
@@ -97,7 +100,144 @@ final class LocalEngineClient {
       if (error is FileSystemException && error.osError?.errorCode == 2) {
         failure = LocalEngineFailure.unavailable;
       }
+      if (error is SocketException &&
+          failure == LocalEngineFailure.unavailable &&
+          !{2, 61, 111}.contains(error.osError?.errorCode)) {
+        failure = LocalEngineFailure.unsafeEndpoint;
+      }
       throw LocalEngineException(failure);
+    }
+  }
+
+  /// Start only after a missing/refused endpoint, never after authentication or
+  /// safety failures. This retries connection establishment, not a service call.
+  static Future<LocalEngineClient> ensureRunning({
+    required String root,
+    required ProfileId profile,
+    required String helper,
+    required String clientName,
+    Map<String, String>? environment,
+  }) async {
+    Future<LocalEngineClient?> attempt(String directory) async {
+      try {
+        return await connect(
+          root: directory,
+          profile: profile,
+          clientName: clientName,
+        );
+      } on LocalEngineException catch (error) {
+        if (error.failure != LocalEngineFailure.unavailable) rethrow;
+        return null;
+      }
+    }
+
+    final existing = await attempt(root);
+    if (existing != null) return existing;
+    // Missing credentials or malformed client identity must not launch an engine.
+    try {
+      if (!Directory('$root/profiles').existsSync()) {
+        throw const FormatException('Existing profile required');
+      }
+      ProfileCredentialStore.read(root: root, profile: profile);
+    } on Object {
+      throw const LocalEngineException(
+        LocalEngineFailure.credentialUnavailable,
+      );
+    }
+    try {
+      CanonicalString(clientName);
+      if (utf8.encode(clientName).length > 128) {
+        throw const FormatException('Client name too long');
+      }
+    } on Object {
+      throw const LocalEngineException(LocalEngineFailure.handshakeFailed);
+    }
+    final elapsed = Stopwatch()..start();
+    InstallationBootstrapLock? bootstrap;
+    while (bootstrap == null) {
+      try {
+        bootstrap = InstallationBootstrapLock.acquireExisting(root);
+      } on Object {
+        if (elapsed.elapsed >= const Duration(seconds: 10)) {
+          throw const LocalEngineException(LocalEngineFailure.startupTimeout);
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+    }
+    try {
+      final ready = await attempt(bootstrap.root);
+      if (ready != null) return ready;
+      try {
+        final original = File(helper);
+        if (!original.isAbsolute) {
+          throw const FormatException('Absolute helper required');
+        }
+        final executable = File(original.resolveSymbolicLinksSync());
+        if (executable.uri.pathSegments.last != 'universe-engine' ||
+            FileSystemEntity.typeSync(executable.path, followLinks: false) !=
+                FileSystemEntityType.file) {
+          throw const FormatException('Installed engine helper required');
+        }
+        // A normal Dart child keeps the client VM alive. Detached launch keeps
+        // the headless engine independent; authenticated readiness is observed
+        // through its endpoint within the bounded bootstrap deadline.
+        await Process.start(
+          executable.path,
+          ['--installation', bootstrap.root],
+          environment: environment,
+          mode: ProcessStartMode.detached,
+        );
+      } on Object {
+        throw const LocalEngineException(LocalEngineFailure.helperUnavailable);
+      }
+      while (true) {
+        final launched = await attempt(bootstrap.root);
+        if (launched != null) return launched;
+        if (elapsed.elapsed >= const Duration(seconds: 10)) {
+          throw const LocalEngineException(LocalEngineFailure.startupTimeout);
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+    } finally {
+      bootstrap.close();
+    }
+  }
+
+  /// Resolve installed siblings from the real executable, retaining the sealed
+  /// macOS bundle check before selecting a helper. No PATH search is performed.
+  static Future<String> siblingEngine() async {
+    try {
+      final executable = File(Platform.resolvedExecutable)
+          .resolveSymbolicLinksSync();
+      var directory = File(executable).parent;
+      while (directory.path != directory.parent.path) {
+        if (directory.path.endsWith('.app')) {
+          final manifest =
+              '${directory.path}/Contents/Resources/release-manifest.json';
+          if (FileSystemEntity.typeSync(manifest, followLinks: false) !=
+              FileSystemEntityType.file) {
+            throw const FormatException('Package manifest missing');
+          }
+          if (Platform.isMacOS) {
+            final verified = await Process.run('/usr/bin/codesign', [
+              '--verify',
+              '--deep',
+              '--strict',
+              directory.path,
+            ]);
+            if (verified.exitCode != 0) {
+              throw const FormatException(
+                'Bundle integrity verification failed',
+              );
+            }
+          }
+          break;
+        }
+        directory = directory.parent;
+      }
+      return '${File(executable).parent.path}/universe-engine';
+    } on Object {
+      throw const LocalEngineException(LocalEngineFailure.helperUnavailable);
     }
   }
 

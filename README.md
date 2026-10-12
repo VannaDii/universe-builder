@@ -147,7 +147,16 @@ Startup resolves `UB_USE_POSTGRES`/`UB_POSTGRES_ENDPOINT` and existing protected
 are never saved. PostgreSQL runtime selection currently fails explicitly without
 opening a SQLite installation; no automatic fallback or conversion occurs.
 Compiled engine startup and shutdown have focused coverage on macOS with disposable
-data. On-demand client launch and other platform packages remain pending. These
+data. Native clients can now use `LocalEngineClient.ensureRunning` with an absolute
+installed `universe-engine` helper, or select the sibling through `siblingEngine`.
+Healthy connections are reused before helper lookup. Missing/refused endpoints use
+the shared bootstrap lock, recheck readiness and launch once with a ten-second
+deadline. Authentication and unsafe endpoint failures never trigger launch. The
+helper runs detached so its client can exit independently; early child exit is
+reported through the readiness deadline rather than an exit code. Sibling lookup
+retains manifest/signature checks for macOS app bundles. Focused compiled-client
+checks cover concurrent launches, reuse, revoked profiles and stale-socket recovery
+on macOS. Other platform packages remain pending. These
 commands do not authorize converting or replacing a live author installation.
 
 The SQLite codec uses the existing fixed-column relational schema and keeps
@@ -849,7 +858,7 @@ files, permissive endpoints and TCP substitutions are refused. The native bridge
 uses each platform's declared credential structure rather than Dart byte offsets;
 functional peer/endpoint checks currently cover macOS. Unsupported platforms fail
 closed. The native `ub_client` local adapter now checks endpoint ownership and OS
-peer identity before reading/sending a profile credential, authenticates through
+peer identity before transmitting a profile credential, authenticates through
 the strict welcome contract, and correlates sequential requests. Typed service
 errors leave the connection usable; interrupted, malformed, mismatched or timed-out
 replies require an explicit reconnect and never replay the request. Connection and
@@ -862,8 +871,8 @@ capacity, expires incomplete handshakes after five seconds and request input aft
 sixty seconds, and stops after fifteen minutes without connected clients. Shutdown
 closes transports, drains admitted work and releases the installation lock. Focused
 Unix-socket client/server checks currently cover macOS, including restart,
-revocation, creation, correlation and author shutdown. Client on-demand engine
-startup, remote/web adapters and qualification on other platforms remain pending.
+revocation, creation, correlation and author shutdown. Remote/web adapters and
+qualification on other platforms remain pending.
 Expiry timestamps, draft versions and engine limits preserve exact unsigned
 values on web. These contracts do not authenticate profiles, grant permissions,
 save drafts or implement encrypted settings; private command dispatch and those

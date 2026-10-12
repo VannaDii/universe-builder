@@ -30,6 +30,27 @@ final class InstallationException implements Exception {
   String toString() => 'InstallationException(${failure.name})';
 }
 
+/// Coordinates explicit initialization and on-demand launch without opening the
+/// installation database or creating an absent installation directory.
+final class InstallationBootstrapLock {
+  InstallationBootstrapLock._(this.root, this._lock);
+  final String root;
+  final OwnedFileLock _lock;
+  static InstallationBootstrapLock acquireExisting(String root) {
+    if (FileSystemEntity.typeSync(root, followLinks: false) !=
+        FileSystemEntityType.directory) {
+      throw const InstallationException(InstallationFailure.unavailable);
+    }
+    final directory = privateDirectory(root);
+    return InstallationBootstrapLock._(
+      directory,
+      OwnedFileLock.acquire('$directory/bootstrap.lock'),
+    );
+  }
+
+  void close() => _lock.close();
+}
+
 final class InstallationProfile {
   const InstallationProfile({
     required this.id,
@@ -122,7 +143,7 @@ final class SqliteInstallationStore {
     T Function(SqliteInstallationStore) initialize,
   ) {
     final directory = privateDirectory(root);
-    final bootstrap = OwnedFileLock.acquire('$directory/bootstrap.lock');
+    final bootstrap = InstallationBootstrapLock.acquireExisting(directory);
     try {
       final path = '$directory/installation.sqlite';
       final store =
