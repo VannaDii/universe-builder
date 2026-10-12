@@ -357,6 +357,16 @@ installation author and actual author origin; author-established knowledge canno
 be manufactured by ordinary approval. Cancellation propagates without returning
 an execution. Snapshot preview, immutable source/import verification, validation
 storage, exact approval and publication still require the service workflow.
+Exact validation bindings now capture assessment selection/state, submitted
+scope, head, latest proposal key and installation authority. Completed reports
+bind the full execution result; unfinished and legacy reports cannot manufacture
+a publication binding. Head, proposal, assessment and authority changes make the
+capture stale, while publication re-resolves and compares the exact report.
+Authority sequences retain signed 64-bit precision on native and web targets.
+The existing typed Checked storage family retains these reports/captures across
+SQLite reopen and compares selection/proposal keys atomically before append.
+Owning installation locks and the complete approval/publication workflow remain
+pending; decoding retained evidence does not authenticate it.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

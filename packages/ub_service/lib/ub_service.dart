@@ -28,3 +28,4 @@ export 'src/consequence_execution.dart';
 export 'src/boundary_checks.dart';
 export 'src/candidate_validation.dart';
 export 'src/source_verification.dart';
+export 'src/validation_binding.dart';

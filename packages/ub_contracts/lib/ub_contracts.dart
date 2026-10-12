@@ -14,7 +14,8 @@ export 'src/envelope.dart';
 export 'src/state_response.dart';
 export 'src/response.dart';
 export 'src/wire_message.dart';
-export 'src/wire.dart' show protocolVersion, maxFrameBytes, maxInFlight;
+export 'src/wire.dart'
+    show protocolVersion, maxFrameBytes, maxInFlight, WireFields, wireString;
 export 'src/installation.dart';
 export 'src/author_writing_action.dart';
 export 'src/engine_request.dart';
