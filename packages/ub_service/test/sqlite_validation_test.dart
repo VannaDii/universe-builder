@@ -2043,6 +2043,177 @@ void main() {
     expect(kernel.identityExists(proposal.changes.single.recordId), isFalse);
   });
 
+  test('native operation lookup pages retained findings across restart and pins changing results', () async {
+    final initial = await service.queueValidation(
+      queued(),
+      resolvedFrame: proposal.proposal.baseFrame,
+      isValidationActive: (_) => false,
+    );
+    final workflow = WorkflowStorage(package.database);
+    final stored = StoredOperation.fromWire(
+      workflow.get('operation:${initial.operationId.value}')!,
+    );
+    final v = checked.validation;
+    Validation execution(int count) => Validation(
+      operationId: initial.operationId,
+      runId: v.runId,
+      coverage: v.coverage,
+      findings: [
+        for (var n = 0; n < count; n++)
+          Finding(
+            message: 'Retained fixture finding $n',
+            fingerprint: FindingFingerprint('a' * 64),
+            ruleId: f.id(99),
+            outcome: EvidenceOutcome.supported,
+            evidence: [],
+            coverage: Coverage.complete,
+          ),
+      ],
+      unsupportedCapabilities: v.unsupportedCapabilities,
+      inputDigest: v.inputDigest,
+      evaluatorVersion: v.evaluatorVersion,
+    );
+    StoredOperation retained(Validation v, OperationState state) =>
+        StoredOperation(
+          owner: stored.owner,
+          digest: stored.digest,
+          input: stored.input,
+          footprint: stored.footprint,
+          validationCapture: stored.validationCapture,
+          status: OperationStatus(
+            operationId: initial.operationId,
+            kind: OperationKind.validate,
+            state: state,
+            proposal: stored.status.proposal,
+            validation: v,
+            cancellationRequested: false,
+          ),
+        );
+    final running = retained(execution(205), OperationState.running);
+    workflow.compareAppend({}, [
+      MapEntry('job:${initial.operationId.value}:running', running.toWire()),
+    ]);
+    GetOperationIdRequest byId({String? cursor, UniverseId? universeId}) =>
+        GetOperationIdRequest(
+          universe: const Selector('World'),
+          universeId: universeId ?? f.u,
+          operationId: initial.operationId,
+          cursor: cursor,
+        );
+    GetOperationKeyRequest byKey({String? cursor}) => GetOperationKeyRequest(
+      universe: const Selector('World'),
+      universeId: f.u,
+      operationKind: OperationKind.validate,
+      idempotencyKey: queued().idempotencyKey,
+      cursor: cursor,
+    );
+    final first = await service.getOperationRequest(
+      byId(),
+      isValidationActive: (_) => true,
+    );
+    final alias = await service.getOperationRequest(
+      byKey(),
+      isValidationActive: (_) => true,
+    );
+    expect(alias.status.toWire().toText(), first.status.toWire().toText());
+    expect(first.frame, proposal.proposal.baseFrame);
+    expect(first.status.state, OperationState.running);
+    expect(first.status.validation!.execution!.findings.length, 100);
+    expect(first.delivery.complete, isFalse);
+    expect(
+      (first.status.validation as EvaluatedValidation).finalBindingDigest,
+      isNull,
+    );
+    await expectLater(
+      service.getOperationRequest(
+        byKey(cursor: first.delivery.cursor),
+        isValidationActive: (_) => true,
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    await expectLater(
+      service.getOperationRequest(
+        byId(universeId: UniverseId.generate()),
+        isValidationActive: (_) => true,
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    final other = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: author,
+    );
+    await expectLater(
+      other.getOperationRequest(byId(), isValidationActive: (_) => true),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    service = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: writer,
+    );
+    final middle = await service.getOperationRequest(
+      byId(cursor: first.delivery.cursor),
+      isValidationActive: (_) => false,
+    );
+    expect(middle.status.state, OperationState.interrupted);
+    expect(
+      middle.status.validation!.execution!.findings.first.message,
+      'Retained fixture finding 100',
+    );
+    expect(middle.delivery.complete, isFalse);
+    final last = await service.getOperationRequest(
+      byId(cursor: middle.delivery.cursor),
+      isValidationActive: (_) => false,
+    );
+    expect(last.status.validation!.execution!.findings.length, 5);
+    expect(last.delivery.complete, isTrue);
+    final changed = execution(206);
+    final report = checked.capture!.report(
+      proposal: proposal.reference,
+      baseFrame: proposal.proposal.baseFrame,
+      execution: changed,
+      finished: true,
+    );
+    final completed = CheckedValidation(
+      proposalDigest: checked.proposalDigest,
+      validation: changed,
+      admissible: checked.admissible,
+      capture: checked.capture,
+      report: report,
+    );
+    WorkflowStorage(package.database).compareAppend({}, [
+      MapEntry('validation:${changed.runId.value}', completed.toWire()),
+      MapEntry(
+        'job:${initial.operationId.value}:terminal',
+        retained(changed, OperationState.succeeded).toWire(),
+      ),
+    ]);
+    await expectLater(
+      service.getOperationRequest(
+        byId(cursor: first.delivery.cursor),
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    final refreshed = await service.getOperationRequest(
+      byKey(),
+      isValidationActive: (_) => false,
+    );
+    expect(refreshed.status.state, OperationState.succeeded);
+    expect(
+      (refreshed.status.validation as EvaluatedValidation).finalBindingDigest,
+      report.finalBindingDigest,
+    );
+    expect(kernel.identityExists(proposal.changes.single.recordId), isFalse);
+  });
+
   test('queued retry resolves retained terminal state and rejects a changed request', () async {
     final initial = await service.queueValidation(
       queued(),
@@ -2217,6 +2388,28 @@ void main() {
     expect(completed.state, OperationState.succeeded);
     expect(completed.validation, isA<RestrictedValidation>());
     expect(completed.proposal, isNull);
+    GetOperationIdRequest lookup({String? cursor}) => GetOperationIdRequest(
+      universe: const Selector('World'),
+      universeId: f.u,
+      operationId: result.operationId,
+      cursor: cursor,
+    );
+    final public = await service.getOperationRequest(
+      lookup(),
+      isValidationActive: (_) => false,
+    );
+    expect(public.status.validation, isA<RestrictedValidation>());
+    expect(public.status.proposal, isNull);
+    expect(public.status.failure, isNull);
+    expect(public.delivery.complete, isTrue);
+    expect(public.delivery.cursor, isNull);
+    await expectLater(
+      service.getOperationRequest(
+        lookup(cursor: 'untrusted'),
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
     final retained = CheckedValidation.fromWire(
       WorkflowStorage(package.database)
           .get('validation:${evaluated.validation.runId.value}')!,
@@ -2772,12 +2965,41 @@ void main() {
       proposal.reference,
       completed.validation.runId,
     );
+    final request = publication(completed);
     final receipt = await service.commit(
-      publication(completed),
+      request,
       isValidationActive: (_) => false,
     );
     expect(kernel.identityExists(f.id(10)), isTrue);
     expect(kernel.journal.head(continuity), receipt.revision);
+    final lookup = GetOperationKeyRequest(
+      universe: const Selector('World'),
+      universeId: f.u,
+      operationKind: OperationKind.commit,
+      idempotencyKey: request.idempotencyKey,
+    );
+    final recoveredLookup = await service.getOperationRequest(
+      lookup,
+      isValidationActive: (_) => false,
+    );
+    expect(recoveredLookup.status.state, OperationState.succeeded);
+    expect(
+      recoveredLookup.status.receipt!.toWire().toText(),
+      receipt.toWire().toText(),
+    );
+    expect(recoveredLookup.delivery.complete, isTrue);
+    await expectLater(
+      service.getOperationRequest(
+        GetOperationIdRequest(
+          universe: const Selector('World'),
+          universeId: f.u,
+          operationId: receipt.operationId,
+          cursor: 'untrusted',
+        ),
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
   });
 
   test('native authoring journey submits checks approves and publishes without seeded proposals', () async {

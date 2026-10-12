@@ -70,6 +70,78 @@ Map<String, CanonicalValue> stored(StoredOperation op) => {
 };
 
 void main() {
+  test(
+    'operation findings page exact execution without altering retained status',
+    () {
+      final original = operation();
+      final v = original.status.validation!;
+      final execution = Validation(
+        operationId: id,
+        runId: v.runId,
+        coverage: v.coverage,
+        findings: [
+          for (var n = 0; n < 205; n++)
+            Finding(
+              message: 'Finding $n',
+              fingerprint: FindingFingerprint('a' * 64),
+              ruleId: f.id(99),
+              outcome: EvidenceOutcome.supported,
+              evidence: [],
+              coverage: Coverage.complete,
+            ),
+        ],
+        opposingEvidence: v.opposingEvidence,
+        unsupportedCapabilities: ['bounded fixture'],
+        inputDigest: v.inputDigest,
+        evaluatorVersion: v.evaluatorVersion,
+      );
+      final status = OperationStatus(
+        operationId: id,
+        kind: original.status.kind,
+        state: original.status.state,
+        proposal: original.status.proposal,
+        validation: execution,
+        cancellationRequested: false,
+      );
+      final before = status.toWire().toText();
+      final pages = [
+        for (final offset in [0, 100, 200])
+          pageOperationFindings(status, offset),
+      ];
+      expect(pages.map((p) => p.status.validation!.findings.length), [
+        100,
+        100,
+        5,
+      ]);
+      expect(pages.map((p) => p.complete), [false, false, true]);
+      expect(
+        pages
+            .expand((p) => p.status.validation!.findings)
+            .map((f) => f.toWire().toText()),
+        execution.findings.map((f) => f.toWire().toText()),
+      );
+      for (final page in pages) {
+        expect(page.status.proposal, status.proposal);
+        expect(page.status.validation!.inputDigest, execution.inputDigest);
+        expect(
+          page.status.validation!.unsupportedCapabilities,
+          execution.unsupportedCapabilities,
+        );
+      }
+      expect(status.toWire().toText(), before);
+      expect(
+        pageOperationFindings(status, 205).status.validation!.findings,
+        isEmpty,
+      );
+      for (final offset in [-1, 206]) {
+        expect(
+          () => pageOperationFindings(status, offset),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+      }
+    },
+  );
+
   test('typed operation retains exact commit input and capture with legacy absent capture', () {
     final original = operation(kind: OperationKind.commit, commit: input);
     final decoded = StoredOperation.fromWire(original.toWire());

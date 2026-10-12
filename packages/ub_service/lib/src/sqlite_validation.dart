@@ -872,6 +872,86 @@ final class SqliteValidationWorkflow {
     );
   });
 
+  Future<({OperationStatusV3 status, Frame? frame, Delivery delivery})>
+  getOperationRequest(
+    WorkflowRequest request, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+    const denied = NotFoundOrNotAccessibleError(message: 'resource');
+    final (key, guard, cursor) = switch (request) {
+      GetOperationIdRequest r => (
+        'operation:${r.operationId.value}',
+        r.universeId,
+        r.cursor,
+      ),
+      GetOperationKeyRequest r => (
+        operationRequestKey(
+          current.principal.id,
+          r.operationKind.wireName,
+          r.idempotencyKey,
+        ),
+        r.universeId,
+        r.cursor,
+      ),
+      _ => throw const InvalidArgumentError(
+        field: 'lookup',
+        message: 'requires operation lookup',
+      ),
+    };
+    if (guard != null && guard != universe) throw denied;
+    var status = (await loadStoredOperation(
+      key: key,
+      principal: current.principal.id,
+      worldScope: current.worldScope,
+      readWorkflow: _workflow.get,
+      readReceipt: _journal.receipt,
+      isValidationActive: isValidationActive,
+    )).status;
+    final frame = status.proposal?.baseFrame;
+    var delivery = Delivery(complete: true, cursor: null);
+    final validation = status.validation;
+    if (current.worldScope != null && validation != null) {
+      if (cursor != null) throw denied;
+    } else if (validation != null) {
+      if (frame == null) throw denied;
+      final binding = CanonicalObject([
+        ...request.toArgs().fields,
+        MapEntry(
+          'result_digest',
+          CanonicalString(canonicalDigest(validation.toWire())),
+        ),
+        MapEntry(
+          'resolved_operation',
+          CanonicalString(status.operationId.value),
+        ),
+      ]);
+      final offset = _readOffset(binding, frame, current, cursor);
+      final page = pageOperationFindings(status, offset);
+      status = page.status;
+      delivery = Delivery(
+        complete: page.complete,
+        cursor: _retainReadCursor(
+          binding,
+          frame,
+          current,
+          page.complete,
+          page.next,
+        ),
+      );
+    } else if (cursor != null) {
+      throw denied;
+    }
+    return (
+      status: await publicOperationStatus(
+        status: status,
+        worldScope: current.worldScope,
+        readWorkflow: _workflow.get,
+      ),
+      frame: frame,
+      delivery: delivery,
+    );
+  });
+
   /// The dispatcher resolves the request's universe/context before passing its
   /// exact frame here. Submission retains work; execution is a separate step.
   Future<OperationStatusV3> queueValidation(

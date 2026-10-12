@@ -12,6 +12,42 @@ import 'validation_binding.dart';
 String operationRequestKey(ProfileId principal, String kind, String key) =>
     'request:${principal.value}:$kind:${canonicalDigest(CanonicalString(key))}';
 
+/// Page an admitted operation's execution without changing retained evidence.
+/// Cursor binding must use the complete execution before calling this helper.
+({OperationStatus status, bool complete, int next}) pageOperationFindings(
+  OperationStatus status,
+  int offset,
+) {
+  final validation = status.validation;
+  if (validation == null || offset < 0 || offset > validation.findings.length) {
+    throw const NotFoundOrNotAccessibleError(message: 'resource');
+  }
+  final end = (offset + 100).clamp(0, validation.findings.length);
+  return (
+    status: OperationStatus(
+      validation: Validation(
+        operationId: validation.operationId,
+        runId: validation.runId,
+        coverage: validation.coverage,
+        findings: validation.findings.sublist(offset, end),
+        opposingEvidence: validation.opposingEvidence,
+        unsupportedCapabilities: validation.unsupportedCapabilities,
+        inputDigest: validation.inputDigest,
+        evaluatorVersion: validation.evaluatorVersion,
+      ),
+      failure: status.failure,
+      operationId: status.operationId,
+      kind: status.kind,
+      state: status.state,
+      proposal: status.proposal,
+      receipt: status.receipt,
+      cancellationRequested: status.cancellationRequested,
+    ),
+    complete: end == validation.findings.length,
+    next: end,
+  );
+}
+
 CommitInput _input(CanonicalValue value) {
   final f = WireFields(value, {
     'universe',

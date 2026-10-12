@@ -586,6 +586,14 @@ use canonical UTF-8 fragments of at most 32 KiB with byte-aligned boundaries.
 Assessment cursors pin the selection generation and exact envelope reference;
 selection changes invalidate an existing stream. Proposal pagination survives
 package restart and cannot bypass subsequently revoked write rights.
+Native operation lookup supports exact operation IDs and principal-owned retry
+keys. Validation findings page in groups of 100, with cursors bound to the full
+execution digest and resolved operation identity. Pages preserve retained review
+bindings and survive restart; a changed execution invalidates an old cursor.
+Scoped validation returns restricted output without finding counts or cursors.
+Lookup uses the existing durable receipt and live-worker recovery rules, so a
+committed publication remains successful after a lost response and an inactive
+running validation is reported as interrupted.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.
