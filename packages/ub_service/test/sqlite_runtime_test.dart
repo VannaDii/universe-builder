@@ -4,7 +4,7 @@ library;
 import 'dart:async';
 import 'dart:io';
 
-import 'package:test/test.dart';
+import 'package:test/test.dart' hide Description;
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_profiles.dart';
@@ -117,6 +117,152 @@ void main() {
     await runtime.close();
     installation.close();
     root.deleteSync(recursive: true);
+  });
+
+  Future<Envelope<CanonicalValue>> tool(
+    NativeSqliteConnection connection,
+    Request request,
+  ) async {
+    final decoded = EngineRequest.decode(
+      ToolEngineRequest(request: request).toWire().toBytes(),
+    );
+    return Envelope.fromWire(await connection.execute(decoded), (v) => v);
+  }
+
+  test('public discovery and context envelopes retain exact frames and current aliases', () async {
+    final connection = runtime.connect(hello(author.id));
+    final summary = await tool(
+      connection,
+      DescribeSummaryRequest(
+        universe: const Selector('World'),
+        universeId: f.u,
+      ),
+    );
+    expect(summary.contractVersion, protocolVersion);
+    expect(summary.requestId, BigInt.zero);
+    expect(summary.universeId, f.u);
+    expect(summary.aliasMatched, isFalse);
+    expect(summary.authorizationScope, 'universe grant');
+    expect(summary.delivery.complete, isTrue);
+    expect(summary.delivery.cursor, isNull);
+    expect(summary.frame, isNull);
+    expect(summary.worldFocus, isNull);
+    final discovered = Description.fromWire(summary.result);
+    final continuity = discovered.continuities.single;
+    expect(continuity.id, draft.proposal.baseFrame.continuity);
+    final openedEnvelope = await tool(
+      connection,
+      OpenContextRequest(
+        universe: const Selector('World'),
+        universeId: f.u,
+        continuityId: continuity.id,
+        revision: const HeadRevisionSelector(),
+        representedContext: ContextIdSelector(f.id(99)),
+        temporalQuery: const TimelessFrameTime(),
+        temporalSystems: [],
+        perspective: const AuthorPerspective(),
+      ),
+    );
+    final opened = OpenedContext.fromWire(openedEnvelope.result);
+    expect(
+      openedEnvelope.frame!.toWire().toText(),
+      opened.frame.toWire().toText(),
+    );
+    expect(opened.frame.revision, continuity.revisionId);
+    authority.renameUniverse(author, id: f.u, name: 'Campaign');
+    final worlds = await tool(
+      connection,
+      DescribeWorldsRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+      ),
+    );
+    expect(worlds.universe.value, 'Campaign');
+    expect(worlds.aliasMatched, isTrue);
+    expect(worlds.frame!.toWire().toText(), opened.frame.toWire().toText());
+    expect(Description.fromWire(worlds.result).worlds, isEmpty);
+    final capabilities = await tool(
+      connection,
+      DescribeCapabilitiesRequest(universe: const Selector('Campaign')),
+    );
+    expect(capabilities.aliasMatched, isFalse);
+    expect(Description.fromWire(capabilities.result).capabilities, isNotEmpty);
+    final definitions = await tool(
+      connection,
+      DescribeDefinitionsRequest(
+        universe: const Selector('Campaign'),
+        contextId: opened.contextId,
+      ),
+    );
+    expect(definitions.frame!.revision, continuity.revisionId);
+    await expectLater(
+      tool(
+        connection,
+        DescribeSummaryRequest(
+          universe: const Selector('Campaign'),
+          universeId: UniverseId.generate(),
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+  });
+
+  test('public requests use current grants and cannot reuse another profile context', () async {
+    authority.grant(
+      author,
+      GrantSpec(
+        profileId: writer.id,
+        universeId: f.u,
+        worlds: null,
+        propose: false,
+        edit: false,
+        protected: false,
+      ),
+    );
+    final authorConnection = runtime.connect(hello(author.id));
+    final writerConnection = runtime.connect(hello(writer.id));
+    OpenContextRequest open() => OpenContextRequest(
+      universe: const Selector('World'),
+      continuityId: draft.proposal.baseFrame.continuity,
+      revision: const HeadRevisionSelector(),
+      representedContext: ContextIdSelector(f.id(99)),
+      temporalQuery: const TimelessFrameTime(),
+      temporalSystems: [],
+      perspective: const AuthorPerspective(),
+    );
+    final opened = OpenedContext.fromWire(
+      (await tool(writerConnection, open())).result,
+    );
+    final describe = DescribeWorldsRequest(
+      universe: const Selector('World'),
+      contextId: opened.contextId,
+    );
+    await tool(writerConnection, describe);
+    await expectLater(
+      tool(authorConnection, describe),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    authority.withdrawGrant(author, profile: writer.id, universe: f.u);
+    await expectLater(
+      tool(writerConnection, describe),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    await expectLater(
+      tool(
+        writerConnection,
+        DescribeSummaryRequest(universe: const Selector('World')),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    await tool(
+      authorConnection,
+      DescribeSummaryRequest(universe: const Selector('World')),
+    );
+    authority.revoke(author, writer.id);
+    await expectLater(
+      tool(writerConnection, open()),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
   });
 
   test('connections share one recovered writer and retain publication receipt across runtime restart', () async {

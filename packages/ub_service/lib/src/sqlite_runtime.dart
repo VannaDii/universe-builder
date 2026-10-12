@@ -37,7 +37,7 @@ final class NativeSqliteRuntime {
     return connection;
   }
 
-  Future<CanonicalValue> _writing(
+  Future<CanonicalValue> _execute(
     InstallationPrincipal principal,
     EngineRequest request,
   ) async {
@@ -46,15 +46,18 @@ final class NativeSqliteRuntime {
     _active.add(finished);
     try {
       final package = await authority.coordinate(principal, () {
-        authority.requireAuthor(principal);
+        if (request is! ToolEngineRequest) authority.requireAuthor(principal);
+        if (request case ToolEngineRequest(:final request)) request.validate();
         final selector = switch (request) {
+          ToolEngineRequest(:final request) => request.universe,
           AuthorWritingEngineRequest(:final universe) ||
           StageSourceEngineRequest(:final universe) ||
           ReviewEngineRequest(:final universe) ||
           ApproveEngineRequest(:final universe) => universe,
           _ => throw const InvalidArgumentError(
             field: 'method',
-            message: 'requires a private writing engine request',
+            message:
+                'requires a universe tool or private writing engine request',
           ),
         };
         final catalog = authority.resolveUniverseAlias(
@@ -83,11 +86,15 @@ final class NativeSqliteRuntime {
       });
       // Execution rechecks current authority after recovery/admission. No caller
       // acquires raw database access or inherits rights from a cached worker.
-      return await SqliteValidationWorkflow(
+      final workflow = SqliteValidationWorkflow(
         package: package,
         authority: authority,
         principal: principal,
-      ).executeWritingEngineRequest(
+      );
+      if (request case ToolEngineRequest(:final request)) {
+        return await workflow.executeToolRequest(request);
+      }
+      return await workflow.executeWritingEngineRequest(
         request,
         isValidationActive: (id) => _scheduler.isActive(package.universeId, id),
       );
@@ -133,9 +140,12 @@ final class NativeSqliteConnection {
     maxFrameBytes: BigInt.from(maxFrameBytes),
     maxInFlight: BigInt.from(maxInFlight),
   );
-  Future<CanonicalValue> executeWriting(EngineRequest request) {
+  Future<CanonicalValue> executeWriting(EngineRequest request) =>
+      execute(request);
+
+  Future<CanonicalValue> execute(EngineRequest request) {
     if (_closed) throw StateError('Connection is closed');
-    return _lease.run(() => _runtime._writing(_principal, request));
+    return _lease.run(() => _runtime._execute(_principal, request));
   }
 
   void close() {

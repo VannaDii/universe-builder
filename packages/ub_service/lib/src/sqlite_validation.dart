@@ -322,68 +322,142 @@ final class SqliteValidationWorkflow {
   describeRequest(ReadRequest request) => authority.withUniverseAuthority(
     principal,
     universe,
-    (current) async {
-      final (guard, context, world, worldGuard) = switch (request) {
-        DescribeSummaryRequest r => (r.universeId, null, null, null),
-        DescribeCapabilitiesRequest r => (r.universeId, null, null, null),
-        DescribeWorldsRequest r => (r.universeId, r.contextId, null, null),
-        DescribeDefinitionsRequest r => (
-          r.universeId,
-          r.contextId,
-          r.world,
-          r.worldId,
-        ),
-        _ => throw const InvalidArgumentError(
-          field: 'mode',
-          message: 'requires describe request',
-        ),
-      };
-      if (guard != null && guard != universe) {
+    (current) => _describeRequest(request, current),
+  );
+
+  Future<({Description description, Frame? frame, WorldId? focus})>
+  _describeRequest(
+    ReadRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
+    final (guard, context, world, worldGuard) = switch (request) {
+      DescribeSummaryRequest r => (r.universeId, null, null, null),
+      DescribeCapabilitiesRequest r => (r.universeId, null, null, null),
+      DescribeWorldsRequest r => (r.universeId, r.contextId, null, null),
+      DescribeDefinitionsRequest r => (
+        r.universeId,
+        r.contextId,
+        r.world,
+        r.worldId,
+      ),
+      _ => throw const InvalidArgumentError(
+        field: 'mode',
+        message: 'requires describe request',
+      ),
+    };
+    if (guard != null && guard != universe) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final continuities = <ContinuitySummary>[];
+    if (request is DescribeSummaryRequest) {
+      for (final head in _journal.heads().entries) {
+        final name = _workflow.get('continuity-name:${head.key.value}');
+        final summary = discoveryContinuity(
+          id: head.key,
+          revision: head.value,
+          name: name is CanonicalString ? name.value : 'Original continuity',
+          records: _canon(head.key, head.value),
+          worldScope: current.worldScope,
+        );
+        if (summary != null) continuities.add(summary);
+      }
+    }
+    Frame? frame;
+    WorldId? focus;
+    var records = <RecordVersion>[];
+    var visibility = <RecordId>{};
+    if (context != null) {
+      frame = _contextFrame(context, current);
+      final snapshot = await _readSnapshot(
+        frame: frame,
+        world: world,
+        guard: worldGuard,
+        current: current,
+      );
+      records = snapshot.all;
+      visibility = snapshot.visibility;
+      focus = snapshot.focus;
+    }
+    return (
+      description: discoveryDescription(
+        records: records,
+        visibility: visibility,
+        definitions: request is DescribeDefinitionsRequest,
+        focus: focus,
+        continuities: continuities,
+      ),
+      frame: frame,
+      focus: focus,
+    );
+  }
+
+  /// Public tool boundary. Result and envelope bindings are selected in the same
+  /// authority section; recovered workers never confer cached access rights.
+  Future<CanonicalValue> executeToolRequest(Request request) async {
+    try {
+      return await authority.withUniverseAuthority(principal, universe, (
+        current,
+      ) async {
+        request.validate();
+        final resolved = authority.resolveUniverseAlias(
+          principal,
+          request.universe.value,
+        );
+        if (resolved.universeId != universe) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        CanonicalValue result;
+        Frame? frame;
+        WorldId? focus;
+        switch (request) {
+          case OpenContextRequest():
+            final opened = await _openContext(request, current);
+            result = opened.toWire();
+            frame = opened.frame;
+          case DescribeSummaryRequest() ||
+              DescribeCapabilitiesRequest() ||
+              DescribeWorldsRequest() ||
+              DescribeDefinitionsRequest():
+            final described = await _describeRequest(
+              request as ReadRequest,
+              current,
+            );
+            result = described.description.toWire();
+            frame = described.frame;
+            focus = described.focus;
+          default:
+            throw const UnsupportedSemanticsError(
+              message: 'public tool is not yet connected to native runtime',
+            );
+        }
+        final envelope = Envelope<CanonicalValue>(
+          contractVersion: protocolVersion,
+          requestId: BigInt.zero,
+          universeId: universe,
+          universe: Selector(resolved.name),
+          aliasMatched: request.universe.value != resolved.name,
+          frame: frame,
+          worldFocus: focus,
+          authorizationScope: current.worldScope == null
+              ? 'universe grant'
+              : 'world-scoped grant',
+          delivery: Delivery(complete: true, cursor: null),
+          result: result,
+        ).toWire((value) => value);
+        if (envelope.toBytes().length > 900000) {
+          throw const EvaluationLimitReachedError(
+            message: 'response exceeds bounded transport; narrow the batch',
+          );
+        }
+        return envelope;
+      });
+    } on InstallationException catch (error) {
+      if (error.failure == InstallationFailure.denied) {
         throw const NotFoundOrNotAccessibleError(message: 'resource');
       }
-      final continuities = <ContinuitySummary>[];
-      if (request is DescribeSummaryRequest) {
-        for (final head in _journal.heads().entries) {
-          final name = _workflow.get('continuity-name:${head.key.value}');
-          final summary = discoveryContinuity(
-            id: head.key,
-            revision: head.value,
-            name: name is CanonicalString ? name.value : 'Original continuity',
-            records: _canon(head.key, head.value),
-            worldScope: current.worldScope,
-          );
-          if (summary != null) continuities.add(summary);
-        }
-      }
-      Frame? frame;
-      WorldId? focus;
-      var records = <RecordVersion>[];
-      var visibility = <RecordId>{};
-      if (context != null) {
-        frame = _contextFrame(context, current);
-        final snapshot = await _readSnapshot(
-          frame: frame,
-          world: world,
-          guard: worldGuard,
-          current: current,
-        );
-        records = snapshot.all;
-        visibility = snapshot.visibility;
-        focus = snapshot.focus;
-      }
-      return (
-        description: discoveryDescription(
-          records: records,
-          visibility: visibility,
-          definitions: request is DescribeDefinitionsRequest,
-          focus: focus,
-          continuities: continuities,
-        ),
-        frame: frame,
-        focus: focus,
-      );
-    },
-  );
+      rethrow;
+    }
+  }
 
   Future<Records> getRequest(
     GetRequest request,
