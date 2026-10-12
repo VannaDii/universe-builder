@@ -45,7 +45,7 @@ dart test
 dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart test/read_response_test.dart test/state_response_test.dart test/response_test.dart test/wire_message_test.dart test/installation_test.dart test/author_writing_action_test.dart test/engine_request_test.dart test/workflow_request_test.dart test/writing_test.dart test/writing_knowledge_test.dart test/writing_delta_test.dart --platform chrome
 cd ../ub_service
 dart test
-dart test test/configuration_test.dart --platform chrome
+dart test test/configuration_test.dart test/postgres_endpoint_test.dart --platform chrome
 ```
 
 Browser tests must run from the package directory. Set `CHROME_EXECUTABLE` if
@@ -264,9 +264,18 @@ selection never reads an endpoint or unlocks saved credentials. An explicitly
 empty environment endpoint cannot fall back to a saved secret, and missing or
 unavailable selected secrets fail with redacted errors. The resolver preserves
 the exact endpoint scalar and never persists credentials or opens/transfers a
-database. PostgreSQL URI/driver validation, encrypted settings, OS key access
-and backend startup remain pending; this resolver does not make PostgreSQL
-available in the Dart engine yet.
+database. Selected PostgreSQL endpoints now require an explicit single TCP host
+and database, with `postgres`/`postgresql` schemes, percent-decoded credentials
+and IPv6 support. Query overrides support `user`/`username`, `password`,
+`dbname`/`database` and `port`; duplicate/conflicting options fail. TLS defaults
+to `verify-full`. Explicit unverified `require`/`disable` modes need a separate
+loopback-development selection and literal loopback host. Opportunistic and
+CA-only modes are rejected rather than approximated. Certificate paths,
+`application_name` and positive `connect_timeout` values remain typed options;
+unsupported/incompatible options and malformed URIs fail with redacted errors.
+Certificate files are not read during parsing. Driver integration/connection
+verification, encrypted settings, OS key access and backend startup remain
+pending; this resolver does not make PostgreSQL available in the Dart engine yet.
 Ordinary writer types now preserve JSON scalar fact values, named objects and
 explicit unit amounts, fact lifetimes, object/definition deltas, claims and
 historical corrections/endings/withdrawals. Research requests for exact object

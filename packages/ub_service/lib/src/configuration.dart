@@ -1,10 +1,15 @@
 import 'package:ub_contracts/ub_contracts.dart';
 
+import 'postgres_endpoint.dart';
+
 /// Safe errors contain neither endpoint text nor underlying key-store errors.
 enum ConfigurationFailure {
   invalidBackendFlag,
   missingPostgresEndpoint,
   savedEndpointUnavailable,
+  invalidEndpoint,
+  unsupportedConnectionOption,
+  unverifiedTls,
 }
 
 final class ConfigurationException implements Exception {
@@ -17,12 +22,16 @@ final class ConfigurationException implements Exception {
       'PostgreSQL is selected but no endpoint is configured.',
     ConfigurationFailure.savedEndpointUnavailable =>
       'The saved PostgreSQL endpoint could not be unlocked.',
+    ConfigurationFailure.invalidEndpoint =>
+      'Enter a valid PostgreSQL URI with an explicit host and database.',
+    ConfigurationFailure.unsupportedConnectionOption => 'The PostgreSQL URI contains an unsupported or incompatible connection option.',
+    ConfigurationFailure.unverifiedTls => 'Use verified TLS; unverified TLS requires explicit loopback development configuration.',
   };
   @override
   String toString() => 'ConfigurationException(${failure.name}): $message';
 }
 
-/// Resolved startup settings, before endpoint validation and backend startup.
+/// Resolved startup settings, before backend startup.
 /// This resolver never creates a store, transfers data or saves credentials.
 sealed class BackendConfiguration {
   const BackendConfiguration();
@@ -32,6 +41,7 @@ sealed class BackendConfiguration {
     required Map<String, String> environment,
     bool? savedUsePostgres,
     Future<Credential?> Function()? readSavedEndpoint,
+    bool allowLoopbackDevelopment = false,
   }) async {
     final bool postgres;
     if (environment.containsKey('UB_USE_POSTGRES')) {
@@ -67,7 +77,10 @@ sealed class BackendConfiguration {
         ConfigurationFailure.missingPostgresEndpoint,
       );
     }
-    return PostgresConfiguration(endpoint);
+    return PostgresConfiguration(
+      endpoint,
+      allowLoopbackDevelopment: allowLoopbackDevelopment,
+    );
   }
 }
 
@@ -80,8 +93,19 @@ final class SqliteConfiguration extends BackendConfiguration {
 }
 
 final class PostgresConfiguration extends BackendConfiguration {
-  const PostgresConfiguration(this.endpoint);
+  factory PostgresConfiguration(
+    Credential endpoint, {
+    bool allowLoopbackDevelopment = false,
+  }) => PostgresConfiguration._(
+    endpoint,
+    PostgresConnectionOptions.parse(
+      endpoint,
+      allowLoopbackDevelopment: allowLoopbackDevelopment,
+    ),
+  );
+  const PostgresConfiguration._(this.endpoint, this.connection);
   final Credential endpoint;
+  final PostgresConnectionOptions connection;
   @override
   bool get usePostgres => true;
   @override
