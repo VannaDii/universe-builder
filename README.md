@@ -514,14 +514,16 @@ and failed preparation release the guard without granting publication authority.
 The cross-process regression checks live ownership, skipped competing evaluation,
 termination/resumption and guard cleanup. No heartbeat or authorization cache is
 introduced. See PostgreSQL's [advisory lock semantics](https://www.postgresql.org/docs/16/explicit-locking.html#ADVISORY-LOCKS).
-The internal PostgreSQL move coordinator now has an author-only durable source
+The internal SQLite and PostgreSQL move coordinators have an author-only durable source
 quiescence primitive. It binds one universe and move operation to another
 installation identity, suspends ordinary source access across connected service
 workers and restart, and retains the source catalog, aliases, grants and universe
 data. Exact retries retain one audit event; changed bindings and self-targets are
-refused. This metadata lives in control schema version 3 and never enters universe
-exports. Opening older or incomplete control layouts refuses them unchanged;
-explicit conversion is still required. SQLite quiescence, transfer staging,
+refused. This metadata lives in SQLite's installation database or PostgreSQL
+control schema version 3 and never enters universe exports. Opening older or
+incomplete control layouts refuses them unchanged. Explicit SQLite installation
+conversion adds the move table to the prior normative layout and retains existing
+move bindings; PostgreSQL control conversion is still required. Transfer staging,
 target admission/recovery and the operator/UI move flow remain pending.
 Coordinated backend cutover and hosted server backup operation remain pending.
 Socket/launcher integration, cross-process worker qualification and

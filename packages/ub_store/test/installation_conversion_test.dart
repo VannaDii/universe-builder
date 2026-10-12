@@ -176,7 +176,7 @@ CREATE TABLE audit(sequence INTEGER PRIMARY KEY,actor TEXT,action TEXT,target TE
     }
     final report = convertInstallation(source, destination).toText();
     expect(report, contains('"instance_identity_established":false'));
-    expect(report, contains('"compared_tables":12'));
+    expect(report, contains('"compared_tables":13'));
     unchanged(before);
     final target = SqliteInstallationStore.openExisting(destination);
     try {
@@ -195,6 +195,94 @@ CREATE TABLE audit(sequence INTEGER PRIMARY KEY,actor TEXT,action TEXT,target TE
         ProfileCredentialStore.read(root: destination, profile: profile),
         credential(profile),
       );
+    }
+    noStages();
+  });
+
+  test(
+    'explicit cutover adds move layout while preserving older source unchanged',
+    () {
+      useRelationalSource();
+      final reader = SqliteInstallationStore.openExisting(source);
+      final identity = reader.instanceId;
+      reader.close();
+      edit((db) => db.execute('DROP TABLE move_quiescence'));
+      final before = originals();
+      expect(
+        () => SqliteInstallationStore.openExisting(source),
+        throwsA(
+          isA<InstallationException>().having(
+            (e) => e.failure,
+            'failure',
+            InstallationFailure.incompatibleSchema,
+          ),
+        ),
+      );
+      convertInstallation(source, destination);
+      unchanged(before);
+      final target = SqliteInstallationStore.openExisting(destination);
+      try {
+        expect(target.instanceId, identity);
+        expect(target.readGrant(revoked, universe).worlds, {
+          firstWorld,
+          secondWorld,
+        });
+      } finally {
+        target.close();
+      }
+      noStages();
+    },
+  );
+
+  test('explicit cutover retains source move binding and suspension', () {
+    useRelationalSource();
+    final reader = SqliteInstallationStore.openExisting(source);
+    final operation = OperationId.generate(), instance = OperationId.generate();
+    reader.quiesceUniverseForMove(
+      actor: author,
+      universe: universe,
+      operation: operation,
+      targetInstance: instance,
+    );
+    final identity = reader.instanceId;
+    reader.close();
+    final before = originals();
+    convertInstallation(source, destination);
+    unchanged(before);
+    final target = SqliteInstallationStore.openExisting(destination);
+    try {
+      expect(target.instanceId, identity);
+      expect(
+        () => target.universeScope(author, universe, BigInt.zero),
+        throwsA(
+          isA<InstallationException>().having(
+            (e) => e.failure,
+            'failure',
+            InstallationFailure.denied,
+          ),
+        ),
+      );
+      target.quiesceUniverseForMove(
+        actor: author,
+        universe: universe,
+        operation: operation,
+        targetInstance: instance,
+      );
+      expect(
+        target.audit(author).where((e) => e.action == 'quiesce_move'),
+        hasLength(1),
+      );
+      expect(
+        () => target.quiesceUniverseForMove(
+          actor: author,
+          universe: universe,
+          operation: operation,
+          targetInstance: OperationId.generate(),
+        ),
+        throwsFormatException,
+      );
+    } finally {
+      target.close();
     }
     noStages();
   });

@@ -232,6 +232,10 @@ final class SqliteInstallationStore {
   }
 
   static void _checkSchema(Database db) {
+    final moves = db
+        .select('PRAGMA table_info(move_quiescence)')
+        .map((r) => r['name'])
+        .join(',');
     final grants = db
         .select('PRAGMA table_info(grants)')
         .map((r) => r['name'])
@@ -247,7 +251,8 @@ final class SqliteInstallationStore {
     final normalization = db.select(
       "SELECT value FROM settings WHERE key='normalization'",
     );
-    if (!grants.contains('worlds_state') ||
+    if (moves != 'universe,operation,target_instance' ||
+        !grants.contains('worlds_state') ||
         !preview.contains('includes_workflow') ||
         profiles != 'id,hash,author,revoked' ||
         normalization.length != 1 ||
@@ -475,6 +480,55 @@ final class SqliteInstallationStore {
       _db.execute(
         "INSERT INTO audit(actor,action,target) VALUES(?,'register',?)",
         [actor.value, id.value],
+      );
+    });
+  }
+
+  /// Retain the source intact while a trusted coordinator moves it elsewhere.
+  /// This installation metadata must never enter universe archives.
+  void quiesceUniverseForMove({
+    required ProfileId actor,
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+  }) {
+    requireAuthor(actor);
+    if (targetInstance == instanceId) {
+      throw const FormatException('Move target must be another installation');
+    }
+    if (_db.select('SELECT id FROM catalog WHERE id=?', [
+      universe.value,
+    ]).isEmpty) {
+      throw const InstallationException(InstallationFailure.denied);
+    }
+    final existing = _db.select(
+      'SELECT operation,target_instance FROM move_quiescence WHERE universe=?',
+      [universe.value],
+    );
+    if (existing.isNotEmpty) {
+      if (existing.single['operation'] != operation.value ||
+          existing.single['target_instance'] != targetInstance.value) {
+        throw const FormatException('Source is bound to another move');
+      }
+      return;
+    }
+    if (_db.select('SELECT universe FROM move_quiescence WHERE operation=?', [
+      operation.value,
+    ]).isNotEmpty) {
+      throw const FormatException('Move operation belongs to another universe');
+    }
+    // These synchronous checks and the write execute without yielding within
+    // the installation's authority queue and exclusive lifetime file lock.
+    _transaction(() {
+      requireAuthor(actor);
+      _db.execute('INSERT INTO move_quiescence VALUES(?,?,?)', [
+        universe.value,
+        operation.value,
+        targetInstance.value,
+      ]);
+      _db.execute(
+        "INSERT INTO audit(actor,action,target) VALUES(?,'quiesce_move',?)",
+        [actor.value, universe.value],
       );
     });
   }

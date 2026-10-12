@@ -3,6 +3,7 @@ PRAGMA foreign_keys=ON;
 CREATE TABLE settings(key TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
 CREATE TABLE profiles(id TEXT PRIMARY KEY, hash TEXT NOT NULL, author INTEGER NOT NULL CHECK(author IN(0,1)), revoked INTEGER NOT NULL CHECK(revoked IN(0,1))) STRICT;
 CREATE TABLE catalog(id TEXT PRIMARY KEY, name TEXT NOT NULL, path TEXT NOT NULL UNIQUE, device TEXT NOT NULL, inode TEXT NOT NULL, UNIQUE(device,inode)) STRICT;
+CREATE TABLE move_quiescence(universe TEXT PRIMARY KEY REFERENCES catalog(id) ON DELETE CASCADE, operation TEXT NOT NULL UNIQUE, target_instance TEXT NOT NULL) STRICT;
 CREATE TABLE aliases(key TEXT PRIMARY KEY, universe TEXT NOT NULL REFERENCES catalog(id)) STRICT;
 CREATE TABLE grants(profile TEXT NOT NULL REFERENCES profiles(id), universe TEXT NOT NULL REFERENCES catalog(id),
  worlds_state TEXT NOT NULL CHECK(worlds_state IN('all','listed')), propose INTEGER NOT NULL CHECK(propose IN(0,1)), edit INTEGER NOT NULL CHECK(edit IN(0,1)), protected INTEGER NOT NULL CHECK(protected IN(0,1)),

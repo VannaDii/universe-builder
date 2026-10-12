@@ -46,6 +46,74 @@ void main() {
     return (path: path, id: id);
   }
 
+  test('failed move audit rolls back source guard and retains access', () {
+    final fixture = package('move');
+    store.registerExistingPackage(
+      actor: author,
+      name: 'Move',
+      path: fixture.path,
+    );
+    store.close();
+    final db = sqlite3.open('${directory.path}/installation.sqlite');
+    db.execute(
+      "CREATE TRIGGER refuse_move BEFORE INSERT ON audit WHEN NEW.action='quiesce_move' BEGIN SELECT RAISE(ABORT, 'disposable move failure'); END",
+    );
+    db.close();
+    store = SqliteInstallationStore.openExisting(directory.path);
+    expect(
+      () => store.quiesceUniverseForMove(
+        actor: author,
+        universe: fixture.id,
+        operation: OperationId.generate(),
+        targetInstance: OperationId.generate(),
+      ),
+      throwsA(
+        isA<InstallationException>().having(
+          (e) => e.failure,
+          'failure',
+          InstallationFailure.unavailable,
+        ),
+      ),
+    );
+    expect(
+      store.resolveUniverseAlias(actor: author, name: 'Move').universeId,
+      fixture.id,
+    );
+    expect(
+      store.audit(author).where((e) => e.action == 'quiesce_move'),
+      isEmpty,
+    );
+  });
+
+  test('explicit purge removes move binding with catalog while retaining pending cleanup', () {
+    final fixture = package('move');
+    store.registerExistingPackage(
+      actor: author,
+      name: 'Move',
+      path: fixture.path,
+    );
+    store.quiesceUniverseForMove(
+      actor: author,
+      universe: fixture.id,
+      operation: OperationId.generate(),
+      targetInstance: OperationId.generate(),
+    );
+    store.beginPurge(actor: author, universe: fixture.id);
+    store.close();
+    final db = sqlite3.open(
+      '${directory.path}/installation.sqlite',
+      mode: OpenMode.readOnly,
+    );
+    try {
+      expect(db.select('SELECT * FROM move_quiescence'), isEmpty);
+      expect(db.select('SELECT * FROM purge_pending'), hasLength(1));
+    } finally {
+      db.close();
+    }
+    store = SqliteInstallationStore.openExisting(directory.path);
+    expect(File(fixture.path).existsSync(), isFalse);
+  });
+
   test('registration derives the real universe identity and persists exact aliases after restart', () {
     final fixture = package('one');
     expect(

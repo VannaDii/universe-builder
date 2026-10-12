@@ -284,6 +284,22 @@ final class InstallationAuthority {
     );
   }
 
+  /// Trusted coordinator entry; connected clients recheck the retained guard.
+  Future<void> quiesceUniverseForMove(
+    InstallationPrincipal principal, {
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+  }) => coordinate(
+    principal,
+    () => _store.quiesceUniverseForMove(
+      actor: principal.id,
+      universe: universe,
+      operation: operation,
+      targetInstance: targetInstance,
+    ),
+  );
+
   void renameUniverse(
     InstallationPrincipal actor, {
     required UniverseId id,

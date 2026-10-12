@@ -225,6 +225,11 @@ extension InstallationGrants on SqliteInstallationStore {
     ]).isEmpty) {
       throw const InstallationException(InstallationFailure.denied);
     }
+    if (_db.select('SELECT universe FROM move_quiescence WHERE universe=?', [
+      universe.value,
+    ]).isNotEmpty) {
+      throw const InstallationException(InstallationFailure.denied);
+    }
     if (current.author) return null;
     limits(profile, universe, epochSeconds);
     final worlds = readGrant(profile, universe).worlds;

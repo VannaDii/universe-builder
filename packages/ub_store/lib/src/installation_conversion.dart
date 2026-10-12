@@ -82,6 +82,8 @@ CanonicalObject convertInstallationWithHook(
     ];
     final allowed = {
       ...scalars,
+      if (relational && conversionColumns(input, 'move_quiescence').isNotEmpty)
+        'move_quiescence',
       'grants',
       'import_preview',
       if (relational) ...[
@@ -135,7 +137,14 @@ CanonicalObject convertInstallationWithHook(
     protectedFile(path, createNew: true);
     output = sqlite3.open(path, mode: OpenMode.readWrite);
     output.execute(installationSchema);
-    if (relational && !_sameSchema(input, output)) {
+    if (relational &&
+        !_sameSchema(
+          input,
+          output,
+          omitOutputTable: allowed.contains('move_quiescence')
+              ? null
+              : 'move_quiescence',
+        )) {
       throw const FormatException('Unsupported relational installation schema');
     }
     final copied = relational ? allowed.toList() : scalars;
@@ -419,7 +428,7 @@ CanonicalObject convertInstallationWithHook(
   }
 }
 
-bool _sameSchema(Database input, Database output) {
+bool _sameSchema(Database input, Database output, {String? omitOutputTable}) {
   List<(String, String, String, String)> schema(Database db) => [
     for (final row in db.select(
       "SELECT type,name,tbl_name,coalesce(sql,'') AS sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name",
@@ -431,7 +440,8 @@ bool _sameSchema(Database input, Database output) {
         row['sql'] as String,
       ),
   ];
-  final a = schema(input), b = schema(output);
+  final a = schema(input),
+      b = schema(output).where((row) => row.$3 != omitOutputTable).toList();
   return a.length == b.length &&
       Iterable<int>.generate(a.length).every((i) => a[i] == b[i]);
 }
