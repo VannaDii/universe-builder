@@ -518,8 +518,13 @@ Context-backed native proposal dispatch now admits the retained context's owner,
 scope hash, universe and expiry before retry or mutation, then resolves visible
 world selectors/aliases and exact world guards within the same authority section
 as retention. Context scope changes and expiry cannot be bypassed by a retained
-request receipt. Context creation, other context-backed routes and public engine
-dispatch remain pending.
+request receipt. Native context opening now pins a head or exact revision,
+admits visible represented contexts, temporal queries/calendars and event frames,
+and retains owner/scope/expiry with the opened frame. Character and narrator
+perspectives require matching contexts; reader perspectives require a positioned
+scene and disclosures/dependencies matching the edition's pinned canon. Named
+contexts and scenes require one exact accessible match. Other context-backed
+routes and public engine dispatch remain pending.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

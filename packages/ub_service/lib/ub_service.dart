@@ -36,3 +36,4 @@ export 'src/assessment_resolution.dart';
 export 'src/operation_state.dart';
 export 'src/validation_task.dart';
 export 'src/context_binding.dart';
+export 'src/context_opening.dart';

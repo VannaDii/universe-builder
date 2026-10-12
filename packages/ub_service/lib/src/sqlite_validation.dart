@@ -9,6 +9,7 @@ import 'assessment_resolution.dart';
 import 'assessment_validation.dart';
 import 'candidate_validation.dart';
 import 'context_binding.dart';
+import 'context_opening.dart';
 import 'installation_authority.dart';
 import 'operation_state.dart';
 import 'proposal_authorization.dart';
@@ -144,6 +145,39 @@ final class SqliteValidationWorkflow {
       readVersion: _version,
     ),
   );
+
+  /// The dispatcher resolves the universe before invoking this native route.
+  Future<OpenedContext> openContext(OpenContextRequest request) =>
+      authority.withUniverseAuthority(principal, universe, (current) async {
+        if (request.universeId != null && request.universeId != universe) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        final revision = switch (request.revision) {
+          HeadRevisionSelector() => _journal.head(request.continuityId),
+          ExactRevisionSelector(:final revisionId) => revisionId,
+        };
+        final frame = await prepareContextFrame(
+          request: request,
+          universe: universe,
+          revision: revision,
+          records: _canon(request.continuityId, revision),
+          worldScope: current.worldScope,
+          readCanon: _canon,
+        );
+        final id = ContextId.generate();
+        final stored = StoredContext(
+          owner: principal.id,
+          scope: current.scopeHash,
+          expires: BigInt.from(
+            DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600,
+          ),
+          frame: frame,
+        );
+        _workflow.compareAppend({}, [
+          MapEntry('context:${id.value}', stored.toWire()),
+        ]);
+        return OpenedContext(contextId: id, frame: frame);
+      });
 
   /// The dispatcher resolves context and world focus under current read access.
   /// Compilation/preview is outside the workflow transaction, which the kernel

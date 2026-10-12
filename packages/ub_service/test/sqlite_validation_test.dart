@@ -196,6 +196,90 @@ void main() {
     isValidationActive: (_) => false,
   );
 
+  OpenContextRequest contextRequest({
+    Perspective perspective = const AuthorPerspective(),
+    FrameTime time = const TimelessFrameTime(),
+    RepresentedContextSelector? represented,
+  }) => OpenContextRequest(
+    universe: const Selector('World'),
+    universeId: f.u,
+    continuityId: continuity,
+    revision: const HeadRevisionSelector(),
+    representedContext: represented ?? ContextIdSelector(f.id(99)),
+    temporalQuery: time,
+    temporalSystems: [],
+    perspective: perspective,
+  );
+
+  test('native context opening pins current canon and feeds proposal dispatch after reopen', () async {
+    final opened = await service.openContext(contextRequest());
+    expect(opened.frame.revision, kernel.journal.head(continuity));
+    final stored = StoredContext.fromWire(
+      WorkflowStorage(package.database)
+          .get('context:${opened.contextId.value}')!,
+    );
+    expect(stored.owner, writer.id);
+    expect(stored.frame.toWire().toText(), opened.frame.toWire().toText());
+    final template = creation();
+    final request = CreateProposalRequest(
+      universe: template.universe,
+      universeId: f.u,
+      contextId: opened.contextId,
+      operations: template.operations,
+      submission: template.submission,
+      rationale: template.rationale,
+      idempotencyKey: template.idempotencyKey,
+    );
+    final created = await service.proposeRequest(
+      request,
+      isValidationActive: (_) => false,
+    );
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    service = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: writer,
+    );
+    expect(
+      (await service.proposeRequest(
+        request,
+        isValidationActive: (_) => false,
+      )).toWire().toText(),
+      created.toWire().toText(),
+    );
+    expect(kernel.identityExists(f.id(20)), isFalse);
+  });
+
+  test(
+    'unavailable perspective context and calendar retain no native context',
+    () async {
+      await expectLater(
+        service.openContext(
+          contextRequest(perspective: CharacterPerspective(f.id(20))),
+        ),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      await expectLater(
+        service.openContext(
+          contextRequest(time: AtFrameTime(ExactTime(f.cal, '10'))),
+        ),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      await expectLater(
+        service.openContext(
+          contextRequest(represented: ContextIdSelector(f.id(98))),
+        ),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      expect(WorkflowStorage(package.database).keys('context:'), isEmpty);
+    },
+  );
+
   Future<void> retainedContext({ProfileId? owner, BigInt? expires}) =>
       authority.withUniverseAuthority(writer, f.u, (current) {
         final stored = StoredContext(
