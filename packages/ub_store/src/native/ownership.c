@@ -1,4 +1,7 @@
 /* Minimal OS bridge for descriptor metadata, protected creation and locking. */
+#if defined(__linux__)
+#define _GNU_SOURCE
+#endif
 #include <stdint.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -28,11 +31,20 @@ UB_EXPORT int32_t ub_read_image(const char *path, uint8_t *bytes, int32_t capaci
 UB_EXPORT int32_t ub_publish_snapshot(const char *source, const char *destination, const char *directory) {
   (void)source; (void)destination; (void)directory; return 50;
 }
+UB_EXPORT int32_t ub_publish_conversion(const char *source, const char *destination, const char *directory) {
+  (void)source; (void)destination; (void)directory; return 50;
+}
+UB_EXPORT int32_t ub_read_credential(const char *path, uint8_t *bytes, int32_t capacity, int32_t *length) {
+  (void)path; (void)bytes; (void)capacity; (void)length; return 50;
+}
 #else
 #include <fcntl.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#if defined(__linux__)
+#include <sys/syscall.h>
+#endif
 #define UB_EXPORT __attribute__((visibility("default")))
 
 /* Read the same checked descriptor; never follow a final symlink or block on a FIFO. */
@@ -73,6 +85,58 @@ static int protected_open(const char *path, int32_t create, int *error) {
     *error = EACCES; close(fd); return -1;
   }
   return fd;
+}
+
+/* Legacy credential input is read through the same checked read-only descriptor. */
+UB_EXPORT int32_t ub_read_credential(const char *path, uint8_t *bytes, int32_t capacity, int32_t *length) {
+  if (capacity != 4097) return EINVAL;
+  int fd = open(path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
+  if (fd < 0) return errno;
+  struct stat info;
+  int error = 0;
+  if (fstat(fd, &info) != 0) error = errno;
+  else if (!S_ISREG(info.st_mode) || info.st_nlink != 1 ||
+           info.st_uid != geteuid() || (info.st_mode & 0077) != 0) error = EACCES;
+  else if (info.st_size > 4096) error = EFBIG;
+  int32_t total = 0;
+  while (!error && total < capacity) {
+    ssize_t count = read(fd, bytes + total, (size_t)(capacity - total));
+    if (count == 0) break;
+    if (count < 0) {
+      if (errno == EINTR) continue;
+      error = errno;
+    } else total += (int32_t)count;
+  }
+  if (!error && total > 4096) error = EFBIG;
+  close(fd);
+  *length = total;
+  return error;
+}
+
+/* Offline conversion publishes exclusively by rename, with no extra hard link. */
+UB_EXPORT int32_t ub_publish_conversion(const char *source, const char *destination, const char *directory) {
+  int error = 0;
+  int fd = protected_open(source, 0, &error);
+  if (fd < 0) return error;
+  int parent = open(directory, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+  if (parent < 0) { error = errno; close(fd); return error; }
+  struct stat info;
+  if (fstat(parent, &info) != 0) error = errno;
+  else if (info.st_uid != geteuid() || (info.st_mode & 0077) != 0) error = EACCES;
+  if (!error && fsync(fd) != 0) error = errno;
+  if (!error) {
+#if defined(__APPLE__)
+    if (renameatx_np(AT_FDCWD, source, AT_FDCWD, destination, RENAME_EXCL) != 0) error = errno;
+#elif defined(__linux__)
+    if (syscall(SYS_renameat2, AT_FDCWD, source, AT_FDCWD, destination, 1 /* RENAME_NOREPLACE */) != 0) error = errno;
+#else
+    error = ENOTSUP;
+#endif
+  }
+  if (!error && fsync(parent) != 0) error = errno;
+  close(parent);
+  close(fd);
+  return error;
 }
 
 UB_EXPORT int32_t ub_private_dir(const char *path) {

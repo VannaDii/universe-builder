@@ -54,6 +54,14 @@ and tombstone history is retained. Unsupported source/workflow side tables,
 digest/identity mismatches, inherited baselines and broken history are refused.
 This limited command is separate from the identity-preserving offline operator
 conversion procedure, whose Dart implementation remains pending.
+The protected credential store now exposes offline `convertCredential` for
+legacy version-1 profile JSON. It preserves the exact profile identity and secret,
+verifies the complete converted credential and unchanged source hash, and publishes
+through an exclusive atomic rename. Input reads use an owned private read-only
+descriptor with the existing 4096-byte bound; failures do not expose parser/driver
+credential values. Conversion creates no enrollment, grant or installation.
+This is a store API; the Dart operator CLI and package/installation conversion
+remain pending.
 Focused functional checks currently cover macOS only.
 
 Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter

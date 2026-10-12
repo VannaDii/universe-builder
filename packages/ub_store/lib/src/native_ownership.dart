@@ -2,6 +2,27 @@ import 'dart:ffi';
 
 const _asset = 'package:ub_store/src/native_ownership.dart';
 
+@Native<Int32 Function(Pointer<Char>, Pointer<Char>, Pointer<Char>)>(
+  symbol: 'ub_publish_conversion',
+  assetId: _asset,
+)
+external int nativePublishConversion(
+  Pointer<Char> source,
+  Pointer<Char> destination,
+  Pointer<Char> directory,
+);
+
+@Native<Int32 Function(Pointer<Char>, Pointer<Uint8>, Int32, Pointer<Int32>)>(
+  symbol: 'ub_read_credential',
+  assetId: _asset,
+)
+external int nativeReadCredential(
+  Pointer<Char> path,
+  Pointer<Uint8> bytes,
+  int capacity,
+  Pointer<Int32> length,
+);
+
 @Native<Int32 Function(Pointer<Char>)>(
   symbol: 'ub_sync_directory',
   assetId: _asset,

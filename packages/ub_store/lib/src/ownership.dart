@@ -1,5 +1,6 @@
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
@@ -129,6 +130,46 @@ void publishSnapshot(String source, String destination) {
       destination,
     ),
   );
+}
+
+/// Exclusive durable file publication required by offline operator conversion.
+void publishConversionFile(String source, String destination) {
+  _pathCheck(source);
+  _pathCheck(destination);
+  final parent = privateDirectory(File(destination).parent.path);
+  using(
+    (arena) => _checkError(
+      nativePublishConversion(
+        source.toNativeUtf8(allocator: arena).cast(),
+        destination.toNativeUtf8(allocator: arena).cast(),
+        parent.toNativeUtf8(allocator: arena).cast(),
+      ),
+      'Conversion publication refused or durability uncertain',
+      destination,
+    ),
+  );
+}
+
+/// Exact private read-only input, capped at the existing 4096-byte credential limit.
+Uint8List readOriginalCredential(String source) {
+  _pathCheck(source);
+  return using((arena) {
+    final bytes = arena<Uint8>(4097), length = arena<Int32>();
+    _checkError(
+      nativeReadCredential(
+        source.toNativeUtf8(allocator: arena).cast(),
+        bytes,
+        4097,
+        length,
+      ),
+      'Protected credential input refused',
+      source,
+    );
+    if (length.value < 0 || length.value > 4096) {
+      throw const FormatException('Credential input size');
+    }
+    return Uint8List.fromList(bytes.asTypedList(length.value));
+  });
 }
 
 /// Descriptor-owned flock, compatible with the original POSIX runtime and
