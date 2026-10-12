@@ -113,6 +113,30 @@ final class NativePostgresRuntime {
                   CanonicalNumber('16'),
                 ),
               ]);
+            case ProfilesEngineRequest():
+              final profiles = await session.authority.profiles(principal.id);
+              final grants = await session.authority.grants(principal.id);
+              return CanonicalObject([
+                MapEntry(
+                  'profiles',
+                  CanonicalArray(
+                    profiles.map(
+                      (profile) => CanonicalObject([
+                        MapEntry(
+                          'profile_id',
+                          CanonicalString(profile.id.value),
+                        ),
+                        MapEntry('author', CanonicalBool(profile.author)),
+                        MapEntry('revoked', CanonicalBool(profile.revoked)),
+                      ]),
+                    ),
+                  ),
+                ),
+                MapEntry(
+                  'grants',
+                  CanonicalArray(grants.map((grant) => grant.toWire())),
+                ),
+              ]);
             case CreateUniverseEngineRequest():
               return _createUniverse(session, principal, request);
             case GrantEngineRequest(:final grant):
@@ -156,6 +180,9 @@ final class NativePostgresRuntime {
             ReviewEngineRequest(:final universe) ||
             AuthorWritingEngineRequest(:final universe) ||
             StageSourceEngineRequest(:final universe) ||
+            ForkContinuityEngineRequest(:final universe) ||
+            CompareContinuitiesEngineRequest(:final universe) ||
+            PrepareAdoptionEngineRequest(:final universe) ||
             StageImageEngineRequest(:final universe) ||
             ImagePreviewEngineRequest(:final universe) ||
             LibraryEngineRequest(:final universe) ||
@@ -198,6 +225,10 @@ final class NativePostgresRuntime {
               return workflow.review(proposalReference);
             case StageSourceEngineRequest(:final label, :final text):
               return workflow.stageSource(label: label, text: text);
+            case ForkContinuityEngineRequest() ||
+                CompareContinuitiesEngineRequest() ||
+                PrepareAdoptionEngineRequest():
+              return workflow.continuityRequest(request);
             case StageImageEngineRequest() || ImagePreviewEngineRequest():
               return workflow.imageRequest(request);
             case LibraryEngineRequest():

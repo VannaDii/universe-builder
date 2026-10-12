@@ -420,6 +420,16 @@ staging creates no canonical identity. Preview requires an image asset in the
 selected pinned edition, and originals/previews survive installation reopen.
 Library storage status identifies PostgreSQL and reports actual server/durability
 settings and heads without exposing connection credentials.
+Private PostgreSQL continuity routes now fork from an exact pinned edition,
+compare immutable editions and prepare explicitly selected adoption/tombstone
+operations. Fork/name retention is atomic and retries recover the original fork
+revision. Comparison omits event-generated assertions and retains the existing
+1,000-difference bound; adoption preserves selection order and the 1..100-record
+limit. Comparison/preparation grants no approval and changes neither head.
+Publishing adoption uses the existing proposal validation, exact author approval
+and durable receipt recovery, preserving source and target history. The private
+profiles/grants view now reads current installation authority and returns only
+profile IDs, author/revoked status and typed grants; contributors cannot read it.
 Socket/launcher integration, cross-process worker qualification and
 the remaining service routes are pending. Import previews/purge coordination,
 transfer and live verified-TLS qualification also remain pending; runtime PostgreSQL selection

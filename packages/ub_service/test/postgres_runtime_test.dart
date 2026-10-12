@@ -19,6 +19,7 @@ import 'package:ub_store/src/postgres_values.dart';
 import 'operation_compilation_test.dart' as f;
 import 'effective_objects_test.dart' as objects;
 import 'writing_units_test.dart' as units;
+import 'writing_event_edits_test.dart' as event_edits;
 
 void main() {
   final port = int.tryParse(
@@ -96,6 +97,696 @@ void main() {
           await observer.close();
         }
       });
+      test('continuity dispatch pins branch history and publishes explicit adoption only with exact approval', () async {
+        var author = await runtime.connect(hello(authorId));
+        final writer = await runtime.connect(hello(writerId));
+        final created = WireFields(
+          await author.execute(
+            const CreateUniverseEngineRequest(
+              name: 'Disposable engine universe',
+              start: GregorianUniverseStart('2040-03-15T12:30:00+02:00'),
+            ),
+          ),
+          {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
+        );
+        final universe = UniverseId.parse(created.string('universe_id'));
+        universes.add(universe);
+        final parent = ContinuityId.parse(created.string('continuity_id'));
+        final represented = RecordId.parse(created.string('context_id'));
+        final branch = ContinuityId.generate();
+        EntityRecord entity(String label) => EntityRecord(
+          names: [],
+          classificationResolution: ClassificationResolution.unclassified,
+          worldAssociations: [],
+          labels: {'en': label},
+          metadata: {},
+        );
+        StoredVersion row(int n, String label) => StoredVersion.build(
+          RecordVersionId.generate(),
+          RecordIdentity(
+            universeId: universe,
+            recordId: f.id(n),
+            recordKind: RecordKind.entity,
+          ),
+          entity(label).toWire(),
+        );
+        final original = row(20, 'Original'), removed = row(21, 'Removed');
+        Future<RevisionId> seed(
+          String key,
+          RevisionId head,
+          List<Assignment> changes,
+        ) => store.transaction(
+          (s) => s
+              .kernel(universe)
+              .commit(
+                CommitInput(
+                  universe: universe,
+                  continuity: parent,
+                  expectedHead: head,
+                  principal: PrincipalId.generate(),
+                  decision: 'Disposable setup',
+                  reason: 'Continuity edits',
+                  idempotencyKey: key,
+                  changes: changes,
+                ),
+              ),
+        );
+        final base = await seed(
+          'continuity-base',
+          RevisionId.parse(created.string('revision')),
+          [
+            Assignment(
+              recordId: original.identity.recordId,
+              expected: null,
+              next: original,
+            ),
+            Assignment(
+              recordId: removed.identity.recordId,
+              expected: null,
+              next: removed,
+            ),
+          ],
+        );
+        final fork = ForkContinuityEngineRequest(
+          universe: selector,
+          name: 'Alternate campaign',
+          continuityId: branch,
+          source: parent,
+          revision: base,
+        );
+        await author.execute(
+          GrantEngineRequest(
+            grant: GrantSpec(
+              profileId: writerId,
+              universeId: universe,
+              worlds: null,
+              propose: true,
+              edit: true,
+              protected: true,
+            ),
+          ),
+        );
+        const profilesRequest = ProfilesEngineRequest();
+        await expectLater(
+          writer.execute(profilesRequest),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        final management = WireFields(await author.execute(profilesRequest), {
+          'profiles',
+          'grants',
+        });
+        final identities = management
+            .array('profiles')
+            .map(
+              (value) => WireFields(value, {'profile_id', 'author', 'revoked'}),
+            )
+            .toList();
+        expect(identities.map((value) => value.string('profile_id')).toSet(), {
+          authorId.value,
+          writerId.value,
+        });
+        expect(
+          identities
+              .singleWhere(
+                (value) => value.string('profile_id') == authorId.value,
+              )
+              .boolean('author'),
+          isTrue,
+        );
+        expect(
+          identities
+              .singleWhere(
+                (value) => value.string('profile_id') == writerId.value,
+              )
+              .boolean('author'),
+          isFalse,
+        );
+        expect(identities.every((value) => !value.boolean('revoked')), isTrue);
+        final granted = GrantSpec.fromWire(management.array('grants').single);
+        expect(granted.profileId, writerId);
+        expect(granted.universeId, universe);
+        expect(granted.propose && granted.edit && granted.protected, isTrue);
+        await expectLater(
+          writer.execute(fork),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        final forked = await author.execute(fork);
+        final forkRevision = RevisionId.parse(
+          WireFields(forked, {'continuity_id', 'revision'}).string('revision'),
+        );
+        expect((await author.execute(fork)).toText(), forked.toText());
+        final changed = row(20, 'Changed'), added = row(22, 'Added');
+        final advanced = await seed('continuity-edits', base, [
+          Assignment(
+            recordId: original.identity.recordId,
+            expected: original.versionId,
+            next: changed,
+          ),
+          Assignment(
+            recordId: removed.identity.recordId,
+            expected: removed.versionId,
+            next: null,
+          ),
+          Assignment(
+            recordId: added.identity.recordId,
+            expected: null,
+            next: added,
+          ),
+        ]);
+        await expectLater(
+          author.execute(
+            ForkContinuityEngineRequest(
+              universe: selector,
+              name: fork.name,
+              continuityId: branch,
+              source: parent,
+              revision: advanced,
+            ),
+          ),
+          throwsA(isA<FormatException>()),
+        );
+        final comparison = CompareContinuitiesEngineRequest(
+          universe: selector,
+          target: branch,
+          targetRevision: forkRevision,
+          source: parent,
+          sourceRevision: advanced,
+        );
+        final compared = await author.execute(comparison);
+        final differences = WireFields(compared, {
+          'differences',
+          'target_revision',
+          'source_revision',
+        }).array('differences');
+        expect(
+          differences.map(
+            (v) => WireFields(v, {
+              'record_id',
+              'kind',
+              'target_version',
+              'source_version',
+            }).string('record_id'),
+          ),
+          [f.id(20).value, f.id(21).value, f.id(22).value],
+        );
+        final selection = PrepareAdoptionEngineRequest(
+          universe: selector,
+          target: branch,
+          targetRevision: forkRevision,
+          source: parent,
+          sourceRevision: advanced,
+          recordIds: [f.id(22), f.id(20), f.id(21), represented],
+        );
+        await expectLater(
+          writer.execute(comparison),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        await expectLater(
+          writer.execute(selection),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        final prepared = await author.execute(selection);
+        final operations = WireFields(prepared, {
+          'operations',
+          'target_revision',
+          'source_revision',
+        }).array('operations').map(DomainOperation.fromWire).toList();
+        expect(operations, hasLength(3));
+        expect(
+          (operations[0] as AdoptRecordVersionOperation).expectedVersion,
+          isNull,
+        );
+        expect(
+          (operations[1] as AdoptRecordVersionOperation).source.recordVersionId,
+          changed.versionId,
+        );
+        expect(
+          (operations[1] as AdoptRecordVersionOperation).expectedVersion,
+          original.versionId,
+        );
+        expect(
+          (operations[2] as TombstoneRecordOperation).expectedVersion,
+          removed.versionId,
+        );
+        await store.transaction((s) async {
+          expect(await s.kernel(universe).journal.head(branch), forkRevision);
+          expect(await s.kernel(universe).journal.head(parent), advanced);
+          expect(await s.workflows(universe).keys('proposal:'), isEmpty);
+          expect(await s.workflows(universe).keys('approval:'), isEmpty);
+        });
+        final opened = await tool(
+          author,
+          OpenContextRequest(
+            universe: selector,
+            continuityId: branch,
+            revision: const HeadRevisionSelector(),
+            representedContext: ContextIdSelector(represented),
+            temporalQuery: const TimelessFrameTime(),
+            temporalSystems: [],
+            perspective: const AuthorPerspective(),
+          ),
+          OpenedContext.fromWire,
+        );
+        final candidate = await tool(
+          author,
+          CreateProposalRequest(
+            universe: selector,
+            contextId: opened.contextId,
+            operations: operations,
+            submission: Submission.submitted,
+            rationale: 'Explicit campaign adoption',
+            idempotencyKey: 'adoption-create',
+          ),
+          Proposal.fromWire,
+        );
+        final ref = ProposalRef(
+          proposalId: candidate.proposalId,
+          version: candidate.version,
+          digest: candidate.digest,
+        );
+        final checked = await tool(
+          author,
+          ProposalValidationRequest(
+            universe: selector,
+            contextId: opened.contextId,
+            proposalReference: ref,
+            checkScope: CheckScope.candidate,
+          ),
+          ValidationV3.fromWire,
+        ) as EvaluatedValidation;
+        final publish = CommitRequest(
+          universe: selector,
+          proposalReference: ref,
+          expectedBaseRevision: forkRevision,
+          validationRun: checked.execution.runId,
+          idempotencyKey: 'adoption-publish',
+        );
+        await expectLater(
+          tool(author, publish, CommitReceipt.fromWire),
+          throwsA(isA<ApprovalRequiredError>()),
+        );
+        await author.execute(
+          ApproveEngineRequest(
+            universe: selector,
+            proposalReference: ref,
+            validationRun: checked.execution.runId,
+          ),
+        );
+        final receipt = await tool(author, publish, CommitReceipt.fromWire);
+        final equal = WireFields(
+          await author.execute(
+            CompareContinuitiesEngineRequest(
+              universe: selector,
+              target: branch,
+              targetRevision: receipt.revision,
+              source: parent,
+              sourceRevision: advanced,
+            ),
+          ),
+          {'differences', 'target_revision', 'source_revision'},
+        );
+        expect(equal.array('differences'), isEmpty);
+        await store.transaction((s) async {
+          expect(await s.kernel(universe).journal.head(parent), advanced);
+        });
+        await runtime.close();
+        await store.close();
+        store = await PostgresInstallationStore.openExisting(
+          endpoint(),
+          settings: settings,
+        );
+        runtime = NativePostgresRuntime(store: store);
+        author = await runtime.connect(hello(authorId));
+        expect(
+          (await tool(
+            author,
+            publish,
+            CommitReceipt.fromWire,
+          )).toWire().toText(),
+          receipt.toWire().toText(),
+        );
+        expect((await author.execute(fork)).toText(), forked.toText());
+        expect((await author.execute(comparison)).toText(), compared.toText());
+        expect((await author.execute(selection)).toText(), prepared.toText());
+      });
+
+      test('continuity dispatch enforces UTF-8 names pinned revisions selection limits and atomic fork names', () async {
+        final author = await runtime.connect(hello(authorId));
+        final created = WireFields(
+          await author.execute(
+            const CreateUniverseEngineRequest(
+              name: 'Disposable engine universe',
+              start: GregorianUniverseStart('2040-03-15T12:30:00+02:00'),
+            ),
+          ),
+          {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
+        );
+        final universe = UniverseId.parse(created.string('universe_id'));
+        universes.add(universe);
+        final parent = ContinuityId.parse(created.string('continuity_id'));
+        final base = RevisionId.parse(created.string('revision'));
+        final context = RecordId.parse(created.string('context_id'));
+        final branch = ContinuityId.generate();
+        ForkContinuityEngineRequest fork(String name, {RevisionId? revision}) =>
+            ForkContinuityEngineRequest(
+              universe: selector,
+              name: name,
+              continuityId: branch,
+              source: parent,
+              revision: revision ?? base,
+            );
+        for (final name in ['   ', '😀' * 33]) {
+          await expectLater(
+            author.execute(fork(name)),
+            throwsA(isA<InvalidArgumentError>()),
+          );
+        }
+        await expectLater(
+          author.execute(
+            fork('Missing source', revision: RevisionId.generate()),
+          ),
+          throwsA(isA<FormatException>()),
+        );
+        await store.transaction((s) async {
+          final journal = s.kernel(universe).journal;
+          await journal.lockUniverse();
+          // Conflicting retained name forces failure after the branch was staged.
+          await s.workflows(universe).compareAppend({}, [
+            MapEntry(
+              'continuity-name:${branch.value}',
+              CanonicalString('Retained name'),
+            ),
+          ]);
+        });
+        await expectLater(
+          author.execute(fork('Conflicting name')),
+          throwsA(isA<FormatException>()),
+        );
+        await store.transaction((s) async {
+          expect(await s.kernel(universe).journal.heads(), hasLength(1));
+        });
+        final saved = await author.execute(fork('Retained name'));
+        expect(
+          (await author.execute(fork('Retained name'))).toText(),
+          saved.toText(),
+        );
+        PrepareAdoptionEngineRequest prepare(List<RecordId> ids) =>
+            PrepareAdoptionEngineRequest(
+              universe: selector,
+              target: parent,
+              targetRevision: base,
+              source: parent,
+              sourceRevision: base,
+              recordIds: ids,
+            );
+        for (final ids in [<RecordId>[], List.filled(101, context)]) {
+          await expectLater(
+            author.execute(prepare(ids)),
+            throwsA(isA<InvalidArgumentError>()),
+          );
+        }
+        await expectLater(
+          author.execute(prepare([RecordId.generate()])),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        final unchanged = WireFields(
+          await author.execute(prepare(List.filled(100, context))),
+          {'operations', 'target_revision', 'source_revision'},
+        );
+        expect(unchanged.array('operations'), isEmpty);
+        final invalidPin = CompareContinuitiesEngineRequest(
+          universe: selector,
+          target: parent,
+          targetRevision: RevisionId.generate(),
+          source: parent,
+          sourceRevision: base,
+        );
+        await expectLater(
+          author.execute(invalidPin),
+          throwsA(isA<FormatException>()),
+        );
+        await store.transaction((s) async {
+          expect(await s.kernel(universe).journal.head(parent), base);
+          expect(await s.workflows(universe).keys('proposal:'), isEmpty);
+          expect(await s.workflows(universe).keys('approval:'), isEmpty);
+        });
+      });
+
+      test('continuity comparison omits generated assertions and adoption preserves duplicate selection order', () async {
+        final author = await runtime.connect(hello(authorId));
+        final created = WireFields(
+          await author.execute(
+            const CreateUniverseEngineRequest(
+              name: 'Disposable engine universe',
+              start: GregorianUniverseStart('2040-03-15T12:30:00+02:00'),
+            ),
+          ),
+          {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
+        );
+        final universe = UniverseId.parse(created.string('universe_id'));
+        universes.add(universe);
+        final parent = ContinuityId.parse(created.string('continuity_id'));
+        var head = RevisionId.parse(created.string('revision'));
+        StoredVersion stored(RecordVersion row) => StoredVersion.build(
+          row.recordVersionId,
+          RecordIdentity(
+            universeId: universe,
+            recordId: row.identity.recordId,
+            recordKind: row.identity.recordKind,
+          ),
+          CanonicalValue.parseWireJson(
+            row.payload.toWire().toText().replaceAll(f.u.value, universe.value),
+          ),
+        );
+        Future<void> seed(String key, List<RecordVersion> rows) async {
+          head = await store.transaction(
+            (s) => s
+                .kernel(universe)
+                .commit(
+                  CommitInput(
+                    universe: universe,
+                    continuity: parent,
+                    expectedHead: head,
+                    principal: PrincipalId.generate(),
+                    decision: 'Disposable setup',
+                    reason: 'Occurred event history',
+                    idempotencyKey: key,
+                    changes: [
+                      for (final row in rows)
+                        Assignment(
+                          recordId: row.identity.recordId,
+                          expected: null,
+                          next: stored(row),
+                        ),
+                    ],
+                  ),
+                ),
+          );
+        }
+
+        final rows = event_edits.base();
+        await seed('before-event', rows);
+        final branch = ContinuityId.generate();
+        final forked = await author.execute(
+          ForkContinuityEngineRequest(
+            universe: selector,
+            name: 'Before event',
+            continuityId: branch,
+            source: parent,
+            revision: head,
+          ),
+        );
+        final revision = RevisionId.parse(
+          WireFields(forked, {'continuity_id', 'revision'}).string('revision'),
+        );
+        final added = event_edits
+            .occurred(rows)
+            .where(
+              (r) => !rows.any(
+                (old) => old.identity.recordId == r.identity.recordId,
+              ),
+            )
+            .toList();
+        final generated = added
+            .where(
+              (r) =>
+                  r.payload is AssertionRecord &&
+                  (r.payload as AssertionRecord).establishedBy != null,
+            )
+            .single;
+        await seed('after-event', added);
+        final compared = WireFields(
+          await author.execute(
+            CompareContinuitiesEngineRequest(
+              universe: selector,
+              target: branch,
+              targetRevision: revision,
+              source: parent,
+              sourceRevision: head,
+            ),
+          ),
+          {'differences', 'target_revision', 'source_revision'},
+        );
+        final changedIds = compared
+            .array('differences')
+            .map(
+              (v) => WireFields(v, {
+                'record_id',
+                'kind',
+                'target_version',
+                'source_version',
+              }).string('record_id'),
+            )
+            .toList();
+        expect(changedIds, isNot(contains(generated.identity.recordId.value)));
+        expect(
+          changedIds,
+          containsAll(
+            added
+                .where((r) => r.payload is! AssertionRecord)
+                .map((r) => r.identity.recordId.value),
+          ),
+        );
+        final selected = added
+            .firstWhere((r) => r.payload is EventRecord)
+            .identity
+            .recordId;
+        final prepared = WireFields(
+          await author.execute(
+            PrepareAdoptionEngineRequest(
+              universe: selector,
+              target: branch,
+              targetRevision: revision,
+              source: parent,
+              sourceRevision: head,
+              recordIds: [selected, selected],
+            ),
+          ),
+          {'operations', 'target_revision', 'source_revision'},
+        );
+        expect(prepared.array('operations'), hasLength(2));
+        expect(
+          prepared.array('operations').first.toText(),
+          prepared.array('operations').last.toText(),
+        );
+        await store.transaction((s) async {
+          expect(await s.kernel(universe).journal.head(branch), revision);
+          expect(await s.workflows(universe).keys('approval:'), isEmpty);
+        });
+      });
+
+      test('continuity comparison accepts one thousand differences and refuses larger results', () async {
+        final author = await runtime.connect(hello(authorId));
+        final created = WireFields(
+          await author.execute(
+            const CreateUniverseEngineRequest(
+              name: 'Disposable engine universe',
+              start: GregorianUniverseStart('2040-03-15T12:30:00+02:00'),
+            ),
+          ),
+          {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
+        );
+        final universe = UniverseId.parse(created.string('universe_id'));
+        universes.add(universe);
+        final parent = ContinuityId.parse(created.string('continuity_id'));
+        final originalBase = RevisionId.parse(created.string('revision'));
+        var head = originalBase;
+        final rows = [
+          for (var n = 200; n <= 1200; n++)
+            StoredVersion.build(
+              RecordVersionId.generate(),
+              RecordIdentity(
+                universeId: universe,
+                recordId: f.id(n),
+                recordKind: RecordKind.entity,
+              ),
+              f.entity().toWire(),
+            ),
+        ];
+        for (var offset = 0; offset < rows.length; offset += 100) {
+          head = await store.transaction(
+            (s) => s
+                .kernel(universe)
+                .commit(
+                  CommitInput(
+                    universe: universe,
+                    continuity: parent,
+                    expectedHead: head,
+                    principal: PrincipalId.generate(),
+                    decision: 'Disposable setup',
+                    reason: 'Comparison boundary',
+                    idempotencyKey: 'comparison-fixture-$offset',
+                    changes: [
+                      for (final row in rows.skip(offset).take(100))
+                        Assignment(
+                          recordId: row.identity.recordId,
+                          expected: null,
+                          next: row,
+                        ),
+                    ],
+                  ),
+                ),
+          );
+        }
+        final branch = ContinuityId.generate();
+        final forked = await author.execute(
+          ForkContinuityEngineRequest(
+            universe: selector,
+            name: 'Comparison target',
+            continuityId: branch,
+            source: parent,
+            revision: originalBase,
+          ),
+        );
+        final initial = RevisionId.parse(
+          WireFields(forked, {'continuity_id', 'revision'}).string('revision'),
+        );
+        CompareContinuitiesEngineRequest compare(RevisionId target) =>
+            CompareContinuitiesEngineRequest(
+              universe: selector,
+              target: branch,
+              targetRevision: target,
+              source: parent,
+              sourceRevision: head,
+            );
+        await expectLater(
+          author.execute(compare(initial)),
+          throwsA(isA<EvaluationLimitReachedError>()),
+        );
+        final target = await store.transaction(
+          (s) => s
+              .kernel(universe)
+              .commit(
+                CommitInput(
+                  universe: universe,
+                  continuity: branch,
+                  expectedHead: initial,
+                  principal: PrincipalId.generate(),
+                  decision: 'Disposable setup',
+                  reason: 'One common record',
+                  idempotencyKey: 'comparison-boundary',
+                  changes: [
+                    Assignment(
+                      recordId: rows.first.identity.recordId,
+                      expected: null,
+                      next: StoredVersion.build(
+                        RecordVersionId.generate(),
+                        rows.first.identity,
+                        rows.first.payload,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+        );
+        final compared = WireFields(await author.execute(compare(target)), {
+          'differences',
+          'target_revision',
+          'source_revision',
+        });
+        expect(compared.array('differences'), hasLength(1000));
+      }, timeout: const Timeout(Duration(minutes: 2)));
+
       test('private image routes preserve originals and preview only admitted pinned assets after reviewed publication', () async {
         final directory = Directory.systemTemp.createTempSync(
           'ub-postgres-images-',

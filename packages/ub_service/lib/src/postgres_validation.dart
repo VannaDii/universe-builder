@@ -2295,6 +2295,190 @@ final class PostgresValidationWorkflow {
     ]);
   }
 
+  /// Author-owned pinned branches and explicit adoption intent. Comparison and
+  /// adoption preparation never advance either continuity or approve changes.
+  Future<CanonicalValue> continuityRequest(EngineRequest request) async {
+    try {
+      return await authority.withUniverseAuthority(principal, universe, (
+        current,
+      ) async {
+        if (!current.principal.author) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        final selector = switch (request) {
+          ForkContinuityEngineRequest(:final universe) ||
+          CompareContinuitiesEngineRequest(:final universe) ||
+          PrepareAdoptionEngineRequest(:final universe) => universe,
+          _ => throw const InvalidArgumentError(
+            field: 'method',
+            message: 'requires continuity fork comparison or adoption',
+          ),
+        };
+        final resolved = await session.authority.resolveUniverseAlias(
+          actor: principal.id,
+          name: selector.value,
+          epochSeconds: _epochSeconds(),
+        );
+        if (resolved.universeId != universe) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        if (request is ForkContinuityEngineRequest) {
+          if (request.name.trim().isEmpty ||
+              utf8.encode(request.name).length > 128) {
+            throw const InvalidArgumentError(
+              field: 'name',
+              message: 'enter a continuity name of 1..128 bytes',
+            );
+          }
+          final journal = _journal;
+          await journal.lockUniverse();
+          final revision = await journal.branch(
+            request.continuityId,
+            request.source,
+            request.revision,
+            PrincipalId.parse(principal.id.value.replaceFirst('prf_', 'prn_')),
+          );
+          await _workflow.compareAppend({}, [
+            MapEntry(
+              'continuity-name:${request.continuityId.value}',
+              CanonicalString(request.name),
+            ),
+          ]);
+          return CanonicalObject([
+            MapEntry(
+              'continuity_id',
+              CanonicalString(request.continuityId.value),
+            ),
+            MapEntry('revision', CanonicalString(revision.value)),
+          ]);
+        }
+        final (
+          target,
+          targetRevision,
+          source,
+          sourceRevision,
+        ) = switch (request) {
+          CompareContinuitiesEngineRequest(
+            :final target,
+            :final targetRevision,
+            :final source,
+            :final sourceRevision,
+          ) =>
+            (target, targetRevision, source, sourceRevision),
+          PrepareAdoptionEngineRequest(
+            :final target,
+            :final targetRevision,
+            :final source,
+            :final sourceRevision,
+          ) =>
+            (target, targetRevision, source, sourceRevision),
+          _ => throw StateError('Continuity request was already admitted'),
+        };
+        if (request is PrepareAdoptionEngineRequest &&
+            (request.recordIds.isEmpty || request.recordIds.length > 100)) {
+          throw const InvalidArgumentError(
+            field: 'record_ids',
+            message: 'select 1..100 records',
+          );
+        }
+        final from = {
+          for (final row in await _canon(source, sourceRevision))
+            row.identity.recordId: row,
+        };
+        final to = {
+          for (final row in await _canon(target, targetRevision))
+            row.identity.recordId: row,
+        };
+        final entries = <CanonicalValue>[];
+        if (request is CompareContinuitiesEngineRequest) {
+          final ids = {...from.keys, ...to.keys}.toList()
+            ..sort((a, b) => a.value.compareTo(b.value));
+          for (final id in ids) {
+            final a = to[id], b = from[id];
+            if (a?.payloadDigest == b?.payloadDigest) continue;
+            if ([a, b].any(
+              (r) => switch (r?.payload) {
+                AssertionRecord(:final establishedBy)
+                    when establishedBy != null =>
+                  true,
+                _ => false,
+              },
+            )) {
+              continue;
+            }
+            entries.add(
+              CanonicalObject([
+                MapEntry('record_id', CanonicalString(id.value)),
+                MapEntry(
+                  'kind',
+                  CanonicalString((b ?? a)!.identity.recordKind.wireName),
+                ),
+                MapEntry(
+                  'target_version',
+                  a == null
+                      ? const CanonicalNull()
+                      : CanonicalString(a.recordVersionId.value),
+                ),
+                MapEntry(
+                  'source_version',
+                  b == null
+                      ? const CanonicalNull()
+                      : CanonicalString(b.recordVersionId.value),
+                ),
+              ]),
+            );
+          }
+          if (entries.length > 1000) {
+            throw const EvaluationLimitReachedError(
+              message: 'continuity comparison exceeds 1,000 changed records',
+            );
+          }
+        } else {
+          for (final id
+              in (request as PrepareAdoptionEngineRequest).recordIds) {
+            final old = to[id], record = from[id];
+            if (record != null) {
+              if (old?.payloadDigest == record.payloadDigest) continue;
+              entries.add(
+                AdoptRecordVersionOperation(
+                  source: record,
+                  expectedVersion: old?.recordVersionId,
+                ).toWire(),
+              );
+            } else if (old != null) {
+              entries.add(
+                TombstoneRecordOperation(
+                  record: RecordRef(universe: universe, record: id),
+                  expectedVersion: old.recordVersionId,
+                  rationale: 'Explicitly selected absence in source continuity',
+                ).toWire(),
+              );
+            } else {
+              throw const NotFoundOrNotAccessibleError(
+                message: 'adoption record',
+              );
+            }
+          }
+        }
+        return CanonicalObject([
+          MapEntry(
+            request is CompareContinuitiesEngineRequest
+                ? 'differences'
+                : 'operations',
+            CanonicalArray(entries),
+          ),
+          MapEntry('target_revision', CanonicalString(targetRevision.value)),
+          MapEntry('source_revision', CanonicalString(sourceRevision.value)),
+        ]);
+      });
+    } on InstallationException catch (error) {
+      if (error.failure == InstallationFailure.denied) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      rethrow;
+    }
+  }
+
   Future<CanonicalValue> imageRequest(EngineRequest request) async {
     try {
       return await authority.withUniverseAuthority(principal, universe, (
