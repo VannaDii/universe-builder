@@ -21,6 +21,8 @@ jobs:
         working-directory: packages/ub_rules
       - run: dart test
         working-directory: packages/ub_contracts
+      - run: dart test
+        working-directory: packages/ub_service
   macos:
     runs-on: macos-15
     steps:
