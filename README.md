@@ -257,8 +257,16 @@ and retain exact signed 128-bit coordinates. Decoding and arithmetic never read
 the system clock. Clock changes now compile into exact review changes; reviewed
 publication remains pending.
 Storing these declarations does not execute effects, advance clocks or promote
-a report to objective fact. Consequence execution still needs its port. Typed operation
-contracts preserve bare nested record DTOs separately from tagged stored
+a report to objective fact. Consequence execution still needs its port.
+Candidate action checks now require new or revised events to name a declared
+action and each mandatory role to identify exactly one owning entity. Occurred
+events must establish every required attribute before the event in every declared
+world, using the candidate's definitions and evidence. Missing, conflicting or
+unresolved evidence does not establish capability; an event cannot grant its own
+pre-event capability. Changed evidence also revalidates unchanged action events.
+Historical actionless events remain readable. These checks still require the
+remaining proposal validation/publication integration.
+Typed operation contracts preserve bare nested record DTOs separately from tagged stored
 payloads, snake-case operation fields and exact expected versions. Decoding an
 adoption request preserves its supplied digest; compilation verifies it and the
 target version before allocating a fresh version. Current adoption rights remain
