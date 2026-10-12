@@ -7,6 +7,7 @@ import 'package:ub_store/sqlite.dart';
 import 'assessment_resolution.dart';
 import 'assessment_validation.dart';
 import 'installation_authority.dart';
+import 'operation_state.dart';
 import 'proposal_authorization.dart';
 import 'proposal_state.dart';
 import 'validation_binding.dart';
@@ -134,6 +135,22 @@ final class SqliteValidationWorkflow {
         universe,
         (current) => _capture(_proposal(reference, current), current),
       );
+
+  Future<StoredOperation> operation(
+    OperationId id, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => loadStoredOperation(
+      key: 'operation:${id.value}',
+      principal: current.principal.id,
+      worldScope: current.worldScope,
+      readWorkflow: _workflow.get,
+      readReceipt: _journal.receipt,
+      isValidationActive: isValidationActive,
+    ),
+  );
 
   Future<AssessmentSelection> attachAssessment(
     ProposalRef reference, {

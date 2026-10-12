@@ -450,6 +450,14 @@ together. Fresh changes require the submitted latest proposal and pinned head;
 exact authorized retries return their original selection, including after clear,
 reselection and package reopen. Selecting retained evidence rechecks its bindings
 and bytes; clearing evidence retains its original history.
+Durable operation state now retains typed commit inputs, ownership, footprint
+and validation capture. The native owner resolves terminal/running markers,
+current cancellation and durable commit receipts under current authority without
+rewriting immutable history. Running validation becomes interrupted when the
+live scheduler reports no active job; committed receipts remain successful after
+a lost response even when a cancellation marker exists. Queue submission,
+execution, terminal-result retention and public status redaction still require
+workflow integration.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

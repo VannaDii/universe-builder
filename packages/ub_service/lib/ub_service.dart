@@ -33,3 +33,4 @@ export 'src/proposal_state.dart';
 export 'src/proposal_validation.dart';
 export 'src/assessment_validation.dart';
 export 'src/assessment_resolution.dart';
+export 'src/operation_state.dart';

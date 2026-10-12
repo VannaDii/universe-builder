@@ -7,6 +7,7 @@ import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_profiles.dart';
+import 'package:ub_service/operation_state.dart';
 import 'package:ub_service/proposal_state.dart';
 import 'package:ub_service/proposal_validation.dart';
 import 'package:ub_service/sqlite_validation.dart';
@@ -155,6 +156,116 @@ void main() {
   });
   String key() => 'validation:${checked.validation.runId.value}';
   final stale = throwsA(isA<ApprovalStaleError>());
+
+  test('retained validation resolves interrupted state after owned package reopen without rewriting history', () async {
+    final id = OperationId.generate();
+    final op = StoredOperation(
+      owner: writer.id,
+      digest: 'a' * 64,
+      input: null,
+      footprint: proposal.footprint,
+      validationCapture: checked.capture,
+      status: OperationStatus(
+        operationId: id,
+        kind: OperationKind.validate,
+        state: OperationState.running,
+        proposal: proposal.proposal,
+        validation: checked.validation,
+        cancellationRequested: false,
+      ),
+    );
+    WorkflowStorage(package.database)
+        .compareAppend({}, [MapEntry('operation:${id.value}', op.toWire())]);
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    service = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: writer,
+    );
+    final recovered = await service.operation(
+      id,
+      isValidationActive: (_) => false,
+    );
+    expect(recovered.status.state, OperationState.interrupted);
+    expect(
+      recovered.validationCapture!.toWire().toText(),
+      checked.capture!.toWire().toText(),
+    );
+    expect(
+      WorkflowStorage(package.database).get('operation:${id.value}')!.toText(),
+      op.toWire().toText(),
+    );
+    WorkflowStorage(package.database).compareAppend({}, [
+      MapEntry(
+        'cancel:${id.value}',
+        CanonicalObject([
+          MapEntry('owner', CanonicalString(writer.id.value)),
+          MapEntry('cancelled', const CanonicalBool(true)),
+        ]),
+      ),
+    ]);
+    expect(
+      (await service.operation(
+        id,
+        isValidationActive: (_) => true,
+      )).status.state,
+      OperationState.cancelled,
+    );
+    expect(WorkflowStorage(package.database).keys('validation:'), isEmpty);
+  });
+
+  test('lost commit response recovers the real durable receipt ahead of a cancellation marker', () async {
+    final id = OperationId.generate();
+    final commit = await proposalCommitInput(
+      stored: proposal,
+      universe: f.u,
+      principal: writer.id,
+      idempotencyKey: 'commit-recovery-fixture',
+      readCanon: canon,
+    );
+    final op = StoredOperation(
+      owner: writer.id,
+      digest: 'b' * 64,
+      input: commit,
+      footprint: proposal.footprint,
+      status: OperationStatus(
+        operationId: id,
+        kind: OperationKind.commit,
+        state: OperationState.committing,
+        proposal: proposal.proposal,
+        cancellationRequested: false,
+      ),
+    );
+    // Already checked disposable input; application approval remains unimplemented.
+    final revision = kernel.commit(commit);
+    WorkflowStorage(package.database).compareAppend({}, [
+      MapEntry('operation:${id.value}', op.toWire()),
+      MapEntry(
+        'cancel:${id.value}',
+        CanonicalObject([
+          MapEntry('owner', CanonicalString(writer.id.value)),
+          MapEntry('cancelled', const CanonicalBool(true)),
+        ]),
+      ),
+    ]);
+    final recovered = await service.operation(
+      id,
+      isValidationActive: (_) => false,
+    );
+    expect(recovered.status.state, OperationState.succeeded);
+    expect(recovered.status.receipt!.revision, revision);
+    expect(recovered.status.receipt!.proposalId, proposal.reference.proposalId);
+    expect(kernel.journal.head(continuity), revision);
+    expect(
+      WorkflowStorage(package.database).get('operation:${id.value}')!.toText(),
+      op.toWire().toText(),
+    );
+  });
 
   Future<SourceAssessmentV1> submittedAssessment() async {
     final workflow = WorkflowStorage(package.database);
