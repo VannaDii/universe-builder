@@ -2,6 +2,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:test/test.dart';
@@ -18,6 +19,23 @@ import 'package:ub_store/profile_credentials.dart';
 import 'session_test.dart' show field, initialize, call;
 
 void main() {
+  test(
+    'explicit help returns before resolving an installation or helper',
+    () async {
+      final output = <int>[];
+      expect(
+        await runMcp(
+          ['--help'],
+          input: const Stream.empty(),
+          write: (bytes) async => output.addAll(bytes),
+          error: (_) => fail('help must not fail'),
+          engineHelper: () async => throw StateError('must not resolve helper'),
+        ),
+        0,
+      );
+      expect(utf8.decode(output), startsWith('Usage: universe-mcp '));
+    },
+  );
   test(
     'invalid options fail before helper resolution or authority creation',
     () async {

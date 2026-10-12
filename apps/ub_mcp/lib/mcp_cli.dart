@@ -1,9 +1,14 @@
+import 'dart:convert';
+
 import 'package:ub_client/local_engine.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 import 'local_backend.dart';
 import 'session.dart';
 import 'stdio.dart';
+
+const _usage =
+    'Usage: universe-mcp --installation <path> --profile <id> [--advanced-tools]';
 
 Future<int> runMcp(
   List<String> arguments, {
@@ -12,6 +17,10 @@ Future<int> runMcp(
   required void Function(String) error,
   Future<String> Function()? engineHelper,
 }) async {
+  if (arguments.length == 1 && {'--help', '-h'}.contains(arguments.single)) {
+    await write(utf8.encode('$_usage\n'));
+    return 0;
+  }
   String? root, profileText;
   var advanced = false;
   try {
@@ -78,9 +87,7 @@ Future<int> runMcp(
     }
     return success ? 0 : 1;
   } on FormatException {
-    error(
-      'Usage: universe-mcp --installation <path> --profile <id> [--advanced-tools]',
-    );
+    error(_usage);
     return 2;
   } on Object {
     error('MCP startup failed. Check the selected installation and profile.');

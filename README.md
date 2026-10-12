@@ -107,8 +107,8 @@ does not include this project's required build hooks. The compiled operator bund
 has been functionally checked on macOS with disposable data, without release signing
 or publication. The compiled author CLI has also exercised sibling initialization,
 on-demand creation and shutdown outside the source tree. Keep the sibling
-`universe-engine` available with its required bundle libraries. Public launcher
-interfaces and complete platform packaging remain pending.
+`universe-engine` available with its required bundle libraries. Desktop launcher
+UX/shortcut interfaces and complete platform packaging remain pending.
 Focused functional checks currently cover macOS only.
 
 The Dart MCP foundation now embeds the maintained tool schemas, descriptions and
@@ -156,6 +156,18 @@ and add `--advanced-tools` for all 16 tools. Build with
 Keep the generated `bin/` and `lib/` directories together, with the engine sibling
 and its bundle libraries available for on-demand startup. These development checks
 do not qualify other platforms, release packaging, signing or publication.
+
+The Dart `multiverse-mcp` public launcher now preserves `serve` forwarding to
+`universe-mcp` and `admin` forwarding to `universe`, including literal arguments,
+inherited standard streams, helper exit status and termination forwarding. It uses
+the shared installed-sibling resolver and macOS bundle check; it does not search
+PATH or interpret forwarded arguments through a shell. Build with
+`dart build cli --target apps/ub_cli/bin/multiverse-mcp.dart --output target/dart-launcher`.
+The launcher needs its installed sibling executables and their native libraries.
+Compiled forwarding has been checked on macOS outside the workspace with an empty
+PATH. Explicit launcher help/version and MCP help do not start an engine. Dart
+`ux` and `shortcut` remain unavailable until the Flutter desktop executable and
+packaging are delivered; the maintained Rust launcher continues to provide them.
 
 Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter
 **3.47.5** (recorded in `.flutter-version`). Dependency resolution is locked in
