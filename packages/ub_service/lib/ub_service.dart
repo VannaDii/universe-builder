@@ -15,3 +15,4 @@ export 'src/action_checks.dart';
 export 'src/communication_checks.dart';
 export 'src/knowledge_checks.dart';
 export 'src/cardinality_checks.dart';
+export 'src/resource_checks.dart';

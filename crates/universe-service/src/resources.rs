@@ -402,6 +402,10 @@ mod tests {
         let mut rs = fixture();
         let gaps = assess(&rs, &frame()).unwrap();
         assert_eq!(gaps.len(), 1);
+        assert_eq!(
+            gaps[0].fingerprint.as_str(),
+            "a83f2bb1814718261840609516169513da91564bf89abc07f184996f32f67074"
+        );
         assert!(gaps[0].acceptance.is_none());
         rs.push(accept(&gaps[0]));
         let accepted = assess(&rs, &frame()).unwrap();

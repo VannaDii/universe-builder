@@ -287,6 +287,14 @@ Unknown time, scope, precision or opposing evidence leaves the count unresolved.
 These maxima are separate from local role multiplicity and do not infer a
 minimum or completeness. Proposal validation/publication integration remains
 pending.
+Candidate resource accounting now checks the full authored stock timeline for
+opted-in single numeric properties. A first observation establishes a baseline;
+later changes need a linked delta consequence, a coherent correction, or separate
+exact acceptance of the unexplained arrival. Acceptance binds claim contents,
+preceding evidence and world, preserving the existing fingerprint recipe across
+version regeneration. It does not invent an event or replace author approval.
+Effective object assembly and proposal validation/publication integration remain
+pending.
 Typed operation contracts preserve bare nested record DTOs separately from tagged stored
 payloads, snake-case operation fields and exact expected versions. Decoding an
 adoption request preserves its supplied digest; compilation verifies it and the
