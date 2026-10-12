@@ -330,9 +330,22 @@ authenticated internal publication, reconnect/retry, projection recovery, alias
 collision rollback, competing setup, shutdown draining, incompatible layout
 preservation and redacted certificate-loading failures. The publication fixture
 supplies already-admitted input; it does not qualify proposal approval.
-Import previews/purge coordination, engine dispatch and exact-approval workflow
-integration, transfer and live verified-TLS qualification remain pending; runtime
-PostgreSQL selection is still explicitly unavailable.
+The native PostgreSQL proposal service now creates/revises/submits/withdraws
+frozen proposals and reservations, evaluates candidates through the shared factual
+rules and real kernel preview, retains exact validation bindings, accepts private
+human author approval, and publishes only after checking current permissions,
+latest proposal, validation, approval, head and a fresh candidate evaluation.
+Durable operation/receipt retry precedes stale workflow/head checks under current
+access rules. Bounded delegation follows the existing entity/predicate/continuity,
+shared-work, expiry and complete-coverage policy. All writes remain inside the
+owning installation transaction. `test/postgres_validation_test.dart` exercises
+this authoring path with disposable profiles/data and a seeded represented
+context; proposals and validation are produced by the service, rather than seeded
+as already-admitted publication input. Public context admission/engine dispatch,
+source-assessment mutation, queued validation and the remaining service routes
+still need PostgreSQL adapters. Import previews/purge coordination, transfer and
+live verified-TLS qualification also remain pending; runtime PostgreSQL selection
+is still explicitly unavailable.
 Run `test/postgres_foundation_test.dart`, `test/postgres_relational_test.dart`,
 `test/postgres_journal_test.dart`, `test/postgres_workflow_test.dart` and
 `test/postgres_authority_test.dart`, `test/postgres_candidate_test.dart` and

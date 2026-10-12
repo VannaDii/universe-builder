@@ -31,6 +31,13 @@ final class PostgresJournal {
     _locked = true;
   }
 
+  Future<bool> identityExists(RecordId record) async =>
+      (await _session.execute(
+            'SELECT EXISTS(SELECT 1 FROM $_schema.record_identities WHERE universe_id=\$1 AND id=\$2)',
+            parameters: [universe.value, record.value],
+          )).single.single
+          as bool;
+
   void _writeRequired() {
     if (!_locked) throw StateError('Journal write requires the universe lock');
   }
