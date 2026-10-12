@@ -609,6 +609,14 @@ perspective; named-world definition selection retains applicable shared policy.
 Pinned views and typed continuity names survive package restart. Capability
 descriptions distinguish the remaining native fork/adoption, reviewed restoration
 and image staging/retrieval gaps from the implemented factual evaluator paths.
+Native plain factual research now resolves requested names from the pinned,
+permission/perspective-filtered snapshot and projects the existing effective state.
+Ambiguous and missing identities remain explicit, with no object introduction.
+Instance facts, inherited attributes and initial candidates stay separate;
+conflicts, unsupported plain values and unresolved applicability remain visible.
+The read includes explicit occurred events and authored clock information without
+promoting plans to occurrences or inventing time. Numeric presentation preserves
+exact tokens on native and web, and research creates no proposal or validation.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

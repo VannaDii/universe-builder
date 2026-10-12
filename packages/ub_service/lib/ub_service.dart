@@ -23,6 +23,7 @@ export 'src/state_reading.dart';
 export 'src/proposal_reading.dart';
 export 'src/impact.dart';
 export 'src/discovery.dart';
+export 'src/writing_projection.dart';
 export 'src/context_brief.dart';
 export 'src/read_cursor.dart';
 export 'src/knowledge_boundaries.dart';

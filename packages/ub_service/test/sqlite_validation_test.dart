@@ -28,6 +28,8 @@ import 'structural_checks_test.dart' as structure;
 import 'assessment_validation_test.dart' as assessments;
 import 'source_verification_test.dart' as sources;
 import 'instance_initialization_test.dart' as initialization;
+import 'effective_objects_test.dart' as objects;
+import 'writing_projection_test.dart' as writing;
 import '../../ub_contracts/test/assessment_integrity_test.dart' as accounting;
 
 void main() {
@@ -574,6 +576,123 @@ void main() {
     limit: limit,
     cursor: cursor,
   );
+
+  test('native plain facts preserve pinned evidence and hide name counts after scope changes', () async {
+    final rows = objects.withInstance();
+    objects.edit(rows, 4, {
+      'labels': CanonicalObject([MapEntry('en', CanonicalString('Cedar'))]),
+    });
+    rows.addAll([
+      f.row(
+        10,
+        CalendarRecord(
+          namespace: 'test',
+          key: 'clock',
+          labels: {},
+          unitStructure: {},
+        ),
+      ),
+      f.row(50, WorldRecord(selector: 'Campaign')),
+    ]);
+    kernel.commit(input('plain-read-base', rows));
+    OpenContextRequest context() =>
+        contextRequest(time: AtFrameTime(ExactTime(objects.cal, '15')));
+    final opened = await service.openContext(context());
+    ReadFactsRequest request(
+      ContextId id, {
+      List<String> names = const ['Cedar'],
+    }) => ReadFactsRequest(
+      universe: const Selector('World'),
+      contextId: id,
+      objectNames: names,
+    );
+    final first = await service.readFactsRequest(request(opened.contextId));
+    final plain = writing.list(first.facts, 'objects').single;
+    expect(wireString(writing.field(plain, 'identity')), 'resolved');
+    expect(
+      writing.field(writing.list(plain, 'facts').single, 'value').toText(),
+      'false',
+    );
+    expect(
+      writing
+          .field(writing.list(plain, 'inherited_attributes').single, 'value')
+          .toText(),
+      'true',
+    );
+    final head = kernel.journal.head(continuity);
+    expect(WorkflowStorage(package.database).keys('validation:'), isEmpty);
+    kernel.commit(
+      input('private-duplicate-name', [
+        f.row(51, WorldRecord(selector: 'Private')),
+        f.row(21, permissions.entity(worlds: [51], labels: {'en': 'Cedar'})),
+        f.row(22, permissions.entity(worlds: [51], labels: {'en': 'Secret'})),
+      ]),
+    );
+    final fresh = await service.openContext(context());
+    final ambiguous = await service.readFactsRequest(request(fresh.contextId));
+    expect(
+      wireString(
+        writing.field(
+          writing.list(ambiguous.facts, 'objects').single,
+          'identity',
+        ),
+      ),
+      'ambiguous',
+    );
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    service = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: writer,
+    );
+    final reopened = await service.readFactsRequest(request(opened.contextId));
+    expect(reopened.frame.revision, head);
+    expect(reopened.facts.toText(), first.facts.toText());
+    await authority.coordinate(
+      author,
+      () => authority.grant(
+        author,
+        GrantSpec(
+          profileId: writer.id,
+          universeId: f.u,
+          worlds: [permissions.world(50)],
+          propose: false,
+          edit: false,
+          protected: false,
+        ),
+      ),
+    );
+    await expectLater(
+      service.readFactsRequest(request(opened.contextId)),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    final scoped = await service.openContext(context());
+    final result = await service.readFactsRequest(
+      request(scoped.contextId, names: ['Cedar', 'Secret']),
+    );
+    final visible = writing.list(result.facts, 'objects');
+    expect(wireString(writing.field(visible.first, 'identity')), 'resolved');
+    expect(wireString(writing.field(visible.last, 'identity')), 'not_found');
+    expect(writing.field(visible.last, 'matches').toText(), '0');
+    expect(wireString(writing.field(result.facts, 'coverage')), 'restricted');
+    await expectLater(
+      service.readFactsRequest(
+        ReadFactsRequest(
+          universe: const Selector('World'),
+          contextId: scoped.contextId,
+          world: 'Private',
+          objectNames: ['Secret'],
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    expect(WorkflowStorage(package.database).keys('validation:'), isEmpty);
+  });
 
   test('native state reads retain exact initialization history only at the pinned revision', () async {
     final rows = [

@@ -27,6 +27,7 @@ import 'source_verification.dart';
 import 'state_reading.dart';
 import 'validation_binding.dart';
 import 'validation_task.dart';
+import 'writing_projection.dart';
 
 /// Internal native workflow for an already recovered, writer-owned package.
 /// It retains assessments, checked results and exact human approvals, and
@@ -612,6 +613,25 @@ final class SqliteValidationWorkflow {
       request.event,
       request.eventSide,
     );
+    final state = _readState(
+      records: snapshot.accessible,
+      frame: frame,
+      ids: request.entityIds,
+      predicates: request.predicateFilters,
+      world: snapshot.focus,
+      current: current,
+    );
+    return (state: state, frame: frame);
+  });
+
+  State _readState({
+    required List<RecordVersion> records,
+    required Frame frame,
+    required List<RecordId> ids,
+    required List<RecordId> predicates,
+    required WorldId? world,
+    required CurrentUniverseAuthority current,
+  }) {
     final restricted =
         current.worldScope != null || frame.perspective is! AuthorPerspective;
     final receipts = restricted
@@ -620,17 +640,68 @@ final class SqliteValidationWorkflow {
             package.database,
             universe,
           ).initializationReceiptsAt(frame.continuity, frame.revision);
-    final state = assembleReadState(
-      records: snapshot.accessible,
+    return assembleReadState(
+      records: records,
       frame: frame,
-      ids: request.entityIds,
-      predicates: request.predicateFilters,
-      world: snapshot.focus,
+      ids: ids,
+      predicates: predicates,
+      world: world,
       restricted: restricted,
       receipts: receipts,
       readVersion: _version,
     );
-    return (state: state, frame: frame);
+  }
+
+  Future<({CanonicalObject facts, Frame frame, WorldId? focus})>
+  readFactsRequest(
+    ReadFactsRequest request,
+  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    final frame = _contextFrame(request.contextId, current);
+    // Plain name resolution uses all visible records; the state projection then
+    // enforces world focus. A same-named hidden identity never enters a count.
+    final snapshot = await _readSnapshot(
+      frame: frame,
+      world: null,
+      guard: null,
+      current: current,
+    );
+    final visible = snapshot.all
+        .where((r) => snapshot.visibility.contains(r.identity.recordId))
+        .toList();
+    final focus = resolveWorldFocus(
+      world: request.world == null ? null : Selector(request.world!),
+      guard: null,
+      records: visible,
+      scope: current.worldScope,
+    );
+    final selected = request.world == null
+        ? snapshot
+        : await _readSnapshot(
+            frame: frame,
+            world: Selector(request.world!),
+            guard: null,
+            current: current,
+          );
+    return (
+      facts: projectWritingFacts(
+        request: request,
+        records: visible,
+        frame: frame,
+        restricted:
+            current.worldScope != null ||
+            frame.perspective is! AuthorPerspective,
+        readState: (id) => _readState(
+          records: selected.accessible,
+          frame: frame,
+          ids: [id],
+          predicates: [],
+          world: focus,
+          current: current,
+        ),
+      ),
+      frame: frame,
+      focus: focus,
+    );
   });
 
   Future<({ProposalViewResult result, Delivery delivery})> getProposalRequest(
