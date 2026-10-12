@@ -35,9 +35,13 @@ void main() {
         await connection.execute(
           'CREATE ROLE "$role" LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE',
         );
-        await connection.execute(
-          'GRANT CREATE ON DATABASE ub_disposable TO "$role"',
-        );
+        await connection.runTx((tx) async {
+          // Other live suites also edit this database's fixture-role ACL.
+          await tx.execute(
+            "SELECT pg_advisory_xact_lock(hashtext('ub_disposable_fixture_roles'))",
+          );
+          await tx.execute('GRANT CREATE ON DATABASE ub_disposable TO "$role"');
+        });
         await connection.execute('SET ROLE "$role"');
         for (final schema in [first, second]) {
           await connection.execute('CREATE SCHEMA $schema');
@@ -56,8 +60,13 @@ void main() {
           for (final schema in [first, second]) {
             await connection.execute('DROP SCHEMA IF EXISTS $schema CASCADE');
           }
-          await connection.execute('DROP OWNED BY "$role"');
-          await connection.execute('DROP ROLE "$role"');
+          await connection.runTx((tx) async {
+            await tx.execute(
+              "SELECT pg_advisory_xact_lock(hashtext('ub_disposable_fixture_roles'))",
+            );
+            await tx.execute('DROP OWNED BY "$role"');
+            await tx.execute('DROP ROLE "$role"');
+          });
         } finally {
           await connection.close();
         }

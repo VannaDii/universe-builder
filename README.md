@@ -228,11 +228,25 @@ come from validated internal IDs. Live functional checks on PostgreSQL 16.15 cov
 non-superuser schema setup, exact values/null versus empty, transaction rollback,
 competing row locks and namespace reset on a reused pooled connection. These are
 representative driver/storage checks, not complete PostgreSQL store or service
-support; full generated schemas, workflow parity, transfer and verified TLS remain
-pending. Run `test/postgres_foundation_test.dart` from `packages/ub_store` with
+support. The internal PostgreSQL body schema and transaction-owned codec now use
+the same normative mapping catalog as SQLite, generating all 886 typed body
+tables. Focused checks cover restricted-role provisioning, complete provisioning
+rollback, frozen payload/digest reconstruction through a new connection, absent
+versus null fields, ordered collections, exact numbers/text, immutable rows,
+foreign keys, collection gaps and recursive-graph refusal. Kernel, installation,
+workflow and projection schemas, service parity, transfer and verified TLS remain
+pending. Run `test/postgres_foundation_test.dart` and
+`test/postgres_relational_test.dart` from `packages/ub_store` with
 `UB_TEST_POSTGRES_PORT` set to a disposable loopback `ub_disposable` database. Without
 that selection the live database cases are explicitly skipped. This check uses
 local fixture setup privileges and cleans its generated schemas and role.
+Full-schema operations need enough server object-lock capacity: on the disposable
+PostgreSQL 16.15 server with 100 connections, the default
+`max_locks_per_transaction=64` exhausted shared locks during schema removal;
+`256` passed provisioning, provisioning rollback and removal. This is a tested
+local setting, not a sizing guarantee for concurrent hosted installations. Size
+that server-start setting for the intended operations and concurrency; see
+[PostgreSQL lock configuration](https://www.postgresql.org/docs/16/runtime-config-locks.html).
 Compiled engine startup and shutdown have focused coverage on macOS with disposable
 data. Native clients can now use `LocalEngineClient.ensureRunning` with an absolute
 installed `universe-engine` helper, or select the sibling through `siblingEngine`.
