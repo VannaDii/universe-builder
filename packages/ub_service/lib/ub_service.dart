@@ -26,6 +26,8 @@ export 'src/discovery.dart';
 export 'src/writing_projection.dart';
 export 'src/writing_contract_projection.dart';
 export 'src/writing_dates.dart';
+export 'src/writing_units.dart';
+export 'src/writing_binding.dart';
 export 'src/context_brief.dart';
 export 'src/read_cursor.dart';
 export 'src/knowledge_boundaries.dart';
