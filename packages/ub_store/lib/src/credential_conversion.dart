@@ -41,7 +41,7 @@ CanonicalObject convertCredential(String source, String destination) {
     late String credential;
     try {
       final fields = WireFields(
-        CanonicalValue.parseWireJson(utf8.decode(original)),
+        CanonicalValue.parseWireJson(decodeExactUtf8(original)),
         {'format_version', 'profile_id', 'credential'},
       );
       if (fields.require('format_version') is! CanonicalNumber ||
@@ -51,7 +51,7 @@ CanonicalObject convertCredential(String source, String destination) {
       profile = ProfileId.parse(fields.string('profile_id'));
       credential = fields.string('credential');
       if (credential.isEmpty ||
-          utf8.decode(utf8.encode(credential)) != credential) {
+          decodeExactUtf8(utf8.encode(credential)) != credential) {
         throw const FormatException('Invalid credential text');
       }
     } on Object {

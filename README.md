@@ -60,6 +60,11 @@ verifies the complete converted credential and unchanged source hash, and publis
 through an exclusive atomic rename. Input reads use an owned private read-only
 descriptor with the existing 4096-byte bound; failures do not expose parser/driver
 credential values. Conversion creates no enrollment, grant or installation.
+Credential storage, authentication and both serialized/relational conversion
+retain leading and inline U+FEFF characters as part of the exact secret, together
+with Unicode, NUL and line endings. A BOM before the JSON credential document is
+rejected as invalid syntax rather than silently consumed. Focused checks use
+disposable credentials and leave recovery originals unchanged.
 The SQLite store also exposes offline `convertPackage` for maintained serialized
 v1/v2 and relational package layouts. It retains IDs, history, pinned branches,
 ordered classification ambiguity, exact workflow authority and receipts. It

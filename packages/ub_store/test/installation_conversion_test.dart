@@ -20,7 +20,7 @@ void main() {
   late UniverseId universe;
   late WorldId firstWorld, secondWorld;
   late RecordId firstEntity, secondEntity;
-  const secret = 'Disposable exact café 😀\r\n\u0000';
+  const secret = '\uFEFF\uFEFFDisposable exact café 😀\r\n\u0000';
   String credential(ProfileId profile) => '$secret:${profile.value}';
   setUp(() {
     root = Directory.systemTemp.createTempSync(

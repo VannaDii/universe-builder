@@ -159,7 +159,7 @@ final class InstallationAuthority {
   }) {
     try {
       final exact = utf8.encode(credential.expose());
-      if (utf8.decode(exact) != credential.expose()) {
+      if (decodeExactUtf8(exact) != credential.expose()) {
         throw const InstallationException(InstallationFailure.denied);
       }
       final stored = _store.profile(profile);

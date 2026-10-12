@@ -28,7 +28,7 @@ final class ProfileCredentialStore {
     required ProfileId profile,
     required String credential,
   }) {
-    if (utf8.decode(utf8.encode(credential)) != credential) {
+    if (decodeExactUtf8(utf8.encode(credential)) != credential) {
       throw const ProfileCredentialException(
         ProfileCredentialFailure.invalidText,
       );
@@ -84,7 +84,7 @@ final class ProfileCredentialStore {
             ProfileCredentialFailure.identityMismatch,
           );
         }
-        return utf8.decode(rows.single['credential_utf8'] as Uint8List);
+        return decodeExactUtf8(rows.single['credential_utf8'] as Uint8List);
       } finally {
         db.close();
       }

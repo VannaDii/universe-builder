@@ -456,7 +456,7 @@ String _copyRelationalCredential(
         rows.single['type'] != 'text') {
       throw const FormatException('Credential identity mismatch');
     }
-    final credential = utf8.decode(rows.single['bytes'] as List<int>);
+    final credential = decodeExactUtf8(rows.single['bytes'] as List<int>);
     if (credential.isEmpty) {
       throw const FormatException('Empty retained credential');
     }
@@ -465,7 +465,8 @@ String _copyRelationalCredential(
       profile: profile,
       credential: credential,
     );
-    if (ProfileCredentialStore.read(root: root, profile: profile) != credential) {
+    if (ProfileCredentialStore.read(root: root, profile: profile) !=
+        credential) {
       throw const FormatException('Credential comparison failed');
     }
     return original.hash;

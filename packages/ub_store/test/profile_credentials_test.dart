@@ -2,6 +2,7 @@
 library;
 
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';
@@ -83,6 +84,44 @@ void main() {
     expect(File(path).readAsBytesSync(), before);
     expect(read(), secret);
   });
+
+  test(
+    'leading and inline BOM characters survive exact secret byte storage',
+    () {
+      for (final value in [
+        '\uFEFF$secret',
+        '\uFEFF\uFEFF$secret',
+        'a\uFEFF$secret',
+      ]) {
+        final id = ProfileId.generate();
+        ProfileCredentialStore.write(
+          root: directory.path,
+          profile: id,
+          credential: value,
+        );
+        expect(
+          ProfileCredentialStore.read(root: directory.path, profile: id),
+          value,
+        );
+        final db = sqlite3.open(
+          '${directory.path}/profiles/${id.value}.sqlite',
+          mode: OpenMode.readOnly,
+        );
+        try {
+          expect(
+            db
+                .select(
+                  'SELECT CAST(credential AS BLOB) AS bytes FROM credential',
+                )
+                .single['bytes'],
+            orderedEquals(utf8.encode(value)),
+          );
+        } finally {
+          db.close();
+        }
+      }
+    },
+  );
 
   test('existing Rust-format credentials read without conversion', () {
     Directory('${directory.path}/profiles').createSync();

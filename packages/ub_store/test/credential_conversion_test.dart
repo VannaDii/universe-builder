@@ -15,7 +15,7 @@ void main() {
   late Directory root;
   late ProfileId profile;
   late String source, destination, targetRoot;
-  const secret = 'Disposable exact credential: é😀\r\n\u0000';
+  const secret = '\uFEFFDisposable exact credential: é😀\r\n\u0000';
   setUp(() {
     root = Directory.systemTemp.createTempSync(
       'universe-builder-credential-conversion-',
@@ -126,6 +126,23 @@ void main() {
       expect(File(destination).existsSync(), isFalse);
       noStages();
     }
+    File(source).writeAsBytesSync([
+      0xef,
+      0xbb,
+      0xbf,
+      ...utf8.encode(
+        jsonEncode({
+          'format_version': 1,
+          'profile_id': profile.value,
+          'credential': secret,
+        }),
+      ),
+    ]);
+    expect(
+      () => convertCredential(source, destination),
+      failure(CredentialConversionFailure.invalidInput),
+    );
+    expect(File(destination).existsSync(), isFalse);
     File(source).writeAsBytesSync([0xff]);
     expect(
       () => convertCredential(source, destination),

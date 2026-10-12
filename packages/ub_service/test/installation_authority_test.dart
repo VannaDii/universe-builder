@@ -34,6 +34,39 @@ void main() {
     isA<InstallationException>().having((e) => e.failure, 'failure', expected),
   );
 
+  test('retained BOM credential authenticates only its exact stored bytes', () {
+    final id = ProfileId.generate();
+    const secret = '\uFEFF\uFEFFDisposable café 😀\r\n\u0000';
+    ProfileCredentialStore.write(
+      root: directory.path,
+      profile: id,
+      credential: secret,
+    );
+    store.enroll(
+      id: id,
+      credentialHash: sha256.convert(utf8.encode(secret)).toString(),
+    );
+    final principal = authority.authenticate(
+      profile: id,
+      credential: credential(id),
+    );
+    expect(principal.id, id);
+    expect(principal.author, isTrue);
+    for (final changed in [
+      secret.substring(1),
+      secret.substring(2),
+      secret.trim(),
+    ]) {
+      expect(
+        () => authority.authenticate(
+          profile: id,
+          credential: Credential(changed),
+        ),
+        failure(InstallationFailure.denied),
+      );
+    }
+  });
+
   test(
     'engine handshake admits current credentials with the exact protocol',
     () {
