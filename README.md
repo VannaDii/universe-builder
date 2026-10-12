@@ -523,8 +523,13 @@ admits visible represented contexts, temporal queries/calendars and event frames
 and retains owner/scope/expiry with the opened frame. Character and narrator
 perspectives require matching contexts; reader perspectives require a positioned
 scene and disclosures/dependencies matching the edition's pinned canon. Named
-contexts and scenes require one exact accessible match. Other context-backed
-routes and public engine dispatch remain pending.
+contexts and scenes require one exact accessible match. Queued validation and
+assessment attachment/selection now resolve retained contexts within their
+mutation authority section and require the proposal's exact base frame. Expiry
+and scope admission precede retry lookup; source checks and historical assessment
+receipts retain their existing semantics. The native authoring journey now uses
+an opened context through proposal submission and queued validation. Remaining
+read/check routes and public engine dispatch remain pending.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

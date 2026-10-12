@@ -1467,6 +1467,140 @@ void main() {
     );
   }
 
+  test(
+    'context-backed assessment and validation bind exact submitted sources',
+    () async {
+      final body = await submittedAssessment();
+      final opened = await service.openContext(contextRequest());
+      final attach = AttachAssessmentRequest(
+        universe: const Selector('World'),
+        universeId: f.u,
+        contextId: opened.contextId,
+        proposalReference: proposal.reference,
+        expectedSelectionGeneration: BigInt.zero,
+        body: body,
+        idempotencyKey: 'context-attach',
+      );
+      final attached = await service.assessmentRequest(attach);
+      expect(attached.generation, BigInt.one);
+      expect(
+        (await service.assessmentRequest(attach)).toWire().toText(),
+        attached.toWire().toText(),
+      );
+      final queued = await service.queueValidationRequest(
+        QueuedProposalValidationRequest(
+          universe: const Selector('World'),
+          universeId: f.u,
+          contextId: opened.contextId,
+          proposalReference: proposal.reference,
+          checkScope: CheckScope.candidate,
+          idempotencyKey: 'context-source-check',
+        ),
+        isValidationActive: (_) => false,
+      );
+      expect(
+        (queued.validation as EvaluatedValidation).submittedInput,
+        isA<SourceAssessedCandidateInput>(),
+      );
+      final cleared = await service.assessmentRequest(
+        SelectAssessmentRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          proposalReference: proposal.reference,
+          expectedSelectionGeneration: BigInt.one,
+          assessmentReference: null,
+          idempotencyKey: 'context-clear',
+        ),
+      );
+      expect(cleared.generation, BigInt.two);
+      expect(cleared.selected, isNull);
+    },
+  );
+
+  test(
+    'expired context blocks queued validation and assessment mutation',
+    () async {
+      await retainedContext(expires: BigInt.zero);
+      await expectLater(
+        service.queueValidationRequest(
+          queued(),
+          isValidationActive: (_) => false,
+        ),
+        throwsA(isA<ContextExpiredError>()),
+      );
+      await expectLater(
+        service.assessmentRequest(
+          SelectAssessmentRequest(
+            universe: const Selector('World'),
+            contextId: proposals.contextId,
+            proposalReference: proposal.reference,
+            expectedSelectionGeneration: BigInt.zero,
+            assessmentReference: null,
+            idempotencyKey: 'expired-clear',
+          ),
+        ),
+        throwsA(isA<ContextExpiredError>()),
+      );
+      final workflow = WorkflowStorage(package.database);
+      expect(workflow.keys('request:${writer.id.value}:validate:'), isEmpty);
+      expect(workflow.keys('assessment-receipt:'), isEmpty);
+    },
+  );
+
+  test(
+    'different pinned context cannot queue or attach to a submitted proposal',
+    () async {
+      final old = kernel.journal.head(continuity);
+      final body = await submittedAssessment();
+      final opened = await service.openContext(
+        OpenContextRequest(
+          universe: const Selector('World'),
+          continuityId: continuity,
+          revision: ExactRevisionSelector(revisionId: old),
+          representedContext: ContextIdSelector(f.id(99)),
+          temporalQuery: const TimelessFrameTime(),
+          temporalSystems: [],
+          perspective: const AuthorPerspective(),
+        ),
+      );
+      await expectLater(
+        service.queueValidationRequest(
+          QueuedProposalValidationRequest(
+            universe: const Selector('World'),
+            contextId: opened.contextId,
+            proposalReference: proposal.reference,
+            checkScope: CheckScope.candidate,
+            idempotencyKey: 'wrong-frame-check',
+          ),
+          isValidationActive: (_) => false,
+        ),
+        stale,
+      );
+      await expectLater(
+        service.assessmentRequest(
+          AttachAssessmentRequest(
+            universe: const Selector('World'),
+            contextId: opened.contextId,
+            proposalReference: proposal.reference,
+            expectedSelectionGeneration: BigInt.zero,
+            body: body,
+            idempotencyKey: 'wrong-frame-attach',
+          ),
+        ),
+        stale,
+      );
+      expect(
+        WorkflowStorage(package.database).keys('assessment-receipt:'),
+        isEmpty,
+      );
+      expect(
+        WorkflowStorage(package.database)
+            .keys('request:${writer.id.value}:validate:'),
+        isEmpty,
+      );
+    },
+  );
+
   SqliteValidationWorkflow authorService() => SqliteValidationWorkflow(
     package: package,
     authority: authority,
@@ -1550,23 +1684,43 @@ void main() {
   );
 
   test('native authoring journey submits checks approves and publishes without seeded proposals', () async {
-    final draft = await propose(creation());
-    final submitted = await propose(
+    final opened = await service.openContext(contextRequest());
+    final template = creation();
+    final draft = await service.proposeRequest(
+      CreateProposalRequest(
+        universe: template.universe,
+        universeId: f.u,
+        contextId: opened.contextId,
+        operations: template.operations,
+        submission: template.submission,
+        rationale: template.rationale,
+        idempotencyKey: template.idempotencyKey,
+      ),
+      isValidationActive: (_) => false,
+    );
+    final submitted = await service.proposeRequest(
       SubmitProposalRequest(
         universe: const Selector('World'),
-        contextId: proposals.contextId,
+        contextId: opened.contextId,
         proposalReference: reference(draft),
         idempotencyKey: 'journey-submit',
       ),
+      isValidationActive: (_) => false,
     );
     proposal = StoredProposal.fromWire(
       WorkflowStorage(package.database).get(proposalKey(reference(submitted)))!,
     );
     final scheduler = NativeValidationScheduler();
     bool active(OperationId id) => scheduler.isActive(f.u, id);
-    final queuedStatus = await service.queueValidation(
-      queued(),
-      resolvedFrame: submitted.baseFrame,
+    final queuedStatus = await service.queueValidationRequest(
+      QueuedProposalValidationRequest(
+        universe: const Selector('World'),
+        universeId: f.u,
+        contextId: opened.contextId,
+        proposalReference: proposal.reference,
+        checkScope: CheckScope.candidate,
+        idempotencyKey: 'context-queued-check',
+      ),
       isValidationActive: active,
     );
     await scheduler.schedule(service, queuedStatus.operationId);

@@ -199,6 +199,19 @@ final class SqliteValidationWorkflow {
     ),
   );
 
+  Frame _contextFrame(ContextId id, CurrentUniverseAuthority current) {
+    final value = _workflow.get('context:${id.value}');
+    if (value == null) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    return StoredContext.fromWire(value).admit(
+      principal: principal.id,
+      scopeHash: current.scopeHash,
+      universe: universe,
+      epochSeconds: BigInt.from(DateTime.now().millisecondsSinceEpoch ~/ 1000),
+    );
+  }
+
   /// Native dispatch entry: admit the retained context and resolve named world
   /// focus under the same current authority section as proposal retention.
   Future<Proposal> proposeRequest(
@@ -228,16 +241,7 @@ final class SqliteValidationWorkflow {
         'Expected proposal state action',
       ),
     };
-    final value = _workflow.get('context:${contextId.value}');
-    if (value == null) {
-      throw const NotFoundOrNotAccessibleError(message: 'resource');
-    }
-    final frame = StoredContext.fromWire(value).admit(
-      principal: principal.id,
-      scopeHash: current.scopeHash,
-      universe: universe,
-      epochSeconds: BigInt.from(DateTime.now().millisecondsSinceEpoch ~/ 1000),
-    );
+    final frame = _contextFrame(contextId, current);
     final focus = world == null
         ? null
         : resolveWorldFocus(
@@ -442,7 +446,37 @@ final class SqliteValidationWorkflow {
     QueuedProposalValidationRequest request, {
     required Frame resolvedFrame,
     required bool Function(OperationId) isValidationActive,
-  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _queueValidation(
+      request,
+      current,
+      resolvedFrame: resolvedFrame,
+      isValidationActive: isValidationActive,
+    ),
+  );
+
+  Future<OperationStatusV3> queueValidationRequest(
+    QueuedProposalValidationRequest request, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _queueValidation(
+      request,
+      current,
+      resolvedFrame: _contextFrame(request.contextId, current),
+      isValidationActive: isValidationActive,
+    ),
+  );
+
+  Future<OperationStatusV3> _queueValidation(
+    QueuedProposalValidationRequest request,
+    CurrentUniverseAuthority current, {
+    required Frame resolvedFrame,
+    required bool Function(OperationId) isValidationActive,
+  }) async {
     const denied = NotFoundOrNotAccessibleError(message: 'resource');
     if (resolvedFrame.universe != universe ||
         request.universeId != null && request.universeId != universe) {
@@ -520,7 +554,7 @@ final class SqliteValidationWorkflow {
       worldScope: current.worldScope,
       readWorkflow: _workflow.get,
     );
-  });
+  }
 
   /// The dispatcher resolves the universe before calling this route. The live
   /// cancellation signal is sent only after durable cancellation is retained.
@@ -745,7 +779,86 @@ final class SqliteValidationWorkflow {
     SourceAssessmentV1? body,
     AssessmentRef? selected,
     String key,
-  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+  ) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _changeAssessmentUnderAuthority(
+      reference,
+      expected,
+      body,
+      selected,
+      key,
+      current,
+    ),
+  );
+
+  Future<AssessmentSelection> assessmentRequest(WorkflowRequest request) =>
+      authority.withUniverseAuthority(principal, universe, (current) {
+        final (
+          ContextId contextId,
+          UniverseId? requestedUniverse,
+          ProposalRef reference,
+          BigInt expected,
+          SourceAssessmentV1? body,
+          AssessmentRef? selected,
+          String key,
+        ) = switch (request) {
+          AttachAssessmentRequest() => (
+            request.contextId,
+            request.universeId,
+            request.proposalReference,
+            request.expectedSelectionGeneration,
+            request.body,
+            null,
+            request.idempotencyKey,
+          ),
+          SelectAssessmentRequest() => (
+            request.contextId,
+            request.universeId,
+            request.proposalReference,
+            request.expectedSelectionGeneration,
+            null,
+            request.assessmentReference,
+            request.idempotencyKey,
+          ),
+          _ => throw ArgumentError.value(
+            request,
+            'request',
+            'Expected assessment action',
+          ),
+        };
+        const denied = NotFoundOrNotAccessibleError(message: 'resource');
+        if (requestedUniverse != null && requestedUniverse != universe) {
+          throw denied;
+        }
+        final frame = _contextFrame(contextId, current);
+        final StoredProposal proposal;
+        try {
+          proposal = _proposal(reference, current);
+        } on Object {
+          throw denied;
+        }
+        if (frame != proposal.proposal.baseFrame) {
+          throw const ApprovalStaleError();
+        }
+        return _changeAssessmentUnderAuthority(
+          reference,
+          expected,
+          body,
+          selected,
+          key,
+          current,
+        );
+      });
+
+  Future<AssessmentSelection> _changeAssessmentUnderAuthority(
+    ProposalRef reference,
+    BigInt expected,
+    SourceAssessmentV1? body,
+    AssessmentRef? selected,
+    String key,
+    CurrentUniverseAuthority current,
+  ) async {
     const denied = NotFoundOrNotAccessibleError(message: 'resource');
     InvalidArgumentError invalid(String message) =>
         InvalidArgumentError(field: 'assessment', message: message);
@@ -907,7 +1020,7 @@ final class SqliteValidationWorkflow {
       },
     );
     return result;
-  });
+  }
 
   /// Publish only a retained, exactly checked and approved/delegated proposal.
   /// The dispatcher resolves the request's universe before calling this route.
