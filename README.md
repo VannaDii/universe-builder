@@ -62,6 +62,14 @@ provide reviewed publication yet. The internal journal adds immutable revision
 history, exact receipt lookup, tombstones and pinned branches within a
 caller-owned transaction. Reference admission and per-record reference, world,
 narrative, scalar and search projections are also implemented internally.
+The internal SQLite kernel now coordinates candidate admission, definition and
+initialization indexes, head advancement, projections and durable commit receipts
+in one transaction. Exact retries precede current-head/workflow comparisons.
+Preview runs that same write path and deliberately rolls it back before returning
+the candidate; failed gates and interrupted checkpoints leave canon intact.
+Changed images remain unavailable in this coordinator until bounded decoding
+admission is ported. Public reviewed publication and owning-service integration
+remain pending.
 Foundation/value/ancestry admission and world selector reservations are
 implemented internally. Selector keys preserve the existing NFC/full case
 folding/NFC format with pinned Unicode tables; renamed or removed world names

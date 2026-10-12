@@ -6,13 +6,9 @@ import 'dart:io';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';
 import 'package:ub_domain/ub_domain.dart';
-import 'package:ub_store/src/candidate_foundation.dart';
-import 'package:ub_store/src/candidate_references.dart';
 import 'package:ub_store/src/database.dart';
-import 'package:ub_store/src/definition_index.dart';
 import 'package:ub_store/src/journal.dart';
-import 'package:ub_store/src/initialization.dart';
-import 'package:ub_store/src/projections.dart';
+import 'package:ub_store/src/kernel.dart';
 import 'package:ub_store/src/projection_recovery.dart';
 import 'package:ub_store/src/revision_input.dart';
 
@@ -71,64 +67,15 @@ void main() {
 
   // Exercises the internal primitives with already-admitted unclassified
   // entities. This is a test transaction, not an author publication API.
-  RevisionId publish(CommitInput request, {String? failAfter}) {
-    void checkpoint(String stage) {
-      if (failAfter == stage) throw StateError('Interrupted $stage');
-    }
-
-    database.execute('BEGIN IMMEDIATE');
-    try {
-      final retry = journal.receipt(request);
-      if (retry != null) {
-        database.execute('ROLLBACK');
-        return retry;
-      }
-      journal.compareWorkflow({});
-      final base = journal.snapshot(request.continuity, request.expectedHead);
-      final candidate = journal.stageVersions(request);
-      checkpoint('versions');
-      CandidateFoundation(journal).validate(candidate);
-      CandidateReferences(journal).validate(candidate);
-      for (final change in request.changes) {
-        if (change.next != null) {
-          DefinitionIndex(journal).index(change.next!, candidate);
-        }
-      }
-      final initialization = InitializationEvidence(journal);
-      final receipts = initialization.pending(request, base, candidate);
-      final revision = journal.append(request);
-      for (final receipt in receipts) {
-        initialization.insert(receipt.admittedAt(revision));
-      }
-      checkpoint('changes');
-      journal.advanceHead(
-        request.continuity,
-        request.expectedHead,
-        revision,
-        candidate,
+  RevisionId publish(CommitInput request, {String? failAfter}) =>
+      SqliteKernel(database, universe).commit(
+        request,
+        hook: (point) {
+          if (point.name == failAfter) {
+            throw StateError('Interrupted ${point.name}');
+          }
+        },
       );
-      checkpoint('head');
-      final generation =
-          database
-                  .select('SELECT generation FROM projection_state')
-                  .single['generation']
-              as int;
-      for (final assignment in request.changes) {
-        if (assignment.next != null) {
-          RecordProjections(database).project(generation, assignment.next!);
-        }
-      }
-      checkpoint('projections');
-      journal.writeReceipt(request, revision);
-      checkpoint('receipt');
-      checkpoint('beforeCommit');
-      database.execute('COMMIT');
-      return revision;
-    } catch (_) {
-      if (!database.autocommit) database.execute('ROLLBACK');
-      rethrow;
-    }
-  }
 
   StoredVersion world(
     int identity,
