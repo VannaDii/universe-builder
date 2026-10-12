@@ -1,0 +1,147 @@
+[
+  {
+    "type": "Delivery",
+    "input_raw": "{\"complete\":false,\"cursor\":\"next\"}",
+    "canonical_utf8": "{\"complete\":false,\"cursor\":\"next\"}"
+  },
+  {
+    "type": "Delivery",
+    "input_raw": "{\"complete\":true}",
+    "canonical_utf8": "{\"complete\":true,\"cursor\":null}"
+  },
+  {
+    "type": "Capability",
+    "input_raw": "{\"id\":\"test\",\"status\":\"partial\",\"limitation\":\"Only scoped coverage\"}",
+    "canonical_utf8": "{\"id\":\"test\",\"limitation\":\"Only scoped coverage\",\"status\":\"partial\"}"
+  },
+  {
+    "type": "WorldSummary",
+    "input_raw": "{\"id\":\"wld_000000000000000000000001\",\"name\":\"Real World\"}",
+    "canonical_utf8": "{\"id\":\"wld_000000000000000000000001\",\"name\":\"Real World\"}"
+  },
+  {
+    "type": "RepresentedContextSummary",
+    "input_raw": "{\"id\":\"rec_000000000000000000000001\",\"kind\":{\"kind\":\"objective\"},\"labels\":{\"en\":\"Primary\",\"é\":\"preserved\"}}",
+    "canonical_utf8": "{\"id\":\"rec_000000000000000000000001\",\"kind\":{\"kind\":\"objective\"},\"labels\":{\"en\":\"Primary\",\"é\":\"preserved\"}}"
+  },
+  {
+    "type": "ContinuitySummary",
+    "input_raw": "{\"id\":\"cont_000000000000000000000001\",\"revision_id\":\"rev_000000000000000000000001\",\"name\":\"Main\",\"represented_contexts\":[{\"id\":\"rec_000000000000000000000001\",\"kind\":{\"kind\":\"objective\"},\"labels\":{\"en\":\"Primary\",\"é\":\"preserved\"}}]}",
+    "canonical_utf8": "{\"id\":\"cont_000000000000000000000001\",\"name\":\"Main\",\"represented_contexts\":[{\"id\":\"rec_000000000000000000000001\",\"kind\":{\"kind\":\"objective\"},\"labels\":{\"en\":\"Primary\",\"é\":\"preserved\"}}],\"revision_id\":\"rev_000000000000000000000001\"}"
+  },
+  {
+    "type": "Description",
+    "input_raw": "{\"fixture\":false,\"worlds\":[{\"id\":\"wld_000000000000000000000001\",\"name\":\"Real World\"}],\"capabilities\":[{\"id\":\"test\",\"status\":\"partial\",\"limitation\":\"Only scoped coverage\"}],\"definition_ids\":[\"rec_000000000000000000000001\"],\"continuities\":[{\"id\":\"cont_000000000000000000000001\",\"revision_id\":\"rev_000000000000000000000001\",\"name\":\"Main\",\"represented_contexts\":[{\"id\":\"rec_000000000000000000000001\",\"kind\":{\"kind\":\"objective\"},\"labels\":{\"en\":\"Primary\",\"é\":\"preserved\"}}]}]}",
+    "canonical_utf8": "{\"capabilities\":[{\"id\":\"test\",\"limitation\":\"Only scoped coverage\",\"status\":\"partial\"}],\"continuities\":[{\"id\":\"cont_000000000000000000000001\",\"name\":\"Main\",\"represented_contexts\":[{\"id\":\"rec_000000000000000000000001\",\"kind\":{\"kind\":\"objective\"},\"labels\":{\"en\":\"Primary\",\"é\":\"preserved\"}}],\"revision_id\":\"rev_000000000000000000000001\"}],\"definition_ids\":[\"rec_000000000000000000000001\"],\"fixture\":false,\"worlds\":[{\"id\":\"wld_000000000000000000000001\",\"name\":\"Real World\"}]}"
+  },
+  {
+    "type": "OpenedContext",
+    "input_raw": "{\"context_id\":\"ctx_000000000000000000000001\",\"frame\":{\"universe\":\"unv_000000000000000000000001\",\"continuity\":\"cont_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"context\":{\"record\":\"rec_000000000000000000000001\"},\"time\":{\"kind\":\"timeless\"},\"perspective\":\"reader\"}}",
+    "canonical_utf8": "{\"context_id\":\"ctx_000000000000000000000001\",\"frame\":{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"perspective\":\"reader\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"timeless\"},\"universe\":\"unv_000000000000000000000001\"}}"
+  },
+  {
+    "type": "RecordSummary",
+    "input_raw": "{\"record_id\":\"rec_000000000000000000000001\",\"kind\":\"world\",\"label\":\"Earth\"}",
+    "canonical_utf8": "{\"kind\":\"world\",\"label\":\"Earth\",\"record_id\":\"rec_000000000000000000000001\"}"
+  },
+  {
+    "type": "Records",
+    "input_raw": "{\"records\":[]}",
+    "canonical_utf8": "{\"records\":[]}"
+  },
+  {
+    "type": "Records",
+    "input_raw": "{\"records\":[{\"record_version_id\":\"ver_000000000000000000000001\",\"identity\":{\"universe_id\":\"unv_000000000000000000000001\",\"record_id\":\"rec_000000000000000000000001\",\"record_kind\":\"world\"},\"payload\":{\"record_kind\":\"world\",\"selector\":\"Earth\",\"labels\":{},\"metadata\":{}},\"payload_digest\":\"declared historical digest\"}],\"summaries\":[{\"record_id\":\"rec_000000000000000000000001\",\"kind\":\"world\",\"label\":\"Earth\"}],\"evidence\":[{\"record_version_id\":\"ver_000000000000000000000001\",\"identity\":{\"universe_id\":\"unv_000000000000000000000001\",\"record_id\":\"rec_000000000000000000000001\",\"record_kind\":\"world\"},\"payload\":{\"record_kind\":\"world\",\"selector\":\"Earth\",\"labels\":{},\"metadata\":{}},\"payload_digest\":\"declared historical digest\"}],\"history\":[{\"record_id\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"continuity\":\"cont_000000000000000000000001\",\"principal\":\"prn_000000000000000000000001\",\"reason\":\"Authored correction\",\"record\":{\"record_version_id\":\"ver_000000000000000000000001\",\"identity\":{\"universe_id\":\"unv_000000000000000000000001\",\"record_id\":\"rec_000000000000000000000001\",\"record_kind\":\"world\"},\"payload\":{\"record_kind\":\"world\",\"selector\":\"Earth\",\"labels\":{},\"metadata\":{}},\"payload_digest\":\"declared historical digest\"}}],\"history_coverage\":\"partial\"}",
+    "canonical_utf8": "{\"evidence\":[{\"identity\":{\"record_id\":\"rec_000000000000000000000001\",\"record_kind\":\"world\",\"universe_id\":\"unv_000000000000000000000001\"},\"payload\":{\"labels\":{},\"metadata\":{},\"record_kind\":\"world\",\"selector\":\"Earth\"},\"payload_digest\":\"declared historical digest\",\"record_version_id\":\"ver_000000000000000000000001\"}],\"history\":[{\"continuity\":\"cont_000000000000000000000001\",\"principal\":\"prn_000000000000000000000001\",\"reason\":\"Authored correction\",\"record\":{\"identity\":{\"record_id\":\"rec_000000000000000000000001\",\"record_kind\":\"world\",\"universe_id\":\"unv_000000000000000000000001\"},\"payload\":{\"labels\":{},\"metadata\":{},\"record_kind\":\"world\",\"selector\":\"Earth\"},\"payload_digest\":\"declared historical digest\",\"record_version_id\":\"ver_000000000000000000000001\"},\"record_id\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\"}],\"history_coverage\":\"partial\",\"records\":[{\"identity\":{\"record_id\":\"rec_000000000000000000000001\",\"record_kind\":\"world\",\"universe_id\":\"unv_000000000000000000000001\"},\"payload\":{\"labels\":{},\"metadata\":{},\"record_kind\":\"world\",\"selector\":\"Earth\"},\"payload_digest\":\"declared historical digest\",\"record_version_id\":\"ver_000000000000000000000001\"}],\"summaries\":[{\"kind\":\"world\",\"label\":\"Earth\",\"record_id\":\"rec_000000000000000000000001\"}]}"
+  },
+  {
+    "type": "HistoryEntry",
+    "input_raw": "{\"record_id\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"continuity\":\"cont_000000000000000000000001\",\"principal\":\"prn_000000000000000000000001\",\"reason\":\"Authored correction\",\"record\":{\"record_version_id\":\"ver_000000000000000000000001\",\"identity\":{\"universe_id\":\"unv_000000000000000000000001\",\"record_id\":\"rec_000000000000000000000001\",\"record_kind\":\"world\"},\"payload\":{\"record_kind\":\"world\",\"selector\":\"Earth\",\"labels\":{},\"metadata\":{}},\"payload_digest\":\"declared historical digest\"}}",
+    "canonical_utf8": "{\"continuity\":\"cont_000000000000000000000001\",\"principal\":\"prn_000000000000000000000001\",\"reason\":\"Authored correction\",\"record\":{\"identity\":{\"record_id\":\"rec_000000000000000000000001\",\"record_kind\":\"world\",\"universe_id\":\"unv_000000000000000000000001\"},\"payload\":{\"labels\":{},\"metadata\":{},\"record_kind\":\"world\",\"selector\":\"Earth\"},\"payload_digest\":\"declared historical digest\",\"record_version_id\":\"ver_000000000000000000000001\"},\"record_id\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\"}"
+  },
+  {
+    "type": "HistoryEntry",
+    "input_raw": "{\"record_id\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"continuity\":\"cont_000000000000000000000001\",\"principal\":\"prn_000000000000000000000001\",\"reason\":\"Authored correction\",\"record\":null}",
+    "canonical_utf8": "{\"continuity\":\"cont_000000000000000000000001\",\"principal\":\"prn_000000000000000000000001\",\"reason\":\"Authored correction\",\"record\":null,\"record_id\":\"rec_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\"}"
+  },
+  {
+    "type": "ContextBrief",
+    "input_raw": "{\"records\":[{\"record_version_id\":\"ver_000000000000000000000001\",\"identity\":{\"universe_id\":\"unv_000000000000000000000001\",\"record_id\":\"rec_000000000000000000000001\",\"record_kind\":\"world\"},\"payload\":{\"record_kind\":\"world\",\"selector\":\"Earth\",\"labels\":{},\"metadata\":{}},\"payload_digest\":\"declared historical digest\"}],\"required_dependencies\":[\"rec_000000000000000000000001\"],\"coverage\":\"restricted\"}",
+    "canonical_utf8": "{\"coverage\":\"restricted\",\"records\":[{\"identity\":{\"record_id\":\"rec_000000000000000000000001\",\"record_kind\":\"world\",\"universe_id\":\"unv_000000000000000000000001\"},\"payload\":{\"labels\":{},\"metadata\":{},\"record_kind\":\"world\",\"selector\":\"Earth\"},\"payload_digest\":\"declared historical digest\",\"record_version_id\":\"ver_000000000000000000000001\"}],\"required_dependencies\":[\"rec_000000000000000000000001\"]}"
+  },
+  {
+    "type": "SearchHit",
+    "input_raw": "{\"record_id\":\"rec_000000000000000000000001\",\"kind\":\"world\",\"label\":\"Earth\",\"world_ids\":[\"wld_000000000000000000000001\"],\"scope_category\":\"selected_world\"}",
+    "canonical_utf8": "{\"kind\":\"world\",\"label\":\"Earth\",\"record_id\":\"rec_000000000000000000000001\",\"scope_category\":\"selected_world\",\"world_ids\":[\"wld_000000000000000000000001\"]}"
+  },
+  {
+    "type": "SearchHit",
+    "input_raw": "{\"record_id\":\"rec_000000000000000000000001\",\"kind\":\"world\",\"label\":\"Earth\",\"world_ids\":[\"wld_000000000000000000000001\"],\"scope_category\":\"shared\"}",
+    "canonical_utf8": "{\"kind\":\"world\",\"label\":\"Earth\",\"record_id\":\"rec_000000000000000000000001\",\"scope_category\":\"shared\",\"world_ids\":[\"wld_000000000000000000000001\"]}"
+  },
+  {
+    "type": "SearchHit",
+    "input_raw": "{\"record_id\":\"rec_000000000000000000000001\",\"kind\":\"world\",\"label\":\"Earth\",\"world_ids\":[\"wld_000000000000000000000001\"],\"scope_category\":\"unassigned\"}",
+    "canonical_utf8": "{\"kind\":\"world\",\"label\":\"Earth\",\"record_id\":\"rec_000000000000000000000001\",\"scope_category\":\"unassigned\",\"world_ids\":[\"wld_000000000000000000000001\"]}"
+  },
+  {
+    "type": "SearchHit",
+    "input_raw": "{\"record_id\":\"rec_000000000000000000000001\",\"kind\":\"world\",\"label\":\"Earth\",\"world_ids\":[\"wld_000000000000000000000001\"],\"scope_category\":\"required_dependency\"}",
+    "canonical_utf8": "{\"kind\":\"world\",\"label\":\"Earth\",\"record_id\":\"rec_000000000000000000000001\",\"scope_category\":\"required_dependency\",\"world_ids\":[\"wld_000000000000000000000001\"]}"
+  },
+  {
+    "type": "SearchResults",
+    "input_raw": "{\"hits\":[{\"record_id\":\"rec_000000000000000000000001\",\"kind\":\"world\",\"label\":\"Earth\",\"world_ids\":[\"wld_000000000000000000000001\"],\"scope_category\":\"required_dependency\"}]}",
+    "canonical_utf8": "{\"hits\":[{\"kind\":\"world\",\"label\":\"Earth\",\"record_id\":\"rec_000000000000000000000001\",\"scope_category\":\"required_dependency\",\"world_ids\":[\"wld_000000000000000000000001\"]}]}"
+  },
+  {
+    "type": "CapabilityStatus",
+    "input_raw": "\"implemented\"",
+    "canonical_utf8": "\"implemented\""
+  },
+  {
+    "type": "CapabilityStatus",
+    "input_raw": "\"partial\"",
+    "canonical_utf8": "\"partial\""
+  },
+  {
+    "type": "CapabilityStatus",
+    "input_raw": "\"descriptive_only\"",
+    "canonical_utf8": "\"descriptive_only\""
+  },
+  {
+    "type": "CapabilityStatus",
+    "input_raw": "\"unsupported\"",
+    "canonical_utf8": "\"unsupported\""
+  },
+  {
+    "type": "ScopeCategory",
+    "input_raw": "\"selected_world\"",
+    "canonical_utf8": "\"selected_world\""
+  },
+  {
+    "type": "ScopeCategory",
+    "input_raw": "\"shared\"",
+    "canonical_utf8": "\"shared\""
+  },
+  {
+    "type": "ScopeCategory",
+    "input_raw": "\"unassigned\"",
+    "canonical_utf8": "\"unassigned\""
+  },
+  {
+    "type": "ScopeCategory",
+    "input_raw": "\"required_dependency\"",
+    "canonical_utf8": "\"required_dependency\""
+  },
+  {
+    "type": "Envelope",
+    "input_raw": "{\"contract_version\":\"3\",\"request_id\":18446744073709551615,\"universe_id\":\"unv_000000000000000000000001\",\"universe\":\"Cycle\",\"alias_matched\":true,\"frame\":{\"universe\":\"unv_000000000000000000000001\",\"continuity\":\"cont_000000000000000000000001\",\"revision\":\"rev_000000000000000000000001\",\"context\":{\"record\":\"rec_000000000000000000000001\"},\"time\":{\"kind\":\"timeless\"},\"perspective\":\"reader\"},\"world_focus\":\"wld_000000000000000000000001\",\"authorization_scope\":\"restricted\",\"delivery\":{\"complete\":false,\"cursor\":\"opaque\"},\"result\":{\"records\":[{\"record_version_id\":\"ver_000000000000000000000001\",\"identity\":{\"universe_id\":\"unv_000000000000000000000001\",\"record_id\":\"rec_000000000000000000000001\",\"record_kind\":\"world\"},\"payload\":{\"record_kind\":\"world\",\"selector\":\"Earth\",\"labels\":{},\"metadata\":{}},\"payload_digest\":\"declared historical digest\"}],\"required_dependencies\":[\"rec_000000000000000000000001\"],\"coverage\":\"restricted\"}}",
+    "canonical_utf8": "{\"alias_matched\":true,\"authorization_scope\":\"restricted\",\"contract_version\":\"3\",\"delivery\":{\"complete\":false,\"cursor\":\"opaque\"},\"frame\":{\"context\":{\"record\":\"rec_000000000000000000000001\"},\"continuity\":\"cont_000000000000000000000001\",\"perspective\":\"reader\",\"revision\":\"rev_000000000000000000000001\",\"time\":{\"kind\":\"timeless\"},\"universe\":\"unv_000000000000000000000001\"},\"request_id\":18446744073709551615,\"result\":{\"coverage\":\"restricted\",\"records\":[{\"identity\":{\"record_id\":\"rec_000000000000000000000001\",\"record_kind\":\"world\",\"universe_id\":\"unv_000000000000000000000001\"},\"payload\":{\"labels\":{},\"metadata\":{},\"record_kind\":\"world\",\"selector\":\"Earth\"},\"payload_digest\":\"declared historical digest\",\"record_version_id\":\"ver_000000000000000000000001\"}],\"required_dependencies\":[\"rec_000000000000000000000001\"]},\"universe\":\"Cycle\",\"universe_id\":\"unv_000000000000000000000001\",\"world_focus\":\"wld_000000000000000000000001\"}"
+  },
+  {
+    "type": "Envelope",
+    "input_raw": "{\"contract_version\":\"3\",\"request_id\":0,\"universe_id\":\"unv_000000000000000000000001\",\"universe\":\"Cycle\",\"alias_matched\":false,\"authorization_scope\":\"visible\",\"delivery\":{\"complete\":true},\"result\":{\"records\":[],\"required_dependencies\":[],\"coverage\":\"failed\"}}",
+    "canonical_utf8": "{\"alias_matched\":false,\"authorization_scope\":\"visible\",\"contract_version\":\"3\",\"delivery\":{\"complete\":true,\"cursor\":null},\"frame\":null,\"request_id\":0,\"result\":{\"coverage\":\"failed\",\"records\":[],\"required_dependencies\":[]},\"universe\":\"Cycle\",\"universe_id\":\"unv_000000000000000000000001\",\"world_focus\":null}"
+  }
+]

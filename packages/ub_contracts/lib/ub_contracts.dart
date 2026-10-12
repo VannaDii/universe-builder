@@ -9,3 +9,5 @@ export 'src/assessment_binding.dart';
 
 export 'src/protocol_error.dart';
 export 'src/request.dart';
+export 'src/read_response.dart';
+export 'src/envelope.dart';

@@ -42,7 +42,7 @@ dart test
 dart test test/compiler_test.dart --platform chrome
 cd ../ub_contracts
 dart test
-dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart test/workflow_request_test.dart test/writing_test.dart test/writing_knowledge_test.dart test/writing_delta_test.dart --platform chrome
+dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart test/read_response_test.dart test/workflow_request_test.dart test/writing_test.dart test/writing_knowledge_test.dart test/writing_delta_test.dart --platform chrome
 ```
 
 Browser tests must run from the package directory. Set `CHROME_EXECUTABLE` if
@@ -188,6 +188,15 @@ bounds raw frames and rejects duplicate keys/invalid UTF-8; structural decoding
 remains separate from semantic validation and service admission. Commit input
 binds a proposal, expected base revision, validation run and retry key; it has no
 inline approval flag. These contracts do not execute queries or grant access.
+Read response contracts now include the common typed envelope, delivery paging,
+description/capabilities and visible continuity/context choices, opened contexts,
+search hits and their four scope categories, record/summary/evidence/history pages,
+and context briefs with required-dependency manifests. Request IDs preserve exact
+u64 values on web. Delivery completeness remains independent of evidence and
+history coverage; a complete page does not upgrade restricted evidence. Record
+pages retain supplied historical digests and tombstones without certifying them,
+and all collections are immutable snapshots. Typed Rust fixtures preserve the
+existing nullable fields, omitted empty optional lists and closed result shapes.
 Ordinary writer types now preserve JSON scalar fact values, named objects and
 explicit unit amounts, fact lifetimes, object/definition deltas, claims and
 historical corrections/endings/withdrawals. Research requests for exact object
@@ -219,8 +228,8 @@ do not imply approval. Omitted correction collections retain authored values;
 explicit empty collections remain replacements. Exact numeric JSON and immutable
 participant collections work on VM and web. Historical Rust serialization fixtures
 cover the remaining writing families and a fully populated delta. These are input
-contracts; response contracts, attachment admission, evaluator execution and exact
-approval enforcement still need their ports. Byte verification remains
+contracts; effective-state and remaining response contracts, attachment admission,
+evaluator execution and exact approval enforcement still need their ports. Byte verification remains
 distinct from factual support; it does not establish truth or authenticate an
 assessor.
 The Dart rational validator rejects all zero denominator spellings, including
