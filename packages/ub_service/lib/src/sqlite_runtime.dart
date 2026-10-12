@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
@@ -48,6 +49,13 @@ final class NativeSqliteRuntime {
     _active.add(finished);
     try {
       if (request is DoctorEngineRequest) return await _doctor(principal);
+      if (request is PreviewImportEngineRequest ||
+          request is AcceptImportEngineRequest) {
+        return await authority.coordinate(
+          principal,
+          () => _import(principal, request),
+        );
+      }
       if (request is RestoreEngineRequest) {
         return await authority.coordinate(
           principal,
@@ -254,6 +262,111 @@ final class NativeSqliteRuntime {
         ]),
       ),
     ]);
+  }
+
+  CanonicalObject _import(
+    InstallationPrincipal principal,
+    EngineRequest request,
+  ) {
+    authority.requireAuthor(principal);
+    if (request is PreviewImportEngineRequest) {
+      final preview = authority.prepareImport(principal, request);
+      return preview.report(
+        authority.importConflicts(
+          principal,
+          id: preview.target,
+          name: preview.name,
+        ),
+      );
+    }
+    final preview = authority.loadImport(
+      principal,
+      request as AcceptImportEngineRequest,
+    );
+    final receipt = preview.receipt;
+    final key = 'logical-import-admission:${preview.id.value}';
+    final existing = authority
+        .catalog(principal)
+        .where((entry) => entry.universeId == preview.target);
+    if (existing.isNotEmpty) {
+      final package = _openPackage(principal, Selector(existing.single.name));
+      final stored = WorkflowStorage(package.database).get(key);
+      if (stored?.toText() != receipt.toText()) {
+        throw const PolicyDeniedError(
+          message:
+              'existing universe belongs to another import; choose a clone',
+        );
+      }
+      return receipt;
+    }
+    if (authority
+        .importConflicts(principal, id: preview.target, name: preview.name)
+        .isNotEmpty) {
+      throw const NameUnavailableError(
+        message: 'import identity or name is reserved',
+      );
+    }
+    _requireWorkerCapacity();
+    final destination = authority.newUniversePath(principal, preview.target);
+    final created =
+        FileSystemEntity.typeSync(destination, followLinks: false) ==
+        FileSystemEntityType.notFound;
+    if (created) {
+      final archive = OwnedSqliteDatabase.stageLogicalArchive(
+        authority.importArchivePath(principal, preview),
+        authority.universeDirectory(principal),
+      );
+      try {
+        if (archive.digest != preview.sourceDigest) {
+          throw const ApprovalStaleError();
+        }
+        final staged = archive.reconstruct(
+          authority.universeDirectory(principal),
+          target: preview.target,
+          name: preview.name,
+        );
+        try {
+          staged.package.database.execute('BEGIN IMMEDIATE');
+          try {
+            WorkflowStorage(staged.package.database).put(key, receipt);
+            staged.package.database.execute('COMMIT');
+          } on Object {
+            if (!staged.package.database.autocommit) {
+              staged.package.database.execute('ROLLBACK');
+            }
+            rethrow;
+          }
+          staged.package.backup(destination);
+        } finally {
+          staged.close();
+        }
+      } finally {
+        archive.close();
+      }
+    }
+    OwnedSqliteDatabase? opened;
+    try {
+      opened = OwnedSqliteDatabase.openExisting(destination);
+      if (opened.universeId != preview.target ||
+          WorkflowStorage(opened.database).get(key)?.toText() !=
+              receipt.toText()) {
+        throw const ApprovalStaleError();
+      }
+      authority.registerOpenedUniverse(
+        principal,
+        name: preview.name,
+        package: opened,
+      );
+    } on Object {
+      try {
+        opened?.close();
+      } finally {
+        if (created) OwnedSqliteDatabase.removeUnregisteredPackage(destination);
+      }
+      rethrow;
+    }
+    _packages[preview.target] = opened;
+    return receipt;
   }
 
   CanonicalObject _restore(

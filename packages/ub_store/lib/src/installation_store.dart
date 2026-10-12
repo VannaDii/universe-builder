@@ -10,6 +10,7 @@ import 'ownership.dart';
 import 'owned_database.dart';
 
 part 'installation_grants.dart';
+part 'installation_imports.dart';
 
 const _normalization = selectorNormalizationVersion;
 

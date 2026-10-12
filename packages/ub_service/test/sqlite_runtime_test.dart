@@ -1490,6 +1490,327 @@ void main() {
     );
   }
 
+  String logicalSource({bool canonOnly = false}) {
+    final fixture = restoreSource();
+    final package = OwnedSqliteDatabase.openExisting(fixture.source);
+    final archive = '${root.path}/logical-${fixture.id.value}.sqlite';
+    try {
+      if (canonOnly) {
+        package.exportCanonOnly(archive);
+      } else {
+        package.exportCompleteHistory(archive);
+      }
+    } finally {
+      package.close();
+    }
+    return archive;
+  }
+
+  WireFields importReport(CanonicalValue value) => WireFields(value, {
+    'preview_id',
+    'digest',
+    'source_universe',
+    'target_universe',
+    'name',
+    'complete',
+    'omitted_records',
+    'record_count',
+    'record_ids',
+    'version_ids',
+    'references',
+    'includes_history',
+    'includes_workflow',
+    'workflow_and_approvals',
+    'canonical',
+    'conflicts',
+  });
+
+  test('native logical import persists exact preview across restart and retries admission', () async {
+    for (final canonOnly in [false, true]) {
+      final source = logicalSource(canonOnly: canonOnly);
+      final connection = runtime.connect(hello(author.id));
+      final report = importReport(
+        await engine(
+          connection,
+          PreviewImportEngineRequest(
+            source: source,
+            name: 'Imported $canonOnly',
+            mode: ImportMode.clone,
+          ),
+        ),
+      );
+      expect(report.array('conflicts'), isEmpty);
+      expect(report.boolean('canonical'), isFalse);
+      expect(report.boolean('includes_workflow'), !canonOnly);
+      expect(
+        report.string('source_universe'),
+        isNot(report.string('target_universe')),
+      );
+      expect(authority.catalog(author), hasLength(canonOnly ? 2 : 1));
+      final accept = AcceptImportEngineRequest(
+        previewId: OperationId.parse(report.string('preview_id')),
+        digest: report.string('digest'),
+      );
+      final saved = File(
+        '${root.path}/imports/${accept.previewId.value}.sqlite',
+      ).readAsBytesSync();
+      expect(saved, orderedEquals(File(source).readAsBytesSync()));
+      File(source).deleteSync();
+      await runtime.close();
+      installation.close();
+      installation = SqliteInstallationStore.openExisting(root.path);
+      authority = InstallationAuthority(installation);
+      author = authority.authenticateHello(hello(author.id));
+      runtime = NativeSqliteRuntime(authority: authority);
+      final resumed = runtime.connect(hello(author.id));
+      final receipt = await engine(resumed, accept);
+      expect((await engine(resumed, accept)).toText(), receipt.toText());
+      await engine(
+        resumed,
+        LibraryEngineRequest(universe: Selector('Imported $canonOnly')),
+      );
+      expect(
+        File('${root.path}/imports/${accept.previewId.value}.sqlite')
+            .readAsBytesSync(),
+        orderedEquals(saved),
+      );
+    }
+    expect(authority.catalog(author), hasLength(3));
+  });
+
+  test('native logical import denies writers stale acceptance and historical name conflicts', () async {
+    await expectLater(
+      engine(
+        runtime.connect(hello(writer.id)),
+        PreviewImportEngineRequest(
+          source: '${root.path}/absent.sqlite',
+          name: 'Denied',
+          mode: ImportMode.clone,
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    expect(Directory('${root.path}/imports').existsSync(), isFalse);
+    final source = logicalSource();
+    final authorConnection = runtime.connect(hello(author.id));
+    final report = importReport(
+      await engine(
+        authorConnection,
+        PreviewImportEngineRequest(
+          source: source,
+          name: 'World',
+          mode: ImportMode.restore,
+        ),
+      ),
+    );
+    expect(report.array('conflicts'), hasLength(1));
+    final id = OperationId.parse(report.string('preview_id'));
+    await expectLater(
+      engine(
+        authorConnection,
+        AcceptImportEngineRequest(previewId: id, digest: '0' * 64),
+      ),
+      throwsA(isA<ApprovalStaleError>()),
+    );
+    await expectLater(
+      engine(
+        runtime.connect(hello(writer.id)),
+        AcceptImportEngineRequest(
+          previewId: id,
+          digest: report.string('digest'),
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    await engine(
+      authorConnection,
+      RenameUniverseEngineRequest(universeId: f.u, name: 'Renamed'),
+    );
+    await expectLater(
+      engine(
+        authorConnection,
+        AcceptImportEngineRequest(
+          previewId: id,
+          digest: report.string('digest'),
+        ),
+      ),
+      throwsA(isA<NameUnavailableError>()),
+    );
+    expect(authority.catalog(author), hasLength(1));
+    expect(
+      File('${root.path}/packages/${report.string('target_universe')}.sqlite')
+          .existsSync(),
+      isFalse,
+    );
+  });
+
+  test('native logical import resumes only an unregistered package carrying its exact admission receipt', () async {
+    for (final matches in [false, true]) {
+      final source = logicalSource();
+      final connection = runtime.connect(hello(author.id));
+      final report = importReport(
+        await engine(
+          connection,
+          PreviewImportEngineRequest(
+            source: source,
+            name: 'Interrupted $matches',
+            mode: ImportMode.clone,
+          ),
+        ),
+      );
+      final accept = AcceptImportEngineRequest(
+        previewId: OperationId.parse(report.string('preview_id')),
+        digest: report.string('digest'),
+      );
+      final preview = authority.loadImport(author, accept);
+      final archive = OwnedSqliteDatabase.stageLogicalArchive(
+        source,
+        root.path,
+      );
+      final staged = archive.reconstruct(
+        root.path,
+        target: preview.target,
+        name: preview.name,
+      );
+      final destination = authority.newUniversePath(author, preview.target);
+      try {
+        if (matches) {
+          staged.package.database.execute('BEGIN IMMEDIATE');
+          WorkflowStorage(staged.package.database).put(
+            'logical-import-admission:${preview.id.value}',
+            preview.receipt,
+          );
+          staged.package.database.execute('COMMIT');
+        }
+        staged.package.backup(destination);
+      } finally {
+        staged.close();
+        archive.close();
+      }
+      if (matches) {
+        expect(
+          (await engine(connection, accept)).toText(),
+          preview.receipt.toText(),
+        );
+        expect(
+          (await engine(connection, accept)).toText(),
+          preview.receipt.toText(),
+        );
+      } else {
+        await expectLater(
+          engine(connection, accept),
+          throwsA(isA<ApprovalStaleError>()),
+        );
+        final preserved = OwnedSqliteDatabase.openExisting(destination);
+        try {
+          expect(preserved.universeId, preview.target);
+          expect(
+            WorkflowStorage(preserved.database)
+                .get('logical-import-admission:${preview.id.value}'),
+            isNull,
+          );
+          expect(
+            preserved.database
+                .select('SELECT count(*) AS n FROM commits')
+                .single['n'],
+            1,
+          );
+        } finally {
+          preserved.close();
+        }
+      }
+    }
+    expect(authority.catalog(author), hasLength(2));
+  });
+
+  test('native logical import rejects a changed staged archive before publishing a package', () async {
+    final connection = runtime.connect(hello(author.id));
+    final source = logicalSource();
+    final report = importReport(
+      await engine(
+        connection,
+        PreviewImportEngineRequest(
+          source: source,
+          name: 'Changed',
+          mode: ImportMode.clone,
+        ),
+      ),
+    );
+    final accept = AcceptImportEngineRequest(
+      previewId: OperationId.parse(report.string('preview_id')),
+      digest: report.string('digest'),
+    );
+    final stored = File(
+      '${root.path}/imports/${accept.previewId.value}.sqlite',
+    );
+    final original = stored.readAsBytesSync();
+    stored.writeAsBytesSync(
+      File(logicalSource()).readAsBytesSync(),
+      flush: true,
+    );
+    await expectLater(
+      engine(connection, accept),
+      throwsA(isA<ApprovalStaleError>()),
+    );
+    expect(
+      File('${root.path}/packages/${report.string('target_universe')}.sqlite')
+          .existsSync(),
+      isFalse,
+    );
+    expect(authority.catalog(author), hasLength(1));
+    stored.writeAsBytesSync(original, flush: true);
+    await engine(connection, accept);
+    expect(authority.catalog(author), hasLength(2));
+  });
+
+  test('native logical import cleans only its new package after registration failure and accepts retry', () async {
+    final connection = runtime.connect(hello(author.id));
+    final source = logicalSource();
+    final report = importReport(
+      await engine(
+        connection,
+        PreviewImportEngineRequest(
+          source: source,
+          name: 'Retry import',
+          mode: ImportMode.clone,
+        ),
+      ),
+    );
+    final accept = AcceptImportEngineRequest(
+      previewId: OperationId.parse(report.string('preview_id')),
+      digest: report.string('digest'),
+    );
+    final database = sqlite3.open(
+      '${root.path}/installation.sqlite',
+      mode: OpenMode.readWrite,
+    );
+    try {
+      database.execute(
+        "CREATE TRIGGER reject_import BEFORE INSERT ON catalog BEGIN SELECT RAISE(ABORT, 'Disposable registration failure'); END",
+      );
+      await expectLater(
+        engine(connection, accept),
+        throwsA(isA<InstallationException>()),
+      );
+      expect(
+        File('${root.path}/packages/${report.string('target_universe')}.sqlite')
+            .existsSync(),
+        isFalse,
+      );
+      expect(authority.catalog(author), hasLength(1));
+      expect(
+        File('${root.path}/imports/${accept.previewId.value}.sqlite')
+            .existsSync(),
+        isTrue,
+      );
+      database.execute('DROP TRIGGER reject_import');
+    } finally {
+      database.close();
+    }
+    await engine(connection, accept);
+    expect(authority.catalog(author), hasLength(2));
+  });
+
   test(
     'native restore publishes recovered identity and catalog across restart',
     () async {

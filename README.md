@@ -33,8 +33,14 @@ clones, and leaves authored strings and historical editorial evidence unchanged.
 Imported approvals and receipts remain historical rather than granting authority.
 Canon-only exports retain canonical source/image bytes and omit editorial workflow
 and uncommitted assets. Filtered archives cannot restore the source universe ID.
-These are store APIs; service import preview/admission and dependency-filtered
-export remain pending. Focused functional checks currently cover macOS only.
+The native service now saves author-owned exact import previews with a private
+copy of the verified input. Acceptance compares the retained preview digest,
+rechecks current authority and name/identity reservations, and publishes an
+admission receipt before catalog registration. Restart and repeated acceptance
+recover only a package bearing that exact receipt; unrelated destinations are
+refused. Imported workflow never supplies installation credentials or grants.
+Public transport/CLI integration and dependency-filtered export remain pending.
+Focused functional checks currently cover macOS only.
 
 Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter
 **3.47.5** (recorded in `.flutter-version`). Dependency resolution is locked in

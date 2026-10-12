@@ -245,6 +245,39 @@ final class InstallationAuthority {
     return '${universeDirectory(actor)}/${id.value}.sqlite';
   }
 
+  InstallationImportPreview prepareImport(
+    InstallationPrincipal actor,
+    PreviewImportEngineRequest request,
+  ) {
+    requireAuthor(actor);
+    return _store.prepareImport(
+      actor: actor.id,
+      source: request.source,
+      name: request.name,
+      mode: request.mode,
+    );
+  }
+
+  InstallationImportPreview loadImport(
+    InstallationPrincipal actor,
+    AcceptImportEngineRequest request,
+  ) {
+    requireAuthor(actor);
+    return _store.loadImport(
+      actor: actor.id,
+      id: request.previewId,
+      digest: request.digest,
+    );
+  }
+
+  String importArchivePath(
+    InstallationPrincipal actor,
+    InstallationImportPreview preview,
+  ) {
+    requireAuthor(actor);
+    return preview.archivePath(_store.root);
+  }
+
   String universeDirectory(InstallationPrincipal actor) {
     requireAuthor(actor);
     return '${_store.root}/packages';

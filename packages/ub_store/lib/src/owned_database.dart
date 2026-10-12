@@ -466,7 +466,6 @@ final class OwnedSqliteDatabase {
       }
       package.recover();
       CanonicalIntegrity(SqliteJournal(db, id)).verifyComplete();
-      File(snapshot).deleteSync();
       return VerifiedLogicalArchive._(
         package,
         manifest as CanonicalObject,
@@ -579,6 +578,7 @@ final class StagedSqliteRestore {
   final OwnedSqliteDatabase package;
   final Directory _temporary;
   bool _closed = false;
+
   void close() {
     if (_closed) return;
     _closed = true;
@@ -604,6 +604,13 @@ final class VerifiedLogicalArchive {
   final String digest;
   final Directory _temporary;
   bool _closed = false;
+
+  /// Persist the exact bounded input snapshot reviewed by this reader, without
+  /// replacing an existing path. Its SQL is never installed into owned storage.
+  void persistReviewedSource(String destination) {
+    if (_closed) throw StateError('Verified archive is closed');
+    publishSnapshot('${_temporary.path}/input.sqlite', destination);
+  }
 
   /// Reconstruct canon-only history or a named clone with remapped canonical
   /// references. Original editorial evidence retains its original bindings.
