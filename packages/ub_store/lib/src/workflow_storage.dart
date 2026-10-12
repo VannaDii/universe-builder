@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -14,6 +15,28 @@ final class WorkflowStorage {
   WorkflowStorage(this.database) : codec = RelationalCodec(database);
   final Database database;
   final RelationalCodec codec;
+
+  /// Revalidate bound inputs under the same write transaction as their append.
+  /// The caller must retain current installation authority throughout this call.
+  Future<void> compareAppendWithVerification({
+    required FutureOr<Map<String, String?>> Function() verify,
+    required List<MapEntry<String, CanonicalValue>> entries,
+  }) async {
+    if (!database.autocommit) {
+      throw StateError('Workflow append owns its transaction');
+    }
+    database.execute('BEGIN IMMEDIATE');
+    try {
+      compare(await verify());
+      for (final entry in entries) {
+        put(entry.key, entry.value);
+      }
+      database.execute('COMMIT');
+    } catch (_) {
+      if (!database.autocommit) database.execute('ROLLBACK');
+      rethrow;
+    }
+  }
 
   String? latestKey(String prefix) {
     final rows = database.select(

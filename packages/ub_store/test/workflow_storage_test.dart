@@ -1,6 +1,7 @@
 @TestOn('vm')
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -59,6 +60,63 @@ void main() {
     'validation_digest': 'b' * 64,
     'evaluator': 'rules-one',
   });
+
+  test('awaited verification holds writer isolation and failure rolls back without retaining entries', () async {
+    final entered = Completer<void>(), resume = Completer<void>();
+    final original = StateError('Interrupted revalidation');
+    final append = workflow.compareAppendWithVerification(
+      verify: () async {
+        entered.complete();
+        await resume.future;
+        throw original;
+      },
+      entries: [
+        MapEntry('cancel:pending', value({'cancelled': true})),
+      ],
+    );
+    final failed = expectLater(append, throwsA(same(original)));
+    await entered.future;
+    final competitor = sqlite3.open('${directory.path}/package.sqlite');
+    try {
+      competitor.execute('PRAGMA busy_timeout=0');
+      expect(
+        () => competitor.execute('BEGIN IMMEDIATE'),
+        throwsA(isA<SqliteException>()),
+      );
+      expect(workflow.get('cancel:pending'), isNull);
+    } finally {
+      competitor.close();
+      resume.complete();
+    }
+    await failed;
+    expect(database.autocommit, isTrue);
+    expect(workflow.get('cancel:pending'), isNull);
+  });
+
+  test(
+    'verified append rolls back every earlier entry on an immutable conflict',
+    () async {
+      workflow.compareAppend({}, [
+        MapEntry('cancel:occupied', value({'cancelled': false})),
+      ]);
+      await expectLater(
+        workflow.compareAppendWithVerification(
+          verify: () => const {},
+          entries: [
+            MapEntry('cancel:new', value({'cancelled': true})),
+            MapEntry('cancel:occupied', value({'cancelled': true})),
+          ],
+        ),
+        throwsFormatException,
+      );
+      expect(workflow.get('cancel:new'), isNull);
+      expect(
+        workflow.get('cancel:occupied')!.toText(),
+        value({'cancelled': false}).toText(),
+      );
+      expect(database.autocommit, isTrue);
+    },
+  );
 
   test('typed envelopes and exact retry digests survive restart without JSON bodies', () {
     final entries = {

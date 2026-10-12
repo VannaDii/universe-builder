@@ -403,8 +403,8 @@ exact edition and complete dependencies to match that edition's bound canon;
 unbound or segmented editions cannot establish reader disclosures. Restricted
 checks return restricted coverage without reading complete canon or sources.
 SQLite integration rejects stale heads and blocking rules without publishing
-facts or approvals. Current permission admission, source-assessment capture,
-final report binding and atomic validation retention remain owning-workflow work.
+facts or approvals. Queued operation lifecycle, approval and publication routes
+remain owning-workflow work.
 External source-assessment admission now builds the complete frozen candidate
 from its pinned base, verifies accounting/frame bindings, distinguishes proposed,
 unchanged and explicit historical links, and requires semantic prerequisites to
@@ -425,7 +425,7 @@ context. The SQLite installation owner now serializes asynchronous authority
 sections, queues coordinated grant/revocation work, and refuses outside mutations
 or closure while a section is held. The service must route authority-sensitive
 capture, persistence and grant changes through those sections; durable
-attachment/validation routes still require integration.
+attachment and queued operation routes still require integration.
 The native authority API now resolves authenticated current scope, permissions,
 limits, approval author and audit sequence within those sections. Its validation
 digest preserves the existing canonical authority tuple. An owned SQLite package
@@ -436,6 +436,13 @@ bindings, preserves stale/unavailable states as record input, and captures curre
 head, proposal key and supplied authority digest/sequence. Unassessed proposals
 retain ordinary write-boundary admission. The owner must hold authority and
 universe coordination while capturing and revalidating before atomic retention.
+The native SQLite validation workflow now loads exact retained proposals under
+current installation authority, admits their write boundaries, resolves source
+assessment captures, and retains checked results atomically. Revalidation and
+selection/proposal comparisons share the SQLite write transaction with the
+append. Authority changes, stale heads and competing selections reject retention;
+verification or append failures roll back every entry. This path stores checked
+results only; it does not approve or publish canonical facts.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.
