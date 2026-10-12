@@ -1,6 +1,7 @@
 @TestOn('vm')
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -802,6 +803,122 @@ void main() {
           await scheduler.close();
         }
       });
+      test('terminated PostgreSQL preparation process resumes exact captured validation without publishing', () async {
+        final researched = await researchedProposal();
+        await attach(researched.proposal, researched.body);
+        final queuedStatus = await run(
+          writer,
+          (w) => w.queueValidationRequest(
+            queued(researched.proposal),
+            isValidationActive: (_) => false,
+          ),
+        );
+        final id = queuedStatus.operationId;
+        final originalHead = await store.transaction(
+          (s) => s.kernel(f.u).journal.head(continuity),
+        );
+        final directory = Directory.systemTemp.createTempSync(
+          'universe-builder-validation-process-',
+        );
+        Process? process;
+        StreamIterator<String>? lines;
+        Future<String>? stderr;
+        final scheduler = NativeValidationScheduler();
+        try {
+          final vm = File(Platform.resolvedExecutable);
+          final dart = vm.uri.pathSegments.last == 'dartvm'
+              ? '${vm.parent.path}/dart'
+              : vm.path;
+          final build = await Process.run(dart, [
+            'build',
+            'cli',
+            '-o',
+            directory.path,
+            '--target',
+            'test/helpers/postgres_validation_process.dart',
+          ]);
+          expect(build.exitCode, 0, reason: '${build.stdout}\n${build.stderr}');
+          process = await Process.start(
+            '${directory.path}/bundle/bin/postgres_validation_process',
+            ['$port', writer.value, f.u.value, id.value],
+          );
+          stderr = process.stderr.transform(utf8.decoder).join();
+          lines = StreamIterator(
+            process.stdout
+                .transform(utf8.decoder)
+                .transform(const LineSplitter()),
+          );
+          expect(
+            await lines.moveNext().timeout(const Duration(seconds: 30)),
+            isTrue,
+          );
+          final capture = CanonicalValue.parseJson(lines.current).toText();
+          // SIGKILL skips the child's shutdown and leaves only committed work.
+          expect(process.kill(ProcessSignal.sigkill), isTrue);
+          expect(
+            await process.exitCode.timeout(const Duration(seconds: 30)),
+            isNot(0),
+          );
+          expect(await stderr, isEmpty);
+          final interrupted = await run(
+            writer,
+            (w) => w.operationStatus(id, isValidationActive: (_) => false),
+          );
+          expect(interrupted.state, OperationState.interrupted);
+          final resumed = (await run(
+            writer,
+            (w) => w.prepareValidation(id, isValidationActive: (_) => true),
+          ))!;
+          expect(resumed.capture!.toWire().toText(), capture);
+          final principal = await store.transaction(
+            (s) => PostgresServiceAuthority(s.authority)
+                .authenticate(profile: writer, credential: Credential(secret)),
+          );
+          await scheduler.schedule(
+            PostgresValidationJobs(
+              store: store,
+              universe: f.u,
+              principal: principal,
+              epochSeconds: () => now,
+            ),
+            id,
+          );
+          final completed = await run(
+            writer,
+            (w) => w.operationStatus(id, isValidationActive: (_) => false),
+          );
+          expect(completed.state, OperationState.succeeded);
+          final report = completed.validation as EvaluatedValidation;
+          expect(report.finalBindingDigest, isNotNull);
+          final retained = completed.toWire().toText();
+          await store.close();
+          store = await open();
+          expect(
+            (await run(
+              writer,
+              (w) => w.operationStatus(id, isValidationActive: (_) => false),
+            )).toWire().toText(),
+            retained,
+          );
+          await store.transaction((s) async {
+            expect(await s.kernel(f.u).journal.head(continuity), originalHead);
+            expect(await s.workflows(f.u).keys('approval:'), isEmpty);
+            expect(
+              await s.workflows(f.u).keys('job:${id.value}:terminal'),
+              hasLength(1),
+            );
+            await s.verifyUniverse(f.u, complete: true);
+          });
+        } finally {
+          process?.kill(ProcessSignal.sigkill);
+          if (process != null) await process.exitCode;
+          await lines?.cancel();
+          await stderr;
+          await scheduler.close();
+          directory.deleteSync(recursive: true);
+        }
+      });
+
       test('queued source validation completes outside transactions and retains exact results through reconnect', () async {
         final researched = await researchedProposal();
         await attach(researched.proposal, researched.body);

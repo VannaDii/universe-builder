@@ -498,6 +498,10 @@ that connected writers observe grant withdrawal and revocation without restart,
 competing author draft saves retain one winner with an exact version conflict,
 and separate universe drafts recover byte-for-byte after process restart. Retrying
 the winning save returns the same retained draft without another version.
+PostgreSQL validation recovery also checks termination of a compiled preparation
+peer after its running marker commits. Resumption retains the exact selection
+capture, completes through the native isolate scheduler and preserves the terminal
+result after reopening the store, without advancing canon or creating approval.
 Coordinated backend cutover and hosted server backup operation remain pending.
 Socket/launcher integration, cross-process worker qualification and
 backend parity qualification are pending. Coordinated transfer and live
