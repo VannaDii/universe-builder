@@ -293,8 +293,13 @@ later changes need a linked delta consequence, a coherent correction, or separat
 exact acceptance of the unexplained arrival. Acceptance binds claim contents,
 preceding evidence and world, preserving the existing fingerprint recipe across
 version regeneration. It does not invent an event or replace author approval.
-Effective object assembly and proposal validation/publication integration remain
-pending.
+Effective object assembly now projects inherited attributes, instance facts and
+initial value candidates separately from a pinned, permission-filtered snapshot.
+It retains unresolved ancestry endpoints, scoped/time-qualified evidence and
+every conflicting witness. Requirements show relevance without establishing
+capability; resource acceptance keeps unexplained arrivals visible. Initialization
+history hydration, service query authorization and proposal validation/publication
+integration remain pending.
 Typed operation contracts preserve bare nested record DTOs separately from tagged stored
 payloads, snake-case operation fields and exact expected versions. Decoding an
 adoption request preserves its supplied digest; compilation verifies it and the
