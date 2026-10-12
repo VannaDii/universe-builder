@@ -323,9 +323,20 @@ after the committed database closes. Reads require one matching profile row,
 strict UTF-8 and private ownership; missing files never synthesize a credential.
 Replacement writes, unsafe links and permissive paths are refused with redacted
 errors. The normative credential DDL is embedded by the existing schema build
-tool. This is credential persistence only: installation profile enrollment,
-hash authentication, revocation and grant enforcement remain pending. These
-files are separate from encrypted PostgreSQL settings and universe canon.
+tool. These files are separate from encrypted PostgreSQL settings and universe
+canon. `ub_store/installation.dart` now provides the separate protected SQLite
+installation registry using the normative installation DDL, with current profile
+rows and transactional enrollment/revocation audit entries. New installations
+persist a stable instance identity and retain it across restart; opening a legacy
+registry without that identity refuses it unchanged pending controlled cutover.
+`ub_service/local_profiles.dart` supplies author bootstrap, author-controlled profile
+enrollment, exact UTF-8 SHA-256 credential authentication and revocation. Author
+operations recheck current registry authority, and authenticated principals bind
+to their installation identity. Profile listings expose no hash or secret.
+Unknown, wrong and revoked credentials receive the same denial. Failed audit
+appends roll back authority mutations. Universe catalog/grant operations,
+transport handshake integration, pending-purge recovery and existing-installation
+cutover remain pending; these profile components do not start the Dart engine.
 Ordinary writer types now preserve JSON scalar fact values, named objects and
 explicit unit amounts, fact lifetimes, object/definition deltas, claims and
 historical corrections/endings/withdrawals. Research requests for exact object

@@ -6,11 +6,13 @@ environment:
   sdk: 3.13.4
 dependencies:
   cryptography: 2.9.0
+  crypto: 3.0.7
   ffi: 2.2.0
   code_assets: 2.1.0
   hooks: 2.2.0
   native_toolchain_c: 0.19.5
   ub_contracts: any
+  ub_domain: any
   ub_store: any
 dev_dependencies:
   test: 1.33.0
