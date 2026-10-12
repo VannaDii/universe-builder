@@ -92,7 +92,11 @@ final class NativeSqliteRuntime {
         principal: principal,
       );
       if (request case ToolEngineRequest(:final request)) {
-        return await workflow.executeToolRequest(request);
+        return await workflow.executeToolRequest(
+          request,
+          isValidationActive: (id) =>
+              _scheduler.isActive(package.universeId, id),
+        );
       }
       return await workflow.executeWritingEngineRequest(
         request,

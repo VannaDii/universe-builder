@@ -602,6 +602,246 @@ void main() {
     }
   });
 
+  test('public proposals validate require exact approval and recover publication receipts', () async {
+    var connection = runtime.connect(hello(author.id));
+    final opened = await readContext(connection);
+    final operations = [
+      DefineUnitOperation(clientRef: f.id(10).value, record: units.unit()),
+    ];
+    final inline = await tool(
+      connection,
+      InlineValidationRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        operations: operations,
+        checkScope: CheckScope.candidate,
+      ),
+    );
+    expect(ValidationV3.fromWire(inline.result), isA<EvaluatedValidation>());
+    expect(inline.frame!.toWire().toText(), opened.frame.toWire().toText());
+    final create = CreateProposalRequest(
+      universe: const Selector('World'),
+      contextId: opened.contextId,
+      operations: operations,
+      submission: Submission.draft,
+      rationale: 'Explicit unit review',
+      idempotencyKey: 'public-create',
+    );
+    final created = await tool(connection, create);
+    final proposal = Proposal.fromWire(created.result);
+    expect(proposal.canonical, isFalse);
+    expect(
+      (await tool(connection, create)).toWire((v) => v).toText(),
+      created.toWire((v) => v).toText(),
+    );
+    ProposalRef reference(Proposal p) => ProposalRef(
+      proposalId: p.proposalId,
+      version: p.version,
+      digest: p.digest,
+    );
+    final revised = Proposal.fromWire(
+      (await tool(
+        connection,
+        ReviseProposalRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          proposalReference: reference(proposal),
+          operations: operations,
+          submission: Submission.draft,
+          rationale: 'Reviewed unit definition',
+          idempotencyKey: 'public-revise',
+        ),
+      )).result,
+    );
+    expect(revised.version, proposal.version + BigInt.one);
+    final submitted = Proposal.fromWire(
+      (await tool(
+        connection,
+        SubmitProposalRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          proposalReference: reference(revised),
+          idempotencyKey: 'public-submit',
+        ),
+      )).result,
+    );
+    expect(submitted.submission, Submission.submitted);
+    final ref = reference(submitted);
+    final validation = await tool(
+      connection,
+      ProposalValidationRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        proposalReference: ref,
+        checkScope: CheckScope.candidate,
+      ),
+    );
+    final checked =
+        ValidationV3.fromWire(validation.result) as EvaluatedValidation;
+    final impact = await tool(
+      connection,
+      ProposalImpactRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        proposalReference: ref,
+        scope: CheckScope.universe,
+        byteBudget: 65536,
+      ),
+    );
+    expect(Impact.fromWire(impact.result).records, contains(f.id(10)));
+    final commit = CommitRequest(
+      universe: const Selector('World'),
+      proposalReference: ref,
+      expectedBaseRevision: opened.frame.revision,
+      validationRun: checked.execution.runId,
+      idempotencyKey: 'public-publish',
+    );
+    await expectLater(
+      tool(connection, commit),
+      throwsA(isA<ApprovalRequiredError>()),
+    );
+    await connection.execute(
+      ApproveEngineRequest(
+        universe: const Selector('World'),
+        proposalReference: ref,
+        validationRun: checked.execution.runId,
+      ),
+    );
+    final published = await tool(connection, commit);
+    final receipt = CommitReceipt.fromWire(published.result);
+    expect(receipt.revision, isNot(opened.frame.revision));
+    expect(published.frame!.toWire().toText(), opened.frame.toWire().toText());
+    await runtime.close();
+    runtime = NativeSqliteRuntime(authority: authority);
+    connection = runtime.connect(hello(author.id));
+    final recovered = await tool(connection, commit);
+    expect(
+      recovered.toWire((v) => v).toText(),
+      published.toWire((v) => v).toText(),
+    );
+    final historical = await tool(
+      connection,
+      GetProposalRequest(
+        universe: const Selector('World'),
+        proposalId: submitted.proposalId,
+        version: submitted.version,
+      ),
+    );
+    expect(historical.frame!.revision, opened.frame.revision);
+    expect(
+      (ProposalViewResult.fromWire(
+        historical.result,
+      ) as FrozenProposalView).proposal.digest,
+      submitted.digest,
+    );
+    await expectLater(
+      tool(
+        connection,
+        CommitRequest(
+          universe: const Selector('World'),
+          proposalReference: ref,
+          expectedBaseRevision: opened.frame.revision,
+          validationRun: ValidationRunId.generate(),
+          idempotencyKey: 'public-publish',
+        ),
+      ),
+      throwsA(isA<IdempotencyKeyReusedError>()),
+    );
+  });
+
+  test('public ordinary checks and withdrawal retain provisional author state without publication', () async {
+    final connection = runtime.connect(hello(author.id));
+    final opened = await readContext(connection);
+    final request = CheckChangesRequest(
+      universe: const Selector('World'),
+      contextId: opened.contextId,
+      units: [units.declaration(name: 'league', symbol: 'lg', introduce: true)],
+    );
+    final response = await tool(connection, request);
+    final check = WritingCheck.fromWire(response.result);
+    expect(check.candidateHandle, isNotNull);
+    expect(response.frame!.revision, opened.frame.revision);
+    final retried = await tool(connection, request);
+    final rechecked = WritingCheck.fromWire(retried.result);
+    expect(rechecked.candidateHandle, check.candidateHandle);
+    expect(retried.frame!.toWire().toText(), response.frame!.toWire().toText());
+    final originalValidation =
+        ValidationV3.fromWire(check.validation!) as EvaluatedValidation;
+    final retryValidation =
+        ValidationV3.fromWire(rechecked.validation!) as EvaluatedValidation;
+    expect(
+      retryValidation.execution.inputDigest,
+      originalValidation.execution.inputDigest,
+    );
+    expect(
+      retryValidation.execution.runId,
+      isNot(originalValidation.execution.runId),
+    );
+    // Check retains an independent draft; the seeded author draft can be withdrawn.
+    final withdrawn = Proposal.fromWire(
+      (await tool(
+        connection,
+        WithdrawProposalRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          proposalReference: draft.reference,
+          idempotencyKey: 'public-withdraw',
+        ),
+      )).result,
+    );
+    expect(withdrawn.withdrawn, isTrue);
+    final head = Description.fromWire(
+      (await tool(
+        connection,
+        DescribeSummaryRequest(universe: const Selector('World')),
+      )).result,
+    ).continuities.single.revisionId;
+    expect(head, opened.frame.revision);
+    authority.grant(
+      author,
+      GrantSpec(
+        profileId: writer.id,
+        universeId: f.u,
+        worlds: null,
+        propose: false,
+        edit: false,
+        protected: false,
+      ),
+    );
+    final writerConnection = runtime.connect(hello(writer.id));
+    final writerContext = await readContext(writerConnection);
+    await expectLater(
+      tool(
+        writerConnection,
+        CreateProposalRequest(
+          universe: const Selector('World'),
+          contextId: writerContext.contextId,
+          operations: [
+            DefineUnitOperation(
+              clientRef: f.id(11).value,
+              record: units.unit(key: 'other'),
+            ),
+          ],
+          submission: Submission.draft,
+          rationale: 'Denied authoring',
+          idempotencyKey: 'denied-create',
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    await expectLater(
+      tool(
+        writerConnection,
+        GetProposalRequest(
+          universe: const Selector('World'),
+          proposalId: draft.proposal.proposalId,
+          version: draft.proposal.version,
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+  });
+
   test('connections share one recovered writer and retain publication receipt across runtime restart', () async {
     final first = runtime.connect(hello(author.id));
     final second = runtime.connect(hello(author.id));

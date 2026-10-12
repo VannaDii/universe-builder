@@ -393,7 +393,10 @@ final class SqliteValidationWorkflow {
 
   /// Public tool boundary. Result and envelope bindings are selected in the same
   /// authority section; recovered workers never confer cached access rights.
-  Future<CanonicalValue> executeToolRequest(Request request) async {
+  Future<CanonicalValue> executeToolRequest(
+    Request request, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
     try {
       return await authority.withUniverseAuthority(principal, universe, (
         current,
@@ -457,6 +460,60 @@ final class SqliteValidationWorkflow {
             final read = await _readContractsRequest(request, current);
             result = read.contracts;
             frame = read.frame;
+          case CheckChangesRequest():
+            final checked = await _checkChangesRequest(
+              request,
+              current,
+              isValidationActive: isValidationActive,
+            );
+            result = checked.check.toWire();
+            frame = checked.frame;
+          case CreateProposalRequest() ||
+              ReviseProposalRequest() ||
+              SubmitProposalRequest() ||
+              WithdrawProposalRequest():
+            final retained = await _proposeRequest(
+              request as WorkflowRequest,
+              current,
+              isValidationActive: isValidationActive,
+            );
+            result = retained.proposal.toWire();
+            frame = retained.frame;
+            focus = retained.focus;
+          case GetProposalRequest():
+            final read = await _getProposalRequest(request, current);
+            result = read.result.toWire();
+            frame = read.frame;
+            delivery = read.delivery;
+          case ProposalValidationRequest():
+            result = (await _validateProposalRequest(
+              request,
+              current,
+            )).toWire();
+            frame = _validationFrame(request.contextId, current);
+          case InlineValidationRequest():
+            final checked = await _validateInlineRequest(request, current);
+            result = checked.validation.toWire();
+            frame = checked.frame;
+            focus = checked.focus;
+          case InlineImpactRequest() || ProposalImpactRequest():
+            final read = await _getImpactRequest(
+              request as WorkflowRequest,
+              current,
+            );
+            result = read.impact.toWire();
+            frame = read.frame;
+            focus = read.focus;
+          case CommitRequest():
+            frame = _proposal(
+              request.proposalReference,
+              current,
+            ).proposal.baseFrame;
+            result = (await _commit(
+              request,
+              current,
+              isValidationActive: isValidationActive,
+            )).toWire();
           default:
             throw const UnsupportedSemanticsError(
               message: 'public tool is not yet connected to native runtime',
@@ -884,7 +941,21 @@ final class SqliteValidationWorkflow {
   Future<({WritingCheck check, Frame frame})> checkChangesRequest(
     CheckChangesRequest request, {
     required bool Function(OperationId) isValidationActive,
-  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _checkChangesRequest(
+      request,
+      current,
+      isValidationActive: isValidationActive,
+    ),
+  );
+
+  Future<({WritingCheck check, Frame frame})> _checkChangesRequest(
+    CheckChangesRequest request,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
     final frame = _contextFrame(request.contextId, current);
     WritingCheck result({
       String status = 'needs_clarification',
@@ -1028,7 +1099,7 @@ final class SqliteValidationWorkflow {
       check: await _finishWritingCheck(input, frame, check, proposal, current),
       frame: frame,
     );
-  });
+  }
 
   OpenContextRequest _writingAdmission(Selector selector, Frame frame) =>
       OpenContextRequest(
@@ -2195,6 +2266,15 @@ final class SqliteValidationWorkflow {
   Future<({ProposalViewResult result, Delivery delivery})> getProposalRequest(
     GetProposalRequest request,
   ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    final read = await _getProposalRequest(request, current);
+    return (result: read.result, delivery: read.delivery);
+  });
+
+  Future<({ProposalViewResult result, Delivery delivery, Frame frame})>
+  _getProposalRequest(
+    GetProposalRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
     const denied = NotFoundOrNotAccessibleError(message: 'resource');
     if (request.universeId != null && request.universeId != universe) {
       throw denied;
@@ -2248,6 +2328,7 @@ final class SqliteValidationWorkflow {
         page.next,
       );
       return (
+        frame: frame,
         result: AssessmentProposalView(page.page),
         delivery: Delivery(complete: page.complete, cursor: cursor),
       );
@@ -2267,10 +2348,11 @@ final class SqliteValidationWorkflow {
       page.next,
     );
     return (
+      frame: frame,
       result: FrozenProposalView(page.proposal),
       delivery: Delivery(complete: page.complete, cursor: cursor),
     );
-  });
+  }
 
   Future<({Impact impact, Frame frame, WorldId? focus})> getImpactRequest(
     WorkflowRequest request,
@@ -2350,7 +2432,21 @@ final class SqliteValidationWorkflow {
   Future<Proposal> proposeRequest(
     WorkflowRequest request, {
     required bool Function(OperationId) isValidationActive,
-  }) => authority.withUniverseAuthority(principal, universe, (current) {
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) async => (await _proposeRequest(
+      request,
+      current,
+      isValidationActive: isValidationActive,
+    )).proposal,
+  );
+
+  Future<({Proposal proposal, Frame frame, WorldId? focus})> _proposeRequest(
+    WorkflowRequest request,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
     final (
       ContextId contextId,
       Selector? world,
@@ -2383,14 +2479,15 @@ final class SqliteValidationWorkflow {
             records: _canon(frame.continuity, frame.revision),
             scope: current.worldScope,
           );
-    return _propose(
+    final proposal = await _propose(
       request,
       current,
       resolvedFrame: frame,
       worldFocus: focus,
       isValidationActive: isValidationActive,
     );
-  });
+    return (proposal: proposal, frame: frame, focus: focus);
+  }
 
   Future<Proposal> _propose(
     WorkflowRequest request,
@@ -2752,9 +2849,19 @@ final class SqliteValidationWorkflow {
 
   /// Research an ephemeral candidate. No proposal, reservation, approval
   /// binding or publication operation is created by this check.
-  Future<ValidationV3> validateInlineRequest(
+  Future<ValidationV3> validateInlineRequest(InlineValidationRequest request) =>
+      authority.withUniverseAuthority(
+        principal,
+        universe,
+        (current) async =>
+            (await _validateInlineRequest(request, current)).validation,
+      );
+
+  Future<({ValidationV3 validation, Frame frame, WorldId? focus})>
+  _validateInlineRequest(
     InlineValidationRequest request,
-  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    CurrentUniverseAuthority current,
+  ) async {
     if (request.universeId != null && request.universeId != universe) {
       throw const NotFoundOrNotAccessibleError(message: 'resource');
     }
@@ -2763,13 +2870,17 @@ final class SqliteValidationWorkflow {
     // Compilation errors can disclose hidden definitions. Restricted research
     // resolves only its visible world selector and never compiles the candidate.
     if (current.worldScope != null) {
-      resolveWorldFocus(
+      final focus = resolveWorldFocus(
         world: request.world,
         guard: request.worldId,
         records: base,
         scope: current.worldScope,
       );
-      return ValidationV3.restricted();
+      return (
+        validation: ValidationV3.restricted(),
+        frame: frame,
+        focus: focus,
+      );
     }
     final changes = compileOperations(
       universe: universe,
@@ -2843,8 +2954,8 @@ final class SqliteValidationWorkflow {
         completed.toWire(),
       ),
     ]);
-    return report;
-  });
+    return (validation: report, frame: frame, focus: focus);
+  }
 
   Future<OperationStatusV3> _queueValidation(
     QueuedProposalValidationRequest request,
