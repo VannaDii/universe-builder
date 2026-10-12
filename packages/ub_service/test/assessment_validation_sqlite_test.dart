@@ -7,6 +7,7 @@ import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/assessment_validation.dart';
+import 'package:ub_service/assessment_resolution.dart';
 import 'package:ub_service/proposal_state.dart';
 import 'package:ub_store/src/database.dart';
 import 'package:ub_store/src/workflow_storage.dart';
@@ -29,10 +30,23 @@ void main() {
         digest: body.digest(),
         body: body,
       );
+      final reference = AssessmentRef(
+        assessmentId: envelope.assessmentId,
+        digest: envelope.digest,
+      );
+      final selection = AssessmentSelection(
+        proposal: a.proposal.reference,
+        generation: BigInt.one,
+        selected: reference,
+      );
       final original = SqliteDatabase.open(path);
       try {
         WorkflowStorage(original).compareAppend({}, [
           MapEntry(a.proposal.key, a.proposal.toWire()),
+          MapEntry(
+            '${assessmentSelectionPrefix(a.proposal.reference)}00000000000000000001',
+            selection.toWire(),
+          ),
           MapEntry(
             'assessment:${envelope.assessmentId.value}',
             envelope.toWire(),
@@ -69,6 +83,32 @@ void main() {
         expect(retained.body.conclusion, DeclaredConclusion.unresolved);
         expect(retained.body.unresolved, hasLength(1));
         expect(retained.toWire().toText(), envelope.toWire().toText());
+        final review = await resolveAssessment(
+          reference: proposal.reference,
+          universe: f.u,
+          canObserveMissingMaterial: true,
+          readProposal: (_) => proposal,
+          checkAccess: (_, _) {},
+          readLatestKey: workflow.latestKey,
+          readWorkflow: workflow.get,
+          readHead: (_) => proposal.proposal.baseFrame.revision,
+          readCanon: (_, _) => [
+            f.row(2, version),
+            f.row(10, f.entity()),
+            f.row(50, f.entity()),
+            structure.context(99),
+          ],
+          readVersion: (_) => throw StateError('Unexpected history read'),
+        );
+        expect(
+          (review.state as BoundAssessment).selectionGeneration,
+          BigInt.one,
+        );
+        expect(
+          (review.state as BoundAssessment).declaredConclusion,
+          DeclaredConclusion.unresolved,
+        );
+        expect(review.envelope!.toWire().toText(), envelope.toWire().toText());
         expect(workflow.keys('approval:'), isEmpty);
         expect(workflow.keys('validation:'), isEmpty);
       } finally {

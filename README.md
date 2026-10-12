@@ -414,8 +414,11 @@ Retained assessments revalidate after SQLite reopen without replacing externally
 declared unresolved conclusions. Staleness compares the latest frozen candidate
 or advanced continuity head, distinguishing source, edition and dependency drift;
 only exact historical evidence is exempt from dependency drift.
-Selection/access resolution, capture and durable
-attachment/validation routes still require workflow integration.
+Selection resolution now preserves exact historical views separately from the
+current selected state, hides missing selected bodies from partial viewers, and
+distinguishes stale, missing and byte-verified evidence after SQLite reopen.
+The resolver requires owning-workflow access admission; authority coordination,
+capture and durable attachment/validation routes still require integration.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.
