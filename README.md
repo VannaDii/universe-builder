@@ -396,7 +396,14 @@ stages, retain an exact provisional draft and return validation plus impact.
 Retries recover that draft and recheck it; they grant no approval and do not
 advance canon. The shared writing/disclosure/source-preparation helpers now accept
 asynchronous pinned edition reads, preserving exact dependency checks. Private
-PostgreSQL source preparation and the remaining writing actions are still pending.
+PostgreSQL writing actions now prepare exact source or explicitly reviewed
+contracts, inspect checked reviews, reject candidates, establish/edit attributed
+knowledge, accept exact supported resource findings, and publish by exact author
+decision. Preparation/acceptance creates no approval or canon. Source bytes and
+allocated versions survive retries; knowledge establishment creates no objective
+assertion, and duration edits preserve acquisition history. Publication and
+rejection recover their original receipts after reopen and later canon changes.
+These actions use the owning PostgreSQL transaction and current author authority.
 Socket/launcher integration, cross-process worker qualification and
 the remaining service routes are pending. Import previews/purge coordination,
 transfer and live verified-TLS qualification also remain pending; runtime PostgreSQL selection

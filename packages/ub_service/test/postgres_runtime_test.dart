@@ -1235,6 +1235,255 @@ void main() {
           expect(await s.workflows(universe).keys('approval:'), isEmpty);
         });
       });
+      test('private source preparation, inspection, publication and rejection retain exact author decisions through reopen', () async {
+        var author = await runtime.connect(hello(authorId));
+        final created = WireFields(
+          await author.execute(
+            const CreateUniverseEngineRequest(
+              name: 'Disposable engine universe',
+              start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
+            ),
+          ),
+          {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
+        );
+        final universe = UniverseId.parse(created.string('universe_id'));
+        universes.add(universe);
+        final continuity = ContinuityId.parse(created.string('continuity_id'));
+        final opened = await tool(
+          author,
+          OpenContextRequest(
+            universe: selector,
+            continuityId: continuity,
+            revision: const HeadRevisionSelector(),
+            representedContext: ContextIdSelector(
+              RecordId.parse(created.string('context_id')),
+            ),
+            temporalQuery: const TimelessFrameTime(),
+            temporalSystems: [],
+            perspective: const AuthorPerspective(),
+          ),
+          OpenedContext.fromWire,
+        );
+        Future<WritingCheck> draft(String name) => tool(
+          author,
+          CheckChangesRequest(
+            universe: selector,
+            contextId: opened.contextId,
+            units: [
+              units.declaration(name: name, symbol: name, introduce: true),
+            ],
+          ),
+          WritingCheck.fromWire,
+        );
+        final candidate = ProposalId.parse(
+          (await draft('league')).candidateHandle!,
+        );
+        const source = '\uFEFFAuthor: é😀\r\nA league is an authored unit.';
+        Future<CanonicalValue> act(AuthorWritingAction action) =>
+            author.execute(
+              AuthorWritingEngineRequest(universe: selector, action: action),
+            );
+        WireFields review(CanonicalValue value) => WireFields(value, {
+          'acceptance_options',
+          'summary',
+          'candidate',
+          'validation',
+          'impact',
+          'publishable',
+          'review',
+        });
+        final plainPrepare = PrepareWritingAction(
+          candidate: candidate,
+          label: 'Author passage',
+          text: source,
+        );
+        await expectLater(act(plainPrepare), throwsA(isA<PolicyDeniedError>()));
+        await store.transaction((s) async {
+          expect(await s.workflows(universe).keys('source-version:'), isEmpty);
+          expect(await s.workflows(universe).keys('approval:'), isEmpty);
+        });
+        final prepare = PrepareContractsWritingAction(
+          candidate: candidate,
+          label: 'Author passage',
+          text: source,
+        );
+        final prepared = review(await act(prepare));
+        final ref = ProposalRef.fromWire(prepared.require('candidate'));
+        expect(ref.version, BigInt.two);
+        expect(prepared.boolean('publishable'), isTrue);
+        final frozen = await tool(
+          author,
+          GetProposalRequest(
+            universe: selector,
+            proposalId: ref.proposalId,
+            version: ref.version,
+          ),
+          ProposalViewResult.fromWire,
+        ) as FrozenProposalView;
+        final anchor = frozen.proposal.operations
+            .whereType<AddSourceAnchorOperation>()
+            .single
+            .record;
+        expect(anchor.excerpt, source);
+        expect(
+          anchor.excerptDigest,
+          sha256.convert(utf8.encode(source)).toString(),
+        );
+        final sourceVersion = frozen.proposal.operations
+            .whereType<RecordNarrativeReferenceOperation>()
+            .map((op) => op.payload)
+            .whereType<SourceVersionRecord>()
+            .single;
+        expect(sourceVersion.byteSize, BigInt.from(utf8.encode(source).length));
+        expect(
+          sourceVersion.importActor.value,
+          authorId.value.replaceFirst('prf_', 'prn_'),
+        );
+        final retry = review(await act(prepare));
+        expect(
+          ProposalRef.fromWire(retry.require('candidate')).toWire().toText(),
+          ref.toWire().toText(),
+        );
+        final rejectedCandidate = ProposalId.parse(
+          (await draft('furlong')).candidateHandle!,
+        );
+        final reject = RejectWritingAction(candidate: rejectedCandidate);
+        final rejected = Proposal.fromWire(await act(reject));
+        expect(rejected.withdrawn, isTrue);
+        await store.transaction((s) async {
+          expect(
+            await s.kernel(universe).journal.head(continuity),
+            opened.frame.revision,
+          );
+          expect(
+            await s.workflows(universe).keys('source-version:'),
+            hasLength(1),
+          );
+          expect(await s.workflows(universe).keys('approval:'), isEmpty);
+        });
+        await author.execute(
+          GrantEngineRequest(
+            grant: GrantSpec(
+              profileId: writerId,
+              universeId: universe,
+              worlds: null,
+              propose: true,
+              edit: true,
+              protected: false,
+            ),
+          ),
+        );
+        final writer = await runtime.connect(hello(writerId));
+        await expectLater(
+          writer.execute(
+            AuthorWritingEngineRequest(universe: selector, action: prepare),
+          ),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        await runtime.close();
+        await store.close();
+        store = await PostgresInstallationStore.openExisting(
+          endpoint(),
+          settings: settings,
+        );
+        runtime = NativePostgresRuntime(store: store);
+        author = await runtime.connect(hello(authorId));
+        final inspected = review(
+          await act(InspectWritingAction(candidate: ref)),
+        );
+        expect(
+          ProposalRef.fromWire(inspected.require('candidate'))
+              .toWire()
+              .toText(),
+          ref.toWire().toText(),
+        );
+        expect(inspected.boolean('publishable'), isTrue);
+        final report = ValidationV3.fromWire(inspected.require('validation'));
+        final publish = PublishWritingAction(
+          candidate: ref,
+          validationRun: report.execution!.runId,
+          idempotencyKey: 'source-publish',
+        );
+        final published = Envelope.fromWire(
+          await act(publish),
+          CommitReceipt.fromWire,
+        );
+        expect(published.frame!.revision, opened.frame.revision);
+        await store.transaction((s) async {
+          final version = StoredVersion.build(
+            RecordVersionId.generate(),
+            RecordIdentity(
+              universeId: universe,
+              recordId: RecordId.generate(),
+              recordKind: RecordKind.entity,
+            ),
+            EntityRecord(
+              names: [],
+              classificationResolution: ClassificationResolution.unclassified,
+              worldAssociations: [],
+              labels: {},
+              metadata: {},
+            ).toWire(),
+          );
+          await s
+              .kernel(universe)
+              .commit(
+                CommitInput(
+                  universe: universe,
+                  continuity: continuity,
+                  expectedHead: published.result.revision,
+                  principal: PrincipalId.generate(),
+                  decision: 'Disposable advance',
+                  reason: 'Disposable advance',
+                  idempotencyKey: 'after-source-publish',
+                  changes: [
+                    Assignment(
+                      recordId: version.identity.recordId,
+                      next: version,
+                    ),
+                  ],
+                ),
+              );
+        });
+        await runtime.close();
+        await store.close();
+        store = await PostgresInstallationStore.openExisting(
+          endpoint(),
+          settings: settings,
+        );
+        runtime = NativePostgresRuntime(store: store);
+        author = await runtime.connect(hello(authorId));
+        final recovered = Envelope.fromWire(
+          await act(publish),
+          CommitReceipt.fromWire,
+        );
+        expect(
+          recovered.result.toWire().toText(),
+          published.result.toWire().toText(),
+        );
+        expect(
+          Proposal.fromWire(await act(reject)).toWire().toText(),
+          rejected.toWire().toText(),
+        );
+        await expectLater(act(prepare), throwsA(isA<ApprovalStaleError>()));
+        await expectLater(
+          act(
+            PublishWritingAction(
+              candidate: ref,
+              validationRun: ValidationRunId.generate(),
+              idempotencyKey: publish.idempotencyKey,
+            ),
+          ),
+          throwsA(isA<IdempotencyKeyReusedError>()),
+        );
+        await store.transaction((s) async {
+          expect(
+            await s.workflows(universe).keys('source-version:'),
+            hasLength(1),
+          );
+          expect(await s.workflows(universe).keys('approval:'), hasLength(1));
+        });
+      });
       test('denies invalid handshake and private universe creation without side effects', () async {
         await expectLater(
           runtime.connect(hello(writerId, credential: 'invalid')),

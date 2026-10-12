@@ -23,6 +23,10 @@ import 'installation_authority.dart';
 import 'operation_state.dart';
 import 'read_cursor.dart';
 import 'writing_source.dart';
+import 'resource_checks.dart';
+import 'writing_author_review.dart';
+import 'writing_knowledge_corrections.dart';
+import 'writing_binding.dart';
 import 'writing_dates.dart';
 import 'writing_check.dart';
 import 'writing_changes.dart';
@@ -1071,6 +1075,977 @@ final class PostgresValidationWorkflow {
       validation: validation,
       impact: impact.impact,
       impactDeliveryComplete: true,
+    );
+  }
+
+  Future<void> _writingAuthorCurrent(Proposal proposal) async {
+    final reference = ProposalRef(
+      proposalId: proposal.proposalId,
+      version: proposal.version,
+      digest: proposal.digest,
+    );
+    if (await _workflow.latestKey('proposal:${proposal.proposalId.value}:') !=
+            proposalKey(reference) ||
+        proposal.withdrawn ||
+        await _journal.head(proposal.baseFrame.continuity) !=
+            proposal.baseFrame.revision) {
+      throw const ApprovalStaleError();
+    }
+  }
+
+  /// Recheck the exact author candidate and present its frozen changes. A
+  /// publishable review is not approval and does not authorize publication.
+  Future<CanonicalObject> writingAuthorReview(ProposalRef reference) =>
+      authority.withUniverseAuthority(
+        principal,
+        universe,
+        (current) => _writingAuthorReview(reference, current),
+      );
+
+  Future<CanonicalObject> _writingAuthorReview(
+    ProposalRef reference,
+    CurrentUniverseAuthority current,
+  ) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final stored = await _proposal(reference, current);
+    final p = stored.proposal;
+    await _writingAuthorCurrent(p);
+    final selector = Selector(universe.value);
+    final opened = await _openContext(
+      _writingAdmission(selector, p.baseFrame),
+      current,
+    );
+    final validation = await _validate(reference, opened.frame, current);
+    final impact = await _getImpactRequest(
+      ProposalImpactRequest(
+        universe: selector,
+        contextId: opened.contextId,
+        proposalReference: reference,
+        scope: CheckScope.universe,
+        byteBudget: 65536,
+      ),
+      current,
+    );
+    final execution = validation.execution;
+    if (execution == null) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final checked = CheckedValidation.fromWire(
+      (await _workflow.get('validation:${execution.runId.value}'))!,
+    );
+    final originals = await _canon(
+      p.baseFrame.continuity,
+      p.baseFrame.revision,
+    );
+    final records = {for (final row in originals) row.identity.recordId: row};
+    for (final change in stored.changes) {
+      records.remove(change.recordId);
+      if (change.next != null) {
+        records[change.recordId] = RecordVersion.fromWire(
+          change.next!.toCanonical(),
+        );
+      }
+    }
+    final gaps = assessResourceAccounting(records.values.toList(), p.baseFrame);
+    return CanonicalObject([
+      MapEntry(
+        'acceptance_options',
+        CanonicalArray(
+          gaps
+              .where((g) => g.acceptance == null)
+              .map(
+                (g) => CanonicalObject([
+                  MapEntry('fingerprint', CanonicalString(g.fingerprint.value)),
+                  MapEntry(
+                    'scope',
+                    CanonicalString('resource:${g.proposition.value}'),
+                  ),
+                ]),
+              ),
+        ),
+      ),
+      MapEntry(
+        'summary',
+        CanonicalArray(
+          summarizeWritingAuthorReview(
+            stored: stored,
+            originals: originals,
+          ).map(CanonicalString.new),
+        ),
+      ),
+      MapEntry('candidate', reference.toWire()),
+      MapEntry('validation', validation.toWire()),
+      MapEntry('impact', impact.impact.toWire()),
+      // This native route returns a whole impact or fails its delivery budget.
+      MapEntry(
+        'publishable',
+        CanonicalBool(
+          checked.admissible && impact.impact.coverage == Coverage.complete,
+        ),
+      ),
+      MapEntry('review', await _review(reference, current)),
+    ]);
+  }
+
+  /// Private writing engine boundary for an already authenticated, recovered
+  /// universe worker. Socket/HTTP framing and worker ownership belong to runtime.
+  Future<CanonicalValue> executeWritingEngineRequest(
+    EngineRequest request, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
+    try {
+      return await authority.withUniverseAuthority(principal, universe, (
+        current,
+      ) async {
+        if (!current.principal.author) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        final selector = switch (request) {
+          AuthorWritingEngineRequest(:final universe) ||
+          StageSourceEngineRequest(:final universe) ||
+          ReviewEngineRequest(:final universe) ||
+          ApproveEngineRequest(:final universe) => universe,
+          _ => throw const InvalidArgumentError(
+            field: 'method',
+            message: 'requires a private writing engine request',
+          ),
+        };
+        final resolved = await session.authority.resolveUniverseAlias(
+          actor: principal.id,
+          name: selector.value,
+          epochSeconds: _epochSeconds(),
+        );
+        if (resolved.universeId != universe) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        switch (request) {
+          case StageSourceEngineRequest(:final label, :final text):
+            return _stageSource(current, label: label, text: text);
+          case ReviewEngineRequest(:final proposalReference):
+            return _review(proposalReference, current);
+          case ApproveEngineRequest(
+            :final proposalReference,
+            :final validationRun,
+          ):
+            return _approve(proposalReference, validationRun, current);
+          case AuthorWritingEngineRequest(:final action):
+            final result = await _authorWritingAction(
+              action,
+              current,
+              isValidationActive: isValidationActive,
+            );
+            if (action is! PublishWritingAction) return result;
+            final stored = await _proposal(action.candidate, current);
+            final envelope = Envelope<CanonicalValue>(
+              contractVersion: protocolVersion,
+              requestId: BigInt.zero,
+              universeId: universe,
+              universe: Selector(resolved.name),
+              aliasMatched: selector.value != resolved.name,
+              frame: stored.proposal.baseFrame,
+              authorizationScope: 'universe grant',
+              delivery: Delivery(complete: true, cursor: null),
+              result: result,
+            ).toWire((v) => v);
+            if (envelope.toBytes().length > 900000) {
+              throw const EvaluationLimitReachedError(
+                message: 'response exceeds bounded transport; narrow the batch',
+              );
+            }
+            return envelope;
+          default:
+            throw StateError('Unreachable private writing request');
+        }
+      });
+    } on InstallationException catch (error) {
+      if (error.failure == InstallationFailure.denied) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      rethrow;
+    }
+  }
+
+  /// Native action dispatch. The transport owns the response envelope, just as
+  /// it does for the native commit route; publication returns its durable receipt.
+  Future<CanonicalValue> authorWritingAction(
+    AuthorWritingAction action, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _authorWritingAction(
+      action,
+      current,
+      isValidationActive: isValidationActive,
+    ),
+  );
+
+  Future<CanonicalValue> _authorWritingAction(
+    AuthorWritingAction action,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
+  }) async => switch (action) {
+    InspectWritingAction() => await _inspectWriting(action, current),
+    PrepareWritingAction() => await _prepareWritingReview(
+      current,
+      candidate: action.candidate,
+      label: action.label,
+      text: action.text,
+      isValidationActive: isValidationActive,
+    ),
+    PrepareContractsWritingAction() => await _prepareWritingReview(
+      current,
+      candidate: action.candidate,
+      label: action.label,
+      text: action.text,
+      contracts: true,
+      isValidationActive: isValidationActive,
+    ),
+    EditKnowledgeWritingAction() => await _editWritingKnowledge(
+      action,
+      current,
+      isValidationActive: isValidationActive,
+    ),
+    EstablishKnowledgeWritingAction() => await _establishWritingKnowledge(
+      action,
+      current,
+      isValidationActive: isValidationActive,
+    ),
+    AcceptWritingAction() => await _acceptWriting(
+      action,
+      current,
+      isValidationActive: isValidationActive,
+    ),
+    RejectWritingAction() => (await _rejectWriting(
+      action,
+      current,
+      isValidationActive: isValidationActive,
+    )).toWire(),
+    PublishWritingAction() => (await _publishWriting(
+      action,
+      current,
+      isValidationActive: isValidationActive,
+    )).toWire(),
+  };
+
+  /// Prepare exact source and return the current checked private review.
+  Future<CanonicalObject> prepareWritingReview({
+    required ProposalId candidate,
+    required String label,
+    required String text,
+    bool contracts = false,
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _prepareWritingReview(
+      current,
+      candidate: candidate,
+      label: label,
+      text: text,
+      contracts: contracts,
+      isValidationActive: isValidationActive,
+    ),
+  );
+
+  Future<CanonicalObject> _prepareWritingReview(
+    CurrentUniverseAuthority current, {
+    required ProposalId candidate,
+    required String label,
+    required String text,
+    bool contracts = false,
+    required bool Function(OperationId) isValidationActive,
+  }) async {
+    final proposal = await _prepareWritingSource(
+      current,
+      candidate: candidate,
+      label: label,
+      text: text,
+      contracts: contracts,
+      isValidationActive: isValidationActive,
+    );
+    return _writingAuthorReview(
+      ProposalRef(
+        proposalId: proposal.proposalId,
+        version: proposal.version,
+        digest: proposal.digest,
+      ),
+      current,
+    );
+  }
+
+  Future<CanonicalObject> inspectWriting(InspectWritingAction action) =>
+      authority.withUniverseAuthority(
+        principal,
+        universe,
+        (current) => _inspectWriting(action, current),
+      );
+
+  Future<CanonicalObject> _inspectWriting(
+    InspectWritingAction action,
+    CurrentUniverseAuthority current,
+  ) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final stored = await _proposal(action.candidate, current);
+    if (stored.proposal.submission != Submission.submitted) {
+      throw const ApprovalStaleError();
+    }
+    if (!stored.authorOrigin ||
+        !stored.proposal.operations.any(
+          (op) => op is AddSourceAnchorOperation,
+        )) {
+      throw const PolicyDeniedError(
+        message:
+            'Reopen requires an author-prepared exact-source writing review.',
+      );
+    }
+    return _writingAuthorReview(action.candidate, current);
+  }
+
+  Future<Proposal> rejectWriting(
+    RejectWritingAction action, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) =>
+        _rejectWriting(action, current, isValidationActive: isValidationActive),
+  );
+
+  Future<Proposal> _rejectWriting(
+    RejectWritingAction action,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final key =
+        'writing-reject:${canonicalDigest(CanonicalString(action.candidate.value))}';
+    final receipt = operationRequestKey(principal.id, 'propose', key);
+    if (await _workflow.get(receipt) != null) {
+      final prior = await loadStoredOperation(
+        key: receipt,
+        principal: principal.id,
+        worldScope: current.worldScope,
+        readWorkflow: _workflow.get,
+        readReceipt: _journal.receipt,
+        isValidationActive: isValidationActive,
+      );
+      final proposal = prior.status.proposal;
+      if (proposal == null) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      return proposal;
+    }
+    final latest = await _workflow.latestKey(
+      'proposal:${action.candidate.value}:',
+    );
+    if (latest == null) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final retained = StoredProposal.fromWire((await _workflow.get(latest))!);
+    final stored = await _proposal(retained.reference, current);
+    await _writingAuthorCurrent(stored.proposal);
+    final opened = await _openContext(
+      _writingAdmission(Selector(universe.value), stored.proposal.baseFrame),
+      current,
+    );
+    return _propose(
+      WithdrawProposalRequest(
+        universe: Selector(universe.value),
+        contextId: opened.contextId,
+        proposalReference: stored.reference,
+        idempotencyKey: key,
+      ),
+      current,
+      resolvedFrame: opened.frame,
+      worldFocus: null,
+      isValidationActive: isValidationActive,
+    );
+  }
+
+  Future<OpenedContext> _writingKnowledgeContext(
+    ContextId id,
+    CurrentUniverseAuthority current,
+  ) async {
+    final raw = await _workflow.get('context:${id.value}');
+    if (raw == null) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final selected = StoredContext.fromWire(raw);
+    if (selected.frame.universe != universe) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    if (selected.expires < _epochSeconds()) {
+      throw const ContextExpiredError();
+    }
+    if (await _journal.head(selected.frame.continuity) !=
+        selected.frame.revision) {
+      throw const ApprovalStaleError();
+    }
+    // An author may reopen a writer's selection, but uses a new private context.
+    return _openContext(
+      _writingAdmission(Selector(universe.value), selected.frame),
+      current,
+    );
+  }
+
+  Future<CanonicalObject> _retainWritingKnowledge(
+    CurrentUniverseAuthority current, {
+    required OpenedContext opened,
+    required List<DomainOperation> operations,
+    required String key,
+    required String rationale,
+    required String label,
+    required String text,
+    required bool Function(OperationId) isValidationActive,
+  }) async {
+    final receipt = operationRequestKey(principal.id, 'propose', key);
+    final retained = await _workflow.get(receipt) == null
+        ? null
+        : await loadStoredOperation(
+            key: receipt,
+            principal: principal.id,
+            worldScope: current.worldScope,
+            readWorkflow: _workflow.get,
+            readReceipt: _journal.receipt,
+            isValidationActive: isValidationActive,
+          );
+    final candidate = retained == null
+        ? await _propose(
+            CreateProposalRequest(
+              universe: Selector(universe.value),
+              contextId: opened.contextId,
+              operations: operations,
+              submission: Submission.draft,
+              rationale: rationale,
+              idempotencyKey: key,
+            ),
+            current,
+            resolvedFrame: opened.frame,
+            worldFocus: null,
+            isValidationActive: isValidationActive,
+          )
+        : retained.status.proposal;
+    if (candidate == null) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final prepared = await _prepareWritingSource(
+      current,
+      candidate: candidate.proposalId,
+      label: label,
+      text: text,
+      knowledgeRationale: rationale,
+      isValidationActive: isValidationActive,
+    );
+    return _writingAuthorReview(
+      ProposalRef(
+        proposalId: prepared.proposalId,
+        version: prepared.version,
+        digest: prepared.digest,
+      ),
+      current,
+    );
+  }
+
+  Future<CanonicalObject> editWritingKnowledge(
+    EditKnowledgeWritingAction action, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _editWritingKnowledge(
+      action,
+      current,
+      isValidationActive: isValidationActive,
+    ),
+  );
+
+  Future<CanonicalObject> _editWritingKnowledge(
+    EditKnowledgeWritingAction action,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final nonWhitespace = RegExp(
+      r'[^\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]',
+    );
+    if (!nonWhitespace.hasMatch(action.text) ||
+        !nonWhitespace.hasMatch(action.correction.reason)) {
+      throw const InvalidArgumentError(
+        field: 'text/reason',
+        message: 'Explicit author source and reason required',
+      );
+    }
+    final opened = await _writingKnowledgeContext(action.contextId, current);
+    final rows = await _canon(opened.frame.continuity, opened.frame.revision);
+    final correction = WritingAttitudeCorrection.fromWire(
+      normalizeWritingDates(action.correction.toWire(), opened.frame, rows),
+    );
+    final operations = compileWritingAttitudeCorrection(
+      rows: rows,
+      frame: opened.frame,
+      patch: correction,
+      privateKnowledge: true,
+    );
+    final key =
+        'author-knowledge-edit:${canonicalDigest(CanonicalArray([opened.frame.toWire(), correction.toWire(), CanonicalString(action.label), CanonicalString(action.text)]))}';
+    return _retainWritingKnowledge(
+      current,
+      opened: opened,
+      operations: operations,
+      key: key,
+      rationale: correction.reason,
+      label: action.label,
+      text: action.text,
+      isValidationActive: isValidationActive,
+    );
+  }
+
+  Future<CanonicalObject> establishWritingKnowledge(
+    EstablishKnowledgeWritingAction action, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _establishWritingKnowledge(
+      action,
+      current,
+      isValidationActive: isValidationActive,
+    ),
+  );
+
+  Future<CanonicalObject> _establishWritingKnowledge(
+    EstablishKnowledgeWritingAction action,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final nonWhitespace = RegExp(
+      r'[^\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]',
+    );
+    if (!nonWhitespace.hasMatch(action.rationale) ||
+        !nonWhitespace.hasMatch(action.text)) {
+      throw const InvalidArgumentError(
+        field: 'rationale/text',
+        message: 'Explicit author rationale and source required',
+      );
+    }
+    final opened = await _writingKnowledgeContext(action.contextId, current);
+    final frame = opened.frame;
+    final rows = await _canon(frame.continuity, frame.revision);
+    final declaration = AuthorKnowledgeDeclaration.fromWire(
+      normalizeWritingDates(action.declaration.toWire(), frame, rows),
+    );
+    final policies = [
+      for (final row in rows)
+        if (row.payload case RuleRecord(:final knowledgePolicy)
+            when knowledgePolicy?.context == frame.context)
+          knowledgePolicy!,
+    ];
+    if (policies.length != 1 ||
+        policies.single.mode != KnowledgeMode.authorEstablished) {
+      throw const InvalidArgumentError(
+        field: 'knowledge policy',
+        message: 'Select the exact authored author-established context policy.',
+      );
+    }
+    final holder = resolveWritingObject(rows, declaration.holder, frame);
+    if (holder == null) {
+      throw const InvalidArgumentError(
+        field: 'holder',
+        message: 'Resolve the exact authored holder.',
+      );
+    }
+    final claim = bindWritingClaim(universe, rows, frame, declaration.claim);
+    final at = bindWritingTime(frame, rows, declaration.atTick);
+    final world = resolveWorldFocus(
+      world: declaration.world == null ? null : Selector(declaration.world!),
+      guard: null,
+      records: rows,
+      scope: current.worldScope,
+    );
+    final key =
+        'author-knowledge:${canonicalDigest(CanonicalArray([frame.toWire(), declaration.toWire(), CanonicalString(action.rationale), CanonicalString(action.label), CanonicalString(action.text)]))}';
+    final operations = <DomainOperation>[];
+    final proposition = bindWritingProposition(
+      operations,
+      universe,
+      claim,
+      rows,
+    );
+    operations.add(
+      AddBeliefOperation(
+        clientRef: RecordId.generate().value,
+        record: EpistemicAttitudeRecord(
+          holder: RecordRef(universe: universe, record: holder),
+          proposition: proposition,
+          attitude: EpistemicAttitudeKind.knows,
+          validity: bindWritingLifetime(at, declaration.lifetime),
+          basis: AuthorDecisionBasis(action.rationale),
+          acquisition: KnowledgeAcquisition(
+            truthContext: frame.context,
+            time: at,
+            world: world == null
+                ? null
+                : RecordRef(
+                    universe: universe,
+                    record: RecordId.parse(
+                      world.value.replaceFirst('wld_', 'rec_'),
+                    ),
+                  ),
+            basis: const AuthorEstablishedKnowledge(),
+          ),
+        ),
+      ),
+    );
+    return _retainWritingKnowledge(
+      current,
+      opened: opened,
+      operations: operations,
+      key: key,
+      rationale: action.rationale,
+      label: action.label,
+      text: action.text,
+      isValidationActive: isValidationActive,
+    );
+  }
+
+  /// Accept only an exact unresolved opt-in resource finding. This retains a
+  /// new submitted proposal; its validation and approval are separate decisions.
+  Future<CanonicalObject> acceptWriting(
+    AcceptWritingAction action, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) =>
+        _acceptWriting(action, current, isValidationActive: isValidationActive),
+  );
+
+  Future<CanonicalObject> _acceptWriting(
+    AcceptWritingAction action,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    if (!RegExp(
+      r'[^\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]',
+    ).hasMatch(action.rationale)) {
+      throw const InvalidArgumentError(
+        field: 'rationale',
+        message: 'author acceptance requires a reason',
+      );
+    }
+    final binding = canonicalDigest(
+      CanonicalArray([
+        action.candidate.toWire(),
+        CanonicalString(action.fingerprint.value),
+        CanonicalString(action.scope),
+        CanonicalString(action.rationale),
+      ]),
+    );
+    final key = 'writing-accept:$binding';
+    final receipt = operationRequestKey(principal.id, 'propose', key);
+    if (await _workflow.get(receipt) != null) {
+      final prior = await loadStoredOperation(
+        key: receipt,
+        principal: principal.id,
+        worldScope: current.worldScope,
+        readWorkflow: _workflow.get,
+        readReceipt: _journal.receipt,
+        isValidationActive: isValidationActive,
+      );
+      final proposal = prior.status.proposal;
+      if (proposal == null) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      return _writingAuthorReview(
+        ProposalRef(
+          proposalId: proposal.proposalId,
+          version: proposal.version,
+          digest: proposal.digest,
+        ),
+        current,
+      );
+    }
+    final stored = await _proposal(action.candidate, current);
+    final p = stored.proposal;
+    await _writingAuthorCurrent(p);
+    final checked = await checkProposalCandidate(
+      stored: stored,
+      universe: universe,
+      principal: principal.id,
+      approvalAuthor: current.approvalAuthor,
+      scope: current.worldScope,
+      preview: _preview,
+      readCanon: _canon,
+      readWorkflow: _workflow.get,
+      readVersion: _version,
+    );
+    final input = await proposalCommitInput(
+      stored: stored,
+      universe: universe,
+      principal: principal.id,
+      idempotencyKey: 'acceptance-review',
+      readCanon: _canon,
+    );
+    final records = await _preview(input);
+    final matching = assessResourceAccounting(records, p.baseFrame).where(
+      (g) =>
+          g.fingerprint == action.fingerprint &&
+          g.acceptance == null &&
+          action.scope == 'resource:${g.proposition.value}',
+    );
+    if (matching.isEmpty) {
+      throw const InvalidArgumentError(
+        field: 'scope',
+        message: 'select an exact current unresolved resource finding and its resource scope',
+      );
+    }
+    final gap = matching.first;
+    final findings = checked.validation.findings.where(
+      (f) => f.fingerprint == gap.fingerprint,
+    );
+    if (findings.isEmpty) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final operations = [
+      ...p.operations,
+      RecordIssueDecisionOperation(
+        clientRef: RecordId.generate().value,
+        record: IssueDecisionRecord(
+          fingerprints: [findings.first.fingerprint],
+          mode: IssueDecisionMode.accept,
+          scope: action.scope,
+          rationale: action.rationale,
+          principal: PrincipalId.parse(
+            principal.id.value.replaceFirst('prf_', 'prn_'),
+          ),
+        ),
+      ),
+    ];
+    final versions = <RecordId, RecordVersionId>{};
+    for (final change in stored.changes) {
+      if (change.next != null) {
+        final row = RecordVersion.fromWire(change.next!.toCanonical());
+        if (row.payload is SourceVersionRecord) {
+          versions[row.identity.recordId] = row.recordVersionId;
+        }
+      }
+    }
+    final opened = await _openContext(
+      _writingAdmission(Selector(universe.value), p.baseFrame),
+      current,
+    );
+    final proposed = await _propose(
+      ReviseProposalRequest(
+        universe: Selector(universe.value),
+        contextId: opened.contextId,
+        proposalReference: action.candidate,
+        operations: operations,
+        submission: Submission.submitted,
+        rationale: action.rationale,
+        idempotencyKey: key,
+      ),
+      current,
+      resolvedFrame: opened.frame,
+      worldFocus: null,
+      isValidationActive: isValidationActive,
+      versions: versions,
+    );
+    return _writingAuthorReview(
+      ProposalRef(
+        proposalId: proposed.proposalId,
+        version: proposed.version,
+        digest: proposed.digest,
+      ),
+      current,
+    );
+  }
+
+  Future<CommitReceipt> publishWriting(
+    PublishWritingAction action, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _publishWriting(
+      action,
+      current,
+      isValidationActive: isValidationActive,
+    ),
+  );
+
+  Future<CommitReceipt> _publishWriting(
+    PublishWritingAction action,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final stored = await _proposal(action.candidate, current);
+    final request = CommitRequest(
+      universe: Selector(universe.value),
+      proposalReference: action.candidate,
+      expectedBaseRevision: stored.proposal.baseFrame.revision,
+      validationRun: action.validationRun,
+      idempotencyKey: action.idempotencyKey,
+    );
+    final key = operationRequestKey(
+      principal.id,
+      'commit',
+      action.idempotencyKey,
+    );
+    if (await _workflow.get(key) == null) {
+      await _approve(action.candidate, action.validationRun, current);
+    }
+    return _commit(request, current, isValidationActive: isValidationActive);
+  }
+
+  /// Retain the author-selected exact-source revision. This does not approve or
+  /// publish it; the private review route must inspect the returned exact state.
+  Future<Proposal> prepareWritingSource({
+    required ProposalId candidate,
+    required String label,
+    required String text,
+    bool contracts = false,
+    String? knowledgeRationale,
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _prepareWritingSource(
+      current,
+      candidate: candidate,
+      label: label,
+      text: text,
+      contracts: contracts,
+      knowledgeRationale: knowledgeRationale,
+      isValidationActive: isValidationActive,
+    ),
+  );
+
+  Future<Proposal> _prepareWritingSource(
+    CurrentUniverseAuthority current, {
+    required ProposalId candidate,
+    required String label,
+    required String text,
+    bool contracts = false,
+    String? knowledgeRationale,
+    required bool Function(OperationId) isValidationActive,
+  }) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    if (!RegExp(
+      r'[^\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]',
+    ).hasMatch(text)) {
+      throw const InvalidArgumentError(
+        field: 'text',
+        message: 'author source must not be empty',
+      );
+    }
+    final binding = canonicalDigest(
+      CanonicalArray([
+        CanonicalString(candidate.value),
+        CanonicalString(label),
+        CanonicalString(text),
+        if (knowledgeRationale != null) CanonicalString(knowledgeRationale),
+      ]),
+    );
+    final key =
+        '${contracts ? 'writing-contracts-prepare' : 'writing-prepare'}:$binding';
+    final receipt = operationRequestKey(principal.id, 'propose', key);
+    if (await _workflow.get(receipt) != null) {
+      final prior = await loadStoredOperation(
+        key: receipt,
+        principal: principal.id,
+        worldScope: current.worldScope,
+        readWorkflow: _workflow.get,
+        readReceipt: _journal.receipt,
+        isValidationActive: isValidationActive,
+      );
+      final proposal = prior.status.proposal;
+      if (proposal == null) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      await _writingAuthorCurrent(proposal);
+      return proposal;
+    }
+    final latest = await _workflow.latestKey('proposal:${candidate.value}:');
+    if (latest == null) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final retained = StoredProposal.fromWire((await _workflow.get(latest))!);
+    final stored = await _proposal(retained.reference, current);
+    final p = stored.proposal;
+    await _writingAuthorCurrent(p);
+    if (p.submission != Submission.draft) throw const ApprovalStaleError();
+    final originals = await _canon(
+      p.baseFrame.continuity,
+      p.baseFrame.revision,
+    );
+    await validateWritingSourcePreparation(
+      operations: p.operations,
+      originals: originals,
+      contracts: contracts,
+      authorOrigin: stored.authorOrigin,
+      canonAt: _canon,
+      knowledgeRationale: knowledgeRationale,
+    );
+    final staged = stageWritingSource(
+      universe: universe,
+      author: principal.id,
+      label: label,
+      text: text,
+      importTime: DateTime.now().toUtc().toIso8601String(),
+    );
+    await _workflow.compareAppend({}, staged.entries);
+    final attached = attachWritingSource(
+      universe: universe,
+      context: p.baseFrame.context,
+      operations: p.operations,
+      sourceOperations: staged.operations,
+      sourceVersion: staged.sourceVersion,
+      text: text,
+      digest: staged.digest,
+      byteSize: staged.byteSize,
+      knowledgeRationale: knowledgeRationale,
+    );
+    final admission = await _openContext(
+      _writingAdmission(Selector(universe.value), p.baseFrame),
+      current,
+    );
+    final rationale =
+        '${knowledgeRationale ?? (contracts ? 'Author explicitly declared these supported contracts/policies with exact source; separate approval still required.' : 'Author selected exact source passage for factual review; publication still requires separate exact approval.')}\n${p.rationale}';
+    return _propose(
+      ReviseProposalRequest(
+        universe: Selector(universe.value),
+        contextId: admission.contextId,
+        proposalReference: stored.reference,
+        operations: attached.operations,
+        submission: Submission.submitted,
+        rationale: rationale,
+        idempotencyKey: key,
+      ),
+      current,
+      resolvedFrame: admission.frame,
+      worldFocus: null,
+      isValidationActive: isValidationActive,
+      versions: attached.versions,
     );
   }
 

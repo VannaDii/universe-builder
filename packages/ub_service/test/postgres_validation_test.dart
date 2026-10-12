@@ -24,6 +24,8 @@ import 'structural_checks_test.dart' as structure;
 import 'rule_checks_test.dart' as frames;
 import 'source_verification_test.dart' as sources;
 import 'assessment_validation_test.dart' as assessments;
+import 'knowledge_checks_test.dart' as knowledge;
+import 'resource_checks_test.dart' as resources;
 import '../../ub_contracts/test/assessment_integrity_test.dart' as accounting;
 
 void main() {
@@ -74,6 +76,59 @@ void main() {
       ),
     );
   });
+  Future<void> seed(List<RecordVersion> records) =>
+      store.transaction((s) async {
+        final journal = s.kernel(f.u).journal;
+        final head = await journal.head(continuity);
+        final membership = await journal.snapshot(continuity, head);
+        await s
+            .kernel(f.u)
+            .commit(
+              CommitInput(
+                universe: f.u,
+                continuity: continuity,
+                expectedHead: head,
+                principal: PrincipalId.generate(),
+                decision: 'Disposable author action setup',
+                reason: 'Disposable author action setup',
+                idempotencyKey: 'author-action-fixture',
+                changes: [
+                  for (final row in records)
+                    Assignment(
+                      recordId: row.identity.recordId,
+                      expected: membership[row.identity.recordId],
+                      next: StoredVersion.build(
+                        row.recordVersionId,
+                        row.identity,
+                        row.payload.toWire(),
+                      ),
+                    ),
+                ],
+              ),
+            );
+      });
+  Future<WireFields> authorAction(AuthorWritingAction action) async =>
+      WireFields(
+        await run(
+          owner,
+          (w) => w.executeWritingEngineRequest(
+            AuthorWritingEngineRequest(
+              universe: const Selector('Disposable universe'),
+              action: action,
+            ),
+            isValidationActive: (_) => false,
+          ),
+        ),
+        {
+          'acceptance_options',
+          'summary',
+          'candidate',
+          'validation',
+          'impact',
+          'publishable',
+          'review',
+        },
+      );
   CreateProposalRequest create({
     String key = 'create',
     Submission submission = Submission.submitted,
@@ -359,6 +414,345 @@ void main() {
         } finally {
           await observer.close();
         }
+      });
+      test('private knowledge establishes only attributed claims and preserves original acquisition during duration edits', () async {
+        final clock = FictionalUniverseStart(
+          calendarName: 'Knowledge clock',
+          initialTick: '0',
+          tickLabel: 'ticks',
+        ).build(frames.calendar);
+        final context = f.ref(55);
+        final original = EpistemicAttitudeRecord(
+          holder: f.ref(80),
+          proposition: f.ref(2),
+          attitude: EpistemicAttitudeKind.knows,
+          certainty: 'authored',
+          validity: CalendarIntervalValidity(
+            frames.calendar,
+            const ExactBound('10'),
+            const ExactBound('30'),
+          ),
+          basis: const AuthorDecisionBasis('Original author decision'),
+          acquisition: KnowledgeAcquisition(
+            truthContext: context,
+            time: ExactTime(frames.calendar, '10'),
+            basis: const AuthorEstablishedKnowledge(),
+          ),
+        );
+        await seed([
+          f.row(10, clock.$2),
+          f.row(
+            55,
+            RepresentedContextRecord(
+              universe: f.u,
+              kind: const ObjectiveContext(),
+              chronology: clock.$1,
+              labels: {},
+            ),
+          ),
+          f.row(
+            80,
+            EntityRecord(
+              names: [],
+              classificationResolution: ClassificationResolution.unclassified,
+              worldAssociations: [],
+              labels: {'en': 'Mara'},
+              metadata: {},
+            ),
+          ),
+          frames.fixture().first,
+          f.row(
+            2,
+            PropositionRecord(
+              subject: f.ref(80),
+              predicate: f.ref(1),
+              context: context,
+              value: const BooleanValue(true),
+              quantification: Quantification.particular,
+            ),
+          ),
+          f.row(
+            7,
+            knowledge.policy(
+              mode: KnowledgeMode.authorEstablished,
+              context: context,
+            ),
+          ),
+          f.row(6, original),
+        ]);
+        final selected = await openContext(writer, represented: f.id(55));
+        final action = EstablishKnowledgeWritingAction(
+          contextId: selected.contextId,
+          declaration: AuthorKnowledgeDeclaration(
+            holder: 'Mara',
+            claim: WritingClaim(
+              subject: 'Mara',
+              property: 'open',
+              value: const FactBooleanValue(false),
+            ),
+            atTick: '9007199254740993',
+            lifetime: const FactUntilLifetime(endTick: '9007199254740995'),
+          ),
+          rationale: 'Explicit author knowledge',
+          label: 'Author passage',
+          text: 'Mara knows the gate is closed.',
+        );
+        await expectLater(
+          run(
+            writer,
+            (w) => w.executeWritingEngineRequest(
+              AuthorWritingEngineRequest(
+                universe: const Selector('Disposable universe'),
+                action: action,
+              ),
+              isValidationActive: (_) => false,
+            ),
+          ),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        final reviewed = await authorAction(action);
+        final ref = ProposalRef.fromWire(reviewed.require('candidate'));
+        final retained = await store.transaction(
+          (s) async => StoredProposal.fromWire(
+            (await s.workflows(f.u).get(proposalKey(ref)))!,
+          ),
+        );
+        expect(retained.owner, owner);
+        expect(retained.authorOrigin, isTrue);
+        expect(
+          retained.proposal.operations.whereType<AssertPropositionOperation>(),
+          isEmpty,
+        );
+        final attitude = retained.proposal.operations
+            .whereType<AddBeliefOperation>()
+            .single
+            .record;
+        expect(attitude.basis, AuthorDecisionBasis(action.rationale));
+        expect(attitude.acquisition!.basis, isA<AuthorEstablishedKnowledge>());
+        expect(
+          attitude.acquisition!.time,
+          ExactTime(frames.calendar, '9007199254740993'),
+        );
+        final edit = EditKnowledgeWritingAction(
+          contextId: selected.contextId,
+          correction: WritingAttitudeCorrection(
+            attitudeHandle: f.ver(6).value,
+            reason: 'Correct authored duration',
+            endTick: '20',
+          ),
+          label: 'Corrected notes',
+          text: 'Mara knew until twenty.',
+        );
+        final edited = await authorAction(edit);
+        final editRef = ProposalRef.fromWire(edited.require('candidate'));
+        final replacement = await store.transaction(
+          (s) async =>
+              StoredProposal.fromWire(
+                    (await s.workflows(f.u).get(proposalKey(editRef)))!,
+                  ).proposal.operations
+                  .whereType<ReviseAttitudeOperation>()
+                  .single
+                  .replacement,
+        );
+        expect(replacement.proposition, original.proposition);
+        expect(replacement.holder, original.holder);
+        expect(replacement.basis, original.basis);
+        expect(
+          replacement.acquisition!.toWire().toText(),
+          original.acquisition!.toWire().toText(),
+        );
+        expect(
+          replacement.validity,
+          CalendarIntervalValidity(
+            frames.calendar,
+            const ExactBound('10'),
+            const ExactBound('20'),
+          ),
+        );
+        await expectLater(
+          authorAction(
+            EditKnowledgeWritingAction(
+              contextId: selected.contextId,
+              correction: WritingAttitudeCorrection(
+                attitudeHandle: f.ver(6).value,
+                reason: 'Change claim',
+                value: const FactBooleanValue(false),
+              ),
+              label: 'Changed claim',
+              text: 'Changed claim',
+            ),
+          ),
+          throwsA(isA<FormatException>()),
+        );
+        await store.close();
+        store = await open();
+        expect(
+          ProposalRef.fromWire(
+            (await authorAction(action)).require('candidate'),
+          ).toWire().toText(),
+          ref.toWire().toText(),
+        );
+        expect(
+          ProposalRef.fromWire((await authorAction(edit)).require('candidate'))
+              .toWire()
+              .toText(),
+          editRef.toWire().toText(),
+        );
+        await store.transaction((s) async {
+          expect(await s.workflows(f.u).keys('source-version:'), hasLength(2));
+          expect(await s.workflows(f.u).keys('approval:'), isEmpty);
+          expect(
+            await s.kernel(f.u).journal.head(continuity),
+            selected.frame.revision,
+          );
+        });
+        final report = ValidationV3.fromWire(reviewed.require('validation'));
+        now = BigInt.from(200000);
+        await expectLater(
+          authorAction(action),
+          throwsA(isA<ContextExpiredError>()),
+        );
+        await expectLater(
+          authorAction(edit),
+          throwsA(isA<ContextExpiredError>()),
+        );
+        now = BigInt.from(100);
+        final receipt = CommitReceipt.fromWire(
+          await run(
+            owner,
+            (w) => w.authorWritingAction(
+              PublishWritingAction(
+                candidate: ref,
+                validationRun: report.execution!.runId,
+                idempotencyKey: 'publish-knowledge',
+              ),
+              isValidationActive: (_) => false,
+            ),
+          ),
+        );
+        final payloads = await store.transaction((s) async {
+          final journal = s.kernel(f.u).journal;
+          return [
+            for (final id in (await journal.snapshot(
+              continuity,
+              receipt.revision,
+            )).values)
+              RecordVersion.fromWire((await journal.load(id)).toCanonical())
+                  .payload,
+          ];
+        });
+        expect(payloads.whereType<AssertionRecord>(), isEmpty);
+        expect(payloads.whereType<EpistemicAttitudeRecord>(), hasLength(2));
+      });
+      test('private resource acceptance preserves exact source versions without approving or publishing the accepted finding', () async {
+        final clock = FictionalUniverseStart(
+          calendarName: 'Campaign clock',
+          initialTick: '0',
+          tickLabel: 'ticks',
+        ).build(resources.cal);
+        await seed([
+          ...resources.fixture(),
+          f.row(6, clock.$2),
+          f.row(
+            5,
+            RepresentedContextRecord(
+              universe: f.u,
+              kind: const ObjectiveContext(),
+              chronology: clock.$1,
+              labels: {},
+            ),
+          ),
+        ]);
+        final opened = await openContext(owner, represented: f.id(5));
+        final draft = await run(
+          owner,
+          (w) => w.proposeRequest(
+            CreateProposalRequest(
+              universe: const Selector('Disposable universe'),
+              contextId: opened.contextId,
+              operations: [
+                AddNameOperation(
+                  record: f.ref(3),
+                  expectedVersion: f.ver(3),
+                  name: const ContextualName(
+                    text: 'Actor',
+                    validity: UnspecifiedValidity(),
+                  ),
+                ),
+              ],
+              submission: Submission.draft,
+              rationale: 'Resource timeline review',
+              idempotencyKey: 'resource-draft',
+            ),
+            isValidationActive: (_) => false,
+          ),
+        );
+        final prepared = await authorAction(
+          PrepareWritingAction(
+            candidate: draft.proposalId,
+            label: 'Session notes',
+            text: 'The actor acquired another round at tick five.',
+          ),
+        );
+        expect(prepared.boolean('publishable'), isFalse);
+        final ref = ProposalRef.fromWire(prepared.require('candidate'));
+        final option = WireFields(prepared.array('acceptance_options').single, {
+          'fingerprint',
+          'scope',
+        });
+        final action = AcceptWritingAction(
+          candidate: ref,
+          fingerprint: FindingFingerprint(option.string('fingerprint')),
+          scope: option.string('scope'),
+          rationale: 'Author accepts this exact unexplained arrival',
+        );
+        Future<List<String>> sourceVersions(ProposalRef ref) =>
+            store.transaction((s) async {
+              final stored = StoredProposal.fromWire(
+                (await s.workflows(f.u).get(proposalKey(ref)))!,
+              );
+              return stored.changes
+                  .where((c) => c.next != null)
+                  .map((c) => RecordVersion.fromWire(c.next!.toCanonical()))
+                  .where((r) => r.payload is SourceVersionRecord)
+                  .map((r) => r.toWire().toText())
+                  .toList();
+            });
+        final sources = await sourceVersions(ref);
+        await expectLater(
+          authorAction(
+            AcceptWritingAction(
+              candidate: ref,
+              fingerprint: action.fingerprint,
+              scope: 'wrong scope',
+              rationale: action.rationale,
+            ),
+          ),
+          throwsA(isA<InvalidArgumentError>()),
+        );
+        final accepted = await authorAction(action);
+        final next = ProposalRef.fromWire(accepted.require('candidate'));
+        expect(next.version, ref.version + BigInt.one);
+        expect(accepted.boolean('publishable'), isTrue);
+        expect(accepted.array('acceptance_options'), isEmpty);
+        expect(await sourceVersions(next), sources);
+        await store.close();
+        store = await open();
+        expect(
+          ProposalRef.fromWire(
+            (await authorAction(action)).require('candidate'),
+          ).toWire().toText(),
+          next.toWire().toText(),
+        );
+        expect(await sourceVersions(next), sources);
+        await store.transaction((s) async {
+          expect(
+            await s.kernel(f.u).journal.head(continuity),
+            opened.frame.revision,
+          );
+          expect(await s.workflows(f.u).keys('approval:'), isEmpty);
+          expect(await s.workflows(f.u).keys('source-version:'), hasLength(1));
+        });
       });
       test('queued validation uses the native isolate scheduler with fresh PostgreSQL transactions', () async {
         final researched = await researchedProposal();
