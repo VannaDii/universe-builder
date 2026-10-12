@@ -414,6 +414,33 @@ final class SqliteValidationWorkflow {
     }
   }
 
+  Future<CanonicalObject> backupRequest(BackupEngineRequest request) async {
+    try {
+      return await authority.withUniverseAuthority(principal, universe, (
+        current,
+      ) {
+        if (!current.principal.author ||
+            authority
+                    .resolveUniverseAlias(principal, request.universe.value)
+                    .universeId !=
+                universe) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        package.backup(request.destination);
+        return CanonicalObject([
+          MapEntry('backup', CanonicalString(request.destination)),
+          MapEntry('universe_id', CanonicalString(universe.value)),
+          const MapEntry('verified', CanonicalBool(true)),
+        ]);
+      });
+    } on InstallationException catch (error) {
+      if (error.failure == InstallationFailure.denied) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      rethrow;
+    }
+  }
+
   /// Author-owned pinned branches and explicit adoption intent. Comparison and
   /// adoption preparation never advance either continuity or approve changes.
   Future<CanonicalValue> continuityRequest(EngineRequest request) async {

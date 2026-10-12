@@ -2,6 +2,16 @@ import 'dart:ffi';
 
 const _asset = 'package:ub_store/src/native_ownership.dart';
 
+@Native<Int32 Function(Pointer<Char>, Pointer<Char>, Pointer<Char>)>(
+  symbol: 'ub_publish_snapshot',
+  assetId: _asset,
+)
+external int nativePublishSnapshot(
+  Pointer<Char> source,
+  Pointer<Char> destination,
+  Pointer<Char> directory,
+);
+
 @Native<Int32 Function(Pointer<Char>, Pointer<Uint8>, Int32, Pointer<Int32>)>(
   symbol: 'ub_read_image',
   assetId: _asset,

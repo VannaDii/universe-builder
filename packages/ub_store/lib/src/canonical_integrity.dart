@@ -5,7 +5,11 @@ import 'package:crypto/crypto.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 import 'initialization.dart';
+import 'candidate_foundation.dart';
+import 'candidate_references.dart';
 import 'journal.dart';
+import 'media_bytes.dart';
+import 'media_decode.dart';
 import 'workflow_storage.dart';
 
 /// Runtime integrity checks from the existing kernel, before rebuilding any
@@ -13,6 +17,148 @@ import 'workflow_storage.dart';
 final class CanonicalIntegrity {
   CanonicalIntegrity(this.journal);
   final SqliteJournal journal;
+
+  /// Complete snapshot transfer checks, including historical rather than only
+  /// current memberships and staged bytes that normal startup may leave for repair.
+  void verifyComplete() {
+    final database = journal.database;
+    final ownRead = database.autocommit;
+    if (ownRead) database.execute('BEGIN');
+    try {
+      verify();
+      final workflow = WorkflowStorage(database);
+      String sourceText(SourceVersionRecord source) {
+        final value = workflow.evidence('source:${source.contentDigest}');
+        if (value is! CanonicalString) {
+          throw const FormatException('Missing retained source bytes');
+        }
+        final bytes = utf8.encode(value.value);
+        if (BigInt.from(bytes.length) != source.byteSize ||
+            source.decoding.byteLength != source.byteSize ||
+            source.decoding.encoding != 'UTF-8' ||
+            source.decoding.representation != 'exact-utf8-v1' ||
+            sha256.convert(bytes).toString() != source.contentDigest) {
+          throw const FormatException('Source decoding mismatch');
+        }
+        return value.value;
+      }
+
+      void content(RecordPayload payload) {
+        switch (payload) {
+          case ImageAssetRecord asset:
+            validateImageBytes(
+              asset,
+              readRetainedImageBytesSync(asset, workflow.evidence),
+            );
+          case SourceVersionRecord source:
+            sourceText(source);
+          case AnchorRecord anchor:
+            final record = journal.load(anchor.sourceVersion.version);
+            if (record.identity.recordId != anchor.sourceVersion.record ||
+                record.identity.recordKind != RecordKind.sourceVersion) {
+              throw const FormatException(
+                'Archive anchor source identity or kind mismatch',
+              );
+            }
+            final source = SourceVersionRecord.fromWire(record.payload);
+            final bytes = utf8.encode(sourceText(source));
+            final locator = anchor.locator;
+            if (locator is! ByteRangeLocator) {
+              throw const FormatException('Archive anchor locator unsupported');
+            }
+            if (locator.start > locator.end ||
+                locator.end > BigInt.from(bytes.length)) {
+              throw const FormatException('Archive anchor UTF-8 boundaries');
+            }
+            final excerptBytes = bytes.sublist(
+              locator.start.toInt(),
+              locator.end.toInt(),
+            );
+            bool boundary(int offset) =>
+                offset == bytes.length || bytes[offset] & 0xc0 != 0x80;
+            if (!boundary(locator.start.toInt()) ||
+                !boundary(locator.end.toInt())) {
+              throw const FormatException('Archive anchor UTF-8 boundaries');
+            }
+            if (utf8.decode(excerptBytes) != anchor.excerpt ||
+                sha256.convert(excerptBytes).toString() !=
+                    anchor.excerptDigest) {
+              throw const FormatException('Archive anchor excerpt mismatch');
+            }
+          default:
+            break;
+        }
+      }
+
+      for (final row in database.select(
+        'SELECT id FROM record_versions WHERE universe_id=? ORDER BY id',
+        [journal.universe.value],
+      )) {
+        final record = journal.load(RecordVersionId.parse(row['id'] as String));
+        final payload = RecordPayload.fromWire(record.payload);
+        content(payload);
+        if (payload is WorldRecord) {
+          for (final name in [payload.selector, ...payload.aliases]) {
+            final reserved = database.select(
+              'SELECT record_id FROM world_name_reservations WHERE universe_id=? AND name=?',
+              [journal.universe.value, selectorKey(name)],
+            );
+            if (reserved.length != 1 ||
+                reserved.single['record_id'] !=
+                    record.identity.recordId.value) {
+              throw const FormatException(
+                'Archive omits a historical world name reservation',
+              );
+            }
+          }
+        }
+      }
+      for (final row in database.select(
+        "SELECT key FROM workflow_index WHERE key LIKE 'image-asset:%' OR key LIKE 'source-version:%' ORDER BY key",
+      )) {
+        final value = workflow.evidence(row['key'] as String);
+        if (value == null) {
+          throw const FormatException('Missing staged content metadata');
+        }
+        final payload = RecordPayload.fromWire(value);
+        if (payload is! ImageAssetRecord && payload is! SourceVersionRecord) {
+          throw const FormatException('Wrong staged content family');
+        }
+        content(payload);
+      }
+      var work = 0;
+      final validated = <String>{};
+      for (final row in database.select(
+        'SELECT id,continuity_id FROM commits WHERE universe_id=? ORDER BY id',
+        [journal.universe.value],
+      )) {
+        final membership = journal.snapshot(
+          ContinuityId.parse(row['continuity_id'] as String),
+          RevisionId.parse(row['id'] as String),
+        );
+        work += membership.length + 1;
+        if (work > 10000000) {
+          throw const FormatException(
+            'Historical restoration validation budget exceeded',
+          );
+        }
+        final digest = canonicalDigest(
+          CanonicalObject([
+            for (final entry in membership.entries)
+              MapEntry(entry.key.value, CanonicalString(entry.value.value)),
+          ]),
+        );
+        if (validated.add(digest)) {
+          CandidateFoundation(journal).validate(membership);
+          CandidateReferences(journal).validate(membership);
+        }
+      }
+      if (ownRead) database.execute('COMMIT');
+    } on Object {
+      if (ownRead && !database.autocommit) database.execute('ROLLBACK');
+      rethrow;
+    }
+  }
 
   void verify() {
     final database = journal.database;

@@ -101,6 +101,24 @@ void syncPrivateFileAndDirectory(String path) {
   );
 }
 
+/// Publish one already verified snapshot, without replacing an existing path.
+void publishSnapshot(String source, String destination) {
+  _pathCheck(source);
+  _pathCheck(destination);
+  final directory = File(destination).parent.resolveSymbolicLinksSync();
+  using(
+    (arena) => _checkError(
+      nativePublishSnapshot(
+        source.toNativeUtf8(allocator: arena).cast(),
+        destination.toNativeUtf8(allocator: arena).cast(),
+        directory.toNativeUtf8(allocator: arena).cast(),
+      ),
+      'Snapshot publication refused or durability uncertain',
+      destination,
+    ),
+  );
+}
+
 /// Descriptor-owned flock, compatible with the original POSIX runtime and
 /// exclusive across both processes and isolates. No PID file grants ownership.
 final class OwnedFileLock implements Finalizable {

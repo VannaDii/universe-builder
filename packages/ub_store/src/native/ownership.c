@@ -24,6 +24,9 @@ UB_EXPORT int32_t ub_file_identity(const char *path, char *device, char *inode) 
 UB_EXPORT int32_t ub_read_image(const char *path, uint8_t *bytes, int32_t capacity, int32_t *length) {
   (void)path; (void)bytes; (void)capacity; (void)length; return 50;
 }
+UB_EXPORT int32_t ub_publish_snapshot(const char *source, const char *destination, const char *directory) {
+  (void)source; (void)destination; (void)directory; return 50;
+}
 #else
 #include <fcntl.h>
 #include <sys/file.h>
@@ -88,6 +91,22 @@ UB_EXPORT int32_t ub_protected_file(const char *path, int32_t create) {
   int error = 0;
   int fd = protected_open(path, create, &error);
   if (fd >= 0) close(fd);
+  return error;
+}
+
+/* Atomic publication refuses any existing destination, including a symlink. */
+UB_EXPORT int32_t ub_publish_snapshot(const char *source, const char *destination, const char *directory) {
+  int error = 0;
+  int fd = protected_open(source, 0, &error);
+  if (fd < 0) return error;
+  int parent = open(directory, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+  if (parent < 0) { error = errno; close(fd); return error; }
+  if (fsync(fd) != 0) error = errno;
+  if (!error && link(source, destination) != 0) error = errno;
+  if (!error && unlink(source) != 0) error = errno;
+  if (!error && fsync(parent) != 0) error = errno;
+  close(parent);
+  close(fd);
   return error;
 }
 

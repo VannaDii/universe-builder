@@ -121,6 +121,40 @@ final class OwnedSqliteDatabase {
     ),
   ]);
 
+  /// A consistent verified SQLite snapshot, published without overwriting an
+  /// existing destination. All staged content and immutable history are retained.
+  void backup(String destination) {
+    if (!database.autocommit) {
+      throw StateError('Backup requires no active transaction');
+    }
+    final target = File(destination).absolute;
+    final temporary = target.parent.createTempSync('.universe-backup-');
+    try {
+      privateDirectory(temporary.path);
+      final copyPath = '${temporary.path}/package.sqlite';
+      protectedFile(copyPath, createNew: true);
+      database.execute('VACUUM INTO ?', [copyPath]);
+      if (File(copyPath).lengthSync() > maxPackageBytes) {
+        throw const FormatException(
+          'Backup exceeds restore budget; original is unchanged',
+        );
+      }
+      final copy = sqlite3.open(copyPath, mode: OpenMode.readOnly);
+      try {
+        final checks = copy.select('PRAGMA integrity_check');
+        if (checks.length != 1 || checks.single.values.single != 'ok') {
+          throw const FormatException('Backup integrity failure');
+        }
+        CanonicalIntegrity(SqliteJournal(copy, universeId)).verifyComplete();
+      } finally {
+        copy.close();
+      }
+      publishSnapshot(copyPath, target.path);
+    } finally {
+      temporary.deleteSync(recursive: true);
+    }
+  }
+
   /// Retain all author history and evidence. Only disposable snapshot caches
   /// may be collected while this connection retains sole writer ownership.
   CanonicalObject maintain({required bool collect}) {

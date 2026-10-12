@@ -3022,6 +3022,59 @@ void main() {
       fields,
     );
     final beforeLibrary = await library(connection);
+    final backupPath = '${root.path}/complete-backup.sqlite';
+    final backupResult = WireFields(
+      await engine(
+        connection,
+        BackupEngineRequest(
+          universe: const Selector('World'),
+          destination: backupPath,
+        ),
+      ),
+      {'backup', 'universe_id', 'verified'},
+    );
+    expect(backupResult.string('backup'), backupPath);
+    expect(backupResult.string('universe_id'), f.u.value);
+    expect(backupResult.boolean('verified'), isTrue);
+    final backup = OwnedSqliteDatabase.openExisting(backupPath);
+    try {
+      backup.recover();
+      expect(
+        SqliteJournal(backup.database, f.u).head(opened.frame.continuity),
+        CommitReceipt.fromWire(published.result).revision,
+      );
+      final retained = WorkflowStorage(backup.database);
+      expect(
+        retained.get(retained.keys('draft:').single)!.toText(),
+        savedDraft.toText(),
+      );
+      expect(retained.keys('approval:'), hasLength(1));
+      expect(
+        backup.database
+            .select('SELECT count(*) AS n FROM operation_receipts')
+            .single['n'],
+        2,
+      );
+      expect(
+        backup.database
+            .select('SELECT utf8_content FROM source_content')
+            .single['utf8_content'],
+        orderedEquals(utf8.encode(stage.text)),
+      );
+      expect(
+        SqliteKernel(backup.database, f.u).imageBytes(image),
+        orderedEquals(imageBytes),
+      );
+      expect(
+        SqliteJournal(
+          backup.database,
+          f.u,
+        ).snapshot(opened.frame.continuity, opened.frame.revision),
+        hasLength(1),
+      );
+    } finally {
+      backup.close();
+    }
     final dry = await maintenance(false);
     expect(dry.string('retention_policy'), 'retain-all-history-v1');
     expect(dry.boolean('canonical'), isFalse);
@@ -3106,6 +3159,65 @@ void main() {
     } finally {
       package.close();
     }
+  });
+
+  test('native backup refuses writers and preserves existing destinations without leaving staging files', () async {
+    authority.grant(
+      author,
+      GrantSpec(
+        profileId: writer.id,
+        universeId: f.u,
+        worlds: null,
+        propose: true,
+        edit: true,
+        protected: true,
+      ),
+    );
+    final destination = File('${root.path}/existing-backup.sqlite')
+      ..writeAsStringSync('Original file');
+    final request = BackupEngineRequest(
+      universe: const Selector('World'),
+      destination: destination.path,
+    );
+    final blocker = OwnedSqliteDatabase.openExisting(path);
+    try {
+      await expectLater(
+        engine(runtime.connect(hello(writer.id)), request),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+    } finally {
+      blocker.close();
+    }
+    final connection = runtime.connect(hello(author.id));
+    await expectLater(
+      engine(connection, request),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect(destination.readAsStringSync(), 'Original file');
+    final link = Link('${root.path}/linked-backup.sqlite')
+      ..createSync(destination.path);
+    await expectLater(
+      engine(
+        connection,
+        BackupEngineRequest(
+          universe: const Selector('World'),
+          destination: link.path,
+        ),
+      ),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect(link.targetSync(), destination.path);
+    expect(destination.readAsStringSync(), 'Original file');
+    expect(
+      root.listSync().where(
+        (f) => f.uri.pathSegments.any((p) => p.startsWith('.universe-backup-')),
+      ),
+      isEmpty,
+    );
+    expect(
+      (await library(connection)).require('writing').toText(),
+      contains(draft.proposal.proposalId.value),
+    );
   });
 
   test(
