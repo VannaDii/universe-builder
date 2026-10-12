@@ -448,6 +448,32 @@ void main() {
     expect(scopeRead.summaries.single.label, 'Visible');
     expect(scopeRead.historyCoverage, Coverage.restricted);
     expect(scopeRead.history, isEmpty);
+    final scopedBrief = await service.getContextRequest(
+      GetContextRequest(
+        universe: const Selector('World'),
+        contextId: scoped.contextId,
+        focusIds: [f.id(20)],
+        purpose: 'Research',
+        byteBudget: 100000,
+      ),
+    );
+    expect(scopedBrief.brief.coverage, Coverage.partial);
+    expect(
+      scopedBrief.brief.records.any((r) => r.identity.recordId == f.id(21)),
+      isFalse,
+    );
+    await expectLater(
+      service.getContextRequest(
+        GetContextRequest(
+          universe: const Selector('World'),
+          contextId: scoped.contextId,
+          focusIds: [f.id(21)],
+          purpose: 'Research',
+          byteBudget: 100000,
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
     final focused = await service.getRequest(
       GetRequest(
         universe: const Selector('World'),
@@ -539,6 +565,107 @@ void main() {
       f.id(5),
       f.id(99),
     });
+  });
+
+  test('context brief pages retain exact cursors across restart without claiming complete evidence', () async {
+    final rows = [for (var n = 20; n < 24; n++) f.row(n, f.entity())];
+    kernel.commit(input('brief-records', rows));
+    final opened = await service.openContext(contextRequest());
+    final budget =
+        ContextBrief(
+          records: [rows.first],
+          requiredDependencies: [],
+          coverage: Coverage.partial,
+        ).toWire().toBytes().length +
+        30;
+    GetContextRequest request({String? cursor, String purpose = 'Research'}) =>
+        GetContextRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          focusIds: rows.map((r) => r.identity.recordId),
+          purpose: purpose,
+          byteBudget: budget,
+          cursor: cursor,
+        );
+    final first = await service.getContextRequest(request());
+    expect(first.delivery.complete, isFalse);
+    expect(first.brief.records.length, 1);
+    expect(first.brief.coverage, Coverage.partial);
+    await expectLater(
+      service.getContextRequest(
+        request(cursor: first.delivery.cursor, purpose: 'Changed'),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    service = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: writer,
+    );
+    final collected = [...first.brief.records];
+    var cursor = first.delivery.cursor;
+    while (cursor != null) {
+      final page = await service.getContextRequest(request(cursor: cursor));
+      expect(page.brief.coverage, Coverage.partial);
+      collected.addAll(page.brief.records);
+      cursor = page.delivery.cursor;
+      if (cursor == null) expect(page.delivery.complete, isTrue);
+    }
+    expect(
+      collected.map((r) => r.identity.recordId),
+      rows.map((r) => r.identity.recordId),
+    );
+    final full = await service.getContextRequest(
+      GetContextRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        focusIds: rows.map((r) => r.identity.recordId),
+        purpose: 'Research',
+        byteBudget: 100000,
+      ),
+    );
+    expect(full.delivery.complete, isTrue);
+    expect(full.brief.coverage, Coverage.complete);
+  });
+
+  test('context brief refuses a mandatory record that cannot fit without retaining a cursor', () async {
+    final opened = await service.openContext(contextRequest());
+    await expectLater(
+      service.getContextRequest(
+        GetContextRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          focusIds: [f.id(99)],
+          purpose: 'Research',
+          byteBudget: 1,
+        ),
+      ),
+      throwsA(isA<EvaluationLimitReachedError>()),
+    );
+    expect(WorkflowStorage(package.database).keys('cursor:'), isEmpty);
+  });
+
+  test('expired context cannot retrieve a brief or consume a cursor', () async {
+    await retainedContext(expires: BigInt.zero);
+    await expectLater(
+      service.getContextRequest(
+        GetContextRequest(
+          universe: const Selector('World'),
+          contextId: proposals.contextId,
+          focusIds: [f.id(99)],
+          purpose: 'Research',
+          byteBudget: 100000,
+          cursor: 'unknown',
+        ),
+      ),
+      throwsA(isA<ContextExpiredError>()),
+    );
   });
 
   test('inline research retains query evidence without write rights or durable proposal state', () async {

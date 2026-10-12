@@ -551,6 +551,14 @@ appearance attachments. History follows exact fork baselines and tombstones,
 survives restart and retains the 100-change limit per record. Only unrestricted
 author-perspective reads disclose history; scoped/perspective views report
 restricted coverage. Deleted records require an admitted history request.
+Native context briefs now prioritize every visible rule, the requested focus,
+effective object evidence and transitive research dependencies. Purpose text
+does not remove constraints. Pages respect the byte budget and retain opaque
+cursors bound to exact arguments, the pinned frame, principal and current scope.
+Pagination survives package restart. Delivery completion is distinct from
+evidence coverage: paginated, scoped or perspective-limited briefs remain
+partial, as do briefs with missing dependencies or hidden rules/active appearance
+references. A budget that cannot fit the next mandatory record fails explicitly.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

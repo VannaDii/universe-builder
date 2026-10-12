@@ -92,6 +92,11 @@ Set<RecordId> readDependencyClosure(
 Set<RecordId> readResearchClosure(
   List<RecordVersion> records,
   Iterable<RecordId> seeds,
+) => readResearchSelection(records, seeds).$1;
+
+(Set<RecordId>, bool) readResearchSelection(
+  List<RecordVersion> records,
+  Iterable<RecordId> seeds,
 ) {
   final edges = <RecordId, List<RecordId>>{};
   final pending = seeds.toList();
@@ -183,11 +188,14 @@ Set<RecordId> readResearchClosure(
   }
   final existing = records.map((row) => row.identity.recordId).toSet();
   final visited = <RecordId>{};
+  var closed = true;
   while (pending.isNotEmpty) {
     final id = pending.removeLast();
-    if (existing.contains(id) && visited.add(id)) {
+    if (!existing.contains(id)) {
+      closed = false;
+    } else if (visited.add(id)) {
       pending.addAll(edges[id] ?? []);
     }
   }
-  return Set.unmodifiable(visited);
+  return (Set.unmodifiable(visited), closed);
 }

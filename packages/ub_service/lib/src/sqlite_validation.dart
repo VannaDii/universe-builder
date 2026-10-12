@@ -9,6 +9,7 @@ import 'assessment_resolution.dart';
 import 'assessment_validation.dart';
 import 'candidate_validation.dart';
 import 'context_binding.dart';
+import 'context_brief.dart';
 import 'context_opening.dart';
 import 'installation_authority.dart';
 import 'operation_compilation.dart';
@@ -17,6 +18,7 @@ import 'proposal_authorization.dart';
 import 'proposal_state.dart';
 import 'proposal_validation.dart';
 import 'record_reading.dart';
+import 'read_cursor.dart';
 import 'source_verification.dart';
 import 'validation_binding.dart';
 import 'validation_task.dart';
@@ -224,18 +226,24 @@ final class SqliteValidationWorkflow {
     return frame;
   }
 
-  Future<Records> getRequest(
-    GetRequest request,
-  ) => authority.withUniverseAuthority(principal, universe, (current) async {
-    const denied = NotFoundOrNotAccessibleError(message: 'resource');
-    if (request.universeId != null && request.universeId != universe) {
-      throw denied;
-    }
-    final frame = _contextFrame(request.contextId, current);
+  Future<
+    ({
+      List<RecordVersion> all,
+      List<RecordVersion> accessible,
+      Set<RecordId> visibility,
+      WorldId? focus,
+    })
+  >
+  _readSnapshot({
+    required Frame frame,
+    required Selector? world,
+    required WorldId? guard,
+    required CurrentUniverseAuthority current,
+  }) async {
     final all = _canon(frame.continuity, frame.revision);
     final focus = resolveWorldFocus(
-      world: request.world,
-      guard: request.worldId,
+      world: world,
+      guard: guard,
       records: all,
       scope: current.worldScope,
     );
@@ -267,6 +275,29 @@ final class SqliteValidationWorkflow {
     final accessible = visible
         .where((row) => included.contains(row.identity.recordId))
         .toList();
+    return (
+      all: all,
+      accessible: accessible,
+      visibility: visible.map((row) => row.identity.recordId).toSet(),
+      focus: focus,
+    );
+  }
+
+  Future<Records> getRequest(
+    GetRequest request,
+  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    const denied = NotFoundOrNotAccessibleError(message: 'resource');
+    if (request.universeId != null && request.universeId != universe) {
+      throw denied;
+    }
+    final frame = _contextFrame(request.contextId, current);
+    final snapshot = await _readSnapshot(
+      frame: frame,
+      world: request.world,
+      guard: request.worldId,
+      current: current,
+    );
+    final accessible = snapshot.accessible;
     final groups = request.fieldGroups;
     final historyRequested = groups.contains(FieldGroup.history);
     final fullHistory =
@@ -320,6 +351,66 @@ final class SqliteValidationWorkflow {
       historyCoverage: historyRequested
           ? (fullHistory ? Coverage.complete : Coverage.restricted)
           : null,
+    );
+  });
+
+  Future<({ContextBrief brief, Delivery delivery})> getContextRequest(
+    GetContextRequest request,
+  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    const denied = NotFoundOrNotAccessibleError(message: 'resource');
+    if (request.universeId != null && request.universeId != universe) {
+      throw denied;
+    }
+    final frame = _contextFrame(request.contextId, current);
+    final binding = readCursorBinding(
+      args: request.toArgs(),
+      frame: frame,
+      principal: principal.id,
+      scopeHash: current.scopeHash,
+    );
+    var offset = 0;
+    if (request.cursor != null) {
+      final value = _workflow.get('cursor:${request.cursor}');
+      if (value == null) throw denied;
+      final saved = StoredReadCursor.fromWire(value);
+      if (saved.binding != binding) throw denied;
+      offset = saved.offset.toInt();
+      if (BigInt.from(offset) != saved.offset) throw denied;
+    }
+    final snapshot = await _readSnapshot(
+      frame: frame,
+      world: request.world,
+      guard: request.worldId,
+      current: current,
+    );
+    final page = buildContextBrief(
+      all: snapshot.all,
+      accessible: snapshot.accessible,
+      visibility: snapshot.visibility,
+      focusIds: request.focusIds,
+      frame: frame,
+      world: snapshot.focus,
+      restricted:
+          current.worldScope != null || frame.perspective is! AuthorPerspective,
+      byteBudget: request.byteBudget,
+      offset: offset,
+    );
+    String? cursor;
+    if (!page.complete) {
+      cursor = OperationId.generate().value;
+      _workflow.compareAppend({}, [
+        MapEntry(
+          'cursor:$cursor',
+          StoredReadCursor(
+            binding: binding,
+            offset: BigInt.from(page.next),
+          ).toWire(),
+        ),
+      ]);
+    }
+    return (
+      brief: page.brief,
+      delivery: Delivery(complete: page.complete, cursor: cursor),
     );
   });
 
