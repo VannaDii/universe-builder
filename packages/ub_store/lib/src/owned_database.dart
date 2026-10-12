@@ -63,16 +63,17 @@ final class OwnedSqliteDatabase {
   /// Required before service startup exposes an existing initialized package.
   /// Retained evidence is checked first; disposable indexes never admit canon.
   void recover() {
+    final journal = SqliteJournal(database, universeId);
+    CanonicalIntegrity(journal).verify();
+    ProjectionRecovery(journal).rebuild();
+  }
+
+  UniverseId get universeId {
     final rows = database.select('SELECT id FROM universes');
     if (rows.length != 1) {
       throw const FormatException('Missing or ambiguous package universe');
     }
-    final journal = SqliteJournal(
-      database,
-      UniverseId.parse(rows.single['id'] as String),
-    );
-    CanonicalIntegrity(journal).verify();
-    ProjectionRecovery(journal).rebuild();
+    return UniverseId.parse(rows.single['id'] as String);
   }
 
   void close() {

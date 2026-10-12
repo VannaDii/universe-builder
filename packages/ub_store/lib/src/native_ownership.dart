@@ -34,3 +34,13 @@ external void nativeReleaseLock(Pointer<Void> handle);
   assetId: _asset,
 )
 external int nativeSyncPrivate(Pointer<Char> path, Pointer<Char> directory);
+
+@Native<Int32 Function(Pointer<Char>, Pointer<Char>, Pointer<Char>)>(
+  symbol: 'ub_file_identity',
+  assetId: _asset,
+)
+external int nativeFileIdentity(
+  Pointer<Char> path,
+  Pointer<Char> device,
+  Pointer<Char> inode,
+);

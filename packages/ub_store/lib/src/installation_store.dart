@@ -5,8 +5,9 @@ import 'package:ub_domain/ub_domain.dart';
 
 import 'installation_schema.g.dart';
 import 'ownership.dart';
+import 'owned_database.dart';
 
-const _normalization = 'nfc-0.1.22-casefold-0.2.0-v1';
+const _normalization = selectorNormalizationVersion;
 
 enum InstallationFailure {
   unavailable,
@@ -50,6 +51,17 @@ final class InstallationAuditEntry {
   final String actor;
   final String action;
   final String target;
+}
+
+final class InstallationCatalogEntry {
+  const InstallationCatalogEntry({
+    required this.universeId,
+    required this.name,
+    required this.path,
+  });
+  final UniverseId universeId;
+  final String name;
+  final String path;
 }
 
 /// Native authority store. No connection or generic metadata writer is exposed.
@@ -299,6 +311,128 @@ final class SqliteInstallationStore {
   bool get hasProfiles {
     _ensureOpen();
     return _db.select('SELECT count(*) AS n FROM profiles').single['n'] != 0;
+  }
+
+  /// Open/recover the real package and derive its identity before registration.
+  /// The package writer lock remains held through catalog publication.
+  UniverseId registerExistingPackage({
+    required ProfileId actor,
+    required String name,
+    required String path,
+  }) {
+    requireAuthor(actor);
+    selectorKey(name);
+    final package = OwnedSqliteDatabase.openExisting(path);
+    try {
+      package.recover();
+      final id = package.universeId;
+      _registerUniverse(actor: actor, id: id, name: name, path: path);
+      return id;
+    } finally {
+      package.close();
+    }
+  }
+
+  void _registerUniverse({
+    required ProfileId actor,
+    required UniverseId id,
+    required String name,
+    required String path,
+  }) {
+    requireAuthor(actor);
+    final key = selectorKey(name);
+    final actualPath = File(path).resolveSymbolicLinksSync();
+    final identity = fileIdentity(actualPath);
+    _transaction(() {
+      requireAuthor(actor);
+      _db.execute(
+        'INSERT INTO catalog(id,name,path,device,inode) VALUES(?,?,?,?,?)',
+        [id.value, name, actualPath, identity.device, identity.inode],
+      );
+      _db.execute('INSERT INTO aliases(key,universe) VALUES(?,?)', [
+        key,
+        id.value,
+      ]);
+      _db.execute(
+        "INSERT INTO audit(actor,action,target) VALUES(?,'register',?)",
+        [actor.value, id.value],
+      );
+    });
+  }
+
+  void renameUniverse({
+    required ProfileId actor,
+    required UniverseId id,
+    required String name,
+  }) {
+    requireAuthor(actor);
+    final key = selectorKey(name);
+    _transaction(() {
+      requireAuthor(actor);
+      final existing = _db.select('SELECT universe FROM aliases WHERE key=?', [
+        key,
+      ]);
+      if (existing.isNotEmpty && existing.single['universe'] != id.value) {
+        throw const InstallationException(InstallationFailure.denied);
+      }
+      _db.execute('UPDATE catalog SET name=? WHERE id=?', [name, id.value]);
+      if (_db.updatedRows != 1) {
+        throw const InstallationException(InstallationFailure.denied);
+      }
+      // Historical aliases remain reserved for the original universe.
+      _db.execute('INSERT OR IGNORE INTO aliases(key,universe) VALUES(?,?)', [
+        key,
+        id.value,
+      ]);
+      _db.execute(
+        "INSERT INTO audit(actor,action,target) VALUES(?,'rename',?)",
+        [actor.value, id.value],
+      );
+    });
+  }
+
+  InstallationCatalogEntry resolveUniverseAlias({
+    required ProfileId actor,
+    required String name,
+  }) {
+    requireAuthor(actor);
+    final rows = _db.select(
+      'SELECT c.id,c.name,c.path,c.device,c.inode FROM catalog c JOIN aliases a ON a.universe=c.id WHERE a.key=?',
+      [selectorKey(name)],
+    );
+    if (rows.isEmpty) {
+      throw const InstallationException(InstallationFailure.denied);
+    }
+    final row = rows.single;
+    final path = row['path'] as String;
+    final identity = fileIdentity(path);
+    if (identity.device != row['device'] || identity.inode != row['inode']) {
+      throw const InstallationException(InstallationFailure.denied);
+    }
+    return InstallationCatalogEntry(
+      universeId: UniverseId.parse(row['id'] as String),
+      name: row['name'] as String,
+      path: path,
+    );
+  }
+
+  List<InstallationCatalogEntry> catalog(ProfileId actor) {
+    requireAuthor(actor);
+    final rows = _db.select(
+      'SELECT id,name,path FROM catalog ORDER BY name LIMIT 1001',
+    );
+    if (rows.length > 1000) {
+      throw const InstallationException(InstallationFailure.unavailable);
+    }
+    return List<InstallationCatalogEntry>.unmodifiable(
+      rows.map(
+        (r) => InstallationCatalogEntry(
+          universeId: UniverseId.parse(r['id'] as String),
+          name: r['name'] as String,
+          path: r['path'] as String,
+        ),
+      ),
+    );
   }
 
   void _transaction(void Function() action) {

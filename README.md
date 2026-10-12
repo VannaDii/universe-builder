@@ -334,7 +334,16 @@ enrollment, exact UTF-8 SHA-256 credential authentication and revocation. Author
 operations recheck current registry authority, and authenticated principals bind
 to their installation identity. Profile listings expose no hash or secret.
 Unknown, wrong and revoked credentials receive the same denial. Failed audit
-appends roll back authority mutations. Universe catalog/grant operations,
+appends roll back authority mutations. Author catalog operations now register an
+existing package only after owned startup recovery and derive its universe ID
+from that package. Registration stores its canonical path and exact device/inode
+identity while retaining the package writer lock through catalog publication.
+Name matching uses the shared pinned Unicode normalization; renames preserve
+old aliases for the original universe. Alias/file collisions roll back catalog
+and audit changes, and resolution refuses replaced files, symlinks and hard
+links. Catalog listing retains the original 1,000-entry bound and name order.
+These catalog operations currently require author authority; agent visibility
+must wait for the universe grant checks. Universe grant operations,
 transport handshake integration, pending-purge recovery and existing-installation
 cutover remain pending; these profile components do not start the Dart engine.
 Ordinary writer types now preserve JSON scalar fact values, named objects and

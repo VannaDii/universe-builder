@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <stdio.h>
 
 #if defined(_WIN32)
 #define UB_EXPORT __declspec(dllexport)
@@ -16,6 +17,9 @@ UB_EXPORT void *ub_lock_acquire(const char *path, int32_t *error) {
 UB_EXPORT void ub_lock_release(void *handle) { (void)handle; }
 UB_EXPORT int32_t ub_sync_private(const char *path, const char *directory) {
   (void)path; (void)directory; return 50;
+}
+UB_EXPORT int32_t ub_file_identity(const char *path, char *device, char *inode) {
+  (void)path; (void)device; (void)inode; return 50;
 }
 #else
 #include <fcntl.h>
@@ -62,6 +66,16 @@ UB_EXPORT int32_t ub_protected_file(const char *path, int32_t create) {
 }
 
 struct owned_lock { int fd; };
+
+UB_EXPORT int32_t ub_file_identity(const char *path, char *device, char *inode) {
+  struct stat info;
+  if (lstat(path, &info) != 0) return errno;
+  if (!S_ISREG(info.st_mode) || info.st_nlink != 1) return EACCES;
+  /* Decimal text preserves full unsigned metadata without Dart int coercion. */
+  snprintf(device, 21, "%llu", (unsigned long long) info.st_dev);
+  snprintf(inode, 21, "%llu", (unsigned long long) info.st_ino);
+  return 0;
+}
 
 UB_EXPORT int32_t ub_sync_private(const char *path, const char *directory) {
   int error = 0;

@@ -28,7 +28,7 @@ final class LocalProfileSummary {
   final bool revoked;
 }
 
-/// Service authority over installation profiles. This is not universe grant
+/// Service authority over installation profiles and catalog. This is not universe grant
 /// authorization; that scope check is required before exposing universe content.
 final class InstallationAuthority {
   const InstallationAuthority(this._store);
@@ -122,5 +122,40 @@ final class InstallationAuthority {
             ),
           ),
     );
+  }
+
+  UniverseId registerUniverse(
+    InstallationPrincipal actor, {
+    required String name,
+    required String path,
+  }) {
+    requireAuthor(actor);
+    return _store.registerExistingPackage(
+      actor: actor.id,
+      name: name,
+      path: path,
+    );
+  }
+
+  void renameUniverse(
+    InstallationPrincipal actor, {
+    required UniverseId id,
+    required String name,
+  }) {
+    requireAuthor(actor);
+    _store.renameUniverse(actor: actor.id, id: id, name: name);
+  }
+
+  InstallationCatalogEntry resolveUniverseAlias(
+    InstallationPrincipal actor,
+    String name,
+  ) {
+    requireAuthor(actor);
+    return _store.resolveUniverseAlias(actor: actor.id, name: name);
+  }
+
+  List<InstallationCatalogEntry> catalog(InstallationPrincipal actor) {
+    requireAuthor(actor);
+    return _store.catalog(actor.id);
   }
 }

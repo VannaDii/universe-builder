@@ -63,6 +63,28 @@ void protectedFile(String path, {bool create = false, bool createNew = false}) {
   );
 }
 
+/// Exact regular single-link identity for catalog registration and resolution.
+({String device, String inode}) fileIdentity(String path) {
+  _pathCheck(path);
+  return using((arena) {
+    final device = arena<Char>(21);
+    final inode = arena<Char>(21);
+    _checkError(
+      nativeFileIdentity(
+        path.toNativeUtf8(allocator: arena).cast(),
+        device,
+        inode,
+      ),
+      'Regular single-link file identity required',
+      path,
+    );
+    return (
+      device: device.cast<Utf8>().toDartString(),
+      inode: inode.cast<Utf8>().toDartString(),
+    );
+  });
+}
+
 /// Flush the private file and its containing directory after database close.
 void syncPrivateFileAndDirectory(String path) {
   _pathCheck(path);
