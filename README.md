@@ -485,9 +485,17 @@ PostgreSQL retains only hashes, and enrollment responses expose only the profile
 identity. Writers cannot enroll other profiles, and current revocation still
 applies after restart. Failed registry transactions retain the credential file
 for an uncertain outcome, while unpublished profiles cannot authenticate.
+Private PostgreSQL registration accepts an existing generated `ub_unv_…`
+namespace. It verifies and rebuilds that namespace in place before atomic catalog
+admission, preserving history and active workflow evidence. Identity and retained
+name conflicts are rejected; failed admission rolls back recovery and visibility
+without dropping the original namespace. SQLite file locators use reviewed import
+or restore instead. Private legacy conversion uses the existing canon-only archive
+converter, preserves the original source and requires separate reviewed admission;
+it never registers its output automatically or overwrites an existing destination.
 Coordinated backend cutover and hosted server backup operation remain pending.
 Socket/launcher integration, cross-process worker qualification and
-the remaining service routes are pending. Coordinated transfer and live
+backend parity qualification are pending. Coordinated transfer and live
 verified-TLS qualification also remain pending; runtime PostgreSQL selection
 is still explicitly unavailable.
 Run `test/postgres_foundation_test.dart`, `test/postgres_relational_test.dart`,

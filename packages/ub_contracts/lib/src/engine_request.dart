@@ -889,6 +889,8 @@ final class CreateUniverseEngineRequest extends EngineRequest {
   ]);
 }
 
+/// Register an existing SQLite package path or generated PostgreSQL namespace
+/// in the selected backend. This command does not transfer between backends.
 final class RegisterUniverseEngineRequest extends EngineRequest {
   const RegisterUniverseEngineRequest({required this.path, required this.name});
   final String path;

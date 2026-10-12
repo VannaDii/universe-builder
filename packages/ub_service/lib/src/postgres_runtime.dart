@@ -237,6 +237,23 @@ final class NativePostgresRuntime {
                 id: request.previewId,
                 digest: request.digest,
               );
+            case ConvertLegacyEngineRequest():
+              return session.convertLegacyPackage(
+                actor: principal.id,
+                source: request.source,
+                destination: request.destination,
+              );
+            case RegisterUniverseEngineRequest():
+              final universe = await session.registerNamespace(
+                actor: principal.id,
+                namespace: request.path,
+                name: request.name,
+              );
+              session.afterCommit(() => _recovered.add(universe));
+              return CanonicalObject([
+                MapEntry('universe_id', CanonicalString(universe.value)),
+                MapEntry('name', CanonicalString(request.name)),
+              ]);
             case RestoreEngineRequest():
               final universe = await session.restoreUniverse(
                 actor: principal.id,

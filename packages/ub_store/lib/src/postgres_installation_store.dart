@@ -9,6 +9,7 @@ import 'archive_checksum.dart';
 import 'installation_store.dart'
     show InstallationException, InstallationFailure, InstallationImportPreview;
 import 'owned_database.dart';
+import 'legacy_conversion.dart' as legacy;
 import 'ownership.dart';
 import 'postgres_authority.dart';
 import 'postgres_authority_schema.dart';
@@ -364,6 +365,59 @@ final class PostgresInstallationSession {
       'DROP SCHEMA ${postgresUniverseSchema(universe)} CASCADE',
     );
   });
+
+  /// Register an existing backend locator, without fabricating a file identity.
+  /// Namespaces are derived exclusively from validated internal universe IDs.
+  Future<UniverseId> registerNamespace({
+    required ProfileId actor,
+    required String namespace,
+    required String name,
+  }) => rollbackOnFailure(() async {
+    await authority.requireAuthor(actor);
+    selectorKey(name);
+    if (!namespace.startsWith('ub_unv_')) {
+      throw const FormatException(
+        'PostgreSQL registration requires an existing universe namespace; SQLite files require reviewed import or restore',
+      );
+    }
+    final universe = UniverseId.parse(namespace.substring(3));
+    if ((await importConflicts(
+      actor: actor,
+      id: universe,
+      name: name,
+    )).isNotEmpty) {
+      throw const NameUnavailableError(
+        message: 'universe identity or name is reserved',
+      );
+    }
+    await verifyUniverse(universe, complete: true);
+    await recovery(universe).rebuild();
+    await authority.registerUniverse(
+      actor: actor,
+      universe: universe,
+      name: name,
+    );
+    return universe;
+  });
+
+  /// Explicit canon-only conversion remains read-only on the legacy source.
+  /// Its output is a reviewed logical archive, never automatic registration.
+  Future<CanonicalObject> convertLegacyPackage({
+    required ProfileId actor,
+    required String source,
+    required String destination,
+  }) async {
+    await authority.requireAuthor(actor);
+    final temporary = Directory.systemTemp.createTempSync(
+      'universe-builder-conversion-',
+    );
+    try {
+      privateDirectory(temporary.path);
+      return legacy.convertLegacy(source, destination, temporary.path);
+    } finally {
+      temporary.deleteSync(recursive: true);
+    }
+  }
 
   Future<CanonicalObject> backupUniverse(
     UniverseId universe,
