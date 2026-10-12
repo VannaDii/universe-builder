@@ -5,6 +5,7 @@ import 'package:postgres/postgres.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 import 'archive_checksum.dart';
+import 'database.dart' show maxPackageBytes;
 import 'owned_database.dart';
 import 'ownership.dart';
 import 'postgres_canonical_integrity.dart';
@@ -54,6 +55,22 @@ final class PostgresLogicalExport {
     String destination, {
     Iterable<RecordId> recordIds = const [],
     bool completeHistory = false,
+  }) => _snapshot(
+    destination,
+    recordIds: recordIds,
+    completeHistory: completeHistory,
+  );
+
+  /// Portable retained-history backup in the existing trusted package schema.
+  /// Unlike a logical archive, this includes no archive manifest/checksum tables.
+  Future<CanonicalObject> backup(String destination) =>
+      _snapshot(destination, backup: true);
+
+  Future<CanonicalObject> _snapshot(
+    String destination, {
+    Iterable<RecordId> recordIds = const [],
+    bool completeHistory = false,
+    bool backup = false,
   }) async {
     final requested = recordIds.toList();
     if (completeHistory && requested.isNotEmpty) {
@@ -78,8 +95,12 @@ final class PostgresLogicalExport {
         final wal = File('$path-wal');
         if (File(path).lengthSync() +
                 (wal.existsSync() ? wal.lengthSync() : 0) >
-            maxArchiveBytes) {
-          throw const FormatException('Archive byte budget exceeded');
+            (backup ? maxPackageBytes : maxArchiveBytes)) {
+          throw FormatException(
+            backup
+                ? 'Backup byte budget exceeded'
+                : 'Archive byte budget exceeded',
+          );
         }
       }
 
@@ -167,6 +188,14 @@ final class PostgresLogicalExport {
         rethrow;
       }
       snapshot.recover();
+      if (backup) {
+        snapshot.backup(destination);
+        return CanonicalObject([
+          MapEntry('backup', CanonicalString(destination)),
+          MapEntry('universe_id', CanonicalString(universe.value)),
+          const MapEntry('verified', CanonicalBool(true)),
+        ]);
+      }
       return snapshot.exportLogical(
         destination,
         recordIds: requested,

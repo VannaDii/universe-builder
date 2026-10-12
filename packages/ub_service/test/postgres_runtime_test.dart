@@ -1609,6 +1609,67 @@ void main() {
         } finally {
           archived.close();
         }
+        final backup = '${directory.path}/portrait-backup.sqlite';
+        await author.execute(
+          BackupEngineRequest(universe: selector, destination: backup),
+        );
+        final retained = await store.transaction((session) async {
+          final workflow = session.workflows(universe);
+          return {
+            for (final key in await workflow.keys(''))
+              key: (await workflow.evidence(key))!.toText(),
+          };
+        });
+        final reviewed = WireFields(
+          await author.execute(
+            const PreviewPurgeEngineRequest(universe: selector),
+          ),
+          {'digest', 'impact'},
+        );
+        await author.execute(
+          PurgeEngineRequest(
+            universe: selector,
+            digest: reviewed.string('digest'),
+            confirmation: 'PURGE Disposable engine universe',
+          ),
+        );
+        await author.execute(
+          RestoreEngineRequest(
+            source: backup,
+            name: 'Disposable engine universe',
+          ),
+        );
+        await store.transaction((session) async {
+          await session.verifyUniverse(universe, complete: true);
+          expect(
+            await session.kernel(universe).journal.head(continuity),
+            published.revision,
+          );
+          expect(
+            await session.kernel(universe).imageBytes(asset),
+            orderedEquals(bytes),
+          );
+          expect(
+            await session.kernel(universe).imagePreview(asset),
+            imported.string('preview'),
+          );
+          for (final entry in retained.entries) {
+            expect(
+              (await session.workflows(universe).evidence(entry.key))!.toText(),
+              entry.value,
+            );
+            if (entry.key.startsWith('approval:') ||
+                entry.key.startsWith('context:')) {
+              expect(await session.workflows(universe).get(entry.key), isNull);
+            }
+          }
+        });
+        expect(
+          (await observer.execute(
+            'SELECT count(*) FROM ${postgresUniverseSchema(universe)}.historical_receipt',
+          )).single.single,
+          greaterThan(0),
+        );
       });
 
       test('private library shows current heads and latest named writing while retaining immutable revisions', () async {

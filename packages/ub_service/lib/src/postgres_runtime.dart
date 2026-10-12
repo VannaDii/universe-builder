@@ -219,6 +219,17 @@ final class NativePostgresRuntime {
                 id: request.previewId,
                 digest: request.digest,
               );
+            case RestoreEngineRequest():
+              final universe = await session.restoreUniverse(
+                actor: principal.id,
+                source: request.source,
+                name: request.name,
+              );
+              return CanonicalObject([
+                MapEntry('universe_id', CanonicalString(universe.value)),
+                MapEntry('name', CanonicalString(request.name)),
+                const MapEntry('restored', CanonicalBool(true)),
+              ]);
             case CreateUniverseEngineRequest():
               return _createUniverse(session, principal, request);
             case GrantEngineRequest(:final grant):
@@ -263,6 +274,7 @@ final class NativePostgresRuntime {
             AuthorWritingEngineRequest(:final universe) ||
             StageSourceEngineRequest(:final universe) ||
             ExportLogicalEngineRequest(:final universe) ||
+            BackupEngineRequest(:final universe) ||
             MaintainEngineRequest(:final universe) ||
             PreviewPurgeEngineRequest(:final universe) ||
             PurgeEngineRequest(:final universe) ||
@@ -323,6 +335,8 @@ final class NativePostgresRuntime {
               return workflow.stageSource(label: label, text: text);
             case ExportLogicalEngineRequest():
               return workflow.exportRequest(request);
+            case BackupEngineRequest():
+              return session.backupUniverse(universe, request.destination);
             case MaintainEngineRequest():
               return workflow.maintainRequest(request);
             case PreviewPurgeEngineRequest():

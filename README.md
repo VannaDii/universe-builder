@@ -469,7 +469,15 @@ confirmation and author rights, then atomically removes the universe namespace,
 grants, all retained aliases and catalog entry while retaining the purge audit.
 Validation jobs retire only after commit. Reviewed import archives and external
 copies remain outside this operation, as stated in the preview; forensic erasure
-is not promised. Coordinated backend cutover remains pending.
+is not promised. Private PostgreSQL universe backup now streams a consistent
+retained snapshot into the existing protected typed SQLite package format, with
+the package's 8 GiB bound and no installation credentials or archive metadata.
+Existing destinations are never overwritten. Restore uses the trusted package
+reader, preserves IDs, history, exact source/media bytes and workflow evidence,
+keeps restored approvals/contexts/receipts historical, and atomically provisions
+and verifies the namespace before catalog admission. Identity/name conflicts,
+incompatible sources and failed registration leave the original unchanged.
+Coordinated backend cutover and hosted server backup operation remain pending.
 Socket/launcher integration, cross-process worker qualification and
 the remaining service routes are pending. Coordinated transfer and live
 verified-TLS qualification also remain pending; runtime PostgreSQL selection

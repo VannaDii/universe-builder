@@ -365,6 +365,56 @@ final class PostgresInstallationSession {
     );
   });
 
+  Future<CanonicalObject> backupUniverse(
+    UniverseId universe,
+    String destination,
+  ) => PostgresLogicalExport(_tx, universe).backup(destination);
+
+  /// Restore only the existing protected normative backup package format.
+  /// Archived editorial evidence remains historical; current rights are separate.
+  Future<UniverseId> restoreUniverse({
+    required ProfileId actor,
+    required String source,
+    required String name,
+  }) => rollbackOnFailure(() async {
+    await authority.requireAuthor(actor);
+    selectorKey(name);
+    final temporary = Directory.systemTemp.createTempSync(
+      'universe-builder-restore-',
+    );
+    try {
+      privateDirectory(temporary.path);
+      final staged = OwnedSqliteDatabase.stageRestore(source, temporary.path);
+      try {
+        final universe = staged.package.universeId;
+        if ((await importConflicts(
+          actor: actor,
+          id: universe,
+          name: name,
+        )).isNotEmpty) {
+          throw const NameUnavailableError(
+            message: 'restore identity or name is reserved',
+          );
+        }
+        staged.package.database.execute('UPDATE universes SET name=?', [name]);
+        await _provisionUniverse(universe);
+        await PostgresLogicalImport(_tx, universe).copy(staged.package);
+        await verifyUniverse(universe, complete: true);
+        await recovery(universe).rebuild();
+        await authority.registerUniverse(
+          actor: actor,
+          universe: universe,
+          name: name,
+        );
+        return universe;
+      } finally {
+        staged.close();
+      }
+    } finally {
+      temporary.deleteSync(recursive: true);
+    }
+  });
+
   Future<CanonicalObject> exportUniverse(
     UniverseId universe,
     String destination, {
