@@ -1,14 +1,17 @@
 import 'dart:async';
 
 import 'package:postgres/postgres.dart';
+import 'package:ub_contracts/ub_contracts.dart' show WireFields;
 import 'package:ub_domain/ub_domain.dart';
 
 import 'installation_store.dart'
     show InstallationException, InstallationFailure;
+import 'owned_database.dart';
 import 'postgres_authority.dart';
+import 'postgres_authority_schema.dart';
 import 'postgres_canonical_integrity.dart';
 import 'postgres_export.dart';
-import 'postgres_authority_schema.dart';
+import 'postgres_import.dart';
 import 'postgres_journal.dart';
 import 'postgres_kernel.dart';
 import 'postgres_kernel_schema.dart';
@@ -314,16 +317,7 @@ final class PostgresInstallationSession {
   }) async {
     await authority.requireAuthor(actor);
     selectorKey(name);
-    await _tx.execute('CREATE SCHEMA ${postgresUniverseSchema(universe)}');
-    for (final sql in [
-      ...postgresBodySchema(universe),
-      ...postgresKernelSchema(universe),
-      ...postgresSemanticSchema(universe),
-      ...postgresWorkflowSchema(universe),
-      ...postgresProjectionSchema(universe),
-    ]) {
-      await _tx.execute(sql);
-    }
+    await _provisionUniverse(universe);
     final genesis = await PostgresJournal(
       _tx,
       universe,
@@ -335,4 +329,62 @@ final class PostgresInstallationSession {
     );
     return genesis;
   }
+
+  Future<void> _provisionUniverse(UniverseId universe) async {
+    await _tx.execute('CREATE SCHEMA ${postgresUniverseSchema(universe)}');
+    for (final sql in [
+      ...postgresBodySchema(universe),
+      ...postgresKernelSchema(universe),
+      ...postgresSemanticSchema(universe),
+      ...postgresWorkflowSchema(universe),
+      ...postgresProjectionSchema(universe),
+    ]) {
+      await _tx.execute(sql);
+    }
+  }
+
+  /// Admit verified archive history into a fresh namespace. Imported editorial
+  /// evidence is retained as historical and cannot authorize new publications.
+  /// The caller owns the outer transaction and archive lifetime.
+  Future<UniverseId> importUniverse({
+    required ProfileId actor,
+    required VerifiedLogicalArchive archive,
+    required String scratch,
+    required String name,
+    UniverseId? clone,
+  }) => rollbackOnFailure(() async {
+    await authority.requireAuthor(actor);
+    selectorKey(name);
+    final manifest = WireFields(archive.manifest, {
+      'format',
+      'universe',
+      'name',
+      'complete',
+      'omitted_records',
+      'includes_history',
+      'includes_workflow',
+    });
+    final staged = clone == null && manifest.boolean('includes_workflow')
+        ? archive.stageRestore(scratch, name: name)
+        : archive.reconstruct(
+            scratch,
+            target: clone ?? archive.package.universeId,
+            name: name,
+          );
+    try {
+      final universe = staged.package.universeId;
+      await _provisionUniverse(universe);
+      await PostgresLogicalImport(_tx, universe).copy(staged.package);
+      await verifyUniverse(universe, complete: true);
+      await recovery(universe).rebuild();
+      await authority.registerUniverse(
+        actor: actor,
+        universe: universe,
+        name: name,
+      );
+      return universe;
+    } finally {
+      staged.close();
+    }
+  });
 }

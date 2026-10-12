@@ -449,8 +449,15 @@ export/reconstruction. Complete export includes exact source/media bytes, histor
 drafts, approvals and receipts; importing into SQLite retains approvals, contexts
 and receipts as historical evidence. Existing destinations are never overwritten,
 failed export removes unpublished temporary files, and installation authority or
-connection credentials are excluded. PostgreSQL import/restore and coordinated
-backend cutover remain pending.
+connection credentials are excluded. The internal PostgreSQL installation
+transaction now admits verified complete-history restores, canon-only imports
+and named clones through the existing trusted archive staging/reconstruction.
+Typed bodies are translated without retaining backend row pointers; imported
+approvals, contexts and receipts remain historical evidence. History verification,
+projection recovery and catalog registration are atomic with fresh schema creation;
+failed admission removes the target namespace even when the caller catches the
+failure. Operator import previews/admission and coordinated backend cutover
+remain pending.
 Socket/launcher integration, cross-process worker qualification and
 the remaining service routes are pending. Import previews/purge coordination,
 transfer and live verified-TLS qualification also remain pending; runtime PostgreSQL selection

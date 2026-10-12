@@ -223,6 +223,59 @@ void main() {
                 .single['name'],
             (payloads[typeId] as EntityTypeRecord).name,
           );
+          final clone = UniverseId.generate();
+          universes.add(clone);
+          await store.transaction((session) async {
+            expect(
+              await session.importUniverse(
+                actor: authorId,
+                archive: full,
+                scratch: directory.path,
+                name: 'Imported campaign',
+                clone: clone,
+              ),
+              clone,
+            );
+          });
+          final expected = full.reconstruct(
+            directory.path,
+            target: clone,
+            name: 'Imported campaign',
+          );
+          try {
+            await store.transaction((session) async {
+              await session.verifyUniverse(clone, complete: true);
+              final targetJournal = session.kernel(clone).journal;
+              final expectedJournal = local.SqliteJournal(
+                expected.package.database,
+                clone,
+              );
+              expect(await targetJournal.heads(), expectedJournal.heads());
+              for (final row in expected.package.database.select(
+                'SELECT id FROM record_versions',
+              )) {
+                final id = RecordVersionId.parse(row['id'] as String);
+                expect(
+                  (await targetJournal.load(id)).toCanonical().toText(),
+                  expectedJournal.load(id).toCanonical().toText(),
+                );
+              }
+              final expectedWorkflow = local.WorkflowStorage(
+                expected.package.database,
+              );
+              for (final row in expected.package.database.select(
+                'SELECT key FROM workflow_index',
+              )) {
+                final key = row['key'] as String;
+                expect(
+                  (await session.workflows(clone).evidence(key))!.toText(),
+                  expectedWorkflow.evidence(key)!.toText(),
+                );
+              }
+            });
+          } finally {
+            expected.close();
+          }
         } finally {
           full.close();
         }
@@ -270,6 +323,39 @@ void main() {
           expect(
             local.WorkflowStorage(filtered.package.database).keys('draft:'),
             isEmpty,
+          );
+          await expectLater(
+            store.transaction(
+              (session) => session.importUniverse(
+                actor: authorId,
+                archive: filtered,
+                scratch: directory.path,
+                name: 'Refused filtered identity',
+              ),
+            ),
+            throwsA(isA<FormatException>()),
+          );
+          final postgresFiltered = UniverseId.generate();
+          universes.add(postgresFiltered);
+          await store.transaction((session) async {
+            await session.importUniverse(
+              actor: authorId,
+              archive: filtered,
+              scratch: directory.path,
+              name: 'PostgreSQL filtered campaign',
+              clone: postgresFiltered,
+            );
+            await session.verifyUniverse(postgresFiltered, complete: true);
+            expect(
+              await session.workflows(postgresFiltered).keys('draft:'),
+              isEmpty,
+            );
+          });
+          expect(
+            (await observer.execute(
+              'SELECT id FROM ${postgresUniverseSchema(postgresFiltered)}.record_identities',
+            )).map((r) => r.single).toSet(),
+            ids,
           );
           final clone = filtered.reconstruct(
             directory.path,
@@ -1478,6 +1564,26 @@ void main() {
             ).imagePreview(asset),
             imported.string('preview'),
           );
+          final postgresClone = UniverseId.generate();
+          universes.add(postgresClone);
+          await store.transaction((session) async {
+            await session.importUniverse(
+              actor: authorId,
+              archive: archived,
+              scratch: directory.path,
+              name: 'PostgreSQL portrait',
+              clone: postgresClone,
+            );
+            expect(
+              await session.kernel(postgresClone).imageBytes(asset),
+              orderedEquals(bytes),
+            );
+            expect(
+              await session.kernel(postgresClone).imagePreview(asset),
+              imported.string('preview'),
+            );
+            await session.verifyUniverse(postgresClone, complete: true);
+          });
           final restored = archived.stageRestore(
             directory.path,
             name: 'Restored portrait',
@@ -2431,6 +2537,37 @@ void main() {
               );
             }
           });
+          final postgresClone = UniverseId.generate();
+          universes.add(postgresClone);
+          await store.transaction((session) async {
+            await session.importUniverse(
+              actor: authorId,
+              archive: archived,
+              scratch: directory.path,
+              name: 'PostgreSQL retained writing',
+              clone: postgresClone,
+            );
+            final workflow = session.workflows(postgresClone);
+            for (final entry in source.entries) {
+              expect((await workflow.evidence(entry.key))!.toText(), entry.value);
+            }
+            for (final key in source.keys.where(
+              (key) => key.startsWith('approval:') || key.startsWith('context:'),
+            )) {
+              expect(await workflow.get(key), isNull);
+            }
+            expect(
+              await session.kernel(postgresClone).journal.head(continuity),
+              receipt.revision,
+            );
+            await session.verifyUniverse(postgresClone, complete: true);
+          });
+          expect(
+            (await observer.execute(
+              'SELECT count(*) FROM ${postgresUniverseSchema(postgresClone)}.historical_receipt',
+            )).single.single,
+            greaterThan(0),
+          );
           final restored = archived.stageRestore(
             directory.path,
             name: 'Restored PostgreSQL export',
