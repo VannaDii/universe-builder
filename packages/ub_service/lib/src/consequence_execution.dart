@@ -1,4 +1,5 @@
-import 'package:ub_contracts/ub_contracts.dart' show InvalidArgumentError;
+import 'package:ub_contracts/ub_contracts.dart'
+    show InvalidArgumentError, EvaluationLimitReachedError;
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_rules/ub_rules.dart' as rules;
 
@@ -376,4 +377,286 @@ List<AuthoredConsequence> authorActionEffects({
     ));
   }
   return effects;
+}
+
+/// Checks every submitted event against its contract and exact candidate state.
+/// Historical undeclared events return exclusions rather than claiming coverage.
+List<String> validateActionConsequences({
+  required List<RecordVersion> records,
+  required List<RecordVersion> base,
+  required Set<RecordId> changed,
+  required Frame frame,
+}) {
+  final byId = {for (final r in records) r.identity.recordId: r};
+  var remaining = 1000000;
+  void charge(int cost) {
+    remaining -= cost;
+    if (remaining < 0) {
+      throw const EvaluationLimitReachedError(
+        message: 'Consequence evaluation exceeded its work budget',
+      );
+    }
+  }
+
+  final exclusions = <String>[];
+  final uses =
+      <
+        (RecordRef, RecordRef, RecordRef),
+        List<
+          ({List<WorldId> worlds, CalendarId calendar, BigInt tick, bool delta})
+        >
+      >{};
+  for (final record in records) {
+    charge(1);
+    final p = record.payload;
+    if (p is ActionDefinitionRecord &&
+        changed.contains(record.identity.recordId) &&
+        p.consequenceContract == null) {
+      throw _invalid(
+        'new or revised actions must declare a consequence contract',
+      );
+    }
+    if (p is! EventRecord) continue;
+    final action = byId[p.action?.record]?.payload;
+    if (action is! ActionDefinitionRecord ||
+        action.consequenceContract == null) {
+      if (changed.contains(record.identity.recordId)) {
+        throw _invalid(
+          'new or revised events require a contract-bearing action',
+        );
+      }
+      exclusions.add(
+        'event:${record.identity.recordId.value}: historical undeclared consequences excluded',
+      );
+      continue;
+    }
+    final contract = action.consequenceContract!;
+    try {
+      contract.validate();
+    } on FormatException catch (e) {
+      throw _invalid(e.message);
+    }
+    if (action.scope.realm != null ||
+        p.worlds.toSet().length != p.worlds.length) {
+      throw _invalid(
+        'contract execution requires realm-free scope and unique worlds',
+      );
+    }
+    final worlds = p.worlds.toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
+    final scope = Scope(
+      context: action.scope.context,
+      applicability: worlds.isEmpty
+          ? const UniverseApplicability()
+          : WorldsApplicability(worlds),
+    );
+    final eventFrame = Frame(
+      universe: frame.universe,
+      continuity: frame.continuity,
+      revision: frame.revision,
+      context: scope.context,
+      time: AtEventFrameTime(
+        RecordRef(universe: frame.universe, record: record.identity.recordId),
+        EventTimeSide.before,
+      ),
+      perspective: frame.perspective,
+      readerScene: frame.readerScene,
+      personalSequence: frame.personalSequence,
+    );
+    final queries = worlds.isEmpty
+        ? <List<RecordId>>[[]]
+        : worlds
+              .map((w) => [RecordId.parse('rec_${w.value.substring(4)}')])
+              .toList();
+    final targets = <(RecordRef, RecordRef)>{};
+    for (final slot in contract.slots) {
+      charge(p.participants.length);
+      final target = _owner(p, slot.target.role, byId);
+      if (!targets.add((target, slot.target.predicate))) {
+        throw _invalid('effect slots resolve to the same owner/property');
+      }
+      if (slot.condition case AttributeEqualsEffect(:final role)) {
+        _owner(p, role, byId);
+      }
+    }
+    final seen = <String>{};
+    for (final effect in p.effects) {
+      final slots = contract.slots.where((s) => s.slot == effect.slot);
+      if (slots.isEmpty) {
+        throw _invalid('effect slot is not permitted by the action');
+      }
+      final slot = slots.first;
+      if (!seen.add(effect.slot)) throw _invalid('duplicate effect slot');
+      final target = _owner(p, slot.target.role, byId);
+      final prop = byId[effect.proposition.record]?.payload;
+      if (prop is! PropositionRecord) {
+        throw _invalid('effect proposition is unavailable');
+      }
+      var applies = effect.scope.applicability;
+      if (applies is WorldsApplicability) {
+        if (applies.worldIds.toSet().length != applies.worldIds.length) {
+          throw _invalid('duplicate effect worlds');
+        }
+        final ids = applies.worldIds.toList()
+          ..sort((a, b) => a.value.compareTo(b.value));
+        applies = WorldsApplicability(ids);
+      }
+      final actualScope = Scope(
+        context: effect.scope.context,
+        realm: effect.scope.realm,
+        applicability: applies,
+      );
+      if (actualScope != scope ||
+          prop.context != scope.context ||
+          prop.subject != target ||
+          prop.predicate != slot.target.predicate ||
+          prop.roles.isNotEmpty ||
+          prop.quantification != Quantification.particular ||
+          effect.order != BigInt.from(slot.order)) {
+        throw _invalid(
+          'effect must match declared owner, predicate, order, context and full event scope',
+        );
+      }
+      if (slot.change case SetEffect(:final polarity, :final value)) {
+        if (effect.polarity != polarity || prop.value != value) {
+          throw _invalid(
+            'effect polarity/value does not match declared assignment',
+          );
+        }
+      }
+      final time = p.time;
+      if (time is! ExactTime) {
+        throw _invalid('effect requires an exact named-calendar event time');
+      }
+      final tick =
+          RegExp(r'^[+-]?[0-9]+$').stringMatch(time.value) == time.value
+          ? BigInt.tryParse(time.value)
+          : null;
+      if (tick == null ||
+          tick < ExactAmount.minimum ||
+          tick > ExactAmount.maximum) {
+        throw _invalid('invalid event coordinate');
+      }
+      TemporalBound end = const UnboundedBound();
+      if (slot.lifetime case TicksEffect(:final count)) {
+        final n = tick + count.value;
+        if (n <= ExactAmount.minimum || n >= ExactAmount.maximum) {
+          throw _invalid('effect lifetime overflow');
+        }
+        end = ExactBound(n.toString());
+      }
+      final expected = CalendarIntervalValidity(
+        time.calendar,
+        ExactBound(tick.toString()),
+        end,
+      );
+      if (effect.validity != expected) {
+        throw _invalid('effect lifetime must match the declared interval');
+      }
+    }
+    if (p.occurrence is! SimpleOccurrence ||
+        (p.occurrence as SimpleOccurrence).kind != OccurrenceKind.occurred) {
+      continue;
+    }
+    for (final slot in contract.slots) {
+      final present = seen.contains(slot.slot);
+      final truths = _conditionTruths(
+        records,
+        byId,
+        p,
+        slot,
+        eventFrame,
+        queries,
+        charge,
+      );
+      if (present && truths.any((t) => !t)) {
+        throw _invalid(
+          'effect supplied for a false condition in an event world',
+        );
+      }
+      final enabled = truths.any((t) => t);
+      if (!enabled && present ||
+          enabled && slot.presence == EffectPresence.required && !present) {
+        throw _invalid(
+          'missing mandatory effect or effect supplied for a false condition',
+        );
+      }
+      if (enabled && present) {
+        final ({CalendarId calendar, BigInt coordinate}) time;
+        try {
+          time = rules.exactEventTime(p.time);
+        } on rules.EventEvaluationError catch (e) {
+          throw _invalid(e.message);
+        }
+        final usage = (
+          worlds: p.worlds,
+          calendar: time.calendar,
+          tick: time.coordinate,
+          delta: slot.change is DeltaEffect,
+        );
+        final history =
+            uses[(
+                  _owner(p, slot.target.role, byId),
+                  slot.target.predicate,
+                  action.scope.context,
+                )] ??=
+                [];
+        for (final previous in history.where(
+          (old) => usage.delta || old.delta,
+        )) {
+          charge(1);
+          if ((usage.worlds.isEmpty ||
+                  previous.worlds.isEmpty ||
+                  usage.worlds.any(previous.worlds.contains)) &&
+              (usage.calendar != previous.calendar ||
+                  usage.tick == previous.tick)) {
+            throw _invalid(
+              'dependent resource uses require distinct times on the same named calendar',
+            );
+          }
+        }
+        history.add(usage);
+      }
+      if (enabled && present && slot.change is DeltaEffect) {
+        final change = slot.change as DeltaEffect;
+        final effect = p.effects.firstWhere((e) => e.slot == slot.slot);
+        final post = byId[effect.proposition.record]?.payload;
+        if (post is! PropositionRecord) {
+          throw _invalid('resource post-value unavailable');
+        }
+        if (effect.polarity != Polarity.support) {
+          throw _invalid('resource effects must support the proposed balance');
+        }
+        final proposed = _magnitude(
+          post.value ?? (throw _invalid('resource post-value missing')),
+          change.unit,
+        );
+        final expected = _balanceAfter(
+          records,
+          byId,
+          p,
+          slot,
+          eventFrame,
+          queries,
+          charge,
+        );
+        if (proposed.coefficient != expected.coefficient ||
+            proposed.scale != expected.scale) {
+          throw _invalid(
+            'resource post-value does not equal pre-value plus declared change',
+          );
+        }
+      }
+    }
+  }
+  for (final old in base) {
+    final next = byId[old.identity.recordId]?.payload;
+    if (old.payload
+        case ActionDefinitionRecord(consequenceContract: ConsequenceContract())
+        when next is ActionDefinitionRecord &&
+            next.consequenceContract == null) {
+      throw _invalid('a contracted action cannot discard its contract');
+    }
+  }
+  return exclusions;
 }

@@ -262,8 +262,12 @@ mandatory slots, exact owner references, pre-event conditions and explicit direc
 resource balances. Conditions and resource results must agree across event worlds;
 optional consequences require author choice. Checked coefficient/scale arithmetic
 preserves exact values and enforces resource bounds and declared lifetimes. This
-function produces proposed effects without writing or approving them. Validation
-of submitted consequences and workflow integration remain pending.
+function produces proposed effects without writing or approving them. Submitted
+consequence validation now checks exact assignments, mandatory slots, full event
+scope and lifetime, per-world conditions and explicit resource transitions.
+Dependent resource uses require distinct times on the same named clock; existing
+contract-bearing actions cannot discard their contract. Historical undeclared
+events remain explicit coverage exclusions. Workflow integration remains pending.
 Candidate action checks now require new or revised events to name a declared
 action and each mandatory role to identify exactly one owning entity. Occurred
 events must establish every required attribute before the event in every declared
