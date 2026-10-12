@@ -24,6 +24,7 @@ import 'structural_checks_test.dart' as structure;
 import 'writing_units_test.dart' as units;
 import 'source_verification_test.dart' as sources;
 import 'assessment_validation_test.dart' as assessments;
+import 'writing_event_edits_test.dart' as event_edits;
 import '../../ub_contracts/test/assessment_integrity_test.dart' as accounting;
 
 void main() {
@@ -1624,6 +1625,564 @@ void main() {
     } finally {
       recovered.close();
     }
+  });
+
+  test('native continuity forks pin history and prepare explicit adoption through exact approval and receipt recovery', () async {
+    final original = f.row(20, permissions.entity(labels: {'en': 'Original'}));
+    final removed = f.row(21, f.entity());
+    seedReadRows([original, removed]);
+    var connection = runtime.connect(hello(author.id));
+    final base = (await readContext(connection)).frame.revision;
+    final branch = ContinuityId.generate();
+    final parent = draft.proposal.baseFrame.continuity;
+    final fork = ForkContinuityEngineRequest(
+      universe: const Selector('World'),
+      name: 'Alternate campaign',
+      continuityId: branch,
+      source: parent,
+      revision: base,
+    );
+    final forkResponse = await engine(connection, fork);
+    final forkRevision = RevisionId.parse(
+      WireFields(forkResponse, {
+        'continuity_id',
+        'revision',
+      }).string('revision'),
+    );
+    expect((await engine(connection, fork)).toText(), forkResponse.toText());
+    await runtime.close();
+    final changed = RecordVersion.build(
+      recordVersionId: RecordVersionId.generate(),
+      identity: original.identity,
+      payload: permissions.entity(labels: {'en': 'Changed'}),
+    );
+    final added = f.row(22, f.entity());
+    final package = OwnedSqliteDatabase.openExisting(path);
+    late RevisionId advanced;
+    try {
+      package.recover();
+      final kernel = SqliteKernel(package.database, f.u);
+      advanced = kernel.commit(
+        CommitInput(
+          universe: f.u,
+          continuity: parent,
+          expectedHead: base,
+          principal: PrincipalId.generate(),
+          decision: 'Admitted fixture',
+          reason: 'Alternate branch edits',
+          idempotencyKey: 'continuity-edits',
+          changes: [
+            Assignment(
+              recordId: original.identity.recordId,
+              expected: original.recordVersionId,
+              next: StoredVersion.build(
+                changed.recordVersionId,
+                changed.identity,
+                changed.payload.toWire(),
+              ),
+            ),
+            Assignment(
+              recordId: removed.identity.recordId,
+              expected: removed.recordVersionId,
+            ),
+            Assignment(
+              recordId: added.identity.recordId,
+              next: StoredVersion.build(
+                added.recordVersionId,
+                added.identity,
+                added.payload.toWire(),
+              ),
+            ),
+          ],
+        ),
+      );
+      expect(kernel.journal.head(branch), forkRevision);
+    } finally {
+      package.close();
+    }
+    runtime = NativeSqliteRuntime(authority: authority);
+    connection = runtime.connect(hello(author.id));
+    expect((await engine(connection, fork)).toText(), forkResponse.toText());
+    await expectLater(
+      engine(
+        connection,
+        ForkContinuityEngineRequest(
+          universe: const Selector('World'),
+          name: fork.name,
+          continuityId: branch,
+          source: parent,
+          revision: advanced,
+        ),
+      ),
+      throwsA(isA<FormatException>()),
+    );
+    final comparison = CompareContinuitiesEngineRequest(
+      universe: const Selector('World'),
+      target: branch,
+      targetRevision: forkRevision,
+      source: parent,
+      sourceRevision: advanced,
+    );
+    final compared = await engine(connection, comparison);
+    final differences = WireFields(compared, {
+      'differences',
+      'target_revision',
+      'source_revision',
+    }).array('differences');
+    expect(
+      differences.map(
+        (d) => WireFields(d, {
+          'record_id',
+          'kind',
+          'target_version',
+          'source_version',
+        }).string('record_id'),
+      ),
+      [f.id(20).value, f.id(21).value, f.id(22).value],
+    );
+    final selection = PrepareAdoptionEngineRequest(
+      universe: const Selector('World'),
+      target: branch,
+      targetRevision: forkRevision,
+      source: parent,
+      sourceRevision: advanced,
+      recordIds: [f.id(22), f.id(20), f.id(21), f.id(99)],
+    );
+    final prepared = await engine(connection, selection);
+    final operations = WireFields(prepared, {
+      'operations',
+      'target_revision',
+      'source_revision',
+    }).array('operations').map(DomainOperation.fromWire).toList();
+    expect(operations, hasLength(3));
+    expect(
+      (operations[0] as AdoptRecordVersionOperation).expectedVersion,
+      isNull,
+    );
+    expect(
+      (operations[1] as AdoptRecordVersionOperation).source.recordVersionId,
+      changed.recordVersionId,
+    );
+    expect(
+      (operations[1] as AdoptRecordVersionOperation).expectedVersion,
+      original.recordVersionId,
+    );
+    expect(
+      (operations[2] as TombstoneRecordOperation).expectedVersion,
+      removed.recordVersionId,
+    );
+    final opened = OpenedContext.fromWire(
+      (await tool(
+        connection,
+        OpenContextRequest(
+          universe: const Selector('World'),
+          continuityId: branch,
+          revision: const HeadRevisionSelector(),
+          representedContext: ContextIdSelector(f.id(99)),
+          temporalQuery: const TimelessFrameTime(),
+          temporalSystems: [],
+          perspective: const AuthorPerspective(),
+        ),
+      )).result,
+    );
+    expect(opened.frame.revision, forkRevision);
+    final proposal = Proposal.fromWire(
+      (await tool(
+        connection,
+        CreateProposalRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          operations: operations,
+          submission: Submission.submitted,
+          rationale: 'Explicitly selected campaign changes',
+          idempotencyKey: 'adoption-create',
+        ),
+      )).result,
+    );
+    final ref = ProposalRef(
+      proposalId: proposal.proposalId,
+      version: proposal.version,
+      digest: proposal.digest,
+    );
+    final checked = ValidationV3.fromWire(
+      (await tool(
+        connection,
+        ProposalValidationRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          proposalReference: ref,
+          checkScope: CheckScope.candidate,
+        ),
+      )).result,
+    ) as EvaluatedValidation;
+    final publish = CommitRequest(
+      universe: const Selector('World'),
+      proposalReference: ref,
+      expectedBaseRevision: forkRevision,
+      validationRun: checked.execution.runId,
+      idempotencyKey: 'adoption-publish',
+    );
+    await expectLater(
+      tool(connection, publish),
+      throwsA(isA<ApprovalRequiredError>()),
+    );
+    await engine(
+      connection,
+      ApproveEngineRequest(
+        universe: const Selector('World'),
+        proposalReference: ref,
+        validationRun: checked.execution.runId,
+      ),
+    );
+    final receipt = await tool(connection, publish);
+    final publishedRevision = CommitReceipt.fromWire(receipt.result).revision;
+    final equal = await engine(
+      connection,
+      CompareContinuitiesEngineRequest(
+        universe: const Selector('World'),
+        target: branch,
+        targetRevision: publishedRevision,
+        source: parent,
+        sourceRevision: advanced,
+      ),
+    );
+    expect(
+      WireFields(equal, {
+        'differences',
+        'target_revision',
+        'source_revision',
+      }).array('differences'),
+      isEmpty,
+    );
+    await runtime.close();
+    runtime = NativeSqliteRuntime(authority: authority);
+    connection = runtime.connect(hello(author.id));
+    expect(
+      (await tool(connection, publish)).toWire((v) => v).toText(),
+      receipt.toWire((v) => v).toText(),
+    );
+    expect((await engine(connection, fork)).toText(), forkResponse.toText());
+    expect((await engine(connection, comparison)).toText(), compared.toText());
+    expect((await engine(connection, selection)).toText(), prepared.toText());
+  });
+
+  test('native continuity routes enforce author authority names pinned revisions and selection limits', () async {
+    final parent = draft.proposal.baseFrame.continuity;
+    final base = draft.proposal.baseFrame.revision;
+    final branch = ContinuityId.generate();
+    ForkContinuityEngineRequest fork(String name, {RevisionId? revision}) =>
+        ForkContinuityEngineRequest(
+          universe: const Selector('World'),
+          name: name,
+          continuityId: branch,
+          source: parent,
+          revision: revision ?? base,
+        );
+    CompareContinuitiesEngineRequest compare() =>
+        CompareContinuitiesEngineRequest(
+          universe: const Selector('World'),
+          target: parent,
+          targetRevision: base,
+          source: parent,
+          sourceRevision: base,
+        );
+    PrepareAdoptionEngineRequest prepare(List<RecordId> ids) =>
+        PrepareAdoptionEngineRequest(
+          universe: const Selector('World'),
+          target: parent,
+          targetRevision: base,
+          source: parent,
+          sourceRevision: base,
+          recordIds: ids,
+        );
+    authority.grant(
+      author,
+      GrantSpec(
+        profileId: writer.id,
+        universeId: f.u,
+        worlds: null,
+        propose: true,
+        edit: true,
+        protected: true,
+      ),
+    );
+    final writerConnection = runtime.connect(hello(writer.id));
+    final blocker = OwnedSqliteDatabase.openExisting(path);
+    try {
+      for (final request in [
+        fork('Denied'),
+        compare(),
+        prepare([f.id(99)]),
+      ]) {
+        await expectLater(
+          engine(writerConnection, request),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+      }
+    } finally {
+      blocker.close();
+    }
+    final connection = runtime.connect(hello(author.id));
+    for (final name in ['   ', '😀' * 33]) {
+      await expectLater(
+        engine(connection, fork(name)),
+        throwsA(
+          isA<InvalidArgumentError>().having((e) => e.field, 'field', 'name'),
+        ),
+      );
+    }
+    await expectLater(
+      engine(
+        connection,
+        fork('Missing source', revision: RevisionId.generate()),
+      ),
+      throwsA(isA<FormatException>()),
+    );
+    final saved = await engine(connection, fork('😀' * 32));
+    expect(
+      (await engine(connection, fork('😀' * 32))).toText(),
+      saved.toText(),
+    );
+    for (final ids in [<RecordId>[], List.filled(101, f.id(99))]) {
+      await expectLater(
+        engine(connection, prepare(ids)),
+        throwsA(
+          isA<InvalidArgumentError>().having(
+            (e) => e.field,
+            'field',
+            'record_ids',
+          ),
+        ),
+      );
+    }
+    await expectLater(
+      engine(connection, prepare([RecordId.generate()])),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    final unchanged = await engine(
+      connection,
+      prepare(List.filled(100, f.id(99))),
+    );
+    expect(
+      WireFields(unchanged, {
+        'operations',
+        'target_revision',
+        'source_revision',
+      }).array('operations'),
+      isEmpty,
+    );
+    await runtime.close();
+    final package = OwnedSqliteDatabase.openExisting(path);
+    try {
+      package.recover();
+      expect(SqliteKernel(package.database, f.u).journal.head(parent), base);
+      expect(WorkflowStorage(package.database).keys('proposal:'), hasLength(1));
+      expect(WorkflowStorage(package.database).keys('approval:'), isEmpty);
+    } finally {
+      package.close();
+    }
+  });
+
+  test('native continuity comparison omits generated assertions while preserving explicit selection order', () async {
+    final rows = event_edits.base();
+    seedReadRows(rows);
+    final connection = runtime.connect(hello(author.id));
+    final parent = draft.proposal.baseFrame.continuity;
+    final base = (await readContext(connection)).frame.revision;
+    final branch = ContinuityId.generate();
+    final saved = await engine(
+      connection,
+      ForkContinuityEngineRequest(
+        universe: const Selector('World'),
+        name: 'Before event',
+        continuityId: branch,
+        source: parent,
+        revision: base,
+      ),
+    );
+    final revision = RevisionId.parse(
+      WireFields(saved, {'continuity_id', 'revision'}).string('revision'),
+    );
+    await runtime.close();
+    final candidate = event_edits.occurred(rows);
+    final added = candidate
+        .where(
+          (r) =>
+              !rows.any((old) => old.identity.recordId == r.identity.recordId),
+        )
+        .toList();
+    final generated = added
+        .where(
+          (r) =>
+              r.payload is AssertionRecord &&
+              (r.payload as AssertionRecord).establishedBy != null,
+        )
+        .single;
+    seedReadRows(added);
+    runtime = NativeSqliteRuntime(authority: authority);
+    final restarted = runtime.connect(hello(author.id));
+    final head = (await readContext(restarted)).frame.revision;
+    final result = await engine(
+      restarted,
+      CompareContinuitiesEngineRequest(
+        universe: const Selector('World'),
+        target: branch,
+        targetRevision: revision,
+        source: parent,
+        sourceRevision: head,
+      ),
+    );
+    final differences = WireFields(result, {
+      'differences',
+      'target_revision',
+      'source_revision',
+    }).array('differences');
+    final changedIds = differences
+        .map(
+          (d) => WireFields(d, {
+            'record_id',
+            'kind',
+            'target_version',
+            'source_version',
+          }).string('record_id'),
+        )
+        .toList();
+    expect(changedIds, isNot(contains(generated.identity.recordId.value)));
+    expect(
+      changedIds,
+      containsAll(
+        added
+            .where((r) => r.payload is! AssertionRecord)
+            .map((r) => r.identity.recordId.value),
+      ),
+    );
+    final selected = added.firstWhere((r) => r.payload is EventRecord);
+    final prepared = await engine(
+      restarted,
+      PrepareAdoptionEngineRequest(
+        universe: const Selector('World'),
+        target: branch,
+        targetRevision: revision,
+        source: parent,
+        sourceRevision: head,
+        recordIds: [selected.identity.recordId, selected.identity.recordId],
+      ),
+    );
+    final operations = WireFields(prepared, {
+      'operations',
+      'target_revision',
+      'source_revision',
+    }).array('operations');
+    expect(operations, hasLength(2));
+    expect(operations.first.toText(), operations.last.toText());
+  });
+
+  test('native continuity comparison accepts one thousand differences and refuses larger results', () async {
+    final parent = draft.proposal.baseFrame.continuity;
+    final originalBase = draft.proposal.baseFrame.revision;
+    final rows = [for (var n = 200; n <= 1200; n++) f.row(n, f.entity())];
+    final setup = OwnedSqliteDatabase.openExisting(path);
+    try {
+      setup.recover();
+      final kernel = SqliteKernel(setup.database, f.u);
+      for (var offset = 0; offset < rows.length; offset += 100) {
+        kernel.commit(
+          CommitInput(
+            universe: f.u,
+            continuity: parent,
+            expectedHead: kernel.journal.head(parent),
+            principal: PrincipalId.generate(),
+            decision: 'Admitted fixture',
+            reason: 'Comparison boundary records',
+            idempotencyKey: 'comparison-fixture-$offset',
+            changes: [
+              for (final row in rows.skip(offset).take(100))
+                Assignment(
+                  recordId: row.identity.recordId,
+                  next: StoredVersion.build(
+                    row.recordVersionId,
+                    row.identity,
+                    row.payload.toWire(),
+                  ),
+                ),
+            ],
+          ),
+        );
+      }
+    } finally {
+      setup.close();
+    }
+    final connection = runtime.connect(hello(author.id));
+    final head = (await readContext(connection)).frame.revision;
+    final branch = ContinuityId.generate();
+    final forked = await engine(
+      connection,
+      ForkContinuityEngineRequest(
+        universe: const Selector('World'),
+        name: 'Comparison target',
+        continuityId: branch,
+        source: parent,
+        revision: originalBase,
+      ),
+    );
+    final initial = RevisionId.parse(
+      WireFields(forked, {'continuity_id', 'revision'}).string('revision'),
+    );
+    CompareContinuitiesEngineRequest compare(RevisionId target) =>
+        CompareContinuitiesEngineRequest(
+          universe: const Selector('World'),
+          target: branch,
+          targetRevision: target,
+          source: parent,
+          sourceRevision: head,
+        );
+    await expectLater(
+      engine(connection, compare(initial)),
+      throwsA(isA<EvaluationLimitReachedError>()),
+    );
+    await runtime.close();
+    final package = OwnedSqliteDatabase.openExisting(path);
+    late RevisionId target;
+    try {
+      package.recover();
+      final row = rows.first;
+      target = SqliteKernel(package.database, f.u).commit(
+        CommitInput(
+          universe: f.u,
+          continuity: branch,
+          expectedHead: initial,
+          principal: PrincipalId.generate(),
+          decision: 'Admitted fixture',
+          reason: 'One common record',
+          idempotencyKey: 'comparison-boundary',
+          changes: [
+            Assignment(
+              recordId: row.identity.recordId,
+              next: StoredVersion.build(
+                RecordVersionId.generate(),
+                row.identity,
+                row.payload.toWire(),
+              ),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      package.close();
+    }
+    runtime = NativeSqliteRuntime(authority: authority);
+    final result = await engine(
+      runtime.connect(hello(author.id)),
+      compare(target),
+    );
+    expect(
+      WireFields(result, {
+        'differences',
+        'target_revision',
+        'source_revision',
+      }).array('differences'),
+      hasLength(1000),
+    );
   });
 
   Future<WireFields> library(NativeSqliteConnection connection) async =>
