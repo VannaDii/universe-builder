@@ -1,0 +1,11 @@
+name: ub_mcp
+version: 0.1.0
+publish_to: none
+resolution: workspace
+environment:
+  sdk: 3.13.4
+dependencies:
+  ub_contracts: any
+  ub_domain: any
+dev_dependencies:
+  test: 1.33.0

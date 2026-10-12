@@ -124,8 +124,22 @@ MCP protocol types now retain string/signed-i64 correlation IDs separately from
 engine u64 IDs, map discovery schemas to MCP keys, and construct structured
 success/error and cancellation responses. Initialization result construction
 preserves known legacy version negotiation with a `2025-11-25` fallback, including
-when a client requests a stateless version. These helpers are not a serving adapter;
-handshake lifecycle, dispatch, cancellation wiring and the executable remain pending.
+when a client requests a stateless version. These helpers do not provide a byte
+transport or executable.
+
+The `ub_mcp` package now implements the legacy session lifecycle and public-tool
+dispatch against a supplied backend: pre-initialization ping, version negotiation,
+ordinary/advanced discovery, strict application request admission, structured
+service failures and responsive cancellation. Disconnect signals backend cleanup
+and suppresses late output; cancellation never claims an admitted mutation was
+rolled back. Session behavior is checked on VM and Chrome. This session is not
+yet connected to the local engine or a stdio executable; stateless MCP and remote
+HTTP remain pending. The conversion uses the plan's narrow application-owned
+adapter fallback. Candidate review found `mcp_dart` validates JSON numbers as Dart
+`num`, while `dart_mcp`'s standard channel uses generic JSON codecs; preserving UB's
+exact tokens would require replacing those boundaries. See the
+[mcp_dart value validator](https://github.com/leehack/mcp_dart/blob/main/lib/src/types/validation.dart)
+and [dart_mcp channel](https://github.com/dart-lang/ai/blob/main/pkgs/dart_mcp/lib/stdio.dart).
 
 Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter
 **3.47.5** (recorded in `.flutter-version`). Dependency resolution is locked in
