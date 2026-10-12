@@ -5,6 +5,7 @@ resolution: workspace
 environment:
   sdk: 3.13.4
 dependencies:
+  postgres: 3.5.20
   cryptography: 2.9.0
   crypto: 3.0.7
   ffi: 2.2.0
@@ -16,7 +17,6 @@ dependencies:
   ub_rules: any
   ub_store: any
 dev_dependencies:
-  postgres: 3.5.20
   ub_client: any
   sqlite3: 3.7.0
   test: 1.33.0

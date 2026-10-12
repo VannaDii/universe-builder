@@ -4,3 +4,5 @@ library;
 
 export 'src/postgres_authority.dart'
     show PostgresInstallationAuthority, PostgresCatalogEntry;
+export 'src/postgres_installation_store.dart'
+    show PostgresInstallationStore, PostgresInstallationSession;

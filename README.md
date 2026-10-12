@@ -315,10 +315,24 @@ parity, identical regrant invalidation, expiry/withdrawal, installation identity
 and revocation conflicting with an awaited authority callback. This is an adapter
 for the owning backend transaction; it does not open endpoints or approve a
 proposal by itself.
-Control-schema discovery/opening, import previews/purge coordination, engine
-publication/authentication and exact-approval workflow integration, transfer and
-verified TLS remain pending; runtime PostgreSQL selection is still explicitly
-unavailable.
+The native PostgreSQL opener now maps resolved environment/encrypted settings
+into the pinned driver, including TLS mode, trusted roots, client certificate/key,
+application name and connection timeout. Explicit installation creation and
+ordinary opening are separate: opening discovers exactly one compatible control
+namespace, preserves its stable identity and refuses missing, ambiguous or
+incomplete authority. Database-local setup locking prevents competing setup
+connections from creating two installations. Service transactions retain current
+authority through commit/rollback, and close drains admitted work before releasing
+the connection. Universe provisioning creates the complete typed/kernel/semantic/
+workflow/projection schema, genesis and catalog entry atomically. Focused
+`test/postgres_open_test.dart` checks use disposable data for configured opening,
+authenticated internal publication, reconnect/retry, projection recovery, alias
+collision rollback, competing setup, shutdown draining, incompatible layout
+preservation and redacted certificate-loading failures. The publication fixture
+supplies already-admitted input; it does not qualify proposal approval.
+Import previews/purge coordination, engine dispatch and exact-approval workflow
+integration, transfer and live verified-TLS qualification remain pending; runtime
+PostgreSQL selection is still explicitly unavailable.
 Run `test/postgres_foundation_test.dart`, `test/postgres_relational_test.dart`,
 `test/postgres_journal_test.dart`, `test/postgres_workflow_test.dart` and
 `test/postgres_authority_test.dart`, `test/postgres_candidate_test.dart` and

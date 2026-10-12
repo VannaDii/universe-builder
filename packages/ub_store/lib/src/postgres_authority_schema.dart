@@ -12,8 +12,8 @@ Iterable<String> postgresAuthoritySchema(OperationId instance) sync* {
   final s = postgresAuthorityNamespace(instance);
   const text = 'TEXT COLLATE "C"';
   yield 'CREATE SCHEMA $s';
-  yield 'CREATE TABLE $s.authority(singleton SMALLINT PRIMARY KEY CHECK(singleton=1), instance_id $text NOT NULL UNIQUE, normalization $text NOT NULL)';
-  yield "INSERT INTO $s.authority VALUES(1,'${instance.value}','$selectorNormalizationVersion')";
+  yield 'CREATE TABLE $s.authority(singleton SMALLINT PRIMARY KEY CHECK(singleton=1), instance_id $text NOT NULL UNIQUE, normalization $text NOT NULL, schema_version SMALLINT NOT NULL CHECK(schema_version=1))';
+  yield "INSERT INTO $s.authority VALUES(1,'${instance.value}','$selectorNormalizationVersion',1)";
   yield 'CREATE TABLE $s.profiles(id $text PRIMARY KEY, hash $text NOT NULL, author BOOLEAN NOT NULL, revoked BOOLEAN NOT NULL)';
   yield 'CREATE TABLE $s.catalog(id $text PRIMARY KEY, name BYTEA NOT NULL, schema_name $text NOT NULL UNIQUE)';
   yield 'CREATE TABLE $s.aliases(key $text PRIMARY KEY, universe $text NOT NULL REFERENCES $s.catalog(id))';

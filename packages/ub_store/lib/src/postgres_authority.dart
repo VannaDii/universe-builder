@@ -41,12 +41,13 @@ final class PostgresInstallationAuthority {
   Future<void> lockAuthority() async {
     if (_locked) return;
     final rows = await _rows(
-      'SELECT instance_id,normalization FROM $_schema.authority WHERE singleton=1 FOR UPDATE',
+      'SELECT instance_id,normalization,schema_version FROM $_schema.authority WHERE singleton=1 FOR UPDATE',
       [],
     );
     if (rows.length != 1 ||
         rows.single['instance_id'] != instanceId.value ||
-        rows.single['normalization'] != selectorNormalizationVersion) {
+        rows.single['normalization'] != selectorNormalizationVersion ||
+        rows.single['schema_version'] != 1) {
       throw const InstallationException(InstallationFailure.incompatibleSchema);
     }
     _locked = true;
