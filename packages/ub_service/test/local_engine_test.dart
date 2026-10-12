@@ -6,6 +6,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:test/test.dart';
+import 'package:ub_client/archive_transfer.dart';
 import 'package:ub_client/local_engine.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
@@ -391,7 +392,17 @@ void main() {
       File(retained).writeAsBytesSync(
         File('${root.path}/moves/${operation.value}.sqlite').readAsBytesSync(),
       );
-      final preview = await destinationClient.call(review);
+      final preview = await prepareMoveTransfer(
+        source: source.call,
+        target: destinationClient.call,
+        move: StageMoveEngineRequest(
+          universeId: universe,
+          operationId: operation,
+          targetInstance: targetInstance,
+        ),
+        uploadId: uploadId,
+        name: 'Transferred universe',
+      );
       expect(wireString(field(preview, 'preview_id')), uploadId.value);
       expect(wireString(field(preview, 'target_universe')), universe.value);
       expect(

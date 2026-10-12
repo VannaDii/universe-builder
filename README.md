@@ -539,7 +539,7 @@ The trusted SQLite and PostgreSQL source coordinators retain the exact target
 review and its `reviewed`, `admitting` or `admitted` state. They record the
 admission attempt before calling the target. Restart retains that binding, and
 explicit SQLite installation conversion preserves it for an exact target retry.
-The coordinator must obtain a receipt from
+The client receives the operation receipt from
 the authenticated target; the source accepts only an exact match to its retained
 review. Changed reviews and receipts refuse, retries retain one audit
 event per transition, and failed source writes preserve the previous state.
@@ -572,9 +572,13 @@ conversion preserves partial uploads; ordinary opening refuses older upload-free
 layouts unchanged. PostgreSQL control layout version 6 includes durable uploads;
 older control layouts require explicit conversion rather than startup repair.
 Explicit conversion of older PostgreSQL control layouts remains pending.
-Source recording of the authenticated target review and admission remains internal
-coordinator work; authenticated cross-instance transport wiring is still required before exposing
-them as operator commands. The private
+The shared client's `prepareMoveTransfer` uses caller-supplied authenticated
+source and target connections to stage, stream or resume an upload, and return
+the target review. Retain its source operation and target upload IDs for an
+explicit retry after reconnecting. It stops before approval; the target still
+requires the existing exact `accept_import` request. Connections need not be
+owned by a service coordinator. Source recording of the target review and
+admission still needs client/operator wiring. The private
 author-only `list_moves` command discovers retained operations in pages of
 1–100, with an operation-ID cursor. `get_move` returns the retained state, target
 review, exact target retry request and completed receipt without host-path or
