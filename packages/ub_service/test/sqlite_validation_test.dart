@@ -16,7 +16,6 @@ import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_store/sqlite.dart';
 import 'package:ub_store/ub_store.dart';
-import 'package:ub_store/src/kernel.dart';
 
 import 'operation_compilation_test.dart' as f;
 import 'proposal_state_test.dart' as proposals;
@@ -168,6 +167,85 @@ void main() {
     checkScope: scope,
     idempotencyKey: 'queued-check',
   );
+
+  test('preparation freezes the actual preview and retains running without publishing', () async {
+    final head = kernel.journal.head(continuity);
+    final queuedStatus = await service.queueValidation(
+      queued(),
+      resolvedFrame: proposal.proposal.baseFrame,
+      isValidationActive: (_) => false,
+    );
+    final task = (await service.prepareValidation(
+      queuedStatus.operationId,
+      isValidationActive: (_) => false,
+    ))!;
+    expect(task.operationId, queuedStatus.operationId);
+    expect(task.base.map((r) => r.identity.recordId), [f.id(99)]);
+    expect(task.candidate.map((r) => r.identity.recordId), contains(f.id(10)));
+    expect(task.capture!.authoritySequence, checked.capture!.authoritySequence);
+    final result = task.evaluate();
+    expect(result.validation.coverage, checked.validation.coverage);
+    expect(result.admissible, checked.admissible);
+    expect(result.capture, same(task.capture));
+    final workflow = WorkflowStorage(package.database);
+    expect(
+      workflow.get('job:${queuedStatus.operationId.value}:running'),
+      isNotNull,
+    );
+    expect(workflow.keys('validation:'), isEmpty);
+    expect(kernel.journal.head(continuity), head);
+    expect(kernel.identityExists(f.id(10)), isFalse);
+    expect(package.database.autocommit, isTrue);
+  });
+
+  test(
+    'preparation rejects stale authority before retaining running',
+    () async {
+      final status = await service.queueValidation(
+        queued(),
+        resolvedFrame: proposal.proposal.baseFrame,
+        isValidationActive: (_) => false,
+      );
+      await authority.coordinate(
+        author,
+        () => authority.grant(author, grant()),
+      );
+      await expectLater(
+        service.prepareValidation(
+          status.operationId,
+          isValidationActive: (_) => false,
+        ),
+        stale,
+      );
+      expect(WorkflowStorage(package.database).keys('job:'), isEmpty);
+    },
+  );
+
+  test('cancelled validation is not prepared', () async {
+    final status = await service.queueValidation(
+      queued(),
+      resolvedFrame: proposal.proposal.baseFrame,
+      isValidationActive: (_) => false,
+    );
+    final workflow = WorkflowStorage(package.database);
+    workflow.compareAppend({}, [
+      MapEntry(
+        'cancel:${status.operationId.value}',
+        CanonicalObject([
+          MapEntry('owner', CanonicalString(writer.id.value)),
+          MapEntry('cancelled', const CanonicalBool(true)),
+        ]),
+      ),
+    ]);
+    expect(
+      await service.prepareValidation(
+        status.operationId,
+        isValidationActive: (_) => false,
+      ),
+      isNull,
+    );
+    expect(workflow.get('job:${status.operationId.value}:running'), isNull);
+  });
 
   test('queued validation retains one exact capture and retry identity across owned reopen', () async {
     final first = await service.queueValidation(
@@ -358,6 +436,17 @@ void main() {
     expect(op.validationCapture, isNull);
     expect(op.status.state, OperationState.queued);
     expect(op.status.validation!.coverage, Coverage.partial);
+    final task = (await service.prepareValidation(
+      result.operationId,
+      isValidationActive: (_) => false,
+    ))!;
+    expect(task.base, isEmpty);
+    expect(task.candidate, isEmpty);
+    expect(task.capture, isNull);
+    final evaluated = task.evaluate();
+    expect(evaluated.validation.coverage, Coverage.restricted);
+    expect(evaluated.admissible, isFalse);
+    expect(evaluated.capture, isNull);
     expect(package.database.autocommit, isTrue);
   });
 
@@ -564,6 +653,13 @@ void main() {
       BigInt.one,
     );
     expect(pending.finalBindingDigest, isNull);
+    final task = (await service.prepareValidation(
+      queue.operationId,
+      isValidationActive: (_) => true,
+    ))!;
+    expect(task.capture!.submittedInput, isA<SourceAssessedCandidateInput>());
+    expect(task.capture!.selection.generation, BigInt.one);
+    expect(task.evaluate().capture, same(task.capture));
     final clear = await service.selectAssessment(
       proposal.reference,
       expectedGeneration: BigInt.one,
@@ -572,6 +668,13 @@ void main() {
     );
     expect(clear.generation, BigInt.two);
     expect(clear.selected, isNull);
+    await expectLater(
+      service.prepareValidation(
+        queue.operationId,
+        isValidationActive: (_) => true,
+      ),
+      stale,
+    );
     final retry = await service.attachAssessment(
       proposal.reference,
       expectedGeneration: BigInt.zero,

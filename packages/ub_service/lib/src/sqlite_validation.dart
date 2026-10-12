@@ -11,7 +11,10 @@ import 'installation_authority.dart';
 import 'operation_state.dart';
 import 'proposal_authorization.dart';
 import 'proposal_state.dart';
+import 'proposal_validation.dart';
+import 'source_verification.dart';
 import 'validation_binding.dart';
+import 'validation_task.dart';
 
 /// Internal native workflow for an already recovered, writer-owned package.
 /// It retains assessments and checked results, never approvals or canonical
@@ -255,6 +258,111 @@ final class SqliteValidationWorkflow {
       status: operation.status,
       worldScope: current.worldScope,
       readWorkflow: _workflow.get,
+    );
+  });
+
+  Future<PreparedValidationTask?> prepareValidation(
+    OperationId id, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+    const denied = NotFoundOrNotAccessibleError(message: 'resource');
+    final op = await loadStoredOperation(
+      key: 'operation:${id.value}',
+      principal: principal.id,
+      worldScope: current.worldScope,
+      readWorkflow: _workflow.get,
+      readReceipt: _journal.receipt,
+      isValidationActive: isValidationActive,
+    );
+    if (op.status.kind != OperationKind.validate ||
+        {
+          OperationState.succeeded,
+          OperationState.failed,
+          OperationState.cancelled,
+        }.contains(op.status.state)) {
+      return null;
+    }
+    final stored = op.status.proposal;
+    if (stored == null) throw denied;
+    final reference = ProposalRef(
+      proposalId: stored.proposalId,
+      version: stored.version,
+      digest: stored.digest,
+    );
+    final proposal = _proposal(reference, current);
+    final restricted = current.worldScope != null;
+    final captured = restricted ? null : op.validationCapture;
+    if (!restricted && captured == null) {
+      throw const UnsupportedSemanticsError(
+        message: 'queued validation requires a fresh selection capture',
+      );
+    }
+    if (captured != null) {
+      verifyValidationAuthority(captured, current.sequence);
+      final fresh = await _capture(proposal, current);
+      verifyValidationCapture(
+        proposal: reference,
+        captured: captured,
+        current: fresh,
+      );
+    }
+    final List<RecordVersion> base, candidate;
+    if (restricted) {
+      base = const [];
+      candidate = const [];
+    } else {
+      await verifyImmutableAdoptions(stored: proposal, readVersion: _version);
+      final input = await proposalCommitInput(
+        stored: proposal,
+        universe: universe,
+        principal: principal.id,
+        idempotencyKey: 'validation',
+        readCanon: _canon,
+      );
+      candidate = SqliteKernel(package.database, universe)
+          .preview(input)
+          .map((row) => RecordVersion.fromWire(row.toCanonical()))
+          .toList();
+      await verifyCandidateSources(
+        records: candidate,
+        readWorkflow: _workflow.get,
+        readVersion: _version,
+      );
+      base = _canon(
+        proposal.proposal.baseFrame.continuity,
+        proposal.proposal.baseFrame.revision,
+      );
+    }
+    final key = 'job:${id.value}:running';
+    if (_workflow.get(key) == null) {
+      final s = op.status;
+      final running = StoredOperation(
+        owner: op.owner,
+        digest: op.digest,
+        input: op.input,
+        footprint: op.footprint,
+        validationCapture: op.validationCapture,
+        status: OperationStatus(
+          validation: s.validation,
+          failure: s.failure,
+          operationId: s.operationId,
+          kind: s.kind,
+          state: OperationState.running,
+          proposal: s.proposal,
+          receipt: s.receipt,
+          cancellationRequested: s.cancellationRequested,
+        ),
+      );
+      _workflow.compareAppend({}, [MapEntry(key, running.toWire())]);
+    }
+    return PreparedValidationTask(
+      operationId: id,
+      proposal: proposal,
+      base: base,
+      candidate: candidate,
+      approvalAuthor: current.approvalAuthor,
+      restricted: restricted,
+      capture: captured,
     );
   });
 

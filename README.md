@@ -466,8 +466,12 @@ atomically with its exact capture. Authorized retries preserve operation/run
 identity and resolve retained terminal state; changed requests or mismatched
 resolved frames are refused. Scoped queues retain no complete assessment capture
 and return restricted validation; unscoped source-assessed queues bind the exact
-selected inventory. Execution and terminal-result retention still require
-integration.
+selected inventory. Preparation rechecks current authority and exact captures,
+previews the candidate without canonical writes, verifies adopted versions and
+source bytes, then retains the running state. The portable evaluator receives
+frozen snapshots and supports cancellation probes; scoped preparation supplies
+no complete snapshots and produces restricted evidence. Scheduler integration
+and terminal-result retention remain pending.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.
