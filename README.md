@@ -142,6 +142,13 @@ independent calendars remain unresolved. Strict relative-order cycle checks
 use exact positive assertions partitioned by calendar, scope, validity and
 predicate, retaining the existing 10,000-node work bound. These checks do not
 advance story clocks or resolve event-relative frames.
+Definition ancestry and type applicability now resolve from one supplied factual
+snapshot. Missing, ambiguous, cyclic, nonexecutable or cross-universe ancestry
+remains unresolved; each ancestor retains its own world applicability. Type
+hints establish rule relevance without filtering expression operands, and
+fact admission checks the full authored scope, including explicit universe-wide
+permission. Reference and indexed paths retain their existing lookup semantics.
+Effective instance attributes, initialization and the full evaluator remain pending.
 Typed events preserve occurrence modes, authored participants and ordered effects.
 Action consequences validate exact decimal bounds, slot uniqueness and lifetimes;
 an absent historical contract remains distinct from an explicitly empty contract,
