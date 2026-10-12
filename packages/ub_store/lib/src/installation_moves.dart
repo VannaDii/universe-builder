@@ -52,6 +52,39 @@ CanonicalObject moveRecoveryReport({
 ]);
 
 extension InstallationMoves on SqliteInstallationStore {
+  MoveArchiveChunk readMoveArchiveChunk({
+    required ProfileId actor,
+    required ReadMoveChunkEngineRequest request,
+  }) {
+    requireAuthor(actor);
+    ReadMoveChunkEngineRequest.validateOrdinal(request.ordinal);
+    final source = moveSource(
+      actor: actor,
+      universe: request.universeId,
+      operation: request.operationId,
+      targetInstance: request.targetInstance,
+    );
+    protectedFile(source.archivePath);
+    final input = File(source.archivePath).openSync();
+    try {
+      final size = input.lengthSync();
+      final offset = request.ordinal * ReadMoveChunkEngineRequest.chunkBytes;
+      if (size >
+              ReadMoveChunkEngineRequest.chunkBytes *
+                  ReadMoveChunkEngineRequest.maxChunks ||
+          offset >= size) {
+        throw const FormatException('Move chunk outside retained archive');
+      }
+      input.setPositionSync(offset);
+      return MoveArchiveChunk(
+        ordinal: request.ordinal,
+        content: input.readSync(ReadMoveChunkEngineRequest.chunkBytes),
+      );
+    } finally {
+      input.closeSync();
+    }
+  }
+
   InstallationMoveReview reviewMoveTarget({
     required ProfileId actor,
     required UniverseId universe,

@@ -3,6 +3,31 @@ part of 'postgres_installation_store.dart';
 /// Source move artifacts belong to current installation authority. They never
 /// become a universe export's installation credentials or imported permissions.
 extension PostgresInstallationMoves on PostgresInstallationSession {
+  Future<MoveArchiveChunk> readMoveArchiveChunk({
+    required ProfileId actor,
+    required ReadMoveChunkEngineRequest request,
+  }) async {
+    await _requireMoveBinding(
+      actor: actor,
+      universe: request.universeId,
+      operation: request.operationId,
+      targetInstance: request.targetInstance,
+    );
+    ReadMoveChunkEngineRequest.validateOrdinal(request.ordinal);
+    final schema = postgresAuthorityNamespace(authority.instanceId);
+    final rows = await _tx.execute(
+      'SELECT a.content FROM $schema.move_archive a JOIN $schema.move_stage s ON s.operation=a.operation WHERE a.operation=\$1 AND a.ordinal=\$2',
+      parameters: [request.operationId.value, request.ordinal],
+    );
+    if (rows.length != 1) {
+      throw const FormatException('Move chunk unavailable in retained archive');
+    }
+    return MoveArchiveChunk(
+      ordinal: request.ordinal,
+      content: rows.single.single as List<int>,
+    );
+  }
+
   Future<void> _requireMoveBinding({
     required ProfileId actor,
     required UniverseId universe,

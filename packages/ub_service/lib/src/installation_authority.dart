@@ -315,6 +315,14 @@ final class InstallationAuthority {
     );
   }
 
+  MoveArchiveChunk readMoveArchiveChunk(
+    InstallationPrincipal principal,
+    ReadMoveChunkEngineRequest request,
+  ) {
+    requireAuthor(principal);
+    return _store.readMoveArchiveChunk(actor: principal.id, request: request);
+  }
+
   CanonicalObject listMoves(
     InstallationPrincipal principal,
     ListMovesEngineRequest request,

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
@@ -11,6 +13,12 @@ void main() {
         const ListMovesEngineRequest(),
         ListMovesEngineRequest(after: operation, limit: 1),
         GetMoveEngineRequest(operationId: operation),
+        ReadMoveChunkEngineRequest(
+          universeId: UniverseId.generate(),
+          operationId: operation,
+          targetInstance: OperationId.generate(),
+          ordinal: 32767,
+        ),
         StageMoveEngineRequest(
           universeId: UniverseId.generate(),
           operationId: operation,
@@ -26,6 +34,84 @@ void main() {
           throwsA(isA<InvalidArgumentError>()),
         );
       }
+    },
+  );
+  test('move chunks preserve bounded bytes and reject malformed replies and ordinals', () {
+    final chunk = MoveArchiveChunk(
+      ordinal: 32767,
+      content: Uint8List.fromList(
+        List.generate(ReadMoveChunkEngineRequest.chunkBytes, (i) => i % 256),
+      ),
+    );
+    expect(MoveArchiveChunk.fromWire(chunk.toWire()).content, chunk.content);
+    expect(chunk.toWire().toBytes().length, lessThan(maxFrameBytes));
+    for (final ordinal in [-1, 32768]) {
+      expect(
+        () => ReadMoveChunkEngineRequest.validateOrdinal(ordinal),
+        throwsFormatException,
+      );
+    }
+    for (final content in [
+      <int>[],
+      List<int>.filled(ReadMoveChunkEngineRequest.chunkBytes + 1, 0),
+    ]) {
+      expect(
+        () => MoveArchiveChunk(ordinal: 0, content: content),
+        throwsFormatException,
+      );
+    }
+    for (final raw in [
+      '{"ordinal":0,"content":""}',
+      '{"ordinal":0,"content":"YQ"}',
+      '{"ordinal":0,"content":"YQ==\\n"}',
+      '{"ordinal":0,"content":"YQ==","path":"private"}',
+      '{"ordinal":0.0,"content":"YQ=="}',
+      '{"ordinal":32768,"content":"YQ=="}',
+    ]) {
+      expect(
+        () => MoveArchiveChunk.fromWire(CanonicalValue.parseWireJson(raw)),
+        throwsFormatException,
+      );
+    }
+  });
+  test(
+    'chunk requests reject extra fields and nonintegral or excessive ordinals',
+    () {
+      final request = ReadMoveChunkEngineRequest(
+        universeId: UniverseId.generate(),
+        operationId: OperationId.generate(),
+        targetInstance: OperationId.generate(),
+        ordinal: 0,
+      );
+      for (final ordinal in [
+        '-1',
+        '0.0',
+        '0e0',
+        '32768',
+        '18446744073709551616',
+      ]) {
+        expect(
+          () => EngineRequest.fromWire(
+            CanonicalObject([
+              for (final field in request.toWire().fields)
+                if (field.key == 'ordinal')
+                  MapEntry('ordinal', CanonicalNumber(ordinal))
+                else
+                  field,
+            ]),
+          ),
+          throwsFormatException,
+        );
+      }
+      expect(
+        () => EngineRequest.fromWire(
+          CanonicalObject([
+            ...request.toWire().fields,
+            MapEntry('path', CanonicalString('private')),
+          ]),
+        ),
+        throwsFormatException,
+      );
     },
   );
   test('move staging refuses caller paths and malformed identities', () {

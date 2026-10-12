@@ -549,6 +549,13 @@ the source and retains its complete archive. It returns the verified digest,
 manifest and byte count without accepting a caller filesystem path or returning
 host paths or credentials. Exact retries after restart reuse the retained archive.
 Staging failure leaves the source suspended for recovery with the same binding.
+The author-only `read_move_chunk` command reads retained archive bytes in chunks
+of at most 256 KiB, using that exact universe/operation/target binding and a
+zero-based ordinal. It refuses missing chunks, out-of-range ordinals and changed
+bindings. Reconnects can request the same ordinal; reads never restage the source.
+Clients use the staging byte count to bound reconstruction and verify the complete
+archive digest before target import review. Socket and PostgreSQL regressions
+cover multiple chunks, exact Unicode/source bytes and reconstruction after restart.
 Target review and admission mutations remain internal coordinator calls;
 authenticated cross-instance transport wiring is still required before exposing
 them as operator commands. The private

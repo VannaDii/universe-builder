@@ -18,6 +18,7 @@ import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_store/sqlite.dart';
 import 'package:ub_store/src/postgres_authority_schema.dart';
 import 'package:ub_store/src/postgres_values.dart';
+import 'package:ub_store/src/ownership.dart';
 
 void main() {
   final port = int.tryParse(
@@ -936,6 +937,13 @@ void main() {
       test('private staging retains the exact archive after restart and refuses writers and self-targets', () async {
         var author = await runtime.connect(hello(authorId));
         final source = await create(author, 'Staged service move');
+        await author.execute(
+          StageSourceEngineRequest(
+            universe: const Selector('Staged service move'),
+            label: 'Exact multiline source',
+            text: List.filled(50000, 'é😀\r\n').join(),
+          ),
+        );
         final other = await create(author, 'Available service universe');
         final universe = UniverseId.parse(text(source, 'universe_id'));
         final otherUniverse = UniverseId.parse(text(other, 'universe_id'));
@@ -1000,6 +1008,69 @@ void main() {
           ),
           'suspended',
         );
+        ReadMoveChunkEngineRequest chunkRequest(
+          int ordinal, {
+          OperationId? target,
+        }) => ReadMoveChunkEngineRequest(
+          universeId: universe,
+          operationId: operation,
+          targetInstance: target ?? request.targetInstance,
+          ordinal: ordinal,
+        );
+        final scratch = Directory.systemTemp.createTempSync(
+          'universe-builder-move-download-',
+        );
+        try {
+          final downloaded = '${scratch.path}/archive.sqlite';
+          protectedFile(downloaded, createNew: true);
+          final output = File(downloaded).openSync(mode: FileMode.writeOnly);
+          var received = 0, ordinal = 0;
+          final bytes = int.parse((fields['bytes'] as CanonicalNumber).digits);
+          try {
+            while (received < bytes) {
+              final reply = await author.execute(
+                EngineRequest.decode(chunkRequest(ordinal).toWire().toBytes()),
+              );
+              final chunk = MoveArchiveChunk.fromWire(reply);
+              expect(chunk.ordinal, ordinal++);
+              output.writeFromSync(chunk.content);
+              received += chunk.content.length;
+              expect(
+                (await author.execute(chunkRequest(chunk.ordinal))).toText(),
+                reply.toText(),
+              );
+            }
+            output.flushSync();
+          } finally {
+            output.closeSync();
+          }
+          expect(received, bytes);
+          expect(ordinal, greaterThan(1));
+          final archive = OwnedSqliteDatabase.stageLogicalArchive(
+            downloaded,
+            scratch.path,
+          );
+          try {
+            expect(archive.digest, text(staged, 'digest'));
+          } finally {
+            archive.close();
+          }
+          await expectLater(
+            author.execute(chunkRequest(ordinal)),
+            throwsFormatException,
+          );
+          await expectLater(
+            author.execute(chunkRequest(0, target: OperationId.generate())),
+            throwsA(isA<NotFoundOrNotAccessibleError>()),
+          );
+          final contributor = await runtime.connect(hello(writerId));
+          await expectLater(
+            contributor.execute(chunkRequest(0)),
+            throwsA(isA<NotFoundOrNotAccessibleError>()),
+          );
+        } finally {
+          scratch.deleteSync(recursive: true);
+        }
         final control = postgresAuthorityNamespace(store.instanceId);
         expect(
           (await observer.execute(

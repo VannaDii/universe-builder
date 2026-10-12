@@ -363,6 +363,11 @@ final class NativePostgresRuntime {
               return CanonicalObject([
                 MapEntry('profile_id', CanonicalString(id.value)),
               ]);
+            case ReadMoveChunkEngineRequest():
+              return (await session.readMoveArchiveChunk(
+                actor: principal.id,
+                request: request,
+              )).toWire();
             case ListMovesEngineRequest():
               return session.listMoves(
                 actor: principal.id,

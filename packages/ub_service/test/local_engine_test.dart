@@ -14,6 +14,8 @@ import 'package:ub_service/local_profiles.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/local_socket.dart';
 import 'package:ub_store/profile_credentials.dart';
+import 'package:ub_store/sqlite.dart';
+import 'package:ub_store/src/ownership.dart';
 
 void main() {
   late Directory root;
@@ -93,6 +95,13 @@ void main() {
     final universe = UniverseId.parse(
       wireString(field(created, 'universe_id')),
     );
+    await original.call(
+      StageSourceEngineRequest(
+        universe: const Selector('Recoverable move'),
+        label: 'Exact multiline source',
+        text: List.filled(50000, 'é😀\r\n').join(),
+      ),
+    );
     final operation = OperationId.generate(), target = OperationId.generate();
     final request = StageMoveEngineRequest(
       universeId: universe,
@@ -124,6 +133,14 @@ void main() {
     );
     expect(staged.toText(), isNot(contains(root.path)));
     expect((await original.call(request)).toText(), staged.toText());
+    final firstChunk = await original.call(
+      ReadMoveChunkEngineRequest(
+        universeId: universe,
+        operationId: operation,
+        targetInstance: target,
+        ordinal: 0,
+      ),
+    );
     await original.close();
     await server.close();
     final installation = SqliteInstallationStore.openExisting(root.path);
@@ -138,6 +155,60 @@ void main() {
     server = await LocalSqliteEngineServer.start(root.path);
     final owner = await client(author);
     expect((await owner.call(request)).toText(), staged.toText());
+    ReadMoveChunkEngineRequest chunkRequest(
+      int ordinal, {
+      OperationId? destination,
+    }) => ReadMoveChunkEngineRequest(
+      universeId: universe,
+      operationId: operation,
+      targetInstance: destination ?? target,
+      ordinal: ordinal,
+    );
+    final downloaded = '${root.path}/download.sqlite';
+    protectedFile(downloaded, createNew: true);
+    final output = File(downloaded).openSync(mode: FileMode.writeOnly);
+    var received = 0, ordinal = 0;
+    final bytes = int.parse((field(staged, 'bytes') as CanonicalNumber).digits);
+    try {
+      while (received < bytes) {
+        final reply = await owner.call(chunkRequest(ordinal));
+        if (ordinal == 0) expect(reply.toText(), firstChunk.toText());
+        final chunk = MoveArchiveChunk.fromWire(reply);
+        expect(chunk.ordinal, ordinal++);
+        expect(
+          chunk.content.length,
+          lessThanOrEqualTo(ReadMoveChunkEngineRequest.chunkBytes),
+        );
+        output.writeFromSync(chunk.content);
+        received += chunk.content.length;
+        expect(
+          (await owner.call(chunkRequest(chunk.ordinal))).toText(),
+          reply.toText(),
+        );
+      }
+      output.flushSync();
+    } finally {
+      output.closeSync();
+    }
+    expect(received, bytes);
+    expect(ordinal, greaterThan(1));
+    final archive = OwnedSqliteDatabase.stageLogicalArchive(
+      downloaded,
+      root.path,
+    );
+    try {
+      expect(archive.digest, wireString(field(staged, 'digest')));
+    } finally {
+      archive.close();
+    }
+    await expectLater(
+      owner.call(chunkRequest(ordinal)),
+      throwsA(isA<ProtocolError>()),
+    );
+    await expectLater(
+      owner.call(chunkRequest(0, destination: OperationId.generate())),
+      throwsA(isA<ProtocolError>()),
+    );
     final page = await owner.call(const ListMovesEngineRequest(limit: 1));
     expect((field(page, 'moves') as CanonicalArray).items, hasLength(1));
     final report = await owner.call(
@@ -154,6 +225,10 @@ void main() {
       ),
     );
     final contributor = await client(writer);
+    await expectLater(
+      contributor.call(chunkRequest(0)),
+      throwsA(isA<ProtocolError>()),
+    );
     await expectLater(contributor.call(request), throwsA(isA<ProtocolError>()));
     await expectLater(
       contributor.call(const ListMovesEngineRequest()),

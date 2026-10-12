@@ -182,6 +182,7 @@ final class NativeSqliteRuntime {
               ProfilesEngineRequest() ||
               ListMovesEngineRequest() ||
               GetMoveEngineRequest() ||
+              ReadMoveChunkEngineRequest() ||
               EnrollEngineRequest() ||
               GrantEngineRequest() ||
               RevokeEngineRequest() ||
@@ -601,6 +602,8 @@ final class NativeSqliteRuntime {
           // Global request admission is tighter than this legacy queue bound.
           MapEntry('universe_queue_capacity', CanonicalNumber('16')),
         ]);
+      case ReadMoveChunkEngineRequest():
+        return authority.readMoveArchiveChunk(principal, request).toWire();
       case ListMovesEngineRequest():
         return authority.listMoves(principal, request);
       case GetMoveEngineRequest():

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:ub_domain/ub_domain.dart';
@@ -38,6 +39,7 @@ sealed class EngineRequest {
       'mode',
       'name',
       'operation_id',
+      'ordinal',
       'path',
       'preview_id',
       'profile_id',
@@ -63,6 +65,7 @@ sealed class EngineRequest {
       'list_moves' => ListMovesEngineRequest.fromWire(value),
       'get_move' => GetMoveEngineRequest.fromWire(value),
       'stage_move' => StageMoveEngineRequest.fromWire(value),
+      'read_move_chunk' => ReadMoveChunkEngineRequest.fromWire(value),
       'withdraw_grant' => WithdrawGrantEngineRequest.fromWire(value),
       'preview_purge' => PreviewPurgeEngineRequest.fromWire(value),
       'purge' => PurgeEngineRequest.fromWire(value),
@@ -204,6 +207,90 @@ final class StageMoveEngineRequest extends EngineRequest {
     MapEntry('universe_id', CanonicalString(universeId.value)),
     MapEntry('operation_id', CanonicalString(operationId.value)),
     MapEntry('target_instance', CanonicalString(targetInstance.value)),
+  ]);
+}
+
+/// Fixed-size archive reads keep native and network memory bounded. Ordinals
+/// address retained bytes only; they never create a stage or change its binding.
+final class ReadMoveChunkEngineRequest extends EngineRequest {
+  const ReadMoveChunkEngineRequest({
+    required this.universeId,
+    required this.operationId,
+    required this.targetInstance,
+    required this.ordinal,
+  });
+  static const chunkBytes = 262144;
+  static const maxChunks = 32768; // 8 GiB archive budget.
+  final UniverseId universeId;
+  final OperationId operationId, targetInstance;
+  final int ordinal;
+  @override
+  String get method => 'read_move_chunk';
+  static void validateOrdinal(int ordinal) {
+    if (ordinal < 0 || ordinal >= maxChunks) {
+      throw const FormatException('Move chunk ordinal outside archive budget');
+    }
+  }
+
+  factory ReadMoveChunkEngineRequest.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {
+      'method',
+      'universe_id',
+      'operation_id',
+      'target_instance',
+      'ordinal',
+    });
+    if (f.string('method') != 'read_move_chunk') {
+      throw const FormatException('Wrong engine method');
+    }
+    final ordinal = f.u64('ordinal').toInt();
+    validateOrdinal(ordinal);
+    return ReadMoveChunkEngineRequest(
+      universeId: UniverseId.parse(f.string('universe_id')),
+      operationId: OperationId.parse(f.string('operation_id')),
+      targetInstance: OperationId.parse(f.string('target_instance')),
+      ordinal: ordinal,
+    );
+  }
+  @override
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('method', CanonicalString(method)),
+    MapEntry('universe_id', CanonicalString(universeId.value)),
+    MapEntry('operation_id', CanonicalString(operationId.value)),
+    MapEntry('target_instance', CanonicalString(targetInstance.value)),
+    MapEntry('ordinal', CanonicalNumber('$ordinal')),
+  ]);
+}
+
+final class MoveArchiveChunk {
+  MoveArchiveChunk({required this.ordinal, required List<int> content})
+    : content = Uint8List.fromList(content) {
+    ReadMoveChunkEngineRequest.validateOrdinal(ordinal);
+    if (content.isEmpty ||
+        content.length > ReadMoveChunkEngineRequest.chunkBytes) {
+      throw const FormatException('Invalid retained move chunk size');
+    }
+  }
+  final int ordinal;
+  final Uint8List content;
+  factory MoveArchiveChunk.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {'ordinal', 'content'});
+    final encoded = f.string('content');
+    if (encoded.length > 349528) {
+      throw const FormatException('Move chunk content budget exceeded');
+    }
+    final content = base64Decode(encoded);
+    if (base64Encode(content) != encoded) {
+      throw const FormatException('Move chunk requires canonical base64');
+    }
+    return MoveArchiveChunk(
+      ordinal: f.u64('ordinal').toInt(),
+      content: content,
+    );
+  }
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('ordinal', CanonicalNumber('$ordinal')),
+    MapEntry('content', CanonicalString(base64Encode(content))),
   ]);
 }
 
