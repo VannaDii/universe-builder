@@ -42,57 +42,77 @@ void copyTrustedPackageRows(
     if (checks.length != 1 || checks.single.values.single != 'ok') {
       throw const FormatException('Input SQLite integrity failure');
     }
-    String quote(String name) => '"${name.replaceAll('"', '""')}"';
-    target.execute('BEGIN IMMEDIATE; PRAGMA defer_foreign_keys=ON;');
-    try {
-      for (final table in target.select(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'search_index%' ORDER BY name",
-      )) {
-        final name = table['name'] as String;
-        if (!archive && name == 'r_archive_manifest') continue;
-        final columns = target
-            .select('PRAGMA table_info(${quote(name)})')
-            .map((c) => c['name'] as String)
-            .toList();
-        if (name == 'projection_state') {
-          target.execute('DELETE FROM projection_state');
-        }
-        final selected = columns.map(quote).join(',');
-        final read = input.prepare('SELECT $selected FROM ${quote(name)}');
-        try {
-          final write = target.prepare(
-            'INSERT INTO ${quote(name)} ($selected) VALUES (${List.filled(columns.length, '?').join(',')})',
-          );
-          try {
-            final cursor = read.selectCursor();
-            while (cursor.moveNext()) {
-              write.execute([
-                for (final column in columns) cursor.current[column],
-              ]);
-            }
-          } finally {
-            write.close();
-          }
-        } finally {
-          read.close();
-        }
-      }
-      // Preserve exact evidence while preventing imported authority and receipts
-      // from satisfying an active approval, context or publication retry.
-      if (historicalEvidence) {
-        target.execute(
-          'INSERT OR IGNORE INTO historical_workflow SELECT key FROM workflow_entries',
-        );
-        target.execute(
-          'INSERT OR IGNORE INTO historical_receipt SELECT universe_id,principal,operation_kind,idempotency_key FROM operation_receipts',
-        );
-      }
-      target.execute('COMMIT');
-    } on Object {
-      if (!target.autocommit) target.execute('ROLLBACK');
-      rethrow;
-    }
+    copyTrustedRows(
+      input,
+      target,
+      historicalEvidence: historicalEvidence,
+      archive: archive,
+    );
   } finally {
     input.close();
+  }
+}
+
+/// Transfer from an already verified, owned trusted schema. Only the target's
+/// declared tables/columns are selected; archive metadata is omitted for packages.
+void copyTrustedRows(
+  Database input,
+  Database target, {
+  bool historicalEvidence = false,
+  bool archive = false,
+}) {
+  if (!target.autocommit ||
+      target.select('SELECT count(*) AS n FROM universes').single['n'] != 0) {
+    throw StateError('Transfer requires a new uninitialized target');
+  }
+  String quote(String name) => '"${name.replaceAll('"', '""')}"';
+  target.execute('BEGIN IMMEDIATE; PRAGMA defer_foreign_keys=ON;');
+  try {
+    for (final table in target.select(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'search_index%' ORDER BY name",
+    )) {
+      final name = table['name'] as String;
+      if (!archive && name == 'r_archive_manifest') continue;
+      final columns = target
+          .select('PRAGMA table_info(${quote(name)})')
+          .map((c) => c['name'] as String)
+          .toList();
+      if (name == 'projection_state') {
+        target.execute('DELETE FROM projection_state');
+      }
+      final selected = columns.map(quote).join(',');
+      final read = input.prepare('SELECT $selected FROM ${quote(name)}');
+      try {
+        final write = target.prepare(
+          'INSERT INTO ${quote(name)} ($selected) VALUES (${List.filled(columns.length, '?').join(',')})',
+        );
+        try {
+          final cursor = read.selectCursor();
+          while (cursor.moveNext()) {
+            write.execute([
+              for (final column in columns) cursor.current[column],
+            ]);
+          }
+        } finally {
+          write.close();
+        }
+      } finally {
+        read.close();
+      }
+    }
+    // Preserve exact evidence while preventing imported authority and receipts
+    // from satisfying an active approval, context or publication retry.
+    if (historicalEvidence) {
+      target.execute(
+        'INSERT OR IGNORE INTO historical_workflow SELECT key FROM workflow_entries',
+      );
+      target.execute(
+        'INSERT OR IGNORE INTO historical_receipt SELECT universe_id,principal,operation_kind,idempotency_key FROM operation_receipts',
+      );
+    }
+    target.execute('COMMIT');
+  } on Object {
+    if (!target.autocommit) target.execute('ROLLBACK');
+    rethrow;
   }
 }

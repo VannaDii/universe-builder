@@ -3575,6 +3575,64 @@ void main() {
         expect(archive.manifest.toText(), manifest.toText());
         final copy = archive.package;
         final workflow = WorkflowStorage(copy.database);
+        final staged = archive.stageRestore(
+          '${root.path}/packages',
+          name: 'Imported history',
+        );
+        try {
+          final imported = staged.package;
+          final retained = WorkflowStorage(imported.database);
+          expect(imported.universeId, f.u);
+          expect(
+            SqliteJournal(imported.database, f.u).head(opened.frame.continuity),
+            CommitReceipt.fromWire(published.result).revision,
+          );
+          expect(retained.keys('approval:'), isEmpty);
+          expect(retained.keys('context:'), isEmpty);
+          final approval = workflow.keys('approval:').single;
+          expect(
+            retained.evidence(approval)!.toText(),
+            workflow.get(approval)!.toText(),
+          );
+          expect(retained.get(approval), isNull);
+          expect(
+            retained.get(retained.keys('draft:').single)!.toText(),
+            savedDraft.toText(),
+          );
+          expect(
+            imported.database
+                .select('SELECT count(*) AS n FROM historical_receipt')
+                .single['n'],
+            2,
+          );
+          expect(
+            imported.database
+                .select(
+                  'SELECT count(*) AS n FROM operation_receipts r WHERE NOT EXISTS(SELECT 1 FROM historical_receipt h WHERE h.universe_id=r.universe_id AND h.principal=r.principal AND h.operation_kind=r.operation_kind AND h.idempotency_key=r.idempotency_key)',
+                )
+                .single['n'],
+            0,
+          );
+          expect(
+            imported.database
+                .select('SELECT utf8_content FROM source_content')
+                .single['utf8_content'],
+            orderedEquals(utf8.encode(stage.text)),
+          );
+          expect(
+            SqliteKernel(imported.database, f.u).imageBytes(image),
+            orderedEquals(imageBytes),
+          );
+          expect(
+            SqliteJournal(
+              imported.database,
+              f.u,
+            ).snapshot(opened.frame.continuity, opened.frame.revision),
+            hasLength(1),
+          );
+        } finally {
+          staged.close();
+        }
         expect(copy.universeId, f.u);
         expect(
           SqliteJournal(copy.database, f.u).head(opened.frame.continuity),

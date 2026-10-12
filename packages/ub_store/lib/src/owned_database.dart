@@ -13,6 +13,7 @@ import 'ownership.dart';
 import 'projection_recovery.dart';
 import 'restore_copy.dart';
 import 'relational.dart';
+import 'workflow_storage.dart';
 
 /// Internal connection lifetime boundary. Existing initialized packages must
 /// complete recover() before serving calls; client authorization remains in
@@ -572,6 +573,76 @@ final class VerifiedLogicalArchive {
   final String digest;
   final Directory _temporary;
   bool _closed = false;
+
+  /// Stage a complete retained-history identity-preserving import. Canon-only
+  /// and clone reconstruction are separate paths; installation authority is absent.
+  StagedSqliteRestore stageRestore(String scratch, {required String name}) {
+    if (_closed) throw StateError('Verified archive is closed');
+    selectorKey(name);
+    final fields = WireFields(manifest, {
+      'format',
+      'universe',
+      'name',
+      'complete',
+      'omitted_records',
+      'includes_history',
+      'includes_workflow',
+    });
+    if (!fields.boolean('complete')) {
+      throw const FormatException(
+        'Filtered archives require an explicitly named clone',
+      );
+    }
+    if (!fields.boolean('includes_workflow')) {
+      throw const FormatException('Canon-only archives require reconstruction');
+    }
+    final source = UniverseId.parse(fields.string('universe'));
+    final parent = privateDirectory(scratch);
+    final temporary = Directory(parent).createTempSync('.logical-import-');
+    OwnedSqliteDatabase? target;
+    try {
+      privateDirectory(temporary.path);
+      target = OwnedSqliteDatabase.create('${temporary.path}/package.sqlite');
+      copyTrustedRows(
+        package.database,
+        target.database,
+        historicalEvidence: true,
+      );
+      target.database.execute('BEGIN IMMEDIATE');
+      try {
+        target.database.execute('UPDATE universes SET name=?', [name]);
+        WorkflowStorage(target.database).put(
+          'logical-import-origin:$digest',
+          CanonicalObject([
+            MapEntry('digest', CanonicalString(digest)),
+            MapEntry('source_universe', CanonicalString(source.value)),
+            MapEntry('target_universe', CanonicalString(source.value)),
+            const MapEntry('complete', CanonicalBool(true)),
+            const MapEntry('omitted_records', CanonicalNumber('0')),
+          ]),
+        );
+        target.database.execute('COMMIT');
+      } on Object {
+        if (!target.database.autocommit) target.database.execute('ROLLBACK');
+        rethrow;
+      }
+      if (target.universeId != source) {
+        throw const FormatException('Archive universe mismatch');
+      }
+      target.recover();
+      CanonicalIntegrity(SqliteJournal(target.database, source))
+          .verifyComplete();
+      return StagedSqliteRestore._(target, temporary);
+    } on Object {
+      try {
+        target?.close();
+      } finally {
+        temporary.deleteSync(recursive: true);
+      }
+      rethrow;
+    }
+  }
+
   void close() {
     if (_closed) return;
     _closed = true;
