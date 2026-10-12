@@ -292,14 +292,26 @@ transaction. Focused checks cover pinned forks/tombstones, reconnect, literal
 queries, Unicode/BOM/NUL bytes, exact scalar paths, narrative/world dependencies,
 interrupted generation switches, corruption refusal and matching IDs in another
 namespace despite a changed session search path.
-Control-schema discovery/opening, import previews/purge coordination, complete
-publication/projection coordination, service integration, transfer and verified
-TLS remain pending; runtime PostgreSQL selection is still explicitly unavailable.
+The internal PostgreSQL publication coordinator now runs workflow comparison,
+retained-image decode checks, candidate admission, definition indexing,
+initialization, immutable history, head/membership, projections and the durable
+receipt inside one caller-owned transaction. Exact matching receipt retries
+precede stale head/workflow comparison; changed-content reuse fails. Preview runs
+the same path with a fresh request key inside a discarded savepoint. Current
+installation authority must be held before the universe lock; returning a
+revision is not durable until outer commit succeeds. Focused checks cover all
+commit checkpoints, stale workflow, retained image metadata, savepoint recovery,
+reconnect/retry and authority held through awaited publication while revocation
+conflicts. Initialization cases now exercise this coordinator. This internal path
+does not authenticate callers or confer exact approval/delegated rights.
+Control-schema discovery/opening, import previews/purge coordination, service
+publication/authority and exact-approval integration, transfer and verified TLS
+remain pending; runtime PostgreSQL selection is still explicitly unavailable.
 Run `test/postgres_foundation_test.dart`, `test/postgres_relational_test.dart`,
 `test/postgres_journal_test.dart`, `test/postgres_workflow_test.dart` and
 `test/postgres_authority_test.dart`, `test/postgres_candidate_test.dart` and
 `test/postgres_definition_test.dart`, `test/postgres_initialization_test.dart` and
-`test/postgres_projection_test.dart` from
+`test/postgres_projection_test.dart` and `test/postgres_kernel_test.dart` from
 `packages/ub_store` with
 `UB_TEST_POSTGRES_PORT` set to a disposable loopback `ub_disposable` database. Without
 that selection the live database cases are explicitly skipped. This check uses

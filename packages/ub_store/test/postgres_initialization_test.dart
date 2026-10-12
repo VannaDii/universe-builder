@@ -8,10 +8,11 @@ import 'dart:io';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 import 'package:ub_domain/ub_domain.dart';
-import 'package:ub_store/src/postgres_candidate_admission.dart';
-import 'package:ub_store/src/postgres_definition_index.dart';
 import 'package:ub_store/src/postgres_initialization.dart';
 import 'package:ub_store/src/postgres_journal.dart';
+import 'package:ub_store/src/postgres_kernel.dart';
+import 'package:ub_store/src/postgres_projection_schema.dart';
+import 'package:ub_store/src/postgres_workflow_schema.dart';
 import 'package:ub_store/src/postgres_kernel_schema.dart';
 import 'package:ub_store/src/postgres_schema.dart';
 import 'package:ub_store/src/postgres_semantic_schema.dart';
@@ -128,42 +129,12 @@ void main() {
       if (stage == failAfter) throw StateError('Interrupted $stage');
     }
 
-    final revision = await connection.runTx((tx) async {
-      final journal = PostgresJournal(tx, universe);
-      await journal.lockUniverse();
-      final retry = await journal.receipt(input);
-      if (retry != null) return retry;
-      final base = await journal.snapshot(input.continuity, input.expectedHead);
-      final candidate = await journal.stageVersions(input);
-      checkpoint('versions');
-      await PostgresCandidateAdmission(journal).validate(candidate);
-      for (final change in input.changes) {
-        if (change.next != null) {
-          await PostgresDefinitionIndex(
-            tx,
-            universe,
-          ).index(change.next!, candidate);
-        }
-      }
-      final evidence = PostgresInitializationEvidence(tx, universe);
-      final pending = await evidence.pending(input, base, candidate);
-      final revision = await journal.append(input);
-      for (final receipt in pending) {
-        await evidence.insert(receipt.admittedAt(revision));
-      }
-      checkpoint('changes');
-      await journal.advanceHead(
-        input.continuity,
-        input.expectedHead,
-        revision,
-        candidate,
-      );
-      checkpoint('head');
-      await journal.writeReceipt(input, revision);
-      checkpoint('receipt');
-      checkpoint('beforeCommit');
-      return revision;
-    });
+    final revision = await connection.runTx(
+      (tx) => PostgresKernel(
+        tx,
+        universe,
+      ).commit(input, hook: (point) => checkpoint(point.name)),
+    );
     latestRevision = revision;
     return revision;
   }
@@ -213,6 +184,8 @@ void main() {
             ...postgresBodySchema(universe),
             ...postgresKernelSchema(universe),
             ...postgresSemanticSchema(universe),
+            ...postgresWorkflowSchema(universe),
+            ...postgresProjectionSchema(universe),
           ]) {
             await tx.execute(sql);
           }
