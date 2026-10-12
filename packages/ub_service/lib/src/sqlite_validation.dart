@@ -33,6 +33,8 @@ import 'writing_changes.dart';
 import 'writing_check.dart';
 import 'writing_dates.dart';
 import 'writing_source.dart';
+import 'writing_binding.dart';
+import 'writing_knowledge_corrections.dart';
 import 'writing_author_review.dart';
 import 'resource_checks.dart';
 
@@ -1067,6 +1069,48 @@ final class SqliteValidationWorkflow {
     ]);
   }
 
+  /// Native action dispatch. The transport owns the response envelope, just as
+  /// it does for the native commit route; publication returns its durable receipt.
+  Future<CanonicalValue> authorWritingAction(
+    AuthorWritingAction action, {
+    required bool Function(OperationId) isValidationActive,
+  }) async => switch (action) {
+    InspectWritingAction() => await inspectWriting(action),
+    PrepareWritingAction() => await prepareWritingReview(
+      candidate: action.candidate,
+      label: action.label,
+      text: action.text,
+      isValidationActive: isValidationActive,
+    ),
+    PrepareContractsWritingAction() => await prepareWritingReview(
+      candidate: action.candidate,
+      label: action.label,
+      text: action.text,
+      contracts: true,
+      isValidationActive: isValidationActive,
+    ),
+    EditKnowledgeWritingAction() => await editWritingKnowledge(
+      action,
+      isValidationActive: isValidationActive,
+    ),
+    EstablishKnowledgeWritingAction() => await establishWritingKnowledge(
+      action,
+      isValidationActive: isValidationActive,
+    ),
+    AcceptWritingAction() => await acceptWriting(
+      action,
+      isValidationActive: isValidationActive,
+    ),
+    RejectWritingAction() => (await rejectWriting(
+      action,
+      isValidationActive: isValidationActive,
+    )).toWire(),
+    PublishWritingAction() => (await publishWriting(
+      action,
+      isValidationActive: isValidationActive,
+    )).toWire(),
+  };
+
   /// Prepare exact source and return the current checked private review.
   Future<CanonicalObject> prepareWritingReview({
     required ProposalId candidate,
@@ -1161,6 +1205,229 @@ final class SqliteValidationWorkflow {
       current,
       resolvedFrame: opened.frame,
       worldFocus: null,
+      isValidationActive: isValidationActive,
+    );
+  });
+
+  Future<OpenedContext> _writingKnowledgeContext(
+    ContextId id,
+    CurrentUniverseAuthority current,
+  ) async {
+    final raw = _workflow.get('context:${id.value}');
+    if (raw == null) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final selected = StoredContext.fromWire(raw);
+    if (selected.frame.universe != universe) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    if (selected.expires <
+        BigInt.from(DateTime.now().millisecondsSinceEpoch ~/ 1000)) {
+      throw const ContextExpiredError();
+    }
+    if (_journal.head(selected.frame.continuity) != selected.frame.revision) {
+      throw const ApprovalStaleError();
+    }
+    // An author may reopen a writer's selection, but uses a new private context.
+    return _openContext(
+      _writingAdmission(Selector(universe.value), selected.frame),
+      current,
+    );
+  }
+
+  Future<CanonicalObject> _retainWritingKnowledge(
+    CurrentUniverseAuthority current, {
+    required OpenedContext opened,
+    required List<DomainOperation> operations,
+    required String key,
+    required String rationale,
+    required String label,
+    required String text,
+    required bool Function(OperationId) isValidationActive,
+  }) async {
+    final receipt = operationRequestKey(principal.id, 'propose', key);
+    final retained = _workflow.get(receipt) == null
+        ? null
+        : await loadStoredOperation(
+            key: receipt,
+            principal: principal.id,
+            worldScope: current.worldScope,
+            readWorkflow: _workflow.get,
+            readReceipt: _journal.receipt,
+            isValidationActive: isValidationActive,
+          );
+    final candidate = retained == null
+        ? await _propose(
+            CreateProposalRequest(
+              universe: Selector(universe.value),
+              contextId: opened.contextId,
+              operations: operations,
+              submission: Submission.draft,
+              rationale: rationale,
+              idempotencyKey: key,
+            ),
+            current,
+            resolvedFrame: opened.frame,
+            worldFocus: null,
+            isValidationActive: isValidationActive,
+          )
+        : retained.status.proposal;
+    if (candidate == null) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final prepared = await _prepareWritingSource(
+      current,
+      candidate: candidate.proposalId,
+      label: label,
+      text: text,
+      knowledgeRationale: rationale,
+      isValidationActive: isValidationActive,
+    );
+    return _writingAuthorReview(
+      ProposalRef(
+        proposalId: prepared.proposalId,
+        version: prepared.version,
+        digest: prepared.digest,
+      ),
+      current,
+    );
+  }
+
+  Future<CanonicalObject> editWritingKnowledge(
+    EditKnowledgeWritingAction action, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final nonWhitespace = RegExp(
+      r'[^\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]',
+    );
+    if (!nonWhitespace.hasMatch(action.text) ||
+        !nonWhitespace.hasMatch(action.correction.reason)) {
+      throw const InvalidArgumentError(
+        field: 'text/reason',
+        message: 'Explicit author source and reason required',
+      );
+    }
+    final opened = await _writingKnowledgeContext(action.contextId, current);
+    final rows = _canon(opened.frame.continuity, opened.frame.revision);
+    final correction = WritingAttitudeCorrection.fromWire(
+      normalizeWritingDates(action.correction.toWire(), opened.frame, rows),
+    );
+    final operations = compileWritingAttitudeCorrection(
+      rows: rows,
+      frame: opened.frame,
+      patch: correction,
+      privateKnowledge: true,
+    );
+    final key =
+        'author-knowledge-edit:${canonicalDigest(CanonicalArray([opened.frame.toWire(), correction.toWire(), CanonicalString(action.label), CanonicalString(action.text)]))}';
+    return _retainWritingKnowledge(
+      current,
+      opened: opened,
+      operations: operations,
+      key: key,
+      rationale: correction.reason,
+      label: action.label,
+      text: action.text,
+      isValidationActive: isValidationActive,
+    );
+  });
+
+  Future<CanonicalObject> establishWritingKnowledge(
+    EstablishKnowledgeWritingAction action, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final nonWhitespace = RegExp(
+      r'[^\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]',
+    );
+    if (!nonWhitespace.hasMatch(action.rationale) ||
+        !nonWhitespace.hasMatch(action.text)) {
+      throw const InvalidArgumentError(
+        field: 'rationale/text',
+        message: 'Explicit author rationale and source required',
+      );
+    }
+    final opened = await _writingKnowledgeContext(action.contextId, current);
+    final frame = opened.frame;
+    final rows = _canon(frame.continuity, frame.revision);
+    final declaration = AuthorKnowledgeDeclaration.fromWire(
+      normalizeWritingDates(action.declaration.toWire(), frame, rows),
+    );
+    final policies = [
+      for (final row in rows)
+        if (row.payload case RuleRecord(:final knowledgePolicy)
+            when knowledgePolicy?.context == frame.context)
+          knowledgePolicy!,
+    ];
+    if (policies.length != 1 ||
+        policies.single.mode != KnowledgeMode.authorEstablished) {
+      throw const InvalidArgumentError(
+        field: 'knowledge policy',
+        message: 'Select the exact authored author-established context policy.',
+      );
+    }
+    final holder = resolveWritingObject(rows, declaration.holder, frame);
+    if (holder == null) {
+      throw const InvalidArgumentError(
+        field: 'holder',
+        message: 'Resolve the exact authored holder.',
+      );
+    }
+    final claim = bindWritingClaim(universe, rows, frame, declaration.claim);
+    final at = bindWritingTime(frame, rows, declaration.atTick);
+    final world = resolveWorldFocus(
+      world: declaration.world == null ? null : Selector(declaration.world!),
+      guard: null,
+      records: rows,
+      scope: current.worldScope,
+    );
+    final key =
+        'author-knowledge:${canonicalDigest(CanonicalArray([frame.toWire(), declaration.toWire(), CanonicalString(action.rationale), CanonicalString(action.label), CanonicalString(action.text)]))}';
+    final operations = <DomainOperation>[];
+    final proposition = bindWritingProposition(
+      operations,
+      universe,
+      claim,
+      rows,
+    );
+    operations.add(
+      AddBeliefOperation(
+        clientRef: RecordId.generate().value,
+        record: EpistemicAttitudeRecord(
+          holder: RecordRef(universe: universe, record: holder),
+          proposition: proposition,
+          attitude: EpistemicAttitudeKind.knows,
+          validity: bindWritingLifetime(at, declaration.lifetime),
+          basis: AuthorDecisionBasis(action.rationale),
+          acquisition: KnowledgeAcquisition(
+            truthContext: frame.context,
+            time: at,
+            world: world == null
+                ? null
+                : RecordRef(
+                    universe: universe,
+                    record: RecordId.parse(
+                      world.value.replaceFirst('wld_', 'rec_'),
+                    ),
+                  ),
+            basis: const AuthorEstablishedKnowledge(),
+          ),
+        ),
+      ),
+    );
+    return _retainWritingKnowledge(
+      current,
+      opened: opened,
+      operations: operations,
+      key: key,
+      rationale: action.rationale,
+      label: action.label,
+      text: action.text,
       isValidationActive: isValidationActive,
     );
   });

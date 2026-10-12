@@ -32,6 +32,8 @@ import 'effective_objects_test.dart' as objects;
 import 'writing_projection_test.dart' as writing;
 import 'action_checks_test.dart' as actions;
 import 'resource_checks_test.dart' as resources;
+import 'knowledge_checks_test.dart' as knowledge;
+import 'writing_binding_test.dart' as named;
 import '../../ub_contracts/test/assessment_integrity_test.dart' as accounting;
 
 void main() {
@@ -430,6 +432,358 @@ void main() {
     'review',
   });
 
+  Future<OpenedContext> knowledgeContext({
+    KnowledgeMode mode = KnowledgeMode.authorEstablished,
+  }) async {
+    final clock = FictionalUniverseStart(
+      calendarName: 'Knowledge clock',
+      initialTick: '0',
+      tickLabel: 'ticks',
+    ).build(frames.calendar);
+    final context = f.ref(55);
+    final prop = PropositionRecord(
+      subject: f.ref(80),
+      predicate: f.ref(1),
+      context: context,
+      value: const BooleanValue(true),
+      quantification: Quantification.particular,
+    );
+    kernel.commit(
+      input('knowledge-writing-fixture', [
+        f.row(10, clock.$2),
+        f.row(
+          55,
+          RepresentedContextRecord(
+            universe: f.u,
+            kind: const ObjectiveContext(),
+            chronology: clock.$1,
+            labels: {},
+          ),
+        ),
+        f.row(80, named.entity(labels: {'en': 'Mara'})),
+        frames.fixture().first,
+        f.row(2, prop),
+        f.row(7, knowledge.policy(mode: mode, context: context)),
+        f.row(
+          6,
+          EpistemicAttitudeRecord(
+            holder: f.ref(80),
+            proposition: f.ref(2),
+            attitude: EpistemicAttitudeKind.knows,
+            certainty: 'authored',
+            validity: CalendarIntervalValidity(
+              frames.calendar,
+              const ExactBound('10'),
+              const ExactBound('30'),
+            ),
+            basis: const AuthorDecisionBasis('Original author decision'),
+            acquisition: KnowledgeAcquisition(
+              truthContext: context,
+              time: ExactTime(frames.calendar, '10'),
+              basis: const AuthorEstablishedKnowledge(),
+            ),
+          ),
+        ),
+      ]),
+    );
+    return service.openContext(
+      contextRequest(represented: ContextIdSelector(f.id(55))),
+    );
+  }
+
+  EstablishKnowledgeWritingAction establishment(
+    ContextId id, {
+    String? world,
+    String reason = 'Explicit author knowledge',
+  }) => EstablishKnowledgeWritingAction(
+    contextId: id,
+    declaration: AuthorKnowledgeDeclaration(
+      holder: 'Mara',
+      claim: WritingClaim(
+        subject: 'Mara',
+        property: 'open',
+        value: const FactBooleanValue(false),
+      ),
+      atTick: '9007199254740993',
+      lifetime: const FactUntilLifetime(endTick: '9007199254740995'),
+      world: world,
+    ),
+    rationale: reason,
+    label: 'Author passage',
+    text: 'Mara knows the gate is closed.',
+  );
+
+  test('private knowledge establishment reopens writer context and retains attributed knowledge without objective facts', () async {
+    final selected = await knowledgeContext();
+    final head = kernel.journal.head(continuity);
+    final action = establishment(selected.contextId);
+    final reviewed = writingReview(
+      await authorService().authorWritingAction(
+        action,
+        isValidationActive: (_) => false,
+      ),
+    );
+    final ref = ProposalRef.fromWire(reviewed.require('candidate'));
+    final stored = StoredProposal.fromWire(
+      WorkflowStorage(package.database).get(proposalKey(ref))!,
+    );
+    expect(stored.owner, author.id);
+    expect(stored.authorOrigin, isTrue);
+    expect(
+      stored.proposal.operations.whereType<AssertPropositionOperation>(),
+      isEmpty,
+    );
+    final attitude = stored.proposal.operations
+        .whereType<AddBeliefOperation>()
+        .single
+        .record;
+    expect(attitude.basis, AuthorDecisionBasis(action.rationale));
+    expect(attitude.acquisition!.basis, isA<AuthorEstablishedKnowledge>());
+    expect(
+      attitude.acquisition!.time,
+      ExactTime(frames.calendar, '9007199254740993'),
+    );
+    expect(attitude.acquisition!.world, isNull);
+    expect(
+      reviewed.array('summary').map(wireString),
+      contains(
+        contains('attributed knowledge only, no objective fact asserted'),
+      ),
+    );
+    expect(kernel.journal.head(continuity), head);
+    expect(WorkflowStorage(package.database).keys('approval:'), isEmpty);
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    final retry = writingReview(
+      await authorService().establishWritingKnowledge(
+        action,
+        isValidationActive: (_) => false,
+      ),
+    );
+    expect(ProposalRef.fromWire(retry.require('candidate')), ref);
+    expect(
+      WorkflowStorage(package.database).keys('source-version:'),
+      hasLength(1),
+    );
+    final retained = StoredProposal.fromWire(
+      WorkflowStorage(package.database).get(proposalKey(ref))!,
+    );
+    expect(retained.toWire().toText(), stored.toWire().toText());
+    expect(retry.boolean('publishable'), isTrue);
+    final report = ValidationV3.fromWire(retry.require('validation'));
+    final receipt = CommitReceipt.fromWire(
+      await authorService().authorWritingAction(
+        PublishWritingAction(
+          candidate: ref,
+          validationRun: report.execution!.runId,
+          idempotencyKey: 'publish-authored-knowledge',
+        ),
+        isValidationActive: (_) => false,
+      ),
+    );
+    final published = canon(continuity, receipt.revision);
+    expect(published.where((r) => r.payload is AssertionRecord), isEmpty);
+    expect(
+      published.where((r) => r.payload is EpistemicAttitudeRecord),
+      hasLength(2),
+    );
+  });
+
+  test('private knowledge edit changes only duration and retains original acquisition and basis across retry', () async {
+    final selected = await knowledgeContext();
+    final original =
+        canon(
+              continuity,
+              kernel.journal.head(continuity),
+            ).singleWhere((r) => r.identity.recordId == f.id(6)).payload
+            as EpistemicAttitudeRecord;
+    final action = EditKnowledgeWritingAction(
+      contextId: selected.contextId,
+      correction: WritingAttitudeCorrection(
+        attitudeHandle: f.ver(6).value,
+        reason: 'Correct the authored duration',
+        endTick: '20',
+      ),
+      label: 'Corrected notes',
+      text: 'Mara knew until tick twenty.',
+    );
+    final reviewed = writingReview(
+      await authorService().authorWritingAction(
+        action,
+        isValidationActive: (_) => false,
+      ),
+    );
+    final ref = ProposalRef.fromWire(reviewed.require('candidate'));
+    final stored = StoredProposal.fromWire(
+      WorkflowStorage(package.database).get(proposalKey(ref))!,
+    );
+    final replacement = stored.proposal.operations
+        .whereType<ReviseAttitudeOperation>()
+        .single
+        .replacement;
+    expect(replacement.proposition, original.proposition);
+    expect(replacement.holder, original.holder);
+    expect(replacement.certainty, original.certainty);
+    expect(replacement.basis, original.basis);
+    expect(
+      replacement.acquisition!.toWire().toText(),
+      original.acquisition!.toWire().toText(),
+    );
+    expect(
+      replacement.validity,
+      CalendarIntervalValidity(
+        frames.calendar,
+        const ExactBound('10'),
+        const ExactBound('20'),
+      ),
+    );
+    final retry = writingReview(
+      await authorService().editWritingKnowledge(
+        action,
+        isValidationActive: (_) => false,
+      ),
+    );
+    expect(ProposalRef.fromWire(retry.require('candidate')), ref);
+    expect(
+      WorkflowStorage(package.database).keys('source-version:'),
+      hasLength(1),
+    );
+    await expectLater(
+      authorService().editWritingKnowledge(
+        EditKnowledgeWritingAction(
+          contextId: selected.contextId,
+          correction: WritingAttitudeCorrection(
+            attitudeHandle: f.ver(6).value,
+            reason: 'Try changing claim',
+            value: const FactBooleanValue(false),
+          ),
+          label: 'Changed claim',
+          text: 'Changed claim',
+        ),
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<FormatException>()),
+    );
+    expect(
+      WorkflowStorage(package.database).keys('source-version:'),
+      hasLength(1),
+    );
+  });
+
+  test('private knowledge rejects expired contexts unresolved worlds and ambiguous policies before source staging', () async {
+    final selected = await knowledgeContext();
+    final expired = ContextId.generate();
+    WorkflowStorage(package.database).compareAppend({}, [
+      MapEntry(
+        'context:${expired.value}',
+        StoredContext(
+          owner: writer.id,
+          scope: 'expired fixture',
+          expires: BigInt.zero,
+          frame: selected.frame,
+        ).toWire(),
+      ),
+    ]);
+    await expectLater(
+      authorService().authorWritingAction(
+        establishment(expired),
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<ContextExpiredError>()),
+    );
+    await expectLater(
+      authorService().authorWritingAction(
+        establishment(selected.contextId, world: 'Missing world'),
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    kernel.commit(
+      input('second-knowledge-policy', [
+        f.row(
+          8,
+          knowledge.policy(
+            mode: KnowledgeMode.authorEstablished,
+            context: f.ref(55),
+          ),
+        ),
+      ]),
+    );
+    final current = await service.openContext(
+      contextRequest(represented: ContextIdSelector(f.id(55))),
+    );
+    await expectLater(
+      authorService().authorWritingAction(
+        establishment(current.contextId),
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<InvalidArgumentError>()),
+    );
+    expect(WorkflowStorage(package.database).keys('source-version:'), isEmpty);
+    expect(WorkflowStorage(package.database).keys('approval:'), isEmpty);
+  });
+
+  test('private knowledge requires exact policy current context explicit rationale and author rights', () async {
+    final selected = await knowledgeContext(mode: KnowledgeMode.justified);
+    final action = establishment(selected.contextId);
+    await expectLater(
+      authorService().establishWritingKnowledge(
+        action,
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<InvalidArgumentError>()),
+    );
+    await expectLater(
+      service.establishWritingKnowledge(
+        action,
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    await expectLater(
+      authorService().establishWritingKnowledge(
+        establishment(selected.contextId, reason: '\u2003'),
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<InvalidArgumentError>()),
+    );
+    final edit = EditKnowledgeWritingAction(
+      contextId: selected.contextId,
+      correction: WritingAttitudeCorrection(
+        attitudeHandle: f.ver(6).value,
+        reason: 'Correction',
+        endTick: '20',
+      ),
+      label: 'Notes',
+      text: 'Text',
+    );
+    await expectLater(
+      service.editWritingKnowledge(edit, isValidationActive: (_) => false),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    kernel.commit(input('advance-before-knowledge', [f.row(77, f.entity())]));
+    await expectLater(
+      authorService().editWritingKnowledge(
+        edit,
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<ApprovalStaleError>()),
+    );
+    await expectLater(
+      authorService().establishWritingKnowledge(
+        action,
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<ApprovalStaleError>()),
+    );
+    expect(WorkflowStorage(package.database).keys('source-version:'), isEmpty);
+    expect(WorkflowStorage(package.database).keys('approval:'), isEmpty);
+  });
+
   Future<WireFields> resourceWritingReview() async {
     final clock = FictionalUniverseStart(
       calendarName: 'Campaign clock',
@@ -509,7 +863,7 @@ void main() {
         .toList();
     final head = kernel.journal.head(continuity);
     final accepted = writingReview(
-      await authorService().acceptWriting(
+      await authorService().authorWritingAction(
         action,
         isValidationActive: (_) => false,
       ),
@@ -637,10 +991,12 @@ void main() {
     final owner = authorService();
     final head = kernel.journal.head(continuity);
     final prepared = writingReview(
-      await owner.prepareWritingReview(
-        candidate: candidate,
-        label: 'Author passage',
-        text: 'Iris is red.',
+      await owner.authorWritingAction(
+        PrepareWritingAction(
+          candidate: candidate,
+          label: 'Author passage',
+          text: 'Iris is red.',
+        ),
         isValidationActive: (_) => false,
       ),
     );
@@ -649,7 +1005,10 @@ void main() {
     expect(kernel.journal.head(continuity), head);
     expect(WorkflowStorage(package.database).keys('approval:'), isEmpty);
     final inspected = writingReview(
-      await owner.inspectWriting(InspectWritingAction(candidate: ref)),
+      await owner.authorWritingAction(
+        InspectWritingAction(candidate: ref),
+        isValidationActive: (_) => false,
+      ),
     );
     expect(ProposalRef.fromWire(inspected.require('candidate')), ref);
     final report = ValidationV3.fromWire(inspected.require('validation'));
@@ -658,9 +1017,8 @@ void main() {
       validationRun: report.execution!.runId,
       idempotencyKey: 'writing-publication',
     );
-    final receipt = await owner.publishWriting(
-      action,
-      isValidationActive: (_) => false,
+    final receipt = CommitReceipt.fromWire(
+      await owner.authorWritingAction(action, isValidationActive: (_) => false),
     );
     expect(kernel.journal.head(continuity), receipt.revision);
     expect(WorkflowStorage(package.database).keys('approval:'), hasLength(1));
@@ -696,9 +1054,11 @@ void main() {
     final candidate = await writingDraft();
     final action = RejectWritingAction(candidate: candidate);
     final head = kernel.journal.head(continuity);
-    final withdrawn = await authorService().rejectWriting(
-      action,
-      isValidationActive: (_) => false,
+    final withdrawn = Proposal.fromWire(
+      await authorService().authorWritingAction(
+        action,
+        isValidationActive: (_) => false,
+      ),
     );
     expect(withdrawn.withdrawn, isTrue);
     expect(withdrawn.version, BigInt.two);
@@ -1040,11 +1400,12 @@ void main() {
     expect(prepared.submission, Submission.submitted);
     expect(prepared.rationale, contains('explicitly declared'));
     final reviewed = writingReview(
-      await owner.prepareWritingReview(
-        candidate: candidate,
-        label: 'Units',
-        text: 'A metre is the declared unit.',
-        contracts: true,
+      await owner.authorWritingAction(
+        PrepareContractsWritingAction(
+          candidate: candidate,
+          label: 'Units',
+          text: 'A metre is the declared unit.',
+        ),
         isValidationActive: (_) => false,
       ),
     );
