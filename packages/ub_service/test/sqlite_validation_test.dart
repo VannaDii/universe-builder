@@ -216,6 +216,214 @@ void main() {
     perspective: perspective,
   );
 
+  test('author exact-source preparation retains immutable source versions across retry and owned reopen', () async {
+    final opened = await service.openContext(contextRequest());
+    final checked = await service.checkChangesRequest(
+      CheckChangesRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        changes: [
+          ObjectChange(
+            name: 'Iris',
+            introduce: true,
+            facts: [
+              FactChange(
+                property: 'colour',
+                value: const FactTextValue('red'),
+                scope: 'universe',
+              ),
+            ],
+          ),
+        ],
+      ),
+      isValidationActive: (_) => false,
+    );
+    final candidate = ProposalId.parse(checked.check.candidateHandle!);
+    SqliteValidationWorkflow owner() => SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: author,
+    );
+    final head = kernel.journal.head(continuity);
+    final prepared = await owner().prepareWritingSource(
+      candidate: candidate,
+      label: 'Author passage',
+      text: 'Iris: é😀\r\nred.',
+      isValidationActive: (_) => false,
+    );
+    expect(prepared.submission, Submission.submitted);
+    expect(prepared.version, BigInt.two);
+    final key = proposalKey(reference(prepared));
+    final workflow = WorkflowStorage(package.database);
+    final stored = StoredProposal.fromWire(workflow.get(key)!);
+    final bytes = stored.toWire().toText();
+    expect(stored.owner, author.id);
+    expect(stored.authorOrigin, isTrue);
+    final rows = stored.changes
+        .where((c) => c.next != null)
+        .map((c) => RecordVersion.fromWire(c.next!.toCanonical()))
+        .toList();
+    final source = rows.singleWhere((r) => r.payload is SourceVersionRecord);
+    final anchor =
+        rows.singleWhere((r) => r.payload is AnchorRecord).payload
+            as AnchorRecord;
+    expect(anchor.sourceVersion.version, source.recordVersionId);
+    expect(anchor.excerpt, 'Iris: é😀\r\nred.');
+    expect(workflow.keys('source-version:'), hasLength(1));
+    expect(workflow.keys('approval:'), isEmpty);
+    expect(kernel.journal.head(continuity), head);
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    final retry = await owner().prepareWritingSource(
+      candidate: candidate,
+      label: 'Author passage',
+      text: 'Iris: é😀\r\nred.',
+      isValidationActive: (_) => false,
+    );
+    expect(retry.toWire().toText(), prepared.toWire().toText());
+    expect(WorkflowStorage(package.database).get(key)!.toText(), bytes);
+    expect(
+      WorkflowStorage(package.database).keys('source-version:'),
+      hasLength(1),
+    );
+    final admission = await owner().openContext(contextRequest());
+    final validation = await owner().validateProposalRequest(
+      ProposalValidationRequest(
+        universe: const Selector('World'),
+        contextId: admission.contextId,
+        proposalReference: reference(prepared),
+        checkScope: CheckScope.universe,
+      ),
+    );
+    expect(validation.execution!.coverage, Coverage.complete);
+    await owner().approve(reference(prepared), validation.execution!.runId);
+    final receipt = await owner().commit(
+      CommitRequest(
+        universe: const Selector('World'),
+        proposalReference: reference(prepared),
+        expectedBaseRevision: head,
+        validationRun: validation.execution!.runId,
+        idempotencyKey: 'author-source-publication',
+      ),
+      isValidationActive: (_) => false,
+    );
+    expect(kernel.journal.head(continuity), receipt.revision);
+    expect(kernel.identityExists(source.identity.recordId), isTrue);
+    await expectLater(
+      owner().prepareWritingSource(
+        candidate: candidate,
+        label: 'Author passage',
+        text: 'Iris: é😀\r\nred.',
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<ApprovalStaleError>()),
+    );
+  });
+
+  test(
+    'author source staging denies writer profiles before retaining bytes',
+    () async {
+      final workflow = WorkflowStorage(package.database);
+      await expectLater(
+        service.stageSource(label: 'Writer', text: 'A passage'),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      expect(workflow.keys('source:'), isEmpty);
+      final owner = SqliteValidationWorkflow(
+        package: package,
+        authority: authority,
+        principal: author,
+      );
+      final staged = await owner.stageSource(label: 'Author', text: 'é😀\r\n');
+      final fields = WireFields(staged, {'canonical', 'operations'});
+      expect(fields.require('canonical'), const CanonicalBool(false));
+      final operations = fields
+          .array('operations')
+          .map(DomainOperation.fromWire)
+          .toList();
+      expect(operations, hasLength(2));
+      expect(workflow.keys('source-version:'), hasLength(1));
+      expect(workflow.keys('approval:'), isEmpty);
+      await expectLater(
+        owner.stageSource(label: '', text: 'Passage'),
+        throwsA(isA<InvalidArgumentError>()),
+      );
+      expect(workflow.keys('source-version:'), hasLength(1));
+    },
+  );
+
+  test('author source preparation enforces current drafts and explicit contract review before staging', () async {
+    final opened = await service.openContext(contextRequest());
+    final checked = await service.checkChangesRequest(
+      CheckChangesRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        units: [
+          WritingUnit(
+            name: 'metre',
+            dimension: 'length',
+            symbol: 'm',
+            introduce: true,
+          ),
+        ],
+      ),
+      isValidationActive: (_) => false,
+    );
+    final candidate = ProposalId.parse(checked.check.candidateHandle!);
+    final owner = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: author,
+    );
+    await expectLater(
+      owner.prepareWritingSource(
+        candidate: candidate,
+        label: 'Units',
+        text: 'A metre is the declared unit.',
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<PolicyDeniedError>()),
+    );
+    expect(WorkflowStorage(package.database).keys('source:'), isEmpty);
+    await expectLater(
+      service.prepareWritingSource(
+        candidate: candidate,
+        label: 'Units',
+        text: 'A passage',
+        contracts: true,
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    final prepared = await owner.prepareWritingSource(
+      candidate: candidate,
+      label: 'Units',
+      text: 'A metre is the declared unit.',
+      contracts: true,
+      isValidationActive: (_) => false,
+    );
+    expect(prepared.submission, Submission.submitted);
+    expect(prepared.rationale, contains('explicitly declared'));
+    await expectLater(
+      owner.prepareWritingSource(
+        candidate: candidate,
+        label: 'Different',
+        text: 'A different passage',
+        contracts: true,
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<ApprovalStaleError>()),
+    );
+    expect(
+      WorkflowStorage(package.database).keys('source-version:'),
+      hasLength(1),
+    );
+  });
+
   test('writer check retains an exact provisional candidate across retry and reopen without publication', () async {
     final opened = await service.openContext(contextRequest());
     final request = CheckChangesRequest(

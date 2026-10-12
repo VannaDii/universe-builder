@@ -32,6 +32,7 @@ import 'writing_contract_projection.dart';
 import 'writing_changes.dart';
 import 'writing_check.dart';
 import 'writing_dates.dart';
+import 'writing_source.dart';
 
 /// Internal native workflow for an already recovered, writer-owned package.
 /// It retains assessments, checked results and exact human approvals, and
@@ -923,6 +924,155 @@ final class SqliteValidationWorkflow {
     );
   }
 
+  /// Stage exact author bytes and import provenance, without creating canon.
+  Future<CanonicalObject> stageSource({
+    required String label,
+    required String text,
+  }) => authority.withUniverseAuthority(principal, universe, (current) {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final staged = stageWritingSource(
+      universe: universe,
+      author: principal.id,
+      label: label,
+      text: text,
+      importTime: DateTime.now().toUtc().toIso8601String(),
+    );
+    _workflow.compareAppend({}, staged.entries);
+    return CanonicalObject([
+      const MapEntry('canonical', CanonicalBool(false)),
+      MapEntry(
+        'operations',
+        CanonicalArray(staged.operations.map((op) => op.toWire())),
+      ),
+    ]);
+  });
+
+  void _writingAuthorCurrent(Proposal proposal) {
+    final reference = ProposalRef(
+      proposalId: proposal.proposalId,
+      version: proposal.version,
+      digest: proposal.digest,
+    );
+    if (_workflow.latestKey('proposal:${proposal.proposalId.value}:') !=
+            proposalKey(reference) ||
+        proposal.withdrawn ||
+        _journal.head(proposal.baseFrame.continuity) !=
+            proposal.baseFrame.revision) {
+      throw const ApprovalStaleError();
+    }
+  }
+
+  /// Retain the author-selected exact-source revision. This does not approve or
+  /// publish it; the private review route must inspect the returned exact state.
+  Future<Proposal> prepareWritingSource({
+    required ProposalId candidate,
+    required String label,
+    required String text,
+    bool contracts = false,
+    String? knowledgeRationale,
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    if (!RegExp(
+      r'[^\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]',
+    ).hasMatch(text)) {
+      throw const InvalidArgumentError(
+        field: 'text',
+        message: 'author source must not be empty',
+      );
+    }
+    final binding = canonicalDigest(
+      CanonicalArray([
+        CanonicalString(candidate.value),
+        CanonicalString(label),
+        CanonicalString(text),
+        if (knowledgeRationale != null) CanonicalString(knowledgeRationale),
+      ]),
+    );
+    final key =
+        '${contracts ? 'writing-contracts-prepare' : 'writing-prepare'}:$binding';
+    final receipt = operationRequestKey(principal.id, 'propose', key);
+    if (_workflow.get(receipt) != null) {
+      final prior = await loadStoredOperation(
+        key: receipt,
+        principal: principal.id,
+        worldScope: current.worldScope,
+        readWorkflow: _workflow.get,
+        readReceipt: _journal.receipt,
+        isValidationActive: isValidationActive,
+      );
+      final proposal = prior.status.proposal;
+      if (proposal == null) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      _writingAuthorCurrent(proposal);
+      return proposal;
+    }
+    final latest = _workflow.latestKey('proposal:${candidate.value}:');
+    if (latest == null) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final retained = StoredProposal.fromWire(_workflow.get(latest)!);
+    final stored = _proposal(retained.reference, current);
+    final p = stored.proposal;
+    _writingAuthorCurrent(p);
+    if (p.submission != Submission.draft) throw const ApprovalStaleError();
+    final originals = _canon(p.baseFrame.continuity, p.baseFrame.revision);
+    validateWritingSourcePreparation(
+      operations: p.operations,
+      originals: originals,
+      contracts: contracts,
+      authorOrigin: stored.authorOrigin,
+      canonAt: _canon,
+      knowledgeRationale: knowledgeRationale,
+    );
+    final staged = stageWritingSource(
+      universe: universe,
+      author: principal.id,
+      label: label,
+      text: text,
+      importTime: DateTime.now().toUtc().toIso8601String(),
+    );
+    _workflow.compareAppend({}, staged.entries);
+    final attached = attachWritingSource(
+      universe: universe,
+      context: p.baseFrame.context,
+      operations: p.operations,
+      sourceOperations: staged.operations,
+      sourceVersion: staged.sourceVersion,
+      text: text,
+      digest: staged.digest,
+      byteSize: staged.byteSize,
+      knowledgeRationale: knowledgeRationale,
+    );
+    final admission = await _openContext(
+      _writingAdmission(Selector(universe.value), p.baseFrame),
+      current,
+    );
+    final rationale =
+        '${knowledgeRationale ?? (contracts ? 'Author explicitly declared these supported contracts/policies with exact source; separate approval still required.' : 'Author selected exact source passage for factual review; publication still requires separate exact approval.')}\n${p.rationale}';
+    return _propose(
+      ReviseProposalRequest(
+        universe: Selector(universe.value),
+        contextId: admission.contextId,
+        proposalReference: stored.reference,
+        operations: attached.operations,
+        submission: Submission.submitted,
+        rationale: rationale,
+        idempotencyKey: key,
+      ),
+      current,
+      resolvedFrame: admission.frame,
+      worldFocus: null,
+      isValidationActive: isValidationActive,
+      versions: attached.versions,
+    );
+  });
+
   Future<({CanonicalObject contracts, Frame frame})> readContractsRequest(
     ReadContractsRequest request,
   ) => authority.withUniverseAuthority(principal, universe, (current) async {
@@ -1152,6 +1302,7 @@ final class SqliteValidationWorkflow {
     required Frame resolvedFrame,
     required WorldId? worldFocus,
     required bool Function(OperationId) isValidationActive,
+    Map<RecordId, RecordVersionId> versions = const {},
   }) async {
     final (
       String idempotencyKey,
@@ -1234,6 +1385,7 @@ final class SqliteValidationWorkflow {
       author: principal.author,
       worldFocus: worldFocus,
       previous: previous,
+      versions: versions,
     );
     _admitProposal(prepared, prepared.reference, current);
     final kernel = SqliteKernel(package.database, universe);
