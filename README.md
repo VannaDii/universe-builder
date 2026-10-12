@@ -197,8 +197,13 @@ powers and authored objective completeness. Support and refutation remain
 independent with their source versions; unresolved applicability, timing,
 classification or precision leaves coverage incomplete. Indexing preserves the
 same dependencies and cannot reuse an old candidate after changes. Missing facts
-do not imply refutation. Opposing-evidence scans and service admission/publication
-workflows remain pending.
+do not imply refutation. Opposing-evidence scans now compare resolved meanings,
+pairwise values, scope and validity within one active revision. They retain exact
+dependency versions and separate definite conflicts from unresolved overlap or
+provenance gaps; absent archived versions never resolve to active replacements.
+The no-opposing-evidence expression shares the existing evaluation work budget,
+and incomplete scans cannot establish a completed check. Service admission and
+publication workflows remain pending.
 Typed events preserve occurrence modes, authored participants and ordered effects.
 Action consequences validate exact decimal bounds, slot uniqueness and lifetimes;
 an absent historical contract remains distinct from an explicitly empty contract,

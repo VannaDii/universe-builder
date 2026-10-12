@@ -6,6 +6,7 @@ import 'definitions.dart';
 import 'evidence.dart';
 import 'events.dart';
 import 'index.dart';
+import 'opposing.dart';
 import 'powers.dart';
 import 'time.dart';
 
@@ -65,7 +66,7 @@ EvaluationResult evaluateRule(CompiledRule rule, EvaluationContext context) {
   );
 }
 
-/// Bounded execution. Opposing-evidence scans remain unsupported until ported.
+/// Bounded execution over the caller-selected factual candidate and frame.
 (Evidence, bool) evaluateExpression(Expr expr, EvaluationContext context) =>
     _Evaluation(context).eval(expr, const {});
 
@@ -306,9 +307,153 @@ final class _Evaluation {
           Evidence(support: e.support, refutation: EvidenceBit.absent()),
           c,
         );
-      case NoOpposingEvidenceExpr():
-        return _unsupported();
+      case NoOpposingEvidenceExpr(
+        :final subject,
+        :final predicate,
+        context: final cell,
+      ):
+        return noOpposing(subject, predicate, cell, variables);
     }
+  }
+
+  (Evidence, bool) noOpposing(
+    Operand subjectOperand,
+    String predicate,
+    Operand contextOperand,
+    Map<String, DomainValue> variables,
+  ) {
+    RecordRef? reference(DomainValue? v) =>
+        v is ReferenceValue &&
+            (v.kind == ValueReferenceKind.record ||
+                v.kind == ValueReferenceKind.entity)
+        ? v.record
+        : null;
+    final subject = reference(_operand(subjectOperand, variables)),
+        cell = reference(_operand(contextOperand, variables)),
+        frame = context.frame;
+    if (subject == null || cell == null || frame == null) return _unsupported();
+    try {
+      subject.resolveNamespace(frame.universe);
+      cell.resolveNamespace(frame.universe);
+    } on FormatException {
+      return _unsupported();
+    }
+    final snapshot = <RecordId, RecordVersion>{
+      for (final r in context.baseSnapshot) r.identity.recordId: r,
+    };
+    for (final (id, next) in context.candidateChanges) {
+      if (next == null) {
+        snapshot.remove(id);
+      } else {
+        snapshot[id] = next;
+      }
+    }
+    final definitions = snapshot.values
+        .where(
+          (r) => switch (r.payload) {
+            PropertyRecord(:final namespace, :final key) ||
+            RelationRecord(
+              :final namespace,
+              :final key,
+            ) => '$namespace:$key' == predicate,
+            _ => false,
+          },
+        )
+        .map((r) => r.identity.recordId)
+        .toList();
+    if (definitions.length != 1 ||
+        !snapshot.containsKey(subject.record) ||
+        snapshot[cell.record]?.payload is! RepresentedContextRecord) {
+      return _unsupported();
+    }
+    RecordRef? normalized(RecordRef ref) {
+      try {
+        return ref.resolveNamespace(frame.universe);
+      } on FormatException {
+        return null;
+      }
+    }
+
+    final props = snapshot.values
+        .where((r) {
+          final p = r.payload;
+          return p is PropositionRecord &&
+              normalized(p.subject) == normalized(subject) &&
+              normalized(p.context) == normalized(cell) &&
+              p.predicate.record == definitions.single;
+        })
+        .map((r) => r.identity.recordId)
+        .toSet();
+    final ids = snapshot.keys.toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
+    final records = ids.map((id) => snapshot[id]!).toList();
+    final exactCell = <RecordId>{};
+    snapshot.removeWhere((id, r) {
+      final a = r.payload;
+      if (a is! AssertionRecord) return false;
+      if (!props.contains(a.proposition.record)) return true;
+      final world = switch (a.scope.applicability) {
+        UniverseApplicability() => true,
+        WorldsApplicability(:final worldIds) when worldIds.isEmpty => false,
+        WorldsApplicability(:final worldIds) => context.worldScope?.any(
+          (r) =>
+              worldIds.any((w) => r.value.substring(4) == w.value.substring(4)),
+        ),
+        _ => null,
+      };
+      final time = a.validity is UnspecifiedValidity
+          ? true
+          : eventApplies(a.validity, frame.time, records);
+      if (world == false || time == false) return true;
+      if (world == true && time == true && a.scope.realm == null) {
+        exactCell.add(id);
+      }
+      return false;
+    });
+    if (snapshot.length > budget) return _unsupported();
+    budget -= snapshot.length;
+    final remaining = ids
+        .where(snapshot.containsKey)
+        .map((id) => snapshot[id]!)
+        .toList();
+    OpposingScan scan;
+    try {
+      scan = detectOpposing(
+        universe: frame.universe,
+        records: remaining,
+        indexed: context.index != null,
+        budget: budget,
+      );
+    } on OpposingError {
+      return _unsupported();
+    }
+    budget -= scan.comparisons;
+    final complete =
+        scan.complete &&
+        scan.pairs.every(
+          (p) =>
+              exactCell.contains(p.support.assertion.identity.recordId) &&
+              exactCell.contains(p.refutation.assertion.identity.recordId),
+        );
+    final sources = scan.pairs
+        .expand((p) => [p.support, p.refutation])
+        .expand(
+          (c) => [
+            c.assertion.recordVersionId,
+            c.proposition.recordVersionId,
+            ...c.dependencies.map((r) => r.recordVersionId),
+          ],
+        )
+        .toList();
+    if (scan.pairs.any(
+      (p) =>
+          p.definite &&
+          exactCell.contains(p.support.assertion.identity.recordId) &&
+          exactCell.contains(p.refutation.assertion.identity.recordId),
+    )) {
+      return (Evidence.refuted(sources), complete);
+    }
+    return complete ? (Evidence.supported(sources), true) : _unsupported();
   }
 
   (Evidence, bool) claim(
