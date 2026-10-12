@@ -266,6 +266,14 @@ unresolved evidence does not establish capability; an event cannot grant its own
 pre-event capability. Changed evidence also revalidates unchanged action events.
 Historical actionless events remain readable. These checks still require the
 remaining proposal validation/publication integration.
+Candidate communication chronology now reassesses declared channel policies
+against every message, including unchanged messages when a policy changes.
+Authored delay bounds are inclusive exact signed 128-bit clock ticks. Missing
+actual recipients or receipt times, non-exact or different clocks, and uncovered
+channels remain unresolved; delivery and clock conversion are not inferred.
+This lane stays inactive without authored channel policies. Knowledge acquisition
+and the remaining proposal validation/publication integration still need their
+ports.
 Typed operation contracts preserve bare nested record DTOs separately from tagged stored
 payloads, snake-case operation fields and exact expected versions. Decoding an
 adoption request preserves its supplied digest; compilation verifies it and the

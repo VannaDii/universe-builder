@@ -12,3 +12,4 @@ export 'src/event_compilation.dart';
 export 'src/operation_compilation.dart' show compileOperations;
 export 'src/proposal_authorization.dart';
 export 'src/action_checks.dart';
+export 'src/communication_checks.dart';
