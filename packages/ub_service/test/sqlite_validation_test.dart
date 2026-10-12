@@ -986,6 +986,175 @@ void main() {
     expect(workflow.keys('proposal:'), proposalKeys);
   });
 
+  Future<CanonicalValue> writingEngine(EngineRequest request) =>
+      authorService().executeWritingEngineRequest(
+        EngineRequest.decode(request.toWire().toBytes()),
+        isValidationActive: (_) => false,
+      );
+
+  test('private writing engine requests retain raw reviews and publication envelopes across alias and reopen', () async {
+    final candidate = await writingDraft();
+    final head = kernel.journal.head(continuity);
+    authority.renameUniverse(author, id: f.u, name: 'Campaign');
+    final staged = WireFields(
+      await writingEngine(
+        const StageSourceEngineRequest(
+          universe: Selector('World'),
+          label: 'Independent source',
+          text: 'é😀',
+        ),
+      ),
+      {'canonical', 'operations'},
+    );
+    expect(staged.boolean('canonical'), isFalse);
+    expect(staged.array('operations'), hasLength(2));
+    final prepared = writingReview(
+      await writingEngine(
+        AuthorWritingEngineRequest(
+          universe: const Selector('World'),
+          action: PrepareWritingAction(
+            candidate: candidate,
+            label: 'Author scene',
+            text: 'Iris is red.',
+          ),
+        ),
+      ),
+    );
+    final ref = ProposalRef.fromWire(prepared.require('candidate'));
+    final raw = WireFields(
+      await writingEngine(
+        ReviewEngineRequest(
+          universe: const Selector('Campaign'),
+          proposalReference: ref,
+        ),
+      ),
+      {
+        'proposal',
+        'changes',
+        'diff',
+        'footprint',
+        'latest',
+        'assessment_review',
+      },
+    );
+    expect(Proposal.fromWire(raw.require('proposal')).digest, ref.digest);
+    expect(kernel.journal.head(continuity), head);
+    final inspected = writingReview(
+      await writingEngine(
+        AuthorWritingEngineRequest(
+          universe: const Selector('World'),
+          action: InspectWritingAction(candidate: ref),
+        ),
+      ),
+    );
+    final report = ValidationV3.fromWire(inspected.require('validation'));
+    final approved = WireFields(
+      await writingEngine(
+        ApproveEngineRequest(
+          universe: const Selector('Campaign'),
+          proposalReference: ref,
+          validationRun: report.execution!.runId,
+        ),
+      ),
+      {'approved', 'validation_run'},
+    );
+    expect(ProposalRef.fromWire(approved.require('approved')), ref);
+    final request = AuthorWritingEngineRequest(
+      universe: const Selector('World'),
+      action: PublishWritingAction(
+        candidate: ref,
+        validationRun: report.execution!.runId,
+        idempotencyKey: 'engine-writing-publication',
+      ),
+    );
+    final response = await writingEngine(request);
+    final envelope = Envelope<CommitReceipt>.fromWire(
+      response,
+      CommitReceipt.fromWire,
+    );
+    expect(envelope.contractVersion, protocolVersion);
+    expect(envelope.requestId, BigInt.zero);
+    expect(envelope.universeId, f.u);
+    expect(envelope.universe, const Selector('Campaign'));
+    expect(envelope.aliasMatched, isTrue);
+    expect(envelope.authorizationScope, 'universe grant');
+    expect(envelope.delivery.complete, isTrue);
+    expect(
+      envelope.frame,
+      Proposal.fromWire(raw.require('proposal')).baseFrame,
+    );
+    expect(kernel.journal.head(continuity), envelope.result.revision);
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    expect((await writingEngine(request)).toText(), response.toText());
+    expect(WorkflowStorage(package.database).keys('approval:'), hasLength(1));
+  });
+
+  test('private writing engine resolves the bound universe and author rights before staging', () async {
+    final workflow = WorkflowStorage(package.database);
+    final keys = workflow.keys('');
+    const request = StageSourceEngineRequest(
+      universe: Selector('World'),
+      label: 'Writer',
+      text: 'Private source',
+    );
+    await expectLater(
+      service.executeWritingEngineRequest(
+        EngineRequest.decode(request.toWire().toBytes()),
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    await expectLater(
+      writingEngine(
+        const StageSourceEngineRequest(
+          universe: Selector('Missing'),
+          label: 'Missing',
+          text: 'Text',
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    final otherPath = '${directory.path}/packages/other.sqlite';
+    final other = OwnedSqliteDatabase.create(otherPath);
+    try {
+      final foreign = SqliteKernel(other.database, UniverseId.generate());
+      other.database.execute('BEGIN IMMEDIATE');
+      foreign.journal.initialize(
+        'Other universe',
+        ContinuityId.generate(),
+        PrincipalId.generate(),
+      );
+      other.database.execute('COMMIT');
+    } finally {
+      other.close();
+    }
+    authority.registerUniverse(author, name: 'Other', path: otherPath);
+    await expectLater(
+      writingEngine(
+        const StageSourceEngineRequest(
+          universe: Selector('Other'),
+          label: 'Wrong worker',
+          text: 'Text',
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    authority.revoke(author, writer.id);
+    await expectLater(
+      service.executeWritingEngineRequest(
+        request,
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    expect(workflow.keys(''), keys);
+  });
+
   test('private writing actions prepare inspect and publish once across changed head and reopen', () async {
     final candidate = await writingDraft();
     final owner = authorService();

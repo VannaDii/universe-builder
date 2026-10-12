@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/sqlite.dart';
+import 'package:ub_store/installation.dart'
+    show InstallationException, InstallationFailure;
 import 'package:ub_store/ub_store.dart' show CommitInput;
 
 import 'assessment_resolution.dart';
@@ -932,7 +934,17 @@ final class SqliteValidationWorkflow {
   Future<CanonicalObject> stageSource({
     required String label,
     required String text,
-  }) => authority.withUniverseAuthority(principal, universe, (current) {
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _stageSource(current, label: label, text: text),
+  );
+
+  CanonicalObject _stageSource(
+    CurrentUniverseAuthority current, {
+    required String label,
+    required String text,
+  }) {
     if (!current.principal.author) {
       throw const NotFoundOrNotAccessibleError(message: 'resource');
     }
@@ -951,7 +963,7 @@ final class SqliteValidationWorkflow {
         CanonicalArray(staged.operations.map((op) => op.toWire())),
       ),
     ]);
-  });
+  }
 
   void _writingAuthorCurrent(Proposal proposal) {
     final reference = ProposalRef(
@@ -1069,44 +1081,142 @@ final class SqliteValidationWorkflow {
     ]);
   }
 
+  /// Private writing engine boundary for an already authenticated, recovered
+  /// universe worker. Socket/HTTP framing and worker ownership belong to runtime.
+  Future<CanonicalValue> executeWritingEngineRequest(
+    EngineRequest request, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
+    try {
+      return await authority.withUniverseAuthority(principal, universe, (
+        current,
+      ) async {
+        if (!current.principal.author) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        final selector = switch (request) {
+          AuthorWritingEngineRequest(:final universe) ||
+          StageSourceEngineRequest(:final universe) ||
+          ReviewEngineRequest(:final universe) ||
+          ApproveEngineRequest(:final universe) => universe,
+          _ => throw const InvalidArgumentError(
+            field: 'method',
+            message: 'requires a private writing engine request',
+          ),
+        };
+        final resolved = authority.resolveUniverseAlias(
+          principal,
+          selector.value,
+        );
+        if (resolved.universeId != universe) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        switch (request) {
+          case StageSourceEngineRequest(:final label, :final text):
+            return _stageSource(current, label: label, text: text);
+          case ReviewEngineRequest(:final proposalReference):
+            return _review(proposalReference, current);
+          case ApproveEngineRequest(
+            :final proposalReference,
+            :final validationRun,
+          ):
+            return _approve(proposalReference, validationRun, current);
+          case AuthorWritingEngineRequest(:final action):
+            final result = await _authorWritingAction(
+              action,
+              current,
+              isValidationActive: isValidationActive,
+            );
+            if (action is! PublishWritingAction) return result;
+            final stored = _proposal(action.candidate, current);
+            final envelope = Envelope<CanonicalValue>(
+              contractVersion: protocolVersion,
+              requestId: BigInt.zero,
+              universeId: universe,
+              universe: Selector(resolved.name),
+              aliasMatched: selector.value != resolved.name,
+              frame: stored.proposal.baseFrame,
+              authorizationScope: 'universe grant',
+              delivery: Delivery(complete: true, cursor: null),
+              result: result,
+            ).toWire((v) => v);
+            if (envelope.toBytes().length > 900000) {
+              throw const EvaluationLimitReachedError(
+                message: 'response exceeds bounded transport; narrow the batch',
+              );
+            }
+            return envelope;
+          default:
+            throw StateError('Unreachable private writing request');
+        }
+      });
+    } on InstallationException catch (error) {
+      if (error.failure == InstallationFailure.denied) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      rethrow;
+    }
+  }
+
   /// Native action dispatch. The transport owns the response envelope, just as
   /// it does for the native commit route; publication returns its durable receipt.
   Future<CanonicalValue> authorWritingAction(
     AuthorWritingAction action, {
     required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _authorWritingAction(
+      action,
+      current,
+      isValidationActive: isValidationActive,
+    ),
+  );
+
+  Future<CanonicalValue> _authorWritingAction(
+    AuthorWritingAction action,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
   }) async => switch (action) {
-    InspectWritingAction() => await inspectWriting(action),
-    PrepareWritingAction() => await prepareWritingReview(
+    InspectWritingAction() => await _inspectWriting(action, current),
+    PrepareWritingAction() => await _prepareWritingReview(
+      current,
       candidate: action.candidate,
       label: action.label,
       text: action.text,
       isValidationActive: isValidationActive,
     ),
-    PrepareContractsWritingAction() => await prepareWritingReview(
+    PrepareContractsWritingAction() => await _prepareWritingReview(
+      current,
       candidate: action.candidate,
       label: action.label,
       text: action.text,
       contracts: true,
       isValidationActive: isValidationActive,
     ),
-    EditKnowledgeWritingAction() => await editWritingKnowledge(
+    EditKnowledgeWritingAction() => await _editWritingKnowledge(
       action,
+      current,
       isValidationActive: isValidationActive,
     ),
-    EstablishKnowledgeWritingAction() => await establishWritingKnowledge(
+    EstablishKnowledgeWritingAction() => await _establishWritingKnowledge(
       action,
+      current,
       isValidationActive: isValidationActive,
     ),
-    AcceptWritingAction() => await acceptWriting(
+    AcceptWritingAction() => await _acceptWriting(
       action,
+      current,
       isValidationActive: isValidationActive,
     ),
-    RejectWritingAction() => (await rejectWriting(
+    RejectWritingAction() => (await _rejectWriting(
       action,
+      current,
       isValidationActive: isValidationActive,
     )).toWire(),
-    PublishWritingAction() => (await publishWriting(
+    PublishWritingAction() => (await _publishWriting(
       action,
+      current,
       isValidationActive: isValidationActive,
     )).toWire(),
   };
@@ -1118,7 +1228,27 @@ final class SqliteValidationWorkflow {
     required String text,
     bool contracts = false,
     required bool Function(OperationId) isValidationActive,
-  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _prepareWritingReview(
+      current,
+      candidate: candidate,
+      label: label,
+      text: text,
+      contracts: contracts,
+      isValidationActive: isValidationActive,
+    ),
+  );
+
+  Future<CanonicalObject> _prepareWritingReview(
+    CurrentUniverseAuthority current, {
+    required ProposalId candidate,
+    required String label,
+    required String text,
+    bool contracts = false,
+    required bool Function(OperationId) isValidationActive,
+  }) async {
     final proposal = await _prepareWritingSource(
       current,
       candidate: candidate,
@@ -1135,11 +1265,19 @@ final class SqliteValidationWorkflow {
       ),
       current,
     );
-  });
+  }
 
-  Future<CanonicalObject> inspectWriting(
+  Future<CanonicalObject> inspectWriting(InspectWritingAction action) =>
+      authority.withUniverseAuthority(
+        principal,
+        universe,
+        (current) => _inspectWriting(action, current),
+      );
+
+  Future<CanonicalObject> _inspectWriting(
     InspectWritingAction action,
-  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    CurrentUniverseAuthority current,
+  ) async {
     if (!current.principal.author) {
       throw const NotFoundOrNotAccessibleError(message: 'resource');
     }
@@ -1157,12 +1295,23 @@ final class SqliteValidationWorkflow {
       );
     }
     return _writingAuthorReview(action.candidate, current);
-  });
+  }
 
   Future<Proposal> rejectWriting(
     RejectWritingAction action, {
     required bool Function(OperationId) isValidationActive,
-  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) =>
+        _rejectWriting(action, current, isValidationActive: isValidationActive),
+  );
+
+  Future<Proposal> _rejectWriting(
+    RejectWritingAction action,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
     if (!current.principal.author) {
       throw const NotFoundOrNotAccessibleError(message: 'resource');
     }
@@ -1207,7 +1356,7 @@ final class SqliteValidationWorkflow {
       worldFocus: null,
       isValidationActive: isValidationActive,
     );
-  });
+  }
 
   Future<OpenedContext> _writingKnowledgeContext(
     ContextId id,
@@ -1296,7 +1445,21 @@ final class SqliteValidationWorkflow {
   Future<CanonicalObject> editWritingKnowledge(
     EditKnowledgeWritingAction action, {
     required bool Function(OperationId) isValidationActive,
-  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _editWritingKnowledge(
+      action,
+      current,
+      isValidationActive: isValidationActive,
+    ),
+  );
+
+  Future<CanonicalObject> _editWritingKnowledge(
+    EditKnowledgeWritingAction action,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
     if (!current.principal.author) {
       throw const NotFoundOrNotAccessibleError(message: 'resource');
     }
@@ -1333,12 +1496,26 @@ final class SqliteValidationWorkflow {
       text: action.text,
       isValidationActive: isValidationActive,
     );
-  });
+  }
 
   Future<CanonicalObject> establishWritingKnowledge(
     EstablishKnowledgeWritingAction action, {
     required bool Function(OperationId) isValidationActive,
-  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _establishWritingKnowledge(
+      action,
+      current,
+      isValidationActive: isValidationActive,
+    ),
+  );
+
+  Future<CanonicalObject> _establishWritingKnowledge(
+    EstablishKnowledgeWritingAction action,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
     if (!current.principal.author) {
       throw const NotFoundOrNotAccessibleError(message: 'resource');
     }
@@ -1430,14 +1607,25 @@ final class SqliteValidationWorkflow {
       text: action.text,
       isValidationActive: isValidationActive,
     );
-  });
+  }
 
   /// Accept only an exact unresolved opt-in resource finding. This retains a
   /// new submitted proposal; its validation and approval are separate decisions.
   Future<CanonicalObject> acceptWriting(
     AcceptWritingAction action, {
     required bool Function(OperationId) isValidationActive,
-  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) =>
+        _acceptWriting(action, current, isValidationActive: isValidationActive),
+  );
+
+  Future<CanonicalObject> _acceptWriting(
+    AcceptWritingAction action,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
     if (!current.principal.author) {
       throw const NotFoundOrNotAccessibleError(message: 'resource');
     }
@@ -1581,12 +1769,26 @@ final class SqliteValidationWorkflow {
       ),
       current,
     );
-  });
+  }
 
   Future<CommitReceipt> publishWriting(
     PublishWritingAction action, {
     required bool Function(OperationId) isValidationActive,
-  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _publishWriting(
+      action,
+      current,
+      isValidationActive: isValidationActive,
+    ),
+  );
+
+  Future<CommitReceipt> _publishWriting(
+    PublishWritingAction action,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
     if (!current.principal.author) {
       throw const NotFoundOrNotAccessibleError(message: 'resource');
     }
@@ -1607,7 +1809,7 @@ final class SqliteValidationWorkflow {
       await _approve(action.candidate, action.validationRun, current);
     }
     return _commit(request, current, isValidationActive: isValidationActive);
-  });
+  }
 
   /// Retain the author-selected exact-source revision. This does not approve or
   /// publish it; the private review route must inspect the returned exact state.
