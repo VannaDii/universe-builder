@@ -47,6 +47,7 @@ final class NativeSqliteRuntime {
     final finished = Completer<void>();
     _active.add(finished);
     try {
+      if (request is DoctorEngineRequest) return await _doctor(principal);
       if (request
           case StatusEngineRequest() ||
               ProfilesEngineRequest() ||
@@ -91,25 +92,7 @@ final class NativeSqliteRuntime {
                 'requires a universe tool or private writing engine request',
           ),
         };
-        final catalog = authority.resolveUniverseAlias(
-          principal,
-          selector.value,
-        );
-        final cached = _packages[catalog.universeId];
-        if (cached != null) return cached;
-        _requireWorkerCapacity();
-        final opened = OwnedSqliteDatabase.openExisting(catalog.path);
-        try {
-          if (opened.universeId != catalog.universeId) {
-            throw const NotFoundOrNotAccessibleError(message: 'resource');
-          }
-          opened.recover();
-          _packages[catalog.universeId] = opened;
-          return opened;
-        } on Object {
-          opened.close();
-          rethrow;
-        }
+        return _openPackage(principal, selector);
       });
       // Execution rechecks current authority after recovery/admission. No caller
       // acquires raw database access or inherits rights from a cached worker.
@@ -176,6 +159,84 @@ final class NativeSqliteRuntime {
       _active.remove(finished);
       finished.complete();
     }
+  }
+
+  // Caller retains the current installation authority section.
+  OwnedSqliteDatabase _openPackage(
+    InstallationPrincipal principal,
+    Selector selector,
+  ) {
+    final catalog = authority.resolveUniverseAlias(principal, selector.value);
+    final cached = _packages[catalog.universeId];
+    if (cached != null) return cached;
+    _requireWorkerCapacity();
+    final opened = OwnedSqliteDatabase.openExisting(catalog.path);
+    try {
+      if (opened.universeId != catalog.universeId) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      opened.recover();
+      _packages[catalog.universeId] = opened;
+      return opened;
+    } on Object {
+      opened.close();
+      rethrow;
+    }
+  }
+
+  Future<CanonicalObject> _doctor(InstallationPrincipal principal) async {
+    final catalog = await authority.coordinate(principal, () {
+      authority.requireAuthor(principal);
+      return authority.catalog(principal);
+    });
+    final packages = <CanonicalValue>[];
+    for (final entry in catalog) {
+      packages.add(
+        await authority.coordinate(principal, () {
+          authority.requireAuthor(principal);
+          try {
+            final package = _openPackage(principal, Selector(entry.name));
+            if (package.universeId != entry.universeId) {
+              throw const NotFoundOrNotAccessibleError(message: 'resource');
+            }
+            return CanonicalObject([
+              MapEntry('id', CanonicalString(entry.universeId.value)),
+              MapEntry('storage', package.storageStatus()),
+            ]);
+          } on Object {
+            return CanonicalObject([
+              MapEntry('id', CanonicalString(entry.universeId.value)),
+              MapEntry(
+                'error',
+                CanonicalString(
+                  'package unavailable: check file ownership, writer lock, schema version, and integrity',
+                ),
+              ),
+            ]);
+          }
+        }),
+      );
+    }
+    return CanonicalObject([
+      MapEntry('service_instance', CanonicalString(instance.value)),
+      MapEntry('packages', CanonicalArray(packages)),
+      MapEntry(
+        'profile_storage',
+        CanonicalString('installation-only protected files'),
+      ),
+      MapEntry(
+        'recovery',
+        CanonicalString('immutable history replay; atomic projection rebuild'),
+      ),
+      MapEntry(
+        'admission',
+        CanonicalObject([
+          const MapEntry('connections', CanonicalNumber('32')),
+          const MapEntry('requests_per_principal', CanonicalNumber('8')),
+          const MapEntry('queue_per_universe', CanonicalNumber('16')),
+        ]),
+      ),
+    ]);
   }
 
   CanonicalValue _installation(

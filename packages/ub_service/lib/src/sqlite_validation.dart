@@ -921,66 +921,7 @@ final class SqliteValidationWorkflow {
           );
         }
         return CanonicalObject([
-          MapEntry(
-            'storage',
-            CanonicalObject([
-              MapEntry('universe', CanonicalString(universe.value)),
-              MapEntry(
-                'sqlite_version',
-                CanonicalString(
-                  package.database
-                          .select('SELECT sqlite_version() AS version')
-                          .single['version']
-                      as String,
-                ),
-              ),
-              MapEntry(
-                'journal_mode',
-                CanonicalString(
-                  package.database
-                          .select('PRAGMA journal_mode')
-                          .single
-                          .values
-                          .single
-                      as String,
-                ),
-              ),
-              MapEntry(
-                'synchronous',
-                CanonicalNumber(
-                  (package.database
-                              .select('PRAGMA synchronous')
-                              .single
-                              .values
-                              .single
-                          as int)
-                      .toString(),
-                ),
-              ),
-              MapEntry(
-                'foreign_keys',
-                CanonicalBool(
-                  package.database
-                          .select('PRAGMA foreign_keys')
-                          .single
-                          .values
-                          .single ==
-                      1,
-                ),
-              ),
-              MapEntry(
-                'heads',
-                CanonicalArray(
-                  heads.entries.map(
-                    (head) => CanonicalArray([
-                      CanonicalString(head.key.value),
-                      CanonicalString(head.value.value),
-                    ]),
-                  ),
-                ),
-              ),
-            ]),
-          ),
+          MapEntry('storage', package.storageStatus()),
           MapEntry('worlds', CanonicalArray(worlds)),
           MapEntry('contexts', CanonicalArray(contexts)),
           MapEntry('continuities', CanonicalArray(continuities)),

@@ -78,6 +78,49 @@ final class OwnedSqliteDatabase {
     return UniverseId.parse(rows.single['id'] as String);
   }
 
+  /// Storage settings from the owned connection; this is not a fresh integrity
+  /// check. Existing packages complete recovery before runtime exposure.
+  CanonicalObject storageStatus() => CanonicalObject([
+    MapEntry('universe', CanonicalString(universeId.value)),
+    MapEntry(
+      'sqlite_version',
+      CanonicalString(
+        database.select('SELECT sqlite_version() AS version').single['version']
+            as String,
+      ),
+    ),
+    MapEntry(
+      'journal_mode',
+      CanonicalString(
+        database.select('PRAGMA journal_mode').single.values.single as String,
+      ),
+    ),
+    MapEntry(
+      'synchronous',
+      CanonicalNumber(
+        (database.select('PRAGMA synchronous').single.values.single as int)
+            .toString(),
+      ),
+    ),
+    MapEntry(
+      'foreign_keys',
+      CanonicalBool(
+        database.select('PRAGMA foreign_keys').single.values.single == 1,
+      ),
+    ),
+    MapEntry(
+      'heads',
+      CanonicalArray(
+        SqliteJournal(database, universeId).heads().entries.map(
+          (head) => CanonicalArray([
+            CanonicalString(head.key.value),
+            CanonicalString(head.value.value),
+          ]),
+        ),
+      ),
+    ),
+  ]);
+
   /// Retain all author history and evidence. Only disposable snapshot caches
   /// may be collected while this connection retains sole writer ownership.
   CanonicalObject maintain({required bool collect}) {

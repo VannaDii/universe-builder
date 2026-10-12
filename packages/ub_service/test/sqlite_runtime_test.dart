@@ -2194,6 +2194,212 @@ void main() {
         {'storage', 'worlds', 'contexts', 'continuities', 'writing'},
       );
 
+  Future<WireFields> doctor(NativeSqliteConnection connection) async =>
+      WireFields(await engine(connection, const DoctorEngineRequest()), {
+        'service_instance',
+        'packages',
+        'profile_storage',
+        'recovery',
+        'admission',
+      });
+
+  test('native package health retains author-only redacted status and recovers a locked package on retry', () async {
+    final other = UniverseId.generate();
+    final continuity = ContinuityId.generate();
+    final otherPath = '${root.path}/packages/healthy.sqlite';
+    final setup = OwnedSqliteDatabase.create(otherPath);
+    try {
+      setup.database.execute('BEGIN IMMEDIATE');
+      SqliteJournal(
+        setup.database,
+        other,
+      ).initialize('Healthy fixture', continuity, PrincipalId.generate());
+      setup.database.execute('COMMIT');
+    } finally {
+      setup.close();
+    }
+    authority.registerUniverse(author, name: 'Healthy', path: otherPath);
+    authority.grant(
+      author,
+      GrantSpec(
+        profileId: writer.id,
+        universeId: f.u,
+        worlds: null,
+        propose: true,
+        edit: true,
+        protected: true,
+      ),
+    );
+    final blocked = OwnedSqliteDatabase.openExisting(path);
+    final connection = runtime.connect(hello(author.id));
+    late WireFields first;
+    try {
+      await expectLater(
+        doctor(runtime.connect(hello(writer.id))),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      first = await doctor(connection);
+      expect(first.string('service_instance'), runtime.instance.value);
+      expect(
+        first.string('profile_storage'),
+        'installation-only protected files',
+      );
+      expect(
+        first.string('recovery'),
+        'immutable history replay; atomic projection rebuild',
+      );
+      expect(
+        first.require('admission').toText(),
+        '{"connections":32,"queue_per_universe":16,"requests_per_principal":8}',
+      );
+      final entries = first.array('packages');
+      expect(entries, hasLength(2));
+      final failed = entries.singleWhere(
+        (v) =>
+            WireFields(v, {'id', 'storage', 'error'}).string('id') == f.u.value,
+      );
+      expect(
+        WireFields(failed, {'id', 'error'}).string('error'),
+        'package unavailable: check file ownership, writer lock, schema version, and integrity',
+      );
+      final healthy = WireFields(
+        entries.singleWhere(
+          (v) =>
+              WireFields(v, {'id', 'storage', 'error'}).string('id') ==
+              other.value,
+        ),
+        {'id', 'storage'},
+      );
+      expect(
+        WireFields(healthy.require('storage'), {
+          'universe',
+          'sqlite_version',
+          'journal_mode',
+          'synchronous',
+          'foreign_keys',
+          'heads',
+        }).string('universe'),
+        other.value,
+      );
+      expect(
+        CanonicalObject([
+          for (final f in ['packages', 'admission'])
+            MapEntry(f, first.require(f)),
+        ]).toText(),
+        isNot(contains(root.path)),
+      );
+    } finally {
+      blocked.close();
+    }
+    final recovered = await doctor(connection);
+    expect(recovered.array('packages'), hasLength(2));
+    final entry = WireFields(
+      recovered
+          .array('packages')
+          .singleWhere(
+            (v) => WireFields(v, {'id', 'storage'}).string('id') == f.u.value,
+          ),
+      {'id', 'storage'},
+    );
+    expect(
+      entry.require('storage').toText(),
+      (await library(connection)).require('storage').toText(),
+    );
+    expect(
+      (await doctor(connection)).require('packages').toText(),
+      recovered.require('packages').toText(),
+    );
+    await runtime.close();
+    final available = OwnedSqliteDatabase.openExisting(path);
+    try {
+      available.recover();
+      expect(
+        SqliteJournal(
+          available.database,
+          f.u,
+        ).head(draft.proposal.baseFrame.continuity),
+        draft.proposal.baseFrame.revision,
+      );
+    } finally {
+      available.close();
+    }
+    final priorInstance = recovered.string('service_instance');
+    runtime = NativeSqliteRuntime(authority: authority);
+    final restarted = await doctor(runtime.connect(hello(author.id)));
+    expect(restarted.string('service_instance'), isNot(priorInstance));
+    expect(
+      restarted.require('packages').toText(),
+      recovered.require('packages').toText(),
+    );
+  });
+
+  test('native package health fails closed on missing or corrupt packages without retaining a failed worker', () async {
+    final connection = runtime.connect(hello(author.id));
+    final moved = File(path).renameSync('$path.saved');
+    final missing = await doctor(connection);
+    final missingEntry = WireFields(missing.array('packages').single, {
+      'id',
+      'error',
+    });
+    expect(missingEntry.string('id'), f.u.value);
+    expect(File(path).existsSync(), isFalse);
+    moved.renameSync(path);
+    final setup = OwnedSqliteDatabase.openExisting(path);
+    late String digest;
+    late int generation;
+    try {
+      setup.recover();
+      digest =
+          setup.database.select(
+                'SELECT digest FROM workflow_entries WHERE key=?',
+                [draft.key],
+              ).single['digest']
+              as String;
+      generation =
+          setup.database
+                  .select('SELECT generation FROM projection_state')
+                  .single['generation']
+              as int;
+      setup.database.execute('DROP TRIGGER workflow_entries_no_update');
+      setup.database.execute(
+        'UPDATE workflow_entries SET digest=? WHERE key=?',
+        ['0' * 64, draft.key],
+      );
+    } finally {
+      setup.close();
+    }
+    final corrupt = await doctor(connection);
+    expect(
+      corrupt.require('packages').toText(),
+      missing.require('packages').toText(),
+    );
+    final repair = OwnedSqliteDatabase.openExisting(path);
+    try {
+      expect(
+        repair.database
+            .select('SELECT generation FROM projection_state')
+            .single['generation'],
+        generation,
+      );
+      repair.database.execute(
+        'UPDATE workflow_entries SET digest=? WHERE key=?',
+        [digest, draft.key],
+      );
+    } finally {
+      repair.close();
+    }
+    final healthy = await doctor(connection);
+    final entry = WireFields(healthy.array('packages').single, {
+      'id',
+      'storage',
+    });
+    expect(entry.string('id'), f.u.value);
+    expect(
+      entry.require('storage').toText(),
+      (await library(connection)).require('storage').toText(),
+    );
+  });
+
   test('private library retains all continuity heads worlds and contexts without writer disclosure', () async {
     seedReadRows([
       f.row(50, WorldRecord(selector: 'Campaign', aliases: ['Play'])),
