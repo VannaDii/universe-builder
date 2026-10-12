@@ -15,10 +15,35 @@ Future<Uint8List> readRetainedImageBytes(
   ImageAssetRecord asset,
   FutureOr<CanonicalValue?> Function(String key) read,
 ) async {
-  validateImageMetadata(asset);
-  final size = asset.byteSize.toInt(), bytes = BytesBuilder(copy: false);
-  for (var i = 0; i < (size + imageChunkBytes - 1) ~/ imageChunkBytes; i++) {
-    final value = await read('image-bytes:${asset.contentDigest}:$i');
+  final assembly = _ImageByteAssembly(asset);
+  for (var i = 0; i < assembly.chunks; i++) {
+    assembly.add(await read('image-bytes:${asset.contentDigest}:$i'));
+  }
+  return assembly.finish();
+}
+
+/// Native transactions use synchronous reads without yielding their ownership.
+Uint8List readRetainedImageBytesSync(
+  ImageAssetRecord asset,
+  CanonicalValue? Function(String key) read,
+) {
+  final assembly = _ImageByteAssembly(asset);
+  for (var i = 0; i < assembly.chunks; i++) {
+    assembly.add(read('image-bytes:${asset.contentDigest}:$i'));
+  }
+  return assembly.finish();
+}
+
+final class _ImageByteAssembly {
+  _ImageByteAssembly(this.asset) {
+    validateImageMetadata(asset);
+  }
+  final ImageAssetRecord asset;
+  final bytes = BytesBuilder(copy: false);
+  int get size => asset.byteSize.toInt();
+  int get chunks => (size + imageChunkBytes - 1) ~/ imageChunkBytes;
+
+  void add(CanonicalValue? value) {
     if (value == null) throw const FormatException('missing image chunk');
     if (value is! CanonicalString) {
       throw const FormatException('invalid image chunk');
@@ -45,9 +70,12 @@ Future<Uint8List> readRetainedImageBytes(
     }
     bytes.add(chunk);
   }
-  final retained = bytes.takeBytes();
-  if (sha256.convert(retained).toString() != asset.contentDigest) {
-    throw const FormatException('image digest mismatch');
+
+  Uint8List finish() {
+    final retained = bytes.takeBytes();
+    if (sha256.convert(retained).toString() != asset.contentDigest) {
+      throw const FormatException('image digest mismatch');
+    }
+    return retained;
   }
-  return retained;
 }

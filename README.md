@@ -67,9 +67,10 @@ initialization indexes, head advancement, projections and durable commit receipt
 in one transaction. Exact retries precede current-head/workflow comparisons.
 Preview runs that same write path and deliberately rolls it back before returning
 the candidate; failed gates and interrupted checkpoints leave canon intact.
-Changed images remain unavailable in this coordinator until bounded decoding
-admission is ported. Public reviewed publication and owning-service integration
-remain pending.
+Changed images now require retained original bytes and decoded metadata agreement
+in commit and preview. Atomic byte staging retains the import receipt separately
+from canonical publication. Public reviewed publication and owning-service
+integration remain pending.
 Foundation/value/ancestry admission and world selector reservations are
 implemented internally. Selector keys preserve the existing NFC/full case
 folding/NFC format with pinned Unicode tables; renamed or removed world names
@@ -308,8 +309,7 @@ flag. The candidate structural validator now composes these typed rule and
 citation checks with chronology and event expansion verification, declaration
 value shapes, context nesting, typed fact targets, appearances and bounded image
 metadata. Passing structure does not establish conflict resolution, permissions
-or author approval. Retained-image decoding and proposal
-validation/publication integration remain pending.
+or author approval. Proposal validation/publication integration remains pending.
 Immutable import verification now compares complete source/image payloads with
 retained staging receipts, verifies original UTF-8 digests, byte lengths and
 decoding declarations, and checks exact citation excerpts at UTF-8 byte boundaries.
@@ -317,8 +317,15 @@ Anchors retain their pinned historical source version when a newer head exists;
 structural-path anchors remain explicitly unsupported. Image byte reconstruction
 requires every bounded chunk, canonical standard Base64, exact chunk lengths and
 the complete content digest. These portable checks work with retained SQLite
-workflow entries after reopen; full workflow wiring and image decode/preview
-admission remain pending.
+workflow entries after reopen; full workflow wiring remains pending.
+Image admission and previews now decode PNG, JPEG and WebP with the existing
+10 MiB input, 8192-pixel edge and 32-megapixel limits, plus a 128 MiB decoded
+output budget. That budget does not promise a total process heap cap. Original
+digests bind exact encoded bytes; metadata is checked against decoded dimensions
+and format. Animated files use their first frame/canvas and JPEG EXIF orientation
+does not change encoded dimensions. Disposable JPEG previews use quality 75,
+edges 768/512/256 and a 512 KiB output limit. Native file selection and service
+import/preview authorization still require integration.
 The Dart definition registry now verifies incoming payload digests, isolates
 definition universes, retains active versions and rejects duplicate family names.
 Registry admission checks typed references, parent consistency and cycles,

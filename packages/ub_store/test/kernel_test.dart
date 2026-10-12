@@ -1,13 +1,16 @@
 @TestOn('vm')
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:image/image.dart' as img;
 import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/src/database.dart';
 import 'package:ub_store/src/kernel.dart';
+import 'package:ub_store/src/media_decode.dart';
 import 'package:ub_store/src/revision_input.dart';
 import 'package:ub_store/src/workflow_storage.dart';
 
@@ -252,15 +255,46 @@ void main() {
     expect(kernel.identityExists(record(2)), isFalse);
   });
 
-  test('image changes remain unavailable in both commit and preview until decoding admission is ported', () {
-    final asset = ImageAssetRecord(
-      contentDigest: '0' * 64,
-      mediaType: 'image/png',
-      byteSize: BigInt.one,
-      width: 1,
-      height: 1,
-      originalName: 'disposable.png',
-    );
+  test(
+    'image admission requires retained chunks in both commit and preview',
+    () {
+      final asset = ImageAssetRecord(
+        contentDigest: '0' * 64,
+        mediaType: 'image/png',
+        byteSize: BigInt.one,
+        width: 1,
+        height: 1,
+        originalName: 'disposable.png',
+      );
+      final next = StoredVersion.build(
+        version(1),
+        RecordIdentity(
+          universeId: universe,
+          recordId: record(1),
+          recordKind: RecordKind.imageAsset,
+        ),
+        asset.toWire(),
+      );
+      final request = input('image', [
+        Assignment(recordId: record(1), next: next),
+      ]);
+      final before = sizes();
+      expect(() => kernel.preview(request), throwsFormatException);
+      expect(() => kernel.commit(request), throwsFormatException);
+      expect(sizes(), before);
+      expect(kernel.identityExists(record(1)), isFalse);
+    },
+  );
+  test('decoded image publication and preview use the retained original; altered metadata rolls back', () {
+    final bytes = img.encodePng(img.Image(width: 3, height: 2));
+    final asset = inspectImageBytes(bytes, 'disposable.png');
+    WorkflowStorage(database).compareAppend({}, [
+      MapEntry('image-asset:${record(1).value}', asset.toWire()),
+      MapEntry(
+        'image-bytes:${asset.contentDigest}:0',
+        CanonicalString(base64.encode(bytes)),
+      ),
+    ]);
     final next = StoredVersion.build(
       version(1),
       RecordIdentity(
@@ -274,9 +308,113 @@ void main() {
       Assignment(recordId: record(1), next: next),
     ]);
     final before = sizes();
-    expect(() => kernel.preview(request), throwsUnsupportedError);
-    expect(() => kernel.commit(request), throwsUnsupportedError);
+    expect(kernel.preview(request).single.versionId, version(1));
     expect(sizes(), before);
-    expect(kernel.identityExists(record(1)), isFalse);
+    final head = kernel.commit(request);
+    final changed = ImageAssetRecord(
+      contentDigest: asset.contentDigest,
+      mediaType: asset.mediaType,
+      byteSize: asset.byteSize,
+      width: 4,
+      height: 2,
+      originalName: asset.originalName,
+    );
+    final wrong = input('image-mismatch', [
+      Assignment(
+        recordId: record(1),
+        expected: version(1),
+        next: StoredVersion.build(version(2), next.identity, changed.toWire()),
+      ),
+    ], head: head);
+    final committed = sizes();
+    expect(() => kernel.preview(wrong), throwsFormatException);
+    expect(() => kernel.commit(wrong), throwsFormatException);
+    expect(sizes(), committed);
+    expect(kernel.journal.head(continuity), head);
+    database.close();
+    database = SqliteDatabase.open(
+      '${directory.path}/package.sqlite',
+      existing: true,
+    );
+    kernel = SqliteKernel(database, universe);
+    expect(
+      kernel.journal.load(version(1)).toCanonical().toText(),
+      next.toCanonical().toText(),
+    );
+    expect(kernel.commit(request), head);
+  });
+  test('image staging retains originals atomically and remains distinct from canonical publication', () {
+    final bytes = img.encodeWebP(
+      img.Image(width: 5, height: 3, numChannels: 4),
+    );
+    final staged = kernel.stageImageBytes(bytes, 'original.webp');
+    final workflow = WorkflowStorage(database);
+    expect(kernel.identityExists(staged.record), isFalse);
+    expect(
+      workflow.get('image-asset:${staged.record.value}')!.toText(),
+      staged.asset.toWire().toText(),
+    );
+    expect(kernel.imageBytes(staged.asset), bytes);
+    final repeated = kernel.stageImageBytes(bytes, 'renamed.webp');
+    expect(repeated.record, isNot(staged.record));
+    expect(repeated.asset.contentDigest, staged.asset.contentDigest);
+    expect(workflow.keys('image-bytes:'), hasLength(1));
+    final next = StoredVersion.build(
+      version(7),
+      RecordIdentity(
+        universeId: universe,
+        recordId: staged.record,
+        recordKind: RecordKind.imageAsset,
+      ),
+      staged.asset.toWire(),
+    );
+    final request = input('publish-staged-image', [
+      Assignment(recordId: staged.record, next: next),
+    ]);
+    expect(
+      () => kernel.commit(
+        request,
+        hook: (point) {
+          if (point == CommitFaultPoint.beforeCommit) {
+            throw StateError('Interrupted');
+          }
+        },
+      ),
+      throwsStateError,
+    );
+    expect(kernel.identityExists(staged.record), isFalse);
+    expect(kernel.imageBytes(staged.asset), bytes);
+    final head = kernel.commit(request);
+    database.close();
+    database = SqliteDatabase.open(
+      '${directory.path}/package.sqlite',
+      existing: true,
+    );
+    kernel = SqliteKernel(database, universe);
+    expect(kernel.journal.head(continuity), head);
+    expect(kernel.imageBytes(staged.asset), bytes);
+    expect(
+      kernel.imagePreview(staged.asset),
+      imagePreview(staged.asset, bytes),
+    );
+  });
+
+  test('failed image staging cannot leave an orphaned metadata receipt', () {
+    final bytes = img.encodePng(img.Image(width: 2, height: 2));
+    final asset = inspectImageBytes(bytes, 'original.png');
+    final workflow = WorkflowStorage(database);
+    workflow.compareAppend({}, [
+      MapEntry(
+        'image-bytes:${asset.contentDigest}:0',
+        CanonicalString(base64.encode([0])),
+      ),
+    ]);
+    final before = workflow.keys('image-asset:');
+    expect(
+      () => kernel.stageImageBytes(bytes, 'original.png'),
+      throwsFormatException,
+    );
+    expect(workflow.keys('image-asset:'), before);
+    expect(kernel.journal.head(continuity), genesis);
   });
 }

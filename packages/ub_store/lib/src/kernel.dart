@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:sqlite3/sqlite3.dart';
 import 'package:ub_domain/ub_domain.dart';
 
@@ -6,8 +9,11 @@ import 'candidate_references.dart';
 import 'definition_index.dart';
 import 'initialization.dart';
 import 'journal.dart';
+import 'media_bytes.dart';
+import 'media_decode.dart' as media;
 import 'projections.dart';
 import 'revision_input.dart';
+import 'workflow_storage.dart';
 
 enum CommitFaultPoint {
   versions,
@@ -19,8 +25,7 @@ enum CommitFaultPoint {
 }
 
 /// Internal transaction coordinator. Application publication still requires the
-/// service's exact approval and current authority. Image changes are unavailable
-/// until bounded decoding admission is ported; they cannot bypass that gate.
+/// service's exact approval and current authority.
 final class SqliteKernel {
   SqliteKernel(this.database, UniverseId universe)
     : journal = SqliteJournal(database, universe);
@@ -50,9 +55,12 @@ final class SqliteKernel {
       // Decode changed images before any durable version can be admitted.
       for (final change in input.changes) {
         if (change.next?.identity.recordKind == RecordKind.imageAsset) {
-          throw UnsupportedError(
-            'Image decoding admission is not yet implemented',
+          final asset = ImageAssetRecord.fromWire(change.next!.payload);
+          final bytes = readRetainedImageBytesSync(
+            asset,
+            WorkflowStorage(database).get,
           );
+          media.validateImageBytes(asset, bytes);
         }
       }
       final base = journal.snapshot(input.continuity, input.expectedHead);
@@ -152,6 +160,41 @@ final class SqliteKernel {
         [journal.universe.value, record.value],
       ).single['present'] ==
       1;
+
+  /// Retain an imported original and its metadata atomically. The caller must
+  /// authorize import; this does not create or publish a canonical record.
+  ({RecordId record, ImageAssetRecord asset}) stageImageBytes(
+    Uint8List bytes,
+    String originalName,
+  ) {
+    if (!database.autocommit) {
+      throw StateError('Image import owns its transaction');
+    }
+    final asset = media.inspectImageBytes(bytes, originalName);
+    final record = RecordId.generate();
+    final entries = <MapEntry<String, CanonicalValue>>[];
+    for (var offset = 0; offset < bytes.length; offset += imageChunkBytes) {
+      final end = offset + imageChunkBytes < bytes.length
+          ? offset + imageChunkBytes
+          : bytes.length;
+      entries.add(
+        MapEntry(
+          'image-bytes:${asset.contentDigest}:${offset ~/ imageChunkBytes}',
+          CanonicalString(
+            base64.encode(Uint8List.sublistView(bytes, offset, end)),
+          ),
+        ),
+      );
+    }
+    entries.add(MapEntry('image-asset:${record.value}', asset.toWire()));
+    WorkflowStorage(database).compareAppend({}, entries);
+    return (record: record, asset: asset);
+  }
+
+  Uint8List imageBytes(ImageAssetRecord asset) =>
+      readRetainedImageBytesSync(asset, WorkflowStorage(database).get);
+  String imagePreview(ImageAssetRecord asset) =>
+      media.imagePreview(asset, imageBytes(asset));
 }
 
 final class _PreviewRollback implements Exception {
