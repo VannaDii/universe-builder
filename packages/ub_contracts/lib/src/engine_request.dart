@@ -49,6 +49,7 @@ sealed class EngineRequest {
       'source_revision',
       'start',
       'target',
+      'target_instance',
       'target_revision',
       'text',
       'universe',
@@ -61,6 +62,7 @@ sealed class EngineRequest {
       'profiles' => ProfilesEngineRequest.fromWire(value),
       'list_moves' => ListMovesEngineRequest.fromWire(value),
       'get_move' => GetMoveEngineRequest.fromWire(value),
+      'stage_move' => StageMoveEngineRequest.fromWire(value),
       'withdraw_grant' => WithdrawGrantEngineRequest.fromWire(value),
       'preview_purge' => PreviewPurgeEngineRequest.fromWire(value),
       'purge' => PurgeEngineRequest.fromWire(value),
@@ -167,6 +169,41 @@ final class GetMoveEngineRequest extends EngineRequest {
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('method', CanonicalString(method)),
     MapEntry('operation_id', CanonicalString(operationId.value)),
+  ]);
+}
+
+final class StageMoveEngineRequest extends EngineRequest {
+  const StageMoveEngineRequest({
+    required this.universeId,
+    required this.operationId,
+    required this.targetInstance,
+  });
+  final UniverseId universeId;
+  final OperationId operationId, targetInstance;
+  @override
+  String get method => 'stage_move';
+  factory StageMoveEngineRequest.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {
+      'method',
+      'universe_id',
+      'operation_id',
+      'target_instance',
+    });
+    if (f.string('method') != 'stage_move') {
+      throw const FormatException('Wrong engine method');
+    }
+    return StageMoveEngineRequest(
+      universeId: UniverseId.parse(f.string('universe_id')),
+      operationId: OperationId.parse(f.string('operation_id')),
+      targetInstance: OperationId.parse(f.string('target_instance')),
+    );
+  }
+  @override
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('method', CanonicalString(method)),
+    MapEntry('universe_id', CanonicalString(universeId.value)),
+    MapEntry('operation_id', CanonicalString(operationId.value)),
+    MapEntry('target_instance', CanonicalString(targetInstance.value)),
   ]);
 }
 

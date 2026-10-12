@@ -11,6 +11,11 @@ void main() {
         const ListMovesEngineRequest(),
         ListMovesEngineRequest(after: operation, limit: 1),
         GetMoveEngineRequest(operationId: operation),
+        StageMoveEngineRequest(
+          universeId: UniverseId.generate(),
+          operationId: operation,
+          targetInstance: OperationId.generate(),
+        ),
       ]) {
         expect(
           EngineRequest.decode(request.toWire().toBytes()).toWire().toText(),
@@ -23,6 +28,38 @@ void main() {
       }
     },
   );
+  test('move staging refuses caller paths and malformed identities', () {
+    final request = StageMoveEngineRequest(
+      universeId: UniverseId.generate(),
+      operationId: OperationId.generate(),
+      targetInstance: OperationId.generate(),
+    );
+    for (final key in ['path', 'destination', 'receipt']) {
+      expect(
+        () => EngineRequest.fromWire(
+          CanonicalObject([
+            ...request.toWire().fields,
+            MapEntry(key, CanonicalString('private')),
+          ]),
+        ),
+        throwsFormatException,
+      );
+    }
+    for (final key in ['universe_id', 'operation_id', 'target_instance']) {
+      expect(
+        () => EngineRequest.fromWire(
+          CanonicalObject([
+            for (final field in request.toWire().fields)
+              if (field.key == key)
+                MapEntry(key, CanonicalString('bad'))
+              else
+                field,
+          ]),
+        ),
+        throwsFormatException,
+      );
+    }
+  });
   test(
     'move discovery refuses extra fields and invalid page or identity tokens',
     () {

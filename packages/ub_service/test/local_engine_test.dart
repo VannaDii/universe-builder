@@ -93,23 +93,51 @@ void main() {
     final universe = UniverseId.parse(
       wireString(field(created, 'universe_id')),
     );
+    final operation = OperationId.generate(), target = OperationId.generate();
+    final request = StageMoveEngineRequest(
+      universeId: universe,
+      operationId: operation,
+      targetInstance: target,
+    );
+    final denied = await client(writer);
+    await expectLater(denied.call(request), throwsA(isA<ProtocolError>()));
+    await denied.close();
+    final staged = await original.call(request);
+    expect(wireString(field(staged, 'digest')), hasLength(64));
+    expect(
+      BigInt.parse((field(staged, 'bytes') as CanonicalNumber).digits),
+      greaterThan(BigInt.zero),
+    );
+    expect(
+      (field(
+        field(staged, 'manifest'),
+        'includes_history',
+      ) as CanonicalBool).value,
+      isTrue,
+    );
+    expect(
+      (field(
+        field(staged, 'manifest'),
+        'includes_workflow',
+      ) as CanonicalBool).value,
+      isTrue,
+    );
+    expect(staged.toText(), isNot(contains(root.path)));
+    expect((await original.call(request)).toText(), staged.toText());
     await original.close();
     await server.close();
-    final store = SqliteInstallationStore.openExisting(root.path);
-    final operation = OperationId.generate(), target = OperationId.generate();
+    final installation = SqliteInstallationStore.openExisting(root.path);
     try {
-      final authority = InstallationAuthority(store);
-      await authority.quiesceUniverseForMove(
-        authority.authenticateHello(hello(author)),
-        universe: universe,
-        operation: operation,
-        targetInstance: target,
+      expect(
+        installation.audit(author).where((e) => e.action == 'quiesce_move'),
+        hasLength(1),
       );
     } finally {
-      store.close();
+      installation.close();
     }
     server = await LocalSqliteEngineServer.start(root.path);
     final owner = await client(author);
+    expect((await owner.call(request)).toText(), staged.toText());
     final page = await owner.call(const ListMovesEngineRequest(limit: 1));
     expect((field(page, 'moves') as CanonicalArray).items, hasLength(1));
     final report = await owner.call(
@@ -126,6 +154,7 @@ void main() {
       ),
     );
     final contributor = await client(writer);
+    await expectLater(contributor.call(request), throwsA(isA<ProtocolError>()));
     await expectLater(
       contributor.call(const ListMovesEngineRequest()),
       throwsA(isA<ProtocolError>()),

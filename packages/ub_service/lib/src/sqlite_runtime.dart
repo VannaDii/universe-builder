@@ -120,6 +120,32 @@ final class NativeSqliteRuntime {
     final finished = Completer<void>();
     _active.add(finished);
     try {
+      if (request case StageMoveEngineRequest()) {
+        final stage = await stageSourceMove(
+          principal,
+          universe: request.universeId,
+          operation: request.operationId,
+          targetInstance: request.targetInstance,
+        );
+        return CanonicalObject([
+          MapEntry(
+            'source_instance',
+            CanonicalString(principal.instanceId.value),
+          ),
+          MapEntry('universe_id', CanonicalString(request.universeId.value)),
+          MapEntry('operation_id', CanonicalString(request.operationId.value)),
+          MapEntry(
+            'target_instance',
+            CanonicalString(request.targetInstance.value),
+          ),
+          MapEntry('digest', CanonicalString(stage.digest)),
+          MapEntry('manifest', stage.manifest),
+          MapEntry(
+            'bytes',
+            CanonicalNumber('${File(stage.path).lengthSync()}'),
+          ),
+        ]);
+      }
       if (request is DoctorEngineRequest) return await _doctor(principal);
       if (request is ConvertLegacyEngineRequest) {
         return await authority.coordinate(principal, () {

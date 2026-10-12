@@ -933,6 +933,94 @@ void main() {
         }
       });
 
+      test('private staging retains the exact archive after restart and refuses writers and self-targets', () async {
+        var author = await runtime.connect(hello(authorId));
+        final source = await create(author, 'Staged service move');
+        final other = await create(author, 'Available service universe');
+        final universe = UniverseId.parse(text(source, 'universe_id'));
+        final otherUniverse = UniverseId.parse(text(other, 'universe_id'));
+        final writer = await runtime.connect(hello(writerId));
+        await expectLater(
+          writer.execute(
+            StageMoveEngineRequest(
+              universeId: universe,
+              operationId: OperationId.generate(),
+              targetInstance: OperationId.generate(),
+            ),
+          ),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        await expectLater(
+          author.execute(
+            StageMoveEngineRequest(
+              universeId: otherUniverse,
+              operationId: OperationId.generate(),
+              targetInstance: store.instanceId,
+            ),
+          ),
+          throwsFormatException,
+        );
+        final operation = OperationId.generate();
+        final request = StageMoveEngineRequest(
+          universeId: universe,
+          operationId: operation,
+          targetInstance: OperationId.generate(),
+        );
+        final staged = await author.execute(
+          EngineRequest.decode(request.toWire().toBytes()),
+        );
+        expect(text(staged, 'source_instance'), store.instanceId.value);
+        expect(text(staged, 'digest'), hasLength(64));
+        final fields = Map.fromEntries((staged as CanonicalObject).fields);
+        expect(
+          BigInt.parse((fields['bytes'] as CanonicalNumber).digits),
+          greaterThan(BigInt.zero),
+        );
+        final manifest = Map.fromEntries(
+          (fields['manifest'] as CanonicalObject).fields,
+        );
+        expect((manifest['includes_history'] as CanonicalBool).value, isTrue);
+        expect((manifest['includes_workflow'] as CanonicalBool).value, isTrue);
+        expect(staged.toText(), isNot(contains(Directory.systemTemp.path)));
+        expect(staged.toText(), isNot(contains(secret)));
+        expect((await author.execute(request)).toText(), staged.toText());
+        await runtime.close();
+        await store.close();
+        store = await PostgresInstallationStore.openExisting(
+          endpoint(),
+          settings: settings,
+        );
+        runtime = NativePostgresRuntime(store: store);
+        author = await runtime.connect(hello(authorId));
+        expect((await author.execute(request)).toText(), staged.toText());
+        expect(
+          text(
+            await author.execute(GetMoveEngineRequest(operationId: operation)),
+            'state',
+          ),
+          'suspended',
+        );
+        final control = postgresAuthorityNamespace(store.instanceId);
+        expect(
+          (await observer.execute(
+            "SELECT count(*) FROM $control.audit WHERE action='quiesce_move'",
+          )).single.single,
+          1,
+        );
+        expect(
+          (await observer.execute(
+            'SELECT count(*) FROM $control.move_quiescence',
+          )).single.single,
+          1,
+        );
+        expect(
+          (await observer.execute('SELECT count(*) FROM $control.move_stage'))
+              .single
+              .single,
+          1,
+        );
+      });
+
       test('private PostgreSQL discovery pages moves after restart and denies writers', () async {
         var author = await runtime.connect(hello(authorId));
         final operations = <OperationId>[];

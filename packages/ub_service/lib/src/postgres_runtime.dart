@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
@@ -207,6 +208,47 @@ final class NativePostgresRuntime {
     final done = _enter();
     UniverseId? queuedUniverse;
     try {
+      if (request case StageMoveEngineRequest()) {
+        await _coordinateMove(
+          principal,
+          (s) => s.authority.requireAuthor(principal.id),
+        );
+        final temporary = Directory.systemTemp.createTempSync(
+          'universe-builder-move-service-',
+        );
+        try {
+          final stage = await stageSourceMove(
+            principal,
+            universe: request.universeId,
+            operation: request.operationId,
+            targetInstance: request.targetInstance,
+            destination: '${temporary.path}/archive.sqlite',
+          );
+          return CanonicalObject([
+            MapEntry(
+              'source_instance',
+              CanonicalString(principal.instanceId.value),
+            ),
+            MapEntry('universe_id', CanonicalString(request.universeId.value)),
+            MapEntry(
+              'operation_id',
+              CanonicalString(request.operationId.value),
+            ),
+            MapEntry(
+              'target_instance',
+              CanonicalString(request.targetInstance.value),
+            ),
+            MapEntry('digest', CanonicalString(stage.digest)),
+            MapEntry('manifest', stage.manifest),
+            MapEntry(
+              'bytes',
+              CanonicalNumber('${File(stage.path).lengthSync()}'),
+            ),
+          ]);
+        } finally {
+          temporary.deleteSync(recursive: true);
+        }
+      }
       final response = await store.transaction((session) async {
         final authority = PostgresServiceAuthority(
           session.authority,
