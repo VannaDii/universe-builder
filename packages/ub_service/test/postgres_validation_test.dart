@@ -19,7 +19,6 @@ import 'package:ub_store/src/postgres_authority_schema.dart';
 import 'package:ub_store/src/postgres_values.dart';
 
 import 'operation_compilation_test.dart' as f;
-import 'proposal_state_test.dart' as proposals;
 import 'structural_checks_test.dart' as structure;
 import 'rule_checks_test.dart' as frames;
 
@@ -32,6 +31,7 @@ void main() {
   late ProfileId owner, writer;
   late ContinuityId continuity;
   late Frame frame;
+  late ContextId writerContext;
   var now = BigInt.from(100);
   const secret = 'disposable-proposal-profile';
   final hash = sha256.convert(utf8.encode(secret)).toString();
@@ -66,6 +66,7 @@ void main() {
         universe: f.u,
         authority: authority,
         principal: principal,
+        epochSeconds: () => now,
       ),
     );
   });
@@ -76,7 +77,7 @@ void main() {
   }) => CreateProposalRequest(
     universe: const Selector('Disposable universe'),
     universeId: f.u,
-    contextId: proposals.contextId,
+    contextId: writerContext,
     operations: [
       CreateEntityOperation(clientRef: f.id(record).value, record: f.entity()),
     ],
@@ -91,15 +92,46 @@ void main() {
   );
   Future<Proposal> propose(WorkflowRequest request) => run(
     writer,
-    (w) => w.propose(
-      request,
-      resolvedFrame: frame,
-      worldFocus: null,
-      isValidationActive: (_) => false,
+    (w) => w.proposeRequest(request, isValidationActive: (_) => false),
+  );
+  Future<ValidationV3> validate(Proposal p) => run(
+    writer,
+    (w) => w.validateProposalRequest(
+      ProposalValidationRequest(
+        universe: const Selector('Disposable universe'),
+        universeId: f.u,
+        contextId: writerContext,
+        proposalReference: reference(p),
+        checkScope: CheckScope.candidate,
+      ),
     ),
   );
-  Future<ValidationV3> validate(Proposal p) =>
-      run(writer, (w) => w.validate(reference(p), resolvedFrame: frame));
+  Future<OpenedContext> openContext(
+    ProfileId actor, {
+    RevisionSelector revision = const HeadRevisionSelector(),
+    UniverseId? guard,
+    RecordId? represented,
+  }) => run(
+    actor,
+    (w) => w.openContext(
+      OpenContextRequest(
+        universe: const Selector('Disposable universe'),
+        universeId: guard ?? f.u,
+        continuityId: continuity,
+        revision: revision,
+        representedContext: ContextIdSelector(represented ?? f.id(99)),
+        temporalQuery: const TimelessFrameTime(),
+        temporalSystems: [],
+        perspective: const AuthorPerspective(),
+      ),
+    ),
+  );
+  Future<void> refreshContext() async {
+    final opened = await openContext(writer);
+    writerContext = opened.contextId;
+    frame = opened.frame;
+  }
+
   CommitRequest request(
     Proposal p,
     ValidationRunId validation, {
@@ -197,6 +229,7 @@ void main() {
           time: const TimelessFrameTime(),
           perspective: const AuthorPerspective(),
         );
+        await refreshContext();
       });
       tearDown(() async {
         await store.close();
@@ -278,7 +311,7 @@ void main() {
           final revised = await propose(
             ReviseProposalRequest(
               universe: const Selector('Disposable universe'),
-              contextId: proposals.contextId,
+              contextId: writerContext,
               proposalReference: reference(original),
               operations: create().operations,
               submission: Submission.submitted,
@@ -305,7 +338,7 @@ void main() {
           await propose(
             WithdrawProposalRequest(
               universe: const Selector('Disposable universe'),
-              contextId: proposals.contextId,
+              contextId: writerContext,
               proposalReference: reference(revised),
               idempotencyKey: 'withdraw',
             ),
@@ -466,11 +499,12 @@ void main() {
             ),
           );
           await delegation(false);
+          await refreshContext();
           final proposal = await propose(
             CreateProposalRequest(
               universe: const Selector('Disposable universe'),
               universeId: f.u,
-              contextId: proposals.contextId,
+              contextId: writerContext,
               operations: [
                 DefinePropositionOperation(
                   clientRef: f.id(10).value,
@@ -570,6 +604,102 @@ void main() {
           isNull,
         );
       });
+      test('contexts are principal-bound, expire and reject changed scope before retention', () async {
+        final foreign = await openContext(owner);
+        final original = writerContext;
+        writerContext = foreign.contextId;
+        await expectLater(
+          propose(create()),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        writerContext = original;
+        now += BigInt.from(3601);
+        await expectLater(
+          propose(create()),
+          throwsA(isA<ContextExpiredError>()),
+        );
+        now = BigInt.from(100);
+        await store.transaction(
+          (s) => s.authority.putGrant(
+            actor: owner,
+            grant: GrantSpec(
+              profileId: writer,
+              universeId: f.u,
+              worlds: null,
+              propose: true,
+              edit: false,
+              protected: false,
+            ),
+            epochSeconds: now,
+          ),
+        );
+        await expectLater(
+          propose(create()),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        expect(
+          await store.transaction(
+            (s) => s.workflows(f.u).latestKey('proposal:'),
+          ),
+          isNull,
+        );
+      });
+      test('opening preserves exact revisions and validation rejects a different pinned context', () async {
+        final proposal = await propose(create());
+        final original = frame;
+        final version = f.row(400, f.entity());
+        final moved = await store.transaction(
+          (s) => s
+              .kernel(f.u)
+              .commit(
+                CommitInput(
+                  universe: f.u,
+                  continuity: continuity,
+                  expectedHead: frame.revision,
+                  principal: PrincipalId.generate(),
+                  decision: 'Context fixture movement',
+                  reason: 'Pinned context check',
+                  idempotencyKey: 'context-move',
+                  changes: [
+                    Assignment(
+                      recordId: version.identity.recordId,
+                      expected: null,
+                      next: StoredVersion.build(
+                        version.recordVersionId,
+                        version.identity,
+                        version.payload.toWire(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+        );
+        final historical = await openContext(
+          writer,
+          revision: ExactRevisionSelector(revisionId: original.revision),
+        );
+        expect(historical.frame.revision, original.revision);
+        final latest = await openContext(writer);
+        expect(latest.frame.revision, moved);
+        writerContext = latest.contextId;
+        await expectLater(validate(proposal), stale);
+        expect(
+          await store.transaction(
+            (s) => s.workflows(f.u).latestKey('validation:'),
+          ),
+          isNull,
+        );
+      });
+      test('unknown represented context and mismatched universe guard fail opening', () async {
+        await expectLater(
+          openContext(writer, represented: f.id(777)),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        await expectLater(
+          openContext(writer, guard: UniverseId.generate()),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+      });
       test(
         'continuity and entity boundaries deny proposal retention atomically',
         () async {
@@ -588,6 +718,7 @@ void main() {
               epochSeconds: now,
             ),
           );
+          await refreshContext();
           await expectLater(
             propose(create()),
             throwsA(isA<NotFoundOrNotAccessibleError>()),
@@ -613,6 +744,7 @@ void main() {
               epochSeconds: now,
             ),
           );
+          await refreshContext();
           await expectLater(
             propose(create()),
             throwsA(isA<NotFoundOrNotAccessibleError>()),

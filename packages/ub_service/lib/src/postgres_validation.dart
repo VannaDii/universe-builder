@@ -5,6 +5,8 @@ import 'package:ub_store/ub_store.dart';
 
 import 'assessment_resolution.dart';
 import 'candidate_validation.dart';
+import 'context_binding.dart';
+import 'context_opening.dart';
 import 'installation_authority.dart';
 import 'operation_state.dart';
 import 'proposal_authorization.dart';
@@ -13,7 +15,8 @@ import 'proposal_validation.dart';
 import 'validation_binding.dart';
 
 /// Native PostgreSQL proposal workflow in the caller's installation transaction.
-/// Public engine routing must resolve/authorize contexts before supplying frames.
+/// Request routes admit retained contexts under current authority; lower-level
+/// frame routes are for trusted service composition.
 /// Approval remains a private human route; publication re-evaluates the exact
 /// retained candidate. No method accepts caller-authored checked validation.
 final class PostgresValidationWorkflow {
@@ -22,7 +25,11 @@ final class PostgresValidationWorkflow {
     required this.universe,
     required this.authority,
     required this.principal,
-  });
+    BigInt Function()? epochSeconds,
+  }) : _epochSeconds = epochSeconds ?? _now;
+  static BigInt _now() =>
+      BigInt.from(DateTime.now().millisecondsSinceEpoch ~/ 1000);
+  final BigInt Function() _epochSeconds;
   final PostgresInstallationSession session;
   final UniverseId universe;
   final PostgresServiceAuthority authority;
@@ -154,6 +161,144 @@ final class PostgresValidationWorkflow {
     resolveSelected: (reference) =>
         _assessmentReview(reference, current, publication: publication),
   );
+
+  Future<OpenedContext> openContext(OpenContextRequest request) =>
+      authority.withUniverseAuthority(
+        principal,
+        universe,
+        (current) => _openContext(request, current),
+      );
+
+  Future<OpenedContext> _openContext(
+    OpenContextRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
+    if (request.universeId != null && request.universeId != universe) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final revision = switch (request.revision) {
+      HeadRevisionSelector() => await _journal.head(request.continuityId),
+      ExactRevisionSelector(:final revisionId) => revisionId,
+    };
+    final frame = await prepareContextFrame(
+      request: request,
+      universe: universe,
+      revision: revision,
+      records: await _canon(request.continuityId, revision),
+      worldScope: current.worldScope,
+      readCanon: _canon,
+    );
+    final id = ContextId.generate();
+    final stored = StoredContext(
+      owner: principal.id,
+      scope: current.scopeHash,
+      expires: _epochSeconds() + BigInt.from(3600),
+      frame: frame,
+    );
+    await _workflow.compareAppend({}, [
+      MapEntry('context:${id.value}', stored.toWire()),
+    ]);
+    return OpenedContext(contextId: id, frame: frame);
+  }
+
+  Future<Frame> _contextFrame(
+    ContextId id,
+    CurrentUniverseAuthority current,
+  ) async {
+    final value = await _workflow.get('context:${id.value}');
+    if (value == null) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    return StoredContext.fromWire(value).admit(
+      principal: principal.id,
+      scopeHash: current.scopeHash,
+      universe: universe,
+      epochSeconds: _epochSeconds(),
+    );
+  }
+
+  Future<Frame> _validationFrame(
+    ContextId id,
+    CurrentUniverseAuthority current,
+  ) async {
+    final frame = await _contextFrame(id, current);
+    if (frame.perspective is! AuthorPerspective) {
+      throw const UnsupportedSemanticsError(
+        message: 'validation requires an author perspective frame',
+      );
+    }
+    return frame;
+  }
+
+  Future<Proposal> proposeRequest(
+    WorkflowRequest request, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) async => (await _proposeRequest(
+      request,
+      current,
+      isValidationActive: isValidationActive,
+    )).proposal,
+  );
+
+  Future<({Proposal proposal, Frame frame, WorldId? focus})> _proposeRequest(
+    WorkflowRequest request,
+    CurrentUniverseAuthority current, {
+    required bool Function(OperationId) isValidationActive,
+  }) async {
+    final (
+      ContextId contextId,
+      Selector? world,
+      WorldId? guard,
+    ) = switch (request) {
+      CreateProposalRequest() => (
+        request.contextId,
+        request.world,
+        request.worldId,
+      ),
+      ReviseProposalRequest() => (
+        request.contextId,
+        request.world,
+        request.worldId,
+      ),
+      SubmitProposalRequest() => (request.contextId, null, null),
+      WithdrawProposalRequest() => (request.contextId, null, null),
+      _ => throw ArgumentError.value(
+        request,
+        'request',
+        'Expected proposal state action',
+      ),
+    };
+    final frame = await _contextFrame(contextId, current);
+    final focus = world == null
+        ? null
+        : resolveWorldFocus(
+            world: world,
+            guard: guard,
+            records: await _canon(frame.continuity, frame.revision),
+            scope: current.worldScope,
+          );
+    final proposal = await _propose(
+      request,
+      current,
+      resolvedFrame: frame,
+      worldFocus: focus,
+      isValidationActive: isValidationActive,
+    );
+    return (proposal: proposal, frame: frame, focus: focus);
+  }
+
+  Future<ValidationV3> validateProposalRequest(
+    ProposalValidationRequest request,
+  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    if (request.universeId != null && request.universeId != universe) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final frame = await _validationFrame(request.contextId, current);
+    return _validate(request.proposalReference, frame, current);
+  });
 
   Future<Proposal> propose(
     WorkflowRequest request, {

@@ -341,9 +341,14 @@ shared-work, expiry and complete-coverage policy. All writes remain inside the
 owning installation transaction. `test/postgres_validation_test.dart` exercises
 this authoring path with disposable profiles/data and a seeded represented
 context; proposals and validation are produced by the service, rather than seeded
-as already-admitted publication input. Public context admission/engine dispatch,
-source-assessment mutation, queued validation and the remaining service routes
-still need PostgreSQL adapters. Import previews/purge coordination, transfer and
+as already-admitted publication input. Context opening now resolves head or exact
+revision through the shared perspective/world/temporal policy, retains a pinned
+owner/scope/expiry-bound context, and admits proposal and validation requests from
+that context under current authority. The PostgreSQL authoring tests now use
+these request routes, including reconnect, foreign/expired/changed-scope context
+denial, unknown represented context/universe guards and a different pinned
+validation frame. Engine dispatch, source-assessment mutation, queued validation
+and the remaining service routes still need PostgreSQL adapters. Import previews/purge coordination, transfer and
 live verified-TLS qualification also remain pending; runtime PostgreSQL selection
 is still explicitly unavailable.
 Run `test/postgres_foundation_test.dart`, `test/postgres_relational_test.dart`,
