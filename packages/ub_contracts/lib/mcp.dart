@@ -2,4 +2,5 @@
 library;
 
 export 'src/mcp_metadata.dart';
+export 'src/mcp_protocol.dart';
 export 'src/mcp_stdio.dart';

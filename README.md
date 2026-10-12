@@ -119,8 +119,13 @@ The portable stdio codec bounds raw input lines at 1 MiB, rejects duplicate keys
 malformed UTF-8 and JSON BOMs, and preserves exact numeric tokens. Output contains
 canonical JSON plus a newline; the full advanced catalog legitimately exceeds the
 engine's separate response frame limit. Functional tests cover VM and browser codec
-behavior and compare the embedded catalog against its owning contracts. MCP
-handshake, dispatch, cancellation responses and the executable remain pending.
+behavior and compare the embedded catalog against its owning contracts. Portable
+MCP protocol types now retain string/signed-i64 correlation IDs separately from
+engine u64 IDs, map discovery schemas to MCP keys, and construct structured
+success/error and cancellation responses. Initialization result construction
+preserves known legacy version negotiation with a `2025-11-25` fallback, including
+when a client requests a stateless version. These helpers are not a serving adapter;
+handshake lifecycle, dispatch, cancellation wiring and the executable remain pending.
 
 Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter
 **3.47.5** (recorded in `.flutter-version`). Dependency resolution is locked in
