@@ -122,7 +122,7 @@ scopes. Claim roles preserve ordered wire pairs and comparison objects;
 comparators and quantifiers retain their existing distinct spellings. Analysis
 enforces depth 32 and 1,000 expression nodes. It preserves the existing Rust
 domain summary's zero `nodes` field; the rules compiler's separate operand-inclusive
-budget is now implemented in `ub_rules`; evaluation still needs its port. Goals and commitments retain
+budget is now implemented in `ub_rules`; full factual evaluation still needs its port. Goals and commitments retain
 expressions as declarations without executing steps or inventing consequences.
 Typed rule records keep semantic kind separate from commit policy, explicit
 knowledge/channel/cardinality declarations, scoped creative boundaries, version-pinned
@@ -130,7 +130,7 @@ exceptions and attributed issue decisions. The shared rules package currently
 contains the structural compiler, preserving existing node/depth metrics and
 sorted reference extraction; descriptive rules remain non-executable. Compilation
 does not establish truth, verify evaluator capabilities, or confer publication
-rights. Rule evaluation and boundary/exception admission still need their ports.
+rights. Full factual rule evaluation and boundary/exception admission still need their ports.
 The rules package also preserves the evaluator's four evidence outcomes and
 independent support/refutation derivations. Conjunction retains both source
 sets, composition sorts and deduplicates exact record-version identities, and
@@ -161,6 +161,15 @@ without interpreting their truth or applicability. Exact subject/context
 references and existing record order remain intact. This index captures one
 supplied candidate and must be rebuilt for changed snapshots; it carries no
 permission authority and does not admit exceptions or completeness by itself.
+The bounded expression executor now evaluates literals, negation/connectives,
+exact comparisons, temporal relations, membership, cardinality and finite
+quantifiers with the existing shared 10,000-step work budget. Incomplete
+collections preserve witnesses/counterexamples without assuming completeness;
+sets deduplicate wire-identical members and nested bindings remain local.
+Rule execution preserves executable/world-applicability gates and reports
+evidence outcome separately from coverage. Factual claims, knowledge attitudes,
+event handling and opposing-evidence execution remain unported and explicitly
+unsupported; public publication workflows are still pending.
 Typed events preserve occurrence modes, authored participants and ordered effects.
 Action consequences validate exact decimal bounds, slot uniqueness and lifetimes;
 an absent historical contract remains distinct from an explicitly empty contract,
