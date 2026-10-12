@@ -199,6 +199,26 @@ final class NativePostgresRuntime {
                   CanonicalArray(grants.map((grant) => grant.toWire())),
                 ),
               ]);
+            case PreviewImportEngineRequest():
+              final preview = await session.prepareImport(
+                actor: principal.id,
+                source: request.source,
+                name: request.name,
+                mode: request.mode,
+              );
+              return preview.report(
+                await session.importConflicts(
+                  actor: principal.id,
+                  id: preview.target,
+                  name: preview.name,
+                ),
+              );
+            case AcceptImportEngineRequest():
+              return session.acceptImport(
+                actor: principal.id,
+                id: request.previewId,
+                digest: request.digest,
+              );
             case CreateUniverseEngineRequest():
               return _createUniverse(session, principal, request);
             case GrantEngineRequest(:final grant):

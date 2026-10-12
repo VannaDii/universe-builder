@@ -456,11 +456,17 @@ Typed bodies are translated without retaining backend row pointers; imported
 approvals, contexts and receipts remain historical evidence. History verification,
 projection recovery and catalog registration are atomic with fresh schema creation;
 failed admission removes the target namespace even when the caller catches the
-failure. Operator import previews/admission and coordinated backend cutover
-remain pending.
+failure. Private PostgreSQL import previews now retain the exact reviewed archive
+in bounded installation-database chunks, surviving service restarts and deletion
+of the original input. Acceptance rechecks current author rights, the preview and
+archive digests, and identity/name reservations; the admission receipt commits
+with the target namespace and catalog entry, allowing exact lost-response retries.
+Imported evidence grants no installation permissions. The PostgreSQL control
+schema is now version 2; opening rejects older or incomplete layouts without
+implicitly migrating them. Coordinated backend cutover remains pending.
 Socket/launcher integration, cross-process worker qualification and
-the remaining service routes are pending. Import previews/purge coordination,
-transfer and live verified-TLS qualification also remain pending; runtime PostgreSQL selection
+the remaining service routes are pending. Purge coordination, coordinated transfer
+and live verified-TLS qualification also remain pending; runtime PostgreSQL selection
 is still explicitly unavailable.
 Run `test/postgres_foundation_test.dart`, `test/postgres_relational_test.dart`,
 `test/postgres_journal_test.dart`, `test/postgres_workflow_test.dart` and

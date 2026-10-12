@@ -7,13 +7,13 @@ String postgresAuthorityNamespace(OperationId instance) =>
 
 /// Current installation authority, isolated from universe packages and exports.
 /// Catalog locations are backend namespaces, never fabricated file identities.
-/// Import preview/purge coordination are separate from these authority tables.
+/// Reviewed import archives belong to installation authority, never universe exports.
 Iterable<String> postgresAuthoritySchema(OperationId instance) sync* {
   final s = postgresAuthorityNamespace(instance);
   const text = 'TEXT COLLATE "C"';
   yield 'CREATE SCHEMA $s';
-  yield 'CREATE TABLE $s.authority(singleton SMALLINT PRIMARY KEY CHECK(singleton=1), instance_id $text NOT NULL UNIQUE, normalization $text NOT NULL, schema_version SMALLINT NOT NULL CHECK(schema_version=1))';
-  yield "INSERT INTO $s.authority VALUES(1,'${instance.value}','$selectorNormalizationVersion',1)";
+  yield 'CREATE TABLE $s.authority(singleton SMALLINT PRIMARY KEY CHECK(singleton=1), instance_id $text NOT NULL UNIQUE, normalization $text NOT NULL, schema_version SMALLINT NOT NULL CHECK(schema_version=2))';
+  yield "INSERT INTO $s.authority VALUES(1,'${instance.value}','$selectorNormalizationVersion',2)";
   yield 'CREATE TABLE $s.profiles(id $text PRIMARY KEY, hash $text NOT NULL, author BOOLEAN NOT NULL, revoked BOOLEAN NOT NULL)';
   yield 'CREATE TABLE $s.catalog(id $text PRIMARY KEY, name BYTEA NOT NULL, schema_name $text NOT NULL UNIQUE)';
   yield 'CREATE TABLE $s.aliases(key $text PRIMARY KEY, universe $text NOT NULL REFERENCES $s.catalog(id))';
@@ -29,4 +29,6 @@ Iterable<String> postgresAuthoritySchema(OperationId instance) sync* {
   // Allocation under the authority lock matches SQLite's max+1 audit ordering
   // without sequence consumption from aborted transactions.
   yield 'CREATE TABLE $s.audit(sequence BIGINT PRIMARY KEY, actor $text NOT NULL, action $text NOT NULL, target $text NOT NULL)';
+  yield 'CREATE TABLE $s.import_preview(id $text PRIMARY KEY, owner $text NOT NULL REFERENCES $s.profiles(id), source_digest $text NOT NULL, target $text NOT NULL, source $text NOT NULL, name BYTEA NOT NULL, complete BOOLEAN NOT NULL, omitted_records BIGINT NOT NULL CHECK(omitted_records>=0), records BIGINT NOT NULL CHECK(records>=0), includes_workflow BOOLEAN NOT NULL, preview_digest $text NOT NULL)';
+  yield 'CREATE TABLE $s.import_archive(preview_id $text NOT NULL REFERENCES $s.import_preview(id), ordinal BIGINT NOT NULL CHECK(ordinal>=0), content BYTEA NOT NULL CHECK(octet_length(content)>0 AND octet_length(content)<=262144), PRIMARY KEY(preview_id,ordinal))';
 }

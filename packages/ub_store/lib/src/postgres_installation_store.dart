@@ -1,12 +1,15 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:postgres/postgres.dart';
-import 'package:ub_contracts/ub_contracts.dart' show WireFields;
+import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
+import 'archive_checksum.dart';
 import 'installation_store.dart'
-    show InstallationException, InstallationFailure;
+    show InstallationException, InstallationFailure, InstallationImportPreview;
 import 'owned_database.dart';
+import 'ownership.dart';
 import 'postgres_authority.dart';
 import 'postgres_authority_schema.dart';
 import 'postgres_canonical_integrity.dart';
@@ -22,6 +25,8 @@ import 'postgres_semantic_schema.dart';
 import 'postgres_values.dart';
 import 'postgres_workflow_schema.dart';
 import 'postgres_workflow_storage.dart';
+
+part 'postgres_installation_imports.dart';
 
 /// Owns one connection to one installation database. Opening never creates or
 /// converts authority. Setup is explicit and transactional; no live endpoint is
@@ -98,7 +103,7 @@ final class PostgresInstallationStore {
           if (rows.length != 1 ||
               rows.single[0] != id.value ||
               rows.single[1] != selectorNormalizationVersion ||
-              rows.single[2] != 1) {
+              rows.single[2] != 2) {
             throw const InstallationException(
               InstallationFailure.incompatibleSchema,
             );
@@ -115,6 +120,8 @@ final class PostgresInstallationStore {
             'grant_predicates': 'profile,universe,ordinal,predicate',
             'grant_continuities': 'profile,universe,ordinal,continuity',
             'audit': 'sequence,actor,action,target',
+            'import_preview': 'id,owner,source_digest,target,source,name,complete,omitted_records,records,includes_workflow,preview_digest',
+            'import_archive': 'preview_id,ordinal,content',
           }.entries) {
             await tx.execute(
               'SELECT ${entry.value} FROM $schema.${entry.key} LIMIT 0',
