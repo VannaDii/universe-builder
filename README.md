@@ -493,6 +493,13 @@ of eight agent requests and four author requests. Failed actions release their
 work capacity; closing a connection releases its slot without cancelling an
 admitted mutation. Admission uses authenticated identity but never replaces
 current permission checks. Engine transport wiring remains pending.
+The native private approval route now admits only the current author and binds
+their decision to the exact retained Checked digest and evaluator. It requires
+the latest submitted, unwithdrawn proposal at the pinned head, an admissible
+validation and an unchanged completed assessment report. Report resolution and
+approval retention share the write transaction and current authority section;
+authorized identical retries survive reopen. This retains approval evidence
+only; reviewed canonical publication and human transport/UI wiring remain pending.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

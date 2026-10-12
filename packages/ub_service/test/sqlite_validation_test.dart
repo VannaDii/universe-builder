@@ -1024,6 +1024,149 @@ void main() {
     return SourceAssessmentV1.fromWire(wire);
   }
 
+  Future<CheckedValidation> completedSubmitted() async {
+    final body = await submittedAssessment();
+    await service.attachAssessment(
+      proposal.reference,
+      expectedGeneration: BigInt.zero,
+      body: body,
+      idempotencyKey: 'approval-assessment',
+    );
+    final status = await service.queueValidation(
+      queued(),
+      resolvedFrame: proposal.proposal.baseFrame,
+      isValidationActive: (_) => false,
+    );
+    final task = (await service.prepareValidation(
+      status.operationId,
+      isValidationActive: (_) => true,
+    ))!;
+    final result = task.evaluate();
+    await service.finishValidation(
+      status.operationId,
+      result,
+      isValidationActive: (_) => true,
+    );
+    return CheckedValidation.fromWire(
+      WorkflowStorage(package.database)
+          .get('validation:${result.validation.runId.value}')!,
+    );
+  }
+
+  SqliteValidationWorkflow authorService() => SqliteValidationWorkflow(
+    package: package,
+    authority: authority,
+    principal: author,
+  );
+
+  test('author approval binds the exact retained assessment and checked digest across reopen', () async {
+    final completed = await completedSubmitted();
+    expect(completed.admissible, isTrue);
+    final approved = await authorService().approve(
+      proposal.reference,
+      completed.validation.runId,
+    );
+    final approvalKey =
+        'approval:${author.id.value}:${proposal.reference.digest}:${completed.validation.runId.value}';
+    final value = WorkflowStorage(package.database).get(approvalKey)!;
+    final evidence = WireFields(value, {
+      'author',
+      'proposal',
+      'validation_digest',
+      'evaluator',
+    });
+    expect(evidence.string('author'), author.id.value);
+    expect(
+      evidence.string('validation_digest'),
+      canonicalDigest(completed.toWire()),
+    );
+    expect(evidence.string('evaluator'), completed.validation.evaluatorVersion);
+    expect(kernel.identityExists(f.id(10)), isFalse);
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    expect(
+      (await authorService().approve(
+        proposal.reference,
+        completed.validation.runId,
+      )).toText(),
+      approved.toText(),
+    );
+    expect(
+      WorkflowStorage(package.database).get(approvalKey)!.toText(),
+      value.toText(),
+    );
+  });
+
+  test(
+    'contributor cannot approve and selection changes invalidate approval',
+    () async {
+      final completed = await completedSubmitted();
+      await expectLater(
+        service.approve(proposal.reference, completed.validation.runId),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      await service.selectAssessment(
+        proposal.reference,
+        expectedGeneration: BigInt.one,
+        selected: null,
+        idempotencyKey: 'clear-before-approval',
+      );
+      await expectLater(
+        authorService().approve(proposal.reference, completed.validation.runId),
+        stale,
+      );
+      expect(WorkflowStorage(package.database).keys('approval:'), isEmpty);
+    },
+  );
+
+  test('draft proposals cannot receive author approval', () async {
+    await service.persist(proposal.reference, checked);
+    await expectLater(
+      authorService().approve(proposal.reference, checked.validation.runId),
+      stale,
+    );
+    expect(WorkflowStorage(package.database).keys('approval:'), isEmpty);
+  });
+
+  test(
+    'blocked and incomplete retained evidence cannot authorize approval',
+    () async {
+      final completed = await completedSubmitted();
+      for (final blocked in [true, false]) {
+        final run = ValidationRunId.generate();
+        var wire = accounting.replace(completed.toWire(), [
+          'validation',
+          'run_id',
+        ], CanonicalString(run.value));
+        wire = accounting.replace(wire, [
+          'admissible',
+        ], CanonicalBool(!blocked));
+        wire = accounting.replace(wire, ['report'], const CanonicalNull());
+        final retained = CheckedValidation.fromWire(wire);
+        await service.persist(proposal.reference, retained);
+        await expectLater(
+          authorService().approve(proposal.reference, run),
+          blocked ? throwsA(isA<PolicyDeniedError>()) : stale,
+        );
+      }
+      expect(WorkflowStorage(package.database).keys('approval:'), isEmpty);
+    },
+  );
+
+  test('advanced canon blocks exact author approval', () async {
+    final completed = await completedSubmitted();
+    kernel.commit(input('advance-before-approval', [f.row(77, f.entity())]));
+    await expectLater(
+      authorService().approve(proposal.reference, completed.validation.runId),
+      stale,
+    );
+    expect(WorkflowStorage(package.database).keys('approval:'), isEmpty);
+  });
+
   test('source-assessed completion retains the submitted inventory and final binding', () async {
     final body = await submittedAssessment();
     await service.attachAssessment(

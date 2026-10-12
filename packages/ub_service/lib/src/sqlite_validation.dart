@@ -17,8 +17,8 @@ import 'validation_binding.dart';
 import 'validation_task.dart';
 
 /// Internal native workflow for an already recovered, writer-owned package.
-/// It retains assessments and checked results, never approvals or canonical
-/// facts. The caller must produce the checked result through the factual
+/// It retains assessments, checked results and exact human approvals, never
+/// canonical facts. The caller must produce checked results through the factual
 /// evaluator, not client IO.
 final class SqliteValidationWorkflow {
   SqliteValidationWorkflow({
@@ -646,6 +646,72 @@ final class SqliteValidationWorkflow {
       },
     );
     return result;
+  });
+
+  /// Private human approval route. Public model requests cannot supply approval
+  /// evidence; this binds the current author's decision to retained Checked data.
+  Future<CanonicalObject> approve(
+    ProposalRef reference,
+    ValidationRunId run,
+  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    if (!current.principal.author) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final entries = <MapEntry<String, CanonicalValue>>[];
+    await _workflow.compareAppendWithVerification(
+      entries: entries,
+      verify: () async {
+        final proposal = _proposal(reference, current);
+        final value = _workflow.get('validation:${run.value}');
+        if (value == null) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        final checked = CheckedValidation.fromWire(value);
+        final p = proposal.proposal;
+        if (_workflow.latestKey('proposal:${reference.proposalId.value}:') !=
+                proposal.key ||
+            p.withdrawn ||
+            p.submission != Submission.submitted ||
+            checked.proposalDigest != reference.digest ||
+            checked.validation.evaluatorVersion != candidateEvaluatorVersion ||
+            _journal.head(p.baseFrame.continuity) != p.baseFrame.revision) {
+          throw const ApprovalStaleError();
+        }
+        if (!checked.admissible) {
+          throw const PolicyDeniedError(
+            message: 'validation blocks approval; review the blocking findings',
+          );
+        }
+        final capture = await _capture(proposal, current);
+        verifyPublicationReport(
+          report: checked.report,
+          current: capture,
+          proposal: reference,
+          baseFrame: p.baseFrame,
+          execution: checked.validation,
+        );
+        verifyValidationAuthority(capture, current.sequence);
+        entries.add(
+          MapEntry(
+            'approval:${current.approvalAuthor.value}:${reference.digest}:${run.value}',
+            CanonicalObject([
+              MapEntry('author', CanonicalString(principal.id.value)),
+              MapEntry('proposal', reference.toWire()),
+              MapEntry(
+                'validation_digest',
+                CanonicalString(canonicalDigest(checked.toWire())),
+              ),
+              MapEntry('evaluator', CanonicalString(candidateEvaluatorVersion)),
+            ]),
+          ),
+        );
+        return capture.comparisons();
+      },
+    );
+    return CanonicalObject([
+      MapEntry('approved', reference.toWire()),
+      MapEntry('validation_run', CanonicalString(run.value)),
+    ]);
   });
 
   Future<void> finishValidation(
