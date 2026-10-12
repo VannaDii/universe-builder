@@ -271,9 +271,15 @@ against every message, including unchanged messages when a policy changes.
 Authored delay bounds are inclusive exact signed 128-bit clock ticks. Missing
 actual recipients or receipt times, non-exact or different clocks, and uncovered
 channels remain unresolved; delivery and clock conversion are not inferred.
-This lane stays inactive without authored channel policies. Knowledge acquisition
-and the remaining proposal validation/publication integration still need their
-ports.
+This lane stays inactive without authored channel policies.
+Candidate knowledge checks now distinguish author-established acquisition from
+justified communication receipt. Justified knowledge requires an actual holder
+recipient, explicit interpretation, supported transmission timing and unopposed
+truth in its acquisition context, world and exact time. An omitted world never
+selects a convenient world. Missing evidence remains unresolved; belief, memory
+and receipt alone do not establish knowledge. Policy and evidence corrections
+reassess unchanged knowledge facts. These checks still require integration with
+proposal validation/publication and its author authority checks.
 Typed operation contracts preserve bare nested record DTOs separately from tagged stored
 payloads, snake-case operation fields and exact expected versions. Decoding an
 adoption request preserves its supplied digest; compilation verifies it and the
