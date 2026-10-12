@@ -17,6 +17,7 @@ import 'operation_state.dart';
 import 'proposal_authorization.dart';
 import 'proposal_state.dart';
 import 'proposal_validation.dart';
+import 'proposal_reading.dart';
 import 'record_reading.dart';
 import 'record_search.dart';
 import 'read_cursor.dart';
@@ -116,6 +117,36 @@ final class SqliteValidationWorkflow {
     }
   }
 
+  Future<AssessmentReview> _assessmentReview(
+    ProposalRef reference,
+    CurrentUniverseAuthority current, {
+    AssessmentRef? exact,
+    bool publication = false,
+  }) => resolveAssessment(
+    reference: reference,
+    exact: exact,
+    universe: universe,
+    canObserveMissingMaterial:
+        publication || current.principal.author && current.worldScope == null,
+    readProposal: (reference) => _proposal(reference, current),
+    checkAccess: (proposal, body) async {
+      if (publication) return;
+      await checkAssessmentAccess(
+        proposal: proposal,
+        body: body,
+        limits: current.limits,
+        worldScope: current.worldScope,
+        readCanon: _canon,
+        readVersion: _version,
+      );
+    },
+    readLatestKey: _workflow.latestKey,
+    readWorkflow: _workflow.get,
+    readHead: _journal.head,
+    readCanon: _canon,
+    readVersion: _version,
+  );
+
   Future<ValidationCapture> _capture(
     StoredProposal proposal,
     CurrentUniverseAuthority current, {
@@ -127,29 +158,8 @@ final class SqliteValidationWorkflow {
     readLatestKey: _workflow.latestKey,
     readWorkflow: _workflow.get,
     readHead: _journal.head,
-    resolveSelected: (reference) => resolveAssessment(
-      reference: reference,
-      universe: universe,
-      canObserveMissingMaterial:
-          publication || current.principal.author && current.worldScope == null,
-      readProposal: (reference) => _proposal(reference, current),
-      checkAccess: (proposal, body) async {
-        if (publication) return;
-        await checkAssessmentAccess(
-          proposal: proposal,
-          body: body,
-          limits: current.limits,
-          worldScope: current.worldScope,
-          readCanon: _canon,
-          readVersion: _version,
-        );
-      },
-      readLatestKey: _workflow.latestKey,
-      readWorkflow: _workflow.get,
-      readHead: _journal.head,
-      readCanon: _canon,
-      readVersion: _version,
-    ),
+    resolveSelected: (reference) =>
+        _assessmentReview(reference, current, publication: publication),
   );
 
   /// The dispatcher resolves the universe before invoking this native route.
@@ -552,6 +562,86 @@ final class SqliteValidationWorkflow {
       readVersion: _version,
     );
     return (state: state, frame: frame);
+  });
+
+  Future<({ProposalViewResult result, Delivery delivery})> getProposalRequest(
+    GetProposalRequest request,
+  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    const denied = NotFoundOrNotAccessibleError(message: 'resource');
+    if (request.universeId != null && request.universeId != universe) {
+      throw denied;
+    }
+    if (request.assessmentReference != null &&
+        request.viewGroup != ProposalView.assessment) {
+      throw const InvalidArgumentError(
+        field: 'assessment_reference',
+        message: 'requires assessment view',
+      );
+    }
+    final key =
+        'proposal:${request.proposalId.value}:${request.version.toString().padLeft(20, '0')}';
+    final value = _workflow.get(key);
+    if (value == null) throw denied;
+    final stored = StoredProposal.fromWire(value);
+    final reference = ProposalRef(
+      proposalId: request.proposalId,
+      version: request.version,
+      digest: stored.proposal.digest,
+    );
+    try {
+      _admitProposal(stored, reference, current);
+    } on Object {
+      throw denied;
+    }
+    final frame = stored.proposal.baseFrame;
+    if (request.viewGroup == ProposalView.assessment) {
+      late AssessmentReview review;
+      try {
+        review = await _assessmentReview(
+          reference,
+          current,
+          exact: request.assessmentReference,
+        );
+      } on Object {
+        throw denied;
+      }
+      final binding = assessmentPageBinding(
+        request.toArgs(),
+        reference,
+        review,
+      );
+      final offset = _readOffset(binding, frame, current, request.cursor);
+      final page = pageAssessmentReview(review, offset);
+      final cursor = _retainReadCursor(
+        binding,
+        frame,
+        current,
+        page.complete,
+        page.next,
+      );
+      return (
+        result: AssessmentProposalView(page.page),
+        delivery: Delivery(complete: page.complete, cursor: cursor),
+      );
+    }
+    final offset = _readOffset(
+      request.toArgs(),
+      frame,
+      current,
+      request.cursor,
+    );
+    final page = pageFrozenProposal(stored, offset);
+    final cursor = _retainReadCursor(
+      request.toArgs(),
+      frame,
+      current,
+      page.complete,
+      page.next,
+    );
+    return (
+      result: FrozenProposalView(page.proposal),
+      delivery: Delivery(complete: page.complete, cursor: cursor),
+    );
   });
 
   /// Native dispatch entry: admit the retained context and resolve named world

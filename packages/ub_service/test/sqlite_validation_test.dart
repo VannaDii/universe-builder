@@ -1441,6 +1441,74 @@ void main() {
     expect(kernel.identityExists(f.id(20)), isFalse);
   });
 
+  test('native proposal retrieval pages real frozen changes across restart and rechecks current rights', () async {
+    final opened = await service.openContext(contextRequest());
+    final draft = await service.proposeRequest(
+      CreateProposalRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        operations: [
+          for (var n = 20; n < 45; n++)
+            CreateEntityOperation(clientRef: f.id(n).value, record: f.entity()),
+        ],
+        submission: Submission.draft,
+        rationale: 'Paged native proposal',
+        idempotencyKey: 'paged-proposal',
+      ),
+      isValidationActive: (_) => false,
+    );
+    GetProposalRequest request({String? cursor}) => GetProposalRequest(
+      universe: const Selector('World'),
+      proposalId: draft.proposalId,
+      version: draft.version,
+      cursor: cursor,
+    );
+    final first = await service.getProposalRequest(request());
+    final frozen = (first.result as FrozenProposalView).proposal;
+    expect(frozen.operations.length, 20);
+    expect(frozen.compiledChanges.length, 20);
+    expect(frozen.digest, draft.digest);
+    expect(first.delivery.complete, isFalse);
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    service = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: writer,
+    );
+    final last = await service.getProposalRequest(
+      request(cursor: first.delivery.cursor),
+    );
+    expect(
+      (last.result as FrozenProposalView).proposal.compiledChanges.length,
+      5,
+    );
+    expect(last.delivery.complete, isTrue);
+    expect(kernel.identityExists(f.id(20)), isFalse);
+    await authority.coordinate(
+      author,
+      () => authority.grant(
+        author,
+        GrantSpec(
+          profileId: writer.id,
+          universeId: f.u,
+          worlds: null,
+          propose: false,
+          edit: false,
+          protected: false,
+        ),
+      ),
+    );
+    await expectLater(
+      service.getProposalRequest(request(cursor: first.delivery.cursor)),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+  });
+
   test(
     'failed native preview retains no proposal receipt or reservation',
     () async {
@@ -2362,6 +2430,86 @@ void main() {
           .get('validation:${result.validation.runId.value}')!,
     );
   }
+
+  test('native assessment retrieval fragments exact evidence and rejects a changed selection cursor', () async {
+    var body = await submittedAssessment();
+    CanonicalValue wire = body.toWire();
+    final text = List.filled(2300, '漢🙂').join();
+    wire = accounting.replace(
+      wire,
+      ['assessor', 'tool'],
+      ToolIdentity(
+        name: text,
+        version: 'fixture',
+        modelRevision: 'fixture',
+        procedureDigest: Sha256Hex('a' * 64),
+      ).toWire(),
+    );
+    wire = accounting.replace(wire, [
+      'assessor',
+      'method',
+    ], CanonicalString(Method.externalModelReview.wireName));
+    wire = accounting.replace(wire, [
+      'inventory_declaration',
+      'rationale',
+    ], CanonicalString(text));
+    body = SourceAssessmentV1.fromWire(wire);
+    final attached = await service.attachAssessment(
+      proposal.reference,
+      expectedGeneration: BigInt.zero,
+      body: body,
+      idempotencyKey: 'paged-assessment',
+    );
+    GetProposalRequest request({String? cursor, AssessmentRef? exact}) =>
+        GetProposalRequest(
+          universe: const Selector('World'),
+          proposalId: proposal.reference.proposalId,
+          version: proposal.reference.version,
+          viewGroup: ProposalView.assessment,
+          cursor: cursor,
+          assessmentReference: exact,
+        );
+    final first = await service.getProposalRequest(request());
+    final firstPage = (first.result as AssessmentProposalView).assessment;
+    expect(firstPage.state, isA<BoundAssessment>());
+    expect(firstPage.fragment, isNotNull);
+    expect(first.delivery.complete, isFalse);
+    final finalPage = await service.getProposalRequest(
+      request(cursor: first.delivery.cursor),
+    );
+    final last = (finalPage.result as AssessmentProposalView).assessment;
+    expect(finalPage.delivery.complete, isTrue);
+    final canonical =
+        firstPage.fragment!.canonicalEnvelopeUtf8 +
+        last.fragment!.canonicalEnvelopeUtf8;
+    expect(
+      canonical,
+      WorkflowStorage(package.database)
+          .get('assessment:${attached.selected!.assessmentId.value}')!
+          .toText(),
+    );
+    await service.selectAssessment(
+      proposal.reference,
+      expectedGeneration: BigInt.one,
+      selected: null,
+      idempotencyKey: 'paged-clear',
+    );
+    await expectLater(
+      service.getProposalRequest(request(cursor: first.delivery.cursor)),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    final historical = await service.getProposalRequest(
+      request(exact: attached.selected),
+    );
+    expect(
+      (historical.result as AssessmentProposalView).assessment.state,
+      isA<AbsentAssessment>(),
+    );
+    expect(
+      (historical.result as AssessmentProposalView).assessment.fragment,
+      isNotNull,
+    );
+  });
 
   test(
     'context-backed assessment and validation bind exact submitted sources',

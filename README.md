@@ -577,6 +577,15 @@ and explicit possession powers use the shared evaluator without persisting
 derived facts. Unrestricted author-perspective reads include exact initialization
 receipts from the pinned revision and fork ancestry, including after restart;
 scoped and fictional-perspective reads disclose restricted history coverage.
+Native proposal retrieval now pages exact retained operations and compiled
+changes under current ownership, write permissions and boundary limits, without
+altering the proposal digest or publishing canon. Assessment views resolve
+permission-checked selected or explicitly requested historical evidence before
+counts, offsets or cursor creation. Small envelopes return whole; larger ones
+use canonical UTF-8 fragments of at most 32 KiB with byte-aligned boundaries.
+Assessment cursors pin the selection generation and exact envelope reference;
+selection changes invalidate an existing stream. Proposal pagination survives
+package restart and cannot bypass subsequently revoked write rights.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.
