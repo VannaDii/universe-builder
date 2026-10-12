@@ -285,7 +285,7 @@ TLS remain pending; runtime PostgreSQL selection is still explicitly unavailable
 Run `test/postgres_foundation_test.dart`, `test/postgres_relational_test.dart`,
 `test/postgres_journal_test.dart`, `test/postgres_workflow_test.dart` and
 `test/postgres_authority_test.dart`, `test/postgres_candidate_test.dart` and
-`test/postgres_definition_test.dart` from
+`test/postgres_definition_test.dart` and `test/postgres_initialization_test.dart` from
 `packages/ub_store` with
 `UB_TEST_POSTGRES_PORT` set to a disposable loopback `ub_disposable` database. Without
 that selection the live database cases are explicitly skipped. This check uses
