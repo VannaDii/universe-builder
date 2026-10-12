@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -7,6 +8,50 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
+
+import 'validation_binding.dart';
+
+/// Trusted current values, usable only within the owning authority section.
+final class CurrentUniverseAuthority {
+  CurrentUniverseAuthority._({
+    required this.principal,
+    required this.approvalAuthor,
+    required this.worldScope,
+    required this.limits,
+    required this.permissions,
+    required this.sequence,
+  });
+  final InstallationPrincipal principal;
+  final ProfileId approvalAuthor;
+  final Set<WorldId>? worldScope;
+  final GrantLimits limits;
+  final (bool, bool, bool) permissions;
+  final BigInt sequence;
+  String get scopeHash {
+    final scope = worldScope?.toList()
+      ?..sort((a, b) => a.value.compareTo(b.value));
+    return canonicalDigest(
+      CanonicalArray([
+        scope == null
+            ? const CanonicalNull()
+            : CanonicalArray(scope.map((w) => CanonicalString(w.value))),
+        CanonicalArray([
+          CanonicalBool(permissions.$1),
+          CanonicalBool(permissions.$2),
+          CanonicalBool(permissions.$3),
+        ]),
+        limits.toWire(),
+      ]),
+    );
+  }
+
+  String get validationDigest => validationAuthorityDigest(
+    principal: principal.id,
+    author: principal.author,
+    approvalAuthor: approvalAuthor,
+    scopeHash: scopeHash,
+  );
+}
 
 /// Constructed only by credential authentication and bound to one installation.
 final class InstallationPrincipal {
@@ -37,6 +82,42 @@ final class InstallationAuthority {
   final BigInt Function() _epochSeconds;
   static BigInt _now() =>
       BigInt.from(DateTime.now().millisecondsSinceEpoch ~/ 1000);
+
+  /// Grant/revocation routes use the same queue as capture and persistence.
+  Future<T> coordinate<T>(
+    InstallationPrincipal principal,
+    FutureOr<T> Function() action,
+  ) => _store.withAuthority(() {
+    _requireCurrent(principal);
+    return action();
+  });
+
+  /// Recheck authentication, expiry, catalog and rights after entering the queue.
+  /// Acquire the universe context inside [action], after installation authority.
+  Future<T> withUniverseAuthority<T>(
+    InstallationPrincipal principal,
+    UniverseId universe,
+    FutureOr<T> Function(CurrentUniverseAuthority) action,
+  ) => coordinate(principal, () {
+    final now = _epochSeconds();
+    final scope = _store.universeScope(principal.id, universe, now);
+    final limits = _store.limits(principal.id, universe, now);
+    final grant = principal.author
+        ? null
+        : _store.readGrant(principal.id, universe);
+    return action(
+      CurrentUniverseAuthority._(
+        principal: principal,
+        approvalAuthor: _store.currentAuthor(),
+        worldScope: scope,
+        limits: limits,
+        permissions: grant == null
+            ? (true, true, true)
+            : (grant.propose, grant.edit, grant.protected),
+        sequence: _store.validationAuthoritySequence(principal.id, universe),
+      ),
+    );
+  });
 
   ProfileId initializeAuthor() {
     if (_store.hasProfiles) {

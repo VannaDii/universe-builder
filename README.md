@@ -425,8 +425,13 @@ context. The SQLite installation owner now serializes asynchronous authority
 sections, queues coordinated grant/revocation work, and refuses outside mutations
 or closure while a section is held. The service must route authority-sensitive
 capture, persistence and grant changes through those sections; durable
-attachment/validation routes still require integration. Validation
-capture now resolves selected assessments into exact submitted source/inventory
+attachment/validation routes still require integration.
+The native authority API now resolves authenticated current scope, permissions,
+limits, approval author and audit sequence within those sections. Its validation
+digest preserves the existing canonical authority tuple. An owned SQLite package
+test captures against these live values and rejects an identical regrant by its
+changed sequence before retaining any validation.
+Validation capture now resolves selected assessments into exact submitted source/inventory
 bindings, preserves stale/unavailable states as record input, and captures current
 head, proposal key and supplied authority digest/sequence. Unassessed proposals
 retain ordinary write-boundary admission. The owner must hold authority and
