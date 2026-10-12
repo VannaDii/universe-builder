@@ -6,6 +6,7 @@ import 'package:ub_store/sqlite.dart';
 
 import 'assessment_resolution.dart';
 import 'assessment_validation.dart';
+import 'candidate_validation.dart';
 import 'installation_authority.dart';
 import 'operation_state.dart';
 import 'proposal_authorization.dart';
@@ -166,6 +167,92 @@ final class SqliteValidationWorkflow {
     );
     return publicOperationStatus(
       status: op.status,
+      worldScope: current.worldScope,
+      readWorkflow: _workflow.get,
+    );
+  });
+
+  /// The dispatcher resolves the request's universe/context before passing its
+  /// exact frame here. Submission retains work; execution is a separate step.
+  Future<OperationStatusV3> queueValidation(
+    QueuedProposalValidationRequest request, {
+    required Frame resolvedFrame,
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+    const denied = NotFoundOrNotAccessibleError(message: 'resource');
+    if (resolvedFrame.universe != universe ||
+        request.universeId != null && request.universeId != universe) {
+      throw denied;
+    }
+    final entries = <MapEntry<String, CanonicalValue>>[];
+    late StoredOperation operation;
+    await _workflow.compareAppendWithVerification(
+      entries: entries,
+      verify: () async {
+        final proposal = _proposal(request.proposalReference, current);
+        if (proposal.proposal.baseFrame != resolvedFrame) {
+          throw const ApprovalStaleError();
+        }
+        final key = operationRequestKey(
+          principal.id,
+          'validate',
+          request.idempotencyKey,
+        );
+        final digest = canonicalDigest(request.toArgs());
+        if (_workflow.get(key) != null) {
+          operation = await loadStoredOperation(
+            key: key,
+            principal: principal.id,
+            worldScope: current.worldScope,
+            readWorkflow: _workflow.get,
+            readReceipt: _journal.receipt,
+            isValidationActive: isValidationActive,
+          );
+          if (operation.digest != digest) {
+            throw const IdempotencyKeyReusedError(
+              message: 'validation request differs',
+            );
+          }
+          return const {};
+        }
+        final id = OperationId.generate();
+        operation = StoredOperation(
+          owner: principal.id,
+          digest: digest,
+          input: null,
+          footprint: proposal.footprint,
+          validationCapture: current.worldScope != null
+              ? null
+              : await _capture(proposal, current),
+          status: OperationStatus(
+            operationId: id,
+            kind: OperationKind.validate,
+            state: OperationState.queued,
+            proposal: proposal.proposal,
+            cancellationRequested: false,
+            validation: Validation(
+              operationId: id,
+              runId: ValidationRunId.generate(),
+              coverage: Coverage.partial,
+              findings: [],
+              opposingEvidence: [],
+              unsupportedCapabilities: [
+                'Validation queued; poll this operation for completed evidence',
+              ],
+              inputDigest: proposal.proposal.digest,
+              evaluatorVersion: candidateEvaluatorVersion,
+            ),
+          ),
+        );
+        entries.addAll([
+          MapEntry(key, operation.toWire()),
+          MapEntry('operation:${id.value}', operation.toWire()),
+        ]);
+        return const {};
+      },
+    );
+    return publicOperationStatus(
+      status: operation.status,
       worldScope: current.worldScope,
       readWorkflow: _workflow.get,
     );

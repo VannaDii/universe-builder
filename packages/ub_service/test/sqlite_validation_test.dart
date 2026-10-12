@@ -20,6 +20,7 @@ import 'package:ub_store/src/kernel.dart';
 
 import 'operation_compilation_test.dart' as f;
 import 'proposal_state_test.dart' as proposals;
+import 'proposal_authorization_test.dart' as permissions;
 import 'rule_checks_test.dart' as frames;
 import 'structural_checks_test.dart' as structure;
 import 'assessment_validation_test.dart' as assessments;
@@ -156,6 +157,209 @@ void main() {
   });
   String key() => 'validation:${checked.validation.runId.value}';
   final stale = throwsA(isA<ApprovalStaleError>());
+
+  QueuedProposalValidationRequest queued({
+    CheckScope scope = CheckScope.candidate,
+  }) => QueuedProposalValidationRequest(
+    universe: const Selector('World'),
+    universeId: f.u,
+    contextId: proposals.contextId,
+    proposalReference: proposal.reference,
+    checkScope: scope,
+    idempotencyKey: 'queued-check',
+  );
+
+  test('queued validation retains one exact capture and retry identity across owned reopen', () async {
+    final first = await service.queueValidation(
+      queued(),
+      resolvedFrame: proposal.proposal.baseFrame,
+      isValidationActive: (_) => false,
+    );
+    expect(first.state, OperationState.queued);
+    final pending = first.validation as EvaluatedValidation;
+    expect(pending.execution.coverage, Coverage.partial);
+    expect(pending.execution.operationId, first.operationId);
+    expect(pending.finalBindingDigest, isNull);
+    final workflow = WorkflowStorage(package.database);
+    final stored = StoredOperation.fromWire(
+      workflow.get('operation:${first.operationId.value}')!,
+    );
+    expect(stored.owner, writer.id);
+    expect(stored.validationCapture!.latestProposalKey, proposal.key);
+    expect(
+      stored.validationCapture!.authoritySequence,
+      checked.capture!.authoritySequence,
+    );
+    expect(workflow.keys('request:').length, 1);
+    expect(workflow.keys('validation:'), isEmpty);
+    final retry = await service.queueValidation(
+      queued(),
+      resolvedFrame: proposal.proposal.baseFrame,
+      isValidationActive: (_) => false,
+    );
+    expect(retry.toWire().toText(), first.toWire().toText());
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    service = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: writer,
+    );
+    final reopened = await service.queueValidation(
+      queued(),
+      resolvedFrame: proposal.proposal.baseFrame,
+      isValidationActive: (_) => false,
+    );
+    expect(reopened.toWire().toText(), first.toWire().toText());
+    expect(WorkflowStorage(package.database).keys('operation:').length, 1);
+    expect(kernel.identityExists(proposal.changes.single.recordId), isFalse);
+  });
+
+  test('queued retry resolves retained terminal state and rejects a changed request', () async {
+    final initial = await service.queueValidation(
+      queued(),
+      resolvedFrame: proposal.proposal.baseFrame,
+      isValidationActive: (_) => false,
+    );
+    final workflow = WorkflowStorage(package.database);
+    final op = StoredOperation.fromWire(
+      workflow.get('operation:${initial.operationId.value}')!,
+    );
+    final failed = StoredOperation(
+      owner: op.owner,
+      digest: op.digest,
+      input: op.input,
+      footprint: op.footprint,
+      validationCapture: op.validationCapture,
+      status: OperationStatus(
+        operationId: initial.operationId,
+        kind: OperationKind.validate,
+        state: OperationState.failed,
+        failure: 'Interrupted check fixture',
+        proposal: op.status.proposal,
+        validation: op.status.validation,
+        cancellationRequested: false,
+      ),
+    );
+    workflow.compareAppend({}, [
+      MapEntry('job:${initial.operationId.value}:terminal', failed.toWire()),
+    ]);
+    final retry = await service.queueValidation(
+      queued(),
+      resolvedFrame: proposal.proposal.baseFrame,
+      isValidationActive: (_) => false,
+    );
+    expect(retry.state, OperationState.failed);
+    expect(
+      (retry.validation as EvaluatedValidation).finalBindingDigest,
+      isNull,
+    );
+    await expectLater(
+      service.queueValidation(
+        queued(scope: CheckScope.universe),
+        resolvedFrame: proposal.proposal.baseFrame,
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<IdempotencyKeyReusedError>()),
+    );
+    expect(workflow.keys('operation:').length, 1);
+    expect(package.database.autocommit, isTrue);
+  });
+
+  test(
+    'queue rejects a different resolved frame without retaining a request',
+    () async {
+      final frame = proposal.proposal.baseFrame;
+      await expectLater(
+        service.queueValidation(
+          queued(),
+          resolvedFrame: Frame(
+            universe: frame.universe,
+            continuity: frame.continuity,
+            revision: RevisionId.generate(),
+            context: frame.context,
+            time: frame.time,
+            perspective: frame.perspective,
+          ),
+          isValidationActive: (_) => false,
+        ),
+        stale,
+      );
+      expect(WorkflowStorage(package.database).keys('request:'), isEmpty);
+      expect(WorkflowStorage(package.database).keys('operation:'), isEmpty);
+      expect(package.database.autocommit, isTrue);
+    },
+  );
+
+  test('scoped queue retains no complete assessment capture and returns restricted validation', () async {
+    kernel.commit(
+      input('world-fixture', [f.row(50, WorldRecord(selector: 'Campaign'))]),
+    );
+    expect(
+      package.database
+          .select('SELECT text FROM search_index WHERE version_id=?', [
+            f.ver(50).value,
+          ])
+          .map((row) => row['text']),
+      contains('Campaign'),
+    );
+    final head = kernel.journal.head(continuity);
+    proposal = proposals.prepare(
+      principal: writer.id,
+      request: proposals.create(
+        operations: [
+          CreateEntityOperation(
+            clientRef: f.id(10).value,
+            record: permissions.entity(worlds: [50]),
+          ),
+        ],
+      ),
+      frame: Frame(
+        universe: f.u,
+        continuity: continuity,
+        revision: head,
+        context: f.ref(99),
+        time: const TimelessFrameTime(),
+        perspective: const AuthorPerspective(),
+      ),
+      base: canon(continuity, head),
+    );
+    WorkflowStorage(package.database)
+        .compareAppend({}, [MapEntry(proposal.key, proposal.toWire())]);
+    await authority.coordinate(
+      author,
+      () => authority.grant(
+        author,
+        GrantSpec(
+          profileId: writer.id,
+          universeId: f.u,
+          worlds: [permissions.world(50)],
+          propose: true,
+          edit: true,
+          protected: false,
+        ),
+      ),
+    );
+    final result = await service.queueValidation(
+      queued(),
+      resolvedFrame: proposal.proposal.baseFrame,
+      isValidationActive: (_) => false,
+    );
+    expect(result.validation, isA<RestrictedValidation>());
+    expect(result.proposal, isNull);
+    final op = StoredOperation.fromWire(
+      WorkflowStorage(package.database)
+          .get('operation:${result.operationId.value}')!,
+    );
+    expect(op.validationCapture, isNull);
+    expect(op.status.state, OperationState.queued);
+    expect(op.status.validation!.coverage, Coverage.partial);
+    expect(package.database.autocommit, isTrue);
+  });
 
   test('retained validation resolves interrupted state after owned package reopen without rewriting history', () async {
     final id = OperationId.generate();
@@ -348,6 +552,18 @@ void main() {
         .toText();
     final captured = await service.capture(proposal.reference);
     expect(captured.submittedInput, isA<SourceAssessedCandidateInput>());
+    final queue = await service.queueValidation(
+      queued(),
+      resolvedFrame: proposal.proposal.baseFrame,
+      isValidationActive: (_) => false,
+    );
+    final pending = queue.validation as EvaluatedValidation;
+    expect(pending.submittedInput, isA<SourceAssessedCandidateInput>());
+    expect(
+      (pending.assessment as BoundAssessment).selectionGeneration,
+      BigInt.one,
+    );
+    expect(pending.finalBindingDigest, isNull);
     final clear = await service.selectAssessment(
       proposal.reference,
       expectedGeneration: BigInt.one,

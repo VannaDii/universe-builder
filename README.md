@@ -460,8 +460,14 @@ preserves completed retained reports and renders captured pending checks without
 a final binding. Failed/cancelled/interrupted fallback reports mark assessment
 unavailable and use record input; legacy reports cannot manufacture completion.
 Scoped validation responses avoid complete evidence reads and hide failure and
-proposal contents. These responses also work after owned package reopen. Queue
-submission, execution and terminal-result retention still require integration.
+proposal contents. These responses also work after owned package reopen.
+Native queued validation now retains the principal-bound request and operation
+atomically with its exact capture. Authorized retries preserve operation/run
+identity and resolve retained terminal state; changed requests or mismatched
+resolved frames are refused. Scoped queues retain no complete assessment capture
+and return restricted validation; unscoped source-assessed queues bind the exact
+selected inventory. Execution and terminal-result retention still require
+integration.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

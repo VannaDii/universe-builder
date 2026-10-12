@@ -9,6 +9,9 @@ import 'proposal_state.dart';
 import 'candidate_validation.dart';
 import 'validation_binding.dart';
 
+String operationRequestKey(ProfileId principal, String kind, String key) =>
+    'request:${principal.value}:$kind:${canonicalDigest(CanonicalString(key))}';
+
 CommitInput _input(CanonicalValue value) {
   final f = WireFields(value, {
     'universe',

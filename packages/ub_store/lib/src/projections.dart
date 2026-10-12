@@ -71,7 +71,9 @@ final class RecordProjections {
       case RecordKind.world:
         text = [
           (fields['selector'] as CanonicalString).value,
-          for (final alias in (fields['aliases'] as CanonicalArray).items)
+          for (final alias
+              in (fields['aliases'] as CanonicalArray?)?.items ??
+                  const <CanonicalValue>[])
             (alias as CanonicalString).value,
         ].join(' ');
       case RecordKind.work:
