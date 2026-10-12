@@ -529,6 +529,19 @@ void main() {
     expect(journal.snapshot(continuity, removed), isEmpty);
     expect(journal.snapshot(continuity, head), {record: original.versionId});
     expect(journal.load(original.versionId).digest, original.digest);
+    final history = journal.recordHistory(continuity, removed, record);
+    expect(history.length, 2);
+    expect(
+      history.first.fields.firstWhere((entry) => entry.key == 'record').value,
+      isA<CanonicalNull>(),
+    );
+    expect(
+      history.last.fields
+          .firstWhere((entry) => entry.key == 'record')
+          .value
+          .toText(),
+      original.toCanonical().toText(),
+    );
     expect(
       () => publish(input(removed, 'remove-again', null)),
       throwsFormatException,
@@ -546,6 +559,27 @@ void main() {
     ]);
     expect(journal.receipt(request), isNull);
     expect(() => publish(request), throwsFormatException);
+    expect(journal.head(continuity), head);
+  });
+
+  test('record history limit can be recovered by selecting an earlier pinned revision', () {
+    var head = genesis;
+    RecordVersionId? expected;
+    late RevisionId hundred;
+    for (var number = 1; number <= 101; number++) {
+      final next = version(
+        number.toString().padLeft(24, '0'),
+        'Version $number',
+      );
+      head = publish(input(head, 'history-$number', next, expected: expected));
+      expected = next.versionId;
+      if (number == 100) hundred = head;
+    }
+    expect(
+      () => journal.recordHistory(continuity, head, record),
+      throwsFormatException,
+    );
+    expect(journal.recordHistory(continuity, hundred, record).length, 100);
     expect(journal.head(continuity), head);
   });
 
@@ -575,6 +609,15 @@ void main() {
         input(parent, 'two', corrected, expected: original.versionId),
       );
       expect(journal.snapshot(alternate, branch), {record: original.versionId});
+      final history = journal.recordHistory(alternate, branch, record);
+      expect(history.length, 1);
+      expect(
+        history.single.fields
+            .firstWhere((entry) => entry.key == 'revision')
+            .value
+            .toText(),
+        CanonicalString(parent.value).toText(),
+      );
       database.execute('BEGIN IMMEDIATE');
       expect(journal.branch(alternate, continuity, parent, principal), branch);
       expect(
@@ -590,6 +633,10 @@ void main() {
       journal = SqliteJournal(database, universe);
       expect(journal.head(continuity), parentLater);
       expect(journal.head(alternate), branch);
+      expect(
+        journal.recordHistory(alternate, branch, record).single.toText(),
+        history.single.toText(),
+      );
       expect(journal.snapshot(alternate, branch), {record: original.versionId});
       expect(journal.snapshot(continuity, parentLater), {
         record: corrected.versionId,

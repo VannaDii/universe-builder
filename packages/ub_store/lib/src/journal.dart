@@ -248,6 +248,69 @@ final class SqliteJournal {
   Membership snapshot(ContinuityId continuity, RevisionId revision) =>
       Map.unmodifiable(_resolve(continuity.value, revision.value, <String>{}));
 
+  /// Newest-first changes at a validated pinned revision, including tombstones
+  /// and exact fork baselines. The service owns history disclosure admission.
+  List<CanonicalObject> recordHistory(
+    ContinuityId continuity,
+    RevisionId revision,
+    RecordId record,
+  ) {
+    snapshot(continuity, revision);
+    String? next = revision.value;
+    final seen = <String>{};
+    final entries = <CanonicalObject>[];
+    while (next != null) {
+      if (!seen.add(next) || seen.length > maxChain) {
+        throw const FormatException('history chain budget exceeded');
+      }
+      final commit = _one(
+        'SELECT parent_id,continuity_id,principal,reason FROM commits WHERE universe_id=? AND id=?',
+        [universe.value, next],
+      );
+      final change = database.select(
+        'SELECT version_id FROM commit_changes WHERE universe_id=? AND revision_id=? AND record_id=?',
+        [universe.value, next, record.value],
+      );
+      if (change.isNotEmpty) {
+        final version = change.single['version_id'] as String?;
+        entries.add(
+          CanonicalObject([
+            MapEntry('record_id', CanonicalString(record.value)),
+            MapEntry('revision', CanonicalString(next)),
+            MapEntry(
+              'continuity',
+              CanonicalString(commit['continuity_id'] as String),
+            ),
+            MapEntry(
+              'principal',
+              CanonicalString(commit['principal'] as String),
+            ),
+            MapEntry('reason', CanonicalString(commit['reason'] as String)),
+            MapEntry(
+              'record',
+              version == null
+                  ? const CanonicalNull()
+                  : load(RecordVersionId.parse(version)).toCanonical(),
+            ),
+          ]),
+        );
+        if (entries.length > 100) {
+          throw const FormatException(
+            'record history exceeds 100 changes; select an earlier pinned revision',
+          );
+        }
+      }
+      next = commit['parent_id'] as String?;
+      next ??=
+          _one(
+                'SELECT baseline_commit FROM continuities WHERE universe_id=? AND id=?',
+                [universe.value, commit['continuity_id']],
+              )['baseline_commit']
+              as String?;
+    }
+    return List.unmodifiable(entries);
+  }
+
   /// Caller has already admitted the baseline candidate and owns the write
   /// transaction. A branch pins the exact revision, never the parent's head.
   RevisionId branch(

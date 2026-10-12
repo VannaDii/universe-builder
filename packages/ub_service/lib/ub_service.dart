@@ -17,6 +17,7 @@ export 'src/knowledge_checks.dart';
 export 'src/cardinality_checks.dart';
 export 'src/resource_checks.dart';
 export 'src/effective_objects.dart';
+export 'src/record_reading.dart';
 export 'src/knowledge_boundaries.dart';
 export 'src/provenance_checks.dart';
 export 'src/structural_checks.dart';

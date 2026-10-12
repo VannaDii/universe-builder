@@ -16,6 +16,7 @@ import 'operation_state.dart';
 import 'proposal_authorization.dart';
 import 'proposal_state.dart';
 import 'proposal_validation.dart';
+import 'record_reading.dart';
 import 'source_verification.dart';
 import 'validation_binding.dart';
 import 'validation_task.dart';
@@ -222,6 +223,105 @@ final class SqliteValidationWorkflow {
     }
     return frame;
   }
+
+  Future<Records> getRequest(
+    GetRequest request,
+  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    const denied = NotFoundOrNotAccessibleError(message: 'resource');
+    if (request.universeId != null && request.universeId != universe) {
+      throw denied;
+    }
+    final frame = _contextFrame(request.contextId, current);
+    final all = _canon(frame.continuity, frame.revision);
+    final focus = resolveWorldFocus(
+      world: request.world,
+      guard: request.worldId,
+      records: all,
+      scope: current.worldScope,
+    );
+    final visibleIds = visibleRecordIds(
+      records: all,
+      worldScope: current.worldScope,
+    );
+    final perspective = await perspectiveRecordIds(
+      records: all,
+      frame: frame,
+      readCanon: _canon,
+    );
+    final visible = all
+        .where(
+          (row) =>
+              visibleIds.contains(row.identity.recordId) &&
+              perspective.contains(row.identity.recordId),
+        )
+        .toList();
+    final seeds = visible
+        .where((row) {
+          final worlds = recordWorlds(row);
+          return focus == null || worlds.isEmpty || worlds.contains(focus);
+        })
+        .map((row) => row.identity.recordId);
+    final included = focus == null
+        ? seeds.toSet()
+        : readDependencyClosure(visible, seeds);
+    final accessible = visible
+        .where((row) => included.contains(row.identity.recordId))
+        .toList();
+    final groups = request.fieldGroups;
+    final historyRequested = groups.contains(FieldGroup.history);
+    final fullHistory =
+        current.worldScope == null && frame.perspective is AuthorPerspective;
+    final records = <RecordVersion>[];
+    final history = <HistoryEntry>[];
+    for (final id in request.recordIds) {
+      final matching = accessible.where((row) => row.identity.recordId == id);
+      List<HistoryEntry>? changes;
+      if (matching.isNotEmpty) {
+        records.add(matching.single);
+      } else {
+        if (!historyRequested || !fullHistory) throw denied;
+        changes = _journal
+            .recordHistory(frame.continuity, frame.revision, id)
+            .map(HistoryEntry.fromWire)
+            .toList();
+        if (changes.isEmpty) throw denied;
+      }
+      if (historyRequested && fullHistory) {
+        history.addAll(
+          changes ??
+              _journal
+                  .recordHistory(frame.continuity, frame.revision, id)
+                  .map(HistoryEntry.fromWire),
+        );
+      }
+    }
+    final needed = groups.contains(FieldGroup.evidence)
+        ? readResearchClosure(accessible, request.recordIds)
+        : <RecordId>{};
+    return Records(
+      records: groups.isEmpty || groups.contains(FieldGroup.payload)
+          ? records
+          : [],
+      summaries: groups.contains(FieldGroup.summary)
+          ? records.map(
+              (row) => RecordSummary(
+                recordId: row.identity.recordId,
+                kind: row.identity.recordKind,
+                label: recordReadLabel(row),
+              ),
+            )
+          : [],
+      evidence: accessible.where(
+        (row) =>
+            needed.contains(row.identity.recordId) &&
+            !request.recordIds.contains(row.identity.recordId),
+      ),
+      history: history,
+      historyCoverage: historyRequested
+          ? (fullHistory ? Coverage.complete : Coverage.restricted)
+          : null,
+    );
+  });
 
   /// Native dispatch entry: admit the retained context and resolve named world
   /// focus under the same current authority section as proposal retention.

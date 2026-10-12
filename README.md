@@ -542,6 +542,15 @@ binding. These research checks do not require write permission. A named world
 must contain the full write footprint. Scoped inline checks resolve only visible
 world selectors and return restricted output before compilation, preventing
 compiler errors from disclosing hidden definitions; they retain no result.
+Native record retrieval now admits the retained context and intersects current
+world permissions with its author, character, narrator or reader perspective.
+Payload, summary and evidence field groups read the pinned revision; research
+follows evidence about a subject without reversing context/predicate edges into
+unrelated facts. Named-world reads include visible required dependencies and
+appearance attachments. History follows exact fork baselines and tombstones,
+survives restart and retains the 100-change limit per record. Only unrestricted
+author-perspective reads disclose history; scoped/perspective views report
+restricted coverage. Deleted records require an admitted history request.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

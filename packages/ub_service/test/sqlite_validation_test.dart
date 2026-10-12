@@ -318,6 +318,229 @@ void main() {
     checkScope: CheckScope.universe,
   );
 
+  GetRequest readRecords(
+    ContextId context,
+    List<RecordId> ids,
+    List<FieldGroup> groups,
+  ) => GetRequest(
+    universe: const Selector('World'),
+    universeId: f.u,
+    contextId: context,
+    recordIds: ids,
+    fieldGroups: groups,
+  );
+
+  test('record reads pin payload summary and tombstone history to the admitted revision', () async {
+    final original = f.row(20, permissions.entity(labels: {'en': 'Original'}));
+    kernel.commit(input('read-record', [original]));
+    final old = await service.openContext(contextRequest());
+    kernel.commit(
+      CommitInput(
+        universe: f.u,
+        continuity: continuity,
+        expectedHead: kernel.journal.head(continuity),
+        principal: PrincipalId.parse(
+          author.id.value.replaceFirst('prf_', 'prn_'),
+        ),
+        decision: 'Admitted disposable deletion',
+        reason: 'Fixture tombstone',
+        idempotencyKey: 'read-delete',
+        changes: [
+          Assignment(recordId: f.id(20), expected: original.recordVersionId),
+        ],
+      ),
+    );
+    final pinned = await service.getRequest(
+      readRecords(
+        old.contextId,
+        [f.id(20)],
+        [FieldGroup.payload, FieldGroup.summary, FieldGroup.history],
+      ),
+    );
+    expect(pinned.records.single.recordVersionId, original.recordVersionId);
+    expect(pinned.summaries.single.label, 'Original');
+    expect(
+      pinned.history.single.record!.recordVersionId,
+      original.recordVersionId,
+    );
+    expect(pinned.historyCoverage, Coverage.complete);
+    final current = await service.openContext(contextRequest());
+    final deleted = await service.getRequest(
+      readRecords(current.contextId, [f.id(20)], [FieldGroup.history]),
+    );
+    expect(deleted.records, isEmpty);
+    expect(deleted.history.length, 2);
+    expect(deleted.history.first.record, isNull);
+    expect(deleted.history.first.reason, 'Fixture tombstone');
+    await expectLater(
+      service.getRequest(readRecords(current.contextId, [f.id(20)], [])),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    await expectLater(
+      service.getRequest(
+        readRecords(current.contextId, [f.id(22)], [FieldGroup.history]),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+  });
+
+  test('record reads enforce scope and perspective before payload or history disclosure', () async {
+    kernel.commit(
+      input('read-scopes', [
+        f.row(50, WorldRecord(selector: 'Campaign')),
+        f.row(51, WorldRecord(selector: 'Private')),
+        f.row(20, permissions.entity(worlds: [50], labels: {'en': 'Visible'})),
+        f.row(21, permissions.entity(worlds: [51], labels: {'en': 'Hidden'})),
+        f.row(
+          30,
+          RepresentedContextRecord(
+            universe: f.u,
+            kind: CharacterContext(f.ref(20)),
+            labels: {},
+          ),
+        ),
+      ]),
+    );
+    final character = await service.openContext(
+      contextRequest(
+        perspective: CharacterPerspective(f.id(20)),
+        represented: ContextIdSelector(f.id(30)),
+      ),
+    );
+    final perspectiveRead = await service.getRequest(
+      readRecords(
+        character.contextId,
+        [f.id(20)],
+        [FieldGroup.payload, FieldGroup.history],
+      ),
+    );
+    expect(perspectiveRead.historyCoverage, Coverage.restricted);
+    expect(perspectiveRead.history, isEmpty);
+    await expectLater(
+      service.getRequest(
+        readRecords(character.contextId, [f.id(21)], [FieldGroup.payload]),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    await authority.coordinate(
+      author,
+      () => authority.grant(
+        author,
+        GrantSpec(
+          profileId: writer.id,
+          universeId: f.u,
+          worlds: [permissions.world(50)],
+          propose: false,
+          edit: false,
+          protected: false,
+        ),
+      ),
+    );
+    final scoped = await service.openContext(contextRequest());
+    final scopeRead = await service.getRequest(
+      readRecords(
+        scoped.contextId,
+        [f.id(20)],
+        [FieldGroup.summary, FieldGroup.history],
+      ),
+    );
+    expect(scopeRead.records, isEmpty);
+    expect(scopeRead.summaries.single.label, 'Visible');
+    expect(scopeRead.historyCoverage, Coverage.restricted);
+    expect(scopeRead.history, isEmpty);
+    final focused = await service.getRequest(
+      GetRequest(
+        universe: const Selector('World'),
+        contextId: scoped.contextId,
+        world: const Selector('Campaign'),
+        worldId: permissions.world(50),
+        recordIds: [f.id(20)],
+        fieldGroups: [],
+      ),
+    );
+    expect(focused.records.single.identity.recordId, f.id(20));
+    await expectLater(
+      service.getRequest(
+        GetRequest(
+          universe: const Selector('World'),
+          contextId: scoped.contextId,
+          world: const Selector('Campaign'),
+          worldId: permissions.world(51),
+          recordIds: [f.id(20)],
+          fieldGroups: [],
+        ),
+      ),
+      throwsA(isA<WorldScopeConflictError>()),
+    );
+    await expectLater(
+      service.getRequest(
+        readRecords(
+          scoped.contextId,
+          [f.id(20), f.id(21)],
+          [FieldGroup.payload],
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    await expectLater(
+      service.getRequest(readRecords(character.contextId, [f.id(20)], [])),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+  });
+
+  test('record read denies expired contexts before snapshot access', () async {
+    await retainedContext(expires: BigInt.zero);
+    await expectLater(
+      service.getRequest(readRecords(proposals.contextId, [f.id(99)], [])),
+      throwsA(isA<ContextExpiredError>()),
+    );
+  });
+
+  test('native evidence read follows subject facts without including unrelated facts sharing a predicate', () async {
+    PropositionRecord fact(int subject) => PropositionRecord(
+      subject: f.ref(subject),
+      predicate: f.ref(1),
+      context: f.ref(99),
+      value: const BooleanValue(true),
+      quantification: Quantification.particular,
+    );
+    AssertionRecord evidence(int proposition) => AssertionRecord(
+      attributeMode: AttributeMode.instance,
+      proposition: f.ref(proposition),
+      polarity: Polarity.support,
+      scope: Scope(
+        context: f.ref(99),
+        applicability: const UniverseApplicability(),
+      ),
+      validity: const UnspecifiedValidity(),
+      persistence: PersistenceSemantics.explicitInterval,
+      precision: Precision.exact,
+      basis: const AuthorDecisionBasis('Fixture'),
+    );
+    kernel.commit(
+      input('read-evidence', [
+        frames.fixture().first,
+        f.row(20, f.entity()),
+        f.row(21, f.entity()),
+        f.row(4, fact(20)),
+        f.row(5, evidence(4)),
+        f.row(6, fact(21)),
+        f.row(7, evidence(6)),
+      ]),
+    );
+    final opened = await service.openContext(contextRequest());
+    final result = await service.getRequest(
+      readRecords(opened.contextId, [f.id(20)], [FieldGroup.evidence]),
+    );
+    expect(result.records, isEmpty);
+    expect(result.evidence.map((r) => r.identity.recordId).toSet(), {
+      f.id(1),
+      f.id(4),
+      f.id(5),
+      f.id(99),
+    });
+  });
+
   test('inline research retains query evidence without write rights or durable proposal state', () async {
     await authority.coordinate(
       author,
