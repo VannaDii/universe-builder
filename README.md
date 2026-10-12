@@ -834,8 +834,16 @@ the strict welcome contract, and correlates sequential requests. Typed service
 errors leave the connection usable; interrupted, malformed, mismatched or timed-out
 replies require an explicit reconnect and never replay the request. Connection and
 handshake deadlines are five seconds; request deadlines are fifteen seconds.
-Focused Unix-socket client checks currently cover macOS. Engine startup, server
-transport integration and remote/web client adapters remain pending.
+The `ub_service` local server now holds installation ownership before removing a
+stale endpoint, validates peer identity before profile authentication, dispatches
+through the native runtime, rejects duplicate request IDs and carries exact IDs
+into public envelopes. It bounds all connections at 32, preserves runtime author
+capacity, expires incomplete handshakes after five seconds and request input after
+sixty seconds, and stops after fifteen minutes without connected clients. Shutdown
+closes transports, drains admitted work and releases the installation lock. Focused
+Unix-socket client/server checks currently cover macOS, including restart,
+revocation, creation, correlation and author shutdown. Installed engine executable
+startup, remote/web adapters and qualification on other platforms remain pending.
 Expiry timestamps, draft versions and engine limits preserve exact unsigned
 values on web. These contracts do not authenticate profiles, grant permissions,
 save drafts or implement encrypted settings; private command dispatch and those
