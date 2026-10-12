@@ -3,6 +3,40 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_rules/ub_rules.dart';
 
 import 'writing_units.dart';
+import 'context_binding.dart';
+
+Applicability bindWritingApplicability(
+  List<RecordVersion> rows,
+  String text, {
+  Set<WorldId>? worldScope,
+}) => switch (text) {
+  'universe' => const UniverseApplicability(),
+  'unspecified' => const UnspecifiedApplicability(),
+  _ => WorldsApplicability([
+    resolveWorldFocus(
+      world: Selector(text),
+      guard: null,
+      records: rows,
+      scope: worldScope,
+    )!,
+  ]),
+};
+
+(RecordVersion, PropertyRecord) resolveWritingProperty(
+  List<RecordVersion> rows,
+  String name,
+) {
+  final found = <(RecordVersion, PropertyRecord)>[
+    for (final row in rows)
+      if (row.payload case final PropertyRecord property)
+        if (property.key == name || property.labels.values.contains(name))
+          (row, property),
+  ];
+  if (found.length != 1) {
+    throw FormatException("Which exact authored property is '$name'?");
+  }
+  return found.single;
+}
 
 /// Every binding operates on rows already admitted to the pinned writer view.
 RecordId? resolveWritingObject(
