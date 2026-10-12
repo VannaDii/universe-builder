@@ -5,11 +5,14 @@ import 'package:ub_contracts/ub_contracts.dart' show WireFields;
 import 'package:ub_domain/ub_domain.dart';
 
 import 'canonical_integrity.dart';
+import 'archive_checksum.dart';
+import 'archive_schema.g.dart';
 import 'database.dart';
 import 'journal.dart';
 import 'ownership.dart';
 import 'projection_recovery.dart';
 import 'restore_copy.dart';
+import 'relational.dart';
 
 /// Internal connection lifetime boundary. Existing initialized packages must
 /// complete recover() before serving calls; client authorization remains in
@@ -263,6 +266,194 @@ final class OwnedSqliteDatabase {
     }
   }
 
+  /// Complete retained history and editorial evidence in the existing logical
+  /// archive format. Filtered/canon-only reconstruction uses a separate path.
+  CanonicalObject exportCompleteHistory(String destination) {
+    final target = File(destination).absolute;
+    final temporary = target.parent.createTempSync('.relational-export-');
+    try {
+      privateDirectory(temporary.path);
+      final snapshotPath = '${temporary.path}/snapshot.sqlite';
+      backup(snapshotPath);
+      final snapshot = OwnedSqliteDatabase.openExisting(snapshotPath);
+      final archivePath = '${temporary.path}/export.sqlite';
+      OwnedSqliteDatabase? archive;
+      late CanonicalObject manifest;
+      try {
+        archive = create(archivePath);
+        copyTrustedPackageRows(snapshotPath, archive.database);
+        manifest = CanonicalObject([
+          MapEntry('format', CanonicalString('universe-relational')),
+          MapEntry('universe', CanonicalString(snapshot.universeId.value)),
+          MapEntry(
+            'name',
+            CanonicalString(
+              snapshot.database
+                      .select('SELECT name FROM universes')
+                      .single['name']
+                  as String,
+            ),
+          ),
+          const MapEntry('complete', CanonicalBool(true)),
+          const MapEntry('omitted_records', CanonicalNumber('0')),
+          const MapEntry('includes_history', CanonicalBool(true)),
+          const MapEntry('includes_workflow', CanonicalBool(true)),
+        ]);
+        final db = archive.database;
+        db.execute(archiveSchema);
+        db.execute('BEGIN IMMEDIATE');
+        try {
+          final row = RelationalCodec(db).put('ArchiveManifest', manifest);
+          final checksum = archiveChecksum(db);
+          db.execute(
+            "INSERT INTO archive_integrity VALUES(1,?,'typed-row-stream',?,?,'historical_evidence_only',?)",
+            [row, checksum.digest, checksum.rows, canonicalDigest(manifest)],
+          );
+          db.execute('COMMIT');
+        } on Object {
+          if (!db.autocommit) db.execute('ROLLBACK');
+          rethrow;
+        }
+        db.execute(
+          'PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE;',
+        );
+      } finally {
+        archive?.close();
+        snapshot.close();
+      }
+      if (File(archivePath).lengthSync() > maxArchiveBytes) {
+        throw const FormatException('Archive byte budget exceeded');
+      }
+      final verified = stageLogicalArchive(archivePath, temporary.path);
+      verified.close();
+      publishSnapshot(archivePath, target.path);
+      return manifest;
+    } finally {
+      temporary.deleteSync(recursive: true);
+    }
+  }
+
+  /// Bound raw input copying before SQLite is opened, then stream rows into
+  /// generated trusted schema. No SQL supplied by the archive is installed.
+  static VerifiedLogicalArchive stageLogicalArchive(
+    String source,
+    String scratch,
+  ) {
+    protectedFile(source);
+    if (File(source).lengthSync() > maxArchiveBytes) {
+      throw const FormatException('Logical archive exceeds 512 MiB');
+    }
+    final parent = privateDirectory(scratch);
+    final temporary = Directory(parent).createTempSync('.logical-archive-');
+    OwnedSqliteDatabase? package;
+    try {
+      privateDirectory(temporary.path);
+      final snapshot = '${temporary.path}/input.sqlite';
+      protectedFile(snapshot, createNew: true);
+      final input = File(source).openSync();
+      try {
+        final output = File(snapshot).openSync(mode: FileMode.writeOnly);
+        try {
+          var copied = 0;
+          while (true) {
+            final chunk = input.readSync(65536);
+            if (chunk.isEmpty) break;
+            copied += chunk.length;
+            if (copied > maxArchiveBytes) {
+              throw const FormatException('Logical archive exceeds 512 MiB');
+            }
+            output.writeFromSync(chunk);
+          }
+          output.flushSync();
+        } finally {
+          output.closeSync();
+        }
+      } finally {
+        input.closeSync();
+      }
+      package = create('${temporary.path}/package.sqlite');
+      final db = package.database;
+      db.execute(archiveSchema);
+      copyTrustedPackageRows(snapshot, db, archive: true);
+      final headers = db.select(
+        'SELECT manifest_row,checksum_recipe,sha256,row_count,authority_state,manifest_sha256 FROM archive_integrity WHERE singleton=1',
+      );
+      if (headers.length != 1) {
+        throw const FormatException('Invalid archive integrity header');
+      }
+      final header = headers.single;
+      final checksum = archiveChecksum(db);
+      if (header['checksum_recipe'] != 'typed-row-stream' ||
+          header['sha256'] != checksum.digest ||
+          header['row_count'] != checksum.rows ||
+          header['authority_state'] != 'historical_evidence_only') {
+        throw const FormatException('Archive checksum mismatch');
+      }
+      final manifest = RelationalCodec(db)
+          .get('ArchiveManifest', header['manifest_row']);
+      if (db
+                  .select('SELECT count(*) AS n FROM r_archive_manifest')
+                  .single['n'] !=
+              1 ||
+          canonicalDigest(manifest) != header['manifest_sha256']) {
+        throw const FormatException('Archive manifest checksum mismatch');
+      }
+      final fields = WireFields(manifest, {
+        'format',
+        'universe',
+        'name',
+        'complete',
+        'omitted_records',
+        'includes_history',
+        'includes_workflow',
+      });
+      final id = UniverseId.parse(fields.string('universe'));
+      selectorKey(fields.string('name'));
+      if (fields.string('format') != 'universe-relational' ||
+          !fields.boolean('includes_history') ||
+          fields.boolean('complete') !=
+              (fields.u64('omitted_records') == BigInt.zero) ||
+          (fields.boolean('includes_workflow') &&
+              !fields.boolean('complete')) ||
+          id != package.universeId) {
+        throw const FormatException('Inconsistent relational archive manifest');
+      }
+      if (!fields.boolean('includes_workflow')) {
+        for (final table in [
+          'workflow_entries',
+          'operation_receipts',
+          'historical_workflow',
+          'historical_receipt',
+        ]) {
+          if (db.select('SELECT count(*) AS n FROM $table').single['n'] != 0) {
+            throw const FormatException(
+              'Canon-only archive contains workflow evidence',
+            );
+          }
+        }
+      }
+      package.recover();
+      CanonicalIntegrity(SqliteJournal(db, id)).verifyComplete();
+      File(snapshot).deleteSync();
+      return VerifiedLogicalArchive._(
+        package,
+        manifest as CanonicalObject,
+        archiveReviewDigest(
+          checksum.digest,
+          header['manifest_sha256'] as String,
+        ),
+        temporary,
+      );
+    } on Object {
+      try {
+        package?.close();
+      } finally {
+        temporary.deleteSync(recursive: true);
+      }
+      rethrow;
+    }
+  }
+
   void preparePurge(String expectedDigest) {
     final preview = WireFields(purgePreview(), {'digest', 'impact'});
     if (preview.string('digest') != expectedDigest) {
@@ -354,6 +545,31 @@ final class OwnedSqliteDatabase {
 final class StagedSqliteRestore {
   StagedSqliteRestore._(this.package, this._temporary);
   final OwnedSqliteDatabase package;
+  final Directory _temporary;
+  bool _closed = false;
+  void close() {
+    if (_closed) return;
+    _closed = true;
+    try {
+      package.close();
+    } finally {
+      _temporary.deleteSync(recursive: true);
+    }
+  }
+}
+
+/// Verified disposable archive data. Imported workflow remains evidence until
+/// the separate admission path marks it historical in a fresh target package.
+final class VerifiedLogicalArchive {
+  VerifiedLogicalArchive._(
+    this.package,
+    this.manifest,
+    this.digest,
+    this._temporary,
+  );
+  final OwnedSqliteDatabase package;
+  final CanonicalObject manifest;
+  final String digest;
   final Directory _temporary;
   bool _closed = false;
   void close() {

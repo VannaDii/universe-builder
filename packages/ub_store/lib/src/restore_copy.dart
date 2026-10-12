@@ -2,10 +2,20 @@ import 'package:sqlite3/sqlite3.dart';
 
 /// Copy a protected snapshot into a freshly created trusted schema. Input SQL
 /// is compared only; it is never installed or executed as application schema.
-void copyRestoreRows(String source, Database target) {
+void copyRestoreRows(String source, Database target) =>
+    copyTrustedPackageRows(source, target, historicalEvidence: true);
+
+/// Shared physical row transfer into a fresh normative package or archive.
+/// Archive targets install the normative archive schema before this call.
+void copyTrustedPackageRows(
+  String source,
+  Database target, {
+  bool historicalEvidence = false,
+  bool archive = false,
+}) {
   if (!target.autocommit ||
       target.select('SELECT count(*) AS n FROM universes').single['n'] != 0) {
-    throw StateError('Restore requires a new uninitialized target');
+    throw StateError('Transfer requires a new uninitialized target');
   }
   final input = sqlite3.open(source, mode: OpenMode.readOnly);
   try {
@@ -24,7 +34,9 @@ void copyRestoreRows(String source, Database target) {
     final from = schema(input), to = schema(target);
     if (from.length != to.length ||
         Iterable<int>.generate(from.length).any((i) => from[i] != to[i])) {
-      throw const FormatException('Untrusted or incompatible restore schema');
+      throw const FormatException(
+        'Untrusted or incompatible package/archive schema',
+      );
     }
     final checks = input.select('PRAGMA integrity_check');
     if (checks.length != 1 || checks.single.values.single != 'ok') {
@@ -37,7 +49,7 @@ void copyRestoreRows(String source, Database target) {
         "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'search_index%' ORDER BY name",
       )) {
         final name = table['name'] as String;
-        if (name == 'r_archive_manifest') continue;
+        if (!archive && name == 'r_archive_manifest') continue;
         final columns = target
             .select('PRAGMA table_info(${quote(name)})')
             .map((c) => c['name'] as String)
@@ -67,12 +79,14 @@ void copyRestoreRows(String source, Database target) {
       }
       // Preserve exact evidence while preventing imported authority and receipts
       // from satisfying an active approval, context or publication retry.
-      target.execute(
-        'INSERT OR IGNORE INTO historical_workflow SELECT key FROM workflow_entries',
-      );
-      target.execute(
-        'INSERT OR IGNORE INTO historical_receipt SELECT universe_id,principal,operation_kind,idempotency_key FROM operation_receipts',
-      );
+      if (historicalEvidence) {
+        target.execute(
+          'INSERT OR IGNORE INTO historical_workflow SELECT key FROM workflow_entries',
+        );
+        target.execute(
+          'INSERT OR IGNORE INTO historical_receipt SELECT universe_id,principal,operation_kind,idempotency_key FROM operation_receipts',
+        );
+      }
       target.execute('COMMIT');
     } on Object {
       if (!target.autocommit) target.execute('ROLLBACK');

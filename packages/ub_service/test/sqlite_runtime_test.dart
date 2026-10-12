@@ -3565,6 +3565,58 @@ void main() {
     final backup = OwnedSqliteDatabase.openExisting(backupPath);
     try {
       backup.recover();
+      final archivePath = '${root.path}/complete-history.sqlite';
+      final manifest = backup.exportCompleteHistory(archivePath);
+      final archive = OwnedSqliteDatabase.stageLogicalArchive(
+        archivePath,
+        '${root.path}/packages',
+      );
+      try {
+        expect(archive.manifest.toText(), manifest.toText());
+        final copy = archive.package;
+        final workflow = WorkflowStorage(copy.database);
+        expect(copy.universeId, f.u);
+        expect(
+          SqliteJournal(copy.database, f.u).head(opened.frame.continuity),
+          CommitReceipt.fromWire(published.result).revision,
+        );
+        expect(
+          workflow.get(workflow.keys('draft:').single)!.toText(),
+          savedDraft.toText(),
+        );
+        expect(workflow.keys('approval:'), hasLength(1));
+        expect(
+          copy.database
+              .select('SELECT count(*) AS n FROM operation_receipts')
+              .single['n'],
+          2,
+        );
+        expect(
+          copy.database
+              .select('SELECT count(*) AS n FROM historical_receipt')
+              .single['n'],
+          0,
+        );
+        expect(
+          copy.database
+              .select('SELECT utf8_content FROM source_content')
+              .single['utf8_content'],
+          orderedEquals(utf8.encode(stage.text)),
+        );
+        expect(
+          SqliteKernel(copy.database, f.u).imageBytes(image),
+          orderedEquals(imageBytes),
+        );
+        expect(
+          SqliteJournal(
+            copy.database,
+            f.u,
+          ).snapshot(opened.frame.continuity, opened.frame.revision),
+          hasLength(1),
+        );
+      } finally {
+        archive.close();
+      }
       expect(
         SqliteJournal(backup.database, f.u).head(opened.frame.continuity),
         CommitReceipt.fromWire(published.result).revision,
