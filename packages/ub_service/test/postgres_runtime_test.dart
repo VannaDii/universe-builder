@@ -96,6 +96,389 @@ void main() {
           await observer.close();
         }
       });
+      test('private drafts recover exact saves across reconnect and keep old bases without publication', () async {
+        var author = await runtime.connect(hello(authorId));
+        final other = await runtime.connect(hello(authorId));
+        final writer = await runtime.connect(hello(writerId));
+        final created = WireFields(
+          await author.execute(
+            const CreateUniverseEngineRequest(
+              name: 'Disposable engine universe',
+              start: GregorianUniverseStart('2040-03-15T12:30:00+02:00'),
+            ),
+          ),
+          {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
+        );
+        final universe = UniverseId.parse(created.string('universe_id'));
+        universes.add(universe);
+        final continuity = ContinuityId.parse(created.string('continuity_id'));
+        final context = RecordId.parse(created.string('context_id'));
+        final revision = RevisionId.parse(created.string('revision'));
+        DraftContent content(
+          String text, {
+          RecordId? represented,
+          List<DomainOperation> operations = const [],
+        }) => DraftContent(
+          baseRevision: revision,
+          representedContext: represented ?? context,
+          operations: operations,
+          rationale: text,
+          proposal: null,
+        );
+        SaveDraftEngineRequest save(DraftContent draft, BigInt version) =>
+            SaveDraftEngineRequest(
+              universe: selector,
+              continuityId: continuity,
+              expectedVersion: version,
+              content: draft,
+            );
+        final load = LoadDraftEngineRequest(
+          universe: selector,
+          continuityId: continuity,
+        );
+        expect(await author.execute(load), isA<CanonicalNull>());
+        await expectLater(
+          author.execute(save(content('😀' * 4001), BigInt.zero)),
+          throwsA(isA<InvalidArgumentError>()),
+        );
+        final oversized = content(
+          'Too many operations',
+          operations: List.generate(
+            2000,
+            (_) => DefineUnitOperation(
+              clientRef: 'unfinished-unit',
+              record: units.unit(),
+            ),
+          ),
+        );
+        expect(
+          CanonicalArray(oversized.operations.map((op) => op.toWire()))
+              .toBytes()
+              .length,
+          greaterThan(128000),
+        );
+        await expectLater(
+          author.execute(save(oversized, BigInt.zero)),
+          throwsA(isA<InvalidArgumentError>()),
+        );
+        await expectLater(
+          author.execute(
+            save(
+              content('Unknown context', represented: f.id(999)),
+              BigInt.zero,
+            ),
+          ),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        expect(await author.execute(load), isA<CanonicalNull>());
+        final request = save(
+          content(
+            'Unfinished text é😀',
+            operations: [
+              DefineUnitOperation(
+                clientRef: 'unfinished-unit',
+                record: units.unit(),
+              ),
+            ],
+          ),
+          BigInt.zero,
+        );
+        final saved = await author.execute(request);
+        expect(SavedDraft.fromWire(saved).version, BigInt.one);
+        expect(
+          SavedDraft.fromWire(saved).content.toWire().toText(),
+          request.content.toWire().toText(),
+        );
+        expect((await other.execute(request)).toText(), saved.toText());
+        await expectLater(
+          other.execute(save(content('Competing text'), BigInt.zero)),
+          throwsA(
+            isA<BaseRevisionConflictError>().having(
+              (e) => e.actual,
+              'actual',
+              'draft:1',
+            ),
+          ),
+        );
+        await author.execute(
+          GrantEngineRequest(
+            grant: GrantSpec(
+              profileId: writerId,
+              universeId: universe,
+              worlds: null,
+              propose: true,
+              edit: true,
+              protected: true,
+            ),
+          ),
+        );
+        await expectLater(
+          writer.execute(load),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        await expectLater(
+          writer.execute(request),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        await store.transaction((s) async {
+          final journal = s.kernel(universe).journal;
+          expect(await journal.head(continuity), revision);
+          expect(await s.workflows(universe).keys('approval:'), isEmpty);
+          final row = f.row(20, f.entity());
+          await s
+              .kernel(universe)
+              .commit(
+                CommitInput(
+                  universe: universe,
+                  continuity: continuity,
+                  expectedHead: revision,
+                  principal: PrincipalId.generate(),
+                  decision: 'Disposable setup',
+                  reason: 'Advance after draft',
+                  idempotencyKey: 'draft-fixture',
+                  changes: [
+                    Assignment(
+                      recordId: row.identity.recordId,
+                      expected: null,
+                      next: StoredVersion.build(
+                        row.recordVersionId,
+                        RecordIdentity(
+                          universeId: universe,
+                          recordId: row.identity.recordId,
+                          recordKind: row.identity.recordKind,
+                        ),
+                        row.payload.toWire(),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+        });
+        await runtime.close();
+        runtime = NativePostgresRuntime(store: store);
+        author = await runtime.connect(hello(authorId));
+        expect((await author.execute(request)).toText(), saved.toText());
+        expect((await author.execute(load)).toText(), saved.toText());
+        final revised = await author.execute(
+          save(content('😀' * 4000), BigInt.one),
+        );
+        expect(SavedDraft.fromWire(revised).version, BigInt.two);
+        expect(SavedDraft.fromWire(revised).content.baseRevision, revision);
+        await store.transaction((s) async {
+          final workflow = s.workflows(universe);
+          final keys = await workflow.keys(
+            'draft:${authorId.value}:${continuity.value}:',
+          );
+          expect(keys, hasLength(2));
+          expect((await workflow.get(keys.first))!.toText(), saved.toText());
+          expect((await workflow.get(keys.last))!.toText(), revised.toText());
+          expect(await workflow.keys('approval:'), isEmpty);
+          expect(await workflow.keys('proposal:'), isEmpty);
+          expect(
+            await s.kernel(universe).journal.head(continuity),
+            isNot(revision),
+          );
+        });
+      });
+
+      test('inline research dispatch works without writing rights and never retains publication authority', () async {
+        final author = await runtime.connect(hello(authorId));
+        final writer = await runtime.connect(hello(writerId));
+        final created = WireFields(
+          await author.execute(
+            const CreateUniverseEngineRequest(
+              name: 'Disposable engine universe',
+              start: GregorianUniverseStart('2040-03-15T12:30:00+02:00'),
+            ),
+          ),
+          {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
+        );
+        final universe = UniverseId.parse(created.string('universe_id'));
+        universes.add(universe);
+        final continuity = ContinuityId.parse(created.string('continuity_id'));
+        final represented = RecordId.parse(created.string('context_id'));
+        final revision = RevisionId.parse(created.string('revision'));
+        Future<void> grant(List<WorldId>? worlds) async {
+          await author.execute(
+            GrantEngineRequest(
+              grant: GrantSpec(
+                profileId: writerId,
+                universeId: universe,
+                worlds: worlds,
+                propose: false,
+                edit: false,
+                protected: false,
+              ),
+            ),
+          );
+        }
+
+        Future<OpenedContext> open() => tool(
+          writer,
+          OpenContextRequest(
+            universe: selector,
+            continuityId: continuity,
+            revision: const HeadRevisionSelector(),
+            representedContext: ContextIdSelector(represented),
+            temporalQuery: const TimelessFrameTime(),
+            temporalSystems: [],
+            perspective: const AuthorPerspective(),
+          ),
+          OpenedContext.fromWire,
+        );
+        InlineValidationRequest check(
+          ContextId context, {
+          Selector? world,
+          List<DomainOperation>? operations,
+        }) => InlineValidationRequest(
+          universe: selector,
+          contextId: context,
+          world: world,
+          operations:
+              operations ??
+              [
+                CreateEntityOperation(
+                  clientRef: f.id(20).value,
+                  record: f.entity(),
+                ),
+              ],
+          checkScope: CheckScope.universe,
+        );
+        await grant(null);
+        final opened = await open();
+        final request = check(opened.contextId);
+        final report = await tool(
+          writer,
+          request,
+          ValidationV3.fromWire,
+        ) as EvaluatedValidation;
+        expect((report.submittedInput as QueryInput).frame, opened.frame);
+        expect(report.finalBindingDigest, isNull);
+        expect(report.assessment, isA<AbsentAssessment>());
+        expect(report.execution.operationId, isNull);
+        expect(report.execution.inputDigest, canonicalDigest(request.toArgs()));
+        await store.transaction((s) async {
+          final workflow = s.workflows(universe);
+          expect(await workflow.keys('validation:'), hasLength(1));
+          final retained = WireFields(
+            (await workflow.get('validation:${report.execution.runId.value}'))!,
+            {
+              'proposal_digest',
+              'validation',
+              'admissible',
+              'report',
+              'capture',
+            },
+          );
+          expect(retained.boolean('admissible'), isTrue);
+          expect(retained.optional('capture', (value) => value), isNull);
+          expect(retained.require('report').toText(), report.toWire().toText());
+          for (final prefix in [
+            'proposal:',
+            'operation:',
+            'reserved-record:',
+            'approval:',
+          ]) {
+            expect(await workflow.keys(prefix), isEmpty);
+          }
+          expect(await s.kernel(universe).journal.head(continuity), revision);
+          expect(
+            await s.kernel(universe).journal.identityExists(f.id(20)),
+            isFalse,
+          );
+        });
+        await expectLater(
+          tool(
+            writer,
+            check(
+              opened.contextId,
+              operations: [
+                CreateEntityOperation(
+                  clientRef: f.id(21).value,
+                  record: f.entity(classification: f.id(999)),
+                ),
+              ],
+            ),
+            ValidationV3.fromWire,
+          ),
+          throwsA(isA<FormatException>()),
+        );
+        await store.transaction((s) async {
+          final row = f.row(50, WorldRecord(selector: 'Campaign'));
+          await s
+              .kernel(universe)
+              .commit(
+                CommitInput(
+                  universe: universe,
+                  continuity: continuity,
+                  expectedHead: revision,
+                  principal: PrincipalId.generate(),
+                  decision: 'Disposable world',
+                  reason: 'Scoped research',
+                  idempotencyKey: 'inline-world',
+                  changes: [
+                    Assignment(
+                      recordId: row.identity.recordId,
+                      expected: null,
+                      next: StoredVersion.build(
+                        row.recordVersionId,
+                        RecordIdentity(
+                          universeId: universe,
+                          recordId: row.identity.recordId,
+                          recordKind: row.identity.recordKind,
+                        ),
+                        row.payload.toWire(),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+        });
+        final unscoped = await open();
+        await expectLater(
+          tool(
+            writer,
+            check(unscoped.contextId, world: const Selector('Campaign')),
+            ValidationV3.fromWire,
+          ),
+          throwsA(isA<WorldScopeConflictError>()),
+        );
+        await grant([recordWorld(f.id(50))]);
+        final scoped = await open();
+        final invalid = [
+          CreateEntityOperation(clientRef: '', record: f.entity()),
+        ];
+        expect(
+          await tool(
+            writer,
+            check(
+              scoped.contextId,
+              world: const Selector('Campaign'),
+              operations: invalid,
+            ),
+            ValidationV3.fromWire,
+          ),
+          isA<RestrictedValidation>(),
+        );
+        await expectLater(
+          tool(
+            writer,
+            check(
+              scoped.contextId,
+              world: const Selector('Hidden'),
+              operations: invalid,
+            ),
+            ValidationV3.fromWire,
+          ),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        await store.transaction((s) async {
+          expect(await s.workflows(universe).keys('validation:'), hasLength(1));
+          expect(await s.workflows(universe).keys('proposal:'), isEmpty);
+          expect(await s.workflows(universe).keys('approval:'), isEmpty);
+        });
+      });
+
       test('creates, validates, reviews, approves and publishes through dispatch with durable retries and current access', () async {
         var author = await runtime.connect(hello(authorId));
         var writer = await runtime.connect(hello(writerId));

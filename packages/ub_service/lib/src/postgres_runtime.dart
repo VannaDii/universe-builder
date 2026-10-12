@@ -155,7 +155,9 @@ final class NativePostgresRuntime {
             ApproveEngineRequest(:final universe) ||
             ReviewEngineRequest(:final universe) ||
             AuthorWritingEngineRequest(:final universe) ||
-            StageSourceEngineRequest(:final universe) => universe,
+            StageSourceEngineRequest(:final universe) ||
+            LoadDraftEngineRequest(:final universe) ||
+            SaveDraftEngineRequest(:final universe) => universe,
             _ => throw const UnsupportedSemanticsError(
               message: 'PostgreSQL request migration incomplete',
             ),
@@ -193,6 +195,8 @@ final class NativePostgresRuntime {
               return workflow.review(proposalReference);
             case StageSourceEngineRequest(:final label, :final text):
               return workflow.stageSource(label: label, text: text);
+            case LoadDraftEngineRequest() || SaveDraftEngineRequest():
+              return workflow.draftRequest(request);
             case AuthorWritingEngineRequest():
               return workflow.executeWritingEngineRequest(
                 request,

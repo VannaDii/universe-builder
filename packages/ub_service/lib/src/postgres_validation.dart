@@ -21,6 +21,7 @@ import 'discovery.dart';
 import 'context_brief.dart';
 import 'installation_authority.dart';
 import 'operation_state.dart';
+import 'operation_compilation.dart';
 import 'read_cursor.dart';
 import 'writing_source.dart';
 import 'resource_checks.dart';
@@ -2293,8 +2294,218 @@ final class PostgresValidationWorkflow {
     ]);
   }
 
-  /// Native protocol dispatch for the migrated authoring routes. Unmigrated
-  /// requests fail explicitly; they never fall back to another backend.
+  /// Private, versioned author drafts retain their original base edition.
+  Future<CanonicalValue> draftRequest(EngineRequest request) async {
+    try {
+      return await authority.withUniverseAuthority(principal, universe, (
+        current,
+      ) async {
+        if (!current.principal.author) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        final (selector, continuity) = switch (request) {
+          LoadDraftEngineRequest(:final universe, :final continuityId) ||
+          SaveDraftEngineRequest(
+            :final universe,
+            :final continuityId,
+          ) => (universe, continuityId),
+          _ => throw const InvalidArgumentError(
+            field: 'method',
+            message: 'requires draft load or save',
+          ),
+        };
+        final resolved = await session.authority.resolveUniverseAlias(
+          actor: principal.id,
+          name: selector.value,
+          epochSeconds: _epochSeconds(),
+        );
+        if (resolved.universeId != universe) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        final prefix = 'draft:${principal.id.value}:${continuity.value}:';
+        if (request is SaveDraftEngineRequest) {
+          final content = request.content;
+          if (CanonicalArray(
+                    content.operations.map((operation) => operation.toWire()),
+                  ).toBytes().length >
+                  128000 ||
+              utf8.encode(content.rationale).length > 16000) {
+            throw const InvalidArgumentError(
+              field: 'draft',
+              message: 'draft content exceeds draft size limit',
+            );
+          }
+          final records = await _canon(continuity, content.baseRevision);
+          if (!records.any(
+            (row) =>
+                row.identity.recordId == content.representedContext &&
+                row.payload is RepresentedContextRecord,
+          )) {
+            throw const NotFoundOrNotAccessibleError(
+              message: 'draft represented context',
+            );
+          }
+        }
+        await _journal.head(continuity);
+        final keys = await _workflow.keys(prefix);
+        if (keys.length > 10000) {
+          throw const EvaluationLimitReachedError(
+            message: 'draft history limit reached',
+          );
+        }
+        final latest = keys.lastOrNull;
+        final currentDraft = latest == null
+            ? null
+            : SavedDraft.fromWire((await _workflow.get(latest))!);
+        if (request is LoadDraftEngineRequest) {
+          return currentDraft?.toWire() ?? const CanonicalNull();
+        }
+        final save = request as SaveDraftEngineRequest;
+        final version = currentDraft?.version ?? BigInt.zero;
+        if (version != save.expectedVersion) {
+          if (version == save.expectedVersion + BigInt.one &&
+              currentDraft!.content.toWire().toText() ==
+                  save.content.toWire().toText()) {
+            return currentDraft.toWire();
+          }
+          throw BaseRevisionConflictError(
+            expected: 'draft:${save.expectedVersion}',
+            actual: 'draft:$version',
+          );
+        }
+        if (version >= BigInt.from(10000)) {
+          throw const EvaluationLimitReachedError(
+            message: 'draft history limit reached; export the draft before further editing',
+          );
+        }
+        final saved = SavedDraft(
+          version: version + BigInt.one,
+          content: save.content,
+        );
+        await _workflow.compareAppend(
+          {prefix: latest},
+          [
+            MapEntry(
+              '$prefix${saved.version.toString().padLeft(20, '0')}',
+              saved.toWire(),
+            ),
+          ],
+        );
+        return saved.toWire();
+      });
+    } on InstallationException catch (error) {
+      if (error.failure == InstallationFailure.denied) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      rethrow;
+    }
+  }
+
+  Future<ValidationV3> validateInlineRequest(InlineValidationRequest request) =>
+      authority.withUniverseAuthority(
+        principal,
+        universe,
+        (current) async =>
+            (await _validateInlineRequest(request, current)).validation,
+      );
+
+  Future<({ValidationV3 validation, Frame frame, WorldId? focus})>
+  _validateInlineRequest(
+    InlineValidationRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
+    if (request.universeId != null && request.universeId != universe) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final frame = await _validationFrame(request.contextId, current);
+    final base = await _canon(frame.continuity, frame.revision);
+    // Compilation errors can disclose hidden definitions. Restricted research
+    // resolves only its visible world selector and never compiles the candidate.
+    if (current.worldScope != null) {
+      final focus = resolveWorldFocus(
+        world: request.world,
+        guard: request.worldId,
+        records: base,
+        scope: current.worldScope,
+      );
+      return (
+        validation: ValidationV3.restricted(),
+        frame: frame,
+        focus: focus,
+      );
+    }
+    final changes = compileOperations(
+      universe: universe,
+      revision: frame.revision,
+      base: base,
+      operations: request.operations,
+    );
+    final footprint = writeFootprint(base: base, changes: changes);
+    final focus = resolveWorldFocus(
+      world: request.world,
+      guard: request.worldId,
+      records: base,
+      scope: null,
+    );
+    if (focus != null &&
+        (footprint.shared || footprint.worlds.any((world) => world != focus))) {
+      throw const WorldScopeConflictError(
+        message: 'full write footprint exceeds named world',
+      );
+    }
+    final stored = StoredProposal(
+      owner: principal.id,
+      authorOrigin: principal.author,
+      changes: changes,
+      footprint: footprint,
+      proposal: Proposal(
+        baseFrame: frame,
+        worldScope: focus,
+        proposalId: ProposalId.generate(),
+        version: BigInt.one,
+        digest: canonicalDigest(request.toArgs()),
+        submission: Submission.draft,
+        operations: request.operations,
+        compiledChanges: [],
+        rationale: 'inline validation',
+        canonical: false,
+        operationId: OperationId.generate(),
+        withdrawn: false,
+      ),
+    );
+    final result = await checkProposalCandidate(
+      stored: stored,
+      universe: universe,
+      principal: principal.id,
+      approvalAuthor: current.approvalAuthor,
+      scope: null,
+      preview: _preview,
+      readCanon: _canon,
+      readWorkflow: _workflow.get,
+      readVersion: _version,
+    );
+    final report = EvaluatedValidation(
+      execution: result.validation,
+      submittedInput: QueryInput(frame: frame, checkScope: request.checkScope),
+      assessment: const AbsentAssessment(),
+      finalBindingDigest: null,
+    );
+    final completed = CheckedValidation(
+      proposalDigest: result.proposalDigest,
+      validation: result.validation,
+      admissible: result.admissible,
+      report: report,
+    );
+    await _workflow.compareAppend({}, [
+      MapEntry(
+        'validation:${result.validation.runId.value}',
+        completed.toWire(),
+      ),
+    ]);
+    return (validation: report, frame: frame, focus: focus);
+  }
+
+  /// Native protocol dispatch for the public tool request contract.
   Future<CanonicalValue> executeToolRequest(
     Request request, {
     required bool Function(OperationId) isValidationActive,
@@ -2389,6 +2600,11 @@ final class PostgresValidationWorkflow {
             result = read.result.toWire();
             frame = read.frame;
             delivery = read.delivery;
+          case InlineValidationRequest():
+            final checked = await _validateInlineRequest(request, current);
+            result = checked.validation.toWire();
+            frame = checked.frame;
+            focus = checked.focus;
           case ProposalValidationRequest():
             frame = await _validationFrame(request.contextId, current);
             if (request.universeId != null && request.universeId != universe) {
@@ -2460,10 +2676,6 @@ final class PostgresValidationWorkflow {
               current,
               isValidationActive: isValidationActive,
             )).toWire();
-          default:
-            throw const UnsupportedSemanticsError(
-              message: 'PostgreSQL request migration incomplete',
-            );
         }
         final envelope = Envelope<CanonicalValue>(
           contractVersion: protocolVersion,

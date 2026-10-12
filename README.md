@@ -404,6 +404,13 @@ allocated versions survive retries; knowledge establishment creates no objective
 assertion, and duration edits preserve acquisition history. Publication and
 rejection recover their original receipts after reopen and later canon changes.
 These actions use the owning PostgreSQL transaction and current author authority.
+Inline research now runs through public tool dispatch without writing rights;
+it retains query evidence without proposal state, reservations or approval.
+Scoped research resolves only visible selectors and never compiles hidden
+candidate definitions. Private author drafts retain immutable expected-version
+saves, recover exact retries across reconnect, reject competing edits and keep
+an old base edition after canon advances. Draft size and represented-context
+checks match SQLite; saving a draft creates no proposal, approval or publication.
 Socket/launcher integration, cross-process worker qualification and
 the remaining service routes are pending. Import previews/purge coordination,
 transfer and live verified-TLS qualification also remain pending; runtime PostgreSQL selection
