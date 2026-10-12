@@ -280,6 +280,13 @@ selects a convenient world. Missing evidence remains unresolved; belief, memory
 and receipt alone do not establish knowledge. Policy and evidence corrections
 reassess unchanged knowledge facts. These checks still require integration with
 proposal validation/publication and its author authority checks.
+Candidate relation cardinality now enforces authored cross-instance maxima at
+overlapping exact times, partitioned by grouping key, world and realm. Repeated
+evidence for one participant counts once; half-open interval ends stay exclusive.
+Unknown time, scope, precision or opposing evidence leaves the count unresolved.
+These maxima are separate from local role multiplicity and do not infer a
+minimum or completeness. Proposal validation/publication integration remains
+pending.
 Typed operation contracts preserve bare nested record DTOs separately from tagged stored
 payloads, snake-case operation fields and exact expected versions. Decoding an
 adoption request preserves its supplied digest; compilation verifies it and the
