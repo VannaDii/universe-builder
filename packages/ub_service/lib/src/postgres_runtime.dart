@@ -264,6 +264,8 @@ final class NativePostgresRuntime {
             StageSourceEngineRequest(:final universe) ||
             ExportLogicalEngineRequest(:final universe) ||
             MaintainEngineRequest(:final universe) ||
+            PreviewPurgeEngineRequest(:final universe) ||
+            PurgeEngineRequest(:final universe) ||
             ForkContinuityEngineRequest(:final universe) ||
             CompareContinuitiesEngineRequest(:final universe) ||
             PrepareAdoptionEngineRequest(:final universe) ||
@@ -282,6 +284,12 @@ final class NativePostgresRuntime {
             epochSeconds: _epochSeconds(),
           );
           final universe = catalog.universeId;
+          if (request is PurgeEngineRequest &&
+              request.confirmation != 'PURGE ${catalog.name}') {
+            throw const FormatException(
+              'type the exact purge confirmation shown in the preview',
+            );
+          }
           if (!_recovered.contains(universe)) {
             await session.recoverUniverse(universe);
             session.afterCommit(() => _recovered.add(universe));
@@ -317,6 +325,22 @@ final class NativePostgresRuntime {
               return workflow.exportRequest(request);
             case MaintainEngineRequest():
               return workflow.maintainRequest(request);
+            case PreviewPurgeEngineRequest():
+              return session.purgePreview(universe);
+            case PurgeEngineRequest():
+              await session.purgeUniverse(
+                actor: principal.id,
+                universe: universe,
+                digest: request.digest,
+              );
+              session.afterCommit(() {
+                _scheduler.cancelUniverse(universe);
+                _recovered.remove(universe);
+              });
+              return CanonicalObject([
+                MapEntry('purged', CanonicalString(universe.value)),
+                const MapEntry('external_copies_removed', CanonicalBool(false)),
+              ]);
             case ForkContinuityEngineRequest() ||
                 CompareContinuitiesEngineRequest() ||
                 PrepareAdoptionEngineRequest():

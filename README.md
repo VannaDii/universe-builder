@@ -463,10 +463,16 @@ archive digests, and identity/name reservations; the admission receipt commits
 with the target namespace and catalog entry, allowing exact lost-response retries.
 Imported evidence grants no installation permissions. The PostgreSQL control
 schema is now version 2; opening rejects older or incomplete layouts without
-implicitly migrating them. Coordinated backend cutover remains pending.
+implicitly migrating them. Private PostgreSQL purge previews bind exact current
+heads and retained-history/workflow counts. Purge requires the current name's exact
+confirmation and author rights, then atomically removes the universe namespace,
+grants, all retained aliases and catalog entry while retaining the purge audit.
+Validation jobs retire only after commit. Reviewed import archives and external
+copies remain outside this operation, as stated in the preview; forensic erasure
+is not promised. Coordinated backend cutover remains pending.
 Socket/launcher integration, cross-process worker qualification and
-the remaining service routes are pending. Purge coordination, coordinated transfer
-and live verified-TLS qualification also remain pending; runtime PostgreSQL selection
+the remaining service routes are pending. Coordinated transfer and live
+verified-TLS qualification also remain pending; runtime PostgreSQL selection
 is still explicitly unavailable.
 Run `test/postgres_foundation_test.dart`, `test/postgres_relational_test.dart`,
 `test/postgres_journal_test.dart`, `test/postgres_workflow_test.dart` and

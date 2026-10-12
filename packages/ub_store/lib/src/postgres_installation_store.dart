@@ -293,6 +293,78 @@ final class PostgresInstallationSession {
     ]);
   }
 
+  /// Exact retained impact under installation authority and the universe lock.
+  Future<CanonicalObject> purgePreview(UniverseId universe) async {
+    await verifyUniverse(universe);
+    final schema = postgresUniverseSchema(universe);
+    Future<CanonicalNumber> count(String table) async => CanonicalNumber(
+      (await _tx.execute('SELECT count(*) FROM $schema.$table')).single.single
+          .toString(),
+    );
+    final impact = CanonicalObject([
+      MapEntry('universe_id', CanonicalString(universe.value)),
+      MapEntry(
+        'heads',
+        CanonicalArray(
+          (await kernel(universe).journal.heads()).entries.map(
+            (head) => CanonicalArray([
+              CanonicalString(head.key.value),
+              CanonicalString(head.value.value),
+            ]),
+          ),
+        ),
+      ),
+      MapEntry('revisions', await count('commits')),
+      MapEntry('record_versions', await count('record_versions')),
+      MapEntry('workflow_entries', await count('workflow_index')),
+      MapEntry('commit_receipts', await count('operation_receipts')),
+      MapEntry(
+        'scope',
+        CanonicalString(
+          'entire registered universe namespace: all continuities, history, sources, images, drafts, approvals and operation logs',
+        ),
+      ),
+      MapEntry(
+        'retained',
+        CanonicalString(
+          'installation identity, profiles, purge audit and reviewed import archives remain; external backups, exports, client transcripts and database snapshots remain outside this operation',
+        ),
+      ),
+      MapEntry(
+        'erasure',
+        CanonicalString(
+          'drops the owned universe namespace; does not promise forensic erasure',
+        ),
+      ),
+    ]);
+    return CanonicalObject([
+      MapEntry('digest', CanonicalString(canonicalDigest(impact))),
+      MapEntry('impact', impact),
+    ]);
+  }
+
+  /// Namespace, permissions, aliases, catalog and purge audit change together.
+  Future<void> purgeUniverse({
+    required ProfileId actor,
+    required UniverseId universe,
+    required String digest,
+  }) => rollbackOnFailure(() async {
+    await authority.requireAuthor(actor);
+    final preview = WireFields(await purgePreview(universe), {
+      'digest',
+      'impact',
+    });
+    if (preview.string('digest') != digest) {
+      throw const FormatException(
+        'purge preview is stale; review current impact',
+      );
+    }
+    await authority.retireUniverse(actor: actor, universe: universe);
+    await _tx.execute(
+      'DROP SCHEMA ${postgresUniverseSchema(universe)} CASCADE',
+    );
+  });
+
   Future<CanonicalObject> exportUniverse(
     UniverseId universe,
     String destination, {

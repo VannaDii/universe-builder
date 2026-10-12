@@ -219,6 +219,38 @@ final class PostgresInstallationAuthority {
     await _audit(actor.value, 'register', universe.value);
   }
 
+  /// Retire current access and retained aliases in the caller's purge transaction.
+  /// Universe bytes are removed by the same installation session before commit.
+  Future<void> retireUniverse({
+    required ProfileId actor,
+    required UniverseId universe,
+  }) async {
+    await requireAuthor(actor);
+    final rows = await _rows(
+      'SELECT id,name,schema_name FROM $_schema.catalog WHERE id=\$1',
+      [universe.value],
+    );
+    if (rows.isEmpty) {
+      throw const InstallationException(InstallationFailure.denied);
+    }
+    _catalogEntry(rows.single);
+    for (final table in [
+      'grant_worlds',
+      'grant_entities',
+      'grant_predicates',
+      'grant_continuities',
+      'grants',
+      'aliases',
+      'catalog',
+    ]) {
+      final column = table == 'catalog' ? 'id' : 'universe';
+      await _execute('DELETE FROM $_schema.$table WHERE $column=\$1', [
+        universe.value,
+      ]);
+    }
+    await _audit(actor.value, 'purge', universe.value);
+  }
+
   Future<void> putGrant({
     required ProfileId actor,
     required GrantSpec grant,
