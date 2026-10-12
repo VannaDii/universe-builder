@@ -221,6 +221,18 @@ Startup resolves `UB_USE_POSTGRES`/`UB_POSTGRES_ENDPOINT` and existing protected
 `settings.sqlite` before opening installation authority. Environment credentials
 are never saved. PostgreSQL runtime selection currently fails explicitly without
 opening a SQLite installation; no automatic fallback or conversion occurs.
+The PostgreSQL storage foundation pins `postgres` 3.5.20. Its internal authored-text
+codec stores strict UTF-8 in typed `bytea` columns, preserving NUL, BOM characters,
+Unicode and line endings; exact numeric tokens remain text. Universe namespaces
+come from validated internal IDs. Live functional checks on PostgreSQL 16.15 cover
+non-superuser schema setup, exact values/null versus empty, transaction rollback,
+competing row locks and namespace reset on a reused pooled connection. These are
+representative driver/storage checks, not complete PostgreSQL store or service
+support; full generated schemas, workflow parity, transfer and verified TLS remain
+pending. Run `test/postgres_foundation_test.dart` from `packages/ub_store` with
+`UB_TEST_POSTGRES_PORT` set to a disposable loopback `ub_disposable` database. Without
+that selection the live database cases are explicitly skipped. This check uses
+local fixture setup privileges and cleans its generated schemas and role.
 Compiled engine startup and shutdown have focused coverage on macOS with disposable
 data. Native clients can now use `LocalEngineClient.ensureRunning` with an absolute
 installed `universe-engine` helper, or select the sibling through `siblingEngine`.

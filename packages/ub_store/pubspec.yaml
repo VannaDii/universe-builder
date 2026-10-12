@@ -13,6 +13,7 @@ dependencies:
   ffi: 2.2.0
   code_assets: 2.1.0
   hooks: 2.2.0
+  postgres: 3.5.20
   native_toolchain_c: 0.19.5
 dev_dependencies:
   test: 1.33.0
