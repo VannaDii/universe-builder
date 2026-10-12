@@ -1,9 +1,9 @@
 import 'package:ub_domain/ub_domain.dart';
 
 import 'journal.dart';
+import 'candidate_reference_policy.dart';
 import 'references.dart';
 import 'revision_input.dart';
-import 'world_names.dart';
 
 /// Reference portion of candidate admission. Foundation/value/ancestry gates
 /// remain separate required kernel work. Selected world names use the pinned
@@ -16,67 +16,17 @@ final class CandidateReferences {
     final records = [
       for (final version in membership.values) journal.load(version),
     ];
-    WorldNames.validateRecords(records);
-    final kinds = {
-      for (final record in records)
-        record.identity.recordId: record.identity.recordKind,
-    };
-    for (final record in records) {
-      switch (record.identity.recordKind) {
-        case RecordKind.workVersion:
-          final binding = WorkVersionRecord.fromWire(record.payload).binding;
-          switch (binding) {
-            case BoundWork(:final continuity, :final revision):
-              _binding(continuity, revision);
-            case SegmentedWork(:final segments):
-              for (final segment in segments) {
-                _binding(segment.continuity, segment.revision);
-              }
-            case UnboundWork():
-              break;
-          }
-        case RecordKind.sceneRef:
-          _edition(SceneRecord.fromWire(record.payload).workVersion);
-        case RecordKind.passageRef:
-          _edition(PassageRecord.fromWire(record.payload).workVersion);
-        default:
-          break;
-      }
-      final refs = ReferenceScan.collect(record.payload, journal.universe);
-      for (final dependency in refs.records) {
-        if (dependency.version != null) {
-          final target = journal.load(dependency.version!);
-          if (target.identity.recordId != dependency.record) {
-            throw const FormatException('Version reference identity mismatch');
-          }
-        } else if (!membership.containsKey(dependency.record)) {
-          throw const FormatException('Missing current record dependency');
-        }
-      }
-      for (final dependency in refs.typed) {
-        if (kinds[dependency.record] != dependency.kind) {
-          throw const FormatException('Typed definition has wrong kind');
-        }
-      }
-      for (final world in refs.worlds) {
-        if (kinds[worldRecord(world)] != RecordKind.world) {
-          throw const FormatException('World reference has wrong kind');
-        }
-      }
-    }
+    validateCandidateReferenceRecords(
+      universe: journal.universe,
+      records: records,
+      membership: membership,
+      load: journal.load,
+      binding: _binding,
+    );
   }
 
   Set<RecordId> dependencies(StoredVersion record) =>
       recordDependencies(record);
-
-  void _edition(VersionRef edition) {
-    if (journal.load(edition.version).identity.recordKind !=
-        RecordKind.workVersion) {
-      throw const FormatException(
-        'Editorial edition reference must pin a work version',
-      );
-    }
-  }
 
   void _binding(ContinuityId continuity, RevisionId revision) {
     final rows = journal.database.select(

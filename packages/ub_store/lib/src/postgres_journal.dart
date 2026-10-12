@@ -81,6 +81,16 @@ final class PostgresJournal {
         as String,
   );
 
+  Future<bool> revisionExists(
+    ContinuityId continuity,
+    RevisionId revision,
+  ) async =>
+      (await _one(
+            'SELECT EXISTS(SELECT 1 FROM $_schema.commits WHERE universe_id=\$1 AND continuity_id=\$2 AND id=\$3) AS present',
+            [universe.value, continuity.value, revision.value],
+          ))['present']
+          as bool;
+
   Future<Map<ContinuityId, RevisionId>> heads() async => Map.unmodifiable({
     for (final row in await _rows(
       'SELECT id,head_commit FROM $_schema.continuities WHERE universe_id=\$1 ORDER BY id',

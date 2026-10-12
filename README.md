@@ -261,12 +261,21 @@ universe locks, preserving the existing serialized authority section across
 database connections, including absent-grant insertion and withdrawal. Focused
 checks cover reconnect, scope/expiry/delegation bounds, relevant authority sequence,
 audit-failure rollback and lock conflicts for grant/revocation/author changes.
+PostgreSQL candidate admission now uses the same factual foundation and reference
+policy as SQLite, loading exact pinned versions and checking work bindings in
+their named continuity. Focused checks cover definition ancestry/classification,
+historical edition pins, unit/world kinds, current dependencies, namespace guards
+and prose that resembles an ID. Frozen semantic fixture records retain their
+digests; their duplicated normalized world selectors are rejected by reference
+admission, rather than being treated as a publishable candidate. These are the
+foundation/reference gates only; definition/initialization and projection work,
+exact approval and current authority remain required before publication.
 Control-schema discovery/opening, import previews/purge coordination, complete
 publication/projection coordination, service integration, transfer and verified
 TLS remain pending; runtime PostgreSQL selection is still explicitly unavailable.
 Run `test/postgres_foundation_test.dart`, `test/postgres_relational_test.dart`,
 `test/postgres_journal_test.dart`, `test/postgres_workflow_test.dart` and
-`test/postgres_authority_test.dart` from
+`test/postgres_authority_test.dart` and `test/postgres_candidate_test.dart` from
 `packages/ub_store` with
 `UB_TEST_POSTGRES_PORT` set to a disposable loopback `ub_disposable` database. Without
 that selection the live database cases are explicitly skipped. This check uses
