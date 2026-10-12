@@ -18,6 +18,11 @@ Future<void> main(List<String> args) async {
     ),
     settings: const ConnectionSettings(sslMode: SslMode.disable),
   );
+  final universe = UniverseId.parse(args[2]);
+  final operation = OperationId.parse(args[3]);
+  if (!await store.acquireValidation(universe, operation)) {
+    throw StateError('Validation already owned');
+  }
   try {
     final task = await store.transaction((session) async {
       final authority = PostgresServiceAuthority(
@@ -30,14 +35,11 @@ Future<void> main(List<String> args) async {
       );
       return PostgresValidationWorkflow(
         session: session,
-        universe: UniverseId.parse(args[2]),
+        universe: universe,
         authority: authority,
         principal: principal,
         epochSeconds: () => BigInt.from(100),
-      ).prepareValidation(
-        OperationId.parse(args[3]),
-        isValidationActive: (_) => true,
-      );
+      ).prepareValidation(operation, isValidationActive: (_) => true);
     });
     if (task == null || task.capture == null) {
       throw StateError('No captured task');
@@ -46,6 +48,7 @@ Future<void> main(List<String> args) async {
     await stdout.flush();
     await stdin.drain<void>();
   } finally {
+    await store.releaseValidation(universe, operation);
     await store.close();
   }
 }

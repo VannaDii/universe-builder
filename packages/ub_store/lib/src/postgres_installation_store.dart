@@ -29,6 +29,16 @@ import 'postgres_workflow_storage.dart';
 
 part 'postgres_installation_imports.dart';
 
+String _validationLockKey(
+  OperationId instance,
+  UniverseId universe,
+  OperationId operation,
+) => 'ub_validation:${instance.value}:${universe.value}:${operation.value}';
+
+Sql _validationLockSql(String function) => Sql.named(
+  'SELECT pg_catalog.$function(pg_catalog.hashtextextended(CAST(@key AS text),0))',
+);
+
 /// Owns one connection to one installation database. Opening never creates or
 /// converts authority. Setup is explicit and transactional; no live endpoint is
 /// retained in diagnostics. Service callbacks own the complete transaction.
@@ -40,6 +50,53 @@ final class PostgresInstallationStore {
   int _active = 0;
   final _drained = Completer<void>();
   Future<void>? _shutdown;
+  final _validationLocks = <(UniverseId, OperationId)>{};
+
+  /// Session ownership spans evaluation but never a database transaction.
+  /// The server releases it on disconnect, including abrupt process termination.
+  Future<bool> acquireValidation(UniverseId universe, OperationId id) async {
+    final pair = (universe, id);
+    if (!_validationLocks.add(pair)) return false;
+    var locked = false;
+    var committed = false;
+    final key = _validationLockKey(instanceId, universe, id);
+    try {
+      await transaction((session) async {
+        locked =
+            (await session._tx.execute(
+                  _validationLockSql('pg_try_advisory_lock'),
+                  parameters: {'key': key},
+                )).single.single
+                as bool;
+      });
+      committed = locked;
+      return locked;
+    } finally {
+      if (!committed) {
+        _validationLocks.remove(pair);
+        if (locked) {
+          await _connection.execute(
+            _validationLockSql('pg_advisory_unlock'),
+            parameters: {'key': key},
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> releaseValidation(UniverseId universe, OperationId id) async {
+    if (!_validationLocks.contains((universe, id))) return;
+    try {
+      await transaction(
+        (session) => session._tx.execute(
+          _validationLockSql('pg_advisory_unlock'),
+          parameters: {'key': _validationLockKey(instanceId, universe, id)},
+        ),
+      );
+    } finally {
+      _validationLocks.remove((universe, id));
+    }
+  }
 
   static Future<PostgresInstallationStore> create(
     Endpoint endpoint, {
@@ -167,7 +224,11 @@ final class PostgresInstallationStore {
       final result = await _connection.runTx(
         (tx) async {
           await tx.execute('SET LOCAL search_path TO pg_catalog');
-          session = PostgresInstallationSession._(tx, instanceId);
+          session = PostgresInstallationSession._(
+            tx,
+            instanceId,
+            _validationLocks,
+          );
           await session.authority.lockAuthority();
           return action(session);
         },
@@ -206,11 +267,26 @@ final class PostgresInstallationStore {
 /// Internal service transaction access. These primitives do not replace exact
 /// approval or footprint admission by the service and expose no connection.
 final class PostgresInstallationSession {
-  PostgresInstallationSession._(this._tx, OperationId instance)
-    : authority = PostgresInstallationAuthority(_tx, instance);
+  PostgresInstallationSession._(this._tx, this._instance, this._validationLocks)
+    : authority = PostgresInstallationAuthority(_tx, _instance);
   final TxSession _tx;
+  final OperationId _instance;
+  final Set<(UniverseId, OperationId)> _validationLocks;
   final PostgresInstallationAuthority authority;
   final _afterCommit = <void Function()>[];
+
+  /// Probe another connection's ownership without caching or retained markers.
+  /// A free probe lasts only until this transaction ends.
+  Future<bool> isValidationActive(UniverseId universe, OperationId id) async {
+    if (_validationLocks.contains((universe, id))) return true;
+    final free =
+        (await _tx.execute(
+              _validationLockSql('pg_try_advisory_xact_lock'),
+              parameters: {'key': _validationLockKey(_instance, universe, id)},
+            )).single.single
+            as bool;
+    return !free;
+  }
 
   /// Trusted worker notifications occur after outer COMMIT, never on rollback.
   /// A notification failure cannot undo already-durable operation state.

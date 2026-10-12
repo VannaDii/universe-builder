@@ -952,7 +952,9 @@ final class PostgresValidationWorkflow {
         worldScope: current.worldScope,
         readWorkflow: _workflow.get,
         readReceipt: _journal.receipt,
-        isValidationActive: isValidationActive,
+        isValidationActive: (id) async =>
+            isValidationActive(id) ||
+            await session.isValidationActive(universe, id),
       );
       final proposal = prior.status.proposal;
       if (proposal == null) {
@@ -1436,7 +1438,9 @@ final class PostgresValidationWorkflow {
         worldScope: current.worldScope,
         readWorkflow: _workflow.get,
         readReceipt: _journal.receipt,
-        isValidationActive: isValidationActive,
+        isValidationActive: (id) async =>
+            isValidationActive(id) ||
+            await session.isValidationActive(universe, id),
       );
       final proposal = prior.status.proposal;
       if (proposal == null) {
@@ -1516,7 +1520,9 @@ final class PostgresValidationWorkflow {
             worldScope: current.worldScope,
             readWorkflow: _workflow.get,
             readReceipt: _journal.receipt,
-            isValidationActive: isValidationActive,
+            isValidationActive: (id) async =>
+                isValidationActive(id) ||
+                await session.isValidationActive(universe, id),
           );
     final candidate = retained == null
         ? await _propose(
@@ -1767,7 +1773,9 @@ final class PostgresValidationWorkflow {
         worldScope: current.worldScope,
         readWorkflow: _workflow.get,
         readReceipt: _journal.receipt,
-        isValidationActive: isValidationActive,
+        isValidationActive: (id) async =>
+            isValidationActive(id) ||
+            await session.isValidationActive(universe, id),
       );
       final proposal = prior.status.proposal;
       if (proposal == null) {
@@ -1978,7 +1986,9 @@ final class PostgresValidationWorkflow {
         worldScope: current.worldScope,
         readWorkflow: _workflow.get,
         readReceipt: _journal.receipt,
-        isValidationActive: isValidationActive,
+        isValidationActive: (id) async =>
+            isValidationActive(id) ||
+            await session.isValidationActive(universe, id),
       );
       final proposal = prior.status.proposal;
       if (proposal == null) {
@@ -2153,7 +2163,9 @@ final class PostgresValidationWorkflow {
       worldScope: current.worldScope,
       readWorkflow: _workflow.get,
       readReceipt: _journal.receipt,
-      isValidationActive: isValidationActive,
+      isValidationActive: (id) async =>
+          isValidationActive(id) ||
+          await session.isValidationActive(universe, id),
     )).status;
     final frame = status.proposal?.baseFrame;
     var delivery = Delivery(complete: true, cursor: null);
@@ -3479,7 +3491,9 @@ final class PostgresValidationWorkflow {
         worldScope: current.worldScope,
         readWorkflow: _workflow.get,
         readReceipt: _journal.receipt,
-        isValidationActive: isValidationActive,
+        isValidationActive: (id) async =>
+            isValidationActive(id) ||
+            await session.isValidationActive(universe, id),
       );
       if (op.digest != digest) {
         throw const IdempotencyKeyReusedError(message: 'request differs');
@@ -3638,7 +3652,9 @@ final class PostgresValidationWorkflow {
       worldScope: current.worldScope,
       readWorkflow: _workflow.get,
       readReceipt: _journal.receipt,
-      isValidationActive: isValidationActive,
+      isValidationActive: (id) async =>
+          isValidationActive(id) ||
+          await session.isValidationActive(universe, id),
     ),
   );
 
@@ -3652,7 +3668,9 @@ final class PostgresValidationWorkflow {
       worldScope: current.worldScope,
       readWorkflow: _workflow.get,
       readReceipt: _journal.receipt,
-      isValidationActive: isValidationActive,
+      isValidationActive: (id) async =>
+          isValidationActive(id) ||
+          await session.isValidationActive(universe, id),
     );
     return publicOperationStatus(
       status: op.status,
@@ -3723,7 +3741,9 @@ final class PostgresValidationWorkflow {
             worldScope: current.worldScope,
             readWorkflow: _workflow.get,
             readReceipt: _journal.receipt,
-            isValidationActive: isValidationActive,
+            isValidationActive: (id) async =>
+                isValidationActive(id) ||
+                await session.isValidationActive(universe, id),
           );
           if (operation.digest != digest) {
             throw const IdempotencyKeyReusedError(
@@ -3813,7 +3833,9 @@ final class PostgresValidationWorkflow {
           worldScope: current.worldScope,
           readWorkflow: _workflow.get,
           readReceipt: _journal.receipt,
-          isValidationActive: isValidationActive,
+          isValidationActive: (id) async =>
+              isValidationActive(id) ||
+              await session.isValidationActive(universe, id),
         );
         operation = await load('operation:${request.operationId.value}');
         final key = operationRequestKey(
@@ -3890,7 +3912,9 @@ final class PostgresValidationWorkflow {
       worldScope: current.worldScope,
       readWorkflow: _workflow.get,
       readReceipt: _journal.receipt,
-      isValidationActive: isValidationActive,
+      isValidationActive: (id) async =>
+          isValidationActive(id) ||
+          await session.isValidationActive(universe, id),
     );
     if (op.status.kind != OperationKind.validate ||
         {
@@ -4005,7 +4029,9 @@ final class PostgresValidationWorkflow {
       worldScope: current.worldScope,
       readWorkflow: _workflow.get,
       readReceipt: _journal.receipt,
-      isValidationActive: isValidationActive,
+      isValidationActive: (id) async =>
+          isValidationActive(id) ||
+          await session.isValidationActive(universe, id),
     );
     if ({
       OperationState.cancelled,
@@ -4438,7 +4464,9 @@ final class PostgresValidationWorkflow {
       worldScope: current.worldScope,
       readWorkflow: _workflow.get,
       readReceipt: _journal.receipt,
-      isValidationActive: isValidationActive,
+      isValidationActive: (id) async =>
+          isValidationActive(id) ||
+          await session.isValidationActive(universe, id),
     );
     StoredOperation? operation;
     if (await _workflow.get(key) != null) {

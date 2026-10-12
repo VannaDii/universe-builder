@@ -502,6 +502,14 @@ PostgreSQL validation recovery also checks termination of a compiled preparation
 peer after its running marker commits. Resumption retains the exact selection
 capture, completes through the native isolate scheduler and preserves the terminal
 result after reopening the store, without advancing canon or creating approval.
+PostgreSQL scheduled validation now holds a connection-owned advisory guard per
+installation/universe/operation across frozen evaluation. Another process reads
+live ownership from the database and skips duplicate scheduling; disconnect
+releases ownership so the original operation can resume. Completion, cancellation
+and failed preparation release the guard without granting publication authority.
+The cross-process regression checks live ownership, skipped competing evaluation,
+termination/resumption and guard cleanup. No heartbeat or authorization cache is
+introduced. See PostgreSQL's [advisory lock semantics](https://www.postgresql.org/docs/16/explicit-locking.html#ADVISORY-LOCKS).
 Coordinated backend cutover and hosted server backup operation remain pending.
 Socket/launcher integration, cross-process worker qualification and
 backend parity qualification are pending. Coordinated transfer and live

@@ -148,16 +148,16 @@ final class StoredOperation {
 }
 
 /// Resolve retained state under current authority. No status is written here.
-/// Only the live scheduler may establish [isValidationActive]; a stored running
-/// marker alone is insufficient. Durable commit receipts take priority over loss
-/// or cancellation because committed facts must never be reported as cancelled.
+/// Live scheduler/backend ownership establishes [isValidationActive]; a stored
+/// running marker alone is insufficient. Durable commit receipts take priority
+/// over loss or cancellation because committed facts must never be reported as cancelled.
 Future<StoredOperation> loadStoredOperation({
   required String key,
   required ProfileId principal,
   required Set<WorldId>? worldScope,
   required FutureOr<CanonicalValue?> Function(String) readWorkflow,
   required FutureOr<RevisionId?> Function(CommitInput) readReceipt,
-  required bool Function(OperationId) isValidationActive,
+  required FutureOr<bool> Function(OperationId) isValidationActive,
 }) async {
   const denied = NotFoundOrNotAccessibleError(message: 'resource');
   Future<StoredOperation> load(String key) async {
@@ -215,7 +215,8 @@ Future<StoredOperation> loadStoredOperation({
     if (await readWorkflow('cancel:${id.value}') != null) {
       state = OperationState.cancelled;
       cancelled = true;
-    } else if (state == OperationState.running && !isValidationActive(id)) {
+    } else if (state == OperationState.running &&
+        !await isValidationActive(id)) {
       state = OperationState.interrupted;
     }
   }

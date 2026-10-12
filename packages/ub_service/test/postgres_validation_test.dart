@@ -853,6 +853,38 @@ void main() {
             isTrue,
           );
           final capture = CanonicalValue.parseJson(lines.current).toText();
+          expect(
+            (await run(
+              writer,
+              (w) => w.operationStatus(id, isValidationActive: (_) => false),
+            )).state,
+            OperationState.running,
+          );
+          final competingPrincipal = await store.transaction(
+            (s) => PostgresServiceAuthority(s.authority)
+                .authenticate(profile: writer, credential: Credential(secret)),
+          );
+          await scheduler.schedule(
+            PostgresValidationJobs(
+              store: store,
+              universe: f.u,
+              principal: competingPrincipal,
+              epochSeconds: () => now,
+            ),
+            id,
+          );
+          expect(scheduler.isActive(f.u, id), isFalse);
+          await store.transaction((s) async {
+            expect(
+              await s.workflows(f.u).keys('job:${id.value}:terminal'),
+              isEmpty,
+            );
+            expect(await s.isValidationActive(f.u, id), isTrue);
+          });
+          expect(await store.acquireValidation(f.u, id), isFalse);
+          final independent = OperationId.generate();
+          expect(await store.acquireValidation(f.u, independent), isTrue);
+          await store.releaseValidation(f.u, independent);
           // SIGKILL skips the child's shutdown and leaves only committed work.
           expect(process.kill(ProcessSignal.sigkill), isTrue);
           expect(
@@ -891,6 +923,25 @@ void main() {
           final report = completed.validation as EvaluatedValidation;
           expect(report.finalBindingDigest, isNotNull);
           final retained = completed.toWire().toText();
+          expect(await store.acquireValidation(f.u, id), isTrue);
+          expect(await store.acquireValidation(f.u, id), isFalse);
+          await store.releaseValidation(f.u, id);
+          final missing = OperationId.generate();
+          await expectLater(
+            scheduler.schedule(
+              PostgresValidationJobs(
+                store: store,
+                universe: f.u,
+                principal: principal,
+                epochSeconds: () => now,
+              ),
+              missing,
+            ),
+            throwsA(isA<NotFoundOrNotAccessibleError>()),
+          );
+          expect(scheduler.isActive(f.u, missing), isFalse);
+          expect(await store.acquireValidation(f.u, missing), isTrue);
+          await store.releaseValidation(f.u, missing);
           await store.close();
           store = await open();
           expect(

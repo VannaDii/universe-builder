@@ -9,7 +9,8 @@ import 'validation_task.dart';
 
 /// Scheduler bridge for an authenticated principal. No transaction/session
 /// survives evaluation; both preparation and completion recheck current rights.
-final class PostgresValidationJobs implements ValidationJobService {
+final class PostgresValidationJobs
+    implements ValidationJobService, ValidationJobOwnership {
   PostgresValidationJobs({
     required this.store,
     required this.universe,
@@ -21,6 +22,14 @@ final class PostgresValidationJobs implements ValidationJobService {
   final UniverseId universe;
   final InstallationPrincipal principal;
   final BigInt Function()? epochSeconds;
+
+  @override
+  Future<bool> acquireValidation(OperationId id) =>
+      store.acquireValidation(universe, id);
+
+  @override
+  Future<void> releaseValidation(OperationId id) =>
+      store.releaseValidation(universe, id);
 
   Future<T> _run<T>(Future<T> Function(PostgresValidationWorkflow) action) =>
       store.transaction(

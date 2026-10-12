@@ -42,7 +42,15 @@ final class NativeValidationScheduler {
     UniverseId universe,
   ) async {
     bool active(OperationId operation) => isActive(universe, operation);
+    final ownership = service is ValidationJobOwnership
+        ? service as ValidationJobOwnership
+        : null;
+    var acquired = false;
     try {
+      if (ownership != null) {
+        acquired = await ownership.acquireValidation(id);
+        if (!acquired) return;
+      }
       try {
         final task = await service.prepareValidation(
           id,
@@ -66,8 +74,12 @@ final class NativeValidationScheduler {
         }
       }
     } finally {
-      await job.worker?.ready;
-      _jobs.remove((universe, id));
+      try {
+        await job.worker?.ready;
+        if (acquired) await ownership!.releaseValidation(id);
+      } finally {
+        _jobs.remove((universe, id));
+      }
     }
   }
 
