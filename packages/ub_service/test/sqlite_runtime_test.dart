@@ -17,6 +17,7 @@ import 'package:ub_store/ub_store.dart';
 
 import 'operation_compilation_test.dart' as f;
 import 'proposal_state_test.dart' as proposals;
+import 'proposal_authorization_test.dart' as permissions;
 import 'rule_checks_test.dart' as frames;
 import 'structural_checks_test.dart' as structure;
 import 'writing_units_test.dart' as units;
@@ -263,6 +264,342 @@ void main() {
       tool(writerConnection, open()),
       throwsA(isA<NotFoundOrNotAccessibleError>()),
     );
+  });
+
+  void seedReadRows(List<RecordVersion> rows) {
+    final package = OwnedSqliteDatabase.openExisting(path);
+    try {
+      package.recover();
+      final kernel = SqliteKernel(package.database, f.u);
+      kernel.commit(
+        CommitInput(
+          universe: f.u,
+          continuity: draft.proposal.baseFrame.continuity,
+          expectedHead: kernel.journal.head(
+            draft.proposal.baseFrame.continuity,
+          ),
+          principal: PrincipalId.generate(),
+          decision: 'Already admitted read fixture',
+          reason: 'Runtime read fixture',
+          idempotencyKey: 'runtime-reads',
+          changes: rows.map(
+            (row) => Assignment(
+              recordId: row.identity.recordId,
+              next: StoredVersion(
+                versionId: row.recordVersionId,
+                identity: row.identity,
+                payload: row.payload.toWire(),
+                digest: row.payloadDigest,
+              ),
+            ),
+          ),
+        ),
+      );
+    } finally {
+      package.close();
+    }
+  }
+
+  Future<OpenedContext> readContext(NativeSqliteConnection connection) async =>
+      OpenedContext.fromWire(
+        (await tool(
+          connection,
+          OpenContextRequest(
+            universe: const Selector('World'),
+            continuityId: draft.proposal.baseFrame.continuity,
+            revision: const HeadRevisionSelector(),
+            representedContext: ContextIdSelector(f.id(99)),
+            temporalQuery: const TimelessFrameTime(),
+            temporalSystems: [],
+            perspective: const AuthorPerspective(),
+          ),
+        )).result,
+      );
+
+  test('public paged reads resume across runtime restart with exact cursor binding', () async {
+    final rows = [
+      for (var n = 20; n < 24; n++)
+        f.row(n, permissions.entity(labels: {'en': 'Alpha $n'})),
+    ];
+    seedReadRows(rows);
+    var connection = runtime.connect(hello(author.id));
+    final opened = await readContext(connection);
+    SearchRequest search({String? cursor, String query = 'Alpha'}) =>
+        SearchRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          query: query,
+          typedFilters: Filters(recordKinds: [RecordKind.entity]),
+          limit: 1,
+          cursor: cursor,
+        );
+    final first = await tool(connection, search());
+    expect(first.delivery.complete, isFalse);
+    expect(SearchResults.fromWire(first.result).hits.single.recordId, f.id(20));
+    final budget =
+        ContextBrief(
+          records: [rows.first],
+          requiredDependencies: [],
+          coverage: Coverage.partial,
+        ).toWire().toBytes().length +
+        30;
+    GetContextRequest brief({String? cursor, String purpose = 'Research'}) =>
+        GetContextRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          focusIds: rows.map((r) => r.identity.recordId),
+          purpose: purpose,
+          byteBudget: budget,
+          cursor: cursor,
+        );
+    final firstBrief = await tool(connection, brief());
+    expect(firstBrief.delivery.complete, isFalse);
+    expect(ContextBrief.fromWire(firstBrief.result).coverage, Coverage.partial);
+    await runtime.close();
+    runtime = NativeSqliteRuntime(authority: authority);
+    connection = runtime.connect(hello(author.id));
+    await expectLater(
+      tool(connection, search(cursor: first.delivery.cursor, query: 'Changed')),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    await expectLater(
+      tool(
+        connection,
+        brief(cursor: firstBrief.delivery.cursor, purpose: 'Changed'),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    final collected = [
+      SearchResults.fromWire(first.result).hits.single.recordId,
+    ];
+    var cursor = first.delivery.cursor;
+    while (cursor != null) {
+      final page = await tool(connection, search(cursor: cursor));
+      expect(page.frame!.toWire().toText(), opened.frame.toWire().toText());
+      collected.addAll(
+        SearchResults.fromWire(page.result).hits.map((h) => h.recordId),
+      );
+      cursor = page.delivery.cursor;
+      expect(page.delivery.complete, cursor == null);
+    }
+    expect(collected, rows.map((r) => r.identity.recordId));
+    final briefRows = [...ContextBrief.fromWire(firstBrief.result).records];
+    cursor = firstBrief.delivery.cursor;
+    while (cursor != null) {
+      final page = await tool(connection, brief(cursor: cursor));
+      expect(page.frame!.revision, opened.frame.revision);
+      briefRows.addAll(ContextBrief.fromWire(page.result).records);
+      cursor = page.delivery.cursor;
+      expect(page.delivery.complete, cursor == null);
+    }
+    expect(
+      briefRows.map((r) => r.identity.recordId),
+      rows.map((r) => r.identity.recordId),
+    );
+  });
+
+  test('public record state and plain reads preserve a pinned frame after head advances', () async {
+    seedReadRows([
+      f.row(20, permissions.entity(labels: {'en': 'Alpha'})),
+    ]);
+    var connection = runtime.connect(hello(author.id));
+    final opened = await readContext(connection);
+    await runtime.close();
+    final package = OwnedSqliteDatabase.openExisting(path);
+    try {
+      package.recover();
+      final kernel = SqliteKernel(package.database, f.u);
+      kernel.commit(
+        CommitInput(
+          universe: f.u,
+          continuity: opened.frame.continuity,
+          expectedHead: opened.frame.revision,
+          principal: PrincipalId.generate(),
+          decision: 'Already admitted later read fixture',
+          reason: 'Advance fixture head',
+          idempotencyKey: 'later-read',
+          changes: [
+            Assignment(
+              recordId: f.id(21),
+              next: StoredVersion(
+                versionId: f.ver(21),
+                identity: f.row(21, f.entity()).identity,
+                payload: f.entity().toWire(),
+                digest: f.row(21, f.entity()).payloadDigest,
+              ),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      package.close();
+    }
+    runtime = NativeSqliteRuntime(authority: authority);
+    connection = runtime.connect(hello(author.id));
+    final requests = <Request>[
+      GetRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        recordIds: [f.id(20)],
+        fieldGroups: [
+          FieldGroup.payload,
+          FieldGroup.summary,
+          FieldGroup.history,
+        ],
+      ),
+      GetStateRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        entityIds: [f.id(20)],
+        predicateFilters: [],
+      ),
+      ReadFactsRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        objectNames: ['Alpha'],
+      ),
+      ReadContractsRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+      ),
+    ];
+    for (final request in requests) {
+      final response = await tool(connection, request);
+      expect(response.frame!.toWire().toText(), opened.frame.toWire().toText());
+      expect(response.delivery.complete, isTrue);
+      expect(response.delivery.cursor, isNull);
+      if (request is GetRequest) {
+        expect(
+          Records.fromWire(response.result).records.single.identity.recordId,
+          f.id(20),
+        );
+        expect(Records.fromWire(response.result).history, isNotEmpty);
+      }
+      if (request is GetStateRequest) State.fromWire(response.result);
+    }
+    await expectLater(
+      tool(
+        connection,
+        GetRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          recordIds: [f.id(21)],
+          fieldGroups: [FieldGroup.payload],
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+  });
+
+  test('public world reads retain effective grant and focus without disclosing hidden records', () async {
+    seedReadRows([
+      f.row(50, WorldRecord(selector: 'Campaign', aliases: ['Play'])),
+      f.row(51, WorldRecord(selector: 'Private')),
+      f.row(
+        20,
+        permissions.entity(worlds: [50], labels: {'en': 'Alpha visible'}),
+      ),
+      f.row(
+        21,
+        permissions.entity(worlds: [51], labels: {'en': 'Alpha hidden'}),
+      ),
+    ]);
+    authority.grant(
+      author,
+      GrantSpec(
+        profileId: writer.id,
+        universeId: f.u,
+        worlds: [permissions.world(50)],
+        propose: false,
+        edit: false,
+        protected: false,
+      ),
+    );
+    final connection = runtime.connect(hello(writer.id));
+    final opened = await readContext(connection);
+    final requests = <Request>[
+      GetRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        world: const Selector('Play'),
+        worldId: permissions.world(50),
+        recordIds: [f.id(20)],
+        fieldGroups: [FieldGroup.payload],
+      ),
+      SearchRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        world: const Selector('Play'),
+        query: 'Alpha',
+        typedFilters: Filters(recordKinds: [RecordKind.entity]),
+        limit: 10,
+      ),
+      GetStateRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        world: const Selector('Play'),
+        entityIds: [f.id(20)],
+        predicateFilters: [],
+      ),
+      GetContextRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        world: const Selector('Play'),
+        focusIds: [f.id(20)],
+        purpose: 'Research',
+        byteBudget: 65536,
+      ),
+      ReadFactsRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        world: 'Play',
+        objectNames: ['Alpha visible'],
+      ),
+    ];
+    for (final request in requests) {
+      final response = await tool(connection, request);
+      expect(response.authorizationScope, 'world-scoped grant');
+      expect(response.worldFocus, permissions.world(50));
+      expect(response.frame!.revision, opened.frame.revision);
+      if (request is SearchRequest) {
+        expect(
+          SearchResults.fromWire(response.result).hits.map((h) => h.recordId),
+          [f.id(20)],
+        );
+      }
+    }
+    await expectLater(
+      tool(
+        connection,
+        GetRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          recordIds: [f.id(21)],
+          fieldGroups: [FieldGroup.payload, FieldGroup.history],
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    await expectLater(
+      tool(
+        connection,
+        GetRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          world: const Selector('Private'),
+          recordIds: [f.id(20)],
+          fieldGroups: [FieldGroup.payload],
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    authority.withdrawGrant(author, profile: writer.id, universe: f.u);
+    for (final request in requests) {
+      await expectLater(
+        tool(connection, request),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+    }
   });
 
   test('connections share one recovered writer and retain publication receipt across runtime restart', () async {

@@ -409,6 +409,7 @@ final class SqliteValidationWorkflow {
         CanonicalValue result;
         Frame? frame;
         WorldId? focus;
+        var delivery = Delivery(complete: true, cursor: null);
         switch (request) {
           case OpenContextRequest():
             final opened = await _openContext(request, current);
@@ -425,6 +426,37 @@ final class SqliteValidationWorkflow {
             result = described.description.toWire();
             frame = described.frame;
             focus = described.focus;
+          case GetRequest():
+            final read = await _getRequest(request, current);
+            result = read.records.toWire();
+            frame = read.frame;
+            focus = read.focus;
+          case GetContextRequest():
+            final read = await _getContextRequest(request, current);
+            result = read.brief.toWire();
+            frame = read.frame;
+            focus = read.focus;
+            delivery = read.delivery;
+          case SearchRequest():
+            final read = await _searchRequest(request, current);
+            result = read.results.toWire();
+            frame = read.frame;
+            focus = read.focus;
+            delivery = read.delivery;
+          case GetStateRequest():
+            final read = await _getStateRequest(request, current);
+            result = read.state.toWire();
+            frame = read.frame;
+            focus = read.focus;
+          case ReadFactsRequest():
+            final read = await _readFactsRequest(request, current);
+            result = read.facts;
+            frame = read.frame;
+            focus = read.focus;
+          case ReadContractsRequest():
+            final read = await _readContractsRequest(request, current);
+            result = read.contracts;
+            frame = read.frame;
           default:
             throw const UnsupportedSemanticsError(
               message: 'public tool is not yet connected to native runtime',
@@ -441,7 +473,7 @@ final class SqliteValidationWorkflow {
           authorizationScope: current.worldScope == null
               ? 'universe grant'
               : 'world-scoped grant',
-          delivery: Delivery(complete: true, cursor: null),
+          delivery: delivery,
           result: result,
         ).toWire((value) => value);
         if (envelope.toBytes().length > 900000) {
@@ -459,9 +491,17 @@ final class SqliteValidationWorkflow {
     }
   }
 
-  Future<Records> getRequest(
+  Future<Records> getRequest(GetRequest request) =>
+      authority.withUniverseAuthority(
+        principal,
+        universe,
+        (current) async => (await _getRequest(request, current)).records,
+      );
+
+  Future<({Records records, Frame frame, WorldId? focus})> _getRequest(
     GetRequest request,
-  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    CurrentUniverseAuthority current,
+  ) async {
     const denied = NotFoundOrNotAccessibleError(message: 'resource');
     if (request.universeId != null && request.universeId != universe) {
       throw denied;
@@ -505,7 +545,7 @@ final class SqliteValidationWorkflow {
     final needed = groups.contains(FieldGroup.evidence)
         ? readResearchClosure(accessible, request.recordIds)
         : <RecordId>{};
-    return Records(
+    final result = Records(
       records: groups.isEmpty || groups.contains(FieldGroup.payload)
           ? records
           : [],
@@ -528,7 +568,8 @@ final class SqliteValidationWorkflow {
           ? (fullHistory ? Coverage.complete : Coverage.restricted)
           : null,
     );
-  });
+    return (records: result, frame: frame, focus: snapshot.focus);
+  }
 
   int _readOffset(
     CanonicalObject args,
@@ -587,6 +628,15 @@ final class SqliteValidationWorkflow {
   Future<({ContextBrief brief, Delivery delivery})> getContextRequest(
     GetContextRequest request,
   ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    final result = await _getContextRequest(request, current);
+    return (brief: result.brief, delivery: result.delivery);
+  });
+
+  Future<({ContextBrief brief, Delivery delivery, Frame frame, WorldId? focus})>
+  _getContextRequest(
+    GetContextRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
     const denied = NotFoundOrNotAccessibleError(message: 'resource');
     if (request.universeId != null && request.universeId != universe) {
       throw denied;
@@ -624,14 +674,27 @@ final class SqliteValidationWorkflow {
       page.next,
     );
     return (
+      frame: frame,
+      focus: snapshot.focus,
       brief: page.brief,
       delivery: Delivery(complete: page.complete, cursor: cursor),
     );
-  });
+  }
 
   Future<({SearchResults results, Delivery delivery})> searchRequest(
     SearchRequest request,
   ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    final result = await _searchRequest(request, current);
+    return (results: result.results, delivery: result.delivery);
+  });
+
+  Future<
+    ({SearchResults results, Delivery delivery, Frame frame, WorldId? focus})
+  >
+  _searchRequest(
+    SearchRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
     const denied = NotFoundOrNotAccessibleError(message: 'resource');
     if (request.universeId != null && request.universeId != universe) {
       throw denied;
@@ -678,14 +741,24 @@ final class SqliteValidationWorkflow {
       end,
     );
     return (
+      frame: frame,
+      focus: snapshot.focus,
       results: SearchResults(hits: hits.sublist(offset, end)),
       delivery: Delivery(complete: complete, cursor: cursor),
     );
-  });
+  }
 
   Future<({State state, Frame frame})> getStateRequest(
     GetStateRequest request,
   ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    final result = await _getStateRequest(request, current);
+    return (state: result.state, frame: result.frame);
+  });
+
+  Future<({State state, Frame frame, WorldId? focus})> _getStateRequest(
+    GetStateRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
     if (request.universeId != null && request.universeId != universe) {
       throw const NotFoundOrNotAccessibleError(message: 'resource');
     }
@@ -715,8 +788,8 @@ final class SqliteValidationWorkflow {
       world: snapshot.focus,
       current: current,
     );
-    return (state: state, frame: frame);
-  });
+    return (state: state, frame: frame, focus: snapshot.focus);
+  }
 
   State _readState({
     required List<RecordVersion> records,
@@ -747,9 +820,17 @@ final class SqliteValidationWorkflow {
   }
 
   Future<({CanonicalObject facts, Frame frame, WorldId? focus})>
-  readFactsRequest(
+  readFactsRequest(ReadFactsRequest request) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _readFactsRequest(request, current),
+  );
+
+  Future<({CanonicalObject facts, Frame frame, WorldId? focus})>
+  _readFactsRequest(
     ReadFactsRequest request,
-  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    CurrentUniverseAuthority current,
+  ) async {
     final frame = _contextFrame(request.contextId, current);
     // Plain name resolution uses all visible records; the state projection then
     // enforces world focus. A same-named hidden identity never enters a count.
@@ -796,7 +877,7 @@ final class SqliteValidationWorkflow {
       frame: frame,
       focus: focus,
     );
-  });
+  }
 
   /// Ordinary writing creates a provisional candidate, never an approval or
   /// publication. Exact request/frame/principal retries reuse its durable receipt.
@@ -2018,7 +2099,16 @@ final class SqliteValidationWorkflow {
 
   Future<({CanonicalObject contracts, Frame frame})> readContractsRequest(
     ReadContractsRequest request,
-  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+  ) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _readContractsRequest(request, current),
+  );
+
+  Future<({CanonicalObject contracts, Frame frame})> _readContractsRequest(
+    ReadContractsRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
     final frame = _contextFrame(request.contextId, current);
     final snapshot = await _readSnapshot(
       frame: frame,
@@ -2037,7 +2127,7 @@ final class SqliteValidationWorkflow {
       ),
       frame: frame,
     );
-  });
+  }
 
   /// Exact private author review, including the frozen historical diff. Reading
   /// an older proposal remains possible; latest reports version currentness.
