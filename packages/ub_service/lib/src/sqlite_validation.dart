@@ -1634,7 +1634,7 @@ final class SqliteValidationWorkflow implements ValidationJobService {
             current: current,
           );
     return (
-      facts: projectWritingFacts(
+      facts: await projectWritingFacts(
         request: request,
         records: visible,
         frame: frame,

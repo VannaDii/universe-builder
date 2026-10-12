@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_rules/ub_rules.dart' show eventApplies;
@@ -103,13 +105,13 @@ String plainWritingTime(
 
 /// The caller admits permissions/perspective before resolving names or counts.
 /// State reads must use the same pinned frame and the selected world scope.
-CanonicalObject projectWritingFacts({
+Future<CanonicalObject> projectWritingFacts({
   required ReadFactsRequest request,
   required List<RecordVersion> records,
   required Frame frame,
   required bool restricted,
-  required State Function(RecordId) readState,
-}) {
+  required FutureOr<State> Function(RecordId) readState,
+}) async {
   final byId = {for (final row in records) row.identity.recordId: row};
   String? label(RecordId id) =>
       byId[id] == null ? null : writingFactLabel(byId[id]!.payload);
@@ -168,7 +170,7 @@ CanonicalObject projectWritingFacts({
       continue;
     }
     final matched = matches.single;
-    final state = readState(matched.identity.recordId);
+    final state = await readState(matched.identity.recordId);
     if (state.objects.isEmpty) {
       throw const NotFoundOrNotAccessibleError(message: 'resource');
     }

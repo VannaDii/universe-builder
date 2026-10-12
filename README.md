@@ -371,7 +371,8 @@ preparation and completion; a focused isolate case proceeds through approval and
 publication. SQLite uses the same scheduler job interface. The in-process
 PostgreSQL engine now authenticates connections, creates universes with their
 objective context/calendar, manages grants and names, and dispatches retained
-contexts, discovery, records/history, search, research briefs, proposals,
+contexts, discovery, records/history, search, research briefs, effective state,
+plain facts/contracts, proposals,
 assessments, synchronous/queued validation, operation
 lookup/cancellation, private source staging/review/approval and publication.
 Queued work starts only after submission commits. Engine functional checks cover
@@ -384,6 +385,11 @@ retain the exact frame, arguments, principal and current scope across reopen;
 advancing canon does not refresh an existing context. Focused engine checks cover
 historical payloads/history, required research dependencies, paging recovery,
 changed-argument refusal and denial of hidden records or another profile's context.
+State reads preserve explicit/unresolved evidence, event entry/exit and immutable
+initialization history, even when the original assertion has left current canon.
+Plain fact reads await the same state projection under the pinned frame; hidden
+namesakes never change visible name counts. Scoped readers retain restricted
+initialization/contract coverage. These reads retain no validation or publication.
 Socket/launcher integration, cross-process worker qualification and
 the remaining service routes are pending. Import previews/purge coordination,
 transfer and live verified-TLS qualification also remain pending; runtime PostgreSQL selection

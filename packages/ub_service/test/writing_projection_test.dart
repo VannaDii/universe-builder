@@ -12,7 +12,7 @@ List<CanonicalValue> list(CanonicalValue value, String name) =>
     (field(value, name) as CanonicalArray).items;
 
 void main() {
-  test('plain facts retain inherited and initial evidence separately from explicit instance conflicts', () {
+  test('plain facts retain inherited and initial evidence separately from explicit instance conflicts', () async {
     final rows = objects.withInstance();
     objects.edit(rows, 4, {
       'labels': CanonicalObject([MapEntry('en', CanonicalString('Cedar'))]),
@@ -20,7 +20,7 @@ void main() {
     rows.add(f.row(12, objects.assertion(6, mode: AttributeMode.initialValue)));
     rows.add(f.row(13, objects.assertion(8, refute: true)));
     final frame = objects.frame();
-    final result = projectWritingFacts(
+    final result = await projectWritingFacts(
       request: ReadFactsRequest(
         universe: const Selector('World'),
         contextId: ContextId.generate(),
@@ -52,7 +52,7 @@ void main() {
       'initial_candidate',
     );
     expect(wireString(field(result, 'coverage')), 'bounded');
-    final absent = projectWritingFacts(
+    final absent = await projectWritingFacts(
       request: ReadFactsRequest(
         universe: const Selector('World'),
         contextId: ContextId.generate(),
@@ -118,7 +118,7 @@ void main() {
       'clock: from 1 inclusive to unbounded exclusive',
     );
   });
-  test('plain occurrence research excludes planned events and keeps unresolved named validity', () {
+  test('plain occurrence research excludes planned events and keeps unresolved named validity', () async {
     final rows = objects.withInstance();
     objects.edit(rows, 4, {
       'names': CanonicalArray([
@@ -159,7 +159,7 @@ void main() {
       );
     }
     final frame = objects.frame();
-    final result = projectWritingFacts(
+    final result = await projectWritingFacts(
       request: ReadFactsRequest(
         universe: const Selector('World'),
         contextId: ContextId.generate(),

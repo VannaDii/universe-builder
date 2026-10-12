@@ -13,6 +13,9 @@ import 'candidate_validation.dart';
 import 'context_binding.dart';
 import 'context_opening.dart';
 import 'record_search.dart';
+import 'writing_contract_projection.dart';
+import 'writing_projection.dart';
+import 'state_reading.dart';
 import 'record_reading.dart';
 import 'discovery.dart';
 import 'context_brief.dart';
@@ -513,6 +516,183 @@ final class PostgresValidationWorkflow {
     );
   }
 
+  Future<({State state, Frame frame})> getStateRequest(
+    GetStateRequest request,
+  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+    final result = await _getStateRequest(request, current);
+    return (state: result.state, frame: result.frame);
+  });
+
+  Future<({State state, Frame frame, WorldId? focus})> _getStateRequest(
+    GetStateRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
+    if (request.universeId != null && request.universeId != universe) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final retained = await _contextFrame(request.contextId, current);
+    final snapshot = await _readSnapshot(
+      frame: retained,
+      world: request.world,
+      guard: request.worldId,
+      current: current,
+    );
+    for (final id in request.entityIds) {
+      if (!snapshot.accessible.any((row) => row.identity.recordId == id)) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+    }
+    final frame = stateReadFrame(
+      retained,
+      snapshot.accessible,
+      request.event,
+      request.eventSide,
+    );
+    final state = await _readState(
+      records: snapshot.accessible,
+      frame: frame,
+      ids: request.entityIds,
+      predicates: request.predicateFilters,
+      world: snapshot.focus,
+      current: current,
+    );
+    return (state: state, frame: frame, focus: snapshot.focus);
+  }
+
+  Future<State> _readState({
+    required List<RecordVersion> records,
+    required Frame frame,
+    required List<RecordId> ids,
+    required List<RecordId> predicates,
+    required WorldId? world,
+    required CurrentUniverseAuthority current,
+  }) async {
+    final restricted =
+        current.worldScope != null || frame.perspective is! AuthorPerspective;
+    final receipts = restricted
+        ? <InitializationReceipt>[]
+        : await _kernel.initializationReceiptsAt(
+            frame.continuity,
+            frame.revision,
+          );
+    final originals = <RecordVersionId, RecordVersion>{
+      for (final id
+          in receipts
+              .where(
+                (r) =>
+                    ids.contains(r.instance) &&
+                    (predicates.isEmpty || predicates.contains(r.property)),
+              )
+              .map((r) => r.assertion)
+              .toSet())
+        id: await _version(id),
+    };
+    return assembleReadState(
+      records: records,
+      frame: frame,
+      ids: ids,
+      predicates: predicates,
+      world: world,
+      restricted: restricted,
+      receipts: receipts,
+      readVersion: (id) =>
+          originals[id] ??
+          (throw StateError('Initialization assertion was not loaded')),
+    );
+  }
+
+  Future<({CanonicalObject facts, Frame frame, WorldId? focus})>
+  readFactsRequest(ReadFactsRequest request) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _readFactsRequest(request, current),
+  );
+
+  Future<({CanonicalObject facts, Frame frame, WorldId? focus})>
+  _readFactsRequest(
+    ReadFactsRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
+    final frame = await _contextFrame(request.contextId, current);
+    // Plain name resolution uses all visible records; the state projection then
+    // enforces world focus. A same-named hidden identity never enters a count.
+    final snapshot = await _readSnapshot(
+      frame: frame,
+      world: null,
+      guard: null,
+      current: current,
+    );
+    final visible = snapshot.all
+        .where((r) => snapshot.visibility.contains(r.identity.recordId))
+        .toList();
+    final focus = resolveWorldFocus(
+      world: request.world == null ? null : Selector(request.world!),
+      guard: null,
+      records: visible,
+      scope: current.worldScope,
+    );
+    final selected = request.world == null
+        ? snapshot
+        : await _readSnapshot(
+            frame: frame,
+            world: Selector(request.world!),
+            guard: null,
+            current: current,
+          );
+    return (
+      facts: await projectWritingFacts(
+        request: request,
+        records: visible,
+        frame: frame,
+        restricted:
+            current.worldScope != null ||
+            frame.perspective is! AuthorPerspective,
+        readState: (id) => _readState(
+          records: selected.accessible,
+          frame: frame,
+          ids: [id],
+          predicates: [],
+          world: focus,
+          current: current,
+        ),
+      ),
+      frame: frame,
+      focus: focus,
+    );
+  }
+
+  Future<({CanonicalObject contracts, Frame frame})> readContractsRequest(
+    ReadContractsRequest request,
+  ) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _readContractsRequest(request, current),
+  );
+
+  Future<({CanonicalObject contracts, Frame frame})> _readContractsRequest(
+    ReadContractsRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
+    final frame = await _contextFrame(request.contextId, current);
+    final snapshot = await _readSnapshot(
+      frame: frame,
+      world: null,
+      guard: null,
+      current: current,
+    );
+    return (
+      contracts: projectWritingContracts(
+        request: request,
+        rows: snapshot.accessible,
+        frame: frame,
+        restricted:
+            current.worldScope != null ||
+            frame.perspective is! AuthorPerspective,
+      ),
+      frame: frame,
+    );
+  }
+
   Future<int> _readOffset(
     CanonicalObject args,
     Frame frame,
@@ -814,6 +994,20 @@ final class PostgresValidationWorkflow {
             frame = read.frame;
             focus = read.focus;
             delivery = read.delivery;
+          case GetStateRequest():
+            final read = await _getStateRequest(request, current);
+            result = read.state.toWire();
+            frame = read.frame;
+            focus = read.focus;
+          case ReadFactsRequest():
+            final read = await _readFactsRequest(request, current);
+            result = read.facts;
+            frame = read.frame;
+            focus = read.focus;
+          case ReadContractsRequest():
+            final read = await _readContractsRequest(request, current);
+            result = read.contracts;
+            frame = read.frame;
           case CreateProposalRequest() ||
               ReviseProposalRequest() ||
               SubmitProposalRequest() ||

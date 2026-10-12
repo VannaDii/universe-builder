@@ -16,6 +16,9 @@ import 'package:ub_store/postgres_installation.dart';
 import 'package:ub_store/src/postgres_authority_schema.dart';
 import 'package:ub_store/src/postgres_values.dart';
 
+import 'operation_compilation_test.dart' as f;
+import 'effective_objects_test.dart' as objects;
+
 void main() {
   final port = int.tryParse(
     Platform.environment['UB_TEST_POSTGRES_PORT'] ?? '',
@@ -685,6 +688,356 @@ void main() {
         );
         await expectLater(
           tool(writer, scopedSearch, SearchResults.fromWire),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+      });
+      test('state and plain facts preserve initialization evidence after its assertion leaves canon', () async {
+        var author = await runtime.connect(hello(authorId));
+        final created = WireFields(
+          await author.execute(
+            const CreateUniverseEngineRequest(
+              name: 'Disposable engine universe',
+              start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
+            ),
+          ),
+          {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
+        );
+        final universe = UniverseId.parse(created.string('universe_id'));
+        universes.add(universe);
+        final continuity = ContinuityId.parse(created.string('continuity_id'));
+        StoredVersion row(RecordVersion source) => StoredVersion.build(
+          source.recordVersionId,
+          RecordIdentity(
+            universeId: universe,
+            recordId: source.identity.recordId,
+            recordKind: source.identity.recordKind,
+          ),
+          CanonicalValue.parseWireJson(
+            source.payload.toWire().toText().replaceAll(
+              f.u.value,
+              universe.value,
+            ),
+          ),
+        );
+        var head = RevisionId.parse(created.string('revision'));
+        Future<RevisionId> publish(
+          String key,
+          List<StoredVersion> records, {
+          List<RecordId> remove = const [],
+        }) async {
+          head = await store.transaction((s) async {
+            final membership = await s
+                .kernel(universe)
+                .journal
+                .snapshot(continuity, head);
+            return s
+                .kernel(universe)
+                .commit(
+                  CommitInput(
+                    universe: universe,
+                    continuity: continuity,
+                    expectedHead: head,
+                    principal: PrincipalId.generate(),
+                    decision: 'Disposable state setup',
+                    reason: key,
+                    idempotencyKey: key,
+                    changes: [
+                      for (final r in records)
+                        Assignment(
+                          recordId: r.identity.recordId,
+                          expected: membership[r.identity.recordId],
+                          next: r,
+                        ),
+                      for (final id in remove)
+                        Assignment(
+                          recordId: id,
+                          expected: membership[id],
+                          next: null,
+                        ),
+                    ],
+                  ),
+                );
+          });
+          return head;
+        }
+
+        final base = objects.fixture();
+        objects.edit(base, 4, {
+          'labels': CanonicalObject([MapEntry('en', CanonicalString('Cedar'))]),
+          'worldAssociations': CanonicalArray([
+            WorldAssociation(
+              world: recordWorld(f.id(50)),
+              role: 'setting',
+              validity: const UnspecifiedValidity(),
+              qualifiers: {},
+            ).toWire(),
+          ]),
+        });
+        base.addAll([
+          f.row(
+            10,
+            CalendarRecord(
+              namespace: 'test',
+              key: 'clock',
+              labels: {},
+              unitStructure: {},
+            ),
+          ),
+          f.row(
+            99,
+            RepresentedContextRecord(
+              universe: f.u,
+              kind: const ObjectiveContext(),
+              labels: {},
+            ),
+          ),
+          f.row(50, WorldRecord(selector: 'Campaign')),
+          f.row(51, WorldRecord(selector: 'Private')),
+          f.row(12, objects.assertion(6, mode: AttributeMode.initialValue)),
+        ]);
+        final templateRevision = await publish(
+          'template',
+          base.map(row).toList(),
+        );
+        final instance = objects.assertion(20);
+        final initialized = AssertionRecord.fromWire(
+          CanonicalObject([
+            ...instance.toWire().fields.where((e) => e.key != 'basis'),
+            MapEntry(
+              'basis',
+              InstanceInitializationBasis(
+                VersionRef(universe: f.u, record: f.id(21), version: f.ver(21)),
+                VersionRef(universe: f.u, record: f.id(12), version: f.ver(12)),
+                templateRevision,
+              ).toWire(),
+            ),
+          ]),
+        );
+        await publish('initialize', [
+          row(f.row(20, objects.proposition(4))),
+          row(
+            f.row(
+              21,
+              EventRecord(
+                occurrence: const SimpleOccurrence(OccurrenceKind.occurred),
+                time: ExactTime(objects.cal, '10'),
+                participants: [EventParticipant(f.ref(4), 'starting_instance')],
+                labels: {},
+              ),
+            ),
+          ),
+          row(f.row(22, initialized)),
+        ]);
+        Future<OpenedContext> open(NativePostgresConnection connection) => tool(
+          connection,
+          OpenContextRequest(
+            universe: selector,
+            continuityId: continuity,
+            revision: const HeadRevisionSelector(),
+            representedContext: ContextIdSelector(f.id(99)),
+            temporalQuery: AtFrameTime(ExactTime(objects.cal, '15')),
+            temporalSystems: [],
+            perspective: const AuthorPerspective(),
+          ),
+          OpenedContext.fromWire,
+        );
+        GetStateRequest stateRequest(
+          ContextId context, {
+          RecordId? event,
+          EventTimeSide? side,
+        }) => GetStateRequest(
+          universe: selector,
+          contextId: context,
+          entityIds: [f.id(4)],
+          predicateFilters: [f.id(5)],
+          event: event,
+          eventSide: side,
+        );
+        ReadFactsRequest factsRequest(ContextId context) => ReadFactsRequest(
+          universe: selector,
+          contextId: context,
+          objectNames: ['Cedar'],
+        );
+        CanonicalValue field(CanonicalValue value, String key) =>
+            (value as CanonicalObject).fields
+                .singleWhere((e) => e.key == key)
+                .value;
+        List<CanonicalValue> list(CanonicalValue value, String key) =>
+            (field(value, key) as CanonicalArray).items;
+        final opened = await open(author);
+        final state = await tool(
+          author,
+          stateRequest(opened.contextId),
+          State.fromWire,
+        );
+        expect(state.assertions.single.identity.recordId, f.id(22));
+        expect(state.objects.single.initializationReceipts, hasLength(1));
+        final facts = await tool(
+          author,
+          factsRequest(opened.contextId),
+          (v) => v,
+        );
+        final object = list(facts, 'objects').single;
+        expect(wireString(field(object, 'identity')), 'resolved');
+        expect(field(list(object, 'facts').single, 'value').toText(), 'true');
+        expect(list(object, 'initial_value_candidates'), hasLength(1));
+        expect(list(object, 'inherited_attributes'), hasLength(1));
+        final before = await tool(
+          author,
+          stateRequest(
+            opened.contextId,
+            event: f.id(21),
+            side: EventTimeSide.before,
+          ),
+          State.fromWire,
+        );
+        final after = await tool(
+          author,
+          stateRequest(
+            opened.contextId,
+            event: f.id(21),
+            side: EventTimeSide.after,
+          ),
+          State.fromWire,
+        );
+        expect(before.assertions, isEmpty);
+        expect(after.assertions, hasLength(1));
+        await publish(
+          'remove assertion and add private namesake',
+          [
+            row(
+              f.row(
+                24,
+                EntityRecord(
+                  names: [],
+                  classificationResolution:
+                      ClassificationResolution.unclassified,
+                  labels: {'en': 'Cedar'},
+                  metadata: {},
+                  worldAssociations: [
+                    WorldAssociation(
+                      world: recordWorld(f.id(51)),
+                      role: 'setting',
+                      validity: const UnspecifiedValidity(),
+                      qualifiers: {},
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          remove: [f.id(22)],
+        );
+        await runtime.close();
+        await store.close();
+        store = await PostgresInstallationStore.openExisting(
+          endpoint(),
+          settings: settings,
+        );
+        runtime = NativePostgresRuntime(store: store);
+        author = await runtime.connect(hello(authorId));
+        expect(
+          (await tool(
+            author,
+            factsRequest(opened.contextId),
+            (v) => v,
+          )).toText(),
+          facts.toText(),
+        );
+        final fresh = await open(author);
+        final ambiguous = await tool(
+          author,
+          factsRequest(fresh.contextId),
+          (v) => v,
+        );
+        expect(
+          wireString(field(list(ambiguous, 'objects').single, 'identity')),
+          'ambiguous',
+        );
+        expect(
+          field(list(ambiguous, 'objects').single, 'matches').toText(),
+          '2',
+        );
+        final retained = await tool(
+          author,
+          stateRequest(fresh.contextId),
+          State.fromWire,
+        );
+        expect(retained.assertions, isEmpty);
+        expect(
+          retained.objects.single.initializationReceipts,
+          state.objects.single.initializationReceipts,
+        );
+        expect(
+          retained.objects.single.initializationHistoryCoverage,
+          Coverage.complete,
+        );
+        final contracts = await tool(
+          author,
+          ReadContractsRequest(universe: selector, contextId: fresh.contextId),
+          (v) => v,
+        );
+        expect(wireString(field(contracts, 'coverage')), 'bounded');
+        await author.execute(
+          GrantEngineRequest(
+            grant: GrantSpec(
+              profileId: writerId,
+              universeId: universe,
+              worlds: [recordWorld(f.id(50))],
+              propose: false,
+              edit: false,
+              protected: false,
+            ),
+          ),
+        );
+        final writer = await runtime.connect(hello(writerId));
+        final scoped = await open(writer);
+        final restricted = await tool(
+          writer,
+          stateRequest(scoped.contextId),
+          State.fromWire,
+        );
+        expect(restricted.objects.single.initializationReceipts, isEmpty);
+        expect(
+          restricted.objects.single.initializationHistoryCoverage,
+          Coverage.restricted,
+        );
+        final scopedFacts = await tool(
+          writer,
+          factsRequest(scoped.contextId),
+          (v) => v,
+        );
+        expect(
+          wireString(field(list(scopedFacts, 'objects').single, 'identity')),
+          'resolved',
+        );
+        expect(wireString(field(scopedFacts, 'coverage')), 'restricted');
+        final scopedContracts = await tool(
+          writer,
+          ReadContractsRequest(universe: selector, contextId: scoped.contextId),
+          (v) => v,
+        );
+        expect(wireString(field(scopedContracts, 'coverage')), 'restricted');
+        await author.execute(
+          WithdrawGrantEngineRequest(profileId: writerId, universeId: universe),
+        );
+        await expectLater(
+          tool(writer, stateRequest(scoped.contextId), State.fromWire),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        await expectLater(
+          tool(writer, factsRequest(scoped.contextId), (v) => v),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        await expectLater(
+          tool(
+            writer,
+            ReadContractsRequest(
+              universe: selector,
+              contextId: scoped.contextId,
+            ),
+            (v) => v,
+          ),
           throwsA(isA<NotFoundOrNotAccessibleError>()),
         );
       });
