@@ -46,6 +46,7 @@ export 'src/writing_initializations.dart';
 export 'src/writing_event_edits.dart';
 export 'src/writing_objects.dart';
 export 'src/writing_changes.dart';
+export 'src/writing_check.dart';
 export 'src/context_brief.dart';
 export 'src/read_cursor.dart';
 export 'src/knowledge_boundaries.dart';

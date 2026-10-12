@@ -29,6 +29,9 @@ import 'validation_binding.dart';
 import 'validation_task.dart';
 import 'writing_projection.dart';
 import 'writing_contract_projection.dart';
+import 'writing_changes.dart';
+import 'writing_check.dart';
+import 'writing_dates.dart';
 
 /// Internal native workflow for an already recovered, writer-owned package.
 /// It retains assessments, checked results and exact human approvals, and
@@ -168,36 +171,45 @@ final class SqliteValidationWorkflow {
 
   /// The dispatcher resolves the universe before invoking this native route.
   Future<OpenedContext> openContext(OpenContextRequest request) =>
-      authority.withUniverseAuthority(principal, universe, (current) async {
-        if (request.universeId != null && request.universeId != universe) {
-          throw const NotFoundOrNotAccessibleError(message: 'resource');
-        }
-        final revision = switch (request.revision) {
-          HeadRevisionSelector() => _journal.head(request.continuityId),
-          ExactRevisionSelector(:final revisionId) => revisionId,
-        };
-        final frame = await prepareContextFrame(
-          request: request,
-          universe: universe,
-          revision: revision,
-          records: _canon(request.continuityId, revision),
-          worldScope: current.worldScope,
-          readCanon: _canon,
-        );
-        final id = ContextId.generate();
-        final stored = StoredContext(
-          owner: principal.id,
-          scope: current.scopeHash,
-          expires: BigInt.from(
-            DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600,
-          ),
-          frame: frame,
-        );
-        _workflow.compareAppend({}, [
-          MapEntry('context:${id.value}', stored.toWire()),
-        ]);
-        return OpenedContext(contextId: id, frame: frame);
-      });
+      authority.withUniverseAuthority(
+        principal,
+        universe,
+        (current) => _openContext(request, current),
+      );
+
+  Future<OpenedContext> _openContext(
+    OpenContextRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
+    if (request.universeId != null && request.universeId != universe) {
+      throw const NotFoundOrNotAccessibleError(message: 'resource');
+    }
+    final revision = switch (request.revision) {
+      HeadRevisionSelector() => _journal.head(request.continuityId),
+      ExactRevisionSelector(:final revisionId) => revisionId,
+    };
+    final frame = await prepareContextFrame(
+      request: request,
+      universe: universe,
+      revision: revision,
+      records: _canon(request.continuityId, revision),
+      worldScope: current.worldScope,
+      readCanon: _canon,
+    );
+    final id = ContextId.generate();
+    final stored = StoredContext(
+      owner: principal.id,
+      scope: current.scopeHash,
+      expires: BigInt.from(
+        DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600,
+      ),
+      frame: frame,
+    );
+    _workflow.compareAppend({}, [
+      MapEntry('context:${id.value}', stored.toWire()),
+    ]);
+    return OpenedContext(contextId: id, frame: frame);
+  }
 
   /// The dispatcher resolves context and world focus under current read access.
   /// Compilation/preview is outside the workflow transaction, which the kernel
@@ -705,6 +717,212 @@ final class SqliteValidationWorkflow {
     );
   });
 
+  /// Ordinary writing creates a provisional candidate, never an approval or
+  /// publication. Exact request/frame/principal retries reuse its durable receipt.
+  Future<({WritingCheck check, Frame frame})> checkChangesRequest(
+    CheckChangesRequest request, {
+    required bool Function(OperationId) isValidationActive,
+  }) => authority.withUniverseAuthority(principal, universe, (current) async {
+    final frame = _contextFrame(request.contextId, current);
+    WritingCheck result({
+      String status = 'needs_clarification',
+      List<String> additions = const [],
+      List<String> unchanged = const [],
+      List<String> clarifications = const [],
+      List<String> excluded = const [],
+      List<String> unknowns = const [],
+    }) => WritingCheck(
+      status: status,
+      additions: additions,
+      unchanged: unchanged,
+      clarifications: clarifications,
+      excluded: excluded,
+      unknowns: unknowns,
+    );
+    if (frame.perspective is! AuthorPerspective) {
+      return (
+        check: result(
+          clarifications: [
+            'Canon changes require an explicitly selected authorized author-perspective context; this restricted view is research only.',
+          ],
+        ),
+        frame: frame,
+      );
+    }
+    final base = _canon(frame.continuity, frame.revision);
+    final visible = visibleRecordIds(
+      records: base,
+      worldScope: current.worldScope,
+    );
+    final rows = base
+        .where((r) => visible.contains(r.identity.recordId))
+        .toList();
+    final CheckChangesRequest input;
+    try {
+      input = normalizeWritingChangesDates(request, frame, rows);
+    } on FormatException catch (error) {
+      return (
+        check: result(clarifications: [error.message.toString()]),
+        frame: frame,
+      );
+    }
+    final binding = canonicalDigest(
+      CanonicalArray([
+        request.toArgs(),
+        frame.toWire(),
+        CanonicalString(principal.id.value),
+      ]),
+    );
+    final key = 'writing:$binding';
+    final receipt = operationRequestKey(principal.id, 'propose', key);
+    if (input.questions.isEmpty && _workflow.get(receipt) != null) {
+      if (!current.permissions.$1) {
+        throw const PolicyDeniedError(
+          message: 'current grant does not permit proposals',
+        );
+      }
+      final prior = await loadStoredOperation(
+        key: receipt,
+        principal: principal.id,
+        worldScope: current.worldScope,
+        readWorkflow: _workflow.get,
+        readReceipt: _journal.receipt,
+        isValidationActive: isValidationActive,
+      );
+      final proposal = prior.status.proposal;
+      if (proposal == null) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      return (
+        check: await _finishWritingCheck(
+          input,
+          frame,
+          result(
+            additions: ['Reused the exact original uncommitted candidate.'],
+          ),
+          proposal,
+          current,
+        ),
+        frame: frame,
+      );
+    }
+    final compiled = compileWritingChanges(
+      frame: frame,
+      base: base,
+      visibleRows: rows,
+      input: input,
+      canonAt: _canon,
+      worldScope: current.worldScope,
+    );
+    final check = result(
+      status: compiled.clarifications.isNotEmpty
+          ? 'needs_clarification'
+          : compiled.operations.isEmpty
+          ? current.worldScope != null
+                ? 'incomplete'
+                : 'no_changes'
+          : 'needs_clarification',
+      additions: compiled.additions,
+      unchanged: compiled.unchanged,
+      clarifications: compiled.clarifications,
+      excluded: compiled.excluded,
+      unknowns: compiled.unknowns,
+    );
+    if (compiled.clarifications.isNotEmpty || compiled.operations.isEmpty) {
+      return (check: check, frame: frame);
+    }
+    if (!current.permissions.$1) {
+      throw const PolicyDeniedError(
+        message: 'current grant does not permit proposals',
+      );
+    }
+    final admission = await _openContext(
+      _writingAdmission(input.universe, frame),
+      current,
+    );
+    var rationale =
+        'Provisional factual deltas from author writing; no author approval or source publication implied.';
+    for (final ending in input.factEndings) {
+      rationale += '\nProposed fact ending reason: ${ending.reason}';
+    }
+    for (final correction in input.policyCorrections) {
+      rationale += '\nProposed policy correction reason: ${correction.reason}';
+    }
+    final proposal = await _propose(
+      CreateProposalRequest(
+        universe: input.universe,
+        contextId: admission.contextId,
+        operations: compiled.operations,
+        submission: Submission.draft,
+        rationale: rationale,
+        idempotencyKey: key,
+      ),
+      current,
+      resolvedFrame: admission.frame,
+      worldFocus: null,
+      isValidationActive: isValidationActive,
+    );
+    return (
+      check: await _finishWritingCheck(input, frame, check, proposal, current),
+      frame: frame,
+    );
+  });
+
+  OpenContextRequest _writingAdmission(Selector selector, Frame frame) =>
+      OpenContextRequest(
+        universe: selector,
+        continuityId: frame.continuity,
+        revision: ExactRevisionSelector(revisionId: frame.revision),
+        representedContext: ContextIdSelector(frame.context.record),
+        temporalQuery: const TimelessFrameTime(),
+        temporalSystems: [],
+        perspective: const AuthorPerspective(),
+      );
+
+  Future<WritingCheck> _finishWritingCheck(
+    CheckChangesRequest input,
+    Frame frame,
+    WritingCheck check,
+    Proposal proposal,
+    CurrentUniverseAuthority current,
+  ) async {
+    final admission = await _openContext(
+      _writingAdmission(input.universe, frame),
+      current,
+    );
+    final reference = ProposalRef(
+      proposalId: proposal.proposalId,
+      version: proposal.version,
+      digest: proposal.digest,
+    );
+    final validation = await _validateProposalRequest(
+      ProposalValidationRequest(
+        universe: input.universe,
+        contextId: admission.contextId,
+        proposalReference: reference,
+        checkScope: CheckScope.universe,
+      ),
+      current,
+    );
+    final impact = await _getImpactRequest(
+      ProposalImpactRequest(
+        universe: input.universe,
+        contextId: admission.contextId,
+        proposalReference: reference,
+        scope: CheckScope.universe,
+        byteBudget: 65536,
+      ),
+      current,
+    );
+    return finishWritingCheck(
+      check: check,
+      proposal: proposal,
+      validation: validation,
+      impact: impact.impact,
+      impactDeliveryComplete: true,
+    );
+  }
+
   Future<({CanonicalObject contracts, Frame frame})> readContractsRequest(
     ReadContractsRequest request,
   ) => authority.withUniverseAuthority(principal, universe, (current) async {
@@ -810,7 +1028,16 @@ final class SqliteValidationWorkflow {
 
   Future<({Impact impact, Frame frame, WorldId? focus})> getImpactRequest(
     WorkflowRequest request,
-  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+  ) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _getImpactRequest(request, current),
+  );
+
+  Future<({Impact impact, Frame frame, WorldId? focus})> _getImpactRequest(
+    WorkflowRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
     final (context, guard, world, worldGuard, budget) = switch (request) {
       InlineImpactRequest r => (
         r.contextId,
@@ -870,7 +1097,7 @@ final class SqliteValidationWorkflow {
       frame: frame,
       focus: focus,
     );
-  });
+  }
 
   /// Native dispatch entry: admit the retained context and resolve named world
   /// focus under the same current authority section as proposal retention.
@@ -1215,7 +1442,16 @@ final class SqliteValidationWorkflow {
   /// authority. This does not create a queued operation or publish canon.
   Future<ValidationV3> validateProposalRequest(
     ProposalValidationRequest request,
-  ) => authority.withUniverseAuthority(principal, universe, (current) async {
+  ) => authority.withUniverseAuthority(
+    principal,
+    universe,
+    (current) => _validateProposalRequest(request, current),
+  );
+
+  Future<ValidationV3> _validateProposalRequest(
+    ProposalValidationRequest request,
+    CurrentUniverseAuthority current,
+  ) async {
     if (request.universeId != null && request.universeId != universe) {
       throw const NotFoundOrNotAccessibleError(message: 'resource');
     }
@@ -1264,7 +1500,7 @@ final class SqliteValidationWorkflow {
       ),
     ]);
     return report;
-  });
+  }
 
   /// Research an ephemeral candidate. No proposal, reservation, approval
   /// binding or publication operation is created by this check.

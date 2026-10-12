@@ -216,6 +216,363 @@ void main() {
     perspective: perspective,
   );
 
+  test('writer check retains an exact provisional candidate across retry and reopen without publication', () async {
+    final opened = await service.openContext(contextRequest());
+    final request = CheckChangesRequest(
+      universe: const Selector('World'),
+      contextId: opened.contextId,
+      changes: [
+        ObjectChange(
+          name: 'Iris',
+          introduce: true,
+          facts: [
+            FactChange(
+              property: 'colour',
+              value: const FactTextValue('red'),
+              scope: 'universe',
+            ),
+          ],
+        ),
+      ],
+    );
+    final head = kernel.journal.head(continuity);
+    final first = await service.checkChangesRequest(
+      request,
+      isValidationActive: (_) => false,
+    );
+    expect(first.check.status, 'checked_candidate');
+    expect(first.check.candidateHandle, isNotNull);
+    expect(first.frame, opened.frame);
+    expect(first.check.unknowns, [
+      'The story-time validity of the new facts remains unspecified.',
+    ]);
+    final workflow = WorkflowStorage(package.database);
+    final proposalKeys = workflow.keys('proposal:');
+    final retainedKey = proposalKeys.singleWhere(
+      (key) => key.contains(first.check.candidateHandle!),
+    );
+    final retained = StoredProposal.fromWire(workflow.get(retainedKey)!);
+    final retainedBytes = retained.toWire().toText();
+    expect(retained.changes, hasLength(4));
+    expect(retained.proposal.submission, Submission.draft);
+    expect(retained.proposal.canonical, isFalse);
+    expect(retained.proposal.baseFrame.time, isA<TimelessFrameTime>());
+    expect(workflow.keys('approval:'), isEmpty);
+    expect(kernel.journal.head(continuity), head);
+    package.close();
+    package = OwnedSqliteDatabase.openExisting(
+      '${directory.path}/packages/world.sqlite',
+    );
+    package.recover();
+    kernel = SqliteKernel(package.database, f.u);
+    service = SqliteValidationWorkflow(
+      package: package,
+      authority: authority,
+      principal: writer,
+    );
+    final retry = await service.checkChangesRequest(
+      request,
+      isValidationActive: (_) => false,
+    );
+    expect(retry.check.status, 'checked_candidate');
+    expect(retry.check.candidateHandle, first.check.candidateHandle);
+    expect(retry.check.additions, [
+      'Reused the exact original uncommitted candidate.',
+    ]);
+    final reopened = WorkflowStorage(package.database);
+    expect(reopened.keys('proposal:'), proposalKeys);
+    expect(reopened.get(retainedKey)!.toText(), retainedBytes);
+    expect(reopened.keys('request:${writer.id.value}:propose:'), hasLength(1));
+    expect(reopened.keys('approval:'), isEmpty);
+    expect(kernel.journal.head(continuity), head);
+  });
+
+  test(
+    'writer clarification and empty changes create no candidate or reservation',
+    () async {
+      final opened = await service.openContext(contextRequest());
+      final workflow = WorkflowStorage(package.database);
+      final before = workflow.keys('proposal:');
+      final result = await service.checkChangesRequest(
+        CheckChangesRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          changes: [ObjectChange(name: 'Iris', introduce: true)],
+          questions: ['Clarify this identity'],
+        ),
+        isValidationActive: (_) => false,
+      );
+      expect(result.check.status, 'needs_clarification');
+      expect(result.check.candidateHandle, isNull);
+      expect(result.check.additions, ['New object: Iris']);
+      final empty = await service.checkChangesRequest(
+        CheckChangesRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+        ),
+        isValidationActive: (_) => false,
+      );
+      expect(empty.check.status, 'no_changes');
+      expect(workflow.keys('proposal:'), before);
+      expect(workflow.keys('reservation:'), isEmpty);
+      expect(workflow.keys('request:${writer.id.value}:propose:'), isEmpty);
+      expect(workflow.keys('validation:'), isEmpty);
+      final invalidDate = await service.checkChangesRequest(
+        CheckChangesRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          changes: [
+            ObjectChange(
+              name: 'Iris',
+              introduce: true,
+              facts: [
+                FactChange(
+                  property: 'colour',
+                  value: const FactTextValue('red'),
+                  atDate: '2000-01-01',
+                ),
+              ],
+            ),
+          ],
+        ),
+        isValidationActive: (_) => false,
+      );
+      expect(invalidDate.check.status, 'needs_clarification');
+      expect(invalidDate.check.additions, isEmpty);
+      expect(workflow.keys('proposal:'), before);
+    },
+  );
+
+  test('writer check refuses a research perspective before compiling and enforces current proposal grants', () async {
+    await authority.coordinate(
+      author,
+      () => authority.grant(
+        author,
+        GrantSpec(
+          profileId: writer.id,
+          universeId: f.u,
+          worlds: null,
+          propose: false,
+          edit: true,
+          protected: true,
+        ),
+      ),
+    );
+    final opened = await service.openContext(contextRequest());
+    await expectLater(
+      service.checkChangesRequest(
+        CheckChangesRequest(
+          universe: const Selector('World'),
+          contextId: opened.contextId,
+          changes: [ObjectChange(name: 'Iris', introduce: true)],
+        ),
+        isValidationActive: (_) => false,
+      ),
+      throwsA(isA<PolicyDeniedError>()),
+    );
+    final frame = Frame(
+      universe: f.u,
+      continuity: continuity,
+      revision: opened.frame.revision,
+      context: f.ref(99),
+      time: const TimelessFrameTime(),
+      perspective: CharacterPerspective(f.id(20)),
+    );
+    final id = ContextId.generate();
+    final scope = await authority.withUniverseAuthority(
+      writer,
+      f.u,
+      (current) => current.scopeHash,
+    );
+    WorkflowStorage(package.database).compareAppend({}, [
+      MapEntry(
+        'context:${id.value}',
+        StoredContext(
+          owner: writer.id,
+          scope: scope,
+          expires: BigInt.from(
+            DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600,
+          ),
+          frame: frame,
+        ).toWire(),
+      ),
+    ]);
+    final research = await service.checkChangesRequest(
+      CheckChangesRequest(
+        universe: const Selector('World'),
+        contextId: id,
+        changes: [ObjectChange(name: '', introduce: true)],
+      ),
+      isValidationActive: (_) => false,
+    );
+    expect(research.check.status, 'needs_clarification');
+    expect(research.check.clarifications.single, contains('research only'));
+    expect(research.check.candidateHandle, isNull);
+    expect(
+      WorkflowStorage(package.database)
+          .keys('request:${writer.id.value}:propose:'),
+      isEmpty,
+    );
+  });
+
+  test('writer check preserves a conflicting candidate for review without approval', () async {
+    kernel.commit(
+      input('conflicting-rule', [
+        f.row(
+          50,
+          frames.rule(
+            expr: const LiteralExpr(false),
+            validity: const UnspecifiedValidity(),
+          ),
+        ),
+      ]),
+    );
+    final opened = await service.openContext(contextRequest());
+    final head = kernel.journal.head(continuity);
+    final result = await service.checkChangesRequest(
+      CheckChangesRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        changes: [ObjectChange(name: 'Iris', introduce: true)],
+      ),
+      isValidationActive: (_) => false,
+    );
+    expect(result.check.status, 'conflict');
+    expect(result.check.candidateHandle, isNotNull);
+    expect(
+      ValidationV3.fromWire(result.check.validation!)
+          .execution!
+          .findings
+          .single
+          .outcome,
+      EvidenceOutcome.refuted,
+    );
+    expect(kernel.journal.head(continuity), head);
+    expect(WorkflowStorage(package.database).keys('approval:'), isEmpty);
+  });
+
+  test('writer scene facts preserve exact calendar ticks while proposal review uses all validities', () async {
+    final clock = FictionalUniverseStart(
+      calendarName: 'Campaign time',
+      initialTick: '10',
+      tickLabel: 'ticks',
+    ).build(f.cal);
+    kernel.commit(
+      input('writer-clock', [
+        f.row(1, clock.$2),
+        f.row(
+          10,
+          RepresentedContextRecord(
+            universe: f.u,
+            kind: const ObjectiveContext(),
+            chronology: clock.$1,
+            labels: {},
+          ),
+        ),
+      ]),
+    );
+    final opened = await service.openContext(
+      contextRequest(
+        represented: ContextIdSelector(f.id(10)),
+        time: AtFrameTime(ExactTime(f.cal, '9007199254740993')),
+      ),
+    );
+    final result = await service.checkChangesRequest(
+      CheckChangesRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        changes: [
+          ObjectChange(
+            name: 'Iris',
+            introduce: true,
+            facts: [
+              FactChange(
+                property: 'count',
+                value: FactNumberValue(
+                  const CanonicalNumber('9007199254740993'),
+                ),
+                scope: 'universe',
+                atTick: '9007199254740994',
+                lifetime: const FactUntilLifetime(endTick: '9007199254740996'),
+              ),
+            ],
+          ),
+        ],
+      ),
+      isValidationActive: (_) => false,
+    );
+    expect(result.check.status, 'checked_candidate');
+    expect(result.frame.time, opened.frame.time);
+    final workflow = WorkflowStorage(package.database);
+    final key = workflow
+        .keys('proposal:')
+        .singleWhere((k) => k.contains(result.check.candidateHandle!));
+    final stored = StoredProposal.fromWire(workflow.get(key)!);
+    expect(stored.proposal.baseFrame.time, isA<TimelessFrameTime>());
+    final assertion = stored.changes
+        .where((c) => c.next != null)
+        .map((c) => RecordPayload.fromWire(c.next!.payload))
+        .whereType<AssertionRecord>()
+        .single;
+    expect(
+      assertion.validity,
+      CalendarIntervalValidity(
+        f.cal,
+        const ExactBound('9007199254740994'),
+        const ExactBound('9007199254740996'),
+      ),
+    );
+    expect(
+      stored.changes
+          .where((c) => c.next != null)
+          .map((c) => RecordPayload.fromWire(c.next!.payload))
+          .whereType<PropositionRecord>()
+          .single
+          .value,
+      const IntegerValue('9007199254740993'),
+    );
+    expect(result.check.unknowns, isEmpty);
+  });
+
+  test(
+    'writer exact retry rechecks context authority after grant revocation',
+    () async {
+      final opened = await service.openContext(contextRequest());
+      final request = CheckChangesRequest(
+        universe: const Selector('World'),
+        contextId: opened.contextId,
+        changes: [ObjectChange(name: 'Iris', introduce: true)],
+      );
+      final checked = await service.checkChangesRequest(
+        request,
+        isValidationActive: (_) => false,
+      );
+      expect(checked.check.candidateHandle, isNotNull);
+      final workflow = WorkflowStorage(package.database);
+      final before = workflow.keys('proposal:');
+      await authority.coordinate(
+        author,
+        () => authority.grant(
+          author,
+          GrantSpec(
+            profileId: writer.id,
+            universeId: f.u,
+            worlds: null,
+            propose: false,
+            edit: false,
+            protected: false,
+          ),
+        ),
+      );
+      await expectLater(
+        service.checkChangesRequest(request, isValidationActive: (_) => false),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      expect(workflow.keys('proposal:'), before);
+      expect(workflow.keys('approval:'), isEmpty);
+    },
+  );
+
   test('native descriptions discover current continuity and pin visible world definitions', () async {
     RuleRecord rule(int n, Applicability applicability) => RuleRecord(
       namespace: 'discovery',
