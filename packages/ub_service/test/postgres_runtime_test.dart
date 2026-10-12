@@ -97,6 +97,227 @@ void main() {
           await observer.close();
         }
       });
+      test('health recovery isolates damaged universes and maintenance collects only disposable caches', () async {
+        final author = await runtime.connect(hello(authorId));
+        final writer = await runtime.connect(hello(writerId));
+        Future<WireFields> create(String name) async {
+          final fields = WireFields(
+            await author.execute(
+              CreateUniverseEngineRequest(
+                name: name,
+                start: const GregorianUniverseStart('2040-01-01T00:00:00Z'),
+              ),
+            ),
+            {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
+          );
+          universes.add(UniverseId.parse(fields.string('universe_id')));
+          return fields;
+        }
+
+        final damaged = await create(selector.value);
+        final healthy = await create('Healthy disposable universe');
+        final universe = UniverseId.parse(damaged.string('universe_id'));
+        final healthyId = UniverseId.parse(healthy.string('universe_id'));
+        final schema = postgresUniverseSchema(universe);
+        final healthySchema = postgresUniverseSchema(healthyId);
+        final original = (await observer.execute(
+          'SELECT id,digest FROM $schema.record_versions ORDER BY id LIMIT 1',
+        )).single;
+        Future<void> replaceDigest(String digest) async {
+          await observer.runTx((tx) async {
+            await tx.execute(
+              'ALTER TABLE $schema.record_versions DISABLE TRIGGER immutable_history',
+            );
+            await tx.execute(
+              'UPDATE $schema.record_versions SET digest=\$1 WHERE id=\$2',
+              parameters: [digest, original[0]],
+            );
+            await tx.execute(
+              'ALTER TABLE $schema.record_versions ENABLE TRIGGER immutable_history',
+            );
+          });
+        }
+
+        await replaceDigest('0' * 64);
+        const doctor = DoctorEngineRequest();
+        await expectLater(
+          writer.execute(doctor),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        final report = WireFields(await author.execute(doctor), {
+          'service_instance',
+          'packages',
+          'profile_storage',
+          'recovery',
+          'admission',
+        });
+        expect(
+          report.string('profile_storage'),
+          'installation database authority',
+        );
+        final packages = report.array('packages');
+        final failure = packages
+            .map((v) => (Map.fromEntries((v as CanonicalObject).fields)))
+            .singleWhere((v) => wireString(v['id']!) == universe.value);
+        expect(failure.keys.toSet(), {'id', 'error'});
+        expect(
+          wireString(failure['error']!),
+          'universe unavailable: check schema version and retained-content integrity',
+        );
+        expect(
+          (await observer.execute(
+            'SELECT generation FROM $schema.projection_state',
+          )).single.single,
+          0,
+        );
+        expect(
+          (await observer.execute(
+            'SELECT generation FROM $healthySchema.projection_state',
+          )).single.single,
+          1,
+        );
+        await expectLater(
+          author.execute(const LibraryEngineRequest(universe: selector)),
+          throwsA(isA<FormatException>()),
+        );
+        await replaceDigest(original[1] as String);
+        final recovered = WireFields(await author.execute(doctor), {
+          'service_instance',
+          'packages',
+          'profile_storage',
+          'recovery',
+          'admission',
+        });
+        expect(
+          recovered
+              .array('packages')
+              .map(
+                (v) =>
+                    (Map.fromEntries((v as CanonicalObject).fields)).keys.toSet(),
+              ),
+          everyElement({'id', 'storage'}),
+        );
+        final continuity = ContinuityId.parse(damaged.string('continuity_id'));
+        final revision = RevisionId.parse(damaged.string('revision'));
+        final represented = RecordId.parse(damaged.string('context_id'));
+        final content = DraftContent(
+          baseRevision: revision,
+          representedContext: represented,
+          operations: [],
+          rationale: 'Retained unfinished text é😀',
+          proposal: null,
+        );
+        final draft = await author.execute(
+          SaveDraftEngineRequest(
+            universe: selector,
+            continuityId: continuity,
+            expectedVersion: BigInt.zero,
+            content: content,
+          ),
+        );
+        const source = StageSourceEngineRequest(
+          universe: selector,
+          label: 'Retained source',
+          text: '\uFEFFExact author text é😀\r\n',
+        );
+        await author.execute(source);
+        final membership = await store.transaction(
+          (s) => s.kernel(universe).journal.snapshot(continuity, revision),
+        );
+        final checksum = canonicalDigest(
+          CanonicalObject([
+            for (final entry in membership.entries)
+              MapEntry(entry.key.value, CanonicalString(entry.value.value)),
+          ]),
+        );
+        await observer.runTx((tx) async {
+          await tx.execute(
+            'INSERT INTO $schema.snapshot_membership VALUES(\$1,\$2,\$3)',
+            parameters: [universe.value, revision.value, checksum],
+          );
+          for (final entry in membership.entries) {
+            await tx.execute(
+              'INSERT INTO $schema.snapshot_member VALUES(\$1,\$2,\$3,\$4)',
+              parameters: [
+                universe.value,
+                revision.value,
+                entry.key.value,
+                entry.value.value,
+              ],
+            );
+          }
+        });
+        const preview = MaintainEngineRequest(universe: selector, collect: false);
+        const collect = MaintainEngineRequest(universe: selector, collect: true);
+        await expectLater(
+          writer.execute(collect),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        WireFields maintenance(CanonicalValue value) => WireFields(value, {
+          'retention_policy',
+          'retained_record_versions',
+          'retained_revisions',
+          'retained_commit_receipts',
+          'retained_workflow_entries',
+          'retained_source_assets',
+          'eligible_snapshot_caches',
+          'collected_snapshot_caches',
+          'source_assets_collected',
+          'backup_pins',
+          'canonical',
+        });
+        final before = maintenance(await author.execute(preview));
+        expect(before.require('eligible_snapshot_caches').toText(), '1');
+        expect(before.require('collected_snapshot_caches').toText(), '0');
+        final after = maintenance(await author.execute(collect));
+        expect(after.require('collected_snapshot_caches').toText(), '1');
+        expect(after.require('source_assets_collected').toText(), '0');
+        expect(after.boolean('canonical'), isFalse);
+        for (final field in [
+          'retained_record_versions',
+          'retained_revisions',
+          'retained_commit_receipts',
+          'retained_workflow_entries',
+          'retained_source_assets',
+        ]) {
+          expect(after.require(field).toText(), before.require(field).toText());
+        }
+        expect(
+          (await author.execute(
+            LoadDraftEngineRequest(universe: selector, continuityId: continuity),
+          )).toText(),
+          draft.toText(),
+        );
+        await store.transaction((s) async {
+          expect(await s.kernel(universe).journal.head(continuity), revision);
+          expect(
+            await s.kernel(universe).journal.snapshot(continuity, revision),
+            membership,
+          );
+          expect(
+            wireString(
+              (await s
+                  .workflows(universe)
+                  .get('source:${sha256.convert(utf8.encode(source.text))}'))!,
+            ),
+            source.text,
+          );
+          await s.verifyUniverse(universe, complete: true);
+        });
+        expect(
+          (await observer.execute(
+            'SELECT count(*) FROM $schema.snapshot_membership',
+          )).single.single,
+          0,
+        );
+        expect(
+          (await observer.execute('SELECT count(*) FROM $schema.snapshot_member'))
+              .single
+              .single,
+          0,
+        );
+      });
+
       test('continuity dispatch pins branch history and publishes explicit adoption only with exact approval', () async {
         var author = await runtime.connect(hello(authorId));
         final writer = await runtime.connect(hello(writerId));
@@ -1265,6 +1486,7 @@ void main() {
           recovered.require('worlds').toText(),
           current.require('worlds').toText(),
         );
+        await store.transaction((s) => s.verifyUniverse(universe, complete: true));
       });
 
       test('private drafts recover exact saves across reconnect and keep old bases without publication', () async {
@@ -2867,9 +3089,7 @@ void main() {
           CheckChangesRequest(
             universe: selector,
             contextId: opened.contextId,
-            units: [
-              units.declaration(name: name, symbol: name, introduce: true),
-            ],
+            units: [units.declaration(name: name, symbol: name, introduce: true)],
           ),
           WritingCheck.fromWire,
         );
@@ -2877,10 +3097,9 @@ void main() {
           (await draft('league')).candidateHandle!,
         );
         const source = '\uFEFFAuthor: é😀\r\nA league is an authored unit.';
-        Future<CanonicalValue> act(AuthorWritingAction action) =>
-            author.execute(
-              AuthorWritingEngineRequest(universe: selector, action: action),
-            );
+        Future<CanonicalValue> act(AuthorWritingAction action) => author.execute(
+          AuthorWritingEngineRequest(universe: selector, action: action),
+        );
         WireFields review(CanonicalValue value) => WireFields(value, {
           'acceptance_options',
           'summary',
@@ -2986,13 +3205,9 @@ void main() {
         );
         runtime = NativePostgresRuntime(store: store);
         author = await runtime.connect(hello(authorId));
-        final inspected = review(
-          await act(InspectWritingAction(candidate: ref)),
-        );
+        final inspected = review(await act(InspectWritingAction(candidate: ref)));
         expect(
-          ProposalRef.fromWire(inspected.require('candidate'))
-              .toWire()
-              .toText(),
+          ProposalRef.fromWire(inspected.require('candidate')).toWire().toText(),
           ref.toWire().toText(),
         );
         expect(inspected.boolean('publishable'), isTrue);
@@ -3080,7 +3295,47 @@ void main() {
             hasLength(1),
           );
           expect(await s.workflows(universe).keys('approval:'), hasLength(1));
+          await s.verifyUniverse(universe, complete: true);
         });
+        final beforeCollection = await author.execute(
+          const MaintainEngineRequest(universe: selector, collect: false),
+        );
+        final afterCollection = await author.execute(
+          const MaintainEngineRequest(universe: selector, collect: true),
+        );
+        WireFields maintenance(CanonicalValue value) => WireFields(value, {
+          'retention_policy',
+          'retained_record_versions',
+          'retained_revisions',
+          'retained_commit_receipts',
+          'retained_workflow_entries',
+          'retained_source_assets',
+          'eligible_snapshot_caches',
+          'collected_snapshot_caches',
+          'source_assets_collected',
+          'backup_pins',
+          'canonical',
+        });
+        final before = maintenance(beforeCollection),
+            after = maintenance(afterCollection);
+        for (final field in [
+          'retained_record_versions',
+          'retained_revisions',
+          'retained_commit_receipts',
+          'retained_workflow_entries',
+          'retained_source_assets',
+        ]) {
+          expect(after.require(field).toText(), before.require(field).toText());
+        }
+        expect(after.require('source_assets_collected').toText(), '0');
+        expect(after.boolean('canonical'), isFalse);
+        expect(
+          Envelope.fromWire(
+            await act(publish),
+            CommitReceipt.fromWire,
+          ).result.toWire().toText(),
+          published.result.toWire().toText(),
+        );
       });
       test('denies invalid handshake and private universe creation without side effects', () async {
         await expectLater(

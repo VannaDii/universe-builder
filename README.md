@@ -430,6 +430,17 @@ Publishing adoption uses the existing proposal validation, exact author approval
 and durable receipt recovery, preserving source and target history. The private
 profiles/grants view now reads current installation authority and returns only
 profile IDs, author/revoked status and typed grants; contributors cannot read it.
+PostgreSQL first-use recovery now verifies every retained body and workflow entry,
+import digest provenance, canonical media bytes and initialization receipts before
+atomically rebuilding disposable projections. Successful recovery is cached only
+after commit. The private health route checks each universe independently with
+redacted failures; a failed recovery leaves its prior projection generation intact
+and can be retried after repair. Private maintenance retains all author history,
+workflow evidence, media, drafts, approvals and publication receipts; collection
+removes only reconstructible snapshot caches. PostgreSQL manages physical vacuuming
+outside these service transactions. Complete retained-content verification for
+transfer additionally checks staged media/source metadata, exact anchor excerpts,
+historical world-name reservations and unique historical memberships.
 Socket/launcher integration, cross-process worker qualification and
 the remaining service routes are pending. Import previews/purge coordination,
 transfer and live verified-TLS qualification also remain pending; runtime PostgreSQL selection

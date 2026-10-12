@@ -6,6 +6,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'installation_store.dart'
     show InstallationException, InstallationFailure;
 import 'postgres_authority.dart';
+import 'postgres_canonical_integrity.dart';
 import 'postgres_authority_schema.dart';
 import 'postgres_journal.dart';
 import 'postgres_kernel.dart';
@@ -220,6 +221,71 @@ final class PostgresInstallationSession {
       await _tx.execute('RELEASE SAVEPOINT $name');
     }
   }
+
+  /// Verify retained author data before atomically replacing disposable indexes.
+  Future<void> recoverUniverse(UniverseId universe) async {
+    await PostgresCanonicalIntegrity(_tx, universe).verify();
+    await recovery(universe).rebuild();
+  }
+
+  /// Retention-safe collection removes only reconstructible snapshot caches.
+  /// PostgreSQL owns physical vacuuming outside the service transaction.
+  Future<CanonicalObject> maintainUniverse(
+    UniverseId universe, {
+    required bool collect,
+  }) async {
+    await verifyUniverse(universe);
+    final schema = postgresUniverseSchema(universe);
+    Future<int> count(String table) async =>
+        (await _tx.execute('SELECT count(*) FROM $schema.$table')).single.single
+            as int;
+    final versions = await count('record_versions');
+    final revisions = await count('commits');
+    final receipts = await count('operation_receipts');
+    final workflows = await count('workflow_index');
+    final sources = await count('source_content');
+    final caches = await count('snapshot_membership');
+    if (collect) {
+      await _tx.execute('DELETE FROM $schema.snapshot_member');
+      await _tx.execute('DELETE FROM $schema.snapshot_membership');
+      await verifyUniverse(universe);
+    }
+    return CanonicalObject([
+      MapEntry('retention_policy', CanonicalString('retain-all-history-v1')),
+      MapEntry(
+        'retained_record_versions',
+        CanonicalNumber(versions.toString()),
+      ),
+      MapEntry('retained_revisions', CanonicalNumber(revisions.toString())),
+      MapEntry(
+        'retained_commit_receipts',
+        CanonicalNumber(receipts.toString()),
+      ),
+      MapEntry(
+        'retained_workflow_entries',
+        CanonicalNumber(workflows.toString()),
+      ),
+      MapEntry('retained_source_assets', CanonicalNumber(sources.toString())),
+      MapEntry('eligible_snapshot_caches', CanonicalNumber(caches.toString())),
+      MapEntry(
+        'collected_snapshot_caches',
+        CanonicalNumber((collect ? caches : 0).toString()),
+      ),
+      const MapEntry('source_assets_collected', CanonicalNumber('0')),
+      MapEntry(
+        'backup_pins',
+        CanonicalString(
+          'retained source bytes are never collected; back up separately',
+        ),
+      ),
+      const MapEntry('canonical', CanonicalBool(false)),
+    ]);
+  }
+
+  Future<void> verifyUniverse(UniverseId universe, {bool complete = false}) =>
+      complete
+      ? PostgresCanonicalIntegrity(_tx, universe).verifyComplete()
+      : PostgresCanonicalIntegrity(_tx, universe).verify();
 
   PostgresKernel kernel(UniverseId universe) => PostgresKernel(_tx, universe);
   PostgresWorkflowStorage workflows(UniverseId universe) =>

@@ -22,6 +22,7 @@ final class NativePostgresRuntime {
       BigInt.from(DateTime.now().millisecondsSinceEpoch ~/ 1000);
   final BigInt Function() _epochSeconds;
   final PostgresInstallationStore store;
+  final _recovered = <UniverseId>{};
   final OperationId instance = OperationId.generate();
   final _admission = NativeRuntimeAdmission();
   final _scheduler = NativeValidationScheduler();
@@ -113,6 +114,67 @@ final class NativePostgresRuntime {
                   CanonicalNumber('16'),
                 ),
               ]);
+            case DoctorEngineRequest():
+              final catalog = await session.authority.catalog(
+                principal.id,
+                epochSeconds: _epochSeconds(),
+              );
+              final packages = <CanonicalValue>[];
+              for (final entry in catalog) {
+                try {
+                  final storage = await session.rollbackOnFailure(() async {
+                    await session.recoverUniverse(entry.universeId);
+                    session.afterCommit(() => _recovered.add(entry.universeId));
+                    return session.kernel(entry.universeId).storageStatus();
+                  });
+                  packages.add(
+                    CanonicalObject([
+                      MapEntry('id', CanonicalString(entry.universeId.value)),
+                      MapEntry('storage', storage),
+                    ]),
+                  );
+                } on Object {
+                  session.afterCommit(
+                    () => _recovered.remove(entry.universeId),
+                  );
+                  packages.add(
+                    CanonicalObject([
+                      MapEntry('id', CanonicalString(entry.universeId.value)),
+                      MapEntry(
+                        'error',
+                        CanonicalString(
+                          'universe unavailable: check schema version and retained-content integrity',
+                        ),
+                      ),
+                    ]),
+                  );
+                }
+              }
+              return CanonicalObject([
+                MapEntry('service_instance', CanonicalString(instance.value)),
+                MapEntry('packages', CanonicalArray(packages)),
+                MapEntry(
+                  'profile_storage',
+                  CanonicalString('installation database authority'),
+                ),
+                MapEntry(
+                  'recovery',
+                  CanonicalString(
+                    'retained-content verification; atomic projection rebuild',
+                  ),
+                ),
+                MapEntry(
+                  'admission',
+                  CanonicalObject([
+                    const MapEntry('connections', CanonicalNumber('32')),
+                    const MapEntry(
+                      'requests_per_principal',
+                      CanonicalNumber('8'),
+                    ),
+                    const MapEntry('queue_per_universe', CanonicalNumber('16')),
+                  ]),
+                ),
+              ]);
             case ProfilesEngineRequest():
               final profiles = await session.authority.profiles(principal.id);
               final grants = await session.authority.grants(principal.id);
@@ -180,6 +242,7 @@ final class NativePostgresRuntime {
             ReviewEngineRequest(:final universe) ||
             AuthorWritingEngineRequest(:final universe) ||
             StageSourceEngineRequest(:final universe) ||
+            MaintainEngineRequest(:final universe) ||
             ForkContinuityEngineRequest(:final universe) ||
             CompareContinuitiesEngineRequest(:final universe) ||
             PrepareAdoptionEngineRequest(:final universe) ||
@@ -198,6 +261,10 @@ final class NativePostgresRuntime {
             epochSeconds: _epochSeconds(),
           );
           final universe = catalog.universeId;
+          if (!_recovered.contains(universe)) {
+            await session.recoverUniverse(universe);
+            session.afterCommit(() => _recovered.add(universe));
+          }
           final workflow = PostgresValidationWorkflow(
             session: session,
             universe: universe,
@@ -225,6 +292,8 @@ final class NativePostgresRuntime {
               return workflow.review(proposalReference);
             case StageSourceEngineRequest(:final label, :final text):
               return workflow.stageSource(label: label, text: text);
+            case MaintainEngineRequest():
+              return workflow.maintainRequest(request);
             case ForkContinuityEngineRequest() ||
                 CompareContinuitiesEngineRequest() ||
                 PrepareAdoptionEngineRequest():

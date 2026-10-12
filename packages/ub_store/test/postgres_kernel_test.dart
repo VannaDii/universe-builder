@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:image/image.dart' as img;
+import 'package:crypto/crypto.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
@@ -14,6 +15,8 @@ import 'package:ub_store/installation.dart';
 import 'package:ub_store/src/kernel.dart' show CommitFaultPoint;
 import 'package:ub_store/src/media_decode.dart';
 import 'package:ub_store/src/postgres_authority.dart';
+import 'package:ub_store/src/postgres_canonical_integrity.dart';
+import 'package:ub_store/src/postgres_projection_recovery.dart';
 import 'package:ub_store/src/postgres_authority_schema.dart';
 import 'package:ub_store/src/postgres_kernel.dart';
 import 'package:ub_store/src/postgres_kernel_schema.dart';
@@ -204,6 +207,180 @@ void main() {
             );
           });
         }
+      });
+
+      test('recovery refuses historical record and workflow corruption before replacing projections', () async {
+        final original = entity();
+        final first = await publish(input('original-history', original));
+        await connection.runTx((tx) async {
+          await PostgresInstallationAuthority(
+            tx,
+            instance,
+          ).requireAuthor(author);
+          await PostgresKernel(tx, universe).commit(
+            CommitInput(
+              universe: universe,
+              continuity: continuity,
+              expectedHead: first,
+              principal: principal,
+              decision: 'Disposable setup',
+              reason: 'Historical tombstone',
+              idempotencyKey: 'remove',
+              changes: [
+                Assignment(
+                  recordId: record,
+                  expected: original.versionId,
+                  next: null,
+                ),
+              ],
+            ),
+          );
+          await PostgresCanonicalIntegrity(tx, universe).verifyComplete();
+        });
+        await expectLater(
+          connection.runTx((tx) async {
+            await PostgresInstallationAuthority(
+              tx,
+              instance,
+            ).requireAuthor(author);
+            await tx.execute(
+              'INSERT INTO $schema.import_record_digest VALUES(\$1,\$2,\$3,\$4)',
+              parameters: [
+                universe.value,
+                original.versionId.value,
+                'invalid',
+                original.digest,
+              ],
+            );
+            await PostgresCanonicalIntegrity(tx, universe).verify();
+          }),
+          throwsFormatException,
+        );
+        final before = await sizes();
+        await expectLater(
+          connection.runTx((tx) async {
+            await PostgresInstallationAuthority(
+              tx,
+              instance,
+            ).requireAuthor(author);
+            await tx.execute(
+              'ALTER TABLE $schema.record_versions DISABLE TRIGGER immutable_history',
+            );
+            await tx.execute(
+              'UPDATE $schema.record_versions SET digest=\$1 WHERE id=\$2',
+              parameters: ['0' * 64, original.versionId.value],
+            );
+            await PostgresCanonicalIntegrity(tx, universe).verify();
+            await PostgresProjectionRecovery(tx, universe).rebuild();
+          }),
+          throwsFormatException,
+        );
+        expect(await sizes(), before);
+        const text = 'Retained authored source é😀';
+        final digest = sha256.convert(utf8.encode(text)).toString();
+        await connection.runTx(
+          (tx) => PostgresWorkflowStorage(tx, universe).compareAppend({}, [
+            MapEntry('source:$digest', CanonicalString(text)),
+          ]),
+        );
+        await expectLater(
+          connection.runTx((tx) async {
+            await PostgresInstallationAuthority(
+              tx,
+              instance,
+            ).requireAuthor(author);
+            await tx.execute(
+              'INSERT INTO $schema.import_workflow_digest VALUES(\$1,\$2,\$3)',
+              parameters: [
+                postgresAuthoredText('source:$digest'),
+                'a' * 64,
+                '0' * 64,
+              ],
+            );
+            await PostgresCanonicalIntegrity(tx, universe).verify();
+          }),
+          throwsFormatException,
+        );
+        await expectLater(
+          connection.runTx((tx) async {
+            await PostgresInstallationAuthority(
+              tx,
+              instance,
+            ).requireAuthor(author);
+            await tx.execute(
+              'ALTER TABLE $schema.source_content DISABLE TRIGGER immutable_workflow',
+            );
+            await tx.execute(
+              'UPDATE $schema.source_content SET utf8_content=\$1 WHERE digest=\$2',
+              parameters: [utf8.encode('damaged'), digest],
+            );
+            await PostgresCanonicalIntegrity(tx, universe).verify();
+            await PostgresProjectionRecovery(tx, universe).rebuild();
+          }),
+          throwsFormatException,
+        );
+        await connection.runTx((tx) async {
+          await PostgresInstallationAuthority(
+            tx,
+            instance,
+          ).requireAuthor(author);
+          await PostgresCanonicalIntegrity(tx, universe).verifyComplete();
+          expect(
+            wireString(
+              (await PostgresWorkflowStorage(
+                tx,
+                universe,
+              ).evidence('source:$digest'))!,
+            ),
+            text,
+          );
+        });
+      });
+
+      test('complete retained-content verification checks staged image bytes and decoding before transfer', () async {
+        final image = img.Image(width: 2, height: 1)
+          ..setPixelRgb(0, 0, 100, 20, 30);
+        final bytes = img.encodePng(image);
+        late ImageAssetRecord asset;
+        await connection.runTx((tx) async {
+          await PostgresInstallationAuthority(
+            tx,
+            instance,
+          ).requireAuthor(author);
+          asset = (await PostgresKernel(
+            tx,
+            universe,
+          ).stageImageBytes(bytes, 'Retained portrait.png')).asset;
+          await PostgresCanonicalIntegrity(tx, universe).verifyComplete();
+        });
+        await expectLater(
+          connection.runTx((tx) async {
+            await PostgresInstallationAuthority(
+              tx,
+              instance,
+            ).requireAuthor(author);
+            await tx.execute(
+              'ALTER TABLE $schema.media_chunk DISABLE TRIGGER immutable_workflow',
+            );
+            await tx.execute(
+              'UPDATE $schema.media_chunk SET content=\$1,byte_size=\$2',
+              parameters: [utf8.encode('damaged'), 7],
+            );
+            await PostgresCanonicalIntegrity(tx, universe).verifyComplete();
+          }),
+          throwsFormatException,
+        );
+        await connection.runTx((tx) async {
+          await PostgresInstallationAuthority(
+            tx,
+            instance,
+          ).requireAuthor(author);
+          await PostgresCanonicalIntegrity(tx, universe).verifyComplete();
+          expect(
+            await PostgresKernel(tx, universe).imageBytes(asset),
+            orderedEquals(bytes),
+          );
+        });
       });
 
       test('exact retry precedes stale workflow and head; changed content conflicts after reconnect', () async {
