@@ -411,7 +411,10 @@ unchanged and explicit historical links, and requires semantic prerequisites to
 remain active. Source editions/passages and dependency anchors must match their
 declared byte ranges; original staging receipts and exact UTF-8 bytes are checked.
 Retained assessments revalidate after SQLite reopen without replacing externally
-declared unresolved conclusions. Selection/access resolution, capture and durable
+declared unresolved conclusions. Staleness compares the latest frozen candidate
+or advanced continuity head, distinguishing source, edition and dependency drift;
+only exact historical evidence is exempt from dependency drift.
+Selection/access resolution, capture and durable
 attachment/validation routes still require workflow integration.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated

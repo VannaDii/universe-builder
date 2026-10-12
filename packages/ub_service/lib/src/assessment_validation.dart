@@ -26,6 +26,70 @@ List<RecordVersion> assessmentCandidate(
   return List.unmodifiable(rows);
 }
 
+/// Read in the owning workflow's consistent universe/authority context after
+/// access admission. Historical evidence is exempt only from dependency drift.
+Future<List<StaleReason>> assessmentStaleReasons({
+  required StoredProposal proposal,
+  required SourceAssessmentV1 body,
+  required FutureOr<String?> Function(String) readLatestKey,
+  required FutureOr<CanonicalValue?> Function(String) readWorkflow,
+  required FutureOr<RevisionId> Function(ContinuityId) readHead,
+  required FutureOr<List<RecordVersion>> Function(ContinuityId, RevisionId)
+  readCanon,
+}) async {
+  final key = await readLatestKey(
+    'proposal:${proposal.proposal.proposalId.value}:',
+  );
+  if (key == null) {
+    throw const NotFoundOrNotAccessibleError(message: 'resource');
+  }
+  final value = await readWorkflow(key);
+  if (value == null) {
+    throw const NotFoundOrNotAccessibleError(message: 'resource');
+  }
+  final latest = StoredProposal.fromWire(value);
+  final originalFrame = proposal.proposal.baseFrame;
+  if (latest.proposal.digest == proposal.proposal.digest &&
+      !latest.proposal.withdrawn &&
+      await readHead(originalFrame.continuity) == originalFrame.revision) {
+    return const [];
+  }
+  final frame = latest.proposal.baseFrame;
+  final head = await readHead(frame.continuity);
+  final rows = head == frame.revision
+      ? assessmentCandidate(
+          latest,
+          await readCanon(frame.continuity, frame.revision),
+        )
+      : await readCanon(frame.continuity, head);
+  bool active(AssessmentVersionRef reference) => rows.any(
+    (r) =>
+        r.identity.recordId == reference.record &&
+        r.recordVersionId == reference.version,
+  );
+  return List.unmodifiable([
+    StaleReason.candidateChanged,
+    if (body.sources.any((s) => !active(s.sourceVersion)))
+      StaleReason.sourceChanged,
+    if (body.sources.any(
+      (s) => s.workEdition != null && !active(s.workEdition!),
+    ))
+      StaleReason.editionChanged,
+    if (body.dependencies.any(
+      (dep) =>
+          !active(dep) &&
+          !body.claimMappings
+              .expand((m) => m.candidateLinks)
+              .any(
+                (link) =>
+                    link.kind == CandidateLinkKind.historicalEvidence &&
+                    link.version.toWire().toText() == dep.toWire().toText(),
+              ),
+    ))
+      StaleReason.dependencyChanged,
+  ]);
+}
+
 /// Verify attachment admission after current proposal and dependency visibility
 /// checks. Structural accounting does not certify interpretation or approval.
 Future<void> verifyAssessmentCandidate({
