@@ -42,7 +42,7 @@ dart test
 dart test test/compiler_test.dart --platform chrome
 cd ../ub_contracts
 dart test
-dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart test/read_response_test.dart test/workflow_request_test.dart test/writing_test.dart test/writing_knowledge_test.dart test/writing_delta_test.dart --platform chrome
+dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart test/read_response_test.dart test/state_response_test.dart test/workflow_request_test.dart test/writing_test.dart test/writing_knowledge_test.dart test/writing_delta_test.dart --platform chrome
 ```
 
 Browser tests must run from the package directory. Set `CHROME_EXECUTABLE` if
@@ -197,6 +197,17 @@ history coverage; a complete page does not upgrade restricted evidence. Record
 pages retain supplied historical digests and tombstones without certifying them,
 and all collections are immutable snapshots. Typed Rust fixtures preserve the
 existing nullable fields, omitted empty optional lists and closed result shapes.
+Effective-state response contracts now preserve visible ancestry, authored/shared
+evidence, initial-value candidates, initialization receipts, contextual names,
+behavioral requirements, rules, dependencies and conflicts. Nullable applicability
+keeps unknown separate from true and false. Initialization history coverage stays
+separate from object coverage, and unavailable contextual-name projections do not
+establish absence. State pages retain exact authored chronology coordinates,
+unresolved assertions, qualified propositions and explicit completeness records;
+decoding never advances time or selects a candidate as fact. Initialization
+receipts are shared domain DTOs used by both the store and response contracts,
+preserving admission and source revisions independently. State evaluation remains
+pending; these types only carry its eventual results.
 Ordinary writer types now preserve JSON scalar fact values, named objects and
 explicit unit amounts, fact lifetimes, object/definition deltas, claims and
 historical corrections/endings/withdrawals. Research requests for exact object
@@ -228,7 +239,7 @@ do not imply approval. Omitted correction collections retain authored values;
 explicit empty collections remain replacements. Exact numeric JSON and immutable
 participant collections work on VM and web. Historical Rust serialization fixtures
 cover the remaining writing families and a fully populated delta. These are input
-contracts; effective-state and remaining response contracts, attachment admission,
+contracts; remaining response contracts, attachment admission,
 evaluator execution and exact approval enforcement still need their ports. Byte verification remains
 distinct from factual support; it does not establish truth or authenticate an
 assessor.

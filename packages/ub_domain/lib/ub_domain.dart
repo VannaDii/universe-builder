@@ -12,3 +12,4 @@ export 'src/selector.dart';
 export 'src/time_space.dart';
 export 'src/value.dart';
 export 'src/value_shape.dart';
+export 'src/initialization_receipt.dart';

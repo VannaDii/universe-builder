@@ -4,51 +4,7 @@ import 'catalog.dart';
 import 'journal.dart';
 import 'revision_input.dart';
 
-/// Domain evidence, admitted atomically with the original instance fact.
-final class InitializationReceipt {
-  const InitializationReceipt({
-    required this.instance,
-    required this.start,
-    required this.property,
-    required this.definition,
-    required this.assertion,
-    required this.revision,
-    required this.sourceRevision,
-  });
-  final RecordId instance, start, property;
-  final RecordVersionId definition, assertion;
-  final RevisionId revision, sourceRevision;
-  InitializationReceipt admittedAt(RevisionId revision) =>
-      InitializationReceipt(
-        instance: instance,
-        start: start,
-        property: property,
-        definition: definition,
-        assertion: assertion,
-        revision: revision,
-        sourceRevision: sourceRevision,
-      );
-  @override
-  bool operator ==(Object other) =>
-      other is InitializationReceipt &&
-      instance == other.instance &&
-      start == other.start &&
-      property == other.property &&
-      definition == other.definition &&
-      assertion == other.assertion &&
-      revision == other.revision &&
-      sourceRevision == other.sourceRevision;
-  @override
-  int get hashCode => Object.hash(
-    instance,
-    start,
-    property,
-    definition,
-    assertion,
-    revision,
-    sourceRevision,
-  );
-}
+export 'package:ub_domain/ub_domain.dart' show InitializationReceipt;
 
 /// The internal admission gate. This does not authorize publication or infer a
 /// start, ancestry, clock, value or source revision from names or prose.
