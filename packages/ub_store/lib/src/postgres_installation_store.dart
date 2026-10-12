@@ -150,10 +150,11 @@ final class PostgresInstallationStore {
     }
     _active++;
     try {
-      return await _connection.runTx(
+      late PostgresInstallationSession session;
+      final result = await _connection.runTx(
         (tx) async {
           await tx.execute('SET LOCAL search_path TO pg_catalog');
-          final session = PostgresInstallationSession._(tx, instanceId);
+          session = PostgresInstallationSession._(tx, instanceId);
           await session.authority.lockAuthority();
           return action(session);
         },
@@ -161,6 +162,10 @@ final class PostgresInstallationStore {
           isolationLevel: IsolationLevel.readCommitted,
         ),
       );
+      for (final notify in session._afterCommit) {
+        notify();
+      }
+      return result;
     } finally {
       _active--;
       if (_closed && _active == 0 && !_drained.isCompleted) {
@@ -192,6 +197,29 @@ final class PostgresInstallationSession {
     : authority = PostgresInstallationAuthority(_tx, instance);
   final TxSession _tx;
   final PostgresInstallationAuthority authority;
+  final _afterCommit = <void Function()>[];
+
+  /// Trusted worker notifications occur after outer COMMIT, never on rollback.
+  /// A notification failure cannot undo already-durable operation state.
+  void afterCommit(void Function() notify) => _afterCommit.add(notify);
+
+  /// Completion may catch a failed evidence append and retain terminal failure
+  /// in the same outer transaction. Discard partial rows and clear failed SQL
+  /// state before that fallback; never commit the outer transaction here.
+  Future<T> rollbackOnFailure<T>(Future<T> Function() action) async {
+    final notifications = _afterCommit.length;
+    final name = 'ub_completion_${OperationId.generate().value}';
+    await _tx.execute('SAVEPOINT $name');
+    try {
+      return await action();
+    } on Object {
+      await _tx.execute('ROLLBACK TO SAVEPOINT $name');
+      _afterCommit.removeRange(notifications, _afterCommit.length);
+      rethrow;
+    } finally {
+      await _tx.execute('RELEASE SAVEPOINT $name');
+    }
+  }
 
   PostgresKernel kernel(UniverseId universe) => PostgresKernel(_tx, universe);
   PostgresWorkflowStorage workflows(UniverseId universe) =>

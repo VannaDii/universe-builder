@@ -355,8 +355,22 @@ preserve original evidence; changed selections invalidate prior validation and
 approval bindings. Focused cases cover source-assessed validation/approval/
 publication, reconnect and historical retry, stale generations, changed-key reuse,
 wrong attribution and unverifiable source refusal without partial retention.
-Engine dispatch, queued validation and the remaining service routes still need
-PostgreSQL adapters. Import previews/purge coordination, transfer and
+Queued PostgreSQL validation now retains an exact selection/authority capture,
+prepares a frozen task using real kernel preview and source checks, and evaluates
+without database handles outside the transaction. Completion rechecks that
+capture and retains checked evidence plus terminal status atomically. A completion
+savepoint discards partial rows and clears failed SQL before retaining a failure;
+rolled-back notifications are discarded as well. Cancellation retains its marker
+and retry receipt before signaling a worker after outer commit, and late results
+cannot become checked evidence. Focused cases cover source-assessed completion,
+interrupted work after reconnect, exact retry, changed selection, cancellation
+rollback/retry and a real SQL failure inside the savepoint. Worker liveness is
+provided by the owning runtime. The PostgreSQL job bridge now uses the existing
+native isolate scheduler, opening fresh authority-coordinated transactions for
+preparation and completion; a focused isolate case proceeds through approval and
+publication. SQLite uses the same scheduler job interface. Engine dispatch,
+cross-process worker qualification and the remaining service routes still need
+PostgreSQL integration. Import previews/purge coordination, transfer and
 live verified-TLS qualification also remain pending; runtime PostgreSQL selection
 is still explicitly unavailable.
 Run `test/postgres_foundation_test.dart`, `test/postgres_relational_test.dart`,

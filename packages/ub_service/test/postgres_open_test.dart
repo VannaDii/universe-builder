@@ -318,6 +318,41 @@ void main() {
           expect((await (await open()).transaction(login)).id, owner);
         },
       );
+      test('failed completion savepoint removes partial rows and leaves outer transaction usable', () async {
+        final store = await open(create: true);
+        await enroll(store);
+        final temporary = ProfileId.generate();
+        var notifications = 0;
+        await store.transaction((s) async {
+          await expectLater(
+            s.rollbackOnFailure(() async {
+              await s.authority.enroll(
+                id: temporary,
+                credentialHash: hash,
+                actor: owner,
+              );
+              s.afterCommit(() => notifications++);
+              await s.authority.enroll(
+                id: owner,
+                credentialHash: hash,
+                actor: owner,
+              );
+            }),
+            throwsA(
+              isA<ServerException>().having((e) => e.code, 'code', '23505'),
+            ),
+          );
+          expect(await s.authority.profile(temporary), isNull);
+          await s.authority.requireAuthor(owner);
+          s.afterCommit(() => notifications += 10);
+          expect(notifications, 0);
+        });
+        expect(notifications, 10);
+        expect(
+          await store.transaction((s) => s.authority.profile(temporary)),
+          isNull,
+        );
+      });
       test('certificate loading errors never disclose configured paths or endpoint', () async {
         final bad = PostgresConfiguration(
           Credential(

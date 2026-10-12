@@ -11,6 +11,7 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_profiles.dart';
 import 'package:ub_service/postgres_validation.dart';
+import 'package:ub_service/validation_scheduler.dart';
 import 'package:ub_service/proposal_state.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/postgres_installation.dart';
@@ -232,6 +233,21 @@ void main() {
       ),
     ),
   );
+  QueuedProposalValidationRequest queued(Proposal p) =>
+      QueuedProposalValidationRequest(
+        universe: const Selector('Disposable universe'),
+        universeId: f.u,
+        contextId: writerContext,
+        proposalReference: reference(p),
+        checkScope: CheckScope.candidate,
+        idempotencyKey: 'queue',
+      );
+  CancelOperationRequest cancel(OperationId id) => CancelOperationRequest(
+    universe: const Selector('Disposable universe'),
+    universeId: f.u,
+    operationId: id,
+    idempotencyKey: 'cancel',
+  );
   CommitRequest request(
     Proposal p,
     ValidationRunId validation, {
@@ -343,6 +359,242 @@ void main() {
         } finally {
           await observer.close();
         }
+      });
+      test('queued validation uses the native isolate scheduler with fresh PostgreSQL transactions', () async {
+        final researched = await researchedProposal();
+        await attach(researched.proposal, researched.body);
+        final status = await run(
+          writer,
+          (w) => w.queueValidationRequest(
+            queued(researched.proposal),
+            isValidationActive: (_) => false,
+          ),
+        );
+        final principal = await store.transaction(
+          (s) => PostgresServiceAuthority(s.authority)
+              .authenticate(profile: writer, credential: Credential(secret)),
+        );
+        final scheduler = NativeValidationScheduler();
+        try {
+          await scheduler.schedule(
+            PostgresValidationJobs(
+              store: store,
+              universe: f.u,
+              principal: principal,
+              epochSeconds: () => now,
+            ),
+            status.operationId,
+          );
+          expect(scheduler.isActive(f.u, status.operationId), isFalse);
+          final completed = await run(
+            writer,
+            (w) => w.operationStatus(
+              status.operationId,
+              isValidationActive: (_) => false,
+            ),
+          );
+          expect(completed.state, OperationState.succeeded);
+          final report = completed.validation as EvaluatedValidation;
+          expect(report.finalBindingDigest, isNotNull);
+          await run(
+            owner,
+            (w) => w.approve(
+              reference(researched.proposal),
+              report.execution.runId,
+            ),
+          );
+          await commit(request(researched.proposal, report.execution.runId));
+        } finally {
+          await scheduler.close();
+        }
+      });
+      test('queued source validation completes outside transactions and retains exact results through reconnect', () async {
+        final researched = await researchedProposal();
+        await attach(researched.proposal, researched.body);
+        final queuedStatus = await run(
+          writer,
+          (w) => w.queueValidationRequest(
+            queued(researched.proposal),
+            isValidationActive: (_) => false,
+          ),
+        );
+        final id = queuedStatus.operationId;
+        expect(queuedStatus.state, OperationState.queued);
+        final task = await run(
+          writer,
+          (w) => w.prepareValidation(id, isValidationActive: (_) => true),
+        );
+        expect(task, isNotNull);
+        await store.close();
+        store = await open();
+        expect(
+          (await run(
+            writer,
+            (w) => w.operationStatus(id, isValidationActive: (_) => false),
+          )).state,
+          OperationState.interrupted,
+        );
+        final resumed = (await run(
+          writer,
+          (w) => w.prepareValidation(id, isValidationActive: (_) => true),
+        ))!;
+        expect(
+          resumed.capture!.toWire().toText(),
+          task!.capture!.toWire().toText(),
+        );
+        final checked = resumed.evaluate();
+        await run(
+          writer,
+          (w) =>
+              w.finishValidation(id, checked, isValidationActive: (_) => true),
+        );
+        final completed = await run(
+          writer,
+          (w) => w.operationStatus(id, isValidationActive: (_) => false),
+        );
+        expect(completed.state, OperationState.succeeded);
+        expect(
+          (completed.validation as EvaluatedValidation).assessment,
+          isA<BoundAssessment>(),
+        );
+        expect(
+          (completed.validation as EvaluatedValidation).finalBindingDigest,
+          isNotNull,
+        );
+        await store.close();
+        store = await open();
+        expect(
+          (await run(
+            writer,
+            (w) => w.queueValidationRequest(
+              queued(researched.proposal),
+              isValidationActive: (_) => false,
+            ),
+          )).toWire().toText(),
+          completed.toWire().toText(),
+        );
+        await run(
+          owner,
+          (w) => w.approve(
+            reference(researched.proposal),
+            checked.validation.runId,
+          ),
+        );
+        await commit(request(researched.proposal, checked.validation.runId));
+      });
+      test('queued completion refuses changed assessment capture and retains failure without checked evidence', () async {
+        final researched = await researchedProposal();
+        await attach(researched.proposal, researched.body);
+        final status = await run(
+          writer,
+          (w) => w.queueValidationRequest(
+            queued(researched.proposal),
+            isValidationActive: (_) => false,
+          ),
+        );
+        final task = (await run(
+          writer,
+          (w) => w.prepareValidation(
+            status.operationId,
+            isValidationActive: (_) => true,
+          ),
+        ))!;
+        final checked = task.evaluate();
+        await select(
+          researched.proposal,
+          null,
+          BigInt.one,
+          'clear-before-completion',
+        );
+        await run(
+          writer,
+          (w) => w.finishValidation(
+            status.operationId,
+            checked,
+            isValidationActive: (_) => true,
+          ),
+        );
+        expect(
+          (await run(
+            writer,
+            (w) => w.operationStatus(
+              status.operationId,
+              isValidationActive: (_) => false,
+            ),
+          )).state,
+          OperationState.failed,
+        );
+        expect(
+          await store.transaction(
+            (s) => s
+                .workflows(f.u)
+                .get('validation:${checked.validation.runId.value}'),
+          ),
+          isNull,
+        );
+      });
+      test('cancellation signals after durable commit, never after rollback, and blocks late completion', () async {
+        final p = await propose(create());
+        final status = await run(
+          writer,
+          (w) => w.queueValidationRequest(
+            queued(p),
+            isValidationActive: (_) => false,
+          ),
+        );
+        final id = status.operationId;
+        final task = (await run(
+          writer,
+          (w) => w.prepareValidation(id, isValidationActive: (_) => true),
+        ))!;
+        var signals = 0;
+        await expectLater(
+          run(writer, (w) async {
+            await w.cancelOperation(
+              cancel(id),
+              isValidationActive: (_) => true,
+              signalCancellation: (_) => signals++,
+            );
+            expect(signals, 0);
+            throw StateError('disposable rollback');
+          }),
+          throwsStateError,
+        );
+        expect(signals, 0);
+        final cancelled = await run(writer, (w) async {
+          final result = await w.cancelOperation(
+            cancel(id),
+            isValidationActive: (_) => true,
+            signalCancellation: (_) => signals++,
+          );
+          expect(signals, 0);
+          return result;
+        });
+        expect(signals, 1);
+        expect(cancelled.state, OperationState.cancelled);
+        await run(
+          writer,
+          (w) => w.cancelOperation(
+            cancel(id),
+            isValidationActive: (_) => false,
+            signalCancellation: (_) => signals++,
+          ),
+        );
+        expect(signals, 1);
+        final checked = task.evaluate();
+        await run(
+          writer,
+          (w) =>
+              w.finishValidation(id, checked, isValidationActive: (_) => true),
+        );
+        expect(
+          await store.transaction(
+            (s) => s
+                .workflows(f.u)
+                .get('validation:${checked.validation.runId.value}'),
+          ),
+          isNull,
+        );
       });
       test('assessment attachment binds source bytes through exact approval, publication and reconnect retry', () async {
         final researched = await researchedProposal();

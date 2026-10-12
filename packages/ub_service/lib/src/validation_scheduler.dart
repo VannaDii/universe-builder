@@ -1,7 +1,7 @@
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
-import 'sqlite_validation.dart';
+import 'validation_job_service.dart';
 import 'validation_worker.dart';
 
 /// One scheduler per native engine. Database access remains in the owning
@@ -20,7 +20,7 @@ final class NativeValidationScheduler {
   /// Call after durable queue submission. If busy, retry the same queue key.
   /// The caller observes this future for runtime errors; queued responses need
   /// not await evaluation. Repeated scheduling returns the existing job future.
-  Future<void> schedule(SqliteValidationWorkflow service, OperationId id) {
+  Future<void> schedule(ValidationJobService service, OperationId id) {
     final key = (service.universe, id);
     final existing = _jobs[key];
     if (existing != null) return existing.done;
@@ -36,7 +36,7 @@ final class NativeValidationScheduler {
   }
 
   Future<void> _run(
-    SqliteValidationWorkflow service,
+    ValidationJobService service,
     OperationId id,
     _ValidationJob job,
     UniverseId universe,

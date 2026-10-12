@@ -30,6 +30,7 @@ import 'source_verification.dart';
 import 'state_reading.dart';
 import 'validation_binding.dart';
 import 'validation_task.dart';
+import 'validation_job_service.dart';
 import 'writing_projection.dart';
 import 'writing_contract_projection.dart';
 import 'writing_changes.dart';
@@ -45,7 +46,7 @@ import 'resource_checks.dart';
 /// It retains assessments, checked results and exact human approvals, and
 /// publishes reviewed canon. The caller must produce checked results through the factual
 /// evaluator, not client IO.
-final class SqliteValidationWorkflow {
+final class SqliteValidationWorkflow implements ValidationJobService {
   SqliteValidationWorkflow({
     required this.package,
     required this.authority,
@@ -54,6 +55,7 @@ final class SqliteValidationWorkflow {
   final OwnedSqliteDatabase package;
   final InstallationAuthority authority;
   final InstallationPrincipal principal;
+  @override
   UniverseId get universe => package.universeId;
   SqliteJournal get _journal => SqliteJournal(package.database, universe);
   WorkflowStorage get _workflow => WorkflowStorage(package.database);
@@ -3876,6 +3878,7 @@ final class SqliteValidationWorkflow {
     );
   }
 
+  @override
   Future<PreparedValidationTask?> prepareValidation(
     OperationId id, {
     required bool Function(OperationId) isValidationActive,
@@ -4532,12 +4535,14 @@ final class SqliteValidationWorkflow {
     ]);
   }
 
+  @override
   Future<void> finishValidation(
     OperationId id,
     CheckedValidation checked, {
     required bool Function(OperationId) isValidationActive,
   }) => _finishValidation(id, checked, null, isValidationActive);
 
+  @override
   Future<void> failValidation(
     OperationId id,
     Object error, {
