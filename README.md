@@ -224,8 +224,13 @@ Named attributes reuse an exact compatible property, including definitions in th
 same batch regardless of input order; conflicting or ambiguous definitions require
 an explicit revision. Submitted uncertainty and evidence remain intact, and event
 or initialization provenance cannot be manufactured through a named attribute.
-This preparation does not admit changes; full operation compilation and reviewed
-publication remain pending.
+This preparation feeds canonical compilation; admission and reviewed publication
+remain pending. The canonical compiler freezes fresh versions for supported
+creations, corrections and adoption, checks explicit local references and expected
+base versions, and retains the existing correction restrictions. Classification
+refinements use the candidate definition graph, including same-batch revisions,
+adoptions and removals. Explicit initialization and event effects compile last.
+Privately allocated immutable source versions remain an internal service input.
 Event compilation now freezes derived assertions into the exact changes for
 review. Revisions and withdrawals replace or remove their effects and recompute
 affected intervals; unchanged effects retain their versions. Generated assertions
@@ -242,13 +247,15 @@ forward elapsed time from deliberate time travel. Gregorian inputs require an
 explicit offset and whole seconds; month offsets use pinned time and reject a
 nonexistent target day. Fictional month offsets require a declared month length
 and retain exact signed 128-bit coordinates. Decoding and arithmetic never read
-the system clock. Wiring clock changes into reviewed publication remains pending.
+the system clock. Clock changes now compile into exact review changes; reviewed
+publication remains pending.
 Storing these declarations does not execute effects, advance clocks or promote
 a report to objective fact. Consequence execution still needs its port. Typed operation
 contracts preserve bare nested record DTOs separately from tagged stored
 payloads, snake-case operation fields and exact expected versions. Decoding an
-adoption request preserves its supplied digest; digest verification and current
-adoption rights remain separate service checks. An operation's coarse authority
+adoption request preserves its supplied digest; compilation verifies it and the
+target version before allocating a fresh version. Current adoption rights remain
+a separate service check. An operation's coarse authority
 classification never grants permission. Remaining workflow/request DTOs, service operation
 admission and execution still need their ports; completing record and operation
 types does not complete the conversion.
