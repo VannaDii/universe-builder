@@ -280,6 +280,14 @@ selects a convenient world. Missing evidence remains unresolved; belief, memory
 and receipt alone do not establish knowledge. Policy and evidence corrections
 reassess unchanged knowledge facts. These checks still require integration with
 proposal validation/publication and its author authority checks.
+Explicit knowledge-boundary checks now report knowing claims that overlap an
+authored prohibition, including author-established knowledge. Missing attitudes
+do not certify absence; unresolved world or temporal overlap remains unsupported.
+Boundaries require a protected wrapper, finite exact period and resolved typed
+targets. Typed citation-link checks separately require source evidence and
+passage citations to reference anchor records, regardless of a writer's verified
+flag. Retained-byte verification and structural admission integration remain
+pending.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.
