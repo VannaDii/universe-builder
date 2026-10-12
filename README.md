@@ -367,6 +367,16 @@ The existing typed Checked storage family retains these reports/captures across
 SQLite reopen and compares selection/proposal keys atomically before append.
 Owning installation locks and the complete approval/publication workflow remain
 pending; decoding retained evidence does not authenticate it.
+Frozen proposal state now preserves the existing typed StoredProposal envelope,
+compiled changes, owner, author origin and full write footprint. Create/revise
+preparation compiles against the selected base and uses the acting profile's
+origin; submit/withdraw create a new version while preserving the original
+changes and origin. Exact represented frames are required for these transitions,
+and named-world focus cannot narrow a shared or cross-world footprint. Proposal
+version keys retain twenty-digit ordering; immutable versions survive SQLite
+reopen and competing updates can be rejected by an atomic latest-key comparison.
+Preparation alone does not admit a proposal: reservation/adoption checks, kernel
+preview and atomic operation/receipt publication remain required integration.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.

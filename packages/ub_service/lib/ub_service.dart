@@ -29,3 +29,4 @@ export 'src/boundary_checks.dart';
 export 'src/candidate_validation.dart';
 export 'src/source_verification.dart';
 export 'src/validation_binding.dart';
+export 'src/proposal_state.dart';
