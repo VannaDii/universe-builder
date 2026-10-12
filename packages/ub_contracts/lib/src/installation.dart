@@ -29,6 +29,7 @@ enum ImportMode {
 }
 
 // Private installation DTOs are not public tools or authority grants.
+const engineMaxInFlight = 8;
 
 final class EngineHello {
   factory EngineHello.decode(Uint8List bytes) =>

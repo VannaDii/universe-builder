@@ -712,7 +712,7 @@ final class NativeSqliteConnection {
     principal: _principal.id,
     author: _principal.author,
     maxFrameBytes: BigInt.from(maxFrameBytes),
-    maxInFlight: BigInt.from(maxInFlight),
+    maxInFlight: BigInt.from(engineMaxInFlight),
   );
   Future<CanonicalValue> executeWriting(EngineRequest request) =>
       execute(request);

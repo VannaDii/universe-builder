@@ -37,7 +37,8 @@ final class NativeRuntimeAdmission {
     if (lease._closed) throw StateError('Connection is closed');
     final author = lease._principal.author;
     final slots = lease._slots;
-    if (slots.requests >= 8 || (author ? _authorWork >= 4 : _agentWork >= 8)) {
+    if (slots.requests >= engineMaxInFlight ||
+        (author ? _authorWork >= 4 : _agentWork >= 8)) {
       throw const EvaluationLimitReachedError(
         message: 'principal request limit',
       );

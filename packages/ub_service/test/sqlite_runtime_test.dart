@@ -4945,6 +4945,7 @@ void main() {
     final second = runtime.connect(hello(author.id));
     expect(first.welcome.serviceInstance, second.welcome.serviceInstance);
     expect(first.welcome.maxFrameBytes, BigInt.from(maxFrameBytes));
+    expect(first.welcome.maxInFlight, BigInt.from(8));
     expect(first.welcome.author, isTrue);
     await Future.wait([
       first.executeWriting(stage),

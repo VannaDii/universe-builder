@@ -816,6 +816,13 @@ serialization retains the exact credential for the private handshake. Grant
 collections preserve unspecified versus explicitly empty boundaries, and
 delegated commit/shared-write flags default to false. Drafts retain pinned
 revision/context, authored operations and optional exact proposal references.
+The shared local IPC codec now reads/writes four-byte big-endian length-prefixed
+frames, checks the 1 MiB declared size before payload allocation, handles split
+and coalesced packets, preserves backpressure and rejects truncated final frames.
+Strict DTO decoding remains separate. The private engine welcome advertises eight
+in-flight requests, matching the maintained engine/client protocol; the general
+fixture protocol retains its separate sixteen-request default. Socket peer checks,
+engine startup and client transport integration remain pending.
 Expiry timestamps, draft versions and engine limits preserve exact unsigned
 values on web. These contracts do not authenticate profiles, grant permissions,
 save drafts or implement encrypted settings; private command dispatch and those
