@@ -12,11 +12,13 @@ Iterable<String> postgresAuthoritySchema(OperationId instance) sync* {
   final s = postgresAuthorityNamespace(instance);
   const text = 'TEXT COLLATE "C"';
   yield 'CREATE SCHEMA $s';
-  yield 'CREATE TABLE $s.authority(singleton SMALLINT PRIMARY KEY CHECK(singleton=1), instance_id $text NOT NULL UNIQUE, normalization $text NOT NULL, schema_version SMALLINT NOT NULL CHECK(schema_version=3))';
-  yield "INSERT INTO $s.authority VALUES(1,'${instance.value}','$selectorNormalizationVersion',3)";
+  yield 'CREATE TABLE $s.authority(singleton SMALLINT PRIMARY KEY CHECK(singleton=1), instance_id $text NOT NULL UNIQUE, normalization $text NOT NULL, schema_version SMALLINT NOT NULL CHECK(schema_version=4))';
+  yield "INSERT INTO $s.authority VALUES(1,'${instance.value}','$selectorNormalizationVersion',4)";
   yield 'CREATE TABLE $s.profiles(id $text PRIMARY KEY, hash $text NOT NULL, author BOOLEAN NOT NULL, revoked BOOLEAN NOT NULL)';
   yield 'CREATE TABLE $s.catalog(id $text PRIMARY KEY, name BYTEA NOT NULL, schema_name $text NOT NULL UNIQUE)';
   yield 'CREATE TABLE $s.move_quiescence(universe $text PRIMARY KEY REFERENCES $s.catalog(id) ON DELETE CASCADE, operation $text NOT NULL UNIQUE, target_instance $text NOT NULL)';
+  yield 'CREATE TABLE $s.move_stage(operation $text PRIMARY KEY REFERENCES $s.move_quiescence(operation) ON DELETE CASCADE, digest $text NOT NULL)';
+  yield 'CREATE TABLE $s.move_archive(operation $text NOT NULL REFERENCES $s.move_stage(operation) ON DELETE CASCADE, ordinal BIGINT NOT NULL CHECK(ordinal>=0), content BYTEA NOT NULL CHECK(octet_length(content)>0 AND octet_length(content)<=262144), PRIMARY KEY(operation,ordinal))';
   yield 'CREATE TABLE $s.aliases(key $text PRIMARY KEY, universe $text NOT NULL REFERENCES $s.catalog(id))';
   yield "CREATE TABLE $s.grants(profile $text NOT NULL REFERENCES $s.profiles(id), universe $text NOT NULL REFERENCES $s.catalog(id), worlds_state $text NOT NULL CHECK(worlds_state IN ('all','listed')), propose BOOLEAN NOT NULL, edit BOOLEAN NOT NULL, protected BOOLEAN NOT NULL, entities_state $text NOT NULL CHECK(entities_state IN ('all','listed')), predicates_state $text NOT NULL CHECK(predicates_state IN ('all','listed')), continuities_state $text NOT NULL CHECK(continuities_state IN ('all','listed')), expires_at $text, delegated_commit BOOLEAN NOT NULL, allow_shared BOOLEAN NOT NULL, PRIMARY KEY(profile,universe))";
   for (final entry in {

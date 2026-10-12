@@ -38,6 +38,54 @@ final class NativePostgresRuntime {
   bool _stopping = false;
   Future<void>? _shutdown;
 
+  /// Commit the source guard before staging. Retain the complete archive in
+  /// bounded installation-owned chunks before publishing a transport copy.
+  Future<({String path, String digest, CanonicalObject manifest})>
+  stageSourceMove(
+    InstallationPrincipal principal, {
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+    required String destination,
+  }) async {
+    final done = _enter();
+    try {
+      await store.transaction(
+        (s) => PostgresServiceAuthority(s.authority).quiesceUniverseForMove(
+          principal,
+          universe: universe,
+          operation: operation,
+          targetInstance: targetInstance,
+        ),
+      );
+      await store.transaction(
+        (s) => PostgresServiceAuthority(s.authority).coordinate(
+          principal,
+          () => s.prepareMoveArchive(
+            actor: principal.id,
+            universe: universe,
+            operation: operation,
+            targetInstance: targetInstance,
+          ),
+        ),
+      );
+      return await store.transaction(
+        (s) => PostgresServiceAuthority(s.authority).coordinate(
+          principal,
+          () => s.writeMoveArchive(
+            actor: principal.id,
+            universe: universe,
+            operation: operation,
+            targetInstance: targetInstance,
+            destination: destination,
+          ),
+        ),
+      );
+    } finally {
+      _leave(done);
+    }
+  }
+
   Completer<void> _enter() {
     if (_stopping) throw StateError('Runtime is stopping');
     final done = Completer<void>();

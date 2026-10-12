@@ -15,6 +15,7 @@ import 'package:ub_service/sqlite_runtime.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/postgres_installation.dart';
 import 'package:ub_store/profile_credentials.dart';
+import 'package:ub_store/sqlite.dart';
 import 'package:ub_store/src/postgres_authority_schema.dart';
 import 'package:ub_store/src/postgres_values.dart';
 
@@ -399,6 +400,299 @@ void main() {
         }
       });
 
+      test('PostgreSQL source stage survives failed file publication and restart before SQLite admission', () async {
+        final root = Directory.systemTemp.createTempSync(
+          'universe-builder-pg-move-',
+        );
+        var targetStore = SqliteInstallationStore.create('${root.path}/target');
+        var targetAuthority = InstallationAuthority(targetStore);
+        final targetAuthor = targetAuthority.initializeAuthor();
+        EngineHello targetHello() => EngineHello(
+          protocolVersion: protocolVersion,
+          profileId: targetAuthor,
+          credential: Credential(
+            ProfileCredentialStore.read(
+              root: targetStore.root,
+              profile: targetAuthor,
+            ),
+          ),
+          clientName: 'Disposable local target',
+        );
+        var targetRuntime = NativeSqliteRuntime(authority: targetAuthority);
+        try {
+          final source = await runtime.connect(hello(authorId));
+          final created = await create(source, 'PostgreSQL original');
+          final universe = UniverseId.parse(text(created, 'universe_id'));
+          final request = SaveDraftEngineRequest(
+            universe: const Selector('PostgreSQL original'),
+            continuityId: ContinuityId.parse(text(created, 'continuity_id')),
+            expectedVersion: BigInt.zero,
+            content: DraftContent(
+              baseRevision: RevisionId.parse(text(created, 'revision')),
+              representedContext: RecordId.parse(text(created, 'context_id')),
+              operations: const [],
+              rationale: 'Retained PostgreSQL draft é😀',
+              proposal: null,
+            ),
+          );
+          final draft = await source.execute(request);
+          var principal = await store.transaction(
+            (s) => PostgresServiceAuthority(s.authority).authenticate(
+              profile: authorId,
+              credential: const Credential(secret),
+            ),
+          );
+          final operation = OperationId.generate(),
+              targetInstance = targetStore.instanceId;
+          final blocked = Directory('${root.path}/blocked')..createSync();
+          await expectLater(
+            runtime.stageSourceMove(
+              principal,
+              universe: universe,
+              operation: operation,
+              targetInstance: targetInstance,
+              destination: blocked.path,
+            ),
+            throwsA(isA<FileSystemException>()),
+          );
+          final control = postgresAuthorityNamespace(store.instanceId);
+          expect(
+            (await observer.execute('SELECT count(*) FROM $control.move_stage'))
+                .single
+                .single,
+            1,
+          );
+          final chunks = await observer.execute(
+            'SELECT count(*),max(octet_length(content)) FROM $control.move_archive',
+          );
+          expect(chunks.single[0] as int, greaterThan(1));
+          expect(chunks.single[1] as int, lessThanOrEqualTo(262144));
+          await expectLater(
+            source.execute(request),
+            throwsA(isA<NotFoundOrNotAccessibleError>()),
+          );
+          final copy = '${root.path}/transport.sqlite';
+          final stage = await runtime.stageSourceMove(
+            principal,
+            universe: universe,
+            operation: operation,
+            targetInstance: targetInstance,
+            destination: copy,
+          );
+          final bytes = File(copy).readAsBytesSync();
+          expect(File(copy).statSync().mode & 0x1ff, 0x180);
+          final preview = await targetRuntime
+              .connect(targetHello())
+              .execute(
+                PreviewImportEngineRequest(
+                  source: copy,
+                  name: 'Moved to SQLite',
+                  mode: ImportMode.restore,
+                ),
+              );
+          await targetRuntime.close();
+          targetStore.close();
+          File(copy).deleteSync();
+          await runtime.close();
+          await store.close();
+          store = await PostgresInstallationStore.openExisting(
+            endpoint(),
+            settings: settings,
+          );
+          runtime = NativePostgresRuntime(store: store);
+          principal = await store.transaction(
+            (s) => PostgresServiceAuthority(s.authority).authenticate(
+              profile: authorId,
+              credential: const Credential(secret),
+            ),
+          );
+          final recovered = await runtime.stageSourceMove(
+            principal,
+            universe: universe,
+            operation: operation,
+            targetInstance: targetInstance,
+            destination: copy,
+          );
+          expect(recovered.digest, stage.digest);
+          expect(File(copy).readAsBytesSync(), bytes);
+          expect(
+            (await runtime.stageSourceMove(
+              principal,
+              universe: universe,
+              operation: operation,
+              targetInstance: targetInstance,
+              destination: copy,
+            )).digest,
+            stage.digest,
+          );
+          expect(File(copy).readAsBytesSync(), bytes);
+          targetStore = SqliteInstallationStore.openExisting(
+            '${root.path}/target',
+          );
+          targetAuthority = InstallationAuthority(targetStore);
+          targetRuntime = NativeSqliteRuntime(authority: targetAuthority);
+          final client = targetRuntime.connect(targetHello());
+          final accept = AcceptImportEngineRequest(
+            previewId: OperationId.parse(text(preview, 'preview_id')),
+            digest: text(preview, 'digest'),
+          );
+          final receipt = await client.execute(accept);
+          expect(text(receipt, 'universe_id'), universe.value);
+          expect((await client.execute(accept)).toText(), receipt.toText());
+          final path = targetAuthority
+              .resolveUniverseAlias(
+                targetAuthority.authenticateHello(targetHello()),
+                'Moved to SQLite',
+              )
+              .path;
+          await targetRuntime.close();
+          final package = OwnedSqliteDatabase.openExisting(path);
+          try {
+            expect(
+              SqliteJournal(
+                package.database,
+                universe,
+              ).head(ContinuityId.parse(text(created, 'continuity_id'))),
+              RevisionId.parse(text(created, 'revision')),
+            );
+            final workflow = WorkflowStorage(package.database);
+            final keys = workflow.keys('draft:${authorId.value}:');
+            expect(keys, hasLength(1));
+            expect(workflow.evidence(keys.single)!.toText(), draft.toText());
+            expect(
+              package.database.select(
+                'SELECT key FROM historical_workflow WHERE key=?',
+                [keys.single],
+              ),
+              hasLength(1),
+            );
+          } finally {
+            package.close();
+          }
+          expect(
+            (await observer.execute(
+              "SELECT count(*) FROM $control.audit WHERE action='quiesce_move'",
+            )).single.single,
+            1,
+          );
+          // Missing retained chunks must refuse recovery, never regenerate a
+          // different archive from the still-retained original universe.
+          await observer.execute(
+            'DELETE FROM $control.move_archive WHERE ordinal=0',
+          );
+          final absent = '${root.path}/refused.sqlite';
+          await expectLater(
+            runtime.stageSourceMove(
+              principal,
+              universe: universe,
+              operation: operation,
+              targetInstance: targetInstance,
+              destination: absent,
+            ),
+            throwsFormatException,
+          );
+          expect(File(absent).existsSync(), isFalse);
+          expect(File(copy).readAsBytesSync(), bytes);
+          await expectLater(
+            (await runtime.connect(hello(authorId))).execute(request),
+            throwsA(isA<NotFoundOrNotAccessibleError>()),
+          );
+          await store.transaction(
+            (s) => s.verifyUniverse(universe, complete: true),
+          );
+        } finally {
+          await targetRuntime.close();
+          targetStore.close();
+          root.deleteSync(recursive: true);
+        }
+      });
+
+      test('aborted PostgreSQL stage transaction retains guard without partial archive and retries cleanly', () async {
+        final author = await runtime.connect(hello(authorId));
+        final created = await create(author, 'Move source');
+        final universe = UniverseId.parse(text(created, 'universe_id'));
+        final operation = OperationId.generate(),
+            target = OperationId.generate();
+        await quiesce(authorId, universe, operation, target);
+        await expectLater(
+          store.transaction((s) async {
+            await s.prepareMoveArchive(
+              actor: authorId,
+              universe: universe,
+              operation: operation,
+              targetInstance: target,
+            );
+            throw StateError('Disposable interruption before archive commit');
+          }),
+          throwsStateError,
+        );
+        final control = postgresAuthorityNamespace(store.instanceId);
+        for (final table in ['move_stage', 'move_archive']) {
+          expect(
+            (await observer.execute('SELECT count(*) FROM $control.$table'))
+                .single
+                .single,
+            0,
+          );
+        }
+        expect(
+          (await observer.execute(
+            'SELECT count(*) FROM $control.move_quiescence',
+          )).single.single,
+          1,
+        );
+        await expectLater(
+          author.execute(
+            const LibraryEngineRequest(universe: Selector('Move source')),
+          ),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        await expectLater(
+          store.transaction(
+            (s) => s.prepareMoveArchive(
+              actor: writerId,
+              universe: universe,
+              operation: operation,
+              targetInstance: target,
+            ),
+          ),
+          throwsA(isA<InstallationException>()),
+        );
+        final root = Directory.systemTemp.createTempSync(
+          'universe-builder-stage-retry-',
+        );
+        try {
+          final principal = await store.transaction(
+            (s) => PostgresServiceAuthority(s.authority).authenticate(
+              profile: authorId,
+              credential: const Credential(secret),
+            ),
+          );
+          final stage = await runtime.stageSourceMove(
+            principal,
+            universe: universe,
+            operation: operation,
+            targetInstance: target,
+            destination: '${root.path}/archive.sqlite',
+          );
+          expect(stage.digest, matches(RegExp(r'^[0-9a-f]{64}$')));
+          expect(
+            (await observer.execute('SELECT count(*) FROM $control.move_stage'))
+                .single
+                .single,
+            1,
+          );
+          expect(
+            (await observer.execute(
+              "SELECT count(*) FROM $control.audit WHERE action='quiesce_move'",
+            )).single.single,
+            1,
+          );
+        } finally {
+          root.deleteSync(recursive: true);
+        }
+      });
+
       test('writer self-target and rollback cannot suspend a source', () async {
         final author = await runtime.connect(hello(authorId));
         final source = await create(author, 'Move source');
@@ -439,7 +733,7 @@ void main() {
         await runtime.close();
         await store.close();
         await observer.execute(
-          'DROP TABLE ${postgresAuthorityNamespace(store.instanceId)}.move_quiescence',
+          'DROP TABLE ${postgresAuthorityNamespace(store.instanceId)}.move_quiescence CASCADE',
         );
         await expectLater(
           PostgresInstallationStore.openExisting(

@@ -520,7 +520,7 @@ installation identity, suspends ordinary source access across connected service
 workers and restart, and retains the source catalog, aliases, grants and universe
 data. Exact retries retain one audit event; changed bindings and self-targets are
 refused. This metadata lives in SQLite's installation database or PostgreSQL
-control schema version 3 and never enters universe exports. Opening older or
+control schema version 4 and never enters universe exports. Opening older or
 incomplete control layouts refuses them unchanged. Explicit SQLite installation
 conversion adds the move table to the prior normative layout and retains existing
 move bindings and any complete retained move archives; PostgreSQL control
@@ -528,8 +528,14 @@ conversion is still required. The trusted SQLite runtime can stage a complete
 source archive under its exact move operation. Restart revalidates and reuses
 that protected archive without replacing it; failures retain the source guard
 and original data. Functional checks cover SQLite and PostgreSQL target review,
-restart before admission and exact receipt recovery after admission. PostgreSQL
-source staging, durable cross-instance admission coordination, source retirement
+restart before admission and exact receipt recovery after admission. The trusted
+PostgreSQL runtime commits complete source archives in installation-owned chunks
+of at most 256 KiB, then publishes a verified protected transport copy. Restart
+reuses those exact chunks; failed file publication retains them, and a failed
+stage transaction leaves no partial archive. Missing or changed chunks refuse
+recovery without regenerating the original. Checks cover PostgreSQL-to-SQLite
+admission, retained revision/draft evidence and independent source/target restart.
+Durable cross-instance admission coordination, source retirement
 and the operator/UI move flow remain pending.
 Coordinated backend cutover and hosted server backup operation remain pending.
 Socket/launcher integration, cross-process worker qualification and
