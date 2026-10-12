@@ -691,6 +691,269 @@ void main() {
     noStages();
   });
 
+  test('filtered export closes historical dependencies and preserves tombstones while requiring a clone', () {
+    final actor = PrincipalId.generate();
+    final selectedId = RecordId.generate(),
+        earlierId = RecordId.generate(),
+        laterId = RecordId.generate(),
+        omittedId = RecordId.generate();
+    StoredVersion make(RecordId id, List<RecordId> dependencies) =>
+        StoredVersion.build(
+          RecordVersionId.generate(),
+          RecordIdentity(
+            universeId: universe,
+            recordId: id,
+            recordKind: RecordKind.source,
+          ),
+          SourceRecord(
+            label: 'Source ${id.value}',
+            origin: const OriginMetadata(),
+            versions: dependencies,
+          ).toWire(),
+        );
+    const text = 'Retained source bytes é😀';
+    final bytes = utf8.encode(text);
+    final digest = sha256.convert(bytes).toString();
+    source.database.execute('BEGIN IMMEDIATE');
+    WorkflowStorage(source.database)
+        .put('source:$digest', CanonicalString(text));
+    source.database.execute('COMMIT');
+    StoredVersion asset(RecordId id) => StoredVersion.build(
+      RecordVersionId.generate(),
+      RecordIdentity(
+        universeId: universe,
+        recordId: id,
+        recordKind: RecordKind.sourceVersion,
+      ),
+      SourceVersionRecord(
+        source: RecordRef(universe: universe, record: selectedId),
+        contentDigest: digest,
+        mediaType: 'text/plain; charset=utf-8',
+        byteSize: BigInt.from(bytes.length),
+        importActor: actor,
+        importTime: '2026-10-12T00:00:00Z',
+        decoding: DecodingDescriptor(
+          encoding: 'UTF-8',
+          representation: 'exact-utf8-v1',
+          byteLength: BigInt.from(bytes.length),
+        ),
+        origin: const OriginMetadata(),
+      ).toWire(),
+    );
+    final earlier = asset(earlierId),
+        later = asset(laterId),
+        omitted = make(omittedId, []);
+    final first = make(selectedId, [earlierId]);
+    final kernel = SqliteKernel(source.database, universe);
+    RevisionId commit(RevisionId head, String key, List<Assignment> changes) =>
+        kernel.commit(
+          CommitInput(
+            universe: universe,
+            continuity: continuity,
+            expectedHead: head,
+            principal: actor,
+            decision: 'Filtered fixture',
+            reason: 'Historical dependencies',
+            idempotencyKey: key,
+            changes: changes,
+          ),
+        );
+    final initial = commit(revision, 'filtered-initial', [
+      Assignment(recordId: selectedId, next: first),
+      Assignment(recordId: earlierId, next: earlier),
+      Assignment(recordId: laterId, next: later),
+      Assignment(recordId: omittedId, next: omitted),
+    ]);
+    final second = make(selectedId, [laterId]);
+    final updated = commit(initial, 'filtered-update', [
+      Assignment(recordId: selectedId, expected: first.versionId, next: second),
+    ]);
+    final head = commit(updated, 'filtered-retire', [
+      Assignment(recordId: selectedId, expected: second.versionId, next: null),
+      Assignment(recordId: earlierId, expected: earlier.versionId, next: null),
+      Assignment(recordId: laterId, expected: later.versionId, next: null),
+    ]);
+    final path = '${root.path}/filtered.sqlite';
+    final manifest = source.exportLogical(
+      path,
+      recordIds: [selectedId, selectedId],
+    );
+    final fields = WireFields(manifest, {
+      'format',
+      'universe',
+      'name',
+      'complete',
+      'omitted_records',
+      'includes_history',
+      'includes_workflow',
+    });
+    expect(fields.boolean('complete'), isFalse);
+    expect(fields.require('omitted_records').toText(), '1');
+    final archive = OwnedSqliteDatabase.stageLogicalArchive(path, root.path);
+    try {
+      expect(
+        () => archive.reconstruct(
+          '${root.path}/invalid-filter-restore',
+          target: universe,
+          name: 'Invalid',
+        ),
+        throwsFormatException,
+      );
+      expect(
+        Directory('${root.path}/invalid-filter-restore').existsSync(),
+        isFalse,
+      );
+      final target = UniverseId.generate();
+      final clone = archive.reconstruct(
+        root.path,
+        target: target,
+        name: 'Filtered clone',
+      );
+      try {
+        final journal = SqliteJournal(clone.package.database, target);
+        expect(journal.head(continuity), head);
+        expect(journal.load(first.versionId).digest, first.digest);
+        expect(journal.load(second.versionId).digest, second.digest);
+        expect(
+          journal.snapshot(continuity, head).containsKey(selectedId),
+          isFalse,
+        );
+        expect(
+          clone.package.database
+              .select('SELECT count(*) AS n FROM record_identities')
+              .single['n'],
+          3,
+        );
+        expect(
+          clone.package.database.select(
+            'SELECT count(*) AS n FROM record_versions WHERE record_id=?',
+            [omittedId.value],
+          ).single['n'],
+          0,
+        );
+      } finally {
+        clone.close();
+      }
+    } finally {
+      archive.close();
+    }
+    noStages();
+  });
+
+  test('filtered export keeps global contexts and appearances and only selected entry attachments', () {
+    StoredVersion make(RecordPayload payload) => StoredVersion.build(
+      RecordVersionId.generate(),
+      RecordIdentity(
+        universeId: universe,
+        recordId: RecordId.generate(),
+        recordKind: payload.recordKind,
+      ),
+      payload.toWire(),
+    );
+    final selected = make(
+      SourceRecord(
+        label: 'Selected',
+        origin: const OriginMetadata(),
+        versions: [],
+      ),
+    );
+    final omitted = make(
+      SourceRecord(
+        label: 'Omitted',
+        origin: const OriginMetadata(),
+        versions: [],
+      ),
+    );
+    StoredVersion appearance(AppearanceTarget target) => make(
+      AppearanceRecord(
+        target: target,
+        label: 'Appearance',
+        physicalDescription: 'Authored',
+        atmosphere: '',
+        images: [],
+        links: [],
+        validity: const UnspecifiedValidity(),
+      ),
+    );
+    final global = appearance(const UniverseAppearance());
+    final attached = appearance(
+      EntryAppearance(
+        RecordRef(universe: universe, record: selected.identity.recordId),
+      ),
+    );
+    final excluded = appearance(
+      EntryAppearance(
+        RecordRef(universe: universe, record: omitted.identity.recordId),
+      ),
+    );
+    final context = make(
+      RepresentedContextRecord(
+        universe: universe,
+        kind: const ObjectiveContext(),
+        labels: {'name': 'Global context'},
+      ),
+    );
+    SqliteKernel(source.database, universe).commit(
+      CommitInput(
+        universe: universe,
+        continuity: continuity,
+        expectedHead: revision,
+        principal: PrincipalId.generate(),
+        decision: 'Attachments',
+        reason: 'Filtered fixture',
+        idempotencyKey: 'attachments',
+        changes: [
+          for (final record in [
+            selected,
+            omitted,
+            global,
+            attached,
+            excluded,
+            context,
+          ])
+            Assignment(recordId: record.identity.recordId, next: record),
+        ],
+      ),
+    );
+    final path = '${root.path}/filtered-attachments.sqlite';
+    source.exportLogical(path, recordIds: [selected.identity.recordId]);
+    final archive = OwnedSqliteDatabase.stageLogicalArchive(path, root.path);
+    try {
+      final ids = archive.package.database
+          .select('SELECT id FROM record_identities')
+          .map((row) => row['id'])
+          .toSet();
+      expect(ids, {
+        selected.identity.recordId.value,
+        global.identity.recordId.value,
+        attached.identity.recordId.value,
+        context.identity.recordId.value,
+      });
+    } finally {
+      archive.close();
+    }
+    noStages();
+  });
+
+  test('filtered export rejects unavailable identities and complete-history selection before publication', () {
+    final path = '${root.path}/refused.sqlite';
+    expect(
+      () => source.exportLogical(path, recordIds: [RecordId.generate()]),
+      throwsFormatException,
+    );
+    expect(File(path).existsSync(), isFalse);
+    expect(
+      () => source.exportLogical(
+        '${root.path}/absent/refused.sqlite',
+        recordIds: [RecordId.generate()],
+        completeHistory: true,
+      ),
+      throwsFormatException,
+    );
+    expect(Directory('${root.path}/absent').existsSync(), isFalse);
+    noStages();
+  });
+
   test('export refuses existing destinations and source remains available', () {
     final target = File('${root.path}/existing.sqlite')
       ..writeAsStringSync('Existing data');

@@ -7,6 +7,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'canonical_integrity.dart';
 import 'archive_checksum.dart';
 import 'archive_reconstruction.dart';
+import 'archive_selection.dart';
 import 'archive_schema.g.dart';
 import 'database.dart';
 import 'journal.dart';
@@ -278,9 +279,28 @@ final class OwnedSqliteDatabase {
   CanonicalObject exportCanonOnly(String destination) =>
       _exportLogical(destination, completeHistory: false);
 
+  CanonicalObject exportLogical(
+    String destination, {
+    Iterable<RecordId> recordIds = const [],
+    bool completeHistory = false,
+  }) {
+    final requested = recordIds.toList();
+    if (completeHistory && requested.isNotEmpty) {
+      throw const FormatException(
+        'Complete-history export requires all records',
+      );
+    }
+    return _exportLogical(
+      destination,
+      completeHistory: completeHistory,
+      requested: requested,
+    );
+  }
+
   CanonicalObject _exportLogical(
     String destination, {
     required bool completeHistory,
+    List<RecordId> requested = const [],
   }) {
     final target = File(destination).absolute;
     final temporary = target.parent.createTempSync('.relational-export-');
@@ -294,6 +314,21 @@ final class OwnedSqliteDatabase {
       late CanonicalObject manifest;
       try {
         archive = create(archivePath);
+        final selected = requested.isEmpty
+            ? null
+            : archiveSelection(
+                snapshot.database,
+                snapshot.universeId,
+                requested,
+              );
+        final total =
+            snapshot.database
+                    .select(
+                      'SELECT count(DISTINCT record_id) AS n FROM record_versions',
+                    )
+                    .single['n']
+                as int;
+        final omitted = selected == null ? 0 : total - selected.length;
         manifest = CanonicalObject([
           MapEntry('format', CanonicalString('universe-relational')),
           MapEntry('universe', CanonicalString(snapshot.universeId.value)),
@@ -306,8 +341,8 @@ final class OwnedSqliteDatabase {
                   as String,
             ),
           ),
-          const MapEntry('complete', CanonicalBool(true)),
-          const MapEntry('omitted_records', CanonicalNumber('0')),
+          MapEntry('complete', CanonicalBool(omitted == 0)),
+          MapEntry('omitted_records', CanonicalNumber('$omitted')),
           const MapEntry('includes_history', CanonicalBool(true)),
           MapEntry('includes_workflow', CanonicalBool(completeHistory)),
         ]);
@@ -325,6 +360,7 @@ final class OwnedSqliteDatabase {
                         .select('SELECT name FROM universes')
                         .single['name']
                     as String,
+            included: selected,
           );
           archive.recover();
           CanonicalIntegrity(

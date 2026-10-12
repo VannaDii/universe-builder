@@ -97,6 +97,7 @@ final class NativeSqliteRuntime {
           LibraryEngineRequest(:final universe) => universe,
           MaintainEngineRequest(:final universe) => universe,
           BackupEngineRequest(:final universe) => universe,
+          ExportLogicalEngineRequest(:final universe) => universe,
           LoadDraftEngineRequest(:final universe) ||
           SaveDraftEngineRequest(:final universe) => universe,
           StageImageEngineRequest(:final universe) ||
@@ -131,6 +132,9 @@ final class NativeSqliteRuntime {
       }
       if (request is BackupEngineRequest) {
         return await workflow.backupRequest(request);
+      }
+      if (request is ExportLogicalEngineRequest) {
+        return await workflow.exportRequest(request);
       }
       if (request is ForkContinuityEngineRequest ||
           request is CompareContinuitiesEngineRequest ||

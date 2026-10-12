@@ -39,7 +39,13 @@ rechecks current authority and name/identity reservations, and publishes an
 admission receipt before catalog registration. Restart and repeated acceptance
 recover only a package bearing that exact receipt; unrelated destinations are
 refused. Imported workflow never supplies installation credentials or grants.
-Public transport/CLI integration and dependency-filtered export remain pending.
+The native service also exports complete history, canon-only history, or a
+dependency-closed record selection. Selection follows all retained versions,
+keeps global definitions/policies and contexts, and includes universe appearances,
+selected entry appearances and initialization attachments. Omitted counts are
+explicit; incomplete archives require a named clone. Full-history export rejects
+a record filter, and all exports refuse an existing destination.
+Public transport/CLI integration remains pending.
 Focused functional checks currently cover macOS only.
 
 Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter

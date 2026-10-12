@@ -8,6 +8,7 @@ import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/src/candidate_foundation.dart';
+import 'package:ub_store/src/archive_selection.dart';
 import 'package:ub_store/src/candidate_references.dart';
 import 'package:ub_store/src/database.dart';
 import 'package:ub_store/src/definition_index.dart';
@@ -274,6 +275,23 @@ void main() {
       );
     },
   );
+  test('filtered archive selection retains initialization attachments only for included instances', () {
+    publish(request('initialize-both', [...initial(7, 20), ...initial(8, 30)]));
+    final selected = archiveSelection(database, universe, [
+      RecordId.parse(id('rec', 7)),
+    ]);
+    expect(
+      selected,
+      containsAll([
+        for (final n in [1, 2, 3, 4, 5, 6, 7, 20, 21, 22])
+          RecordId.parse(id('rec', n)),
+      ]),
+    );
+    for (final n in [8, 30, 31, 32]) {
+      expect(selected, isNot(contains(RecordId.parse(id('rec', n)))));
+    }
+  });
+
   test('type world indexes preserve authored order and earlier definition versions', () {
     final worlds = [
       for (final n in [9, 10])

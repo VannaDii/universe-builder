@@ -1723,6 +1723,149 @@ void main() {
     expect(authority.catalog(author), hasLength(2));
   });
 
+  test('native logical export supplies complete canon and filtered archives through exact clone admission', () async {
+    final package = OwnedSqliteDatabase.openExisting(path);
+    late RecordId selected;
+    try {
+      StoredVersion make(String label) => StoredVersion.build(
+        RecordVersionId.generate(),
+        RecordIdentity(
+          universeId: f.u,
+          recordId: RecordId.generate(),
+          recordKind: RecordKind.source,
+        ),
+        SourceRecord(
+          label: label,
+          origin: const OriginMetadata(),
+          versions: [],
+        ).toWire(),
+      );
+      final one = make('Selected'), two = make('Omitted');
+      selected = one.identity.recordId;
+      final kernel = SqliteKernel(package.database, f.u);
+      final continuity = frames.frame().continuity;
+      kernel.commit(
+        CommitInput(
+          universe: f.u,
+          continuity: continuity,
+          expectedHead: kernel.journal.head(continuity),
+          principal: PrincipalId.generate(),
+          decision: 'Export fixture',
+          reason: 'Selection',
+          idempotencyKey: 'export-fixture',
+          changes: [
+            Assignment(recordId: one.identity.recordId, next: one),
+            Assignment(recordId: two.identity.recordId, next: two),
+          ],
+        ),
+      );
+    } finally {
+      package.close();
+    }
+    final connection = runtime.connect(hello(author.id));
+    for (final complete in [false, true]) {
+      final destination = '${root.path}/service-export-$complete.sqlite';
+      final manifest = await engine(
+        connection,
+        ExportLogicalEngineRequest(
+          universe: const Selector('World'),
+          destination: destination,
+          recordIds: [],
+          completeHistory: complete,
+        ),
+      );
+      final verified = OwnedSqliteDatabase.stageLogicalArchive(
+        destination,
+        root.path,
+      );
+      try {
+        expect(verified.manifest.toText(), manifest.toText());
+      } finally {
+        verified.close();
+      }
+      await expectLater(
+        engine(
+          connection,
+          ExportLogicalEngineRequest(
+            universe: const Selector('World'),
+            destination: destination,
+            recordIds: [],
+          ),
+        ),
+        throwsA(isA<FileSystemException>()),
+      );
+    }
+    final destination = '${root.path}/service-filtered.sqlite';
+    await engine(
+      connection,
+      ExportLogicalEngineRequest(
+        universe: const Selector('World'),
+        destination: destination,
+        recordIds: [selected],
+      ),
+    );
+    await expectLater(
+      engine(
+        connection,
+        PreviewImportEngineRequest(
+          source: destination,
+          name: 'Invalid restore',
+          mode: ImportMode.restore,
+        ),
+      ),
+      throwsFormatException,
+    );
+    final report = importReport(
+      await engine(
+        connection,
+        PreviewImportEngineRequest(
+          source: destination,
+          name: 'Filtered service clone',
+          mode: ImportMode.clone,
+        ),
+      ),
+    );
+    expect(report.boolean('complete'), isFalse);
+    expect(report.require('omitted_records').toText(), '1');
+    expect(report.require('record_count').toText(), '2');
+    await engine(
+      connection,
+      AcceptImportEngineRequest(
+        previewId: OperationId.parse(report.string('preview_id')),
+        digest: report.string('digest'),
+      ),
+    );
+    await engine(
+      connection,
+      const LibraryEngineRequest(universe: Selector('Filtered service clone')),
+    );
+    await expectLater(
+      engine(
+        runtime.connect(hello(writer.id)),
+        ExportLogicalEngineRequest(
+          universe: const Selector('World'),
+          destination: '${root.path}/denied-export.sqlite',
+          recordIds: [],
+        ),
+      ),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+    expect(File('${root.path}/denied-export.sqlite').existsSync(), isFalse);
+    await expectLater(
+      engine(
+        connection,
+        ExportLogicalEngineRequest(
+          universe: const Selector('World'),
+          destination: '${root.path}/invalid-full.sqlite',
+          recordIds: [selected],
+          completeHistory: true,
+        ),
+      ),
+      throwsFormatException,
+    );
+    expect(File('${root.path}/invalid-full.sqlite').existsSync(), isFalse);
+  });
+
   test('native logical import rejects a changed staged archive before publishing a package', () async {
     final connection = runtime.connect(hello(author.id));
     final source = logicalSource();

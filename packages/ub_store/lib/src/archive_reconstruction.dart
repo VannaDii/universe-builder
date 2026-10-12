@@ -89,6 +89,7 @@ void reconstructArchive(
   required String digest,
   required UniverseId target,
   required String name,
+  Set<RecordId>? included,
 }) {
   final fields = WireFields(manifest, {
     'format',
@@ -141,6 +142,19 @@ void reconstructArchive(
         try {
           final rows = read.selectCursor();
           while (rows.moveNext()) {
+            final identityColumn = switch (table) {
+              'record_identities' => 'id',
+              'commit_changes' || 'world_name_reservations' => 'record_id',
+              'initialization_receipt' => 'instance_id',
+              _ => null,
+            };
+            if (included != null &&
+                identityColumn != null &&
+                !included.contains(
+                  RecordId.parse(rows.current[identityColumn] as String),
+                )) {
+              continue;
+            }
             write.execute([
               for (final column in columns)
                 column == 'universe_id' ? target.value : rows.current[column],
@@ -155,10 +169,18 @@ void reconstructArchive(
     }
 
     copy('record_identities');
-    final records = input.prepare('SELECT id FROM record_versions ORDER BY id');
+    final records = input.prepare(
+      'SELECT id,record_id FROM record_versions ORDER BY id',
+    );
     try {
       final cursor = records.selectCursor();
       while (cursor.moveNext()) {
+        if (included != null &&
+            !included.contains(
+              RecordId.parse(cursor.current['record_id'] as String),
+            )) {
+          continue;
+        }
         final original = sourceJournal.load(
           RecordVersionId.parse(cursor.current['id'] as String),
         );

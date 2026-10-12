@@ -414,6 +414,34 @@ final class SqliteValidationWorkflow {
     }
   }
 
+  Future<CanonicalObject> exportRequest(
+    ExportLogicalEngineRequest request,
+  ) async {
+    try {
+      return await authority.withUniverseAuthority(principal, universe, (
+        current,
+      ) {
+        if (!current.principal.author ||
+            authority
+                    .resolveUniverseAlias(principal, request.universe.value)
+                    .universeId !=
+                universe) {
+          throw const NotFoundOrNotAccessibleError(message: 'resource');
+        }
+        return package.exportLogical(
+          request.destination,
+          recordIds: request.recordIds,
+          completeHistory: request.completeHistory,
+        );
+      });
+    } on InstallationException catch (error) {
+      if (error.failure == InstallationFailure.denied) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      rethrow;
+    }
+  }
+
   Future<CanonicalObject> backupRequest(BackupEngineRequest request) async {
     try {
       return await authority.withUniverseAuthority(principal, universe, (
