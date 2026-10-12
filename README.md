@@ -485,8 +485,14 @@ isolates receiving frozen inputs only; the owning service prepares and retains
 results. Cancellation terminates evaluation without undoing facts. Shutdown
 drains preparation and abandons evaluation without completed evidence, allowing
 the retained running state to resolve as interrupted. Engine dispatch, general
-database-worker isolation, author-reserved admission and transport integration
+database-worker isolation, admission wiring and transport integration
 remain pending.
+Native runtime admission now preserves 32 total connections, at most 24 agent
+connections, eight connections/requests per principal, and separate work pools
+of eight agent requests and four author requests. Failed actions release their
+work capacity; closing a connection releases its slot without cancelling an
+admitted mutation. Admission uses authenticated identity but never replaces
+current permission checks. Engine transport wiring remains pending.
 Candidate relation cardinality now enforces authored cross-instance maxima at
 overlapping exact times, partitioned by grouping key, world and realm. Repeated
 evidence for one participant counts once; half-open interval ends stay exclusive.
