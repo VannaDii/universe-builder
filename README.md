@@ -268,14 +268,24 @@ historical edition pins, unit/world kinds, current dependencies, namespace guard
 and prose that resembles an ID. Frozen semantic fixture records retain their
 digests; their duplicated normalized world selectors are rejected by reference
 admission, rather than being treated as a publishable candidate. These are the
-foundation/reference gates only; definition/initialization and projection work,
+foundation/reference gates only; initialization, projection coordination,
 exact approval and current authority remain required before publication.
+The internal PostgreSQL semantic schema now preserves definition ancestry,
+ordered world applicability, instance classifications, classification evidence
+and initialization receipt constraints. Both backends use the same fixed
+definition-index policy; PostgreSQL retains exact authored type names in UTF-8
+byte columns and resolves definition propositions from the selected candidate.
+Focused checks cover frozen semantic identities/digests, historical names and
+ancestry, selected versus newer persisted propositions, attribute modes, foreign
+keys and complete canonical/semantic rollback. Indexing does not grant publication
+or create initialization receipts; the initialization gate remains to be ported.
 Control-schema discovery/opening, import previews/purge coordination, complete
 publication/projection coordination, service integration, transfer and verified
 TLS remain pending; runtime PostgreSQL selection is still explicitly unavailable.
 Run `test/postgres_foundation_test.dart`, `test/postgres_relational_test.dart`,
 `test/postgres_journal_test.dart`, `test/postgres_workflow_test.dart` and
-`test/postgres_authority_test.dart` and `test/postgres_candidate_test.dart` from
+`test/postgres_authority_test.dart`, `test/postgres_candidate_test.dart` and
+`test/postgres_definition_test.dart` from
 `packages/ub_store` with
 `UB_TEST_POSTGRES_PORT` set to a disposable loopback `ub_disposable` database. Without
 that selection the live database cases are explicitly skipped. This check uses
