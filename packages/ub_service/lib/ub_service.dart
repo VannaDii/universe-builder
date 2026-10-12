@@ -31,6 +31,7 @@ export 'src/writing_binding.dart';
 export 'src/writing_properties.dart';
 export 'src/writing_candidate.dart';
 export 'src/writing_actions.dart';
+export 'src/writing_powers.dart';
 export 'src/context_brief.dart';
 export 'src/read_cursor.dart';
 export 'src/knowledge_boundaries.dart';
