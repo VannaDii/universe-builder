@@ -222,6 +222,11 @@ final class InstallationAuthority {
     );
   }
 
+  List<GrantSpec> grants(InstallationPrincipal actor) {
+    requireAuthor(actor);
+    return _store.grants(actor.id);
+  }
+
   UniverseId registerUniverse(
     InstallationPrincipal actor, {
     required String name,

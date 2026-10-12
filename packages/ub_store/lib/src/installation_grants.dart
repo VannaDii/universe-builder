@@ -2,6 +2,22 @@ part of 'installation_store.dart';
 
 /// The fixed grant tables share installation transactions and audit ordering.
 extension InstallationGrants on SqliteInstallationStore {
+  List<GrantSpec> grants(ProfileId actor) {
+    requireAuthor(actor);
+    return List<GrantSpec>.unmodifiable(
+      _db
+          .select(
+            'SELECT profile,universe FROM grants ORDER BY profile,universe',
+          )
+          .map(
+            (row) => readGrant(
+              ProfileId.parse(row['profile'] as String),
+              UniverseId.parse(row['universe'] as String),
+            ),
+          ),
+    );
+  }
+
   void putGrant({
     required ProfileId actor,
     required GrantSpec grant,

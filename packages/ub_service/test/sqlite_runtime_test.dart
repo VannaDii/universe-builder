@@ -1167,6 +1167,188 @@ void main() {
     );
   });
 
+  Future<CanonicalValue> engine(
+    NativeSqliteConnection connection,
+    EngineRequest request,
+  ) => connection.execute(EngineRequest.decode(request.toWire().toBytes()));
+
+  test('private installation commands expose current catalog and redacted profiles without opening workers', () async {
+    final authorConnection = runtime.connect(hello(author.id));
+    final writerConnection = runtime.connect(hello(writer.id));
+    final blocker = OwnedSqliteDatabase.openExisting(path);
+    try {
+      WireFields status(CanonicalValue value) => WireFields(value, {
+        'service_instance',
+        'principal',
+        'author',
+        'universes',
+        'canonical_commit',
+        'max_requests_per_principal',
+        'universe_queue_capacity',
+      });
+      final original = status(
+        await engine(authorConnection, const StatusEngineRequest()),
+      );
+      expect(
+        original.string('service_instance'),
+        authorConnection.welcome.serviceInstance,
+      );
+      expect(original.string('principal'), author.id.value);
+      expect(original.boolean('author'), isTrue);
+      expect(original.array('universes').length, 1);
+      expect(
+        status(await engine(writerConnection, const StatusEngineRequest()))
+            .array('universes'),
+        isEmpty,
+      );
+      final enrolled = ProfileId.parse(
+        WireFields(
+          await engine(authorConnection, const EnrollEngineRequest()),
+          {'profile_id'},
+        ).string('profile_id'),
+      );
+      final enrolledConnection = runtime.connect(hello(enrolled));
+      final grant = GrantSpec(
+        profileId: enrolled,
+        universeId: f.u,
+        worlds: null,
+        propose: true,
+        edit: false,
+        protected: false,
+      );
+      expect(
+        WireFields(
+          await engine(authorConnection, GrantEngineRequest(grant: grant)),
+          {'granted'},
+        ).boolean('granted'),
+        isTrue,
+      );
+      final profiles = WireFields(
+        await engine(authorConnection, const ProfilesEngineRequest()),
+        {'profiles', 'grants'},
+      );
+      expect(
+        profiles
+            .array('profiles')
+            .map(
+              (value) => ProfileId.parse(
+                WireFields(value, {
+                  'profile_id',
+                  'author',
+                  'revoked',
+                }).string('profile_id'),
+              ),
+            )
+            .toSet(),
+        {author.id, writer.id, enrolled},
+      );
+      expect(profiles.array('grants').single.toText(), grant.toWire().toText());
+      await engine(
+        authorConnection,
+        RenameUniverseEngineRequest(universeId: f.u, name: 'Campaign'),
+      );
+      final catalog = status(
+        await engine(enrolledConnection, const StatusEngineRequest()),
+      ).array('universes');
+      expect(
+        WireFields(catalog.single, {'id', 'name'}).string('name'),
+        'Campaign',
+      );
+      await engine(
+        authorConnection,
+        WithdrawGrantEngineRequest(profileId: enrolled, universeId: f.u),
+      );
+      expect(
+        status(await engine(enrolledConnection, const StatusEngineRequest()))
+            .array('universes'),
+        isEmpty,
+      );
+      await expectLater(
+        tool(
+          enrolledConnection,
+          DescribeSummaryRequest(universe: const Selector('World')),
+        ),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      await engine(authorConnection, RevokeEngineRequest(profileId: enrolled));
+      await expectLater(
+        engine(enrolledConnection, const StatusEngineRequest()),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      final revokedProfiles = WireFields(
+        await engine(authorConnection, const ProfilesEngineRequest()),
+        {'profiles', 'grants'},
+      );
+      expect(revokedProfiles.array('grants'), isEmpty);
+      expect(
+        revokedProfiles
+            .array('profiles')
+            .map((v) => WireFields(v, {'profile_id', 'author', 'revoked'}))
+            .singleWhere((v) => v.string('profile_id') == enrolled.value)
+            .boolean('revoked'),
+        isTrue,
+      );
+      for (final request in <EngineRequest>[
+        const ProfilesEngineRequest(),
+        const EnrollEngineRequest(),
+        GrantEngineRequest(grant: grant),
+        RevokeEngineRequest(profileId: author.id),
+        WithdrawGrantEngineRequest(profileId: author.id, universeId: f.u),
+        RenameUniverseEngineRequest(universeId: f.u, name: 'Denied'),
+        const ShutdownEngineRequest(),
+      ]) {
+        await expectLater(
+          engine(writerConnection, request),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+      }
+      expect(
+        status(await engine(authorConnection, const StatusEngineRequest()))
+            .array('universes'),
+        hasLength(1),
+      );
+    } finally {
+      blocker.close();
+    }
+    final opened = await readContext(authorConnection);
+    expect(opened.frame.universe, f.u);
+  });
+
+  test('private shutdown acknowledges and drains queued evaluation without deadlocking its own request', () async {
+    final connection = runtime.connect(hello(author.id));
+    final opened = await readContext(connection);
+    final queued = OperationStatusV3.fromWire(
+      (await tool(connection, queueRequest(opened))).result,
+    );
+    final shutdown = WireFields(
+      await engine(connection, const ShutdownEngineRequest()),
+      {'shutdown'},
+    );
+    expect(shutdown.string('shutdown'), 'requested');
+    expect(() => runtime.connect(hello(author.id)), throwsStateError);
+    expect(
+      () => engine(connection, const StatusEngineRequest()),
+      throwsStateError,
+    );
+    await runtime.close();
+    final package = OwnedSqliteDatabase.openExisting(path);
+    try {
+      package.recover();
+      final retained = WorkflowStorage(package.database)
+          .get('operation:${queued.operationId.value}');
+      expect(retained, isNotNull);
+      expect(
+        SqliteKernel(
+          package.database,
+          f.u,
+        ).journal.head(opened.frame.continuity),
+        opened.frame.revision,
+      );
+    } finally {
+      package.close();
+    }
+  });
+
   test('connections share one recovered writer and retain publication receipt across runtime restart', () async {
     final first = runtime.connect(hello(author.id));
     final second = runtime.connect(hello(author.id));

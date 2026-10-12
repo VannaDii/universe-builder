@@ -45,6 +45,24 @@ final class NativeSqliteRuntime {
     final finished = Completer<void>();
     _active.add(finished);
     try {
+      if (request
+          case StatusEngineRequest() ||
+              ProfilesEngineRequest() ||
+              EnrollEngineRequest() ||
+              GrantEngineRequest() ||
+              RevokeEngineRequest() ||
+              WithdrawGrantEngineRequest() ||
+              RenameUniverseEngineRequest() ||
+              ShutdownEngineRequest()) {
+        final result = await authority.coordinate(
+          principal,
+          () => _installation(principal, request),
+        );
+        // Close begins without awaiting this request's own active token. Its
+        // acknowledgement can return while shutdown drains admitted work.
+        if (request is ShutdownEngineRequest) close().ignore();
+        return result;
+      }
       final package = await authority.coordinate(principal, () {
         if (request is! ToolEngineRequest) authority.requireAuthor(principal);
         if (request case ToolEngineRequest(:final request)) request.validate();
@@ -129,6 +147,102 @@ final class NativeSqliteRuntime {
     } finally {
       _active.remove(finished);
       finished.complete();
+    }
+  }
+
+  CanonicalValue _installation(
+    InstallationPrincipal principal,
+    EngineRequest request,
+  ) {
+    if (request is! StatusEngineRequest) authority.requireAuthor(principal);
+    switch (request) {
+      case StatusEngineRequest():
+        return CanonicalObject([
+          MapEntry('service_instance', CanonicalString(instance.value)),
+          MapEntry('principal', CanonicalString(principal.id.value)),
+          MapEntry('author', CanonicalBool(principal.author)),
+          MapEntry(
+            'universes',
+            CanonicalArray(
+              authority
+                  .catalog(principal)
+                  .map(
+                    (entry) => CanonicalObject([
+                      MapEntry('id', CanonicalString(entry.universeId.value)),
+                      MapEntry('name', CanonicalString(entry.name)),
+                    ]),
+                  ),
+            ),
+          ),
+          MapEntry(
+            'canonical_commit',
+            CanonicalString('exact_approval_or_explicit_delegation'),
+          ),
+          MapEntry('max_requests_per_principal', CanonicalNumber('8')),
+          // Global request admission is tighter than this legacy queue bound.
+          MapEntry('universe_queue_capacity', CanonicalNumber('16')),
+        ]);
+      case ProfilesEngineRequest():
+        return CanonicalObject([
+          MapEntry(
+            'profiles',
+            CanonicalArray(
+              authority
+                  .profiles(principal)
+                  .map(
+                    (profile) => CanonicalObject([
+                      MapEntry('profile_id', CanonicalString(profile.id.value)),
+                      MapEntry('author', CanonicalBool(profile.author)),
+                      MapEntry('revoked', CanonicalBool(profile.revoked)),
+                    ]),
+                  ),
+            ),
+          ),
+          MapEntry(
+            'grants',
+            CanonicalArray(
+              authority.grants(principal).map((grant) => grant.toWire()),
+            ),
+          ),
+        ]);
+      case EnrollEngineRequest():
+        return CanonicalObject([
+          MapEntry(
+            'profile_id',
+            CanonicalString(authority.enroll(principal).value),
+          ),
+        ]);
+      case GrantEngineRequest(:final grant):
+        authority.grant(principal, grant);
+        return CanonicalObject([
+          MapEntry('granted', const CanonicalBool(true)),
+        ]);
+      case RevokeEngineRequest(:final profileId):
+        authority.revoke(principal, profileId);
+        return CanonicalObject([
+          MapEntry('revoked', const CanonicalBool(true)),
+        ]);
+      case WithdrawGrantEngineRequest(:final profileId, :final universeId):
+        authority.withdrawGrant(
+          principal,
+          profile: profileId,
+          universe: universeId,
+        );
+        return CanonicalObject([
+          MapEntry('withdrawn', const CanonicalBool(true)),
+        ]);
+      case RenameUniverseEngineRequest(:final universeId, :final name):
+        authority.renameUniverse(principal, id: universeId, name: name);
+        return CanonicalObject([
+          MapEntry('universe_id', CanonicalString(universeId.value)),
+          MapEntry('name', CanonicalString(name)),
+        ]);
+      case ShutdownEngineRequest():
+        return CanonicalObject([
+          MapEntry('shutdown', CanonicalString('requested')),
+        ]);
+      default:
+        throw StateError('Unreachable installation request');
     }
   }
 
