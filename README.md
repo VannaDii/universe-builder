@@ -131,6 +131,11 @@ contains the structural compiler, preserving existing node/depth metrics and
 sorted reference extraction; descriptive rules remain non-executable. Compilation
 does not establish truth, verify evaluator capabilities, or confer publication
 rights. Rule evaluation and boundary/exception admission still need their ports.
+The rules package also preserves the evaluator's four evidence outcomes and
+independent support/refutation derivations. Conjunction retains both source
+sets, composition sorts and deduplicates exact record-version identities, and
+absence does not imply refutation. This evidence logic is shared by native and
+browser targets; factual evaluation and Real World obligations remain pending.
 Typed events preserve occurrence modes, authored participants and ordered effects.
 Action consequences validate exact decimal bounds, slot uniqueness and lifetimes;
 an absent historical contract remains distinct from an explicitly empty contract,
