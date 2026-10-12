@@ -309,6 +309,13 @@ property units/dimensions/inverses, relation roles, unit scales and bases, calen
 conversion targets, structured definition recursion and exact pack dependencies.
 Packs remain limited to the existing declared capability allowlist. This registry
 still requires integration into candidate validation/publication.
+Creative boundary checks now follow transitive record references, exact predicate
+subjects and declared classifications through both candidate and historical
+records. Assertions and event effects retain their own context, world, realm and
+period; proposition edits use their accompanying assertion periods. Exceptions
+must cover every affected exact cell and preserve the original finding. Unknown
+timing, unsupported scope and exhausted work remain incomplete. Author reservation
+requires actual author origin; this check still needs full workflow integration.
 Candidate scalar comparisons now retain original shared witnesses when checking
 known descendants, separate initial values from ongoing facts and account for
 exact numeric equality, definition jurisdiction, worlds, realms and temporal

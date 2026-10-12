@@ -132,7 +132,10 @@ Frame _frame(Frame base, {FrameTime? time, RecordRef? context}) => Frame(
   readerScene: base.readerScene,
   personalSequence: base.personalSequence,
 );
-List<Frame>? _frames(
+
+/// Partitions an exact period at every relevant evidence or exception boundary.
+/// Returns null for unresolved timing or an excessive number of cells.
+List<Frame>? exactEvidenceFrames(
   Validity validity,
   List<RecordVersion> records,
   Frame base,
@@ -324,7 +327,7 @@ CheckedRule evaluateCandidateRule({
       );
     }
   }
-  final frames = _frames(partitionValidity, partitionRecords, base);
+  final frames = exactEvidenceFrames(partitionValidity, partitionRecords, base);
   if (frames == null) return unavailable();
   final worlds = switch (rule.applicability) {
     WorldsApplicability(:final worldIds) =>
