@@ -535,7 +535,17 @@ reuses those exact chunks; failed file publication retains them, and a failed
 stage transaction leaves no partial archive. Missing or changed chunks refuse
 recovery without regenerating the original. Checks cover PostgreSQL-to-SQLite
 admission, retained revision/draft evidence and independent source/target restart.
-Durable cross-instance admission coordination, source retirement
+The trusted SQLite source coordinator also retains the exact target review and
+its `reviewed`, `admitting` or `admitted` state. It records the admission attempt
+before calling the target; restart and installation conversion retain that
+binding for an exact target retry. The coordinator must obtain a receipt from
+the authenticated target; the source accepts only an exact match to its retained
+review. Changed reviews and receipts refuse, retries retain one audit
+event per transition, and failed source writes preserve the previous state.
+The original stays suspended and retained after admission. These are internal
+coordinator entries; authenticated cross-instance transport wiring is still
+required before exposing them as operator commands. PostgreSQL source admission
+state, source retirement
 and the operator/UI move flow remain pending.
 Coordinated backend cutover and hosted server backup operation remain pending.
 Socket/launcher integration, cross-process worker qualification and

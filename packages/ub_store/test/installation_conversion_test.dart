@@ -176,7 +176,7 @@ CREATE TABLE audit(sequence INTEGER PRIMARY KEY,actor TEXT,action TEXT,target TE
     }
     final report = convertInstallation(source, destination).toText();
     expect(report, contains('"instance_identity_established":false'));
-    expect(report, contains('"compared_tables":13'));
+    expect(report, contains('"compared_tables":14'));
     unchanged(before);
     final target = SqliteInstallationStore.openExisting(destination);
     try {
@@ -206,7 +206,10 @@ CREATE TABLE audit(sequence INTEGER PRIMARY KEY,actor TEXT,action TEXT,target TE
       final reader = SqliteInstallationStore.openExisting(source);
       final identity = reader.instanceId;
       reader.close();
-      edit((db) => db.execute('DROP TABLE move_quiescence'));
+      edit(
+        (db) =>
+            db.execute('DROP TABLE move_review; DROP TABLE move_quiescence'),
+      );
       final before = originals();
       expect(
         () => SqliteInstallationStore.openExisting(source),

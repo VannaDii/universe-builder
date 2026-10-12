@@ -301,12 +301,116 @@ void main() {
           mode: ImportMode.restore,
         ),
       );
+      final accept = AcceptImportEngineRequest(
+        previewId: OperationId.parse(text(preview, 'preview_id')),
+        digest: text(preview, 'digest'),
+      );
+      final targetReview = targetAuthority.loadImport(
+        targetAuthority.authenticateHello(targetHello()),
+        accept,
+      );
+      final sourcePrincipal = authority.authenticateHello(hello(authorId));
+      await authority.reviewMoveTarget(
+        sourcePrincipal,
+        universe: universe,
+        operation: operation,
+        targetInstance: targetInstance,
+        preview: targetReview,
+      );
+      await authority.reviewMoveTarget(
+        sourcePrincipal,
+        universe: universe,
+        operation: operation,
+        targetInstance: targetInstance,
+        preview: targetReview,
+      );
+      await expectLater(
+        authority.recordMoveAdmission(
+          sourcePrincipal,
+          universe: universe,
+          operation: operation,
+          targetInstance: targetInstance,
+          receipt: targetReview.receipt,
+        ),
+        throwsStateError,
+      );
+      final changedPreview = await target.execute(
+        PreviewImportEngineRequest(
+          source: stage.path,
+          name: 'Another target review',
+          mode: ImportMode.restore,
+        ),
+      );
+      final changedReview = targetAuthority.loadImport(
+        targetAuthority.authenticateHello(targetHello()),
+        AcceptImportEngineRequest(
+          previewId: OperationId.parse(text(changedPreview, 'preview_id')),
+          digest: text(changedPreview, 'digest'),
+        ),
+      );
+      await expectLater(
+        authority.reviewMoveTarget(
+          sourcePrincipal,
+          universe: universe,
+          operation: operation,
+          targetInstance: targetInstance,
+          preview: changedReview,
+        ),
+        throwsFormatException,
+      );
+      final failingAudit = sqlite3.open('${store.root}/installation.sqlite');
+      failingAudit.execute(
+        "CREATE TRIGGER refuse_admission BEFORE INSERT ON audit WHEN NEW.action='begin_move_admission' BEGIN SELECT RAISE(ABORT, 'disposable admission failure'); END",
+      );
+      try {
+        await expectLater(
+          authority.beginMoveAdmission(
+            sourcePrincipal,
+            universe: universe,
+            operation: operation,
+            targetInstance: targetInstance,
+          ),
+          throwsA(
+            isA<InstallationException>().having(
+              (e) => e.failure,
+              'failure',
+              InstallationFailure.unavailable,
+            ),
+          ),
+        );
+        expect(
+          (await authority.loadMoveReview(
+            sourcePrincipal,
+            universe: universe,
+            operation: operation,
+            targetInstance: targetInstance,
+          )).state,
+          MoveAdmissionState.reviewed,
+        );
+      } finally {
+        failingAudit.execute('DROP TRIGGER refuse_admission');
+        failingAudit.close();
+      }
+      await authority.beginMoveAdmission(
+        sourcePrincipal,
+        universe: universe,
+        operation: operation,
+        targetInstance: targetInstance,
+      );
+      await authority.beginMoveAdmission(
+        sourcePrincipal,
+        universe: universe,
+        operation: operation,
+        targetInstance: targetInstance,
+      );
       // Stop before admission. Neither restart depends on the original client.
       await targetRuntime.close();
       targetStore.close();
       await runtime.close();
       store.close();
-      store = SqliteInstallationStore.openExisting(root.path);
+      final cutover = '${root.path}/admission-cutover';
+      convertInstallation(root.path, cutover);
+      store = SqliteInstallationStore.openExisting(cutover);
       authority = InstallationAuthority(store);
       runtime = NativeSqliteRuntime(authority: authority);
       author = runtime.connect(hello(authorId));
@@ -316,7 +420,10 @@ void main() {
         operation: operation,
         targetInstance: targetInstance,
       );
-      expect(recovered.path, stage.path);
+      expect(
+        recovered.path,
+        '${Directory(cutover).resolveSymbolicLinksSync()}/moves/${operation.value}.sqlite',
+      );
       expect(recovered.digest, stage.digest);
       expect(File(recovered.path).readAsBytesSync(), bytes);
       await expectLater(
@@ -327,14 +434,110 @@ void main() {
       targetAuthority = InstallationAuthority(targetStore);
       targetRuntime = NativeSqliteRuntime(authority: targetAuthority);
       final reconnected = targetRuntime.connect(targetHello());
-      final accept = AcceptImportEngineRequest(
-        previewId: OperationId.parse(text(preview, 'preview_id')),
-        digest: text(preview, 'digest'),
+      final recoveredPrincipal = authority.authenticateHello(hello(authorId));
+      final pending = await authority.loadMoveReview(
+        recoveredPrincipal,
+        universe: universe,
+        operation: operation,
+        targetInstance: targetInstance,
       );
-      final receipt = await reconnected.execute(accept);
+      expect(pending.state, MoveAdmissionState.admitting);
+      expect(pending.acceptRequest.previewId, accept.previewId);
+      expect(pending.acceptRequest.digest, accept.digest);
+      final receipt = await reconnected.execute(pending.acceptRequest);
       expect(text(receipt, 'universe_id'), universe.value);
       // A lost admission response is recovered by the exact target receipt.
       expect((await reconnected.execute(accept)).toText(), receipt.toText());
+      await expectLater(
+        authority.recordMoveAdmission(
+          recoveredPrincipal,
+          universe: universe,
+          operation: operation,
+          targetInstance: targetInstance,
+          receipt: CanonicalObject([]),
+        ),
+        throwsFormatException,
+      );
+      await expectLater(
+        authority.beginMoveAdmission(
+          authority.authenticateHello(hello(writerId)),
+          universe: universe,
+          operation: operation,
+          targetInstance: targetInstance,
+        ),
+        denied(),
+      );
+      final failedCompletion = sqlite3.open(
+        '${store.root}/installation.sqlite',
+      );
+      failedCompletion.execute(
+        "CREATE TRIGGER refuse_completion BEFORE INSERT ON audit WHEN NEW.action='complete_move_admission' BEGIN SELECT RAISE(ABORT, 'disposable completion failure'); END",
+      );
+      try {
+        await expectLater(
+          authority.recordMoveAdmission(
+            recoveredPrincipal,
+            universe: universe,
+            operation: operation,
+            targetInstance: targetInstance,
+            receipt: receipt as CanonicalObject,
+          ),
+          throwsA(
+            isA<InstallationException>().having(
+              (e) => e.failure,
+              'failure',
+              InstallationFailure.unavailable,
+            ),
+          ),
+        );
+        expect(
+          (await authority.loadMoveReview(
+            recoveredPrincipal,
+            universe: universe,
+            operation: operation,
+            targetInstance: targetInstance,
+          )).state,
+          MoveAdmissionState.admitting,
+        );
+        expect((await reconnected.execute(accept)).toText(), receipt.toText());
+      } finally {
+        failedCompletion.execute('DROP TRIGGER refuse_completion');
+        failedCompletion.close();
+      }
+      for (var i = 0; i < 2; i++) {
+        final completed = await authority.recordMoveAdmission(
+          recoveredPrincipal,
+          universe: universe,
+          operation: operation,
+          targetInstance: targetInstance,
+          receipt: receipt,
+        );
+        expect(completed.state, MoveAdmissionState.admitted);
+      }
+      for (final action in [
+        'review_move',
+        'begin_move_admission',
+        'complete_move_admission',
+      ]) {
+        expect(
+          store.audit(authorId).where((e) => e.action == action),
+          hasLength(1),
+        );
+      }
+      await runtime.close();
+      store.close();
+      store = SqliteInstallationStore.openExisting(cutover);
+      authority = InstallationAuthority(store);
+      runtime = NativeSqliteRuntime(authority: authority);
+      expect(
+        (await authority.loadMoveReview(
+          authority.authenticateHello(hello(authorId)),
+          universe: universe,
+          operation: operation,
+          targetInstance: targetInstance,
+        )).state,
+        MoveAdmissionState.admitted,
+      );
       final targetPrincipal = targetAuthority.authenticateHello(targetHello());
       final targetPath = targetAuthority
           .resolveUniverseAlias(targetPrincipal, 'Moved source')

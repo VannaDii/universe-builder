@@ -11,6 +11,7 @@ import 'owned_database.dart';
 
 part 'installation_grants.dart';
 part 'installation_imports.dart';
+part 'installation_moves.dart';
 
 const _normalization = selectorNormalizationVersion;
 
@@ -232,6 +233,10 @@ final class SqliteInstallationStore {
   }
 
   static void _checkSchema(Database db) {
+    final reviews = db
+        .select('PRAGMA table_info(move_review)')
+        .map((r) => r['name'])
+        .join(',');
     final moves = db
         .select('PRAGMA table_info(move_quiescence)')
         .map((r) => r['name'])
@@ -251,7 +256,9 @@ final class SqliteInstallationStore {
     final normalization = db.select(
       "SELECT value FROM settings WHERE key='normalization'",
     );
-    if (moves != 'universe,operation,target_instance' ||
+    if (reviews !=
+            'operation,preview_id,owner,name,source_digest,records,preview_digest,state' ||
+        moves != 'universe,operation,target_instance' ||
         !grants.contains('worlds_state') ||
         !preview.contains('includes_workflow') ||
         profiles != 'id,hash,author,revoked' ||

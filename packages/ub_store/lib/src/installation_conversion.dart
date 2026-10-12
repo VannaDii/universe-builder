@@ -85,6 +85,8 @@ CanonicalObject convertInstallationWithHook(
       ...scalars,
       if (relational && conversionColumns(input, 'move_quiescence').isNotEmpty)
         'move_quiescence',
+      if (relational && conversionColumns(input, 'move_review').isNotEmpty)
+        'move_review',
       'grants',
       'import_preview',
       if (relational) ...[
@@ -142,9 +144,10 @@ CanonicalObject convertInstallationWithHook(
         !_sameSchema(
           input,
           output,
-          omitOutputTable: allowed.contains('move_quiescence')
-              ? null
-              : 'move_quiescence',
+          omitOutputTables: {
+            if (!allowed.contains('move_quiescence')) 'move_quiescence',
+            if (!allowed.contains('move_review')) 'move_review',
+          },
         )) {
       throw const FormatException('Unsupported relational installation schema');
     }
@@ -486,7 +489,11 @@ CanonicalObject convertInstallationWithHook(
   }
 }
 
-bool _sameSchema(Database input, Database output, {String? omitOutputTable}) {
+bool _sameSchema(
+  Database input,
+  Database output, {
+  Set<String> omitOutputTables = const {},
+}) {
   List<(String, String, String, String)> schema(Database db) => [
     for (final row in db.select(
       "SELECT type,name,tbl_name,coalesce(sql,'') AS sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name",
@@ -499,7 +506,9 @@ bool _sameSchema(Database input, Database output, {String? omitOutputTable}) {
       ),
   ];
   final a = schema(input),
-      b = schema(output).where((row) => row.$3 != omitOutputTable).toList();
+      b = schema(output)
+          .where((row) => !omitOutputTables.contains(row.$3))
+          .toList();
   return a.length == b.length &&
       Iterable<int>.generate(a.length).every((i) => a[i] == b[i]);
 }

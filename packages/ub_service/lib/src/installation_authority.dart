@@ -315,6 +315,70 @@ final class InstallationAuthority {
     );
   }
 
+  Future<InstallationMoveReview> reviewMoveTarget(
+    InstallationPrincipal principal, {
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+    required InstallationImportPreview preview,
+  }) => coordinate(
+    principal,
+    () => _store.reviewMoveTarget(
+      actor: principal.id,
+      universe: universe,
+      operation: operation,
+      targetInstance: targetInstance,
+      preview: preview,
+    ),
+  );
+
+  Future<InstallationMoveReview> loadMoveReview(
+    InstallationPrincipal principal, {
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+  }) => coordinate(
+    principal,
+    () => _store.loadMoveReview(
+      actor: principal.id,
+      universe: universe,
+      operation: operation,
+      targetInstance: targetInstance,
+    ),
+  );
+
+  Future<InstallationMoveReview> beginMoveAdmission(
+    InstallationPrincipal principal, {
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+  }) => coordinate(
+    principal,
+    () => _store.beginMoveAdmission(
+      actor: principal.id,
+      universe: universe,
+      operation: operation,
+      targetInstance: targetInstance,
+    ),
+  );
+
+  Future<InstallationMoveReview> recordMoveAdmission(
+    InstallationPrincipal principal, {
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+    required CanonicalObject receipt,
+  }) => coordinate(
+    principal,
+    () => _store.recordMoveAdmission(
+      actor: principal.id,
+      universe: universe,
+      operation: operation,
+      targetInstance: targetInstance,
+      receipt: receipt,
+    ),
+  );
+
   void renameUniverse(
     InstallationPrincipal actor, {
     required UniverseId id,

@@ -320,6 +320,29 @@ void main() {
               mode: ImportMode.restore,
             ),
           );
+          final targetReview = await store.transaction(
+            (s) => s.loadImport(
+              actor: authorId,
+              id: OperationId.parse(text(preview, 'preview_id')),
+              digest: text(preview, 'digest'),
+            ),
+          );
+          final sourcePrincipal = sourceAuthority.authenticateHello(
+            sourceHello(),
+          );
+          await sourceAuthority.reviewMoveTarget(
+            sourcePrincipal,
+            universe: universe,
+            operation: operation,
+            targetInstance: store.instanceId,
+            preview: targetReview,
+          );
+          await sourceAuthority.beginMoveAdmission(
+            sourcePrincipal,
+            universe: universe,
+            operation: operation,
+            targetInstance: store.instanceId,
+          );
           await sourceRuntime.close();
           sourceStore.close();
           await runtime.close();
@@ -345,6 +368,15 @@ void main() {
             previewId: OperationId.parse(text(preview, 'preview_id')),
             digest: text(preview, 'digest'),
           );
+          final pending = await sourceAuthority.loadMoveReview(
+            sourceAuthority.authenticateHello(sourceHello()),
+            universe: universe,
+            operation: operation,
+            targetInstance: store.instanceId,
+          );
+          expect(pending.state, MoveAdmissionState.admitting);
+          expect(pending.acceptRequest.previewId, accept.previewId);
+          expect(pending.acceptRequest.digest, accept.digest);
           final receipt = await reconnected.execute(accept);
           expect(text(receipt, 'universe_id'), universe.value);
           await runtime.close();
@@ -359,6 +391,14 @@ void main() {
                 .toText(),
             receipt.toText(),
           );
+          final admitted = await sourceAuthority.recordMoveAdmission(
+            sourceAuthority.authenticateHello(sourceHello()),
+            universe: universe,
+            operation: operation,
+            targetInstance: store.instanceId,
+            receipt: receipt as CanonicalObject,
+          );
+          expect(admitted.state, MoveAdmissionState.admitted);
           await store.transaction((s) async {
             expect(
               await s
