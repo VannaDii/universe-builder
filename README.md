@@ -218,6 +218,14 @@ requested interval and every applicable world. Conflicting or unresolved ancesto
 candidates prevent compilation. Generated facts retain the exact source, start
 version and revision; classification and application lifecycle do not initialize
 state. These changes still require the remaining reviewed publication workflow.
+Authoring input preparation now expands definition/instance introductions, named
+attributes and classification refinements into the existing canonical operations.
+Named attributes reuse an exact compatible property, including definitions in the
+same batch regardless of input order; conflicting or ambiguous definitions require
+an explicit revision. Submitted uncertainty and evidence remain intact, and event
+or initialization provenance cannot be manufactured through a named attribute.
+This preparation does not admit changes; full operation compilation and reviewed
+publication remain pending.
 Typed events preserve occurrence modes, authored participants and ordered effects.
 Action consequences validate exact decimal bounds, slot uniqueness and lifetimes;
 an absent historical contract remains distinct from an explicitly empty contract,
