@@ -1,4 +1,19 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:ub_domain/ub_domain.dart';
+
+const protocolVersion = '3';
+const maxFrameBytes = 1024 * 1024;
+const maxInFlight = 16;
+
+/// Strict raw JSON is distinct from historical canonical digest encoding.
+CanonicalValue decodeWireFrame(Uint8List bytes) {
+  if (bytes.length > maxFrameBytes) {
+    throw const FormatException('Frame too large');
+  }
+  return CanonicalValue.parseWireJson(utf8.decode(bytes));
+}
 
 /// Internal closed DTO boundary; parsing retains exact numeric tokens.
 final class WireFields {

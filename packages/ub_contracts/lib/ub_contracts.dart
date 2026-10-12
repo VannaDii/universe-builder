@@ -13,3 +13,5 @@ export 'src/read_response.dart';
 export 'src/envelope.dart';
 export 'src/state_response.dart';
 export 'src/response.dart';
+export 'src/wire_message.dart';
+export 'src/wire.dart' show protocolVersion, maxFrameBytes, maxInFlight;

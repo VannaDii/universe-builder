@@ -42,7 +42,7 @@ dart test
 dart test test/compiler_test.dart --platform chrome
 cd ../ub_contracts
 dart test
-dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart test/read_response_test.dart test/state_response_test.dart test/response_test.dart test/workflow_request_test.dart test/writing_test.dart test/writing_knowledge_test.dart test/writing_delta_test.dart --platform chrome
+dart test test/workflow_test.dart test/validation_test.dart test/validation_scope_test.dart test/assessment_test.dart test/assessment_integrity_test.dart test/read_request_test.dart test/read_response_test.dart test/state_response_test.dart test/response_test.dart test/wire_message_test.dart test/workflow_request_test.dart test/writing_test.dart test/writing_knowledge_test.dart test/writing_delta_test.dart --platform chrome
 ```
 
 Browser tests must run from the package directory. Set `CHROME_EXECUTABLE` if
@@ -216,7 +216,14 @@ variants; assessment selection does not modify or authorize the frozen proposal.
 Response decoding bounds frames and rejects invalid UTF-8, duplicate keys and
 unknown wrapper fields. Generic research JSON retains exact numeric tokens too.
 Owning Rust fixtures cover all tool variants and both assessment alternatives.
-IPC messages/handshakes and service transport execution still need their ports.
+IPC contracts now cover Hello/HelloReply, request/cancel messages and typed
+success/error replies. Request correlation IDs and 64-bit native handshake limits
+remain exact on web. The shared strict decoder enforces the existing 1 MiB frame
+limit before decoding UTF-8/JSON, rejects duplicate keys and retains raw numeric
+tokens. Exported protocol defaults remain version 3 and 16 in-flight requests.
+These DTOs do not negotiate compatibility, authenticate an instance, schedule work
+or cancel a durable operation. Service and transport execution still need their
+ports.
 Ordinary writer types now preserve JSON scalar fact values, named objects and
 explicit unit amounts, fact lifetimes, object/definition deltas, claims and
 historical corrections/endings/withdrawals. Research requests for exact object

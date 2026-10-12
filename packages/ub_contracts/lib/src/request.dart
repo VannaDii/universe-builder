@@ -27,10 +27,7 @@ sealed class Request {
     MapEntry('args', toArgs()),
   ]);
   static Request decode(Uint8List bytes) {
-    if (bytes.length > 1024 * 1024) {
-      throw const FormatException('Frame too large');
-    }
-    return fromWire(CanonicalValue.parseWireJson(utf8.decode(bytes)));
+    return fromWire(decodeWireFrame(bytes));
   }
 
   static Request fromWire(CanonicalValue value) {

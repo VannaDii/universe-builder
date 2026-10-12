@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:ub_domain/ub_domain.dart';
@@ -77,10 +76,7 @@ sealed class Response {
     MapEntry('body', bodyJson()),
   ]);
   static Response decode(Uint8List bytes) {
-    if (bytes.length > 1024 * 1024) {
-      throw const FormatException('Frame too large');
-    }
-    return fromWire(CanonicalValue.parseWireJson(utf8.decode(bytes)));
+    return fromWire(decodeWireFrame(bytes));
   }
 
   static Response fromWire(CanonicalValue value) {

@@ -1,0 +1,47 @@
+[
+  {
+    "type": "Hello",
+    "input_raw": "{\"protocol_version\":\"3\",\"fixture\":false}",
+    "expected_wire": "{\"protocol_version\":\"3\",\"fixture\":false}"
+  },
+  {
+    "type": "Hello",
+    "input_raw": "{\"protocol_version\":\"future\",\"fixture\":true}",
+    "expected_wire": "{\"protocol_version\":\"future\",\"fixture\":true}"
+  },
+  {
+    "type": "HelloReply",
+    "input_raw": "{\"protocol_version\":\"3\",\"fixture\":false,\"max_frame_bytes\":1048576,\"max_in_flight\":16}",
+    "expected_wire": "{\"protocol_version\":\"3\",\"fixture\":false,\"max_frame_bytes\":1048576,\"max_in_flight\":16}"
+  },
+  {
+    "type": "HelloReply",
+    "input_raw": "{\"protocol_version\":\"3\",\"fixture\":true,\"max_frame_bytes\":18446744073709551615,\"max_in_flight\":18446744073709551615}",
+    "expected_wire": "{\"protocol_version\":\"3\",\"fixture\":true,\"max_frame_bytes\":18446744073709551615,\"max_in_flight\":18446744073709551615}"
+  },
+  {
+    "type": "ClientMessage",
+    "input_raw": "{\"kind\":\"request\",\"id\":18446744073709551615,\"request\":{\"tool\":\"universe_describe\",\"args\":{\"universe\":\"Cycle\",\"mode\":\"summary\"}}}",
+    "expected_wire": "{\"kind\":\"request\",\"id\":18446744073709551615,\"request\":{\"tool\":\"universe_describe\",\"args\":{\"mode\":\"summary\",\"universe\":\"Cycle\"}}}"
+  },
+  {
+    "type": "ClientMessage",
+    "input_raw": "{\"kind\":\"request\",\"id\":0,\"request\":{\"tool\":\"universe_commit\",\"args\":{\"universe\":\"é🌲 cycle\",\"universe_id\":\"unv_000000000000000000000001\",\"idempotency_key\":\"retry exact key\",\"proposal_reference\":{\"proposal_id\":\"prp_000000000000000000000001\",\"version\":18446744073709551615,\"digest\":\"supplied proposal digest\"},\"expected_base_revision\":\"rev_000000000000000000000001\",\"validation_run\":\"val_000000000000000000000001\"}}}",
+    "expected_wire": "{\"kind\":\"request\",\"id\":0,\"request\":{\"tool\":\"universe_commit\",\"args\":{\"universe\":\"é🌲 cycle\",\"universe_id\":\"unv_000000000000000000000001\",\"proposal_reference\":{\"proposal_id\":\"prp_000000000000000000000001\",\"version\":18446744073709551615,\"digest\":\"supplied proposal digest\"},\"expected_base_revision\":\"rev_000000000000000000000001\",\"validation_run\":\"val_000000000000000000000001\",\"idempotency_key\":\"retry exact key\"}}}"
+  },
+  {
+    "type": "ClientMessage",
+    "input_raw": "{\"kind\":\"cancel\",\"id\":18446744073709551615}",
+    "expected_wire": "{\"kind\":\"cancel\",\"id\":18446744073709551615}"
+  },
+  {
+    "type": "ServerMessage",
+    "input_raw": "{\"id\":18446744073709551615,\"result\":{\"Ok\":{\"tool\":\"ReadFacts\",\"body\":{\"contract_version\":\"3\",\"request_id\":18446744073709551615,\"universe_id\":\"unv_000000000000000000000001\",\"universe\":\"Cycle\",\"alias_matched\":false,\"authorization_scope\":\"visible\",\"delivery\":{\"complete\":false,\"cursor\":\"next\"},\"result\":{\"facts\":[{\"value\":9007199254740993}],\"coverage\":\"restricted\"}}}}}",
+    "expected_wire": "{\"id\":18446744073709551615,\"result\":{\"Ok\":{\"tool\":\"ReadFacts\",\"body\":{\"contract_version\":\"3\",\"request_id\":18446744073709551615,\"universe_id\":\"unv_000000000000000000000001\",\"universe\":\"Cycle\",\"alias_matched\":false,\"frame\":null,\"world_focus\":null,\"authorization_scope\":\"visible\",\"delivery\":{\"complete\":false,\"cursor\":\"next\"},\"result\":{\"facts\":[{\"value\":9007199254740993}],\"coverage\":\"restricted\"}}}}}"
+  },
+  {
+    "type": "ServerMessage",
+    "input_raw": "{\"id\":0,\"result\":{\"Err\":{\"code\":\"APPROVAL_REQUIRED\",\"message\":\"Exact approval required\"}}}",
+    "expected_wire": "{\"id\":0,\"result\":{\"Err\":{\"code\":\"APPROVAL_REQUIRED\",\"message\":\"Exact approval required\"}}}"
+  }
+]
