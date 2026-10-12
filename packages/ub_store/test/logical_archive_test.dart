@@ -1045,6 +1045,74 @@ void main() {
     },
   );
 
+  test('large retained source archive streams above 512 MiB and preserves exact bytes and historical evidence', () {
+    const count = 172;
+    final body = 'A' * (3 * 1048576);
+    final digests = <String>[];
+    final workflow = WorkflowStorage(source.database);
+    source.database.execute('BEGIN IMMEDIATE');
+    try {
+      for (var i = 0; i < count; i++) {
+        final text = '$i é😀\r\n$body';
+        final digest = sha256.convert(utf8.encode(text)).toString();
+        digests.add(digest);
+        workflow.put('source:$digest', CanonicalString(text));
+      }
+      source.database.execute('COMMIT');
+    } on Object {
+      source.database.execute('ROLLBACK');
+      rethrow;
+    }
+    final path = export();
+    expect(File(path).lengthSync(), greaterThan(512 * 1048576));
+    expect(File(path).lengthSync(), lessThanOrEqualTo(maxArchiveBytes));
+    final verified = OwnedSqliteDatabase.stageLogicalArchive(path, root.path);
+    try {
+      final staged = verified.stageRestore(root.path, name: 'Large archive');
+      try {
+        final restored = WorkflowStorage(staged.package.database);
+        for (var i = 0; i < count; i++) {
+          final expected = '$i é😀\r\n$body';
+          final key = 'source:${digests[i]}';
+          expect((restored.evidence(key) as CanonicalString).value, expected);
+          expect(
+            sha256
+                .convert(
+                  utf8.encode(
+                    (restored.evidence(key) as CanonicalString).value,
+                  ),
+                )
+                .toString(),
+            digests[i],
+          );
+          expect((restored.get(key) as CanonicalString).value, expected);
+          expect((workflow.evidence(key) as CanonicalString).value, expected);
+        }
+        expect(
+          SqliteJournal(staged.package.database, universe).head(continuity),
+          revision,
+        );
+        expect(
+          staged.package.database
+              .select('SELECT count(*) AS n FROM source_content')
+              .single['n'],
+          count,
+        );
+        expect(restored.get('cursor:one'), isNull);
+        expect(
+          restored.evidence('cursor:one')!.toText(),
+          workflow.evidence('cursor:one')!.toText(),
+        );
+      } finally {
+        staged.close();
+      }
+    } finally {
+      verified.close();
+    }
+    expect(SqliteJournal(source.database, universe).head(continuity), revision);
+    noStages();
+  }, timeout: const Timeout(Duration(minutes: 10)));
+
   test('oversized and symlink archives fail before scratch creation', () {
     final oversized = '${root.path}/oversized.sqlite';
     protectedFile(oversized, createNew: true);

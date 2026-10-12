@@ -409,7 +409,7 @@ final class OwnedSqliteDatabase {
   ) {
     protectedFile(source);
     if (File(source).lengthSync() > maxArchiveBytes) {
-      throw const FormatException('Logical archive exceeds 512 MiB');
+      throw const FormatException('Logical archive exceeds 8 GiB');
     }
     final parent = privateDirectory(scratch);
     final temporary = Directory(parent).createTempSync('.logical-archive-');
@@ -428,7 +428,7 @@ final class OwnedSqliteDatabase {
             if (chunk.isEmpty) break;
             copied += chunk.length;
             if (copied > maxArchiveBytes) {
-              throw const FormatException('Logical archive exceeds 512 MiB');
+              throw const FormatException('Logical archive exceeds 8 GiB');
             }
             output.writeFromSync(chunk);
           }

@@ -45,6 +45,10 @@ keeps global definitions/policies and contexts, and includes universe appearance
 selected entry appearances and initialization attachments. Omitted counts are
 explicit; incomplete archives require a named clone. Full-history export rejects
 a record filter, and all exports refuse an existing destination.
+Native logical archive byte limits now use the existing 8 GiB package bound,
+including PostgreSQL export and retained import chunks. The 2,000,000-row budget,
+per-record/content bounds, trusted-schema copying and typed-row checksums remain
+in force. Legacy source conversion retains its separate 512 MiB input bound.
 Author transport/CLI integration remains pending.
 The native author service now supports explicit bounded v0.3 `convert_legacy`.
 It reads the original without modification and emits a verified canon-only

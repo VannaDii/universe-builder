@@ -4,8 +4,10 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:sqlite3/sqlite3.dart';
 
+import 'database.dart' show maxPackageBytes;
+
 const maxArchiveRows = 2000000;
-const maxArchiveBytes = 512 * 1048576;
+const maxArchiveBytes = maxPackageBytes;
 
 String archiveReviewDigest(String rows, String manifest) => sha256
     .convert(utf8.encode('typed-row-stream:$rows:manifest:$manifest'))
