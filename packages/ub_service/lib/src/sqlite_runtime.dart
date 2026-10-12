@@ -28,6 +28,78 @@ final class NativeSqliteRuntime {
   bool _stopping = false;
   Future<void>? _shutdown;
 
+  /// Trusted move coordinator entry. The guard commits before archive work;
+  /// failure leaves the original suspended and intact for the same retry.
+  /// The complete private archive is retained independently of target admission.
+  Future<({String path, String digest, CanonicalObject manifest})>
+  stageSourceMove(
+    InstallationPrincipal principal, {
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+  }) async {
+    if (_stopping) throw StateError('Runtime is stopping');
+    final finished = Completer<void>();
+    _active.add(finished);
+    try {
+      await authority.quiesceUniverseForMove(
+        principal,
+        universe: universe,
+        operation: operation,
+        targetInstance: targetInstance,
+      );
+      return await authority.coordinate(principal, () {
+        final source = authority.moveSource(
+          principal,
+          universe: universe,
+          operation: operation,
+          targetInstance: targetInstance,
+        );
+        final path = source.archivePath;
+        if (FileSystemEntity.typeSync(path, followLinks: false) ==
+            FileSystemEntityType.notFound) {
+          _openCatalogEntry(source.catalog).exportCompleteHistory(path);
+        }
+        // Never replace a retained file or follow an injected symlink on retry.
+        final archive = OwnedSqliteDatabase.stageLogicalArchive(
+          path,
+          File(path).parent.path,
+        );
+        try {
+          final fields = WireFields(archive.manifest, {
+            'format',
+            'universe',
+            'name',
+            'complete',
+            'omitted_records',
+            'includes_history',
+            'includes_workflow',
+          });
+          if (UniverseId.parse(fields.string('universe')) != universe ||
+              !fields.boolean('complete') ||
+              !fields.boolean('includes_history') ||
+              !fields.boolean('includes_workflow') ||
+              (fields.require('omitted_records') as CanonicalNumber).digits !=
+                  '0') {
+            throw const FormatException(
+              'Move requires complete source history',
+            );
+          }
+          return (
+            path: path,
+            digest: archive.digest,
+            manifest: archive.manifest,
+          );
+        } finally {
+          archive.close();
+        }
+      });
+    } finally {
+      _active.remove(finished);
+      finished.complete();
+    }
+  }
+
   NativeSqliteConnection connect(EngineHello hello) {
     if (_stopping) throw StateError('Runtime is stopping');
     final principal = authority.authenticateHello(hello);
@@ -206,6 +278,10 @@ final class NativeSqliteRuntime {
     Selector selector,
   ) {
     final catalog = authority.resolveUniverseAlias(principal, selector.value);
+    return _openCatalogEntry(catalog);
+  }
+
+  OwnedSqliteDatabase _openCatalogEntry(InstallationCatalogEntry catalog) {
     final cached = _packages[catalog.universeId];
     if (cached != null) return cached;
     _requireWorkerCapacity();

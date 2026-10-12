@@ -300,6 +300,21 @@ final class InstallationAuthority {
     ),
   );
 
+  ({InstallationCatalogEntry catalog, String archivePath}) moveSource(
+    InstallationPrincipal principal, {
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+  }) {
+    requireAuthor(principal);
+    return _store.moveSource(
+      actor: principal.id,
+      universe: universe,
+      operation: operation,
+      targetInstance: targetInstance,
+    );
+  }
+
   void renameUniverse(
     InstallationPrincipal actor, {
     required UniverseId id,

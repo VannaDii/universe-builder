@@ -256,6 +256,214 @@ void main() {
     },
   );
 
+  test('retained complete move archive and target review recover independently across restart', () async {
+    var author = runtime.connect(hello(authorId));
+    final source = await create(author, 'Move source');
+    final universe = UniverseId.parse(text(source, 'universe_id'));
+    final draft = await author.execute(save(source, 'Move source'));
+    final operation = OperationId.generate();
+    final targetRoot = Directory.systemTemp.createTempSync(
+      'universe-builder-move-target-',
+    );
+    var targetStore = SqliteInstallationStore.create(targetRoot.path);
+    var targetAuthority = InstallationAuthority(targetStore);
+    final targetAuthor = targetAuthority.initializeAuthor();
+    EngineHello targetHello() => EngineHello(
+      protocolVersion: protocolVersion,
+      profileId: targetAuthor,
+      credential: Credential(
+        ProfileCredentialStore.read(
+          root: targetRoot.path,
+          profile: targetAuthor,
+        ),
+      ),
+      clientName: 'Disposable move target',
+    );
+    var targetRuntime = NativeSqliteRuntime(authority: targetAuthority);
+    try {
+      final targetInstance = targetStore.instanceId;
+      final stage = await runtime.stageSourceMove(
+        authority.authenticateHello(hello(authorId)),
+        universe: universe,
+        operation: operation,
+        targetInstance: targetInstance,
+      );
+      expect(File(stage.path).statSync().mode & 0x1ff, 0x180);
+      final bytes = File(stage.path).readAsBytesSync();
+      final manifest = Map.fromEntries(stage.manifest.fields);
+      expect((manifest['complete'] as CanonicalBool).value, isTrue);
+      expect((manifest['includes_workflow'] as CanonicalBool).value, isTrue);
+      final target = targetRuntime.connect(targetHello());
+      final preview = await target.execute(
+        PreviewImportEngineRequest(
+          source: stage.path,
+          name: 'Moved source',
+          mode: ImportMode.restore,
+        ),
+      );
+      // Stop before admission. Neither restart depends on the original client.
+      await targetRuntime.close();
+      targetStore.close();
+      await runtime.close();
+      store.close();
+      store = SqliteInstallationStore.openExisting(root.path);
+      authority = InstallationAuthority(store);
+      runtime = NativeSqliteRuntime(authority: authority);
+      author = runtime.connect(hello(authorId));
+      final recovered = await runtime.stageSourceMove(
+        authority.authenticateHello(hello(authorId)),
+        universe: universe,
+        operation: operation,
+        targetInstance: targetInstance,
+      );
+      expect(recovered.path, stage.path);
+      expect(recovered.digest, stage.digest);
+      expect(File(recovered.path).readAsBytesSync(), bytes);
+      await expectLater(
+        author.execute(save(source, 'Move source')),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      targetStore = SqliteInstallationStore.openExisting(targetRoot.path);
+      targetAuthority = InstallationAuthority(targetStore);
+      targetRuntime = NativeSqliteRuntime(authority: targetAuthority);
+      final reconnected = targetRuntime.connect(targetHello());
+      final accept = AcceptImportEngineRequest(
+        previewId: OperationId.parse(text(preview, 'preview_id')),
+        digest: text(preview, 'digest'),
+      );
+      final receipt = await reconnected.execute(accept);
+      expect(text(receipt, 'universe_id'), universe.value);
+      // A lost admission response is recovered by the exact target receipt.
+      expect((await reconnected.execute(accept)).toText(), receipt.toText());
+      final targetPrincipal = targetAuthority.authenticateHello(targetHello());
+      final targetPath = targetAuthority
+          .resolveUniverseAlias(targetPrincipal, 'Moved source')
+          .path;
+      await targetRuntime.close();
+      final package = OwnedSqliteDatabase.openExisting(targetPath);
+      try {
+        expect(
+          SqliteJournal(
+            package.database,
+            universe,
+          ).head(ContinuityId.parse(text(source, 'continuity_id'))),
+          RevisionId.parse(text(source, 'revision')),
+        );
+        final workflow = WorkflowStorage(package.database);
+        final keys = workflow.keys('draft:${authorId.value}:');
+        expect(keys, hasLength(1));
+        expect(workflow.evidence(keys.single)!.toText(), draft.toText());
+        expect(
+          package.database.select(
+            'SELECT key FROM historical_workflow WHERE key=?',
+            [keys.single],
+          ),
+          hasLength(1),
+        );
+      } finally {
+        package.close();
+      }
+      expect(
+        store.audit(authorId).where((e) => e.action == 'quiesce_move'),
+        hasLength(1),
+      );
+      expect(File(stage.path).readAsBytesSync(), bytes);
+    } finally {
+      await targetRuntime.close();
+      targetStore.close();
+      targetRoot.deleteSync(recursive: true);
+    }
+  });
+
+  test('failed staging retains the guarded source and never replaces retained archive bytes', () async {
+    final author = runtime.connect(hello(authorId));
+    final source = await create(author, 'Move source');
+    final universe = UniverseId.parse(text(source, 'universe_id'));
+    final principal = authority.authenticateHello(hello(authorId));
+    final operation = OperationId.generate(), target = OperationId.generate();
+    final stage = await runtime.stageSourceMove(
+      principal,
+      universe: universe,
+      operation: operation,
+      targetInstance: target,
+    );
+    final original = File(stage.path).readAsBytesSync();
+    File(stage.path).writeAsBytesSync([1, 2, 3]);
+    await expectLater(
+      runtime.stageSourceMove(
+        principal,
+        universe: universe,
+        operation: operation,
+        targetInstance: target,
+      ),
+      throwsA(isA<Exception>()),
+    );
+    expect(File(stage.path).readAsBytesSync(), [1, 2, 3]);
+    expect(
+      catalog(await author.execute(const StatusEngineRequest())).items,
+      isEmpty,
+    );
+    // Restore the exact retained snapshot to exercise recovery, not regeneration.
+    File(stage.path).writeAsBytesSync(original);
+    expect(
+      (await runtime.stageSourceMove(
+        principal,
+        universe: universe,
+        operation: operation,
+        targetInstance: target,
+      )).digest,
+      stage.digest,
+    );
+    await expectLater(
+      runtime.stageSourceMove(
+        authority.authenticateHello(hello(writerId)),
+        universe: universe,
+        operation: operation,
+        targetInstance: target,
+      ),
+      denied(),
+    );
+    expect(File(stage.path).readAsBytesSync(), original);
+  });
+
+  test('installation conversion retains the exact pending move archive', () async {
+    final client = runtime.connect(hello(authorId));
+    final source = await create(client, 'Move source');
+    final universe = UniverseId.parse(text(source, 'universe_id'));
+    final operation = OperationId.generate(), target = OperationId.generate();
+    final stage = await runtime.stageSourceMove(
+      authority.authenticateHello(hello(authorId)),
+      universe: universe,
+      operation: operation,
+      targetInstance: target,
+    );
+    final bytes = File(stage.path).readAsBytesSync();
+    await runtime.close();
+    store.close();
+    final converted = '${root.path}/cutover';
+    convertInstallation(root.path, converted);
+    expect(File(stage.path).readAsBytesSync(), bytes);
+    store = SqliteInstallationStore.openExisting(converted);
+    authority = InstallationAuthority(store);
+    runtime = NativeSqliteRuntime(authority: authority);
+    final recovered = await runtime.stageSourceMove(
+      authority.authenticateHello(hello(authorId)),
+      universe: universe,
+      operation: operation,
+      targetInstance: target,
+    );
+    expect(
+      recovered.path,
+      '${Directory(converted).resolveSymbolicLinksSync()}/moves/${operation.value}.sqlite',
+    );
+    expect(recovered.digest, stage.digest);
+    expect(File(recovered.path).readAsBytesSync(), bytes);
+    expect(
+      store.audit(authorId).where((e) => e.action == 'quiesce_move'),
+      hasLength(1),
+    );
+  });
+
   test('opening an older layout refuses it unchanged', () async {
     await runtime.close();
     store.close();

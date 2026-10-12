@@ -533,6 +533,46 @@ final class SqliteInstallationStore {
     });
   }
 
+  /// Trusted coordinator access only for the exact retained move binding.
+  /// Ordinary alias/catalog routes continue to deny this source.
+  ({InstallationCatalogEntry catalog, String archivePath}) moveSource({
+    required ProfileId actor,
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+  }) {
+    requireAuthor(actor);
+    final rows = _db.select(
+      'SELECT c.name,c.path,c.device,c.inode FROM catalog c '
+      'JOIN move_quiescence m ON m.universe=c.id '
+      'WHERE c.id=? AND m.operation=? AND m.target_instance=?',
+      [universe.value, operation.value, targetInstance.value],
+    );
+    if (rows.length != 1) {
+      throw const InstallationException(InstallationFailure.denied);
+    }
+    final row = rows.single;
+    final path = row['path'] as String;
+    final identity = fileIdentity(path);
+    if (identity.device != row['device'] || identity.inode != row['inode']) {
+      throw const InstallationException(InstallationFailure.denied);
+    }
+    final directory = privateDirectory('$root/moves');
+    final archivePath = '$directory/${operation.value}.sqlite';
+    if (FileSystemEntity.typeSync(archivePath, followLinks: false) !=
+        FileSystemEntityType.notFound) {
+      protectedFile(archivePath);
+    }
+    return (
+      catalog: InstallationCatalogEntry(
+        universeId: universe,
+        name: row['name'] as String,
+        path: path,
+      ),
+      archivePath: archivePath,
+    );
+  }
+
   void renameUniverse({
     required ProfileId actor,
     required UniverseId id,

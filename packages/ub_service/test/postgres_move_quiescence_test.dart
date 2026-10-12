@@ -11,8 +11,10 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_profiles.dart';
 import 'package:ub_service/postgres_runtime.dart';
+import 'package:ub_service/sqlite_runtime.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/postgres_installation.dart';
+import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_store/src/postgres_authority_schema.dart';
 import 'package:ub_store/src/postgres_values.dart';
 
@@ -261,6 +263,142 @@ void main() {
           await peerStore.close();
         }
       });
+      test('retained SQLite move stage admits PostgreSQL after restart and recovers lost target response', () async {
+        final root = Directory.systemTemp.createTempSync(
+          'universe-builder-source-move-',
+        );
+        var sourceStore = SqliteInstallationStore.create(root.path);
+        var sourceAuthority = InstallationAuthority(sourceStore);
+        final sourceAuthor = sourceAuthority.initializeAuthor();
+        EngineHello sourceHello() => EngineHello(
+          protocolVersion: protocolVersion,
+          profileId: sourceAuthor,
+          credential: Credential(
+            ProfileCredentialStore.read(root: root.path, profile: sourceAuthor),
+          ),
+          clientName: 'Disposable source move',
+        );
+        var sourceRuntime = NativeSqliteRuntime(authority: sourceAuthority);
+        try {
+          final client = sourceRuntime.connect(sourceHello());
+          final created = await client.execute(
+            CreateUniverseEngineRequest(
+              name: 'SQLite original',
+              start: const GregorianUniverseStart('2040-01-01T00:00:00Z'),
+            ),
+          );
+          final universe = UniverseId.parse(text(created, 'universe_id'));
+          universes.add(universe);
+          final operation = OperationId.generate();
+          final draft = await client.execute(
+            SaveDraftEngineRequest(
+              universe: const Selector('SQLite original'),
+              continuityId: ContinuityId.parse(text(created, 'continuity_id')),
+              expectedVersion: BigInt.zero,
+              content: DraftContent(
+                baseRevision: RevisionId.parse(text(created, 'revision')),
+                representedContext: RecordId.parse(text(created, 'context_id')),
+                operations: const [],
+                rationale: 'Retained move draft é😀',
+                proposal: null,
+              ),
+            ),
+          );
+          final stage = await sourceRuntime.stageSourceMove(
+            sourceAuthority.authenticateHello(sourceHello()),
+            universe: universe,
+            operation: operation,
+            targetInstance: store.instanceId,
+          );
+          final originalBytes = File(stage.path).readAsBytesSync();
+          final target = await runtime.connect(hello(authorId));
+          final preview = await target.execute(
+            PreviewImportEngineRequest(
+              source: stage.path,
+              name: 'Moved to PostgreSQL',
+              mode: ImportMode.restore,
+            ),
+          );
+          await sourceRuntime.close();
+          sourceStore.close();
+          await runtime.close();
+          await store.close();
+          store = await PostgresInstallationStore.openExisting(
+            endpoint(),
+            settings: settings,
+          );
+          runtime = NativePostgresRuntime(store: store);
+          sourceStore = SqliteInstallationStore.openExisting(root.path);
+          sourceAuthority = InstallationAuthority(sourceStore);
+          sourceRuntime = NativeSqliteRuntime(authority: sourceAuthority);
+          final recovered = await sourceRuntime.stageSourceMove(
+            sourceAuthority.authenticateHello(sourceHello()),
+            universe: universe,
+            operation: operation,
+            targetInstance: store.instanceId,
+          );
+          expect(recovered.digest, stage.digest);
+          expect(File(recovered.path).readAsBytesSync(), originalBytes);
+          final reconnected = await runtime.connect(hello(authorId));
+          final accept = AcceptImportEngineRequest(
+            previewId: OperationId.parse(text(preview, 'preview_id')),
+            digest: text(preview, 'digest'),
+          );
+          final receipt = await reconnected.execute(accept);
+          expect(text(receipt, 'universe_id'), universe.value);
+          await runtime.close();
+          await store.close();
+          store = await PostgresInstallationStore.openExisting(
+            endpoint(),
+            settings: settings,
+          );
+          runtime = NativePostgresRuntime(store: store);
+          expect(
+            (await (await runtime.connect(hello(authorId))).execute(accept))
+                .toText(),
+            receipt.toText(),
+          );
+          await store.transaction((s) async {
+            expect(
+              await s
+                  .kernel(universe)
+                  .journal
+                  .head(ContinuityId.parse(text(created, 'continuity_id'))),
+              RevisionId.parse(text(created, 'revision')),
+            );
+            final keys = await s
+                .workflows(universe)
+                .keys('draft:${sourceAuthor.value}:');
+            expect(keys, hasLength(1));
+            expect(
+              (await s.workflows(universe).evidence(keys.single))!.toText(),
+              draft.toText(),
+            );
+            await s.verifyUniverse(universe, complete: true);
+          });
+          expect(
+            textArray(
+              await sourceRuntime
+                  .connect(sourceHello())
+                  .execute(const StatusEngineRequest()),
+              'universes',
+            ),
+            isEmpty,
+          );
+          expect(
+            sourceStore
+                .audit(sourceAuthor)
+                .where((e) => e.action == 'quiesce_move'),
+            hasLength(1),
+          );
+          expect(File(stage.path).readAsBytesSync(), originalBytes);
+        } finally {
+          await sourceRuntime.close();
+          sourceStore.close();
+          root.deleteSync(recursive: true);
+        }
+      });
+
       test('writer self-target and rollback cannot suspend a source', () async {
         final author = await runtime.connect(hello(authorId));
         final source = await create(author, 'Move source');

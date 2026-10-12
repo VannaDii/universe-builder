@@ -523,8 +523,14 @@ refused. This metadata lives in SQLite's installation database or PostgreSQL
 control schema version 3 and never enters universe exports. Opening older or
 incomplete control layouts refuses them unchanged. Explicit SQLite installation
 conversion adds the move table to the prior normative layout and retains existing
-move bindings; PostgreSQL control conversion is still required. Transfer staging,
-target admission/recovery and the operator/UI move flow remain pending.
+move bindings and any complete retained move archives; PostgreSQL control
+conversion is still required. The trusted SQLite runtime can stage a complete
+source archive under its exact move operation. Restart revalidates and reuses
+that protected archive without replacing it; failures retain the source guard
+and original data. Functional checks cover SQLite and PostgreSQL target review,
+restart before admission and exact receipt recovery after admission. PostgreSQL
+source staging, durable cross-instance admission coordination, source retirement
+and the operator/UI move flow remain pending.
 Coordinated backend cutover and hosted server backup operation remain pending.
 Socket/launcher integration, cross-process worker qualification and
 backend parity qualification are pending. Coordinated transfer and live

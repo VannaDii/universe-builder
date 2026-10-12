@@ -12,6 +12,7 @@ import 'installation_schema.g.dart';
 import 'installation_store.dart';
 import 'operator_rows.dart';
 import 'operator_source.dart';
+import 'owned_database.dart';
 import 'ownership.dart';
 import 'profile_credentials.dart';
 import 'relational.dart';
@@ -277,6 +278,49 @@ CanonicalObject convertInstallationWithHook(
       OperationId.parse(instance.single['value'] as String);
     }
     output.execute('COMMIT');
+    final moveArchives = <String, String?>{};
+    if (allowed.contains('move_quiescence')) {
+      conversionRows(input, 'move_quiescence', (row) {
+        final universe = UniverseId.parse(row['universe'] as String);
+        final operation = OperationId.parse(row['operation'] as String);
+        OperationId.parse(row['target_instance'] as String);
+        final sourcePath = '$originalRoot/moves/${operation.value}.sqlite';
+        moveArchives[sourcePath] = null;
+        if (FileSystemEntity.typeSync(sourcePath, followLinks: false) ==
+            FileSystemEntityType.notFound) {
+          return;
+        }
+        privateDirectory('$originalRoot/moves');
+        moveArchives[sourcePath] = originalFileHash(sourcePath);
+        final moves = privateDirectory('$root/moves');
+        final archive = OwnedSqliteDatabase.stageLogicalArchive(
+          sourcePath,
+          moves,
+        );
+        try {
+          final fields = WireFields(archive.manifest, {
+            'format',
+            'universe',
+            'name',
+            'complete',
+            'omitted_records',
+            'includes_history',
+            'includes_workflow',
+          });
+          if (UniverseId.parse(fields.string('universe')) != universe ||
+              !fields.boolean('complete') ||
+              !fields.boolean('includes_history') ||
+              !fields.boolean('includes_workflow') ||
+              (fields.require('omitted_records') as CanonicalNumber).digits !=
+                  '0') {
+            throw const FormatException('Invalid retained move archive');
+          }
+          archive.persistReviewedSource('$moves/${operation.value}.sqlite');
+        } finally {
+          archive.close();
+        }
+      });
+    }
     final profiles = <ProfileId, String>{};
     conversionRows(input, 'profiles', (row) {
       profiles[ProfileId.parse(row['id'] as String)] = row['hash'] as String;
@@ -361,6 +405,20 @@ CanonicalObject convertInstallationWithHook(
       );
     }
     verifyOriginalDatabase(originalPath, original.hash);
+    for (final entry in moveArchives.entries) {
+      if (entry.value == null) {
+        if (FileSystemEntity.typeSync(entry.key, followLinks: false) !=
+            FileSystemEntityType.notFound) {
+          throw const InstallationConversionException(
+            InstallationConversionFailure.sourceChanged,
+          );
+        }
+      } else if (originalFileHash(entry.key) != entry.value) {
+        throw const InstallationConversionException(
+          InstallationConversionFailure.sourceChanged,
+        );
+      }
+    }
     final currentPaths = Directory('$originalRoot/profiles')
         .listSync(followLinks: false)
         .map((entry) => entry.path)
