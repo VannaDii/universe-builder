@@ -304,9 +304,21 @@ commit checkpoints, stale workflow, retained image metadata, savepoint recovery,
 reconnect/retry and authority held through awaited publication while revocation
 conflicts. Initialization cases now exercise this coordinator. This internal path
 does not authenticate callers or confer exact approval/delegated rights.
-Control-schema discovery/opening, import previews/purge coordination, service
-publication/authority and exact-approval integration, transfer and verified TLS
-remain pending; runtime PostgreSQL selection is still explicitly unavailable.
+The PostgreSQL service authority adapter now authenticates exact UTF-8 profile
+credentials through the same credential/handshake policy as SQLite and creates
+the same installation-bound principal and current authority capture. It rechecks
+profile activity, catalog, grant scope/expiry, write permissions, approval author
+and relevant authority sequence inside the transaction-held installation lock.
+Profile summaries exclude credential hashes. Focused checks cover BOM credentials,
+malformed/unknown/revoked denial, handshake bounds, SQLite/PostgreSQL capture
+parity, identical regrant invalidation, expiry/withdrawal, installation identity
+and revocation conflicting with an awaited authority callback. This is an adapter
+for the owning backend transaction; it does not open endpoints or approve a
+proposal by itself.
+Control-schema discovery/opening, import previews/purge coordination, engine
+publication/authentication and exact-approval workflow integration, transfer and
+verified TLS remain pending; runtime PostgreSQL selection is still explicitly
+unavailable.
 Run `test/postgres_foundation_test.dart`, `test/postgres_relational_test.dart`,
 `test/postgres_journal_test.dart`, `test/postgres_workflow_test.dart` and
 `test/postgres_authority_test.dart`, `test/postgres_candidate_test.dart` and
@@ -314,7 +326,9 @@ Run `test/postgres_foundation_test.dart`, `test/postgres_relational_test.dart`,
 `test/postgres_projection_test.dart` and `test/postgres_kernel_test.dart` from
 `packages/ub_store` with
 `UB_TEST_POSTGRES_PORT` set to a disposable loopback `ub_disposable` database. Without
-that selection the live database cases are explicitly skipped. This check uses
+that selection the live database cases are explicitly skipped. Service authority cases are in
+`test/postgres_installation_authority_test.dart` under `packages/ub_service` with
+the same disposable database selection. This check uses
 local fixture setup privileges and cleans its generated schemas and role.
 Full-schema operations need enough server object-lock capacity: on the disposable
 PostgreSQL 16.15 server with 100 connections, the default

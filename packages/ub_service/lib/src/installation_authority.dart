@@ -9,8 +9,11 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_store/sqlite.dart' show OwnedSqliteDatabase;
+import 'package:ub_store/postgres_installation.dart';
 
 import 'validation_binding.dart';
+
+part 'postgres_installation_authority.dart';
 
 /// Trusted current values, usable only within the owning authority section.
 final class CurrentUniverseAuthority {
@@ -158,23 +161,9 @@ final class InstallationAuthority {
     required Credential credential,
   }) {
     try {
-      final exact = utf8.encode(credential.expose());
-      if (decodeExactUtf8(exact) != credential.expose()) {
-        throw const InstallationException(InstallationFailure.denied);
-      }
-      final stored = _store.profile(profile);
-      final supplied = sha256.convert(exact).toString();
-      if (stored == null ||
-          stored.revoked ||
-          !constantTimeBytesEquality.equals(
-            stored.credentialHash.codeUnits,
-            supplied.codeUnits,
-          )) {
-        throw const InstallationException(InstallationFailure.denied);
-      }
-      return InstallationPrincipal._(
-        stored.id,
-        stored.author,
+      return _authenticateInstallationProfile(
+        _store.profile(profile),
+        credential,
         _store.instanceId,
       );
     } on Object {
@@ -187,12 +176,7 @@ final class InstallationAuthority {
   /// Transports must call this again for each request; a handshake is not a
   /// lasting permission grant or a reservation of engine capacity.
   InstallationPrincipal authenticateHello(EngineHello hello) {
-    final nameBytes = utf8.encode(hello.clientName);
-    if (hello.protocolVersion != protocolVersion ||
-        nameBytes.length > 128 ||
-        utf8.decode(nameBytes) != hello.clientName) {
-      throw const FormatException('Incompatible engine handshake');
-    }
+    _validateEngineHello(hello);
     return authenticate(profile: hello.profileId, credential: hello.credential);
   }
 
@@ -411,5 +395,35 @@ final class InstallationAuthority {
       commit: commit,
       epochSeconds: _epochSeconds(),
     );
+  }
+}
+
+InstallationPrincipal _authenticateInstallationProfile(
+  InstallationProfile? stored,
+  Credential credential,
+  OperationId instance,
+) {
+  final exact = utf8.encode(credential.expose());
+  if (decodeExactUtf8(exact) != credential.expose()) {
+    throw const InstallationException(InstallationFailure.denied);
+  }
+  final supplied = sha256.convert(exact).toString();
+  if (stored == null ||
+      stored.revoked ||
+      !constantTimeBytesEquality.equals(
+        stored.credentialHash.codeUnits,
+        supplied.codeUnits,
+      )) {
+    throw const InstallationException(InstallationFailure.denied);
+  }
+  return InstallationPrincipal._(stored.id, stored.author, instance);
+}
+
+void _validateEngineHello(EngineHello hello) {
+  final nameBytes = utf8.encode(hello.clientName);
+  if (hello.protocolVersion != protocolVersion ||
+      nameBytes.length > 128 ||
+      utf8.decode(nameBytes) != hello.clientName) {
+    throw const FormatException('Incompatible engine handshake');
   }
 }
