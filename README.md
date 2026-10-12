@@ -300,8 +300,17 @@ flag. The candidate structural validator now composes these typed rule and
 citation checks with chronology and event expansion verification, declaration
 value shapes, context nesting, typed fact targets, appearances and bounded image
 metadata. Passing structure does not establish conflict resolution, permissions
-or author approval. Retained-image byte verification and proposal
+or author approval. Retained-image decoding and proposal
 validation/publication integration remain pending.
+Immutable import verification now compares complete source/image payloads with
+retained staging receipts, verifies original UTF-8 digests, byte lengths and
+decoding declarations, and checks exact citation excerpts at UTF-8 byte boundaries.
+Anchors retain their pinned historical source version when a newer head exists;
+structural-path anchors remain explicitly unsupported. Image byte reconstruction
+requires every bounded chunk, canonical standard Base64, exact chunk lengths and
+the complete content digest. These portable checks work with retained SQLite
+workflow entries after reopen; full workflow wiring and image decode/preview
+admission remain pending.
 The Dart definition registry now verifies incoming payload digests, isolates
 definition universes, retains active versions and rejects duplicate family names.
 Registry admission checks typed references, parent consistency and cycles,
