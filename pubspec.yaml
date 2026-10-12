@@ -10,5 +10,6 @@ workspace:
   - packages/ub_service
   - packages/ub_client
   - apps/ub_cli
+  - apps/ub_engine
 dev_dependencies:
   lints: 6.1.0

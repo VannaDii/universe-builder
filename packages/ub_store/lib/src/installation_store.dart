@@ -115,6 +115,31 @@ final class SqliteInstallationStore {
   static SqliteInstallationStore openExisting(String root) =>
       _open(root, create: false);
 
+  /// Explicit installation initialization holds bootstrap ownership as well as
+  /// the store's service lock. Existing authority is opened without replacement.
+  static T withBootstrap<T>(
+    String root,
+    T Function(SqliteInstallationStore) initialize,
+  ) {
+    final directory = privateDirectory(root);
+    final bootstrap = OwnedFileLock.acquire('$directory/bootstrap.lock');
+    try {
+      final path = '$directory/installation.sqlite';
+      final store =
+          FileSystemEntity.typeSync(path, followLinks: false) ==
+              FileSystemEntityType.notFound
+          ? create(directory)
+          : openExisting(directory);
+      try {
+        return initialize(store);
+      } finally {
+        store.close();
+      }
+    } finally {
+      bootstrap.close();
+    }
+  }
+
   static SqliteInstallationStore _open(String root, {required bool create}) {
     if (!create && !Directory(root).existsSync()) {
       throw const InstallationException(InstallationFailure.unavailable);

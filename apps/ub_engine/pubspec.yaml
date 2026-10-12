@@ -1,0 +1,14 @@
+name: ub_engine
+version: 0.1.0
+publish_to: none
+resolution: workspace
+environment:
+  sdk: 3.13.4
+dependencies:
+  ub_service: any
+  ub_store: any
+dev_dependencies:
+  test: 1.33.0
+  ub_client: any
+  ub_contracts: any
+  ub_domain: any

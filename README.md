@@ -130,6 +130,26 @@ The ownership bridge builds with the host C compiler through Dart build hooks.
 Native command-line bundles must use `dart build cli`; `dart compile exe` alone
 does not bundle the native assets.
 
+The Dart persistent engine is available for local SQLite installations:
+
+```sh
+dart run --verbosity=error apps/ub_engine/bin/universe-engine.dart --installation /path/to/disposable-installation --initialize
+dart run --verbosity=error apps/ub_engine/bin/universe-engine.dart --installation /path/to/disposable-installation
+dart build cli --target apps/ub_engine/bin/universe-engine.dart --output /path/to/build-output
+```
+
+Initialization prints only the approval-owner profile ID and refuses replacement
+of existing profiles. Ordinary startup opens an existing installation. Keep the
+compiled `bundle/bin/universe-engine` with its adjacent bundled libraries. Author
+shutdown, interrupt and termination signals drain the server and release ownership.
+Startup resolves `UB_USE_POSTGRES`/`UB_POSTGRES_ENDPOINT` and existing protected
+`settings.sqlite` before opening installation authority. Environment credentials
+are never saved. PostgreSQL runtime selection currently fails explicitly without
+opening a SQLite installation; no automatic fallback or conversion occurs.
+Compiled engine startup and shutdown have focused coverage on macOS with disposable
+data. On-demand client launch and other platform packages remain pending. These
+commands do not authorize converting or replacing a live author installation.
+
 The SQLite codec uses the existing fixed-column relational schema and keeps
 absent/null states, exact numeric strings and ordered child rows. It does not
 provide reviewed publication yet. The internal journal adds immutable revision
@@ -842,7 +862,7 @@ capacity, expires incomplete handshakes after five seconds and request input aft
 sixty seconds, and stops after fifteen minutes without connected clients. Shutdown
 closes transports, drains admitted work and releases the installation lock. Focused
 Unix-socket client/server checks currently cover macOS, including restart,
-revocation, creation, correlation and author shutdown. Installed engine executable
+revocation, creation, correlation and author shutdown. Client on-demand engine
 startup, remote/web adapters and qualification on other platforms remain pending.
 Expiry timestamps, draft versions and engine limits preserve exact unsigned
 values on web. These contracts do not authenticate profiles, grant permissions,
