@@ -190,8 +190,15 @@ and recipient suspension prevent a grant; explicit transfer and expiry remove
 prior-holder access without changing authored records. World/context/realm and
 event-time constraints remain explicit, and timeless queries grant no powers.
 Derivation retains the existing one-million-step work bound. These transient
-facts are not persisted as independent assertions; factual claim integration
-and canonical publication remain pending.
+facts are not persisted as independent assertions; canonical publication remains
+pending. Factual claim evaluation now includes exact direct and shared inherited
+attributes, candidate changes, role and existence queries, possession-derived
+powers and authored objective completeness. Support and refutation remain
+independent with their source versions; unresolved applicability, timing,
+classification or precision leaves coverage incomplete. Indexing preserves the
+same dependencies and cannot reuse an old candidate after changes. Missing facts
+do not imply refutation. Opposing-evidence scans and service admission/publication
+workflows remain pending.
 Typed events preserve occurrence modes, authored participants and ordered effects.
 Action consequences validate exact decimal bounds, slot uniqueness and lifetimes;
 an absent historical contract remains distinct from an explicitly empty contract,

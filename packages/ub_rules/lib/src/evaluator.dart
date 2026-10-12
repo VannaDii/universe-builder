@@ -2,9 +2,11 @@ import 'package:ub_domain/ub_domain.dart';
 
 import 'comparison.dart';
 import 'compiler.dart';
+import 'definitions.dart';
 import 'evidence.dart';
 import 'events.dart';
 import 'index.dart';
+import 'powers.dart';
 import 'time.dart';
 
 /// A caller-selected frame and factual candidate, with no permission authority.
@@ -63,8 +65,7 @@ EvaluationResult evaluateRule(CompiledRule rule, EvaluationContext context) {
   );
 }
 
-/// Bounded execution. Factual claim and opposing-evidence branches are still
-/// being ported; they remain unsupported until their handlers arrive.
+/// Bounded execution. Opposing-evidence scans remain unsupported until ported.
 (Evidence, bool) evaluateExpression(Expr expr, EvaluationContext context) =>
     _Evaluation(context).eval(expr, const {});
 
@@ -231,12 +232,382 @@ final class _Evaluation {
           }
         }
         return (evidence, complete);
-      case NoOpposingEvidenceExpr() ||
-          ClaimExpr() ||
-          NegatedClaimExpr() ||
-          ExistenceExpr() ||
-          RoleHoldsExpr():
+      case ClaimExpr(
+        :final subject,
+        :final predicate,
+        :final roles,
+        :final value,
+        :final polarity,
+        context: final cell,
+      ):
+        final (e, c) = claim(
+          subject,
+          predicate,
+          roles,
+          value,
+          cell,
+          variables,
+          true,
+        );
+        return (polarity == Polarity.refutation ? e.negate() : e, c);
+      case NegatedClaimExpr(
+        :final subject,
+        :final predicate,
+        :final roles,
+        :final value,
+        context: final cell,
+      ):
+        final (e, c) = claim(
+          subject,
+          predicate,
+          roles,
+          value,
+          cell,
+          variables,
+          true,
+        );
+        return (e.negate(), c);
+      case ExistenceExpr(
+        :final subject,
+        :final predicate,
+        :final roles,
+        :final value,
+        context: final cell,
+      ):
+        final (e, c) = claim(
+          subject,
+          predicate,
+          roles,
+          value,
+          cell,
+          variables,
+          true,
+        );
+        return (
+          Evidence(support: e.support, refutation: EvidenceBit.absent()),
+          c,
+        );
+      case RoleHoldsExpr(
+        :final subject,
+        :final predicate,
+        :final role,
+        :final participant,
+      ):
+        final (e, c) = claim(
+          subject,
+          predicate,
+          [ExprRole(role, participant)],
+          null,
+          null,
+          variables,
+          false,
+        );
+        return (
+          Evidence(support: e.support, refutation: EvidenceBit.absent()),
+          c,
+        );
+      case NoOpposingEvidenceExpr():
         return _unsupported();
     }
+  }
+
+  (Evidence, bool) claim(
+    Operand subjectOperand,
+    String predicate,
+    List<ExprRole> roleOperands,
+    Operand? valueOperand,
+    Operand? contextOperand,
+    Map<String, DomainValue> variables,
+    bool exactRoles,
+  ) {
+    RecordRef? reference(DomainValue? v) =>
+        v is ReferenceValue &&
+            (v.kind == ValueReferenceKind.record ||
+                v.kind == ValueReferenceKind.entity)
+        ? v.record
+        : null;
+    final frame = context.frame;
+    final subject = reference(_operand(subjectOperand, variables));
+    final cell = contextOperand == null
+        ? frame?.context
+        : reference(_operand(contextOperand, variables));
+    if (frame == null || subject == null || cell == null) return _unsupported();
+    try {
+      // Validate namespace without changing authored reference identity.
+      subject.resolveNamespace(frame.universe);
+      cell.resolveNamespace(frame.universe);
+    } on FormatException {
+      return _unsupported();
+    }
+    final expected = valueOperand == null
+        ? null
+        : _operand(valueOperand, variables);
+    if (valueOperand != null && expected == null) return _unsupported();
+    final roles = <(String, RecordRef)>[];
+    for (final r in roleOperands) {
+      final participant = reference(_operand(r.operand, variables));
+      if (participant == null) return _unsupported();
+      roles.add((r.role, participant));
+    }
+    final all = <RecordId, RecordVersion>{
+      for (final r in context.baseSnapshot) r.identity.recordId: r,
+    };
+    for (final (id, next) in context.candidateChanges) {
+      if (next == null) {
+        all.remove(id);
+      } else {
+        all[id] = next;
+      }
+    }
+    List<RecordVersion> ordered(Map<RecordId, RecordVersion> records) =>
+        (records.keys.toList()..sort((a, b) => a.value.compareTo(b.value)))
+            .map((id) => records[id]!)
+            .toList();
+    final allRecords = ordered(all);
+    final inherits = all[subject.record]?.payload is EntityRecord;
+    final chain = definitionAncestry(subject.record, allRecords);
+    final selected =
+        context.index != null && context.candidateChanges.isEmpty && !inherits
+        ? context.index!.claim(subject, predicate, cell)
+        : allRecords;
+    final snapshot = <RecordId, RecordVersion>{
+      for (final r in selected) r.identity.recordId: r,
+    };
+    final rows = ordered(snapshot);
+    if (snapshot.length > budget) return _unsupported();
+    budget -= snapshot.length;
+    final definitions = rows
+        .where(
+          (r) => switch (r.payload) {
+            PropertyRecord(:final namespace, :final key) ||
+            RelationRecord(
+              :final namespace,
+              :final key,
+            ) => '$namespace:$key' == predicate,
+            _ => false,
+          },
+        )
+        .map((r) => r.identity.recordId)
+        .toList();
+    if (definitions.length != 1) return _unsupported();
+    final propositions = rows
+        .where((r) {
+          final p = r.payload;
+          return p is PropositionRecord &&
+              (p.subject == subject ||
+                  inherits && chain.types.contains(p.subject.record)) &&
+              p.context == cell &&
+              p.predicate.record == definitions.single &&
+              (!exactRoles || p.roles.length == roles.length) &&
+              roles.every(
+                (role) => p.roles.any(
+                  (r) => r.role == role.$1 && r.participant == role.$2,
+                ),
+              );
+        })
+        .map((r) => r.identity.recordId)
+        .toSet();
+    var support = EvidenceBit.absent(), refutation = EvidenceBit.absent();
+    var complete = true;
+    final definition = snapshot[definitions.single]!.payload;
+    final property = definition is PropertyRecord ? definition : null;
+    final worlds = context.worldScope ?? const <RecordId>[];
+    if (property != null && property.subjectTypes.isNotEmpty) {
+      final matches = definitionMatches(
+        subject.record,
+        property.subjectTypes,
+        allRecords,
+        worlds,
+      );
+      if (matches == false) return (Evidence.notEstablished(), true);
+      if (matches == null) complete = false;
+    }
+    if (inherits &&
+        !chain.complete &&
+        allRecords.any((r) {
+          final a = r.payload;
+          if (a is! AssertionRecord ||
+              a.attributeMode != AttributeMode.shared ||
+              a.scope.context != cell ||
+              worldApplies(a.scope.applicability, worlds) == false ||
+              eventApplies(a.validity, frame.time, allRecords) == false) {
+            return false;
+          }
+          final p = all[a.proposition.record]?.payload;
+          return p is PropositionRecord &&
+              p.context == cell &&
+              p.predicate.record == definitions.single &&
+              all[p.subject.record]?.payload is EntityTypeRecord;
+        })) {
+      complete = false;
+    }
+    final hasShared = rows.any((r) {
+      final a = r.payload;
+      if (a is! AssertionRecord) return false;
+      final p = snapshot[a.proposition.record]?.payload;
+      return p is PropositionRecord &&
+          a.attributeMode == AttributeMode.shared &&
+          p.subject != subject &&
+          propositions.contains(a.proposition.record) &&
+          a.scope.context == cell &&
+          a.scope.realm == null &&
+          worldApplies(a.scope.applicability, worlds) == true &&
+          eventApplies(a.validity, frame.time, allRecords) == true &&
+          definitionMatches(
+                subject.record,
+                [p.subject.record],
+                allRecords,
+                worlds,
+              ) ==
+              true;
+    });
+    for (final r in rows) {
+      final a = r.payload;
+      if (a is! AssertionRecord ||
+          !propositions.contains(a.proposition.record) ||
+          a.scope.context != cell) {
+        continue;
+      }
+      final prop = snapshot[a.proposition.record]!;
+      final p = prop.payload as PropositionRecord;
+      final inherited = p.subject != subject;
+      if (inherited && a.attributeMode != AttributeMode.shared) continue;
+      final matches =
+          expected == null ||
+          p.value != null &&
+              (expected == p.value ||
+                  compareValues(expected, Comparator.eq, p.value!) == true);
+      if (!matches &&
+          !((inherited || inherits && hasShared) &&
+              property?.multiplicity == Multiplicity.single)) {
+        continue;
+      }
+      final world = worldApplies(a.scope.applicability, worlds);
+      final validity = eventApplies(a.validity, frame.time, allRecords);
+      // Proven disjointness makes uncertainty in another dimension irrelevant.
+      if (world == false || validity == false) continue;
+      if (inherited || all[p.subject.record]?.payload is EntityTypeRecord) {
+        final matches = definitionMatches(
+          inherited ? subject.record : p.subject.record,
+          [p.subject.record],
+          allRecords,
+          worlds,
+        );
+        if (matches == false) continue;
+        if (matches == null) {
+          complete = false;
+          continue;
+        }
+      }
+      if (world == null || a.scope.realm != null) {
+        complete = false;
+        continue;
+      }
+      if (a.precision != Precision.exact ||
+          a.alternatives.isNotEmpty ||
+          validity == null ||
+          frame.time is TimelessFrameTime &&
+              a.validity is! UnspecifiedValidity) {
+        complete = false;
+        continue;
+      }
+      final sources = <RecordVersionId>[r.recordVersionId];
+      if (inherited) {
+        sources.add(prop.recordVersionId);
+        final owner = all[subject.record];
+        if (owner != null) sources.add(owner.recordVersionId);
+        sources.addAll(
+          chain.types
+              .map((id) => all[id]?.recordVersionId)
+              .whereType<RecordVersionId>(),
+        );
+      }
+      final bit = EvidenceBit.withSources(sources);
+      if (a.polarity == Polarity.support && matches) {
+        support = support.or(bit);
+      } else if (a.polarity == Polarity.refutation && matches ||
+          a.polarity == Polarity.support && !matches) {
+        refutation = refutation.or(bit);
+      }
+    }
+    final hasPowers = context.index != null && context.candidateChanges.isEmpty
+        ? context.index!.hasPowers
+        : context.baseSnapshot.any((r) => r.payload is ItemPowerRecord) ||
+              context.candidateChanges.any(
+                (r) => r.$2?.payload is ItemPowerRecord,
+              );
+    if (roles.isEmpty && hasPowers) {
+      if (context.baseSnapshot.length > budget) return _unsupported();
+      budget -= context.baseSnapshot.length;
+      final queries = worlds.isEmpty
+          ? <WorldId?>[null]
+          : worlds
+                .map((r) => WorldId.parse('wld_${r.value.substring(4)}'))
+                .toList();
+      for (final world in queries) {
+        List<PowerFact> derived;
+        try {
+          derived = derivePowers(
+            records: allRecords,
+            subjects: [subject.record],
+            predicates: definitions,
+            context: cell,
+            time: frame.time,
+            world: world,
+          );
+        } on PowerEvaluationError {
+          return _unsupported();
+        }
+        for (final fact in derived) {
+          if (fact.subject != subject) continue;
+          final matches = expected == null || expected == fact.value;
+          final bit = EvidenceBit.withSources(fact.evidence);
+          if (matches) {
+            support = support.or(bit);
+          } else if (hasShared &&
+              property?.multiplicity == Multiplicity.single) {
+            refutation = refutation.or(bit);
+          }
+        }
+      }
+    }
+    for (final r in rows) {
+      final c = r.payload;
+      if (c is! CompletenessRecord ||
+          c.subject != subject ||
+          c.predicate != predicate ||
+          c.scope.context != cell ||
+          c.completeness is! ObjectiveCompleteness ||
+          roles.isNotEmpty ||
+          c.scope.realm != null) {
+        continue;
+      }
+      final applies = switch (c.scope.applicability) {
+        UniverseApplicability() => true,
+        WorldsApplicability(:final worldIds) =>
+          context.worldScope != null &&
+              worlds.length == 1 &&
+              worldIds.any(
+                (w) => worlds.single.value.substring(4) == w.value.substring(4),
+              ),
+        _ => false,
+      };
+      if (!applies ||
+          frame.time is TimelessFrameTime &&
+              c.validity is! UnspecifiedValidity ||
+          eventApplies(c.validity, frame.time, context.baseSnapshot) != true) {
+        continue;
+      }
+      final absent = expected == null
+          ? c.members.isEmpty
+          : expected is ReferenceValue &&
+                (expected.kind == ValueReferenceKind.record ||
+                    expected.kind == ValueReferenceKind.entity) &&
+                !c.members.contains(expected.record);
+      if (absent) {
+        refutation = refutation.or(EvidenceBit.withSource(r.recordVersionId));
+      }
+    }
+    return (Evidence(support: support, refutation: refutation), complete);
   }
 }

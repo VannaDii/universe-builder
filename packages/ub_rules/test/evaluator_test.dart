@@ -313,15 +313,18 @@ void main() {
     },
   );
 
-  test('unported factual branches cannot claim a completed check', () {
-    final result = run(
-      ClaimExpr(
-        subject: RecordOperand(RecordRef(record: id(9))),
-        predicate: 'author:age',
-        polarity: Polarity.support,
-      ),
-    );
-    expect(result.outcome, EvidenceOutcome.notEstablished);
-    expect(result.coverage, EvaluationCoverage.unsupported);
-  });
+  test(
+    'factual claims without a selected frame cannot claim a completed check',
+    () {
+      final result = run(
+        ClaimExpr(
+          subject: RecordOperand(RecordRef(record: id(9))),
+          predicate: 'author:age',
+          polarity: Polarity.support,
+        ),
+      );
+      expect(result.outcome, EvidenceOutcome.notEstablished);
+      expect(result.coverage, EvaluationCoverage.unsupported);
+    },
+  );
 }
