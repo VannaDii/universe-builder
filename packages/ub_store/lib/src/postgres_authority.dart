@@ -47,7 +47,7 @@ final class PostgresInstallationAuthority {
     if (rows.length != 1 ||
         rows.single['instance_id'] != instanceId.value ||
         rows.single['normalization'] != selectorNormalizationVersion ||
-        rows.single['schema_version'] != 2) {
+        rows.single['schema_version'] != 3) {
       throw const InstallationException(InstallationFailure.incompatibleSchema);
     }
     _locked = true;
@@ -503,6 +503,50 @@ final class PostgresInstallationAuthority {
     return limits;
   }
 
+  /// Suspend this source without removing its catalog, aliases or grants.
+  /// Exact retries bind to one target installation; no endpoint secrets are stored.
+  Future<void> quiesceUniverseForMove({
+    required ProfileId actor,
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+  }) async {
+    await requireAuthor(actor);
+    if (targetInstance == instanceId) {
+      throw const FormatException('Move target must be another installation');
+    }
+    final catalog = await _rows(
+      'SELECT id FROM $_schema.catalog WHERE id=\$1',
+      [universe.value],
+    );
+    if (catalog.isEmpty) {
+      throw const InstallationException(InstallationFailure.denied);
+    }
+    final existing = await _rows(
+      'SELECT operation,target_instance FROM $_schema.move_quiescence WHERE universe=\$1',
+      [universe.value],
+    );
+    if (existing.isNotEmpty) {
+      if (existing.single['operation'] != operation.value ||
+          existing.single['target_instance'] != targetInstance.value) {
+        throw const FormatException('Source is bound to another move');
+      }
+      return;
+    }
+    if ((await _rows(
+      'SELECT universe FROM $_schema.move_quiescence WHERE operation=\$1',
+      [operation.value],
+    )).isNotEmpty) {
+      throw const FormatException('Move operation belongs to another universe');
+    }
+    await _execute('INSERT INTO $_schema.move_quiescence VALUES(\$1,\$2,\$3)', [
+      universe.value,
+      operation.value,
+      targetInstance.value,
+    ]);
+    await _audit(actor.value, 'quiesce_move', universe.value);
+  }
+
   Future<Set<WorldId>?> universeScope(
     ProfileId profile,
     UniverseId universe,
@@ -512,6 +556,12 @@ final class PostgresInstallationAuthority {
     if ((await _rows('SELECT id FROM $_schema.catalog WHERE id=\$1', [
       universe.value,
     ])).isEmpty) {
+      throw const InstallationException(InstallationFailure.denied);
+    }
+    if ((await _rows(
+      'SELECT universe FROM $_schema.move_quiescence WHERE universe=\$1',
+      [universe.value],
+    )).isNotEmpty) {
       throw const InstallationException(InstallationFailure.denied);
     }
     if (current.author) return null;

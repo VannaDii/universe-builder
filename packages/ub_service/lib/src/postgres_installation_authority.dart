@@ -109,6 +109,23 @@ final class PostgresServiceAuthority {
     await _store.requireAuthor(principal.id);
   }
 
+  /// Trusted move coordinator entry. Ordinary universe routes remain suspended
+  /// after this transaction commits, including already connected workers.
+  Future<void> quiesceUniverseForMove(
+    InstallationPrincipal principal, {
+    required UniverseId universe,
+    required OperationId operation,
+    required OperationId targetInstance,
+  }) => coordinate(
+    principal,
+    () => _store.quiesceUniverseForMove(
+      actor: principal.id,
+      universe: universe,
+      operation: operation,
+      targetInstance: targetInstance,
+    ),
+  );
+
   Future<Set<WorldId>?> universeScope(
     InstallationPrincipal principal,
     UniverseId universe,

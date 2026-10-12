@@ -161,7 +161,7 @@ final class PostgresInstallationStore {
           if (rows.length != 1 ||
               rows.single[0] != id.value ||
               rows.single[1] != selectorNormalizationVersion ||
-              rows.single[2] != 2) {
+              rows.single[2] != 3) {
             throw const InstallationException(
               InstallationFailure.incompatibleSchema,
             );
@@ -171,6 +171,7 @@ final class PostgresInstallationStore {
           for (final entry in const {
             'profiles': 'id,hash,author,revoked',
             'catalog': 'id,name,schema_name',
+            'move_quiescence': 'universe,operation,target_instance',
             'aliases': 'key,universe',
             'grants': 'profile,universe,worlds_state,propose,edit,protected,entities_state,predicates_state,continuities_state,expires_at,delegated_commit,allow_shared',
             'grant_worlds': 'profile,universe,ordinal,world',
