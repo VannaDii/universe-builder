@@ -63,6 +63,69 @@ SaveDraftEngineRequest renameWorldDraftRequest({
   );
 }
 
+SaveDraftEngineRequest worldAliasDraftRequest({
+  required Selector universe,
+  required UniverseId universeId,
+  required ContinuityId continuity,
+  required UnfinishedWorldForm form,
+  required SavedDraft? previous,
+}) {
+  if (form.selector.trim().isEmpty || form.expectedRecordVersion == null) {
+    throw const FormatException(
+      'Enter an alias and reopen the published world before adding it.',
+    );
+  }
+  final operation = AddWorldAliasOperation(
+    record: RecordRef(universe: universeId, record: form.record),
+    expectedVersion: form.expectedRecordVersion!,
+    alias: form.selector,
+  );
+  final old = previous?.content;
+  if (old != null &&
+      (old.baseRevision != form.baseRevision ||
+          old.representedContext != form.representedContext)) {
+    throw const FormatException(
+      'These changes use another revision or context. Review them before adding this alias.',
+    );
+  }
+  for (final existing in old?.operations ?? <DomainOperation>[]) {
+    if (existing is AddWorldAliasOperation &&
+        existing.record == operation.record &&
+        existing.alias == operation.alias) {
+      if (existing.toWire().toText() != operation.toWire().toText()) {
+        throw const FormatException(
+          'Changes already contains this alias based on another world version. Review that operation before replacing it.',
+        );
+      }
+      return SaveDraftEngineRequest(
+        universe: universe,
+        continuityId: continuity,
+        expectedVersion: previous!.version,
+        content: old!,
+      );
+    }
+  }
+  if (old?.proposal != null) {
+    throw const FormatException(
+      'Continue editing separately in Changes before adding an alias to a submitted proposal.',
+    );
+  }
+  return SaveDraftEngineRequest(
+    universe: universe,
+    continuityId: continuity,
+    expectedVersion: previous?.version ?? BigInt.zero,
+    content: DraftContent(
+      baseRevision: form.baseRevision,
+      representedContext: form.representedContext,
+      operations: [...?old?.operations, operation],
+      rationale: [
+        if (old != null && old.rationale.isNotEmpty) old.rationale,
+        if (form.rationale.isNotEmpty) form.rationale,
+      ].join('\n\n'),
+    ),
+  );
+}
+
 /// Edits the visible fields without replacing an operation's authored identity
 /// or details that this editor does not expose.
 DraftContent editWorldDraftFields({

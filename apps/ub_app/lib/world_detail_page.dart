@@ -90,12 +90,13 @@ class _WorldDetailPageState extends State<WorldDetailPage> {
     }
   }
 
-  Future<void> _rename() async {
+  Future<void> _rename({bool addAlias = false}) async {
     final record = _record;
     if (record == null || _loading) return;
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => WorldEditorPage.rename(
+          addAlias: addAlias,
           session: widget.session,
           universe: Selector(widget.universe.name),
           continuity: _continuity,
@@ -108,6 +109,7 @@ class _WorldDetailPageState extends State<WorldDetailPage> {
             continuity: widget.scope.continuity,
             representedContext: widget.representedContext.id,
             worldRecord: record.identity.recordId,
+            worldClientRef: addAlias ? 'alias' : null,
           ),
         ),
       ),
@@ -147,7 +149,7 @@ class _WorldDetailPageState extends State<WorldDetailPage> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: FilledButton(
-                    onPressed: _loading ? null : _rename,
+                    onPressed: _loading ? null : () => _rename(),
                     child: const Text('Rename world'),
                   ),
                 ),
@@ -155,6 +157,19 @@ class _WorldDetailPageState extends State<WorldDetailPage> {
                 const Text(
                   'Renames go into Changes for review. The previous name is retained as an alias when published.',
                 ),
+              if (widget.session.author) ...[
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton(
+                    onPressed: _loading ? null : () => _rename(addAlias: true),
+                    child: const Text('Add alias'),
+                  ),
+                ),
+                const Text(
+                  'Aliases go into Changes for review. They retain the world’s current name and identity.',
+                ),
+              ],
             ],
             const SizedBox(height: 16),
             Align(

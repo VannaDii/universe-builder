@@ -55,6 +55,11 @@ context, or a submitted draft requires review in Changes. Recovered fields from
 an older record or revision remain visible until the author explicitly replaces
 them with the current published world. Publication retains the earlier name as
 an alias. Returning to the detail view refreshes the accessible current record.
+**Add alias** opens a separate recoverable alias-and-rationale form. Adding it
+to Changes preserves the current world name, identity and other fields; it uses
+the same exact-version review and publication flow. Saved alias fields are kept
+separately from unfinished renames, and repeating the same addition does not
+duplicate the operation.
 **World draft** opens the first unfinished record editor in the chosen context.
 World name, English display label, setting type and
 rationale autosave on this device, including blank or incomplete input. Ordered

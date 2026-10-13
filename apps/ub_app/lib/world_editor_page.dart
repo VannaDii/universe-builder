@@ -24,7 +24,8 @@ class WorldEditorPage extends StatefulWidget {
     required this.continuity,
     required this.universe,
     this.representedContext,
-  }) : publishedWorld = null,
+  }) : addAlias = false,
+       publishedWorld = null,
        editingDraft = null,
        operationIndex = null;
   WorldEditorPage.edit({
@@ -32,7 +33,8 @@ class WorldEditorPage extends StatefulWidget {
     required SavedChanges changes,
     required SavedDraft draft,
     required int index,
-  }) : session = changes.session,
+  }) : addAlias = false,
+       session = changes.session,
        universe = changes.universe,
        continuity = null,
        representedContext = null,
@@ -56,9 +58,11 @@ class WorldEditorPage extends StatefulWidget {
     required this.universe,
     required this.representedContext,
     required RecordVersion world,
+    this.addAlias = false,
   }) : publishedWorld = world,
        editingDraft = null,
        operationIndex = null;
+  final bool addAlias;
   final RecordVersion? publishedWorld;
   final SavedDraft? editingDraft;
   final int? operationIndex;
@@ -169,7 +173,7 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
         representedContext: widget.representedContext!.id,
         record: world.identity.recordId,
         expectedRecordVersion: world.recordVersionId,
-        selector: record.selector,
+        selector: widget.addAlias ? '' : record.selector,
         settingType: record.settingType ?? '',
         rationale: '',
         aliases: record.aliases,
@@ -372,7 +376,7 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
           : SavedDraft.fromWire(loaded);
       if (_stale) {
         throw const FormatException(
-          'Review the current published world before replacing your recovered rename fields.',
+          'Review the current published world before replacing your recovered fields.',
         );
       }
       final request = widget.publishedWorld == null
@@ -382,7 +386,9 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
               form: entered,
               previous: previous,
             )
-          : renameWorldDraftRequest(
+          : (widget.addAlias
+                ? worldAliasDraftRequest
+                : renameWorldDraftRequest)(
               universe: widget.universe,
               universeId: widget.scope.universe,
               continuity: widget.scope.continuity,
@@ -397,6 +403,8 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
         setState(() {
           _added = widget.publishedWorld == null
               ? 'World added to saved changes. Open Changes to review its current proposal and publication status.'
+              : widget.addAlias
+              ? 'World alias added to saved changes. Open Changes to review and publish it.'
               : 'World rename added to saved changes. Open Changes to review and publish it.';
         });
       }
@@ -451,7 +459,7 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
       appBar: AppBar(
         title: Text(
           widget.publishedWorld != null
-              ? 'Rename world'
+              ? (widget.addAlias ? 'Add world alias' : 'Rename world')
               : widget.editingDraft == null
               ? 'World draft'
               : 'Edit world in changes',
@@ -479,7 +487,7 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
               const SizedBox(height: 24),
               if (_loading || _saving || _adding)
                 const LinearProgressIndicator(),
-              _field(_name, 'World name'),
+              _field(_name, widget.addAlias ? 'Alias' : 'World name'),
               if (widget.publishedWorld == null) ...[
                 _field(_label, 'Display label (English, optional)'),
                 _field(_setting, 'Setting type (optional)'),
@@ -496,7 +504,7 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
                 Text(
                   widget.publishedWorld == null
                       ? 'Your recovered fields belong to an earlier draft. They have not replaced the current saved world.'
-                      : 'Your recovered rename uses an earlier record or revision. The published world has not changed.',
+                      : 'Your recovered fields use an earlier record or revision. The published world has not changed.',
                 ),
                 TextButton(
                   onPressed: _saving || _adding ? null : _replacePendingFields,
@@ -571,7 +579,9 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
                       onPressed: _saving || _adding || _stale ? null : _add,
                       child: Text(
                         widget.publishedWorld != null
-                            ? 'Add rename to changes'
+                            ? (widget.addAlias
+                                  ? 'Add alias to changes'
+                                  : 'Add rename to changes')
                             : widget.editingDraft == null
                             ? 'Add to changes'
                             : 'Save world changes',

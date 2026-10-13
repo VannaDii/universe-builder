@@ -83,6 +83,84 @@ void main() {
   );
 
   test(
+    'published-world alias retains its version, other work and exact retry',
+    () {
+      final universeId = UniverseId.generate(),
+          continuity = ContinuityId.generate();
+      final form = UnfinishedWorldForm(
+        baseRevision: RevisionId.generate(),
+        representedContext: RecordId.generate(),
+        record: RecordId.generate(),
+        expectedRecordVersion: RecordVersionId.generate(),
+        selector: ' River delta ',
+        settingType: '',
+        rationale: 'Keep the earlier name.',
+      );
+      final other = CreateWorldOperation(
+        clientRef: 'other',
+        record: WorldRecord(selector: 'Mountain'),
+      );
+      final before = SavedDraft(
+        version: BigInt.from(7),
+        content: DraftContent(
+          baseRevision: form.baseRevision,
+          representedContext: form.representedContext,
+          operations: [other],
+          rationale: 'Existing rationale',
+        ),
+      );
+      SaveDraftEngineRequest alias(SavedDraft? previous) =>
+          worldAliasDraftRequest(
+            universe: Selector('History'),
+            universeId: universeId,
+            continuity: continuity,
+            form: form,
+            previous: previous,
+          );
+      final request = alias(before);
+      final operation =
+          request.content.operations.last as AddWorldAliasOperation;
+      expect(
+        operation.record,
+        RecordRef(universe: universeId, record: form.record),
+      );
+      expect(operation.expectedVersion, form.expectedRecordVersion);
+      expect(operation.alias, ' River delta ');
+      expect(request.expectedVersion, before.version);
+      expect(
+        request.content.operations.first.toWire().toText(),
+        other.toWire().toText(),
+      );
+      expect(
+        request.content.rationale,
+        'Existing rationale\n\nKeep the earlier name.',
+      );
+      final saved = SavedDraft(
+        version: BigInt.from(8),
+        content: request.content,
+      );
+      expect(
+        alias(saved).content.toWire().toText(),
+        saved.content.toWire().toText(),
+      );
+      expect(
+        () => alias(
+          SavedDraft(
+            version: BigInt.one,
+            content: DraftContent(
+              baseRevision: RevisionId.generate(),
+              representedContext: form.representedContext,
+              operations: [],
+              rationale: '',
+            ),
+          ),
+        ),
+        throwsFormatException,
+      );
+    },
+  );
+
+  test(
     'world field edits preserve external references and unexposed details',
     () {
       final world = CreateWorldOperation(

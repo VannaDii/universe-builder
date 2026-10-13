@@ -562,6 +562,13 @@ class _ChangesPageState extends State<ChangesPage> {
                               const Text(
                                 'The earlier name is retained as an alias when published.',
                               ),
+                            ] else if (operations[index]
+                                case AddWorldAliasOperation(:final alias)) ...[
+                              const Text('Additional world name'),
+                              SelectableText(alias),
+                              const Text(
+                                'The world’s current name and identity stay the same.',
+                              ),
                             ] else
                               ExactFields(value: operations[index].toWire()),
                             if (_proposal == null)
