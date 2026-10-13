@@ -8,6 +8,7 @@ import 'universe_creation.dart';
 import 'world_editor_page.dart';
 import 'world_browser.dart';
 import 'world_detail_page.dart';
+import 'record_browser_page.dart';
 import 'changes_page.dart';
 import 'saved_changes.dart';
 import 'postgres_settings.dart';
@@ -595,6 +596,25 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                         : (id) {
                             if (id != null) _chooseContext(continuity, id);
                           },
+                  ),
+                if (_contexts.containsKey(continuity.id))
+                  TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => RecordBrowserPage(
+                                session: _session!,
+                                universe: _selected!,
+                                continuity: continuity,
+                                representedContext: selectedRepresentedContext(
+                                  continuity,
+                                  _contexts[continuity.id],
+                                )!,
+                              ),
+                            ),
+                          ),
+                    child: const Text('Records'),
                   ),
                 if (_session!.author)
                   Wrap(

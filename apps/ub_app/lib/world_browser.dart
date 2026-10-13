@@ -31,7 +31,7 @@ Future<Envelope<Description>> readContextWorlds({
   required ContinuitySummary continuity,
   required RepresentedContextSummary representedContext,
 }) async {
-  final opened = await _openWorldContext(
+  final opened = await openAuthorReadContext(
     session,
     universe,
     continuity,
@@ -51,7 +51,7 @@ Future<Envelope<Description>> readContextWorlds({
   );
 }
 
-Future<OpenedContext> _openWorldContext(
+Future<OpenedContext> openAuthorReadContext(
   AppSession session,
   LibraryEntry universe,
   ContinuitySummary continuity,
@@ -90,7 +90,7 @@ Future<RecordVersion> readPublishedWorld({
   required RepresentedContextSummary representedContext,
   required WorldSummary world,
 }) async {
-  final opened = await _openWorldContext(
+  final opened = await openAuthorReadContext(
     session,
     universe,
     continuity,

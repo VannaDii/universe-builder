@@ -45,6 +45,11 @@ Overview offers a **Represented context** selector for each continuity. A sole
 context is selected automatically; multiple contexts require an explicit choice.
 World reads use that context at the continuity's exact revision, and returning
 from an editor retains an accessible selection while refreshing the revision.
+**Records** browses accessible records in the selected continuity and context.
+Leave the search blank to browse, enter a name to search, or filter by record
+type. Results are paged; **Load more** continues the same search. Opening a result
+shows its complete published fields. The list and record reads remain pinned
+to the revision opened here; reopen Records from the overview for later changes.
 Opening a listed world displays its complete published record in that frame,
 including aliases, multilingual labels and metadata. **Rename world** opens a
 recoverable name-and-rationale form pinned to the record's version. **Add rename

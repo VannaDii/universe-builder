@@ -8,6 +8,7 @@ import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/saved_changes.dart';
 import 'package:ub_app/world_draft.dart';
+import 'package:ub_app/record_browser.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_engine.dart';
@@ -85,6 +86,62 @@ void main() {
       await changes.approve(proposal, checks);
       final receipt = await changes.publish(proposal, checks.execution.runId);
       final record = proposal.compiledChanges.single.next!;
+      final entry = LibraryEntry(scope.universe, 'Alias history');
+      final opened = Envelope<OpenedContext>.fromWire(
+        await session.call(
+          ToolEngineRequest(
+            request: OpenContextRequest(
+              universe: Selector(entry.name),
+              universeId: entry.id,
+              continuityId: scope.continuity,
+              revision: ExactRevisionSelector(revisionId: receipt.revision),
+              representedContext: ContextIdSelector(context),
+              temporalQuery: const TimelessFrameTime(),
+              temporalSystems: [],
+              perspective: const AuthorPerspective(),
+            ),
+          ),
+        ),
+        OpenedContext.fromWire,
+      ).result;
+      final firstPage = await searchContextRecords(
+        session: session,
+        universe: entry,
+        context: opened,
+        query: '',
+        limit: 1,
+      );
+      expect(firstPage.delivery.complete, isFalse);
+      final nextPage = await searchContextRecords(
+        session: session,
+        universe: entry,
+        context: opened,
+        query: '',
+        limit: 1,
+        cursor: firstPage.delivery.cursor,
+      );
+      expect(
+        nextPage.result.hits.single.recordId,
+        isNot(firstPage.result.hits.single.recordId),
+      );
+      final worldSearch = await searchContextRecords(
+        session: session,
+        universe: entry,
+        context: opened,
+        query: 'Old river',
+        kind: RecordKind.world,
+      );
+      expect(worldSearch.delivery.complete, isTrue);
+      expect(worldSearch.result.hits.single.recordId, record.identity.recordId);
+      expect(
+        (await readContextRecord(
+          session: session,
+          universe: entry,
+          context: opened,
+          record: record.identity.recordId,
+        )).payload.toWire().toText(),
+        original.toWire().toText(),
+      );
       final latest = SavedDraft.fromWire(
         await session.call(
           LoadDraftEngineRequest(
@@ -167,6 +224,16 @@ void main() {
         validation.execution.runId,
       );
       expect(published.revision, isNot(receipt.revision));
+      // The browser keeps its opened revision even after later publication.
+      expect(
+        (await readContextRecord(
+          session: session,
+          universe: entry,
+          context: opened,
+          record: record.identity.recordId,
+        )).payload.toWire().toText(),
+        original.toWire().toText(),
+      );
       expect(
         (await resumed.publish(aliased, validation.execution.runId)).revision,
         published.revision,
