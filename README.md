@@ -115,15 +115,19 @@ using current fields. Validation checks the value against the retained shape.
 **Assertion details** edits attribute mode, polarity, precision, persistence and validity.
 Untouched fields retain their exact authored values. Temporal validity uses the
 shared fictional-time controls, including nested amounts.
-**Factual scope** edits applicability, context and an optional realm. Typed reference
-fields retain omitted universe IDs; world lists retain order and repeated entries.
+**Factual scope** edits applicability, context and an optional realm. Named choices
+browse accessible worlds, contexts and realms at the draft’s pinned revision.
+World lists retain order and repeated entries; advanced reference fields retain
+omitted universe IDs and unfinished references.
 An empty selected-world list applies nowhere. Unfinished scope input recovers without
 requiring valid references until saving into Changes; service validation still applies.
 **Alternative values** adds, edits, removes and reorders typed alternatives, including
 nested values. Unfinished alternatives recover on this device. Precision remains
 an explicit author choice; alternatives do not become additional established facts.
 **Source basis** edits an author decision note, source-anchor reference/content-match
-flag, or imported claim. It can also retain the exact existing basis, including
+flag, or imported claim. Source anchors are searchable by their authored excerpt
+at the draft’s revision, with advanced reference entry also available. It can
+retain the exact existing basis, including
 provenance owned by an event, evaluator or initialization workflow. Pending source
 references recover before they are complete. A content-match flag does not establish
 truth or entailment; the existing source validation and approval flow still apply.

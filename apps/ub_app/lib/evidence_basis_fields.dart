@@ -3,6 +3,8 @@ import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'package:ub_domain/ub_domain.dart';
 
 import 'record_fields.dart';
+import 'draft_record_choice_field.dart';
+import 'saved_changes.dart';
 
 class EvidenceBasisFields extends StatefulWidget {
   const EvidenceBasisFields({
@@ -11,11 +13,15 @@ class EvidenceBasisFields extends StatefulWidget {
     required this.original,
     required this.disabled,
     required this.onChanged,
+    required this.changes,
+    required this.draft,
   });
   final EvidenceBasisInput input;
   final EvidenceBasis original;
   final bool disabled;
   final ValueChanged<EvidenceBasisInput> onChanged;
+  final SavedChanges changes;
+  final SavedDraft draft;
   @override
   State<EvidenceBasisFields> createState() => _EvidenceBasisFieldsState();
 }
@@ -121,8 +127,27 @@ class _EvidenceBasisFieldsState extends State<EvidenceBasisFields> {
       if (_kind == 'author_decision')
         _field(_note, 'Author decision note', multiline: true),
       if (_kind == 'source_anchor') ...[
-        _field(_anchorRecord, 'Source anchor record ID'),
-        _field(_anchorUniverse, 'Anchor universe ID (optional)'),
+        DraftRecordChoiceField(
+          changes: widget.changes,
+          draft: widget.draft,
+          kind: RecordKind.anchor,
+          label: 'Source anchor',
+          record: _anchorRecord.text,
+          universe: _anchorUniverse.text,
+          disabled: widget.disabled,
+          onChanged: (ref) {
+            _anchorRecord.text = ref.record.value;
+            _anchorUniverse.text = ref.universe?.value ?? '';
+            _changed();
+          },
+        ),
+        ExpansionTile(
+          title: const Text('Advanced anchor reference'),
+          children: [
+            _field(_anchorRecord, 'Source anchor record ID'),
+            _field(_anchorUniverse, 'Anchor universe ID (optional)'),
+          ],
+        ),
         CheckboxListTile(
           title: const Text('Content match recorded as verified'),
           value: _verified,

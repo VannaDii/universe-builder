@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:ub_app/attribute_draft.dart';
 import 'package:ub_app/evidence_basis_draft.dart';
+import 'package:ub_app/draft_record_choices.dart';
 import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/saved_changes.dart';
@@ -367,6 +368,26 @@ void main() {
         universe: Selector('Attributes'),
         scope: scope,
       );
+      const sourceText = 'An exact sourced account.';
+      final stagedSource = WireFields(
+        await session.call(
+          const StageSourceEngineRequest(
+            universe: Selector('Attributes'),
+            label: 'Diary source',
+            text: sourceText,
+          ),
+        ),
+        {'canonical', 'operations'},
+      );
+      final sourceOperations = stagedSource
+          .array('operations')
+          .map(DomainOperation.fromWire)
+          .toList();
+      final sourcePayload = sourceOperations
+          .whereType<RecordNarrativeReferenceOperation>()
+          .map((op) => op.payload)
+          .whereType<SourceVersionRecord>()
+          .single;
       final initial = SavedDraft.fromWire(
         await session.call(
           SaveDraftEngineRequest(
@@ -385,6 +406,15 @@ void main() {
                   ),
                   worldAssociations: [],
                 ),
+                ...sourceOperations,
+                CreateWorldOperation(
+                  clientRef: 'first-world',
+                  record: WorldRecord(selector: 'Early world 記憶 😀'),
+                ),
+                CreateWorldOperation(
+                  clientRef: 'second-world',
+                  record: WorldRecord(selector: 'Other early world'),
+                ),
               ],
               rationale: 'Introduce Mara.',
             ),
@@ -399,11 +429,44 @@ void main() {
         proposal,
         validation.execution.runId,
       );
-      final entity = (await changes().readPublished(proposal, receipt)).single;
-      final fresh = await changes().rebase(
+      final foundations = await changes().readPublished(proposal, receipt);
+      final entity = foundations.where((r) => r.payload is EntityRecord).single;
+      final sourceVersion = foundations
+          .where((r) => r.payload is SourceVersionRecord)
+          .single;
+      var fresh = await changes().rebase(
         (await changes().load())!,
         startNew: true,
       );
+      final anchorDraft = await changes().saveContent(
+        fresh,
+        DraftContent(
+          baseRevision: fresh.content.baseRevision,
+          representedContext: fresh.content.representedContext,
+          operations: [
+            AddSourceAnchorOperation(
+              clientRef: 'diary-anchor',
+              record: AnchorRecord(
+                sourceVersion: VersionRef(
+                  universe: scope.universe,
+                  record: sourceVersion.identity.recordId,
+                  version: sourceVersion.recordVersionId,
+                ),
+                locator: ByteRangeLocator(BigInt.zero, sourcePayload.byteSize),
+                excerptDigest: sourcePayload.contentDigest,
+                excerpt: sourceText,
+              ),
+            ),
+          ],
+          rationale: 'Retain the exact diary excerpt.',
+        ),
+      );
+      final anchorProposal = await changes().submit(anchorDraft);
+      final anchorValidation =
+          await changes().validate(anchorProposal) as EvaluatedValidation;
+      await changes().approve(anchorProposal, anchorValidation);
+      await changes().publish(anchorProposal, anchorValidation.execution.runId);
+      fresh = await changes().rebase((await changes().load())!, startNew: true);
       final evidence = AttributeEvidence(
         attributeMode: AttributeMode.instance,
         polarity: Polarity.support,
@@ -453,6 +516,121 @@ void main() {
           ],
           rationale: 'An attributed account.',
         ),
+      );
+      final choiceContext = await openDraftChoiceContext(changes(), saved);
+      expect(choiceContext.frame.revision, saved.content.baseRevision);
+      final firstPage = await searchDraftChoices(
+        changes: changes(),
+        context: choiceContext,
+        kind: RecordKind.world,
+        limit: 1,
+      );
+      expect(firstPage.result.hits.length, 1);
+      expect(firstPage.delivery.complete, isFalse);
+      final secondPage = await searchDraftChoices(
+        changes: changes(),
+        context: choiceContext,
+        kind: RecordKind.world,
+        limit: 1,
+        cursor: firstPage.delivery.cursor,
+      );
+      expect(secondPage.delivery.complete, isTrue);
+      final worlds = [...firstPage.result.hits, ...secondPage.result.hits];
+      expect(worlds.map((h) => h.label).toSet(), {
+        'Early world 記憶 😀',
+        'Other early world',
+      });
+      final selectedWorld = await selectDraftChoice(
+        changes: changes(),
+        context: choiceContext,
+        hit: worlds.first,
+        kind: RecordKind.world,
+      );
+      expect(selectedWorld.universe, scope.universe);
+      expect(
+        worldChoiceRecord(worldFromChoice(selectedWorld).value),
+        selectedWorld.record,
+      );
+      expect(
+        (await readDraftChoiceSummary(
+          changes: changes(),
+          context: choiceContext,
+          record: selectedWorld.record,
+          kind: RecordKind.world,
+        )).label,
+        worlds.first.label,
+      );
+      await expectLater(
+        selectDraftChoice(
+          changes: changes(),
+          context: choiceContext,
+          hit: worlds.first,
+          kind: RecordKind.realm,
+        ),
+        throwsFormatException,
+      );
+      final contexts = await searchDraftChoices(
+        changes: changes(),
+        context: choiceContext,
+        kind: RecordKind.representedContext,
+      );
+      expect(contexts.result.hits.single.recordId, scope.representedContext);
+      expect(
+        (await selectDraftChoice(
+          changes: changes(),
+          context: choiceContext,
+          hit: contexts.result.hits.single,
+          kind: RecordKind.representedContext,
+        )).record,
+        scope.representedContext,
+      );
+      final anchors = await searchDraftChoices(
+        changes: changes(),
+        context: choiceContext,
+        kind: RecordKind.anchor,
+        query: 'sourced',
+      );
+      expect(anchors.result.hits.single.label, sourceText);
+      final anchor = await selectDraftChoice(
+        changes: changes(),
+        context: choiceContext,
+        hit: anchors.result.hits.single,
+        kind: RecordKind.anchor,
+      );
+      expect(anchor.universe, scope.universe);
+      expect(
+        (await readDraftChoiceSummary(
+          changes: changes(),
+          context: choiceContext,
+          record: anchor.record,
+          kind: RecordKind.anchor,
+        )).label,
+        sourceText,
+      );
+      await expectLater(
+        readDraftChoiceSummary(
+          changes: changes(),
+          context: choiceContext,
+          record: anchor.record,
+          kind: RecordKind.realm,
+        ),
+        throwsFormatException,
+      );
+      final mislabeledAnchor = SearchHit(
+        recordId: anchor.record,
+        kind: RecordKind.world,
+        label: 'Wrong type',
+        worldIds: [],
+        scopeCategory: anchors.result.hits.single.scopeCategory,
+      );
+      await expectLater(
+        selectDraftChoice(
+          changes: changes(),
+          context: choiceContext,
+          hit: mislabeledAnchor,
+          kind: RecordKind.world,
+        ),
+        throwsFormatException,
       );
       final formScope = EditorFormScope(
         instance: instance,
@@ -569,6 +747,26 @@ void main() {
         authored,
         checked.execution.runId,
       );
+      final pinnedWorlds = await searchDraftChoices(
+        changes: changes(),
+        context: choiceContext,
+        kind: RecordKind.world,
+      );
+      expect(
+        pinnedWorlds.result.hits.map((h) => h.label),
+        isNot(contains('River')),
+      );
+      final nextDraft = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final nextContext = await openDraftChoiceContext(changes(), nextDraft);
+      final currentWorlds = await searchDraftChoices(
+        changes: changes(),
+        context: nextContext,
+        kind: RecordKind.world,
+      );
+      expect(currentWorlds.result.hits.map((h) => h.label), contains('River'));
       final result = await changes().readPublished(authored, published);
       final fact = result
           .map((r) => r.payload)

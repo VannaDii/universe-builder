@@ -27,6 +27,32 @@ void main() {
       ),
       'first',
     );
+    expect(
+      recordReadLabel(
+        f.row(
+          4,
+          RealmRecord(labels: {'en': 'Dream realm 記憶 😀'}, metadata: {}),
+        ),
+      ),
+      'Dream realm 記憶 😀',
+    );
+    expect(
+      recordReadLabel(
+        f.row(
+          5,
+          AnchorRecord(
+            sourceVersion: VersionRef(
+              record: f.id(6),
+              version: RecordVersionId.generate(),
+            ),
+            locator: ByteRangeLocator(BigInt.zero, BigInt.one),
+            excerptDigest: '',
+            excerpt: 'Exact excerpt 記憶 😀',
+          ),
+        ),
+      ),
+      'Exact excerpt 記憶 😀',
+    );
     expect(recordReadLabel(structure.context(99)), f.id(99).value);
     expect(
       recordReadLabel(

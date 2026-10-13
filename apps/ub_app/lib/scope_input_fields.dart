@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:ub_contracts/ub_contracts.dart' hide State;
+import 'package:ub_domain/ub_domain.dart';
+
+import 'draft_record_choice_field.dart';
+import 'draft_record_choices.dart';
+import 'saved_changes.dart';
 
 /// Factual scope controls retain incomplete reference and world inputs.
 class ScopeInputFields extends StatefulWidget {
@@ -8,10 +13,14 @@ class ScopeInputFields extends StatefulWidget {
     required this.input,
     required this.disabled,
     required this.onChanged,
+    required this.changes,
+    required this.draft,
   });
   final ScopeInput input;
   final bool disabled;
   final ValueChanged<ScopeInput> onChanged;
+  final SavedChanges changes;
+  final SavedDraft draft;
   @override
   State<ScopeInputFields> createState() => _ScopeInputFieldsState();
 }
@@ -62,6 +71,37 @@ class _ScopeInputFieldsState extends State<ScopeInputFields> {
     realmUniverse: _realmUniverse.text,
   );
   void _changed() => widget.onChanged(_form);
+  String _worldRecord(String world) {
+    try {
+      return worldChoiceRecord(world).value;
+    } on FormatException {
+      return '';
+    }
+  }
+
+  Widget _choice(
+    String label,
+    RecordKind kind,
+    String record,
+    String universe,
+    ValueChanged<RecordRef> changed,
+  ) => DraftRecordChoiceField(
+    changes: widget.changes,
+    draft: widget.draft,
+    kind: kind,
+    label: label,
+    record: record,
+    universe: universe,
+    disabled: widget.disabled,
+    onChanged: changed,
+  );
+  void _moveWorld(int index, int destination) {
+    final worlds = [..._form.worlds];
+    worlds.insert(destination, worlds.removeAt(index));
+    _worlds.text = worlds.join('\n');
+    _changed();
+  }
+
   @override
   void dispose() {
     for (final c in [
@@ -116,13 +156,68 @@ class _ScopeInputFieldsState extends State<ScopeInputFields> {
               },
       ),
       if (_applicability == 'worlds') ...[
-        _field(_worlds, 'World IDs, one per line', multiline: true),
+        for (var i = 0; i < _form.worlds.length; i++) ...[
+          _choice(
+            'World ${i + 1}',
+            RecordKind.world,
+            _worldRecord(_form.worlds[i]),
+            widget.changes.scope.universe.value,
+            (ref) {
+              final worlds = [..._form.worlds];
+              worlds[i] = worldFromChoice(ref).value;
+              _worlds.text = worlds.join('\n');
+              _changed();
+            },
+          ),
+          Wrap(
+            children: [
+              TextButton(
+                onPressed: widget.disabled || i == 0
+                    ? null
+                    : () => _moveWorld(i, i - 1),
+                child: const Text('Move earlier'),
+              ),
+              TextButton(
+                onPressed: widget.disabled || i == _form.worlds.length - 1
+                    ? null
+                    : () => _moveWorld(i, i + 1),
+                child: const Text('Move later'),
+              ),
+              TextButton(
+                onPressed: widget.disabled
+                    ? null
+                    : () {
+                        final worlds = [..._form.worlds]..removeAt(i);
+                        _worlds.text = worlds.join('\n');
+                        _changed();
+                      },
+                child: const Text('Remove world'),
+              ),
+            ],
+          ),
+        ],
+        _choice('World', RecordKind.world, '', '', (ref) {
+          _worlds.text = [
+            ..._form.worlds,
+            worldFromChoice(ref).value,
+          ].join('\n');
+          _changed();
+        }),
         const Text(
           'An empty world list applies nowhere. Order and repeated worlds are retained.',
         ),
       ],
-      _field(_contextRecord, 'Factual context record ID'),
-      _field(_contextUniverse, 'Context universe ID (optional)'),
+      _choice(
+        'Factual context',
+        RecordKind.representedContext,
+        _contextRecord.text,
+        _contextUniverse.text,
+        (ref) {
+          _contextRecord.text = ref.record.value;
+          _contextUniverse.text = ref.universe?.value ?? '';
+          _changed();
+        },
+      ),
       CheckboxListTile(
         title: const Text('Limit to a realm'),
         value: _hasRealm,
@@ -134,9 +229,31 @@ class _ScopeInputFieldsState extends State<ScopeInputFields> {
               },
       ),
       if (_hasRealm) ...[
-        _field(_realmRecord, 'Realm record ID'),
-        _field(_realmUniverse, 'Realm universe ID (optional)'),
+        _choice(
+          'Realm',
+          RecordKind.realm,
+          _realmRecord.text,
+          _realmUniverse.text,
+          (ref) {
+            _realmRecord.text = ref.record.value;
+            _realmUniverse.text = ref.universe?.value ?? '';
+            _changed();
+          },
+        ),
       ],
+      ExpansionTile(
+        title: const Text('Advanced references'),
+        children: [
+          if (_applicability == 'worlds')
+            _field(_worlds, 'World IDs, one per line', multiline: true),
+          _field(_contextRecord, 'Factual context record ID'),
+          _field(_contextUniverse, 'Context universe ID (optional)'),
+          if (_hasRealm) ...[
+            _field(_realmRecord, 'Realm record ID'),
+            _field(_realmUniverse, 'Realm universe ID (optional)'),
+          ],
+        ],
+      ),
     ],
   );
 }

@@ -461,6 +461,8 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                     title: const Text('Factual scope'),
                     children: [
                       ScopeInputFields(
+                        changes: widget.changes,
+                        draft: _draft,
                         input:
                             _form!.evidenceInput?.scope ??
                             scopeInput(_source.evidence.scope),
@@ -475,6 +477,8 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                     title: const Text('Source basis'),
                     children: [
                       EvidenceBasisFields(
+                        changes: widget.changes,
+                        draft: _draft,
                         input:
                             _form!.evidenceInput?.basis ??
                             evidenceBasisInput(_source.evidence.basis),
