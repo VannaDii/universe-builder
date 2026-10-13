@@ -79,6 +79,15 @@ void main() {
       var saved = read();
       reference = saved.endpoint!.keyReference;
       expect(saved.usePostgres, isTrue);
+      await expectLater(
+        saveLocalBackendConfiguration(
+          root: root.path,
+          configuration: configuration,
+          expectedInstance: OperationId.generate(),
+        ),
+        throwsA(isA<ConfigurationException>()),
+      );
+      expect(read().endpoint!.ciphertext, saved.endpoint!.ciphertext);
       expect(
         await saveLocalBackendConfiguration(
           root: root.path,

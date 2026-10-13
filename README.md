@@ -1610,6 +1610,20 @@ Authenticated `status` reports `backend` as `sqlite` or `postgres` alongside the
 stable installation ID. The Flutter Settings connection summary uses these
 running-service values; it does not infer the connected backend from saved
 settings or environment overrides and does not expose the database endpoint.
+The native Flutter Settings screen also offers a hidden PostgreSQL connection
+field and a separate **Test connection** action. Testing does not save settings
+or stop the current engine. It requires verified TLS and an existing author
+credential for that database in this device's protected profile directory; it
+does not enroll a replacement author. A successful test displays the stable
+target instance. **Save and reconnect** explicitly stops the current local
+engine, saves the encrypted endpoint and device profile hint, and reconnects.
+Changed input clears the tested selection. A changed target, missing credential,
+or failed test cannot save configuration. Existing service environment overrides
+still take precedence; a reconnection to another backend/instance is reported
+visibly. Pending drafts and unfinished forms retain their original instance
+scope. Returning to SQLite through this GUI and the remaining platform-specific
+credential-store adapters are pending; the CLI's explicit SQLite selection is
+available.
 The Dart author CLI provides `universe --installation /absolute/path configure
 postgres` to test an existing PostgreSQL installation and save its endpoint
 encrypted with an OS-stored key. Supply the exact connection URI on standard

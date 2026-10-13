@@ -11,10 +11,11 @@ dependencies:
   ub_client: any
   ub_contracts: any
   ub_domain: any
-dev_dependencies:
-  test: 1.33.0
   ub_service: any
   ub_store: any
+dev_dependencies:
+  postgres: 3.5.20
+  test: 1.33.0
 flutter:
   uses-material-design: true
   assets:

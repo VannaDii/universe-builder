@@ -10,6 +10,7 @@ import 'world_browser.dart';
 import 'world_detail_page.dart';
 import 'changes_page.dart';
 import 'saved_changes.dart';
+import 'postgres_settings.dart';
 import 'connection_stub.dart' if (dart.library.io) 'connection_native.dart';
 
 void main(List<String> arguments) =>
@@ -78,6 +79,52 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
         setState(() {
           _error = 'Could not connect. Check that your local instance is available, then try again.';
         });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _applyPostgres(TestedPostgresConnection target) async {
+    final current = _session;
+    if (current != null && !current.author) {
+      throw StateError('Author access required');
+    }
+    final checked = await widget.device.testPostgres(target.endpoint);
+    if (checked.instance != target.instance ||
+        checked.profile != target.profile) {
+      throw StateError('Selected installation changed');
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      if (current != null) await current.call(const ShutdownEngineRequest());
+      await current?.close();
+      setState(() {
+        _session = null;
+        _library = null;
+        _selected = null;
+        _description = null;
+        _worlds = {};
+        _contexts = {};
+      });
+      await widget.device.savePostgres(target);
+      await _connect();
+      if (_library?.instance != target.instance ||
+          _library?.backend != ConnectedBackend.postgres) {
+        if (mounted) {
+          setState(() {
+            _page = 1;
+            _error = 'Saved PostgreSQL settings, but could not connect to the selected instance. Check service environment overrides and reconnect.';
+          });
+        }
+        throw StateError('Selected connection unavailable');
       }
     } finally {
       if (mounted) {
@@ -664,6 +711,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
         }),
         const SizedBox(height: 8),
         SelectableText('Instance: ${library.instance.value}'),
+      ],
+      if (widget.device.supportsLocal && widget.device.available) ...[
+        const SizedBox(height: 32),
+        PostgresSettings(
+          enabled: !_busy && (_session == null || _session!.author),
+          test: widget.device.testPostgres,
+          apply: _applyPostgres,
+        ),
       ],
     ],
   );

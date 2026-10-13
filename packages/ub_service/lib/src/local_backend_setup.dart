@@ -15,9 +15,14 @@ import 'postgres_open.dart';
 Future<OperationId> saveLocalBackendConfiguration({
   required String root,
   required BackendConfiguration configuration,
+  OperationId? expectedInstance,
 }) async {
   try {
-    return await _save(root: root, configuration: configuration);
+    return await _save(
+      root: root,
+      configuration: configuration,
+      expectedInstance: expectedInstance,
+    );
   } on ConfigurationException {
     rethrow;
   } on Object {
@@ -28,6 +33,7 @@ Future<OperationId> saveLocalBackendConfiguration({
 Future<OperationId> _save({
   required String root,
   required BackendConfiguration configuration,
+  required OperationId? expectedInstance,
 }) async {
   InstallationBootstrapLock? bootstrap;
   OwnedFileLock? ownership;
@@ -53,6 +59,11 @@ Future<OperationId> _save({
     } else {
       sqlite = SqliteInstallationStore.openExisting(directory);
       instance = sqlite.instanceId;
+    }
+    if (expectedInstance != null && instance != expectedInstance) {
+      throw const ConfigurationException(
+        ConfigurationFailure.backendSetupFailed,
+      );
     }
     final path = '$directory/settings.sqlite';
     settings =

@@ -4,6 +4,12 @@ import 'package:ub_client/local_engine.dart';
 import 'package:ub_client/loopback_engine.dart';
 import 'package:ub_client/editor_recovery.dart';
 import 'package:ub_domain/ub_domain.dart';
+import 'package:ub_contracts/ub_contracts.dart';
+import 'package:ub_service/local_configuration.dart';
+import 'package:ub_service/local_profiles.dart';
+import 'package:ub_service/ub_service.dart' show PostgresConfiguration;
+import 'package:ub_store/installation.dart';
+import 'package:ub_store/profile_credentials.dart';
 
 import 'connection.dart';
 
@@ -36,6 +42,63 @@ final class DeviceConnection {
   bool get available => root?.isNotEmpty == true;
   String get unavailableMessage =>
       'Open Universe Builder from a configured local installation.';
+  Future<TestedPostgresConnection> testPostgres(String endpoint) async {
+    if (!available) throw StateError('Local connection not configured');
+    final target = await openPostgresInstallation(
+      PostgresConfiguration(Credential(endpoint)),
+    );
+    try {
+      final author = await target.transaction((session) async {
+        final author = await session.authority.currentAuthor();
+        final credential = ProfileCredentialStore.read(
+          root: root!,
+          profile: author,
+        );
+        final authority = PostgresServiceAuthority(session.authority);
+        final principal = await authority.authenticate(
+          profile: author,
+          credential: Credential(credential),
+        );
+        await authority.requireAuthor(principal);
+        return author;
+      });
+      return TestedPostgresConnection(
+        endpoint: endpoint,
+        instance: target.instanceId,
+        profile: author,
+      );
+    } finally {
+      await target.close();
+    }
+  }
+
+  Future<void> savePostgres(TestedPostgresConnection choice) async {
+    final current = await testPostgres(choice.endpoint);
+    if (current.instance != choice.instance ||
+        current.profile != choice.profile) {
+      throw StateError('Selected installation changed');
+    }
+    // An acknowledged shutdown may still be releasing its local ownership.
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    while (true) {
+      try {
+        final lock = OwnedFileLock.acquire('$root/service.lock');
+        lock.close();
+        break;
+      } on Object {
+        if (DateTime.now().isAfter(deadline)) rethrow;
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+    }
+    await saveLocalBackendConfiguration(
+      root: root!,
+      configuration: PostgresConfiguration(Credential(choice.endpoint)),
+      expectedInstance: choice.instance,
+    );
+    DeviceProfileStore.write(root!, choice.profile);
+    profile = choice.profile.value;
+  }
+
   Future<AppSession> connect() async {
     if (!available) throw StateError('Local connection not configured');
     final engine = helper ?? await LocalEngineClient.siblingEngine();

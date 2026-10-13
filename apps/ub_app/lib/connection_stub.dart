@@ -8,4 +8,8 @@ final class DeviceConnection {
       'Web access requires a connection to an authenticated instance.';
   Future<AppSession> connect() =>
       Future.error(StateError('Local engine unavailable'));
+  Future<TestedPostgresConnection> testPostgres(String endpoint) =>
+      Future.error(StateError('Local setup unavailable'));
+  Future<void> savePostgres(TestedPostgresConnection choice) =>
+      Future.error(StateError('Local setup unavailable'));
 }

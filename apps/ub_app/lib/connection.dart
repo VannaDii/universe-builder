@@ -31,6 +31,20 @@ final class LibraryEntry {
 
 enum ConnectedBackend { sqlite, postgres }
 
+/// A device-local selection. Never serialized or returned to a browser/API.
+final class TestedPostgresConnection {
+  const TestedPostgresConnection({
+    required this.endpoint,
+    required this.instance,
+    required this.profile,
+  });
+  final String endpoint;
+  final OperationId instance;
+  final ProfileId profile;
+  @override
+  String toString() => 'TestedPostgresConnection([redacted])';
+}
+
 final class InstanceLibrary {
   InstanceLibrary({
     required this.instance,
