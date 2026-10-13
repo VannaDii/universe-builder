@@ -3,6 +3,7 @@ import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'package:ub_domain/ub_domain.dart';
 
 import 'saved_changes.dart';
+import 'world_editor_page.dart';
 
 class ChangesPage extends StatefulWidget {
   const ChangesPage({super.key, required this.changes});
@@ -373,7 +374,9 @@ class _ChangesPageState extends State<ChangesPage> {
           : await widget.changes.publication(proposal);
       if (!mounted) return false;
       setState(() {
-        if (keepUndo) {
+        if (keepUndo &&
+            saved.content.toWire().toText() !=
+                draft.content.toWire().toText()) {
           _undo.add(draft.content);
           _redo.clear();
         }
@@ -551,6 +554,29 @@ class _ChangesPageState extends State<ChangesPage> {
                               _ExactFields(value: record.toWire()),
                             ] else
                               _ExactFields(value: operations[index].toWire()),
+                            if (_proposal == null)
+                              if (operations[index] is CreateWorldOperation)
+                                TextButton(
+                                  onPressed: _busy
+                                      ? null
+                                      : () => _changeDraft(
+                                          (draft) async =>
+                                              await Navigator.of(
+                                                context,
+                                              ).push<SavedDraft>(
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      WorldEditorPage.edit(
+                                                        changes: widget.changes,
+                                                        draft: draft,
+                                                        index: index,
+                                                      ),
+                                                ),
+                                              ) ??
+                                              draft,
+                                        ),
+                                  child: const Text('Edit world fields'),
+                                ),
                             if (_proposal == null)
                               TextButton(
                                 onPressed: _busy

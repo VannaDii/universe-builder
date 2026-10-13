@@ -475,6 +475,30 @@ void main() {
           rationale: 'Edit the draft, preserving its identity.',
         ),
       );
+      final editScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        worldClientRef: 'external-writer/new-world',
+      );
+      final unfinishedEdit = UnfinishedWorldForm(
+        baseRevision: worldToEdit.content.baseRevision,
+        representedContext: worldToEdit.content.representedContext,
+        record: RecordId.generate(),
+        selector: '',
+        settingType: 'Still entering the edit',
+        rationale: '',
+        draftVersion: worldToEdit.version,
+      );
+      expect(await owner.loadWorldForm(editScope), isNull);
+      await owner.saveWorldForm(editScope, unfinishedEdit, BigInt.zero);
+      expect(
+        (await owner.loadWorldForm(editScope))!.form.toWire().toText(),
+        unfinishedEdit.toWire().toText(),
+      );
+      expect((await resumedChanges.load())!.version, worldToEdit.version);
+      expect((await owner.loadWorldForm(scope))!.form.draftVersion, isNull);
       final editedWorld = await resumedChanges.editWorldFields(
         worldToEdit,
         0,

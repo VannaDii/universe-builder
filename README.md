@@ -79,6 +79,14 @@ to recover the outcome without retrying publication automatically. The confirmed
 receipt names its revision, and **Read published records** opens that exact
 revision with current access. Returning to Overview refreshes the canon summary.
 Unsubmitted operations can be removed with **Remove from draft**. Draft changes
+for a new world can also be edited through **Edit world fields**. Name, English
+label and setting type save explicitly with **Save world changes**, preserving
+the operation reference, aliases, other languages, metadata and rationale.
+Unfinished edits autosave in separate typed recovery slots for each world
+operation, leaving the completed draft intact. Reopening retains the draft
+generation; edits from an older draft remain visible but require review before
+replacing pending fields with the current saved world. Existing unfinished
+new-world fields are retained when the recovery schema is upgraded. Draft changes
 use expected generations; **Undo draft change** and **Redo draft change** save
 the selected prior content without changing canon. Undo/redo history stays within
 the current Changes page and resets on reload. **Continue editing separately**
@@ -87,7 +95,7 @@ original proposal and approvals. **Rebase draft to current revision** explicitly
 updates the draft's base while preserving exact operations and expected record
 versions; conflicting record edits must still be resolved. After publication,
 **Start new changes** opens an empty draft at the current revision. Operation
-field editing, other record forms, creation-form recovery and multi-context
+field editing for other operations, other record forms, creation-form recovery and multi-context
 editor selection remain in progress. Existing owner-only service draft
 permissions remain unchanged.
 

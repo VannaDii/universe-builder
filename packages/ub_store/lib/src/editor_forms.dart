@@ -10,27 +10,28 @@ import 'ownership.dart';
 const _schema = '''
 CREATE TABLE world_form (
  instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
- continuity TEXT NOT NULL, generation TEXT NOT NULL,
+ continuity TEXT NOT NULL, editor_key TEXT NOT NULL, generation TEXT NOT NULL,
  base_revision TEXT NOT NULL, represented_context TEXT NOT NULL,
  record_id TEXT NOT NULL, selector TEXT NOT NULL, setting_type TEXT NOT NULL,
- rationale TEXT NOT NULL,
- PRIMARY KEY(instance,profile,universe,continuity)
+ rationale TEXT NOT NULL, draft_version TEXT,
+ PRIMARY KEY(instance,profile,universe,continuity,editor_key)
 ) STRICT;
 CREATE TABLE world_form_alias (
  instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
- continuity TEXT NOT NULL, ordinal INTEGER NOT NULL CHECK(ordinal>=0), value TEXT NOT NULL,
- PRIMARY KEY(instance,profile,universe,continuity,ordinal),
- FOREIGN KEY(instance,profile,universe,continuity) REFERENCES world_form(instance,profile,universe,continuity) ON DELETE CASCADE
+ continuity TEXT NOT NULL, editor_key TEXT NOT NULL, ordinal INTEGER NOT NULL CHECK(ordinal>=0), value TEXT NOT NULL,
+ PRIMARY KEY(instance,profile,universe,continuity,editor_key,ordinal),
+ FOREIGN KEY(instance,profile,universe,continuity,editor_key) REFERENCES world_form(instance,profile,universe,continuity,editor_key) ON DELETE CASCADE
 ) STRICT;
 CREATE TABLE world_form_label (
  instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
- continuity TEXT NOT NULL, language TEXT NOT NULL, value TEXT NOT NULL,
- PRIMARY KEY(instance,profile,universe,continuity,language),
- FOREIGN KEY(instance,profile,universe,continuity) REFERENCES world_form(instance,profile,universe,continuity) ON DELETE CASCADE
+ continuity TEXT NOT NULL, editor_key TEXT NOT NULL, language TEXT NOT NULL, value TEXT NOT NULL,
+ PRIMARY KEY(instance,profile,universe,continuity,editor_key,language),
+ FOREIGN KEY(instance,profile,universe,continuity,editor_key) REFERENCES world_form(instance,profile,universe,continuity,editor_key) ON DELETE CASCADE
 ) STRICT;
-PRAGMA user_version=1;
+PRAGMA user_version=2;
 ''';
-const _where = 'instance=? AND profile=? AND universe=? AND continuity=?';
+const _where =
+    'instance=? AND profile=? AND universe=? AND continuity=? AND editor_key=?';
 
 /// Short, compared transactions permit competing windows without silently
 /// overwriting each other's unfinished fields. No canon database is opened.
@@ -63,6 +64,32 @@ final class WorldFormRecoveryStore {
         final populated = _checkSchema(db);
         if (populated == 0) {
           db.execute(_schema);
+        } else if (db.select('PRAGMA user_version').single.values.single == 1) {
+          // Preserve existing device work while adding separate operation edits.
+          for (final table in [
+            'world_form_alias',
+            'world_form_label',
+            'world_form',
+          ]) {
+            db.execute('ALTER TABLE $table RENAME TO legacy_$table');
+          }
+          db.execute(_schema);
+          db.execute(
+            "INSERT INTO world_form SELECT instance,profile,universe,continuity,'',generation,base_revision,represented_context,record_id,selector,setting_type,rationale,NULL FROM legacy_world_form",
+          );
+          db.execute(
+            "INSERT INTO world_form_alias SELECT instance,profile,universe,continuity,'',ordinal,value FROM legacy_world_form_alias",
+          );
+          db.execute(
+            "INSERT INTO world_form_label SELECT instance,profile,universe,continuity,'',language,value FROM legacy_world_form_label",
+          );
+          for (final table in [
+            'world_form_alias',
+            'world_form_label',
+            'world_form',
+          ]) {
+            db.execute('DROP TABLE legacy_$table');
+          }
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -93,13 +120,22 @@ final class WorldFormRecoveryStore {
                 .single['n']
             as int;
     if (count == 0) return 0;
-    const columns = {
+    final version = db.select('PRAGMA user_version').single.values.single;
+    const legacyColumns = {
       'world_form': 'instance,profile,universe,continuity,generation,base_revision,represented_context,record_id,selector,setting_type,rationale',
       'world_form_alias': 'instance,profile,universe,continuity,ordinal,value',
       'world_form_label': 'instance,profile,universe,continuity,language,value',
     };
+    const currentColumns = {
+      'world_form': 'instance,profile,universe,continuity,editor_key,generation,base_revision,represented_context,record_id,selector,setting_type,rationale,draft_version',
+      'world_form_alias':
+          'instance,profile,universe,continuity,editor_key,ordinal,value',
+      'world_form_label':
+          'instance,profile,universe,continuity,editor_key,language,value',
+    };
+    final columns = version == 1 ? legacyColumns : currentColumns;
     if (count != columns.length ||
-        db.select('PRAGMA user_version').single.values.single != 1 ||
+        (version != 1 && version != 2) ||
         columns.entries.any(
           (entry) =>
               db
@@ -120,6 +156,7 @@ final class WorldFormRecoveryStore {
     scope.profile.value,
     scope.universe.value,
     scope.continuity.value,
+    scope.worldClientRef == null ? '' : 'edit:${scope.worldClientRef}',
   ];
 
   SavedWorldForm? _read(EditorFormScope scope) {
@@ -138,6 +175,9 @@ final class WorldFormRecoveryStore {
         selector: row['selector'] as String,
         settingType: row['setting_type'] as String,
         rationale: row['rationale'] as String,
+        draftVersion: row['draft_version'] == null
+            ? null
+            : BigInt.parse(row['draft_version'] as String),
         aliases: _db
             .select(
               'SELECT value FROM world_form_alias WHERE $_where ORDER BY ordinal',
@@ -177,6 +217,7 @@ final class WorldFormRecoveryStore {
       throw const FormatException('Invalid expected editor generation');
     }
     for (final text in [
+      if (scope.worldClientRef != null) scope.worldClientRef!,
       form.selector,
       form.settingType,
       form.rationale,
@@ -211,7 +252,7 @@ final class WorldFormRecoveryStore {
       );
       final binding = _binding(scope);
       _db.execute(
-        'INSERT INTO world_form VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(instance,profile,universe,continuity) DO UPDATE SET generation=excluded.generation,base_revision=excluded.base_revision,represented_context=excluded.represented_context,record_id=excluded.record_id,selector=excluded.selector,setting_type=excluded.setting_type,rationale=excluded.rationale',
+        'INSERT INTO world_form VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(instance,profile,universe,continuity,editor_key) DO UPDATE SET generation=excluded.generation,base_revision=excluded.base_revision,represented_context=excluded.represented_context,record_id=excluded.record_id,selector=excluded.selector,setting_type=excluded.setting_type,rationale=excluded.rationale,draft_version=excluded.draft_version',
         [
           ...binding,
           saved.generation.toString(),
@@ -221,19 +262,20 @@ final class WorldFormRecoveryStore {
           form.selector,
           form.settingType,
           form.rationale,
+          form.draftVersion?.toString(),
         ],
       );
       _db.execute('DELETE FROM world_form_alias WHERE $_where', binding);
       _db.execute('DELETE FROM world_form_label WHERE $_where', binding);
       for (var i = 0; i < form.aliases.length; i++) {
-        _db.execute('INSERT INTO world_form_alias VALUES(?,?,?,?,?,?)', [
+        _db.execute('INSERT INTO world_form_alias VALUES(?,?,?,?,?,?,?)', [
           ...binding,
           i,
           form.aliases[i],
         ]);
       }
       for (final label in form.labels.entries) {
-        _db.execute('INSERT INTO world_form_label VALUES(?,?,?,?,?,?)', [
+        _db.execute('INSERT INTO world_form_label VALUES(?,?,?,?,?,?,?)', [
           ...binding,
           label.key,
           label.value,

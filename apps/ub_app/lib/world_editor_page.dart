@@ -2,7 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:ub_contracts/ub_contracts.dart' hide State;
-import 'package:ub_domain/ub_domain.dart' show RecordId, CanonicalNull;
+import 'package:ub_domain/ub_domain.dart'
+    show RecordId, CanonicalNull, CreateWorldOperation;
 
 import 'connection.dart';
 import 'world_draft.dart';
@@ -16,10 +17,32 @@ class WorldEditorPage extends StatefulWidget {
     required this.scope,
     required this.continuity,
     required this.universe,
-  });
+  }) : editingDraft = null,
+       operationIndex = null;
+  WorldEditorPage.edit({
+    super.key,
+    required SavedChanges changes,
+    required SavedDraft draft,
+    required int index,
+  }) : session = changes.session,
+       universe = changes.universe,
+       continuity = null,
+       editingDraft = draft,
+       operationIndex = index,
+       scope = EditorFormScope(
+         instance: changes.scope.instance,
+         profile: changes.scope.profile,
+         universe: changes.scope.universe,
+         continuity: changes.scope.continuity,
+         worldClientRef:
+             (draft.content.operations[index] as CreateWorldOperation)
+                 .clientRef,
+       );
+  final SavedDraft? editingDraft;
+  final int? operationIndex;
   final AppSession session;
   final EditorFormScope scope;
-  final ContinuitySummary continuity;
+  final ContinuitySummary? continuity;
   final Selector universe;
   @override
   State<WorldEditorPage> createState() => _WorldEditorPageState();
@@ -33,6 +56,8 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
   UnfinishedWorldForm? _base;
   BigInt _generation = BigInt.zero;
   bool _loading = true, _saving = false, _dirty = false, _adding = false;
+  bool _stale = false;
+  SavedDraft? _editingDraft, _savedDraft;
   String? _error;
   String? _added;
   Timer? _autosave;
@@ -40,6 +65,7 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
   @override
   void initState() {
     super.initState();
+    _editingDraft = widget.editingDraft;
     _load();
   }
 
@@ -60,18 +86,15 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
     try {
       final saved = await widget.session.loadWorldForm(widget.scope);
       if (!mounted) return;
-      final form =
-          saved?.form ??
-          UnfinishedWorldForm(
-            baseRevision: widget.continuity.revisionId,
-            representedContext: widget.continuity.representedContexts.single.id,
-            record: RecordId.generate(),
-            selector: '',
-            settingType: '',
-            rationale: '',
-          );
+      final form = saved?.form ?? _initialForm();
       setState(() {
         _base = form;
+        _stale =
+            _editingDraft != null &&
+            (form.draftVersion != _editingDraft!.version ||
+                form.baseRevision != _editingDraft!.content.baseRevision ||
+                form.representedContext !=
+                    _editingDraft!.content.representedContext);
         _generation = saved?.generation ?? BigInt.zero;
         _name.text = form.selector;
         _label.text = form.labels['en'] ?? '';
@@ -91,10 +114,55 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
     }
   }
 
+  UnfinishedWorldForm _initialForm() {
+    final draft = _editingDraft;
+    if (draft != null) {
+      final operation =
+          draft.content.operations[widget.operationIndex!]
+              as CreateWorldOperation;
+      return UnfinishedWorldForm(
+        baseRevision: draft.content.baseRevision,
+        representedContext: draft.content.representedContext,
+        record: RecordId.generate(),
+        selector: operation.record.selector,
+        settingType: operation.record.settingType ?? '',
+        rationale: '',
+        aliases: operation.record.aliases,
+        labels: operation.record.labels,
+        draftVersion: draft.version,
+      );
+    }
+    return UnfinishedWorldForm(
+      baseRevision: widget.continuity!.revisionId,
+      representedContext: widget.continuity!.representedContexts.single.id,
+      record: RecordId.generate(),
+      selector: '',
+      settingType: '',
+      rationale: '',
+    );
+  }
+
+  Future<void> _replacePendingFields() async {
+    if (_saving || _adding) return;
+    final form = _initialForm();
+    setState(() {
+      _base = form;
+      _name.text = form.selector;
+      _label.text = form.labels['en'] ?? '';
+      _setting.text = form.settingType;
+      _rationale.text = form.rationale;
+      _dirty = true;
+      _stale = false;
+      _added = null;
+    });
+    await _save();
+  }
+
   UnfinishedWorldForm get _form => UnfinishedWorldForm(
     baseRevision: _base!.baseRevision,
     representedContext: _base!.representedContext,
     record: _base!.record,
+    draftVersion: _base!.draftVersion,
     selector: _name.text,
     settingType: _setting.text,
     rationale: _rationale.text,
@@ -164,7 +232,9 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
     if (_dirty) await _save();
     if (!mounted || _dirty || _saving) return;
     await WidgetsBinding.instance.endOfFrame;
-    if (mounted && !_dirty && !_saving && !_adding) Navigator.of(context).pop();
+    if (mounted && !_dirty && !_saving && !_adding) {
+      Navigator.of(context).pop(_savedDraft);
+    }
   }
 
   Future<void> _add() async {
@@ -178,6 +248,46 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
       _added = null;
     });
     try {
+      if (_editingDraft != null) {
+        if (_stale || entered.draftVersion != _editingDraft!.version) {
+          throw const FormatException(
+            'These unfinished edits use an earlier draft. Review your text and the current world before replacing the pending fields.',
+          );
+        }
+        final changes = SavedChanges(
+          session: widget.session,
+          universe: widget.universe,
+          scope: widget.scope,
+        );
+        final saved = await changes.editWorldFields(
+          _editingDraft!,
+          widget.operationIndex!,
+          selector: entered.selector,
+          settingType: entered.settingType,
+          englishLabel: entered.labels['en'] ?? '',
+        );
+        if (!mounted) return;
+        setState(() {
+          _editingDraft = saved;
+          _savedDraft = saved;
+          _base = UnfinishedWorldForm(
+            baseRevision: entered.baseRevision,
+            representedContext: entered.representedContext,
+            record: entered.record,
+            selector: entered.selector,
+            settingType: entered.settingType,
+            rationale: entered.rationale,
+            aliases: entered.aliases,
+            labels: entered.labels,
+            draftVersion: saved.version,
+          );
+          _dirty = true;
+          _added =
+              'World updated in saved changes. Return to Changes to review it.';
+        });
+        await _save();
+        return;
+      }
       final loaded = await widget.session.call(
         LoadDraftEngineRequest(
           universe: widget.universe,
@@ -211,7 +321,9 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
     } on Object {
       if (mounted) {
         setState(() {
-          _error = 'Could not confirm adding this world. Your fields remain saved. Try again to check the saved changes before adding.';
+          _error = _editingDraft == null
+              ? 'Could not confirm adding this world. Your fields remain saved. Try again to check the saved changes before adding.'
+              : 'Could not confirm saving this edit. Your fields remain saved. Another window may have changed the draft; return to Changes to check it.';
         });
       }
     } finally {
@@ -243,12 +355,16 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
 
   @override
   Widget build(BuildContext context) => PopScope(
-    canPop: !_dirty && !_saving && !_adding,
+    canPop: widget.editingDraft == null && !_dirty && !_saving && !_adding,
     onPopInvokedWithResult: (didPop, _) {
       if (!didPop) _leave();
     },
     child: Scaffold(
-      appBar: AppBar(title: const Text('World draft')),
+      appBar: AppBar(
+        title: Text(
+          widget.editingDraft == null ? 'World draft' : 'Edit world in changes',
+        ),
+      ),
       body: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
@@ -257,7 +373,7 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
             padding: const EdgeInsets.all(24),
             children: [
               Text(
-                widget.continuity.name,
+                widget.continuity?.name ?? 'Saved changes',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 12),
@@ -270,12 +386,25 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
               _field(_name, 'World name'),
               _field(_label, 'Display label (English, optional)'),
               _field(_setting, 'Setting type (optional)'),
-              _field(_rationale, 'Notes and rationale', lines: 4),
+              if (widget.editingDraft == null)
+                _field(_rationale, 'Notes and rationale', lines: 4),
               if (_base != null &&
-                  _base!.baseRevision != widget.continuity.revisionId)
+                  widget.continuity != null &&
+                  _base!.baseRevision != widget.continuity!.revisionId)
                 const Text(
                   'Saved work uses an earlier revision. Review it before adding it to a proposal.',
                 ),
+              if (_stale) ...[
+                const Text(
+                  'Your recovered fields belong to an earlier draft. They have not replaced the current saved world.',
+                ),
+                TextButton(
+                  onPressed: _saving || _adding ? null : _replacePendingFields,
+                  child: const Text(
+                    'Replace unfinished fields with current saved world',
+                  ),
+                ),
+              ],
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),
@@ -301,7 +430,7 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
               const SizedBox(height: 20),
               if (_added != null)
                 Semantics(liveRegion: true, child: Text(_added!)),
-              if (_added != null)
+              if (_added != null && widget.editingDraft == null)
                 TextButton(
                   onPressed: _saving || _adding
                       ? null
@@ -328,8 +457,12 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: FilledButton(
-                      onPressed: _saving || _adding ? null : _add,
-                      child: const Text('Add to changes'),
+                      onPressed: _saving || _adding || _stale ? null : _add,
+                      child: Text(
+                        widget.editingDraft == null
+                            ? 'Add to changes'
+                            : 'Save world changes',
+                      ),
                     ),
                   ),
                 ),
