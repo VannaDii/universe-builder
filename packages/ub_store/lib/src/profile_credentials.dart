@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:sqlite3/sqlite3.dart';
@@ -8,6 +9,33 @@ import 'credential_schema.g.dart';
 import 'ownership.dart';
 
 enum ProfileCredentialFailure { unavailable, identityMismatch, invalidText }
+
+/// Protected device reconnect hint. Authentication still uses the enrolled
+/// profile credential and the service's current authority.
+final class DeviceProfileStore {
+  static ProfileId? read(String root) {
+    final path = '$root/device-profile';
+    if (FileSystemEntity.typeSync(path, followLinks: false) ==
+        FileSystemEntityType.notFound) {
+      return null;
+    }
+    protectedFile(path);
+    return ProfileId.parse(File(path).readAsStringSync().trim());
+  }
+
+  static void write(String root, ProfileId profile) {
+    final path = '$root/device-profile';
+    final temporary = '$path.${OperationId.generate().value}';
+    try {
+      protectedFile(temporary, createNew: true);
+      File(temporary).writeAsStringSync('${profile.value}\n', flush: true);
+      syncPrivateFileAndDirectory(temporary);
+      publishSnapshot(temporary, path);
+    } finally {
+      if (File(temporary).existsSync()) File(temporary).deleteSync();
+    }
+  }
+}
 
 /// Never retain driver exceptions: they can contain bound credential values.
 final class ProfileCredentialException implements Exception {

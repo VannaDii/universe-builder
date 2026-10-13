@@ -47,7 +47,7 @@ void main() {
         '--engine=/nonexistent/universe-engine',
       ]);
       try {
-        expect(DeviceConnection([]).available, isFalse);
+      expect(DeviceConnection(['--installation=']).available, isFalse);
         owner = await connection(author).connect();
         expect(owner.author, isTrue);
         expect(

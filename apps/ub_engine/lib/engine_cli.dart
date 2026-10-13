@@ -8,12 +8,17 @@ import 'package:ub_service/ub_service.dart'
     show ConfigurationException, ConfigurationFailure;
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/local_settings.dart';
+import 'package:ub_store/profile_credentials.dart';
+import 'package:ub_domain/ub_domain.dart';
 
-const _usage = '''Usage: universe-engine --installation <path> [--initialize]
+const _usage = '''Usage: universe-engine --installation <path> [--initialize | --device-profile]
 
 --initialize creates the local installation and its approval-owner profile,
 or initializes an existing empty installation. It prints the profile ID only.
 Otherwise, serve an existing installation until author shutdown or a signal.
+--http-only omits the transitional Unix socket for HTTP clients.
+--device-profile explicitly sets up the local device workspace if needed and
+prints its retained owner profile ID. It never prints credentials.
 SQLite is currently available; selecting PostgreSQL fails without fallback.
 Fixture options are not part of this persistent Dart engine.''';
 
@@ -27,15 +32,21 @@ Future<int> runEngine(
   try {
     String? root;
     var initialize = false;
+    var deviceProfile = false;
+    var httpOnly = false;
     for (var index = 0; index < arguments.length; index++) {
       final option = arguments[index];
       if (option == '--help' || option == '-h') {
         output(_usage);
         return 0;
       }
-      if (option == '--initialize') {
-        if (initialize) throw const _UsageError();
-        initialize = true;
+      if (option == '--http-only') {
+        if (httpOnly) throw const _UsageError();
+        httpOnly = true;
+      } else if (option == '--initialize' || option == '--device-profile') {
+        if (initialize || deviceProfile) throw const _UsageError();
+        initialize = option == '--initialize';
+        deviceProfile = option == '--device-profile';
       } else if (option == '--installation' ||
           option.startsWith('--installation=')) {
         if (root != null) throw const _UsageError();
@@ -86,6 +97,23 @@ Future<int> runEngine(
     } finally {
       settings?.close();
     }
+    if (deviceProfile) {
+      final profile =
+          DeviceProfileStore.read(root) ??
+          SqliteInstallationStore.withBootstrap<ProfileId>(root, (store) {
+            final retained = DeviceProfileStore.read(store.root);
+            if (retained != null) return retained;
+            final id = store.hasProfiles
+                ? store.currentAuthor()
+                : InstallationAuthority(store).initializeAuthor();
+            ProfileCredentialStore.read(root: store.root, profile: id);
+            DeviceProfileStore.write(store.root, id);
+            return id;
+          });
+      ProfileCredentialStore.read(root: root, profile: profile);
+      output(profile.value);
+      return 0;
+    }
     if (initialize) {
       final profile = SqliteInstallationStore.withBootstrap(
         root,
@@ -94,7 +122,10 @@ Future<int> runEngine(
       output(profile.value);
       return 0;
     }
-    final server = await LocalSqliteEngineServer.start(root);
+    final server = await LocalSqliteEngineServer.start(
+      root,
+      compatibilitySocket: !httpOnly,
+    );
     try {
       if (stop == null) {
         await server.done;

@@ -10,9 +10,21 @@ Its native connection adapter accepts `--installation`, `--profile` and optional
 `--engine` arguments and reads the accessible library and universe summaries
 through authenticated loopback HTTP. A disposable service regression covers
 owner access and the empty library of a contributor without universe grants.
-Appearance currently lasts for the app session. Ordinary device setup, native
-access to installations outside the macOS sandbox, editing/recovery and remote
-connections remain in progress. Web explains its instance connection requirement;
+The packaged macOS app's **Use this computer** action sets up its app-private
+installation in Application Support, retains the owner profile and reconnects
+through its bundled engine. Build this local bundle with
+`python3 scripts/build_flutter_macos.py`; it includes native Dart assets, the
+approved icns, an inherited helper sandbox and a local ad-hoc code signature.
+This does not publish a release or provide distribution signing/notarization.
+An explicit installation without a profile uses the same local device setup.
+The engine's `--device-profile` action prints only the retained profile ID;
+`--initialize` keeps its existing create-only behavior. The app starts HTTP-only
+helpers, avoiding Unix socket path limits in Application Support. Linux uses
+XDG data storage (or `~/.local/share`) once its helper is installed; that platform
+journey remains unqualified.
+Appearance currently lasts for the app session. Native access to installations
+outside the macOS sandbox, editing/recovery and remote connections remain in
+progress. Web explains its instance connection requirement;
 it does not offer local database authority. Generated mobile/Windows/Linux runners
 are not yet qualified. Build the shell from `apps/ub_app` with `flutter build web`
 or, on macOS, `flutter build macos --debug`.

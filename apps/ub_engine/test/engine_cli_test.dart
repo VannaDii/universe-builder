@@ -75,6 +75,35 @@ void main() {
     expect(output, isEmpty);
   });
 
+  test('device setup retains the owner and reconnect hint while the engine owns the store', () async {
+    final path = '${root.path}/device';
+    final args = ['--installation', path, '--device-profile'];
+    expect(await run(args), 0);
+    final profile = ProfileId.parse(output.single);
+    final credential = ProfileCredentialStore.read(
+      root: path,
+      profile: profile,
+    );
+    output.clear();
+    final retained = SqliteInstallationStore.openExisting(path);
+    try {
+      expect(await run(args), 0);
+      expect(output.single, profile.value);
+      expect(retained.currentAuthor(), profile);
+    } finally {
+      retained.close();
+    }
+    expect(
+      ProfileCredentialStore.read(root: path, profile: profile),
+      credential,
+    );
+    expect(output.join(), isNot(contains(credential)));
+    output.clear();
+    File('$path/device-profile').deleteSync();
+    expect(await run(args), 0);
+    expect(output.single, profile.value);
+  });
+
   test('invalid options never create authority', () async {
     final path = '${root.path}/absent';
     for (final args in <List<String>>[
@@ -84,6 +113,7 @@ void main() {
       ['--installation', path, '--fixture'],
       ['--installation', path, '--exit-on-stdin-close'],
       ['--installation', path, '--initialize', '--initialize'],
+      ['--installation', path, '--initialize', '--device-profile'],
       ['--installation', path, '--installation', path],
       ['--installation='],
       ['--installation', path, 'extra'],

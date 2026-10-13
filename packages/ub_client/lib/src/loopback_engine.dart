@@ -31,6 +31,7 @@ final class LoopbackEngineClient {
     required String helper,
     required String clientName,
     Map<String, String>? environment,
+    bool compatibilitySocket = true,
   }) async {
     Future<LoopbackEngineClient?> attempt(String directory) async {
       try {
@@ -90,7 +91,11 @@ final class LoopbackEngineClient {
         }
         await Process.start(
           executable.path,
-          ['--installation', bootstrap.root],
+          [
+            '--installation',
+            bootstrap.root,
+            if (!compatibilitySocket) '--http-only',
+          ],
           environment: environment,
           mode: ProcessStartMode.detached,
         );
