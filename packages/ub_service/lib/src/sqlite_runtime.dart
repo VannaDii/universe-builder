@@ -272,7 +272,8 @@ final class NativeSqliteRuntime {
           LoadDraftEngineRequest(:final universe) ||
           SaveDraftEngineRequest(:final universe) => universe,
           StageImageEngineRequest(:final universe) ||
-          ImagePreviewEngineRequest(:final universe) => universe,
+          ImagePreviewEngineRequest(:final universe) ||
+          ReadSourceEngineRequest(:final universe) => universe,
           ForkContinuityEngineRequest(:final universe) ||
           CompareContinuitiesEngineRequest(:final universe) ||
           PrepareAdoptionEngineRequest(:final universe) => universe,
@@ -311,6 +312,9 @@ final class NativeSqliteRuntime {
           request is CompareContinuitiesEngineRequest ||
           request is PrepareAdoptionEngineRequest) {
         return await workflow.continuityRequest(request);
+      }
+      if (request is ReadSourceEngineRequest) {
+        return await workflow.sourceRequest(request);
       }
       if (request is StageImageEngineRequest ||
           request is ImagePreviewEngineRequest) {

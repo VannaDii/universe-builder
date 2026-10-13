@@ -51,6 +51,7 @@ sealed class EngineRequest {
       'revision',
       'source',
       'source_revision',
+      'source_version',
       'start',
       'target',
       'target_instance',
@@ -97,6 +98,7 @@ sealed class EngineRequest {
       'image_preview' => ImagePreviewEngineRequest.fromWire(value),
       'author_writing' => AuthorWritingEngineRequest.fromWire(value),
       'stage_source' => StageSourceEngineRequest.fromWire(value),
+      'read_source' => ReadSourceEngineRequest.fromWire(value),
       'backup' => BackupEngineRequest.fromWire(value),
       'restore' => RestoreEngineRequest.fromWire(value),
       'maintain' => MaintainEngineRequest.fromWire(value),
@@ -985,6 +987,49 @@ final class StageImageEngineRequest extends EngineRequest {
     MapEntry('method', CanonicalString('stage_image')),
     MapEntry('universe', universe.toWire()),
     MapEntry('source', CanonicalString(source)),
+  ]);
+}
+
+final class ReadSourceEngineRequest extends EngineRequest {
+  const ReadSourceEngineRequest({
+    required this.universe,
+    required this.contextId,
+    required this.sourceVersion,
+    required this.after,
+  });
+  final Selector universe;
+  final ContextId contextId;
+  final VersionRef sourceVersion;
+
+  /// UTF-8 byte offset, beginning at a character boundary.
+  final BigInt after;
+  @override
+  String get method => 'read_source';
+  factory ReadSourceEngineRequest.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {
+      'method',
+      'universe',
+      'context_id',
+      'source_version',
+      'after',
+    });
+    if (f.string('method') != 'read_source') {
+      throw const FormatException('Wrong engine method');
+    }
+    return ReadSourceEngineRequest(
+      universe: Selector.fromWire(f.require('universe')),
+      contextId: ContextId.parse(f.string('context_id')),
+      sourceVersion: VersionRef.fromCanonical(f.require('source_version')),
+      after: f.u64('after'),
+    );
+  }
+  @override
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('method', CanonicalString(method)),
+    MapEntry('universe', universe.toWire()),
+    MapEntry('context_id', CanonicalString(contextId.value)),
+    MapEntry('source_version', sourceVersion.toCanonical()),
+    MapEntry('after', CanonicalNumber(after.toString())),
   ]);
 }
 

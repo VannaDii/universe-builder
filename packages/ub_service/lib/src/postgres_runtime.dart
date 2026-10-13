@@ -570,6 +570,7 @@ final class NativePostgresRuntime {
             PrepareAdoptionEngineRequest(:final universe) ||
             StageImageEngineRequest(:final universe) ||
             ImagePreviewEngineRequest(:final universe) ||
+            ReadSourceEngineRequest(:final universe) ||
             LibraryEngineRequest(:final universe) ||
             LoadDraftEngineRequest(:final universe) ||
             SaveDraftEngineRequest(:final universe) => universe,
@@ -646,6 +647,8 @@ final class NativePostgresRuntime {
                 CompareContinuitiesEngineRequest() ||
                 PrepareAdoptionEngineRequest():
               return workflow.continuityRequest(request);
+            case ReadSourceEngineRequest():
+              return workflow.sourceRequest(request);
             case StageImageEngineRequest() || ImagePreviewEngineRequest():
               return workflow.imageRequest(request);
             case LibraryEngineRequest():

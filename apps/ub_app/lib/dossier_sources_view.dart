@@ -5,15 +5,23 @@ import 'package:ub_domain/ub_domain.dart';
 import 'dossier_sources.dart';
 import 'record_browser.dart';
 import 'record_fields.dart';
+import 'connection.dart';
+import 'source_text_view.dart';
 
 class DossierSources extends StatelessWidget {
   const DossierSources({
     super.key,
     required this.material,
     required this.universe,
+    required this.session,
+    required this.selector,
+    required this.openedContext,
   });
   final Records material;
   final UniverseId universe;
+  final AppSession session;
+  final Selector selector;
+  final ContextId openedContext;
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +76,17 @@ class DossierSources extends StatelessWidget {
                       SelectableText('Imported: ${version.importTime}'),
                       SelectableText(
                         'Import actor: ${version.importActor.value}',
+                      ),
+                      SourceTextView(
+                        key: ValueKey(row.recordVersionId),
+                        session: session,
+                        universe: selector,
+                        context: openedContext,
+                        version: VersionRef(
+                          universe: universe,
+                          record: row.identity.recordId,
+                          version: row.recordVersionId,
+                        ),
                       ),
                     ],
                     AnchorRecord anchor => <Widget>[

@@ -69,6 +69,38 @@ Matcher invalid(String field, String message) => throwsA(
       .having((e) => e.message, 'message', message),
 );
 void main() {
+  test('retained source pages preserve UTF-8 boundaries and reject altered content', () {
+    final text = '${'a' * 65535}😀記憶\r\n';
+    final payload = source(text: text);
+    final first = WireFields(
+      retainedSourcePage(payload, CanonicalString(text), BigInt.zero),
+      {'text', 'after', 'next'},
+    );
+    expect(first.string('text'), 'a' * 65535);
+    expect(first.u64('next'), BigInt.from(65535));
+    final last = WireFields(
+      retainedSourcePage(payload, CanonicalString(text), first.u64('next')),
+      {'text', 'after', 'next'},
+    );
+    expect(last.string('text'), '😀記憶\r\n');
+    expect(last.require('next'), isA<CanonicalNull>());
+    expect(
+      () => retainedSourcePage(
+        payload,
+        CanonicalString(text),
+        BigInt.from(65536),
+      ),
+      throwsA(isA<InvalidArgumentError>()),
+    );
+    expect(
+      () => retainedSourcePage(payload, CanonicalString('$text!'), BigInt.zero),
+      throwsA(isA<InvalidArgumentError>()),
+    );
+    expect(
+      () => retainedSourcePage(payload, null, BigInt.zero),
+      throwsA(isA<NotFoundOrNotAccessibleError>()),
+    );
+  });
   test(
     'byte-bound source anchors retain a leading BOM as authored evidence',
     () async {

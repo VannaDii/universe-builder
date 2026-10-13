@@ -9,6 +9,56 @@ import 'package:ub_store/ub_store.dart' show readRetainedImageBytes;
 Never _denied() =>
     throw const NotFoundOrNotAccessibleError(message: 'resource');
 
+/// Pages exact retained UTF-8 without splitting characters or fetching locators.
+CanonicalObject retainedSourcePage(
+  SourceVersionRecord source,
+  CanonicalValue? retained,
+  BigInt after,
+) {
+  if (retained is! CanonicalString) _denied();
+  final bytes = utf8.encode(retained.value);
+  if (BigInt.from(bytes.length) != source.byteSize ||
+      sha256.convert(bytes).toString() != source.contentDigest) {
+    throw const InvalidArgumentError(
+      field: 'source',
+      message: 'retained source differs from published metadata',
+    );
+  }
+  if (after < BigInt.zero || after > BigInt.from(bytes.length)) {
+    throw const InvalidArgumentError(
+      field: 'after',
+      message: 'invalid source byte offset',
+    );
+  }
+  final start = after.toInt();
+  bool boundary(int offset) =>
+      offset == bytes.length || bytes[offset] & 0xc0 != 0x80;
+  if (!boundary(start)) {
+    throw const InvalidArgumentError(
+      field: 'after',
+      message: 'source offset splits a UTF-8 character',
+    );
+  }
+  var end = start + 65536;
+  if (end > bytes.length) end = bytes.length;
+  while (!boundary(end)) {
+    end--;
+  }
+  return CanonicalObject([
+    MapEntry(
+      'text',
+      CanonicalString(decodeExactUtf8(bytes.sublist(start, end))),
+    ),
+    MapEntry('after', CanonicalNumber(after.toString())),
+    MapEntry(
+      'next',
+      end == bytes.length
+          ? const CanonicalNull()
+          : CanonicalNumber(end.toString()),
+    ),
+  ]);
+}
+
 /// Verifies every source/image/anchor in a complete candidate against retained
 /// imports and exact historical versions. External locators never trigger fetches.
 /// Loaders must use the workflow's pinned, authorized installation/universe.

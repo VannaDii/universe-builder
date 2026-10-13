@@ -836,6 +836,38 @@ void main() {
           sourceRows.singleWhere((row) => row.payload is AnchorRecord).payload
               as AnchorRecord;
       expect(sourceAnchor.excerpt, sourceText);
+      final textRequest = ReadSourceEngineRequest(
+        universe: const Selector('Attributes'),
+        contextId: choiceContext.contextId,
+        sourceVersion: sourceAnchor.sourceVersion,
+        after: BigInt.zero,
+      );
+      final textPage = WireFields(await session.call(textRequest), {
+        'text',
+        'after',
+        'next',
+      });
+      expect(textPage.string('text'), sourceText);
+      expect(textPage.require('next'), isA<CanonicalNull>());
+      expect(
+        EngineRequest.fromWire(textRequest.toWire()),
+        isA<ReadSourceEngineRequest>(),
+      );
+      await expectLater(
+        session.call(
+          ReadSourceEngineRequest(
+            universe: const Selector('Attributes'),
+            contextId: choiceContext.contextId,
+            sourceVersion: VersionRef(
+              universe: scope.universe,
+              record: sourceVersion.identity.recordId,
+              version: RecordVersionId.generate(),
+            ),
+            after: BigInt.zero,
+          ),
+        ),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
       expect(
         dossierAnchorSource(
           sourceRows,

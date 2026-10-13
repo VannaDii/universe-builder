@@ -658,6 +658,9 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                 DossierSources(
                   material: _material!.result,
                   universe: widget.universe.id,
+                  session: widget.session,
+                  selector: Selector(widget.universe.name),
+                  openedContext: widget.context.contextId,
                 ),
               if (_group == FieldGroup.evidence &&
                   !_relationships &&

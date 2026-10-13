@@ -198,8 +198,10 @@ metadata and anchored excerpts at the opened revision. Excerpts retain exact
 Unicode text and UTF-8 byte ranges. Source names are resolved only from the exact
 record version referenced by an anchor; unavailable versions remain explicit.
 External identifiers are descriptive and never fetched automatically. Exact
-source details remain expandable. Full retained source text is not yet exposed
-by this view.
+source details remain expandable. **Read source text** loads the exact retained
+version in UTF-8-safe sections; **Next text section** continues through large
+sources. Each read rechecks the opened context and current access. No external
+identifier is fetched, and source text is not saved as a preview file.
 **Timeline** in an entity dossier lists events with explicit participation.
 Exact numeric points are ordered separately in each named calendar, using the
 shared rule engine's integer bounds. Equal coordinates do not imply sequence.

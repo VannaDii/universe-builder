@@ -1267,6 +1267,36 @@ final class SqliteValidationWorkflow implements ValidationJobService {
     }
   }
 
+  Future<CanonicalValue> sourceRequest(ReadSourceEngineRequest request) =>
+      authority.withUniverseAuthority(principal, universe, (current) async {
+        const denied = NotFoundOrNotAccessibleError(message: 'resource');
+        if (request.sourceVersion.universe != null &&
+            request.sourceVersion.universe != universe) {
+          throw denied;
+        }
+        final read = await _getRequest(
+          GetRequest(
+            universe: request.universe,
+            universeId: universe,
+            contextId: request.contextId,
+            recordIds: [request.sourceVersion.record],
+            fieldGroups: [FieldGroup.payload],
+          ),
+          current,
+        );
+        final row = read.records.records.single;
+        if (row.recordVersionId != request.sourceVersion.version ||
+            row.payload is! SourceVersionRecord) {
+          throw denied;
+        }
+        final source = row.payload as SourceVersionRecord;
+        return retainedSourcePage(
+          source,
+          _workflow.get('source:${source.contentDigest}'),
+          request.after,
+        );
+      });
+
   Future<Records> getRequest(GetRequest request) =>
       authority.withUniverseAuthority(
         principal,
