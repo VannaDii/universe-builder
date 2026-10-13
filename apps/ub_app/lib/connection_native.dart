@@ -176,6 +176,7 @@ final class DeviceConnection {
       root: root!,
       client: client,
     );
+    final unitRecovery = LocalUnitFormRecovery(root: root!, client: client);
     final entityRecovery = LocalEntityFormRecovery(root: root!, client: client);
     final attributeRecovery = LocalAttributeFormRecovery(
       root: root!,
@@ -192,6 +193,8 @@ final class DeviceConnection {
       saveTypeForm: typeRecovery.save,
       loadPropertyForm: propertyRecovery.load,
       savePropertyForm: propertyRecovery.save,
+      loadUnitForm: unitRecovery.load,
+      saveUnitForm: unitRecovery.save,
       loadEntityForm: entityRecovery.load,
       saveEntityForm: entityRecovery.save,
       loadAttributeForm: attributeRecovery.load,

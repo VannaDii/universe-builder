@@ -244,3 +244,42 @@ final class LocalPropertyFormRecovery {
     });
   }
 }
+
+final class LocalUnitFormRecovery {
+  LocalUnitFormRecovery({required String root, required this.client})
+    : _path = '$root/client-recovery/unit-forms.sqlite';
+  final String _path;
+  final LoopbackEngineClient client;
+
+  Future<SavedUnitForm?> load(EditorFormScope scope) async {
+    await _checkEditorScope(client, scope);
+    final path = _path;
+    return Isolate.run(() {
+      final store = UnitFormRecoveryStore.open(path);
+      try {
+        return store.load(scope);
+      } finally {
+        store.close();
+      }
+    });
+  }
+
+  Future<SavedUnitForm> save(
+    EditorFormScope scope,
+    UnfinishedUnitForm form,
+    BigInt expectedGeneration,
+  ) async {
+    if (scope.profile != client.welcome.principal) {
+      throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
+    }
+    final path = _path;
+    return Isolate.run(() {
+      final store = UnitFormRecoveryStore.open(path);
+      try {
+        return store.save(scope, form, expectedGeneration);
+      } finally {
+        store.close();
+      }
+    });
+  }
+}

@@ -141,6 +141,13 @@ retain the exact existing basis, including
 provenance owned by an event, evaluator or initialization workflow. Pending source
 references recover before they are complete. A content-match flag does not establish
 truth or entailment; the existing source validation and approval flow still apply.
+**Unit definition** opens recoverable namespace, key, dimension, symbol,
+multilingual labels, optional base unit, exact typed scale-to-base and validity
+fields. Base units use named choices at the form’s revision. Conversion data is
+explicit; omitted conversion factors remain omitted. Temporal validity uses the
+shared authored-time controls. **Edit unit fields** preserves exact references,
+conversion values, validity and unrelated Changes; **Start another unit** uses
+a fresh definition reference. Publication follows the normal approval flow.
 **Property definition** opens a recoverable typed form for namespace, key,
 multilingual labels, subject types, value shape, multiplicity, persistence,
 unit dimension and inverse/exclusive/symmetric/transitive metadata. Value shapes
