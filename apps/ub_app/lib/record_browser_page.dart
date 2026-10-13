@@ -10,7 +10,13 @@ import 'entity_editor_page.dart';
 import 'attribute_editor_page.dart';
 import 'saved_changes.dart';
 import 'dossier_timeline_view.dart';
+import 'dossier_facts_view.dart';
+
+import 'package:ub_contracts/ub_contracts.dart' as data show State;
+
 import 'relationship_diagram.dart';
+
+enum _DossierView { fields, evidence, history, relationships, timeline, facts }
 
 class _RelationshipList extends StatelessWidget {
   const _RelationshipList({
@@ -344,10 +350,16 @@ class _RecordDetailPage extends StatefulWidget {
 
 class _RecordDetailPageState extends State<_RecordDetailPage> {
   Envelope<Records>? _material;
-  FieldGroup _group = FieldGroup.payload;
-  bool _relationships = false;
+  Envelope<data.State>? _state;
+  _DossierView _view = _DossierView.fields;
+  FieldGroup get _group => switch (_view) {
+    _DossierView.fields => FieldGroup.payload,
+    _DossierView.history => FieldGroup.history,
+    _ => FieldGroup.evidence,
+  };
+  bool get _relationships => _view == _DossierView.relationships;
+  bool get _timeline => _view == _DossierView.timeline;
   bool _relationshipGraph = false;
-  bool _timeline = false;
   bool _busy = true;
   String? _error;
   @override
@@ -361,8 +373,24 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
       _busy = true;
       _error = null;
       _material = null;
+      _state = null;
     });
     try {
+      if (_view == _DossierView.facts) {
+        final result = await readContextEntityState(
+          session: widget.session,
+          universe: widget.universe,
+          context: widget.context,
+          entity: widget.hit.recordId,
+        );
+        if (result.result.objects.length != 1 ||
+            result.result.objects.single.identity.identity.recordId !=
+                widget.hit.recordId) {
+          throw const FormatException('Entity state unavailable.');
+        }
+        if (mounted) setState(() => _state = result);
+        return;
+      }
       final material = await readContextRecordMaterial(
         session: widget.session,
         universe: widget.universe,
@@ -461,60 +489,24 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
             Wrap(
               spacing: 8,
               children: [
-                for (final option in const {
-                  FieldGroup.payload: 'Published fields',
-                  FieldGroup.evidence: 'Supporting records',
-                  FieldGroup.history: 'History',
+                for (final option in {
+                  _DossierView.fields: 'Published fields',
+                  _DossierView.evidence: 'Supporting records',
+                  _DossierView.history: 'History',
+                  if (widget.hit.kind == RecordKind.entity) ...{
+                    _DossierView.facts: 'Facts',
+                    _DossierView.relationships: 'Relationships',
+                    _DossierView.timeline: 'Timeline',
+                  },
                 }.entries)
                   ChoiceChip(
                     label: Text(option.value),
-                    selected:
-                        !_relationships && !_timeline && _group == option.key,
+                    selected: _view == option.key,
                     onSelected: _busy
                         ? null
                         : (_) {
-                            if (!_relationships &&
-                                !_timeline &&
-                                _group == option.key) {
-                              return;
-                            }
-                            setState(() {
-                              _relationships = false;
-                              _timeline = false;
-                              _group = option.key;
-                            });
-                            _read();
-                          },
-                  ),
-                if (widget.hit.kind == RecordKind.entity)
-                  ChoiceChip(
-                    label: const Text('Relationships'),
-                    selected: _relationships,
-                    onSelected: _busy
-                        ? null
-                        : (_) {
-                            if (_relationships) return;
-                            setState(() {
-                              _relationships = true;
-                              _timeline = false;
-                              _group = FieldGroup.evidence;
-                            });
-                            _read();
-                          },
-                  ),
-                if (widget.hit.kind == RecordKind.entity)
-                  ChoiceChip(
-                    label: const Text('Timeline'),
-                    selected: _timeline,
-                    onSelected: _busy
-                        ? null
-                        : (_) {
-                            if (_timeline) return;
-                            setState(() {
-                              _timeline = true;
-                              _relationships = false;
-                              _group = FieldGroup.evidence;
-                            });
+                            if (_view == option.key) return;
+                            setState(() => _view = option.key);
                             _read();
                           },
                   ),
@@ -524,6 +516,11 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
             if (_busy) const LinearProgressIndicator(),
             if (_error != null)
               Semantics(liveRegion: true, child: Text(_error!)),
+            if (_state != null) ...[
+              if (!_state!.delivery.complete)
+                const Text('Only part of this view was returned.'),
+              DossierFacts(state: _state!.result, universe: widget.universe.id),
+            ],
             if (_material != null) ...[
               if (!_material!.delivery.complete)
                 const Text('Only part of this view was returned.'),

@@ -569,6 +569,36 @@ void main() {
         afterPublication,
       );
       for (final person in people) {
+        final facts = await readContextEntityState(
+          session: session,
+          universe: LibraryEntry(scope.universe, 'Relations'),
+          context: readContext,
+          entity: person.identity.recordId,
+        );
+        expect(facts.delivery.complete, isTrue);
+        expect(facts.result.coverage, Coverage.partial);
+        final object = facts.result.objects.single;
+        expect(object.identity.identity.recordId, person.identity.recordId);
+        if (person.identity.recordId == participant(0).record) {
+          expect(object.instanceFacts, hasLength(1));
+          expect(object.instanceFacts.single.applicability, isTrue);
+          expect(
+            (object.instanceFacts.single.record.payload as AssertionRecord)
+                .polarity,
+            Polarity.support,
+          );
+          expect(
+            object.dependencies.map((r) => r.identity.recordId),
+            containsAll([
+              published.identity.recordId,
+              participant(1).record,
+              participant(2).record,
+            ]),
+          );
+        } else {
+          expect(object.instanceFacts, isEmpty);
+          expect(object.unknowns, contains('instance_state_not_established'));
+        }
         final material = Envelope<Records>.fromWire(
           await session.call(
             ToolEngineRequest(
@@ -790,6 +820,90 @@ void main() {
           isIn(times.map((t) => t.encode(canonical: true).toText())),
         );
       }
+      final propertyId = RecordId.generate(),
+          propositionId = RecordId.generate();
+      final propertyDraft = await changes().saveContent(
+        eventsBase,
+        DraftContent(
+          baseRevision: eventsBase.content.baseRevision,
+          representedContext: eventsBase.content.representedContext,
+          rationale: 'Authored hometown.',
+          operations: [
+            DefinePropertyOperation(
+              clientRef: propertyId.value,
+              record: PropertyRecord(
+                namespace: 'authored',
+                key: 'hometown',
+                labels: {'en': 'Hometown'},
+                subjectTypes: [person],
+                value: const SimpleValueShape(SimpleShapeKind.text),
+                multiplicity: Multiplicity.single,
+                persistence: PersistenceSemantics.unspecified,
+                exclusive: false,
+                symmetric: false,
+                transitive: false,
+              ),
+            ),
+            AssertPropositionOperation(
+              clientRef: propositionId.value,
+              proposition: PropositionRecord(
+                predicate: RecordRef(
+                  universe: scope.universe,
+                  record: propertyId,
+                ),
+                subject: participant(0),
+                context: evidence.scope.context,
+                quantification: Quantification.particular,
+                value: const TextValue('River 記憶 😀'),
+              ),
+              assertion: AssertionRecord(
+                attributeMode: AttributeMode.instance,
+                proposition: RecordRef(
+                  universe: scope.universe,
+                  record: propositionId,
+                ),
+                polarity: Polarity.support,
+                scope: evidence.scope,
+                validity: const UnknownValidity(),
+                persistence: PersistenceSemantics.unspecified,
+                precision: Precision.exact,
+                basis: const AuthorDecisionBasis('Authored hometown.'),
+              ),
+            ),
+          ],
+        ),
+      );
+      await publish(propertyDraft);
+      final factsBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final factsContext = await openDraftChoiceContext(changes(), factsBase);
+      final facts = await readContextEntityState(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Relations'),
+        context: factsContext,
+        entity: participant(0).record,
+      );
+      expect(facts.result.objects.single.instanceFacts, hasLength(2));
+      final fact =
+          facts.result.propositions
+                  .singleWhere(
+                    (r) =>
+                        (r.payload as PropositionRecord).predicate.record ==
+                        propertyId,
+                  )
+                  .payload
+              as PropositionRecord;
+      expect((fact.value as TextValue).text, 'River 記憶 😀');
+      expect(
+        dossierReferenceLabel(
+          Records(records: facts.result.objects.single.dependencies),
+          scope.universe,
+          fact.predicate,
+        ),
+        'Hometown',
+      );
     } finally {
       await session?.close();
       await server.close();

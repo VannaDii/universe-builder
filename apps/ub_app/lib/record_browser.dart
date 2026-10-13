@@ -52,6 +52,9 @@ String dossierReferenceLabel(
     final labels = switch (row.payload) {
       EntityRecord(:final labels) ||
       RelationRecord(:final labels) ||
+      PropertyRecord(:final labels) ||
+      EntityTypeRecord(:final labels) ||
+      RuleRecord(:final labels) ||
       EventRecord(:final labels) ||
       CalendarRecord(:final labels) ||
       RepresentedContextRecord(:final labels) => labels,
@@ -69,6 +72,26 @@ String dossierReferenceLabel(
   }
   return 'Unavailable name (${ref.record.value})';
 }
+
+Future<Envelope<State>> readContextEntityState({
+  required AppSession session,
+  required LibraryEntry universe,
+  required OpenedContext context,
+  required RecordId entity,
+}) async => Envelope<State>.fromWire(
+  await session.call(
+    ToolEngineRequest(
+      request: GetStateRequest(
+        universe: Selector(universe.name),
+        universeId: universe.id,
+        contextId: context.contextId,
+        entityIds: [entity],
+        predicateFilters: [],
+      ),
+    ),
+  ),
+  State.fromWire,
+);
 
 Future<Envelope<SearchResults>> searchContextRecords({
   required AppSession session,

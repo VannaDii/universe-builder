@@ -177,6 +177,14 @@ The **List** and **Graph** choices use the same opened records and assertion
 details. Graph displays the subject, relation and numbered role participants as
 separate nodes; repeated participants retain their distinct bindings. Switching
 views does not refresh the revision or hide assertion scope, validity or evidence.
+**Facts** reads the entity's effective state at the same opened revision and
+represented context. Instance facts, shared/inherited attributes, initial-value
+candidates, requirements and rules remain separate. Applicability, conflicts,
+unknowns and read coverage are shown without selecting a winning assertion.
+Exact values, scope, validity and evidence remain available; derived results,
+knowledge, completeness declarations and initialization history retain their
+provenance. Dossier reads span all authored times and do not establish what holds
+at a chosen date or infer instance state from role participation.
 **Timeline** in an entity dossier lists events with explicit participation.
 Exact numeric points are ordered separately in each named calendar, using the
 shared rule engine's integer bounds. Equal coordinates do not imply sequence.
