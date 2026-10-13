@@ -10,6 +10,7 @@ import 'entity_editor_page.dart';
 import 'attribute_editor_page.dart';
 import 'saved_changes.dart';
 import 'dossier_timeline_view.dart';
+import 'relationship_diagram.dart';
 
 class _RelationshipList extends StatelessWidget {
   const _RelationshipList({
@@ -17,11 +18,15 @@ class _RelationshipList extends StatelessWidget {
     required this.universe,
     required this.entity,
     required this.name,
+    required this.graph,
+    required this.onGraphChanged,
   });
   final Records material;
   final UniverseId universe;
   final RecordId entity;
   final String name;
+  final bool graph;
+  final ValueChanged<bool> onGraphChanged;
 
   String label(RecordRef ref) =>
       ref.record == entity && (ref.universe == null || ref.universe == universe)
@@ -34,8 +39,24 @@ class _RelationshipList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Wrap(
+          spacing: 8,
+          children: [
+            ChoiceChip(
+              label: const Text('List'),
+              selected: !graph,
+              onSelected: (_) => onGraphChanged(false),
+            ),
+            ChoiceChip(
+              label: const Text('Graph'),
+              selected: graph,
+              onSelected: (_) => onGraphChanged(true),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
         const Text(
-          'Declared relationships in this opened revision. Subject and role order are authored; assertions retain their own scope, validity and evidence. This list does not decide which assertions hold at a particular time.',
+          'Declared relationships in this opened revision. Subject and role order are authored; assertions retain their own scope, validity and evidence. This view does not decide which assertions hold at a particular time.',
         ),
         if (relationships.isEmpty)
           const Padding(
@@ -59,15 +80,24 @@ class _RelationshipList extends StatelessWidget {
                         label(proposition.predicate),
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
-                      SelectableText('Subject: ${label(proposition.subject)}'),
-                      for (
-                        var index = 0;
-                        index < proposition.roles.length;
-                        index++
-                      )
+                      if (graph)
+                        RelationshipDiagram(
+                          proposition: proposition,
+                          label: label,
+                        )
+                      else ...[
                         SelectableText(
-                          '${index + 1}. ${proposition.roles[index].role}: ${label(proposition.roles[index].participant)}',
+                          'Subject: ${label(proposition.subject)}',
                         ),
+                        for (
+                          var index = 0;
+                          index < proposition.roles.length;
+                          index++
+                        )
+                          SelectableText(
+                            '${index + 1}. ${proposition.roles[index].role}: ${label(proposition.roles[index].participant)}',
+                          ),
+                      ],
                       Text(
                         'Quantification: ${proposition.quantification.wireName}',
                       ),
@@ -316,6 +346,7 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
   Envelope<Records>? _material;
   FieldGroup _group = FieldGroup.payload;
   bool _relationships = false;
+  bool _relationshipGraph = false;
   bool _timeline = false;
   bool _busy = true;
   String? _error;
@@ -580,6 +611,9 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                   universe: widget.universe.id,
                   entity: widget.hit.recordId,
                   name: widget.hit.label,
+                  graph: _relationshipGraph,
+                  onGraphChanged: (graph) =>
+                      setState(() => _relationshipGraph = graph),
                 ),
               if (_timeline)
                 DossierTimeline(

@@ -173,6 +173,10 @@ authored role order and separate supporting/opposing assertions remain visible;
 expand an assertion for its exact scope, validity and evidence. This is an authored
 declaration view, not a determination of which assertions hold at a chosen time.
 An empty or partial view does not establish the absence of relationships.
+The **List** and **Graph** choices use the same opened records and assertion
+details. Graph displays the subject, relation and numbered role participants as
+separate nodes; repeated participants retain their distinct bindings. Switching
+views does not refresh the revision or hide assertion scope, validity or evidence.
 **Timeline** in an entity dossier lists events with explicit participation.
 Exact numeric points are ordered separately in each named calendar, using the
 shared rule engine's integer bounds. Equal coordinates do not imply sequence.
