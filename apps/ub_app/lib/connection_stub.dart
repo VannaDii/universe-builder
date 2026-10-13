@@ -12,4 +12,8 @@ final class DeviceConnection {
       Future.error(StateError('Local setup unavailable'));
   Future<void> savePostgres(TestedPostgresConnection choice) =>
       Future.error(StateError('Local setup unavailable'));
+  Future<TestedSqliteConnection> testSqlite() =>
+      Future.error(StateError('Local setup unavailable'));
+  Future<void> saveSqlite(TestedSqliteConnection choice) =>
+      Future.error(StateError('Local setup unavailable'));
 }

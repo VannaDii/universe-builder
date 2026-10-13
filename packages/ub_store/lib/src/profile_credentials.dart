@@ -30,7 +30,16 @@ final class DeviceProfileStore {
       protectedFile(temporary, createNew: true);
       File(temporary).writeAsStringSync('${profile.value}\n', flush: true);
       syncPrivateFileAndDirectory(temporary);
-      publishSnapshot(temporary, path);
+      if (FileSystemEntity.typeSync(path, followLinks: false) ==
+          FileSystemEntityType.notFound) {
+        publishSnapshot(temporary, path);
+      } else {
+        // The reconnect hint is replaceable software metadata, not a secret.
+        // Refuse unsafe existing files before atomic replacement.
+        protectedFile(path);
+        File(temporary).renameSync(path);
+        syncPrivateFileAndDirectory(path);
+      }
     } finally {
       if (File(temporary).existsSync()) File(temporary).deleteSync();
     }

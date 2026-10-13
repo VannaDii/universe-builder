@@ -39,6 +39,22 @@ void main() {
   void chmod(String mode, String path) =>
       expect(Process.runSync('chmod', [mode, path]).exitCode, 0);
 
+  test('device reconnect hint replaces only a protected regular file', () {
+    final next = ProfileId.generate();
+    DeviceProfileStore.write(directory.path, profile);
+    DeviceProfileStore.write(directory.path, next);
+    expect(DeviceProfileStore.read(directory.path), next);
+    final hint = '${directory.path}/device-profile';
+    chmod('644', hint);
+    expect(() => DeviceProfileStore.write(directory.path, profile), throwsA(isA<FileSystemException>()));
+    expect(File(hint).readAsStringSync().trim(), next.value);
+    File(hint).deleteSync();
+    final original = File('${directory.path}/other')..writeAsStringSync(next.value);
+    Link(hint).createSync(original.path);
+    expect(() => DeviceProfileStore.write(directory.path, profile), throwsA(isA<FileSystemException>()));
+    expect(original.readAsStringSync(), next.value);
+  });
+
   test('exact credential persists in the unchanged typed private format', () {
     write();
     expect(read(), secret);

@@ -31,6 +31,12 @@ final class LibraryEntry {
 
 enum ConnectedBackend { sqlite, postgres }
 
+final class TestedSqliteConnection {
+  const TestedSqliteConnection({required this.instance, required this.profile});
+  final OperationId instance;
+  final ProfileId profile;
+}
+
 /// A device-local selection. Never serialized or returned to a browser/API.
 final class TestedPostgresConnection {
   const TestedPostgresConnection({

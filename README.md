@@ -1621,9 +1621,15 @@ Changed input clears the tested selection. A changed target, missing credential,
 or failed test cannot save configuration. Existing service environment overrides
 still take precedence; a reconnection to another backend/instance is reported
 visibly. Pending drafts and unfinished forms retain their original instance
-scope. Returning to SQLite through this GUI and the remaining platform-specific
-credential-store adapters are pending; the CLI's explicit SQLite selection is
-available.
+scope. **Use local SQLite** stops the current local engine and tests the existing
+SQLite installation and its retained author credential. It displays that stable
+instance before the separate **Save and reconnect to SQLite** action. No missing
+installation or author credential is initialized during this switch. The
+encrypted PostgreSQL endpoint remains saved without being unlocked. The device
+reconnect hint changes to the retained SQLite author; credential files remain
+create-only. Both Settings sections retain their tested selection while the
+connection summary changes. Platform-specific credential-store adapters beyond
+macOS remain pending.
 The Dart author CLI provides `universe --installation /absolute/path configure
 postgres` to test an existing PostgreSQL installation and save its endpoint
 encrypted with an OS-stored key. Supply the exact connection URI on standard

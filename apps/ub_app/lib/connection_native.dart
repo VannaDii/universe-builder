@@ -7,7 +7,8 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_service/local_configuration.dart';
 import 'package:ub_service/local_profiles.dart';
-import 'package:ub_service/ub_service.dart' show PostgresConfiguration;
+import 'package:ub_service/ub_service.dart'
+    show PostgresConfiguration, SqliteConfiguration;
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
 
@@ -78,6 +79,62 @@ final class DeviceConnection {
         current.profile != choice.profile) {
       throw StateError('Selected installation changed');
     }
+    await _waitForStoppedEngine();
+    await saveLocalBackendConfiguration(
+      root: root!,
+      configuration: PostgresConfiguration(Credential(choice.endpoint)),
+      expectedInstance: choice.instance,
+    );
+    DeviceProfileStore.write(root!, choice.profile);
+    profile = choice.profile.value;
+  }
+
+  Future<TestedSqliteConnection> testSqlite() async {
+    if (!available) throw StateError('Local connection not configured');
+    await _waitForStoppedEngine();
+    final store = SqliteInstallationStore.openExisting(root!);
+    try {
+      final authority = InstallationAuthority(store);
+      final author = store.currentAuthor();
+      final principal = authority.authenticateHello(
+        EngineHello(
+          protocolVersion: protocolVersion,
+          profileId: author,
+          credential: Credential(
+            ProfileCredentialStore.read(root: root!, profile: author),
+          ),
+          clientName: 'universe-builder-app-setup',
+        ),
+      );
+      authority.requireAuthor(principal);
+      return TestedSqliteConnection(
+        instance: store.instanceId,
+        profile: author,
+      );
+    } finally {
+      store.close();
+    }
+  }
+
+  Future<void> saveSqlite(TestedSqliteConnection choice) async {
+    final current = await testSqlite();
+    if (current.instance != choice.instance ||
+        current.profile != choice.profile) {
+      throw StateError('Selected installation changed');
+    }
+    await saveLocalBackendConfiguration(
+      root: root!,
+      configuration: const SqliteConfiguration(),
+      expectedInstance: choice.instance,
+    );
+    DeviceProfileStore.write(root!, choice.profile);
+    profile = choice.profile.value;
+  }
+
+  Future<void> _waitForStoppedEngine() async {
+    if (root == null || !Directory(root!).existsSync()) {
+      throw StateError('Existing local installation unavailable');
+    }
     // An acknowledged shutdown may still be releasing its local ownership.
     final deadline = DateTime.now().add(const Duration(seconds: 10));
     while (true) {
@@ -90,13 +147,6 @@ final class DeviceConnection {
         await Future<void>.delayed(const Duration(milliseconds: 50));
       }
     }
-    await saveLocalBackendConfiguration(
-      root: root!,
-      configuration: PostgresConfiguration(Credential(choice.endpoint)),
-      expectedInstance: choice.instance,
-    );
-    DeviceProfileStore.write(root!, choice.profile);
-    profile = choice.profile.value;
   }
 
   Future<AppSession> connect() async {

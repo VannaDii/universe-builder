@@ -11,6 +11,7 @@ import 'world_detail_page.dart';
 import 'changes_page.dart';
 import 'saved_changes.dart';
 import 'postgres_settings.dart';
+import 'sqlite_settings.dart';
 import 'connection_stub.dart' if (dart.library.io) 'connection_native.dart';
 
 void main(List<String> arguments) =>
@@ -104,16 +105,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       _error = null;
     });
     try {
-      if (current != null) await current.call(const ShutdownEngineRequest());
-      await current?.close();
-      setState(() {
-        _session = null;
-        _library = null;
-        _selected = null;
-        _description = null;
-        _worlds = {};
-        _contexts = {};
-      });
+      await _stopLocalEngine();
       await widget.device.savePostgres(target);
       await _connect();
       if (_library?.instance != target.instance ||
@@ -122,6 +114,70 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
           setState(() {
             _page = 1;
             _error = 'Saved PostgreSQL settings, but could not connect to the selected instance. Check service environment overrides and reconnect.';
+          });
+        }
+        throw StateError('Selected connection unavailable');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _stopLocalEngine() async {
+    final current = _session;
+    if (current != null) {
+      if (!current.author) throw StateError('Author access required');
+      await current.call(const ShutdownEngineRequest());
+      await current.close();
+    }
+    if (mounted) {
+      setState(() {
+        _session = null;
+        _library = null;
+        _selected = null;
+        _description = null;
+        _worlds = {};
+        _contexts = {};
+      });
+    }
+  }
+
+  Future<TestedSqliteConnection> _testSqlite() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await _stopLocalEngine();
+      return await widget.device.testSqlite();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _applySqlite(TestedSqliteConnection target) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await _stopLocalEngine();
+      await widget.device.saveSqlite(target);
+      await _connect();
+      if (_library?.instance != target.instance ||
+          _library?.backend != ConnectedBackend.sqlite) {
+        if (mounted) {
+          setState(() {
+            _page = 1;
+            _error = 'Saved SQLite settings, but could not connect to the selected local instance. Check service environment overrides and reconnect.';
           });
         }
         throw StateError('Selected connection unavailable');
@@ -715,9 +771,18 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       if (widget.device.supportsLocal && widget.device.available) ...[
         const SizedBox(height: 32),
         PostgresSettings(
+          key: const ValueKey('postgres-settings'),
           enabled: !_busy && (_session == null || _session!.author),
           test: widget.device.testPostgres,
           apply: _applyPostgres,
+        ),
+        const SizedBox(height: 32),
+        SqliteSettings(
+          key: const ValueKey('sqlite-settings'),
+          enabled: !_busy && (_session == null || _session!.author),
+          connected: _session != null,
+          test: _testSqlite,
+          apply: _applySqlite,
         ),
       ],
     ],
