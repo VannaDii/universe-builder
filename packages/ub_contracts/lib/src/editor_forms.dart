@@ -388,9 +388,11 @@ final class QualifierInput {
     this.value = '',
     this.denominator = '1',
     this.unit = '',
+    this.universe = '',
+    this.definition = '',
     this.originalKey,
   });
-  final String key, kind, value, denominator, unit;
+  final String key, kind, value, denominator, unit, universe, definition;
   final String? originalKey;
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('key', CanonicalString(key)),
@@ -398,6 +400,8 @@ final class QualifierInput {
     MapEntry('value', CanonicalString(value)),
     MapEntry('denominator', CanonicalString(denominator)),
     MapEntry('unit', CanonicalString(unit)),
+    MapEntry('universe', CanonicalString(universe)),
+    MapEntry('definition', CanonicalString(definition)),
     if (originalKey != null)
       MapEntry('original_key', CanonicalString(originalKey!)),
   ]);
@@ -409,6 +413,8 @@ final class QualifierInput {
       'denominator',
       'unit',
       'original_key',
+      'universe',
+      'definition',
     });
     return QualifierInput(
       key: f.string('key'),
@@ -416,6 +422,8 @@ final class QualifierInput {
       value: f.string('value'),
       denominator: f.string('denominator'),
       unit: f.string('unit'),
+      universe: f.optional('universe', wireString) ?? '',
+      definition: f.optional('definition', wireString) ?? '',
       originalKey: f.optional('original_key', wireString),
     );
   }

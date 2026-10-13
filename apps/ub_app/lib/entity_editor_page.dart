@@ -484,6 +484,10 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                   'integer': 'Integer',
                   'decimal': 'Decimal',
                   'rational': 'Rational',
+                  'entity_ref': 'Entity reference',
+                  'record_ref': 'Record reference',
+                  'proposition_ref': 'Proposition reference',
+                  'enum': 'Enumeration',
                 }.entries)
                   DropdownMenuItem(
                     value: choice.key,
@@ -540,7 +544,17 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                           },
                   ),
                 )
-              else
+              else if ([
+                'entity_ref',
+                'record_ref',
+                'proposition_ref',
+              ].contains(fields.kind)) ...[
+                _field(fields.universe, 'Target universe ID (optional)'),
+                _field(fields.value, 'Target record ID'),
+              ] else if (fields.kind == 'enum') ...[
+                _field(fields.definition, 'Enumeration definition ID'),
+                _field(fields.value, 'Enumeration entry key'),
+              ] else
                 _field(
                   fields.value,
                   fields.kind == 'rational' ? 'Numerator' : 'Qualifier value',
@@ -982,9 +996,16 @@ final class _QualifierFields {
       value = TextEditingController(text: form.value),
       denominator = TextEditingController(text: form.denominator),
       unit = TextEditingController(text: form.unit),
+      universe = TextEditingController(text: form.universe),
+      definition = TextEditingController(text: form.definition),
       kind = form.kind,
       originalKey = form.originalKey;
-  final TextEditingController name, value, denominator, unit;
+  final TextEditingController name,
+      value,
+      denominator,
+      unit,
+      universe,
+      definition;
   String kind;
   final String? originalKey;
   QualifierInput get form => QualifierInput(
@@ -993,6 +1014,8 @@ final class _QualifierFields {
     value: value.text,
     denominator: denominator.text,
     unit: unit.text,
+    universe: universe.text,
+    definition: definition.text,
     originalKey: originalKey,
   );
   void dispose() {
@@ -1000,5 +1023,7 @@ final class _QualifierFields {
     value.dispose();
     denominator.dispose();
     unit.dispose();
+    universe.dispose();
+    definition.dispose();
   }
 }

@@ -81,7 +81,9 @@ currently use IDs.
 Relative expressions retain explicit record/universe targets and temporal relations.
 Text and boolean amounts can be edited without converting their types; units
 apply to numeric amounts. Association qualifiers can be added, renamed, edited or removed with text,
-boolean, integer, decimal, rational and numeric quantity values. Structured
+boolean, integer, decimal, rational, numeric quantity, record/entity/proposition
+reference and enumeration values. Reference targets and enumeration definitions
+currently use explicit IDs; an omitted target universe remains omitted. Structured
 amount and qualifier value editors remain unfinished; existing exact structured
 values can be retained, including when a qualifier is renamed. Review, approval and publication remain separate steps.
 **Type definition** opens a recoverable typed form for namespace, key, display

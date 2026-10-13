@@ -311,6 +311,8 @@ final class EntityFormRecoveryStore {
           q.value,
           q.denominator,
           q.unit,
+          q.universe,
+          q.definition,
           if (q.originalKey != null) q.originalKey!,
         ],
         if (a.temporalValidity != null) ...[

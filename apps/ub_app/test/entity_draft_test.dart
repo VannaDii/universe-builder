@@ -25,6 +25,19 @@ void main() {
       'decimal': const DecimalValue('1.00000000000000001'),
       'rational': const RationalValue('001', '03'),
       'quantity': QuantityValue(const DecimalValue('2.00'), UnitId.generate()),
+      for (final kind in ValueReferenceKind.values)
+        kind.wireName: ReferenceValue(
+          kind,
+          RecordRef(
+            universe: UniverseId.generate(),
+            record: RecordId.generate(),
+          ),
+        ),
+      'local ref': ReferenceValue(
+        ValueReferenceKind.parse('record_ref'),
+        RecordRef(record: RecordId.generate()),
+      ),
+      'enum': EnumValue(ValueDefinitionId.generate(), '記憶 😀'),
       'structured': SequenceValue([
         const TextValue('first'),
         const BooleanValue(false),
@@ -93,6 +106,69 @@ void main() {
       throwsFormatException,
     );
   });
+  test(
+    'reference and enumeration edits retain targets and recover older forms',
+    () {
+      final target = RecordId.generate(), universe = UniverseId.generate();
+      final definition = ValueDefinitionId.generate();
+      final inputs = [
+        QualifierInput(
+          key: 'target',
+          kind: 'entity_ref',
+          value: target.value,
+          universe: universe.value,
+        ),
+        QualifierInput(
+          key: 'entry',
+          kind: 'enum',
+          definition: definition.value,
+          value: '記憶 😀',
+        ),
+      ];
+      final values = buildQualifiers(inputs, {});
+      expect(
+        values['target'],
+        ReferenceValue(
+          ValueReferenceKind.parse('entity_ref'),
+          RecordRef(universe: universe, record: target),
+        ),
+      );
+      expect(values['entry'], EnumValue(definition, '記憶 😀'));
+      final old = QualifierInput.fromWire(
+        CanonicalObject([
+          MapEntry('key', CanonicalString('old')),
+          MapEntry('kind', CanonicalString('text')),
+          MapEntry('value', CanonicalString('kept')),
+          MapEntry('denominator', CanonicalString('1')),
+          MapEntry('unit', CanonicalString('')),
+        ]),
+      );
+      expect(old.universe, '');
+      expect(old.definition, '');
+      expect(buildQualifiers([old], {})['old'], const TextValue('kept'));
+      for (final input in [
+        const QualifierInput(
+          key: 'target',
+          kind: 'record_ref',
+          value: 'unfinished',
+        ),
+        QualifierInput(
+          key: 'target',
+          kind: 'record_ref',
+          value: target.value,
+          universe: 'unfinished',
+        ),
+        const QualifierInput(
+          key: 'entry',
+          kind: 'enum',
+          definition: 'unfinished',
+          value: 'key',
+        ),
+      ]) {
+        expect(() => buildQualifiers([input], {}), throwsFormatException);
+      }
+    },
+  );
   test(
     'temporal validity retains exact calendar notation and uncertain bounds',
     () {
@@ -764,6 +840,12 @@ void main() {
                 qualifiers: [
                   QualifierInput(key: 'account', value: '記憶 😀'),
                   QualifierInput(
+                    key: 'setting',
+                    kind: 'record_ref',
+                    value: worldRecord.identity.recordId.value,
+                    universe: scope.universe.value,
+                  ),
+                  QualifierInput(
                     key: 'confirmed',
                     kind: 'boolean',
                     value: 'false',
@@ -815,6 +897,16 @@ void main() {
       expect(
         published.worldAssociations.single.qualifiers['account'],
         const TextValue('記憶 😀'),
+      );
+      expect(
+        published.worldAssociations.single.qualifiers['setting'],
+        ReferenceValue(
+          ValueReferenceKind.parse('record_ref'),
+          RecordRef(
+            universe: scope.universe,
+            record: worldRecord.identity.recordId,
+          ),
+        ),
       );
       expect(
         published.worldAssociations.single.qualifiers['confirmed'],

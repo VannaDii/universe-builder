@@ -2,6 +2,24 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 QualifierInput qualifierInput(String key, DomainValue value) {
+  if (value is ReferenceValue) {
+    return QualifierInput(
+      key: key,
+      kind: value.kind.wireName,
+      value: value.record.record.value,
+      universe: value.record.universe?.value ?? '',
+      originalKey: key,
+    );
+  }
+  if (value is EnumValue) {
+    return QualifierInput(
+      key: key,
+      kind: 'enum',
+      definition: value.definition.value,
+      value: value.key,
+      originalKey: key,
+    );
+  }
   final unit = value is QuantityValue ? value.unit.value : '';
   final amount = value is QuantityValue ? value.value : value;
   final (kind, text, denominator) = switch (amount) {
@@ -49,6 +67,16 @@ Map<String, DomainValue> buildQualifiers(
       continue;
     }
     final amount = switch (row.kind) {
+      'entity_ref' || 'record_ref' || 'proposition_ref' => ReferenceValue(
+        ValueReferenceKind.parse(row.kind),
+        RecordRef(
+          universe: row.universe.isEmpty
+              ? null
+              : UniverseId.parse(row.universe),
+          record: RecordId.parse(row.value),
+        ),
+      ),
+      'enum' => EnumValue(ValueDefinitionId.parse(row.definition), row.value),
       'text' => TextValue(row.value),
       'boolean' => BooleanValue(switch (row.value) {
         'true' => true,

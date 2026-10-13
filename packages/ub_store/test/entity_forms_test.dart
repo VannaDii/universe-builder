@@ -89,6 +89,18 @@ void main() {
             qualifiers: [
               QualifierInput(key: '', kind: 'text', value: '記憶 😀\nunfinished'),
               QualifierInput(
+                key: 'target',
+                kind: 'entity_ref',
+                universe: 'unfinished universe 😀',
+                value: 'unfinished record',
+              ),
+              QualifierInput(
+                key: 'entry',
+                kind: 'enum',
+                definition: 'unfinished definition 😀',
+                value: '記憶',
+              ),
+              QualifierInput(
                 key: 'amount',
                 kind: 'rational',
                 value: '1',
