@@ -61,7 +61,11 @@ just before termination may still be pending. This recovery file lives under
 operations. **Add to changes** explicitly adds a completed world operation to the
 existing author-owned service draft, preserving its other operations. A retry
 checks the saved draft before adding, so the same world is not duplicated. Fields
-are preserved exactly, with empty optional fields omitted. Different revisions
+can then be cleared with **Start another world**, which creates a fresh operation
+reference and saves a new unfinished form in the same context and revision.
+Previously completed world operations and their rationale remain in Changes.
+The next world's incomplete fields use the existing device recovery slot.
+Fields are preserved exactly, with empty optional fields omitted. Different revisions
 or contexts, changed fields for an already-added world, and drafts already linked
 to proposals require review rather than silent replacement. Adding leaves canon
 unchanged. **Changes** opens the author-owned draft for a continuity, showing

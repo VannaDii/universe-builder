@@ -150,7 +150,32 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
 
   Future<void> _replacePendingFields() async {
     if (_saving || _adding) return;
-    final form = _initialForm();
+    await _replaceFields(_initialForm());
+  }
+
+  Future<void> _startAnotherWorld() async {
+    if (_saving ||
+        _adding ||
+        _dirty ||
+        _added == null ||
+        _editingDraft != null) {
+      return;
+    }
+    final previous = _base!;
+    await _replaceFields(
+      UnfinishedWorldForm(
+        baseRevision: previous.baseRevision,
+        representedContext: previous.representedContext,
+        record: RecordId.generate(),
+        selector: '',
+        settingType: '',
+        rationale: '',
+      ),
+    );
+  }
+
+  Future<void> _replaceFields(UnfinishedWorldForm form) async {
+    _autosave?.cancel();
     setState(() {
       _base = form;
       _name.text = form.selector;
@@ -440,6 +465,13 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
               const SizedBox(height: 20),
               if (_added != null)
                 Semantics(liveRegion: true, child: Text(_added!)),
+              if (_added != null && widget.editingDraft == null)
+                TextButton(
+                  onPressed: _saving || _adding || _dirty
+                      ? null
+                      : _startAnotherWorld,
+                  child: const Text('Start another world'),
+                ),
               if (_added != null && widget.editingDraft == null)
                 TextButton(
                   onPressed: _saving || _adding
