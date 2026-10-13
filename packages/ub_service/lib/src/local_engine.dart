@@ -6,6 +6,7 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/local_socket.dart';
+import 'package:ub_store/local_http_endpoint.dart';
 
 import 'installation_authority.dart';
 import 'sqlite_runtime.dart';
@@ -50,6 +51,7 @@ final class LocalSqliteEngineServer {
     ServerSocket? listener;
     NativeSqliteRuntime? runtime;
     LoopbackEngineServer? http;
+    var publishedHttp = false;
     try {
       store = SqliteInstallationStore.openExisting(root);
       final endpoint = '${store.root}/engine.sock';
@@ -66,6 +68,8 @@ final class LocalSqliteEngineServer {
       runtime = NativeSqliteRuntime(authority: InstallationAuthority(store));
       http = await LoopbackEngineServer.sqlite(runtime);
       final server = LocalSqliteEngineServer._(store, runtime, listener, http);
+      writeLocalHttpEndpoint(store.root, http.endpoint);
+      publishedHttp = true;
       http.done.then((_) => server.close().ignore());
       server._subscription = listener.listen(
         server._accept,
@@ -91,6 +95,9 @@ final class LocalSqliteEngineServer {
         // Startup diagnostics remain redacted even if cleanup also fails.
       } finally {
         try {
+          if (publishedHttp && store != null) {
+            removeLocalHttpEndpoint(store.root);
+          }
           store?.close();
         } on Object {
           // Never retain a raw storage cleanup exception.
@@ -213,7 +220,11 @@ final class LocalSqliteEngineServer {
             }
           } finally {
             try {
-              _store.close();
+              try {
+                removeLocalHttpEndpoint(_store.root);
+              } finally {
+                _store.close();
+              }
             } finally {
               _done.complete();
             }

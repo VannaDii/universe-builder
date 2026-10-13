@@ -1,4 +1,4 @@
-import 'package:ub_client/local_engine.dart';
+import 'package:ub_client/loopback_engine.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
@@ -10,14 +10,14 @@ Future<CanonicalValue> callLocalMcpTool({
   required Request request,
   required Future<void> cancelled,
 }) async {
-  LocalEngineClient? connection;
+  LoopbackEngineClient? connection;
   var stopped = false;
   cancelled.then((_) async {
     stopped = true;
     await connection?.close();
   });
   try {
-    connection = await LocalEngineClient.connect(
+    connection = await LoopbackEngineClient.discover(
       root: root,
       profile: profile,
       clientName: 'mcp-adapter',

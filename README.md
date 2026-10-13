@@ -632,9 +632,19 @@ loopback, checks the exact host and any supplied origin, bounds input/output and
 concurrent requests, and marks responses `no-store`. Failed transport does not
 replay a command; callers recover uncertain outcomes through existing receipts.
 An authorized HTTP shutdown drains the listener and closes the installed engine.
-Native client endpoint discovery/bootstrap, browser sessions, Flutter clients
-and hosted HTTPS integration remain pending. This is not a browser cookie session
-or a public hosted endpoint.
+`LoopbackEngineClient` performs the authenticated hello, validates the existing
+welcome, correlates sequential typed calls, bounds responses and requires an
+explicit new connection after transport uncertainty. It refuses non-loopback
+addresses, credentials/query data in endpoints and HTTP redirects.
+`discover` reads the service's protected `engine-http.json`, which contains only
+the loopback endpoint and protocol version. Startup replaces this ephemeral file
+under the installation lock; shutdown removes it. It is not authority or a backup.
+The Dart author CLI and local MCP adapter now send application calls through
+HTTP. CLI startup temporarily reuses the installed Unix helper/bootstrap path
+before discovering HTTP; MCP connects to the already-running engine and never
+replays an uncertain call. Browser sessions, Flutter clients, independent
+cross-platform bootstrap and hosted HTTPS integration remain pending. This is
+not a browser cookie session or a public hosted endpoint.
 
 Coordinated backend cutover and hosted server backup operation remain pending.
 Socket/launcher integration, cross-process worker qualification and

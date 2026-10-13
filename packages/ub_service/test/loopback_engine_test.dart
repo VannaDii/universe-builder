@@ -6,6 +6,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:test/test.dart';
+import 'package:ub_client/loopback_engine.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_engine.dart';
@@ -31,6 +32,7 @@ void main() {
     store.close();
     final server = await LocalSqliteEngineServer.start(root.path);
     final http = HttpClient();
+    LoopbackEngineClient? native;
     var next = BigInt.one;
     Future<(int, Uint8List)> request({
       EngineHello? principal,
@@ -98,13 +100,16 @@ void main() {
       );
       expect(status, HttpStatus.ok);
       expect(EngineWelcome.decode(bytes).principal, author);
-      final created = value(
-        await call(
-          author,
-          CreateUniverseEngineRequest(
-            name: 'HTTP universe',
-            start: const GregorianUniverseStart('2040-01-01T00:00:00Z'),
-          ),
+      native = await LoopbackEngineClient.discover(
+        root: root.path,
+        profile: author,
+        clientName: 'Native HTTP client',
+      );
+      expect(native.welcome.principal, author);
+      final created = await native.call(
+        CreateUniverseEngineRequest(
+          name: 'HTTP universe',
+          start: const GregorianUniverseStart('2040-01-01T00:00:00Z'),
         ),
       );
       final universe = UniverseId.parse(
@@ -178,9 +183,11 @@ void main() {
         isA<EngineSuccess>(),
       );
       await server.done.timeout(const Duration(seconds: 5));
+      expect(File('${root.path}/engine-http.json').existsSync(), isFalse);
       final reopened = SqliteInstallationStore.openExisting(root.path);
       reopened.close();
     } finally {
+      await native?.close();
       http.close(force: true);
       await server.close();
       root.deleteSync(recursive: true);

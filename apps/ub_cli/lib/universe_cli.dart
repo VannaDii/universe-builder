@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:ub_client/local_engine.dart';
+import 'package:ub_client/loopback_engine.dart';
 import 'package:ub_client/archive_transfer.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
@@ -44,8 +45,8 @@ Future<int> runUniverseCli(
   Future<String> Function()? engineHelper,
   Future<Uint8List> Function()? readInput,
 }) async {
-  LocalEngineClient? client;
-  LocalEngineClient? targetClient;
+  LoopbackEngineClient? client;
+  LoopbackEngineClient? targetClient;
   try {
     String? root, profile;
     var index = 0;
@@ -130,13 +131,13 @@ Future<int> runUniverseCli(
             );
       if (prepare) selectorKey(args.positional[3]);
       final helper = await (engineHelper ?? LocalEngineClient.siblingEngine)();
-      client = await LocalEngineClient.ensureRunning(
+      client = await LoopbackEngineClient.ensureRunning(
         root: root,
         profile: principal,
         helper: helper,
         clientName: 'maintenance-cli',
       );
-      targetClient = await LocalEngineClient.ensureRunning(
+      targetClient = await LoopbackEngineClient.ensureRunning(
         root: targetRoot,
         profile: targetProfile,
         helper: helper,
@@ -212,7 +213,7 @@ Future<int> runUniverseCli(
       throw const _UsageError();
     }
     final helper = await (engineHelper ?? LocalEngineClient.siblingEngine)();
-    client = await LocalEngineClient.ensureRunning(
+    client = await LoopbackEngineClient.ensureRunning(
       root: root,
       profile: principal,
       helper: helper,
