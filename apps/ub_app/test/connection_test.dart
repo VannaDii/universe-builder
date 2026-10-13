@@ -245,6 +245,8 @@ void main() {
         principal: active.principal,
         loadWorldForm: active.loadWorldForm,
         saveWorldForm: active.saveWorldForm,
+        loadTypeForm: active.loadTypeForm,
+        saveTypeForm: active.saveTypeForm,
       );
       await expectLater(
         SavedChanges(
@@ -321,6 +323,8 @@ void main() {
         principal: publishingSession.principal,
         loadWorldForm: publishingSession.loadWorldForm,
         saveWorldForm: publishingSession.saveWorldForm,
+        loadTypeForm: publishingSession.loadTypeForm,
+        saveTypeForm: publishingSession.saveTypeForm,
       );
       await expectLater(
         SavedChanges(

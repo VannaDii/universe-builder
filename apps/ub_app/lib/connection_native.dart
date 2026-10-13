@@ -171,6 +171,7 @@ final class DeviceConnection {
       compatibilitySocket: false,
     );
     final recovery = LocalWorldFormRecovery(root: root!, client: client);
+    final typeRecovery = LocalTypeFormRecovery(root: root!, client: client);
     return AppSession(
       call: client.call,
       close: client.close,
@@ -178,6 +179,8 @@ final class DeviceConnection {
       principal: client.welcome.principal,
       loadWorldForm: recovery.load,
       saveWorldForm: recovery.save,
+      loadTypeForm: typeRecovery.load,
+      saveTypeForm: typeRecovery.save,
     );
   }
 }

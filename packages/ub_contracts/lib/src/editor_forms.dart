@@ -97,3 +97,61 @@ final class SavedWorldForm {
   final BigInt generation;
   final UnfinishedWorldForm form;
 }
+
+/// Pending type input retains unresolved choices until the author completes
+/// them. It is not a definition, proposal, or grant of authority.
+final class UnfinishedTypeForm {
+  UnfinishedTypeForm({
+    required this.baseRevision,
+    required this.representedContext,
+    required this.clientRef,
+    required this.namespace,
+    required this.key,
+    required this.name,
+    required this.parentChoice,
+    required this.applicabilityChoice,
+    required this.rationale,
+    this.classificationExecutable,
+    Iterable<WorldId> worlds = const [],
+  }) : worlds = List.unmodifiable(worlds);
+  final RevisionId baseRevision;
+  final RecordId representedContext;
+  final String clientRef,
+      namespace,
+      key,
+      name,
+      parentChoice,
+      applicabilityChoice,
+      rationale;
+  final bool? classificationExecutable;
+  final List<WorldId> worlds;
+
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('base_revision', CanonicalString(baseRevision.value)),
+    MapEntry('represented_context', CanonicalString(representedContext.value)),
+    MapEntry('client_ref', CanonicalString(clientRef)),
+    MapEntry('namespace', CanonicalString(namespace)),
+    MapEntry('key', CanonicalString(key)),
+    MapEntry('name', CanonicalString(name)),
+    MapEntry('parent_choice', CanonicalString(parentChoice)),
+    MapEntry('applicability_choice', CanonicalString(applicabilityChoice)),
+    MapEntry('rationale', CanonicalString(rationale)),
+    MapEntry(
+      'classification_executable',
+      classificationExecutable == null
+          ? const CanonicalNull()
+          : CanonicalBool(classificationExecutable!),
+    ),
+    MapEntry(
+      'worlds',
+      CanonicalArray(worlds.map((world) => CanonicalString(world.value))),
+    ),
+  ]);
+}
+
+final class SavedTypeForm {
+  SavedTypeForm({required BigInt generation, required this.form})
+    : generation = checkedU64(generation);
+  final BigInt generation;
+  final UnfinishedTypeForm form;
+}

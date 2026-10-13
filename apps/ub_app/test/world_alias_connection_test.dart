@@ -52,6 +52,25 @@ void main() {
         continuity: ContinuityId.parse(created.string('continuity_id')),
       );
       final context = RecordId.parse(created.string('context_id'));
+      final typeScope = EditorFormScope(
+        instance: instance,
+        profile: author,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: context,
+      );
+      final pendingType = UnfinishedTypeForm(
+        baseRevision: RevisionId.parse(created.string('revision')),
+        representedContext: context,
+        clientRef: 'pending-person-type',
+        namespace: '',
+        key: '',
+        name: '人物',
+        parentChoice: '',
+        applicabilityChoice: '',
+        rationale: 'Still choosing scope.',
+      );
+      await session.saveTypeForm(typeScope, pendingType, BigInt.zero);
       final changes = SavedChanges(
         session: session,
         universe: Selector('Alias history'),
@@ -181,6 +200,10 @@ void main() {
       expect(await session.loadWorldForm(renameScope), isNull);
       await session.close();
       session = await device.connect();
+      expect(
+        (await session.loadTypeForm(typeScope))!.form.toWire().toText(),
+        pendingType.toWire().toText(),
+      );
       final recovered = (await session.loadWorldForm(aliasScope))!.form;
       expect(recovered.toWire().toText(), form.toWire().toText());
       final resumed = SavedChanges(
