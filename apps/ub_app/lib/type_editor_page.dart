@@ -521,6 +521,10 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
                     child: Text('Unspecified (remains unresolved)'),
                   ),
                   DropdownMenuItem(
+                    value: 'conditional',
+                    child: Text('Conditional (remains unresolved)'),
+                  ),
+                  DropdownMenuItem(
                     value: 'universe_wide',
                     child: Text('Universe wide'),
                   ),

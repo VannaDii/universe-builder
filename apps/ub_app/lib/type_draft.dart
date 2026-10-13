@@ -67,6 +67,7 @@ IntroduceDefinitionOperation _typeOperation(UnfinishedTypeForm form) {
   }
   final applicability = switch (form.applicabilityChoice) {
     'unspecified' => const UnspecifiedApplicability(),
+    'conditional' => const ConditionalApplicability(),
     'universe_wide' => const UniverseApplicability(),
     'worlds' => WorldsApplicability(form.worlds),
     _ => throw const FormatException('Choose where this definition applies.'),
@@ -106,9 +107,7 @@ UnfinishedTypeForm typeFormFromDraft(SavedDraft draft, int index) {
       UnspecifiedApplicability() => 'unspecified',
       UniverseApplicability() => 'universe_wide',
       WorldsApplicability() => 'worlds',
-      ConditionalApplicability() => throw const FormatException(
-        'Conditional applicability is retained in Changes; this form cannot edit it yet.',
-      ),
+      ConditionalApplicability() => 'conditional',
     },
     classificationExecutable: operation.classificationExecutable,
     worlds: operation.applicability is WorldsApplicability

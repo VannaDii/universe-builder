@@ -58,8 +58,8 @@ restricted coverage shown explicitly. A failed read retains the selected view
 for retry; it does not switch to a newer revision.
 **Type definition** opens a recoverable typed form for namespace, key, display
 name, parent, applicability, executable classification and rationale. Parent,
-applicability and classification require explicit choices. An unspecified scope
-remains unresolved; selected-world applicability with no worlds applies nowhere.
+applicability and classification require explicit choices. Unspecified and
+conditional scope remain unresolved; selected-world applicability with no worlds applies nowhere.
 Parent choices and worlds are read at the form's revision. Adding a completed
 form appends the existing definition operation to compatible Changes, preserves
 other draft work and does not duplicate an exact retry. **Start another type**
@@ -69,8 +69,8 @@ completed definition while preserving its reference, the other operations and
 draft rationale. Pending edits recover separately from new-type input. Edits
 from an earlier draft remain visible until **Use current draft fields** is chosen;
 they cannot overwrite the newer draft. Leaving the form saves unfinished input
-before returning. Conditional applicability remains retained in Changes, but
-this form cannot edit it yet.
+before returning. Conditional applicability is preserved through editing; it
+does not become universe-wide applicability.
 Opening a listed world displays its complete published record in that frame,
 including aliases, multilingual labels and metadata. **Rename world** opens a
 recoverable name-and-rationale form pinned to the record's version. **Add rename

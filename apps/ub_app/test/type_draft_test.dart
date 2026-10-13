@@ -68,6 +68,57 @@ void main() {
     expect((nowhere.applicability as WorldsApplicability).worldIds, isEmpty);
   });
 
+  test(
+    'editing a conditional definition retains unresolved scope and references',
+    () {
+      final original = IntroduceDefinitionOperation(
+        clientRef: 'writer-conditional',
+        namespace: 'authored',
+        key: 'traveler',
+        name: 'Traveler',
+        parent: RecordId.generate(),
+        applicability: const ConditionalApplicability(),
+        classificationExecutable: false,
+      );
+      final draft = SavedDraft(
+        version: BigInt.from(3),
+        content: DraftContent(
+          baseRevision: RevisionId.generate(),
+          representedContext: RecordId.generate(),
+          operations: [original],
+          rationale: 'Keep the authored scope unresolved.',
+        ),
+      );
+      final initial = typeFormFromDraft(draft, 0);
+      expect(initial.applicabilityChoice, 'conditional');
+      final edit = UnfinishedTypeForm(
+        baseRevision: initial.baseRevision,
+        representedContext: initial.representedContext,
+        clientRef: initial.clientRef,
+        namespace: initial.namespace,
+        key: initial.key,
+        name: 'Traveler revised',
+        parentChoice: initial.parentChoice,
+        applicabilityChoice: initial.applicabilityChoice,
+        classificationExecutable: initial.classificationExecutable,
+        draftVersion: initial.draftVersion,
+        rationale: '',
+      );
+      final updated = replaceDraftType(draft: draft, index: 0, form: edit);
+      final operation =
+          updated.operations.single as IntroduceDefinitionOperation;
+      expect(operation.name, 'Traveler revised');
+      expect(
+        operation.applicability.toWire().toText(),
+        original.applicability.toWire().toText(),
+      );
+      expect(operation.parent, original.parent);
+      expect(operation.clientRef, original.clientRef);
+      expect(operation.classificationExecutable, isFalse);
+      expect(updated.rationale, draft.content.rationale);
+    },
+  );
+
   test('recovered type input appends to other Changes and publishes exact definition semantics', () async {
     final root = Directory('/tmp').createTempSync('ub-type-workflow-');
     final store = SqliteInstallationStore.create(root.path);
