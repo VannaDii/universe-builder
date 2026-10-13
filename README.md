@@ -573,8 +573,9 @@ layouts unchanged. PostgreSQL control layout version 6 includes durable uploads;
 older control layouts require explicit conversion rather than startup repair.
 Explicit conversion of older PostgreSQL control layouts remains pending.
 The shared client's `prepareMoveTransfer` uses caller-supplied authenticated
-source and target connections to stage, stream or resume an upload, and return
-the target review after recording it at the source. Retain its source operation and target upload IDs for an
+source and target connections to check target identity/name conflicts, stage,
+stream or resume an upload, and return the target review after recording it at
+the source. Retain its source operation and target upload IDs for an
 explicit retry after reconnecting. It stops before approval; the target still
 requires the existing exact `accept_import` request. Connections need not be
 owned by a service coordinator. `admitMoveTransfer` takes the author's exact
@@ -584,7 +585,23 @@ source. Explicit retries recover an unknown outcome with the same approval;
 completed retries return the retained receipt. Private author commands
 `get_import`, `review_move`, `begin_move_admission` and `record_move_admission`
 expose these existing operations through SQLite and PostgreSQL services.
-CLI and UI controls for this workflow remain pending. The private
+The Dart CLI exposes `prepare-move`, `accept-move`, `moves` and `move-status`.
+Preparation authenticates both local installations, checks for universe, name
+and retained-alias conflicts before suspending the source, and returns the exact
+review without admitting it. Use fresh operation/upload IDs for a new move and
+reuse them for recovery. `status` includes the stable `instance_id`; the CLI
+checks the selected target against the source's retained binding before approval.
+
+```text
+universe --installation SOURCE --profile SOURCE_AUTHOR prepare-move UNIVERSE_ID OPERATION_ID UPLOAD_ID 'Target name' --target-installation TARGET --target-profile TARGET_AUTHOR
+universe --installation SOURCE --profile SOURCE_AUTHOR move-status OPERATION_ID
+universe --installation SOURCE --profile SOURCE_AUTHOR accept-move OPERATION_ID PREVIEW_ID EXACT_REVIEW_DIGEST --target-installation TARGET --target-profile TARGET_AUTHOR
+universe --installation SOURCE --profile SOURCE_AUTHOR moves --limit 20
+```
+
+Each command closes its connections without shutting down either engine.
+These CLI controls currently use the native local transport; PostgreSQL runtime
+selection, remote transport and Flutter transfer controls remain pending. The private
 author-only `list_moves` command discovers retained operations in pages of
 1–100, with an operation-ID cursor. `get_move` returns the retained state, target
 review, exact target retry request and completed receipt without host-path or
@@ -598,7 +615,7 @@ authored target name as bytes and binds its review to the retained source archiv
 digest and record count. Functional checks cover source/target restart and audit
 failure before target admission and after target completion, with one retained
 audit event per successful transition. Source retirement
-and the operator/UI move flow remain pending.
+and the Flutter move flow remain pending.
 Coordinated backend cutover and hosted server backup operation remain pending.
 Socket/launcher integration, cross-process worker qualification and
 backend parity qualification are pending. Coordinated transfer and live

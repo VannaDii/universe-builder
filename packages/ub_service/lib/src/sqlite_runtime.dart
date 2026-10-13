@@ -175,6 +175,20 @@ final class NativeSqliteRuntime {
         );
         return review.preview.receipt;
       }
+      if (request case CheckImportTargetEngineRequest()) {
+        return await authority.coordinate(
+          principal,
+          () => CanonicalArray(
+            authority
+                .importConflicts(
+                  principal,
+                  id: request.universeId,
+                  name: request.name,
+                )
+                .map(CanonicalString.new),
+          ),
+        );
+      }
       if (request case GetImportEngineRequest()) {
         return await authority.coordinate(
           principal,
@@ -630,6 +644,7 @@ final class NativeSqliteRuntime {
     switch (request) {
       case StatusEngineRequest():
         return CanonicalObject([
+          MapEntry('instance_id', CanonicalString(principal.instanceId.value)),
           MapEntry('service_instance', CanonicalString(instance.value)),
           MapEntry('principal', CanonicalString(principal.id.value)),
           MapEntry('author', CanonicalBool(principal.author)),

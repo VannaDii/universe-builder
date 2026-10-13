@@ -39,6 +39,8 @@ void main() {
 
     Future<CanonicalValue> target(EngineRequest request) async {
       switch (request) {
+        case CheckImportTargetEngineRequest():
+          return CanonicalArray([]);
         case GetImportEngineRequest():
           expect(request.previewId, uploadId);
           expect(request.digest, 'b' * 64);

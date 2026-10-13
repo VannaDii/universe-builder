@@ -266,6 +266,10 @@ final class NativePostgresRuntime {
                 epochSeconds: _epochSeconds(),
               );
               return CanonicalObject([
+                MapEntry(
+                  'instance_id',
+                  CanonicalString(principal.instanceId.value),
+                ),
                 MapEntry('service_instance', CanonicalString(instance.value)),
                 MapEntry(
                   'universes',
@@ -363,6 +367,14 @@ final class NativePostgresRuntime {
               return CanonicalObject([
                 MapEntry('profile_id', CanonicalString(id.value)),
               ]);
+            case CheckImportTargetEngineRequest():
+              return CanonicalArray(
+                (await session.importConflicts(
+                  actor: principal.id,
+                  id: request.universeId,
+                  name: request.name,
+                )).map(CanonicalString.new),
+              );
             case GetImportEngineRequest():
               return (await session.loadImport(
                 actor: principal.id,

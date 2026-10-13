@@ -17,6 +17,15 @@ Future<CanonicalValue> prepareMoveTransfer({
   required OperationId uploadId,
   required String name,
 }) async {
+  final conflicts = await target(
+    CheckImportTargetEngineRequest(universeId: move.universeId, name: name),
+  ) as CanonicalArray;
+  if (conflicts.items.isNotEmpty) {
+    throw const InvalidArgumentError(
+      field: 'target',
+      message: 'Target already contains this universe or name; choose another target or name before preparing a move',
+    );
+  }
   final stage = WireFields(await source(move), {
     'source_instance',
     'universe_id',

@@ -14,6 +14,10 @@ void main() {
         ListMovesEngineRequest(after: operation, limit: 1),
         GetMoveEngineRequest(operationId: operation),
         GetImportEngineRequest(previewId: operation, digest: 'b' * 64),
+        CheckImportTargetEngineRequest(
+          universeId: UniverseId.generate(),
+          name: 'Exact target name',
+        ),
         ReviewMoveEngineRequest(
           universeId: UniverseId.generate(),
           operationId: operation,

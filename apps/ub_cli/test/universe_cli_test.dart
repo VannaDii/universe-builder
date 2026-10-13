@@ -66,6 +66,133 @@ void main() {
       (object as CanonicalObject).fields.singleWhere((f) => f.key == key).value;
   CanonicalValue result() => CanonicalValue.parseWireJson(output.last);
 
+  test('CLI prepares and approves a retained move between authenticated installations', () async {
+    final targetRoot = '${root.path}/target';
+    final store = SqliteInstallationStore.create(targetRoot);
+    final targetAuthor = InstallationAuthority(store).initializeAuthor();
+    final targetInstance = store.instanceId;
+    store.close();
+    final targetServer = await LocalSqliteEngineServer.start(targetRoot);
+    final targetOptions = [
+      '--target-installation',
+      targetRoot,
+      '--target-profile',
+      targetAuthor.value,
+    ];
+    final targetOutput = <String>[];
+    Future<int> runTarget(List<String> command) => runUniverseCli(
+      [
+        '--installation',
+        targetRoot,
+        '--profile',
+        targetAuthor.value,
+        ...command,
+      ],
+      output: targetOutput.add,
+      error: errors.add,
+      engineHelper: () async => '${root.path}/missing/universe-engine',
+    );
+    try {
+      expect(
+        await run([
+          'create',
+          'CLI move source',
+          '--first-time',
+          '2040-01-01T00:00:00Z',
+        ]),
+        0,
+      );
+      final universe = wireString(field(result(), 'universe_id'));
+      final operation = OperationId.generate();
+      final upload = OperationId.generate();
+      final prepare = [
+        'prepare-move',
+        universe,
+        operation.value,
+        upload.value,
+        'CLI move target',
+        ...targetOptions,
+      ];
+      expect(
+        await runTarget([
+          'create',
+          'CLI move target',
+          '--first-time',
+          '2040-01-01T00:00:00Z',
+        ]),
+        0,
+      );
+      final retainedTargetId = wireString(
+        field(CanonicalValue.parseWireJson(targetOutput.last), 'universe_id'),
+      );
+      expect(await run(prepare), 1);
+      expect(await run(['moves']), 0);
+      expect((field(result(), 'moves') as CanonicalArray).items, isEmpty);
+      expect(
+        await runTarget([
+          'rename',
+          retainedTargetId,
+          'Retained target universe',
+        ]),
+        0,
+      );
+      // A rename retains the old alias; it still conflicts before suspension.
+      expect(await run(prepare), 1);
+      expect(await run(['moves']), 0);
+      expect((field(result(), 'moves') as CanonicalArray).items, isEmpty);
+      prepare[4] = 'Transferred CLI universe';
+      expect(await run(prepare, principal: writer), 1);
+      expect(await run(['moves']), 0);
+      expect((field(result(), 'moves') as CanonicalArray).items, isEmpty);
+      expect(await run(prepare), 0);
+      final preview = result();
+      expect(await run(prepare), 0);
+      expect(result().toText(), preview.toText());
+      expect(await run(['move-status', operation.value]), 0);
+      expect(wireString(field(result(), 'state')), 'reviewed');
+      expect(
+        wireString(field(result(), 'target_instance')),
+        targetInstance.value,
+      );
+      expect(
+        await run([
+          'accept-move',
+          operation.value,
+          upload.value,
+          '0' * 64,
+          ...targetOptions,
+        ]),
+        1,
+      );
+      expect(await run(['move-status', operation.value]), 0);
+      expect(wireString(field(result(), 'state')), 'reviewed');
+      final accept = [
+        'accept-move',
+        operation.value,
+        upload.value,
+        wireString(field(preview, 'digest')),
+        ...targetOptions,
+      ];
+      expect(await run(accept), 0);
+      final receipt = result();
+      expect(wireString(field(receipt, 'universe_id')), universe);
+      expect(await run(accept), 0);
+      expect(result().toText(), receipt.toText());
+      expect(await run(['move-status', operation.value]), 0);
+      expect(wireString(field(result(), 'state')), 'admitted');
+      expect(field(result(), 'receipt').toText(), receipt.toText());
+      expect(await runTarget(['status']), 0);
+      final status = CanonicalValue.parseWireJson(targetOutput.last);
+      expect(wireString(field(status, 'instance_id')), targetInstance.value);
+      expect(
+        (field(status, 'universes') as CanonicalArray).items,
+        hasLength(2),
+      );
+    } finally {
+      await targetServer.close();
+    }
+  });
+
   test('author commands create canon, stage exact sources and apply current grant/revocation permissions', () async {
     expect(
       await run([
@@ -186,6 +313,16 @@ void main() {
         validation = ValidationRunId.generate();
     for (final command in <List<String>>[
       ['unknown'],
+      ['moves', '--limit', '0'],
+      ['moves', '--after', 'invalid'],
+      ['move-status'],
+      ['prepare-move'],
+      [
+        'accept-move',
+        OperationId.generate().value,
+        OperationId.generate().value,
+        'digest',
+      ],
       ['status', 'extra'],
       ['create', 'World'],
       [

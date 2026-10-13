@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:ub_client/local_engine.dart';
+import 'package:ub_client/archive_transfer.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
@@ -27,6 +28,9 @@ backup <universe> <destination> | restore <source> <name>
 maintain <universe> [--collect] | convert-legacy <source> <destination>
 export <universe> <destination> [--record <id>]... [--complete-history]
 preview-import <source> <name> [--clone] | accept-import <preview-id> <digest>
+moves [--after <operation-id>] [--limit <count>] | move-status <operation-id>
+prepare-move <universe-id> <operation-id> <upload-id> <name> --target-installation <path> --target-profile <id>
+accept-move <operation-id> <preview-id> <digest> --target-installation <path> --target-profile <id>
 convert-package | convert-installation | convert-credential <source> <destination>
 
 Every service command requires --profile except init. Offline conversions do not
@@ -41,6 +45,7 @@ Future<int> runUniverseCli(
   Future<Uint8List> Function()? readInput,
 }) async {
   LocalEngineClient? client;
+  LocalEngineClient? targetClient;
   try {
     String? root, profile;
     var index = 0;
@@ -101,6 +106,101 @@ Future<int> runUniverseCli(
     }
     if (profile == null) throw const _UsageError();
     final principal = ProfileId.parse(profile);
+    if (command == 'prepare-move' || command == 'accept-move') {
+      final args = _Arguments(
+        tail,
+        values: {'target-installation', 'target-profile'},
+        flags: {},
+        repeated: {},
+      );
+      final prepare = command == 'prepare-move';
+      args.count(prepare ? 4 : 3);
+      final targetRoot = args.requiredValue('target-installation');
+      final targetProfile = ProfileId.parse(
+        args.requiredValue('target-profile'),
+      );
+      final operation = OperationId.parse(args.positional[prepare ? 1 : 0]);
+      final universe = prepare ? UniverseId.parse(args.positional[0]) : null;
+      final upload = prepare ? OperationId.parse(args.positional[2]) : null;
+      final approval = prepare
+          ? null
+          : AcceptImportEngineRequest(
+              previewId: OperationId.parse(args.positional[1]),
+              digest: args.positional[2],
+            );
+      if (prepare) selectorKey(args.positional[3]);
+      final helper = await (engineHelper ?? LocalEngineClient.siblingEngine)();
+      client = await LocalEngineClient.ensureRunning(
+        root: root,
+        profile: principal,
+        helper: helper,
+        clientName: 'maintenance-cli',
+      );
+      targetClient = await LocalEngineClient.ensureRunning(
+        root: targetRoot,
+        profile: targetProfile,
+        helper: helper,
+        clientName: 'maintenance-cli-target',
+      );
+      if (!client.welcome.author || !targetClient.welcome.author) {
+        throw const NotFoundOrNotAccessibleError(message: 'resource');
+      }
+      final targetStatus = Map.fromEntries(
+        (await targetClient.call(
+          const StatusEngineRequest(),
+        ) as CanonicalObject).fields,
+      );
+      final targetInstance = OperationId.parse(
+        wireString(targetStatus['instance_id']!),
+      );
+      if (prepare) {
+        final sourceStatus = Map.fromEntries(
+          (await client.call(
+            const StatusEngineRequest(),
+          ) as CanonicalObject).fields,
+        );
+        if (wireString(sourceStatus['instance_id']!) == targetInstance.value) {
+          throw const FormatException('Choose a different target installation');
+        }
+        output(
+          (await prepareMoveTransfer(
+            source: client.call,
+            target: targetClient.call,
+            move: StageMoveEngineRequest(
+              universeId: universe!,
+              operationId: operation,
+              targetInstance: targetInstance,
+            ),
+            uploadId: upload!,
+            name: args.positional[3],
+          )).toText(),
+        );
+      } else {
+        final recovery = Map.fromEntries(
+          (await client.call(
+            GetMoveEngineRequest(operationId: operation),
+          ) as CanonicalObject).fields,
+        );
+        if (wireString(recovery['target_instance']!) != targetInstance.value) {
+          throw const ApprovalStaleError();
+        }
+        output(
+          (await admitMoveTransfer(
+            source: client.call,
+            target: targetClient.call,
+            move: StageMoveEngineRequest(
+              universeId: UniverseId.parse(
+                wireString(recovery['universe_id']!),
+              ),
+              operationId: operation,
+              targetInstance: targetInstance,
+            ),
+            approval: approval!,
+          )).toText(),
+        );
+      }
+      return 0;
+    }
     final request = await parseAuthorCommand(
       command,
       tail,
@@ -142,6 +242,7 @@ Future<int> runUniverseCli(
     );
     return 1;
   } finally {
+    await targetClient?.close();
     await client?.close();
   }
 }
@@ -157,6 +258,7 @@ Future<EngineRequest> parseAuthorCommand(
     'create' => {'first-time', 'calendar', 'tick-label', 'ticks-per-month'},
     'grant' => {'world'},
     'export' => {'record'},
+    'moves' => {'after', 'limit'},
     _ => <String>{},
   };
   final flags = switch (command) {
@@ -179,6 +281,23 @@ Future<EngineRequest> parseAuthorCommand(
     digest: args.positional[3],
   );
   switch (command) {
+    case 'moves':
+      args.count(0);
+      final request = ListMovesEngineRequest(
+        after: args.value('after') == null
+            ? null
+            : OperationId.parse(args.value('after')!),
+        limit: args.value('limit') == null
+            ? 100
+            : int.parse(args.value('limit')!),
+      );
+      request.validate();
+      return request;
+    case 'move-status':
+      args.count(1);
+      return GetMoveEngineRequest(
+        operationId: OperationId.parse(args.positional[0]),
+      );
     case 'status':
       args.count(0);
       return const StatusEngineRequest();

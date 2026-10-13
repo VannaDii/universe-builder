@@ -68,6 +68,7 @@ sealed class EngineRequest {
       'list_moves' => ListMovesEngineRequest.fromWire(value),
       'get_move' => GetMoveEngineRequest.fromWire(value),
       'get_import' => GetImportEngineRequest.fromWire(value),
+      'check_import_target' => CheckImportTargetEngineRequest.fromWire(value),
       'review_move' => ReviewMoveEngineRequest.fromWire(value),
       'begin_move_admission' => BeginMoveAdmissionEngineRequest.fromWire(value),
       'record_move_admission' => RecordMoveAdmissionEngineRequest.fromWire(
@@ -210,6 +211,33 @@ final class GetImportEngineRequest extends EngineRequest {
     MapEntry('method', CanonicalString(method)),
     MapEntry('preview_id', CanonicalString(previewId.value)),
     MapEntry('digest', CanonicalString(digest)),
+  ]);
+}
+
+final class CheckImportTargetEngineRequest extends EngineRequest {
+  const CheckImportTargetEngineRequest({
+    required this.universeId,
+    required this.name,
+  });
+  final UniverseId universeId;
+  final String name;
+  @override
+  String get method => 'check_import_target';
+  factory CheckImportTargetEngineRequest.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {'method', 'universe_id', 'name'});
+    if (f.string('method') != 'check_import_target') {
+      throw const FormatException('Wrong engine method');
+    }
+    return CheckImportTargetEngineRequest(
+      universeId: UniverseId.parse(f.string('universe_id')),
+      name: f.string('name'),
+    );
+  }
+  @override
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('method', CanonicalString(method)),
+    MapEntry('universe_id', CanonicalString(universeId.value)),
+    MapEntry('name', CanonicalString(name)),
   ]);
 }
 
