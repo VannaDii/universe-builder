@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:ub_app/relation_draft.dart';
+import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/attribute_draft.dart';
 import 'package:ub_app/scope_draft.dart';
 import 'package:ub_app/connection.dart';
@@ -558,6 +559,116 @@ void main() {
         participant(2).record,
         participant(1).record,
       ]);
+      final afterPublication = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final readContext = await openDraftChoiceContext(
+        changes(),
+        afterPublication,
+      );
+      for (final person in people) {
+        final material = Envelope<Records>.fromWire(
+          await session.call(
+            ToolEngineRequest(
+              request: GetRequest(
+                universe: Selector('Relations'),
+                universeId: scope.universe,
+                contextId: readContext.contextId,
+                recordIds: [person.identity.recordId],
+                fieldGroups: [FieldGroup.evidence],
+              ),
+            ),
+          ),
+          Records.fromWire,
+        );
+        expect(material.delivery.complete, isTrue);
+        final relationships = dossierRelationships(
+          material.result,
+          scope.universe,
+          person.identity.recordId,
+        );
+        expect(relationships, hasLength(1));
+        expect(relationships.single.assertions, hasLength(1));
+        final original = relationships.single.assertions.single;
+        final refutation = RecordVersion.build(
+          recordVersionId: RecordVersionId.generate(),
+          identity: RecordIdentity(
+            universeId: scope.universe,
+            recordId: RecordId.generate(),
+            recordKind: RecordKind.assertion,
+          ),
+          payload: AssertionRecord.fromWire(
+            CanonicalObject([
+              for (final field in original.payload.toWire().fields)
+                field.key == 'polarity'
+                    ? MapEntry('polarity', Polarity.refutation.toWire())
+                    : field,
+            ]),
+          ),
+        );
+        final opposed = dossierRelationships(
+          Records(
+            records: material.result.records,
+            evidence: [...material.result.evidence, refutation],
+          ),
+          scope.universe,
+          person.identity.recordId,
+        ).single;
+        expect(
+          opposed.assertions.map(
+            (row) => (row.payload as AssertionRecord).polarity,
+          ),
+          [Polarity.support, Polarity.refutation],
+        );
+        expect(
+          dossierReferenceLabel(
+            material.result,
+            scope.universe,
+            RecordRef(
+              universe: UniverseId.generate(),
+              record: publishedClaim.predicate.record,
+            ),
+          ),
+          startsWith('Unavailable name'),
+        );
+        expect(
+          relationships.single.proposition.payload.toWire().toText(),
+          publishedClaim.toWire().toText(),
+        );
+        expect(
+          dossierReferenceLabel(
+            material.result,
+            scope.universe,
+            publishedClaim.predicate,
+          ),
+          'Account 記憶 😀',
+        );
+        expect(
+          dossierRelationships(
+            material.result,
+            scope.universe,
+            RecordId.generate(),
+          ),
+          isEmpty,
+        );
+        expect(
+          dossierRelationships(
+            material.result,
+            UniverseId.generate(),
+            person.identity.recordId,
+          ),
+          isEmpty,
+        );
+        expect(
+          dossierRelationships(
+            Records(records: []),
+            scope.universe,
+            person.identity.recordId,
+          ),
+          isEmpty,
+        );
+      }
     } finally {
       await session?.close();
       await server.close();

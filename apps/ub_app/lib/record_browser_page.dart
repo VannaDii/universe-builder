@@ -10,6 +10,105 @@ import 'entity_editor_page.dart';
 import 'attribute_editor_page.dart';
 import 'saved_changes.dart';
 
+class _RelationshipList extends StatelessWidget {
+  const _RelationshipList({
+    required this.material,
+    required this.universe,
+    required this.entity,
+    required this.name,
+  });
+  final Records material;
+  final UniverseId universe;
+  final RecordId entity;
+  final String name;
+
+  String label(RecordRef ref) =>
+      ref.record == entity && (ref.universe == null || ref.universe == universe)
+      ? name
+      : dossierReferenceLabel(material, universe, ref);
+
+  @override
+  Widget build(BuildContext context) {
+    final relationships = dossierRelationships(material, universe, entity);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Declared relationships in this opened revision. Subject and role order are authored; assertions retain their own scope, validity and evidence. This list does not decide which assertions hold at a particular time.',
+        ),
+        if (relationships.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Text(
+              'No declared relationships were returned in this view. This does not establish that none exist.',
+            ),
+          ),
+        for (final relationship in relationships)
+          Builder(
+            builder: (context) {
+              final proposition =
+                  relationship.proposition.payload as PropositionRecord;
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label(proposition.predicate),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      SelectableText('Subject: ${label(proposition.subject)}'),
+                      for (
+                        var index = 0;
+                        index < proposition.roles.length;
+                        index++
+                      )
+                        SelectableText(
+                          '${index + 1}. ${proposition.roles[index].role}: ${label(proposition.roles[index].participant)}',
+                        ),
+                      Text(
+                        'Quantification: ${proposition.quantification.wireName}',
+                      ),
+                      if (relationship.assertions.isEmpty)
+                        const Text(
+                          'No assertions were returned for this declaration.',
+                        ),
+                      for (final row in relationship.assertions)
+                        Builder(
+                          builder: (context) {
+                            final assertion = row.payload as AssertionRecord;
+                            return ExpansionTile(
+                              title: Text(
+                                '${assertion.polarity.wireName} · ${assertion.attributeMode.wireName}',
+                              ),
+                              subtitle: const Text(
+                                'Scope, validity and evidence',
+                              ),
+                              expandedCrossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                ExactFields(value: assertion.toWire()),
+                              ],
+                            );
+                          },
+                        ),
+                      ExpansionTile(
+                        title: const Text('Exact declaration'),
+                        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                        children: [ExactFields(value: proposition.toWire())],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+      ],
+    );
+  }
+}
+
 class RecordBrowserPage extends StatefulWidget {
   const RecordBrowserPage({
     super.key,
@@ -215,6 +314,7 @@ class _RecordDetailPage extends StatefulWidget {
 class _RecordDetailPageState extends State<_RecordDetailPage> {
   Envelope<Records>? _material;
   FieldGroup _group = FieldGroup.payload;
+  bool _relationships = false;
   bool _busy = true;
   String? _error;
   @override
@@ -335,12 +435,30 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                 }.entries)
                   ChoiceChip(
                     label: Text(option.value),
-                    selected: _group == option.key,
+                    selected: !_relationships && _group == option.key,
                     onSelected: _busy
                         ? null
                         : (_) {
-                            if (_group == option.key) return;
-                            setState(() => _group = option.key);
+                            if (!_relationships && _group == option.key) return;
+                            setState(() {
+                              _relationships = false;
+                              _group = option.key;
+                            });
+                            _read();
+                          },
+                  ),
+                if (widget.hit.kind == RecordKind.entity)
+                  ChoiceChip(
+                    label: const Text('Relationships'),
+                    selected: _relationships,
+                    onSelected: _busy
+                        ? null
+                        : (_) {
+                            if (_relationships) return;
+                            setState(() {
+                              _relationships = true;
+                              _group = FieldGroup.evidence;
+                            });
                             _read();
                           },
                   ),
@@ -431,7 +549,14 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                         ),
                     ],
                   ),
-              if (_group == FieldGroup.evidence) ...[
+              if (_relationships)
+                _RelationshipList(
+                  material: _material!.result,
+                  universe: widget.universe.id,
+                  entity: widget.hit.recordId,
+                  name: widget.hit.label,
+                ),
+              if (_group == FieldGroup.evidence && !_relationships) ...[
                 const Text(
                   'Sources, assertions and related declarations accessible in this context.',
                 ),

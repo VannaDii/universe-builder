@@ -167,6 +167,12 @@ recoverable role/participant fields. Selecting a definition supplies its role na
 and shows its multiplicity/ordering declarations; the author chooses participants.
 The subject stays bound to the opened entity version. Creation and edit recovery
 use separate slots and add no new definitions.
+**Relationships** in an entity dossier lists declared relations involving that
+entity as subject or role participant at the opened revision. Accessible names,
+authored role order and separate supporting/opposing assertions remain visible;
+expand an assertion for its exact scope, validity and evidence. This is an authored
+declaration view, not a determination of which assertions hold at a chosen time.
+An empty or partial view does not establish the absence of relationships.
 **Edit relationship assertion** in Changes opens role names and named participant
 references with add/remove/reorder controls. Role order, duplicates and omitted
 local universes are retained. Scope, validity and evidence use the same assertion
