@@ -38,6 +38,13 @@ void main() {
         RecordRef(record: RecordId.generate()),
       ),
       'enum': EnumValue(ValueDefinitionId.generate(), '記憶 😀'),
+      'range': RangeValue(
+        lower: const RationalValue('001', '03'),
+        upper: const DecimalValue('2.000000000000000001'),
+        lowerInclusive: false,
+        upperInclusive: true,
+        unit: UnitId.generate(),
+      ),
       'set': SetValue([
         const DecimalValue('1.000000000000000001'),
         const TextValue('記憶 😀'),
@@ -116,6 +123,60 @@ void main() {
       throwsFormatException,
     );
   });
+  test(
+    'range edits preserve typed bounds and require explicit inclusivity',
+    () {
+      final input = QualifierInput(
+        key: 'range',
+        kind: 'range',
+        lower: const QualifierInput(kind: 'integer', value: '001'),
+        upper: const QualifierInput(kind: 'integer', value: '003'),
+        lowerInclusive: 'false',
+        upperInclusive: 'true',
+      );
+      expect(
+        buildQualifiers([QualifierInput.fromWire(input.toWire())], {})['range'],
+        const RangeValue(
+          lower: IntegerValue('001'),
+          upper: IntegerValue('003'),
+          lowerInclusive: false,
+          upperInclusive: true,
+        ),
+      );
+      for (final row in [
+        const QualifierInput(key: 'range', kind: 'range'),
+        QualifierInput(
+          key: 'range',
+          kind: 'range',
+          lower: input.lower,
+          upper: input.upper,
+        ),
+        QualifierInput(
+          key: 'range',
+          kind: 'range',
+          lower: input.upper,
+          upper: input.lower,
+          lowerInclusive: 'true',
+          upperInclusive: 'false',
+        ),
+      ]) {
+        expect(() => buildQualifiers([row], {}), throwsFormatException);
+      }
+      final original = const RangeValue(
+        lower: TemporalValue(UnspecifiedTime()),
+        upper: TextValue('one lifetime'),
+        lowerInclusive: true,
+        upperInclusive: false,
+      );
+      expect(
+        buildQualifiers(
+          [qualifierInput('time', original)],
+          {'time': original},
+        )['time'],
+        original,
+      );
+    },
+  );
   test(
     'collection edits preserve order, retained children and field names',
     () {
@@ -920,6 +981,14 @@ void main() {
                 qualifiers: [
                   QualifierInput(key: 'account', value: '記憶 😀'),
                   QualifierInput(
+                    key: 'range',
+                    kind: 'range',
+                    lower: QualifierInput(kind: 'integer', value: '001'),
+                    upper: QualifierInput(kind: 'integer', value: '003'),
+                    lowerInclusive: 'false',
+                    upperInclusive: 'true',
+                  ),
+                  QualifierInput(
                     key: 'list',
                     kind: 'sequence',
                     children: [
@@ -1014,6 +1083,15 @@ void main() {
             const BooleanValue(false),
           ]),
         ]),
+      );
+      expect(
+        published.worldAssociations.single.qualifiers['range'],
+        const RangeValue(
+          lower: IntegerValue('001'),
+          upper: IntegerValue('003'),
+          lowerInclusive: false,
+          upperInclusive: true,
+        ),
       );
       expect(
         published.worldAssociations.single.qualifiers['confirmed'],

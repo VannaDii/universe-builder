@@ -455,6 +455,8 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     int index,
     Map<String, DomainValue> original, {
     bool named = true,
+    bool fixed = false,
+    String? label,
   }) {
     final fields = rows[index];
     final retained = original[fields.originalKey];
@@ -468,7 +470,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
             if (named)
               _field(fields.name, 'Qualifier name')
             else
-              Text('Item ${index + 1}'),
+              Text(label ?? 'Item ${index + 1}'),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               key: ValueKey((fields, fields.kind)),
@@ -492,6 +494,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                   'record_ref': 'Record reference',
                   'proposition_ref': 'Proposition reference',
                   'enum': 'Enumeration',
+                  'range': 'Range',
                   'sequence': 'Sequence',
                   'set': 'Set',
                   'structured': 'Structured fields',
@@ -504,7 +507,17 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
               onChanged: _disabled
                   ? null
                   : (value) {
-                      setState(() => fields.kind = value!);
+                      setState(() {
+                        fields.kind = value!;
+                        if (value == 'range') {
+                          fields.lower ??= _QualifierFields(
+                            const QualifierInput(),
+                          );
+                          fields.upper ??= _QualifierFields(
+                            const QualifierInput(),
+                          );
+                        }
+                      });
                       _changed();
                     },
             ),
@@ -515,7 +528,30 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                     )
                   : ExactFields(value: retained.toWire())
             else ...[
-              if (['sequence', 'set', 'structured'].contains(fields.kind)) ...[
+              if (fields.kind == 'range') ...[
+                _qualifierRow(
+                  [fields.lower!],
+                  0,
+                  retained is RangeValue ? {'lower': retained.lower} : {},
+                  named: false,
+                  fixed: true,
+                  label: 'Lower bound',
+                ),
+                _rangeInclusion(fields, lower: true),
+                _qualifierRow(
+                  [fields.upper!],
+                  0,
+                  retained is RangeValue ? {'upper': retained.upper} : {},
+                  named: false,
+                  fixed: true,
+                  label: 'Upper bound',
+                ),
+                _rangeInclusion(fields, lower: false),
+              ] else if ([
+                'sequence',
+                'set',
+                'structured',
+              ].contains(fields.kind)) ...[
                 if (fields.kind == 'structured')
                   _field(fields.definition, 'Structure definition ID'),
                 for (var c = 0; c < fields.children.length; c++)
@@ -594,9 +630,14 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                 ),
               if (fields.kind == 'rational')
                 _field(fields.denominator, 'Denominator'),
-              _field(fields.unit, 'Unit ID (numeric values only, optional)'),
+              _field(
+                fields.unit,
+                fields.kind == 'range'
+                    ? 'Range unit ID (optional)'
+                    : 'Unit ID (numeric values only, optional)',
+              ),
             ],
-            if (!named)
+            if (!named && !fixed)
               Wrap(
                 children: [
                   TextButton(
@@ -625,18 +666,60 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                   ),
                 ],
               ),
-            TextButton(
-              onPressed: _disabled
-                  ? null
-                  : () {
-                      setState(() => rows.removeAt(index));
-                      fields.dispose();
-                      _changed();
-                    },
-              child: Text(named ? 'Remove qualifier or field' : 'Remove item'),
-            ),
+            if (!fixed)
+              TextButton(
+                onPressed: _disabled
+                    ? null
+                    : () {
+                        setState(() => rows.removeAt(index));
+                        fields.dispose();
+                        _changed();
+                      },
+                child: Text(
+                  named ? 'Remove qualifier or field' : 'Remove item',
+                ),
+              ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _rangeInclusion(_QualifierFields fields, {required bool lower}) {
+    final value = lower ? fields.lowerInclusive : fields.upperInclusive;
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: DropdownButtonFormField<String>(
+        key: ValueKey((fields, lower, value)),
+        initialValue: value,
+        decoration: InputDecoration(
+          labelText: lower ? 'Include lower bound' : 'Include upper bound',
+        ),
+        items: [
+          for (final entry in {
+            '': 'Choose inclusion',
+            'true': 'Included',
+            'false': 'Excluded',
+          }.entries)
+            DropdownMenuItem(value: entry.key, child: Text(entry.value)),
+          if (!['', 'true', 'false'].contains(value))
+            DropdownMenuItem(
+              value: value,
+              child: Text('Pending input: $value'),
+            ),
+        ],
+        onChanged: _disabled
+            ? null
+            : (value) {
+                setState(() {
+                  if (lower) {
+                    fields.lowerInclusive = value!;
+                  } else {
+                    fields.upperInclusive = value!;
+                  }
+                });
+                _changed();
+              },
       ),
     );
   }
@@ -1061,6 +1144,18 @@ final class _QualifierFields {
       definition = TextEditingController(text: form.definition),
       kind = form.kind,
       children = form.children.map(_QualifierFields.new).toList(),
+      lower = form.lower == null
+          ? (form.kind == 'range'
+                ? _QualifierFields(const QualifierInput())
+                : null)
+          : _QualifierFields(form.lower!),
+      upper = form.upper == null
+          ? (form.kind == 'range'
+                ? _QualifierFields(const QualifierInput())
+                : null)
+          : _QualifierFields(form.upper!),
+      lowerInclusive = form.lowerInclusive,
+      upperInclusive = form.upperInclusive,
       originalKey = form.originalKey;
   final TextEditingController name,
       value,
@@ -1070,6 +1165,8 @@ final class _QualifierFields {
       definition;
   String kind;
   final List<_QualifierFields> children;
+  _QualifierFields? lower, upper;
+  String lowerInclusive, upperInclusive;
   final String? originalKey;
   QualifierInput get form => QualifierInput(
     key: name.text,
@@ -1081,6 +1178,10 @@ final class _QualifierFields {
     definition: definition.text,
     originalKey: originalKey,
     children: children.map((c) => c.form).toList(),
+    lower: lower?.form,
+    upper: upper?.form,
+    lowerInclusive: lowerInclusive,
+    upperInclusive: upperInclusive,
   );
   void dispose() {
     name.dispose();
@@ -1089,7 +1190,7 @@ final class _QualifierFields {
     unit.dispose();
     universe.dispose();
     definition.dispose();
-    for (final child in children) {
+    for (final child in [...children, ?lower, ?upper]) {
       child.dispose();
     }
   }

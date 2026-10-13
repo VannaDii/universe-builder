@@ -118,6 +118,12 @@ void main() {
                 ],
               ),
               QualifierInput(
+                key: 'range',
+                kind: 'range',
+                lower: QualifierInput(kind: 'decimal', value: 'unfinished 😀'),
+                upperInclusive: 'false',
+              ),
+              QualifierInput(
                 key: 'amount',
                 kind: 'rational',
                 value: '1',

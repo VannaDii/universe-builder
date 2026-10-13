@@ -2,6 +2,18 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 QualifierInput qualifierInput(String key, DomainValue value) {
+  if (value is RangeValue) {
+    return QualifierInput(
+      key: key,
+      kind: 'range',
+      originalKey: key,
+      unit: value.unit?.value ?? '',
+      lower: qualifierInput('lower', value.lower),
+      upper: qualifierInput('upper', value.upper),
+      lowerInclusive: value.lowerInclusive.toString(),
+      upperInclusive: value.upperInclusive.toString(),
+    );
+  }
   if (value is ReferenceValue) {
     return QualifierInput(
       key: key,
@@ -98,6 +110,7 @@ DomainValue buildQualifierValue(QualifierInput row, DomainValue? original) {
   }
   final sources = qualifierChildren(original);
   final amount = switch (row.kind) {
+    'range' => _buildRange(row, original is RangeValue ? original : null),
     'sequence' => SequenceValue(
       row.children.map((c) => buildQualifierValue(c, sources[c.originalKey])),
     ),
@@ -129,9 +142,29 @@ DomainValue buildQualifierValue(QualifierInput row, DomainValue? original) {
     'rational' => RationalValue(row.value, row.denominator),
     _ => throw const FormatException('Choose a qualifier value type.'),
   };
-  final value = row.unit.isEmpty
+  final value = row.unit.isEmpty || row.kind == 'range'
       ? amount
       : QuantityValue(amount, UnitId.parse(row.unit));
   value.validate();
   return value;
+}
+
+RangeValue _buildRange(QualifierInput row, RangeValue? original) {
+  if (row.lower == null || row.upper == null) {
+    throw const FormatException('Enter both range bounds.');
+  }
+  bool included(String input) => switch (input) {
+    'true' => true,
+    'false' => false,
+    _ => throw const FormatException(
+      'Choose whether each range bound is included.',
+    ),
+  };
+  return RangeValue(
+    lower: buildQualifierValue(row.lower!, original?.lower),
+    upper: buildQualifierValue(row.upper!, original?.upper),
+    lowerInclusive: included(row.lowerInclusive),
+    upperInclusive: included(row.upperInclusive),
+    unit: row.unit.isEmpty ? null : UnitId.parse(row.unit),
+  );
 }

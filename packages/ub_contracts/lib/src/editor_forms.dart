@@ -392,10 +392,16 @@ final class QualifierInput {
     this.definition = '',
     this.originalKey,
     this.children = const [],
+    this.lower,
+    this.upper,
+    this.lowerInclusive = '',
+    this.upperInclusive = '',
   });
   final String key, kind, value, denominator, unit, universe, definition;
   final String? originalKey;
   final List<QualifierInput> children;
+  final QualifierInput? lower, upper;
+  final String lowerInclusive, upperInclusive;
   Iterable<String> get exactTexts sync* {
     yield* [
       key,
@@ -406,8 +412,10 @@ final class QualifierInput {
       universe,
       definition,
       ?originalKey,
+      lowerInclusive,
+      upperInclusive,
     ];
-    for (final child in children) {
+    for (final child in [...children, ?lower, ?upper]) {
       yield* child.exactTexts;
     }
   }
@@ -420,6 +428,10 @@ final class QualifierInput {
     MapEntry('unit', CanonicalString(unit)),
     MapEntry('universe', CanonicalString(universe)),
     MapEntry('definition', CanonicalString(definition)),
+    if (lower != null) MapEntry('lower', lower!.toWire()),
+    if (upper != null) MapEntry('upper', upper!.toWire()),
+    MapEntry('lower_inclusive', CanonicalString(lowerInclusive)),
+    MapEntry('upper_inclusive', CanonicalString(upperInclusive)),
     MapEntry('children', CanonicalArray(children.map((c) => c.toWire()))),
     if (originalKey != null)
       MapEntry('original_key', CanonicalString(originalKey!)),
@@ -436,8 +448,22 @@ final class QualifierInput {
       'universe',
       'definition',
       'children',
+      'lower',
+      'upper',
+      'lower_inclusive',
+      'upper_inclusive',
     });
     return QualifierInput(
+      lower: f.optional(
+        'lower',
+        (v) => QualifierInput.fromWire(v, depth: depth + 1),
+      ),
+      upper: f.optional(
+        'upper',
+        (v) => QualifierInput.fromWire(v, depth: depth + 1),
+      ),
+      lowerInclusive: f.optional('lower_inclusive', wireString) ?? '',
+      upperInclusive: f.optional('upper_inclusive', wireString) ?? '',
       key: f.string('key'),
       kind: f.string('kind'),
       value: f.string('value'),
