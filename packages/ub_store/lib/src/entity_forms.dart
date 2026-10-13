@@ -9,16 +9,19 @@ import 'ownership.dart';
 
 const _legacyColumns =
     'instance,profile,universe,continuity,context,generation,base_revision,client_ref,name,classification,world_role,rationale';
-const _columns =
+const _v2Columns =
     'instance,profile,universe,continuity,context,editor_key,generation,base_revision,client_ref,name,classification,world_role,rationale,draft_version';
+const _columns = '$_v2Columns,association_edits_present';
 const _where =
     'instance=? AND profile=? AND universe=? AND continuity=? AND context=? AND editor_key=?';
-const _schema = '''
+const _schema =
+    '''
 CREATE TABLE entity_form (
  instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
  continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL, generation TEXT NOT NULL,
  base_revision TEXT NOT NULL, client_ref TEXT NOT NULL, name TEXT NOT NULL,
  classification TEXT NOT NULL, world_role TEXT NOT NULL, rationale TEXT NOT NULL, draft_version TEXT,
+ association_edits_present INTEGER NOT NULL DEFAULT 0 CHECK(association_edits_present IN (0,1)),
  PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)
 ) STRICT;
 CREATE TABLE entity_form_world (
@@ -27,7 +30,19 @@ CREATE TABLE entity_form_world (
  PRIMARY KEY(instance,profile,universe,continuity,context,editor_key,ordinal),
  FOREIGN KEY(instance,profile,universe,continuity,context,editor_key) REFERENCES entity_form(instance,profile,universe,continuity,context,editor_key) ON DELETE CASCADE
 ) STRICT;
-PRAGMA user_version=2;
+$_associationSchema
+PRAGMA user_version=3;
+''';
+
+const _associationSchema = '''
+CREATE TABLE entity_form_association (
+ instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
+ continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL,
+ ordinal INTEGER NOT NULL CHECK(ordinal>=0), world TEXT NOT NULL, role TEXT NOT NULL,
+ original_ordinal INTEGER CHECK(original_ordinal>=0),
+ PRIMARY KEY(instance,profile,universe,continuity,context,editor_key,ordinal),
+ FOREIGN KEY(instance,profile,universe,continuity,context,editor_key) REFERENCES entity_form(instance,profile,universe,continuity,context,editor_key) ON DELETE CASCADE
+) STRICT;
 ''';
 
 /// Device-private incomplete entity input, separate from canon and other editors.
@@ -68,7 +83,7 @@ final class EntityFormRecoveryStore {
           db.execute('ALTER TABLE entity_form RENAME TO legacy_entity_form');
           db.execute(_schema);
           db.execute(
-            "INSERT INTO entity_form SELECT instance,profile,universe,continuity,context,'',generation,base_revision,client_ref,name,classification,world_role,rationale,NULL FROM legacy_entity_form",
+            "INSERT INTO entity_form SELECT instance,profile,universe,continuity,context,'',generation,base_revision,client_ref,name,classification,world_role,rationale,NULL,0 FROM legacy_entity_form",
           );
           db.execute(
             "INSERT INTO entity_form_world SELECT instance,profile,universe,continuity,context,'',ordinal,world FROM legacy_entity_form_world",
@@ -76,6 +91,13 @@ final class EntityFormRecoveryStore {
           db.execute(
             'DROP TABLE legacy_entity_form_world; DROP TABLE legacy_entity_form',
           );
+        }
+        if (version == 2) {
+          db.execute(
+            'ALTER TABLE entity_form ADD COLUMN association_edits_present INTEGER NOT NULL DEFAULT 0 CHECK(association_edits_present IN (0,1))',
+          );
+          db.execute(_associationSchema);
+          db.execute('PRAGMA user_version=3');
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -103,20 +125,30 @@ final class EntityFormRecoveryStore {
     );
     if (tables.isEmpty) return 0;
     final version = db.select('PRAGMA user_version').single.values.single;
-    if (tables.length != 2 ||
-        (version != 1 && version != 2) ||
+    if (tables.length != (version == 3 ? 3 : 2) ||
+        (version != 1 && version != 2 && version != 3) ||
         db
                 .select('PRAGMA table_info(entity_form)')
                 .map((row) => row['name'])
                 .join(',') !=
-            (version == 1 ? _legacyColumns : _columns) ||
+            (version == 1
+                ? _legacyColumns
+                : version == 2
+                ? _v2Columns
+                : _columns) ||
         db
                 .select('PRAGMA table_info(entity_form_world)')
                 .map((row) => row['name'])
                 .join(',') !=
             (version == 1
                 ? 'instance,profile,universe,continuity,context,ordinal,world'
-                : 'instance,profile,universe,continuity,context,editor_key,ordinal,world')) {
+                : 'instance,profile,universe,continuity,context,editor_key,ordinal,world') ||
+        (version == 3 &&
+            db
+                    .select('PRAGMA table_info(entity_form_association)')
+                    .map((r) => r['name'])
+                    .join(',') !=
+                'instance,profile,universe,continuity,context,editor_key,ordinal,world,role,original_ordinal')) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );
@@ -160,6 +192,20 @@ final class EntityFormRecoveryStore {
         classification: row['classification'] as String,
         worldRole: row['world_role'] as String,
         rationale: row['rationale'] as String,
+        associations: row['association_edits_present'] == 0
+            ? null
+            : _db
+                  .select(
+                    'SELECT * FROM entity_form_association WHERE $_where ORDER BY ordinal',
+                    binding,
+                  )
+                  .map(
+                    (r) => EntityAssociationForm(
+                      world: r['world'] as String,
+                      role: r['role'] as String,
+                      originalOrdinal: r['original_ordinal'] as int?,
+                    ),
+                  ),
         worlds: _db
             .select(
               'SELECT world FROM entity_form_world WHERE $_where ORDER BY ordinal',
@@ -203,6 +249,10 @@ final class EntityFormRecoveryStore {
       form.classification,
       form.worldRole,
       form.rationale,
+      for (final a in form.associations ?? <EntityAssociationForm>[]) ...[
+        a.world,
+        a.role,
+      ],
     ]) {
       if (decodeExactUtf8(utf8.encode(text)) != text) {
         throw const EditorRecoveryException(EditorRecoveryFailure.invalidText);
@@ -230,7 +280,7 @@ final class EntityFormRecoveryStore {
         form: form,
       );
       _db.execute(
-        'INSERT INTO entity_form VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(instance,profile,universe,continuity,context,editor_key) DO UPDATE SET generation=excluded.generation,base_revision=excluded.base_revision,client_ref=excluded.client_ref,name=excluded.name,classification=excluded.classification,world_role=excluded.world_role,rationale=excluded.rationale,draft_version=excluded.draft_version',
+        'INSERT INTO entity_form VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(instance,profile,universe,continuity,context,editor_key) DO UPDATE SET generation=excluded.generation,base_revision=excluded.base_revision,client_ref=excluded.client_ref,name=excluded.name,classification=excluded.classification,world_role=excluded.world_role,rationale=excluded.rationale,draft_version=excluded.draft_version,association_edits_present=excluded.association_edits_present',
         [
           ...binding,
           saved.generation.toString(),
@@ -241,6 +291,7 @@ final class EntityFormRecoveryStore {
           form.worldRole,
           form.rationale,
           form.draftVersion?.toString(),
+          form.associations == null ? 0 : 1,
         ],
       );
       _db.execute('DELETE FROM entity_form_world WHERE $_where', binding);
@@ -250,6 +301,15 @@ final class EntityFormRecoveryStore {
           i,
           form.worlds[i].value,
         ]);
+      }
+      _db.execute('DELETE FROM entity_form_association WHERE $_where', binding);
+      final associations = form.associations ?? <EntityAssociationForm>[];
+      for (var i = 0; i < associations.length; i++) {
+        final a = associations[i];
+        _db.execute(
+          'INSERT INTO entity_form_association VALUES(?,?,?,?,?,?,?,?,?,?)',
+          [...binding, i, a.world, a.role, a.originalOrdinal],
+        );
       }
       _db.execute('COMMIT');
       return saved;

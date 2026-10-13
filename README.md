@@ -63,12 +63,14 @@ one shared entity identity; associations do not establish location. Adding a
 completed form appends an instance operation to compatible Changes, preserves
 other draft work and avoids duplicating an exact retry. **Start another entity**
 uses a fresh reference at the current revision. Leaving saves unfinished input
-before returning. **Edit entity name and classification** in Changes reopens
-those fields while retaining the exact entity reference, name metadata, world
-associations, other operations and draft rationale. Pending edits recover
+before returning. **Edit entity fields** in Changes reopens the name,
+classification and world associations while retaining the exact entity reference,
+name metadata, other operations and draft rationale. Pending edits recover
 separately from new-entity input. Earlier-draft edits stay visible but require
-**Use current draft fields** before saving to a newer draft. World associations
-are displayed for review and retained by this edit; association editing remains
+**Use current draft fields** before saving to a newer draft. Association rows can
+be added, changed or explicitly removed. Editing an existing world or role
+retains that row’s exact validity and qualifiers. A new
+row uses unspecified validity and no qualifiers; editing those details remains
 unfinished. Review, approval and publication remain separate steps.
 **Type definition** opens a recoverable typed form for namespace, key, display
 name, parent, applicability, executable classification and rationale. Parent,

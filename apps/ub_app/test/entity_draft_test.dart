@@ -143,6 +143,108 @@ void main() {
       throwsFormatException,
     );
   });
+  test('association edits retain row-specific details while addition and removal are explicit', () {
+    final world = WorldId.generate(), other = WorldId.generate();
+    final original = IntroduceInstanceOperation(
+      clientRef: 'shared-person',
+      name: const ContextualName(text: 'Mara', validity: UnspecifiedValidity()),
+      worldAssociations: [
+        WorldAssociation(
+          world: world,
+          role: 'home',
+          validity: const ConditionalValidity(),
+          qualifiers: {'account': const TextValue('Firsthand')},
+        ),
+        WorldAssociation(
+          world: world,
+          role: 'journey',
+          validity: const UnknownValidity(),
+          qualifiers: {},
+        ),
+      ],
+    );
+    final draft = SavedDraft(
+      version: BigInt.two,
+      content: DraftContent(
+        baseRevision: RevisionId.generate(),
+        representedContext: RecordId.generate(),
+        operations: [original],
+        rationale: 'Associations are not location.',
+      ),
+    );
+    final initial = entityFormFromDraft(draft, 0);
+    expect(initial.associations!.map((a) => a.originalOrdinal), [0, 1]);
+    UnfinishedEntityForm form(List<EntityAssociationForm> rows) =>
+        UnfinishedEntityForm(
+          baseRevision: initial.baseRevision,
+          representedContext: initial.representedContext,
+          clientRef: initial.clientRef,
+          name: initial.name,
+          classification: initial.classification,
+          worldRole: '',
+          rationale: '',
+          draftVersion: initial.draftVersion,
+          associations: rows,
+        );
+    final updated = replaceDraftEntity(
+      draft: draft,
+      index: 0,
+      form: form([
+        EntityAssociationForm(
+          world: other.value,
+          role: 'past home',
+          originalOrdinal: 0,
+        ),
+        EntityAssociationForm(world: world.value, role: 'setting'),
+      ]),
+    );
+    final result = (updated.operations.single as IntroduceInstanceOperation)
+        .worldAssociations;
+    expect(result.map((a) => a.world), [other, world]);
+    expect(result.map((a) => a.role), ['past home', 'setting']);
+    expect(
+      result.first.validity.toWire().toText(),
+      original.worldAssociations.first.validity.toWire().toText(),
+    );
+    expect(
+      result.first.qualifiers['account'],
+      original.worldAssociations.first.qualifiers['account'],
+    );
+    expect(result.last.validity, isA<UnspecifiedValidity>());
+    expect(result.last.qualifiers, isEmpty);
+    expect(
+      (replaceDraftEntity(
+                draft: draft,
+                index: 0,
+                form: form([]),
+              ).operations.single
+              as IntroduceInstanceOperation)
+          .worldAssociations,
+      isEmpty,
+    );
+    expect(
+      () => replaceDraftEntity(
+        draft: draft,
+        index: 0,
+        form: form([EntityAssociationForm(world: world.value, role: '')]),
+      ),
+      throwsFormatException,
+    );
+    expect(
+      () => replaceDraftEntity(
+        draft: draft,
+        index: 0,
+        form: form([
+          EntityAssociationForm(
+            world: world.value,
+            role: 'home',
+            originalOrdinal: 2,
+          ),
+        ]),
+      ),
+      throwsFormatException,
+    );
+  });
   test('entity input recovers after disconnect and publishes once with other Changes intact', () async {
     final root = Directory('/tmp').createTempSync('ub-entity-workflow-');
     final store = SqliteInstallationStore.create(root.path);
@@ -316,6 +418,89 @@ void main() {
           validation.execution.runId,
         )).revision,
         receipt.revision,
+      );
+      final worldRecord = proposal.compiledChanges
+          .map((c) => c.next)
+          .whereType<RecordVersion>()
+          .singleWhere((r) => r.payload is WorldRecord);
+      final world = WorldId.parse(
+        'wld_${worldRecord.identity.recordId.value.substring(RecordId.prefix.length)}',
+      );
+      final fresh = await currentChanges.rebase(
+        (await currentChanges.load())!,
+        startNew: true,
+      );
+      final newEntity = SavedDraft.fromWire(
+        await session.call(
+          entityDraftRequest(
+            universe: Selector('Entity history'),
+            continuity: scope.continuity,
+            form: UnfinishedEntityForm(
+              baseRevision: fresh.content.baseRevision,
+              representedContext: fresh.content.representedContext,
+              clientRef: 'associated-person',
+              name: 'Mara',
+              classification: '',
+              worldRole: '',
+              rationale: '',
+            ),
+            previous: fresh,
+          ),
+        ),
+      );
+      final fields = entityFormFromDraft(newEntity, 0);
+      final associated = await currentChanges.saveContent(
+        newEntity,
+        replaceDraftEntity(
+          draft: newEntity,
+          index: 0,
+          form: UnfinishedEntityForm(
+            baseRevision: fields.baseRevision,
+            representedContext: fields.representedContext,
+            clientRef: fields.clientRef,
+            name: fields.name,
+            classification: '',
+            worldRole: '',
+            rationale: '',
+            draftVersion: fields.draftVersion,
+            associations: [
+              EntityAssociationForm(world: world.value, role: 'home'),
+            ],
+          ),
+        ),
+      );
+      await expectLater(
+        currentChanges.submit(associated),
+        throwsA(
+          isA<InvalidArgumentError>().having(
+            (e) => e.field,
+            'field',
+            'rationale',
+          ),
+        ),
+      );
+      final ready = await currentChanges.saveRationale(
+        associated,
+        'Associate Mara with River.',
+      );
+      final associatedProposal = await currentChanges.submit(ready);
+      final associatedValidation = await currentChanges.validate(
+        associatedProposal,
+      ) as EvaluatedValidation;
+      await currentChanges.approve(associatedProposal, associatedValidation);
+      final associatedReceipt = await currentChanges.publish(
+        associatedProposal,
+        associatedValidation.execution.runId,
+      );
+      final published = (await currentChanges.readPublished(
+        associatedProposal,
+        associatedReceipt,
+      )).map((r) => r.payload).whereType<EntityRecord>().single;
+      expect(published.worldAssociations.single.world, world);
+      expect(published.worldAssociations.single.role, 'home');
+      expect(
+        published.worldAssociations.single.validity,
+        isA<UnspecifiedValidity>(),
       );
     } finally {
       try {

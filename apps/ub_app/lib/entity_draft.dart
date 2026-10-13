@@ -90,11 +90,19 @@ UnfinishedEntityForm entityFormFromDraft(SavedDraft draft, int index) {
     worldRole: '',
     rationale: '',
     draftVersion: draft.version,
+    associations: [
+      for (var i = 0; i < operation.worldAssociations.length; i++)
+        EntityAssociationForm(
+          world: operation.worldAssociations[i].world.value,
+          role: operation.worldAssociations[i].role,
+          originalOrdinal: i,
+        ),
+    ],
   );
 }
 
-/// A name/classification edit keeps all independently authored name metadata
-/// and associations. It does not turn a world association into a location.
+/// Field edits retain independently authored name metadata and the validity
+/// and qualifiers of retained association rows. Associations are not locations.
 DraftContent replaceDraftEntity({
   required SavedDraft draft,
   required int index,
@@ -125,7 +133,32 @@ DraftContent replaceDraftEntity({
     classification: form.classification.isEmpty
         ? null
         : RecordId.parse(form.classification),
-    worldAssociations: operation.worldAssociations,
+    worldAssociations: form.associations == null
+        ? operation.worldAssociations
+        : form.associations!.map((a) {
+            if (a.role.trim().isEmpty) {
+              throw const FormatException(
+                'Describe each world association’s role.',
+              );
+            }
+            final world = WorldId.parse(a.world);
+            WorldAssociation? original;
+            if (a.originalOrdinal != null) {
+              if (a.originalOrdinal! < 0 ||
+                  a.originalOrdinal! >= operation.worldAssociations.length) {
+                throw const FormatException(
+                  'The source association changed. Reopen the current draft fields.',
+                );
+              }
+              original = operation.worldAssociations[a.originalOrdinal!];
+            }
+            return WorldAssociation(
+              world: world,
+              role: a.role,
+              validity: original?.validity ?? const UnspecifiedValidity(),
+              qualifiers: original?.qualifiers ?? {},
+            );
+          }),
   );
   return DraftContent(
     baseRevision: draft.content.baseRevision,

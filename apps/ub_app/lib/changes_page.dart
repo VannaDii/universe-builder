@@ -724,7 +724,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                         (draft) => _editEntity(draft, index),
                                       ),
                                 child: const Text(
-                                  'Edit entity name and classification',
+                                  'Edit entity fields',
                                 ),
                               ),
                             if (_proposal == null &&

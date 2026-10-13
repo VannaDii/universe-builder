@@ -179,14 +179,26 @@ final class UnfinishedEntityForm {
     required this.rationale,
     Iterable<WorldId> worlds = const [],
     BigInt? draftVersion,
-  }) : worlds = List.unmodifiable(worlds),
+    Iterable<EntityAssociationForm>? associations,
+  }) : associations = associations == null
+           ? null
+           : List.unmodifiable(associations),
+       worlds = List.unmodifiable(worlds),
        draftVersion = draftVersion == null ? null : checkedU64(draftVersion);
   final RevisionId baseRevision;
   final RecordId representedContext;
   final String clientRef, name, classification, worldRole, rationale;
   final List<WorldId> worlds;
   final BigInt? draftVersion;
+
+  /// Null retains the draft associations (older recovery forms). Empty explicitly removes them.
+  final List<EntityAssociationForm>? associations;
   CanonicalObject toWire() => CanonicalObject([
+    if (associations != null)
+      MapEntry(
+        'associations',
+        CanonicalArray(associations!.map((a) => a.toWire())),
+      ),
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
     MapEntry('represented_context', CanonicalString(representedContext.value)),
     MapEntry('client_ref', CanonicalString(clientRef)),
@@ -208,4 +220,22 @@ final class SavedEntityForm {
     : generation = checkedU64(generation);
   final BigInt generation;
   final UnfinishedEntityForm form;
+}
+
+/// Entered association fields reference their source row in the exact draft.
+/// Source validity and qualifiers stay in that draft, rather than being rebuilt.
+final class EntityAssociationForm {
+  const EntityAssociationForm({
+    required this.world,
+    required this.role,
+    this.originalOrdinal,
+  });
+  final String world, role;
+  final int? originalOrdinal;
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('world', CanonicalString(world)),
+    MapEntry('role', CanonicalString(role)),
+    if (originalOrdinal != null)
+      MapEntry('original_ordinal', CanonicalString(originalOrdinal.toString())),
+  ]);
 }

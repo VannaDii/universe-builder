@@ -44,6 +44,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
   List<WorldId> _selected = [];
   List<WorldSummary> _worlds = [];
   final List<SearchHit> _types = [];
+  final List<_AssociationFields> _associations = [];
   OpenedContext? _context;
   Delivery? _delivery;
   bool _worldsComplete = true;
@@ -72,6 +73,9 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     _name.dispose();
     _role.dispose();
     _rationale.dispose();
+    for (final a in _associations) {
+      a.role.dispose();
+    }
     super.dispose();
   }
 
@@ -93,6 +97,19 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     _rationale.text = form.rationale;
     _classification = form.classification;
     _selected = [...form.worlds];
+    for (final a in _associations) {
+      a.role.dispose();
+    }
+    _associations.clear();
+    final rows =
+        form.associations ??
+        (_editingDraft == null
+            ? <EntityAssociationForm>[]
+            : entityFormFromDraft(
+                _editingDraft!,
+                widget.operationIndex!,
+              ).associations!);
+    _associations.addAll(rows.map(_AssociationFields.new));
   }
 
   UnfinishedEntityForm get _form => UnfinishedEntityForm(
@@ -105,6 +122,15 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     rationale: _rationale.text,
     worlds: _selected,
     draftVersion: _base!.draftVersion,
+    associations: _editingDraft == null
+        ? null
+        : _associations.map(
+            (a) => EntityAssociationForm(
+              world: a.world,
+              role: a.role.text,
+              originalOrdinal: a.originalOrdinal,
+            ),
+          ),
   );
   Future<void> _load() async {
     setState(() {
@@ -297,7 +323,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
         setState(() {
           _editingDraft = saved;
           _savedDraft = saved;
-          _base = entityFormFromDraft(saved, widget.operationIndex!);
+          _enter(entityFormFromDraft(saved, widget.operationIndex!));
           _dirty = true;
           _added = 'Entity updated in saved changes. Return to Changes to review it.';
         });
@@ -395,6 +421,86 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
       onChanged: (_) => _changed(),
     ),
   );
+  Widget _associationRow(int index) {
+    final fields = _associations[index];
+    final originalOrdinal = fields.originalOrdinal;
+    final original = originalOrdinal == null
+        ? null
+        : (_editingDraft!.content.operations[widget.operationIndex!]
+                  as IntroduceInstanceOperation)
+              .worldAssociations
+              .elementAtOrNull(originalOrdinal);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Association ${index + 1}'),
+            DropdownButtonFormField<String>(
+              key: ValueKey(fields),
+              initialValue: fields.world,
+              decoration: const InputDecoration(labelText: 'Associated world'),
+              items: [
+                const DropdownMenuItem(
+                  value: '',
+                  child: Text('Choose a world'),
+                ),
+                for (final world in _worlds)
+                  DropdownMenuItem(
+                    value: world.id.value,
+                    child: Text(world.name.value),
+                  ),
+                if (fields.world.isNotEmpty &&
+                    !_worlds.any((w) => w.id.value == fields.world))
+                  DropdownMenuItem(
+                    value: fields.world,
+                    child: const Text('Saved world (not in loaded list)'),
+                  ),
+              ],
+              onChanged: _disabled
+                  ? null
+                  : (value) {
+                      setState(() => fields.world = value!);
+                      _changed();
+                    },
+            ),
+            _field(fields.role, 'Association role'),
+            if (original != null) ...[
+              const Text('Retained validity and qualifiers'),
+              ExactFields(
+                value: CanonicalObject([
+                  MapEntry('validity', original.validity.toWire()),
+                  MapEntry(
+                    'qualifiers',
+                    CanonicalObject(
+                      original.qualifiers.entries.map(
+                        (e) => MapEntry(e.key, e.value.toWire()),
+                      ),
+                    ),
+                  ),
+                ]),
+              ),
+            ] else
+              const Text(
+                'New association: unspecified validity, no qualifiers.',
+              ),
+            TextButton(
+              onPressed: _disabled
+                  ? null
+                  : () {
+                      setState(() => _associations.removeAt(index));
+                      fields.role.dispose();
+                      _changed();
+                    },
+              child: const Text('Remove association'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => PopScope<SavedDraft>(
     canPop:
@@ -408,7 +514,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
         title: Text(
           widget.editingDraft == null
               ? 'Person, place or other entity'
-              : 'Edit entity name and classification',
+              : 'Edit entity in changes',
         ),
       ),
       body: Align(
@@ -486,9 +592,9 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                 ),
               const SizedBox(height: 12),
               if (_editingDraft != null) ...[
-                const Text('Retained name details and world associations'),
+                const Text('Retained name details'),
                 const Text(
-                  'This form edits the name and classification. Name metadata and world associations are retained.',
+                  'Name metadata is retained. Each world association keeps its validity and qualifiers when its world or role is edited.',
                 ),
                 ExactFields(
                   value:
@@ -497,12 +603,30 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                           .name
                           .toWire(),
                 ),
-                for (final association
-                    in (_editingDraft!.content.operations[widget
-                                .operationIndex!]
-                            as IntroduceInstanceOperation)
-                        .worldAssociations)
-                  ExactFields(value: association.toWire()),
+                const Text('World associations (not location)'),
+                for (var i = 0; i < _associations.length; i++)
+                  _associationRow(i),
+                if (_associations.isEmpty) const Text('No world associations'),
+                if (!_worldsComplete)
+                  const Text('Only part of the world list was returned.'),
+                TextButton(
+                  onPressed: _disabled
+                      ? null
+                      : () {
+                          setState(
+                            () => _associations.add(
+                              _AssociationFields(
+                                const EntityAssociationForm(
+                                  world: '',
+                                  role: '',
+                                ),
+                              ),
+                            ),
+                          );
+                          _changed();
+                        },
+                  child: const Text('Add world association'),
+                ),
               ] else ...[
                 const Text('World associations'),
                 const Text(
@@ -595,4 +719,14 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
       ),
     ),
   );
+}
+
+final class _AssociationFields {
+  _AssociationFields(EntityAssociationForm form)
+    : world = form.world,
+      originalOrdinal = form.originalOrdinal,
+      role = TextEditingController(text: form.role);
+  String world;
+  final int? originalOrdinal;
+  final TextEditingController role;
 }
