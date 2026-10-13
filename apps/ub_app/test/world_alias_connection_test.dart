@@ -224,6 +224,63 @@ void main() {
         validation.execution.runId,
       );
       expect(published.revision, isNot(receipt.revision));
+      final historical = await readContextRecordMaterial(
+        session: session,
+        universe: entry,
+        context: opened,
+        record: record.identity.recordId,
+        group: FieldGroup.history,
+      );
+      expect(historical.delivery.complete, isTrue);
+      expect(historical.result.records, isEmpty);
+      expect(historical.result.historyCoverage, Coverage.complete);
+      expect(historical.result.history.single.reason, 'Create the setting.');
+      expect(
+        historical.result.history.single.record!.payload.toWire().toText(),
+        original.toWire().toText(),
+      );
+      final current = Envelope<OpenedContext>.fromWire(
+        await session.call(
+          ToolEngineRequest(
+            request: OpenContextRequest(
+              universe: Selector(entry.name),
+              universeId: entry.id,
+              continuityId: scope.continuity,
+              revision: ExactRevisionSelector(revisionId: published.revision),
+              representedContext: ContextIdSelector(context),
+              temporalQuery: const TimelessFrameTime(),
+              temporalSystems: [],
+              perspective: const AuthorPerspective(),
+            ),
+          ),
+        ),
+        OpenedContext.fromWire,
+      ).result;
+      final currentHistory = await readContextRecordMaterial(
+        session: session,
+        universe: entry,
+        context: current,
+        record: record.identity.recordId,
+        group: FieldGroup.history,
+      );
+      expect(currentHistory.result.history.length, 2);
+      expect(
+        currentHistory.result.history.first.reason,
+        'Retain the historical name.',
+      );
+      expect(
+        currentHistory.result.history.first.record!.payload.toWire().toText(),
+        payload.toWire().toText(),
+      );
+      final support = await readContextRecordMaterial(
+        session: session,
+        universe: entry,
+        context: current,
+        record: record.identity.recordId,
+        group: FieldGroup.evidence,
+      );
+      expect(support.result.records, isEmpty);
+      expect(support.result.history, isEmpty);
       // The browser keeps its opened revision even after later publication.
       expect(
         (await readContextRecord(

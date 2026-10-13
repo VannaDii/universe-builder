@@ -199,7 +199,8 @@ class _RecordDetailPage extends StatefulWidget {
 }
 
 class _RecordDetailPageState extends State<_RecordDetailPage> {
-  RecordVersion? _record;
+  Envelope<Records>? _material;
+  FieldGroup _group = FieldGroup.payload;
   bool _busy = true;
   String? _error;
   @override
@@ -212,16 +213,23 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
     setState(() {
       _busy = true;
       _error = null;
-      _record = null;
+      _material = null;
     });
     try {
-      final record = await readContextRecord(
+      final material = await readContextRecordMaterial(
         session: widget.session,
         universe: widget.universe,
         context: widget.context,
         record: widget.hit.recordId,
+        group: _group,
       );
-      if (mounted) setState(() => _record = record);
+      if (_group == FieldGroup.payload &&
+          (material.result.records.length != 1 ||
+              material.result.records.single.identity.recordId !=
+                  widget.hit.recordId)) {
+        throw const FormatException('Record unavailable.');
+      }
+      if (mounted) setState(() => _material = material);
     } on Object {
       if (mounted) {
         setState(
@@ -245,10 +253,103 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
+            const Text(
+              'Published fields, supporting records and history are separate views at the same opened revision.',
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final option in const {
+                  FieldGroup.payload: 'Published fields',
+                  FieldGroup.evidence: 'Supporting records',
+                  FieldGroup.history: 'History',
+                }.entries)
+                  ChoiceChip(
+                    label: Text(option.value),
+                    selected: _group == option.key,
+                    onSelected: _busy
+                        ? null
+                        : (_) {
+                            if (_group == option.key) return;
+                            setState(() => _group = option.key);
+                            _read();
+                          },
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
             if (_busy) const LinearProgressIndicator(),
             if (_error != null)
               Semantics(liveRegion: true, child: Text(_error!)),
-            if (_record != null) ExactFields(value: _record!.payload.toWire()),
+            if (_material != null) ...[
+              if (!_material!.delivery.complete)
+                const Text('Only part of this view was returned.'),
+              if (_group == FieldGroup.payload)
+                for (final record in _material!.result.records)
+                  ExactFields(value: record.payload.toWire()),
+              if (_group == FieldGroup.evidence) ...[
+                const Text(
+                  'Sources, assertions and related declarations accessible in this context.',
+                ),
+                if (_material!.result.evidence.isEmpty)
+                  const Text(
+                    'No supporting records were returned in this view.',
+                  ),
+                for (final record in _material!.result.evidence)
+                  Card(
+                    child: ExpansionTile(
+                      title: Text(
+                        record.identity.recordKind.wireName.replaceAll(
+                          '_',
+                          ' ',
+                        ),
+                      ),
+                      childrenPadding: const EdgeInsets.all(16),
+                      expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                      children: [ExactFields(value: record.payload.toWire())],
+                    ),
+                  ),
+              ],
+              if (_group == FieldGroup.history) ...[
+                Text(switch (_material!.result.historyCoverage) {
+                  Coverage.complete =>
+                    'Complete retained history through this revision.',
+                  Coverage.restricted => 'History is restricted in this view.',
+                  _ => 'Complete history was not returned in this view.',
+                }),
+                if (_material!.result.history.isEmpty)
+                  const Text('No history entries were returned in this view.'),
+                for (final entry in _material!.result.history)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Publication reason'),
+                          SelectableText(entry.reason),
+                          ExpansionTile(
+                            title: const Text('Publication details'),
+                            children: [
+                              SelectableText(
+                                'Published by: ${entry.principal.value}',
+                              ),
+                              SelectableText(
+                                'Revision: ${entry.revision.value}',
+                              ),
+                            ],
+                          ),
+                          if (entry.record == null)
+                            const Text('Record removed in this revision.')
+                          else
+                            ExactFields(value: entry.record!.payload.toWire()),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ],
             TextButton(
               onPressed: _busy ? null : _read,
               child: const Text('Retry read'),

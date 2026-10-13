@@ -50,6 +50,12 @@ Leave the search blank to browse, enter a name to search, or filter by record
 type. Results are paged; **Load more** continues the same search. Opening a result
 shows its complete published fields. The list and record reads remain pinned
 to the revision opened here; reopen Records from the overview for later changes.
+Record inspection offers separate **Published fields**, **Supporting records**
+and **History** views at that revision. Supporting records use the service's
+accessible research closure. History shows retained versions, publication
+reasons and expandable publication details, with the service's complete or
+restricted coverage shown explicitly. A failed read retains the selected view
+for retry; it does not switch to a newer revision.
 Opening a listed world displays its complete published record in that frame,
 including aliases, multilingual labels and metadata. **Rename world** opens a
 recoverable name-and-rationale form pinned to the record's version. **Add rename

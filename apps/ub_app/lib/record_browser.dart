@@ -28,11 +28,12 @@ Future<Envelope<SearchResults>> searchContextRecords({
   SearchResults.fromWire,
 );
 
-Future<RecordVersion> readContextRecord({
+Future<Envelope<Records>> readContextRecordMaterial({
   required AppSession session,
   required LibraryEntry universe,
   required OpenedContext context,
   required RecordId record,
+  required FieldGroup group,
 }) async {
   final result = Envelope<Records>.fromWire(
     await session.call(
@@ -42,11 +43,27 @@ Future<RecordVersion> readContextRecord({
           universeId: universe.id,
           contextId: context.contextId,
           recordIds: [record],
-          fieldGroups: [FieldGroup.payload],
+          fieldGroups: [group],
         ),
       ),
     ),
     Records.fromWire,
+  );
+  return result;
+}
+
+Future<RecordVersion> readContextRecord({
+  required AppSession session,
+  required LibraryEntry universe,
+  required OpenedContext context,
+  required RecordId record,
+}) async {
+  final result = await readContextRecordMaterial(
+    session: session,
+    universe: universe,
+    context: context,
+    record: record,
+    group: FieldGroup.payload,
   );
   if (!result.delivery.complete ||
       result.result.records.length != 1 ||
