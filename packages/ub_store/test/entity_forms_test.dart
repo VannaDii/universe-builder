@@ -89,6 +89,10 @@ void main() {
             validity: UnknownValidity(),
             temporalValidity: TemporalValidityInput(
               calendar: 'unfinished',
+              kind: 'instant_relative',
+              relation: 'after',
+              targetUniverse: 'unfinished universe',
+              targetRecord: 'unfinished record',
               start: TemporalBoundInput(value: 'unknown text'),
             ),
             originalOrdinal: 1,

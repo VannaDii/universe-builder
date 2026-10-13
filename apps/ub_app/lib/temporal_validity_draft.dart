@@ -8,6 +8,42 @@ TemporalValidityInput temporalValidityInput(Validity? value) => switch (value) {
       calendar: calendar.value,
       start: TemporalBoundInput(value: value),
     ),
+  InstantValidity(
+    at: IntervalTime(:final calendar, :final start, :final end),
+  ) =>
+    TemporalValidityInput(
+      kind: 'instant_interval',
+      calendar: calendar.value,
+      start: _input(start),
+      end: _input(end),
+    ),
+  InstantValidity(
+    at: ApproximateTime(:final calendar, :final value, :final uncertainty),
+  ) =>
+    TemporalValidityInput(
+      kind: 'instant_approximate',
+      calendar: calendar.value,
+      start: _amountInput(value, uncertainty),
+    ),
+  InstantValidity(at: DurationTime(:final calendar, :final amount)) =>
+    TemporalValidityInput(
+      kind: 'instant_duration',
+      calendar: calendar.value,
+      start: _amountInput('', amount),
+    ),
+  InstantValidity(
+    at: RelativeTime(:final calendar, :final relation, :final target),
+  ) =>
+    TemporalValidityInput(
+      kind: 'instant_relative',
+      calendar: calendar.value,
+      relation: relation.name,
+      targetUniverse: target.universe?.value ?? '',
+      targetRecord: target.record.value,
+    ),
+  InstantValidity(at: UnspecifiedTime()) => const TemporalValidityInput(
+    kind: 'instant_unspecified',
+  ),
   IntervalValidity(:final start, :final end) => TemporalValidityInput(
     start: _input(start),
     end: _input(end),
@@ -69,6 +105,13 @@ TemporalBoundInput _approximate(String value, DomainValue uncertainty) {
   };
 }
 
+TemporalBoundInput _amountInput(String value, DomainValue amount) {
+  final input = _approximate(value, amount);
+  return input.kind == 'retain'
+      ? TemporalBoundInput(value: value, uncertaintyKind: 'retain')
+      : input;
+}
+
 Validity buildTemporalValidity(
   TemporalValidityInput input,
   Validity? original,
@@ -77,6 +120,7 @@ Validity buildTemporalValidity(
     IntervalValidity(:final start, :final end) ||
     CalendarIntervalValidity(:final start, :final end) => (start, end),
     PersistentValidity(:final from) => (from, null),
+    InstantValidity(at: IntervalTime(:final start, :final end)) => (start, end),
     _ => (null, null),
   };
   TemporalBound start() => _bound(input.start, originals.$1);
@@ -85,6 +129,49 @@ Validity buildTemporalValidity(
     'instant' => InstantValidity(
       ExactTime(CalendarId.parse(input.calendar), _required(input.start.value)),
     ),
+    'instant_interval' => InstantValidity(
+      IntervalTime(CalendarId.parse(input.calendar), start(), end()),
+    ),
+    'instant_approximate' => InstantValidity(
+      ApproximateTime(
+        CalendarId.parse(input.calendar),
+        _required(input.start.value),
+        _uncertainty(
+          input.start,
+          original is InstantValidity && original.at is ApproximateTime
+              ? (original.at as ApproximateTime).uncertainty
+              : null,
+        ),
+      ),
+    ),
+    'instant_duration' => InstantValidity(
+      DurationTime(
+        CalendarId.parse(input.calendar),
+        _uncertainty(
+          input.start,
+          original is InstantValidity && original.at is DurationTime
+              ? (original.at as DurationTime).amount
+              : null,
+        ),
+      ),
+    ),
+    'instant_relative' => InstantValidity(
+      RelativeTime(
+        CalendarId.parse(input.calendar),
+        TemporalRelation.values.firstWhere(
+          (r) => r.name == input.relation,
+          orElse: () =>
+              throw const FormatException('Choose the temporal relation.'),
+        ),
+        RecordRef(
+          universe: input.targetUniverse.isEmpty
+              ? null
+              : UniverseId.parse(input.targetUniverse),
+          record: RecordId.parse(input.targetRecord),
+        ),
+      ),
+    ),
+    'instant_unspecified' => const InstantValidity(UnspecifiedTime()),
     'interval' => IntervalValidity(start(), end()),
     'calendar_interval' => CalendarIntervalValidity(
       CalendarId.parse(input.calendar),
@@ -118,11 +205,18 @@ TemporalBound _bound(
   'uncertain' => UncertainBound(_required(input.value), _required(input.upper)),
   'approximate' => ApproximateBound(
     _required(input.value),
-    _uncertainty(input),
+    _uncertainty(
+      input,
+      original is ApproximateBound ? original.uncertainty : null,
+    ),
   ),
   _ => throw const FormatException('Choose a temporal bound kind.'),
 };
-DomainValue _uncertainty(TemporalBoundInput input) {
+DomainValue _uncertainty(TemporalBoundInput input, [DomainValue? original]) {
+  if (input.uncertaintyKind == 'retain') {
+    return original ??
+        (throw const FormatException('No original amount to retain.'));
+  }
   final amount = switch (input.uncertaintyKind) {
     'integer' => IntegerValue(input.uncertainty),
     'decimal' => DecimalValue(input.uncertainty),

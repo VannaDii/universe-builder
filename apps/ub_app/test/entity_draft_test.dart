@@ -21,6 +21,45 @@ void main() {
     () {
       final calendar = CalendarId.generate();
       final originals = <Validity>[
+        InstantValidity(
+          IntervalTime(
+            calendar,
+            const UnknownBound(),
+            const ExactBound('Day 90'),
+          ),
+        ),
+        InstantValidity(
+          ApproximateTime(calendar, 'Day 42', const RationalValue('001', '03')),
+        ),
+        InstantValidity(
+          DurationTime(calendar, const DecimalValue('0.000000000000000001')),
+        ),
+        InstantValidity(
+          DurationTime(calendar, const TextValue('one lifetime')),
+        ),
+        InstantValidity(
+          ApproximateTime(calendar, 'Day 42', const TextValue('about a week')),
+        ),
+        const InstantValidity(UnspecifiedTime()),
+        for (final relation in TemporalRelation.values)
+          InstantValidity(
+            RelativeTime(
+              calendar,
+              relation,
+              RecordRef(
+                universe: UniverseId.generate(),
+                record: RecordId.generate(),
+              ),
+            ),
+          ),
+        InstantValidity(
+          RelativeTime(
+            calendar,
+            TemporalRelation.after,
+            RecordRef(record: RecordId.generate()),
+          ),
+        ),
+
         InstantValidity(ExactTime(calendar, 'Day 42.0000000000000000001')),
         const IntervalValidity(UnknownBound(), UnboundedBound()),
         const IntervalValidity(
@@ -41,6 +80,30 @@ void main() {
         final recovered = TemporalValidityInput.fromWire(input.toWire());
         expect(buildTemporalValidity(recovered, original), original);
       }
+      final legacy = TemporalValidityInput.fromWire(
+        CanonicalObject([
+          MapEntry('kind', CanonicalString('instant')),
+          MapEntry('calendar', CanonicalString(calendar.value)),
+          MapEntry('start', const TemporalBoundInput(value: 'Day 1').toWire()),
+          MapEntry('end', const TemporalBoundInput().toWire()),
+        ]),
+      );
+      expect(legacy.relation, '');
+      expect(legacy.targetRecord, '');
+      expect(
+        buildTemporalValidity(legacy, null),
+        InstantValidity(ExactTime(calendar, 'Day 1')),
+      );
+      final relativeInput = TemporalValidityInput(
+        kind: 'instant_relative',
+        calendar: calendar.value,
+        relation: 'unknown',
+        targetRecord: RecordId.generate().value,
+      );
+      expect(
+        () => buildTemporalValidity(relativeInput, null),
+        throwsFormatException,
+      );
       final unit = UnitId.generate();
       final original = PersistentValidity(
         ApproximateBound(

@@ -290,6 +290,9 @@ final class EntityFormRecoveryStore {
         if (a.temporalValidity != null) ...[
           a.temporalValidity!.kind,
           a.temporalValidity!.calendar,
+          a.temporalValidity!.relation,
+          a.temporalValidity!.targetUniverse,
+          a.temporalValidity!.targetRecord,
           for (final b in [
             a.temporalValidity!.start,
             a.temporalValidity!.end,

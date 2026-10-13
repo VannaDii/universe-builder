@@ -253,33 +253,56 @@ final class TemporalValidityInput {
   const TemporalValidityInput({
     this.kind = 'interval',
     this.calendar = '',
+    this.relation = '',
+    this.targetUniverse = '',
+    this.targetRecord = '',
     this.start = const TemporalBoundInput(),
     this.end = const TemporalBoundInput(),
   });
-  final String kind, calendar;
+  final String kind, calendar, relation, targetUniverse, targetRecord;
   final TemporalBoundInput start, end;
   TemporalValidityInput copyWith({
     String? kind,
     String? calendar,
+    String? relation,
+    String? targetUniverse,
+    String? targetRecord,
     TemporalBoundInput? start,
     TemporalBoundInput? end,
   }) => TemporalValidityInput(
     kind: kind ?? this.kind,
     calendar: calendar ?? this.calendar,
+    relation: relation ?? this.relation,
+    targetUniverse: targetUniverse ?? this.targetUniverse,
+    targetRecord: targetRecord ?? this.targetRecord,
     start: start ?? this.start,
     end: end ?? this.end,
   );
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('kind', CanonicalString(kind)),
     MapEntry('calendar', CanonicalString(calendar)),
+    MapEntry('relation', CanonicalString(relation)),
+    MapEntry('target_universe', CanonicalString(targetUniverse)),
+    MapEntry('target_record', CanonicalString(targetRecord)),
     MapEntry('start', start.toWire()),
     MapEntry('end', end.toWire()),
   ]);
   factory TemporalValidityInput.fromWire(CanonicalValue value) {
-    final f = WireFields(value, {'kind', 'calendar', 'start', 'end'});
+    final f = WireFields(value, {
+      'kind',
+      'calendar',
+      'start',
+      'end',
+      'relation',
+      'target_universe',
+      'target_record',
+    });
     return TemporalValidityInput(
       kind: f.string('kind'),
       calendar: f.string('calendar'),
+      relation: f.optional('relation', wireString) ?? '',
+      targetUniverse: f.optional('target_universe', wireString) ?? '',
+      targetRecord: f.optional('target_record', wireString) ?? '',
       start: TemporalBoundInput.fromWire(f.require('start')),
       end: TemporalBoundInput.fromWire(f.require('end')),
     );

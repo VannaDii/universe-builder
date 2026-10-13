@@ -28,14 +28,17 @@ class TemporalValidityFields extends StatelessWidget {
     String selected,
     Map<String, String> options,
     ValueChanged<String> change,
-  ) => DropdownButtonFormField<String>(
-    key: ValueKey((label, selected)),
-    initialValue: selected,
-    decoration: InputDecoration(labelText: label),
-    items: options.entries
-        .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
-        .toList(),
-    onChanged: disabled ? null : (value) => change(value!),
+  ) => Padding(
+    padding: const EdgeInsets.only(top: 12),
+    child: DropdownButtonFormField<String>(
+      key: ValueKey((label, selected)),
+      initialValue: selected,
+      decoration: InputDecoration(labelText: label),
+      items: options.entries
+          .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+          .toList(),
+      onChanged: disabled ? null : (value) => change(value!),
+    ),
   );
   Widget _bound(
     String label,
@@ -64,27 +67,40 @@ class TemporalValidityFields extends StatelessWidget {
           bound.upper,
           (value) => change(bound.copyWith(upper: value)),
         ),
-      if (bound.kind == 'approximate') ...[
-        _choice('$label uncertainty type', bound.uncertaintyKind, {
-          'integer': 'Integer',
-          'decimal': 'Decimal',
-          'rational': 'Rational',
-        }, (kind) => change(bound.copyWith(uncertaintyKind: kind))),
+      if (bound.kind == 'approximate')
+        _amount('$label uncertainty', bound, change),
+    ],
+  );
+  Widget _amount(
+    String label,
+    TemporalBoundInput amount,
+    ValueChanged<TemporalBoundInput> change,
+  ) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _choice('$label type', amount.uncertaintyKind, {
+        if (amount.uncertaintyKind == 'retain')
+          'retain': 'Keep original exact amount',
+        'integer': 'Integer',
+        'decimal': 'Decimal',
+        'rational': 'Rational',
+      }, (kind) => change(amount.copyWith(uncertaintyKind: kind))),
+      if (amount.uncertaintyKind != 'retain') ...[
         _text(
-          '$label uncertainty ${bound.uncertaintyKind == 'rational' ? 'numerator' : 'amount'}',
-          bound.uncertainty,
-          (value) => change(bound.copyWith(uncertainty: value)),
+          '$label ${amount.uncertaintyKind == 'rational' ? 'numerator' : 'amount'}',
+          amount.uncertainty,
+          (value) => change(amount.copyWith(uncertainty: value)),
         ),
-        if (bound.uncertaintyKind == 'rational')
+        if (amount.uncertaintyKind == 'rational')
           _text(
-            '$label uncertainty denominator',
-            bound.denominator,
-            (value) => change(bound.copyWith(denominator: value)),
+            '$label denominator',
+            amount.denominator,
+            (value) => change(amount.copyWith(denominator: value)),
           ),
         _text(
-          '$label uncertainty unit ID (optional)',
-          bound.unit,
-          (value) => change(bound.copyWith(unit: value)),
+          '$label unit ID (optional)',
+          amount.unit,
+          (value) => change(amount.copyWith(unit: value)),
         ),
       ],
     ],
@@ -95,11 +111,18 @@ class TemporalValidityFields extends StatelessWidget {
     children: [
       _choice('Temporal validity', input.kind, {
         'instant': 'At an exact time',
+        'instant_interval': 'At a time interval',
+        'instant_approximate': 'At an approximate time',
+        'instant_duration': 'Duration expression',
+        'instant_relative': 'At a relative time',
+        'instant_unspecified': 'Unspecified time expression',
         'interval': 'Interval',
         'calendar_interval': 'Interval in a calendar',
         'persistent': 'From a bound until changed',
       }, (kind) => onChanged(input.copyWith(kind: kind))),
-      if (input.kind == 'instant' || input.kind == 'calendar_interval')
+      if ((input.kind.startsWith('instant') &&
+              input.kind != 'instant_unspecified') ||
+          input.kind == 'calendar_interval')
         _text(
           'Calendar ID',
           input.calendar,
@@ -108,14 +131,47 @@ class TemporalValidityFields extends StatelessWidget {
       const Text(
         'Enter time values in the authored calendar’s notation. Values are retained exactly.',
       ),
-      if (input.kind == 'instant')
+      if (input.kind == 'instant' || input.kind == 'instant_approximate') ...[
         _text(
           'At value',
           input.start.value,
           (value) => onChanged(
             input.copyWith(start: input.start.copyWith(value: value)),
           ),
+        ),
+        if (input.kind == 'instant_approximate')
+          _amount(
+            'Time uncertainty',
+            input.start,
+            (amount) => onChanged(input.copyWith(start: amount)),
+          ),
+      ] else if (input.kind == 'instant_duration')
+        _amount(
+          'Duration',
+          input.start,
+          (amount) => onChanged(input.copyWith(start: amount)),
         )
+      else if (input.kind == 'instant_relative') ...[
+        _choice('Temporal relation', input.relation, {
+          '': 'Choose a relation',
+          'before': 'Before',
+          'after': 'After',
+          'during': 'During',
+          'overlaps': 'Overlaps',
+          'simultaneous': 'Simultaneous',
+        }, (relation) => onChanged(input.copyWith(relation: relation))),
+        _text(
+          'Target universe ID (optional)',
+          input.targetUniverse,
+          (value) => onChanged(input.copyWith(targetUniverse: value)),
+        ),
+        _text(
+          'Target record ID',
+          input.targetRecord,
+          (value) => onChanged(input.copyWith(targetRecord: value)),
+        ),
+      ] else if (input.kind == 'instant_unspecified')
+        const Text('The time expression is explicitly unspecified.')
       else ...[
         _bound(
           'Start',
