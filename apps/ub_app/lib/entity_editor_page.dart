@@ -596,6 +596,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
             _ => 'retain',
           };
     return ExpansionTile(
+      key: const ValueKey('entity name details'),
       title: const Text('Name details (optional)'),
       children: [
         _nameMetadata(
@@ -885,231 +886,237 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 760),
-          child: ListView(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
-            children: [
-              Text(
-                widget.continuity.name,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              Text(
-                'Context: ${representedContextName(widget.representedContext)}',
-              ),
-              Text(
-                _classificationOnly
-                    ? 'Choose a type for an unclassified entity, or a descendant of its current type. Changes preserve its identity and existing facts.'
-                    : 'A name is enough to start. Unfinished work stays on this device; adding to Changes does not change canon.',
-              ),
-              if (_loading || _saving || _adding)
-                const LinearProgressIndicator(),
-              if (_base != null && _base!.baseRevision != _revision)
-                const Text(
-                  'Recovered fields use an earlier revision. Changes retain it until you explicitly rebase the draft.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  widget.continuity.name,
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
-              if (_stale) ...[
-                const Text(
-                  'Recovered edits belong to an earlier draft. Your fields remain visible; use current draft fields before saving changes.',
+                Text(
+                  'Context: ${representedContextName(widget.representedContext)}',
                 ),
-                TextButton(
-                  onPressed: _disabled ? null : _useCurrentFields,
-                  child: const Text('Use current draft fields'),
+                Text(
+                  _classificationOnly
+                      ? 'Choose a type for an unclassified entity, or a descendant of its current type. Changes preserve its identity and existing facts.'
+                      : 'A name is enough to start. Unfinished work stays on this device; adding to Changes does not change canon.',
                 ),
-              ],
-              if (!_classificationOnly) ...[
-                _field(_name, 'Name'),
-                _nameDetailsFields(),
-              ],
-              const SizedBox(height: 12),
-              if (!_nameOnly)
-                DropdownButtonFormField<String>(
-                  key: ValueKey(_classification),
-                  initialValue: _classification,
-                  decoration: InputDecoration(
-                    labelText: _classificationOnly
-                        ? 'Classification'
-                        : 'Classification (optional)',
+                if (_loading || _saving || _adding)
+                  const LinearProgressIndicator(),
+                if (_base != null && _base!.baseRevision != _revision)
+                  const Text(
+                    'Recovered fields use an earlier revision. Changes retain it until you explicitly rebase the draft.',
                   ),
-                  items: [
-                    DropdownMenuItem(
-                      value: '',
-                      child: Text(
-                        _classificationOnly
-                            ? 'Choose a classification'
-                            : 'Leave unclassified',
-                      ),
+                if (_stale) ...[
+                  const Text(
+                    'Recovered edits belong to an earlier draft. Your fields remain visible; use current draft fields before saving changes.',
+                  ),
+                  TextButton(
+                    onPressed: _disabled ? null : _useCurrentFields,
+                    child: const Text('Use current draft fields'),
+                  ),
+                ],
+                if (!_classificationOnly) ...[
+                  _field(_name, 'Name'),
+                  _nameDetailsFields(),
+                ],
+                const SizedBox(height: 12),
+                if (!_nameOnly)
+                  DropdownButtonFormField<String>(
+                    key: ValueKey(_classification),
+                    initialValue: _classification,
+                    decoration: InputDecoration(
+                      labelText: _classificationOnly
+                          ? 'Classification'
+                          : 'Classification (optional)',
                     ),
-                    for (final type in _types)
+                    items: [
                       DropdownMenuItem(
-                        value: type.recordId.value,
-                        child: Text(type.label),
-                      ),
-                    if (_classification.isNotEmpty &&
-                        !_types.any((t) => t.recordId.value == _classification))
-                      DropdownMenuItem(
-                        value: _classification,
-                        child: const Text(
-                          'Saved classification (not in loaded list)',
+                        value: '',
+                        child: Text(
+                          _classificationOnly
+                              ? 'Choose a classification'
+                              : 'Leave unclassified',
                         ),
                       ),
-                  ],
-                  onChanged: _disabled
-                      ? null
-                      : (value) {
-                          setState(() => _classification = value!);
-                          _changed();
-                        },
-                ),
-              if (_delivery?.complete == false)
-                TextButton(
-                  onPressed: _disabled || _delivery?.cursor == null
-                      ? null
-                      : _moreTypes,
-                  child: const Text('Load more classifications'),
-                ),
-              const SizedBox(height: 12),
-              if (_editingDraft != null && !_classificationOnly) ...[
-                const Text('Original name details'),
-                Text(
-                  _nameOnly
-                      ? 'The target identity and expected version are retained. Validity stays unchanged unless you edit it.'
-                      : 'Name identity is retained. World and role edits retain validity and qualifiers unless those fields are explicitly changed.',
-                ),
-                ExactFields(value: _originalName!.toWire()),
-              ],
-              if (_editingDraft != null && !_recordOnly) ...[
-                const Text('World associations (not location)'),
-                for (var i = 0; i < _associations.length; i++)
-                  _associationRow(i),
-                if (_associations.isEmpty) const Text('No world associations'),
-                if (!_worldsComplete)
-                  const Text('Only part of the world list was returned.'),
-                TextButton(
-                  onPressed: _disabled
-                      ? null
-                      : () {
-                          setState(
-                            () => _associations.add(
-                              _AssociationFields(
-                                const EntityAssociationForm(
-                                  world: '',
-                                  role: '',
-                                ),
-                              ),
-                            ),
-                          );
-                          _changed();
-                        },
-                  child: const Text('Add world association'),
-                ),
-              ] else if (!_recordOnly) ...[
-                const Text('World associations'),
-                const Text(
-                  'Selecting several worlds preserves one shared identity. No selection declares no association. Associations do not establish location.',
-                ),
-                for (final world in _worlds)
-                  CheckboxListTile(
-                    title: Text(world.name.value),
-                    value: _selected.contains(world.id),
+                      for (final type in _types)
+                        DropdownMenuItem(
+                          value: type.recordId.value,
+                          child: Text(type.label),
+                        ),
+                      if (_classification.isNotEmpty &&
+                          !_types.any(
+                            (t) => t.recordId.value == _classification,
+                          ))
+                        DropdownMenuItem(
+                          value: _classification,
+                          child: const Text(
+                            'Saved classification (not in loaded list)',
+                          ),
+                        ),
+                    ],
                     onChanged: _disabled
                         ? null
-                        : (selected) {
-                            setState(() {
-                              if (selected!) {
-                                _selected.add(world.id);
-                              } else {
-                                _selected.remove(world.id);
-                              }
-                            });
+                        : (value) {
+                            setState(() => _classification = value!);
                             _changed();
                           },
                   ),
-                if (!_worldsComplete)
-                  const Text('Only part of the world list was returned.'),
-                if (_selected.any(
-                  (id) => !_worlds.any((world) => world.id == id),
-                ))
-                  const Text(
-                    'Saved world selections outside this list are retained.',
-                  ),
-                if (_selected.isNotEmpty)
-                  _field(_role, 'World association role'),
-                _field(_rationale, 'Notes and rationale'),
-              ],
-              if (widget.publishedEntity != null) ...[
-                Text(
-                  _classificationOnly
-                      ? 'Names, world associations and other entity facts are retained.'
-                      : 'Existing names remain attached to the same identity.',
-                ),
-                if (_base?.expectedRecordVersion !=
-                    widget.publishedEntity!.recordVersionId)
-                  const Text(
-                    'Recovered input retains an earlier entity version. Review or rebase it in Changes before publication.',
-                  ),
-                _field(_rationale, 'Notes and rationale'),
-              ],
-              const SizedBox(height: 16),
-              Text(
-                _dirty
-                    ? 'Unsaved fields'
-                    : _generation == BigInt.zero
-                    ? 'No saved fields yet'
-                    : 'Saved on this device',
-              ),
-              if (_error != null)
-                Semantics(liveRegion: true, child: Text(_error!)),
-              if (_added != null) ...[
-                Semantics(liveRegion: true, child: Text(_added!)),
-                if (widget.editingDraft == null &&
-                    widget.publishedEntity == null)
+                if (_delivery?.complete == false)
                   TextButton(
-                    onPressed: _disabled ? null : _startAnother,
-                    child: const Text('Start another entity'),
+                    onPressed: _disabled || _delivery?.cursor == null
+                        ? null
+                        : _moreTypes,
+                    child: const Text('Load more classifications'),
                   ),
-              ],
-              FilledButton(
-                onPressed: _disabled || _stale ? null : _add,
-                child: Text(
-                  widget.publishedEntity != null
-                      ? _classificationOnly
-                            ? 'Add classification to changes'
-                            : 'Add name to changes'
-                      : widget.editingDraft == null
-                      ? 'Add entity to changes'
-                      : _classificationOnly
-                      ? 'Save classification changes'
-                      : _nameOnly
-                      ? 'Save name changes'
-                      : 'Save entity changes',
+                const SizedBox(height: 12),
+                if (_editingDraft != null && !_classificationOnly) ...[
+                  const Text('Original name details'),
+                  Text(
+                    _nameOnly
+                        ? 'The target identity and expected version are retained. Validity stays unchanged unless you edit it.'
+                        : 'Name identity is retained. World and role edits retain validity and qualifiers unless those fields are explicitly changed.',
+                  ),
+                  ExactFields(value: _originalName!.toWire()),
+                ],
+                if (_editingDraft != null && !_recordOnly) ...[
+                  const Text('World associations (not location)'),
+                  for (var i = 0; i < _associations.length; i++)
+                    _associationRow(i),
+                  if (_associations.isEmpty)
+                    const Text('No world associations'),
+                  if (!_worldsComplete)
+                    const Text('Only part of the world list was returned.'),
+                  TextButton(
+                    onPressed: _disabled
+                        ? null
+                        : () {
+                            setState(
+                              () => _associations.add(
+                                _AssociationFields(
+                                  const EntityAssociationForm(
+                                    world: '',
+                                    role: '',
+                                  ),
+                                ),
+                              ),
+                            );
+                            _changed();
+                          },
+                    child: const Text('Add world association'),
+                  ),
+                ] else if (!_recordOnly) ...[
+                  const Text('World associations'),
+                  const Text(
+                    'Selecting several worlds preserves one shared identity. No selection declares no association. Associations do not establish location.',
+                  ),
+                  for (final world in _worlds)
+                    CheckboxListTile(
+                      title: Text(world.name.value),
+                      value: _selected.contains(world.id),
+                      onChanged: _disabled
+                          ? null
+                          : (selected) {
+                              setState(() {
+                                if (selected!) {
+                                  _selected.add(world.id);
+                                } else {
+                                  _selected.remove(world.id);
+                                }
+                              });
+                              _changed();
+                            },
+                    ),
+                  if (!_worldsComplete)
+                    const Text('Only part of the world list was returned.'),
+                  if (_selected.any(
+                    (id) => !_worlds.any((world) => world.id == id),
+                  ))
+                    const Text(
+                      'Saved world selections outside this list are retained.',
+                    ),
+                  if (_selected.isNotEmpty)
+                    _field(_role, 'World association role'),
+                  _field(_rationale, 'Notes and rationale'),
+                ],
+                if (widget.publishedEntity != null) ...[
+                  Text(
+                    _classificationOnly
+                        ? 'Names, world associations and other entity facts are retained.'
+                        : 'Existing names remain attached to the same identity.',
+                  ),
+                  if (_base?.expectedRecordVersion !=
+                      widget.publishedEntity!.recordVersionId)
+                    const Text(
+                      'Recovered input retains an earlier entity version. Review or rebase it in Changes before publication.',
+                    ),
+                  _field(_rationale, 'Notes and rationale'),
+                ],
+                const SizedBox(height: 16),
+                Text(
+                  _dirty
+                      ? 'Unsaved fields'
+                      : _generation == BigInt.zero
+                      ? 'No saved fields yet'
+                      : 'Saved on this device',
                 ),
-              ),
-              TextButton(
-                onPressed: _disabled || !_dirty ? null : _save,
-                child: const Text('Save unfinished work'),
-              ),
-              if (widget.editingDraft == null)
+                if (_error != null)
+                  Semantics(liveRegion: true, child: Text(_error!)),
+                if (_added != null) ...[
+                  Semantics(liveRegion: true, child: Text(_added!)),
+                  if (widget.editingDraft == null &&
+                      widget.publishedEntity == null)
+                    TextButton(
+                      onPressed: _disabled ? null : _startAnother,
+                      child: const Text('Start another entity'),
+                    ),
+                ],
+                FilledButton(
+                  onPressed: _disabled || _stale ? null : _add,
+                  child: Text(
+                    widget.publishedEntity != null
+                        ? _classificationOnly
+                              ? 'Add classification to changes'
+                              : 'Add name to changes'
+                        : widget.editingDraft == null
+                        ? 'Add entity to changes'
+                        : _classificationOnly
+                        ? 'Save classification changes'
+                        : _nameOnly
+                        ? 'Save name changes'
+                        : 'Save entity changes',
+                  ),
+                ),
                 TextButton(
-                  onPressed: _disabled
-                      ? null
-                      : () => Navigator.of(context).push<void>(
-                          MaterialPageRoute(
-                            builder: (_) => ChangesPage(
-                              changes: SavedChanges(
-                                session: widget.session,
-                                universe: Selector(widget.universe.name),
-                                scope: widget.scope,
+                  onPressed: _disabled || !_dirty ? null : _save,
+                  child: const Text('Save unfinished work'),
+                ),
+                if (widget.editingDraft == null)
+                  TextButton(
+                    onPressed: _disabled
+                        ? null
+                        : () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => ChangesPage(
+                                changes: SavedChanges(
+                                  session: widget.session,
+                                  universe: Selector(widget.universe.name),
+                                  scope: widget.scope,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                  child: const Text('Review saved changes'),
-                ),
-              if (_error != null && !_disabled)
-                TextButton(
-                  onPressed: _load,
-                  child: const Text('Reload saved form and choices'),
-                ),
-            ],
+                    child: const Text('Review saved changes'),
+                  ),
+                if (_error != null && !_disabled)
+                  TextButton(
+                    onPressed: _load,
+                    child: const Text('Reload saved form and choices'),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

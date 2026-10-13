@@ -83,7 +83,8 @@ a calendar preserves authored coordinates, bounds and amounts without conversion
 Units use named choices in quantities, ranges, spatial distances and temporal
 amounts at the same saved revision and context. Optional units can be removed;
 advanced IDs remain editable. Unit selection does not convert the authored amount.
-Relative target record references currently use IDs.
+Relative-time and spatial targets use named record choices at the saved revision
+and context, with editable advanced record and universe IDs.
 Relative expressions retain explicit record/universe targets and temporal relations.
 Text and boolean amounts can be edited without converting their types; units
 apply to numeric amounts. Association qualifiers can be added, renamed, edited or removed with text,
@@ -91,8 +92,10 @@ boolean, integer, decimal, rational, numeric quantity, record/entity/proposition
 reference and enumeration values. Enumeration and structure definitions use named
 choices at the unfinished form’s saved revision and context, including nested
 values. Advanced definition IDs remain editable. Choosing a definition preserves
-authored entry keys and field values. Reference targets currently use explicit IDs;
-an omitted target universe remains omitted. Sequences,
+authored entry keys and field values. Entity and proposition targets use named
+choices filtered to the required record kind; generic references can choose any
+accessible record. An omitted target universe remains omitted until a new named
+selection explicitly supplies its universe. Advanced IDs remain editable. Sequences,
 sets and structured fields support nested typed values, item addition/removal,
 item reordering and field renaming. Ranges support typed bounds, explicit inclusion
 choices and an optional unit. Temporal qualifiers use the same exact, interval,

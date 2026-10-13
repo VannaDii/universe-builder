@@ -3,6 +3,7 @@ import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'package:ub_domain/ub_domain.dart';
 
 import 'saved_changes.dart';
+import 'record_reference_fields.dart';
 import 'unit_reference_field.dart';
 
 import 'value_input_fields.dart';
@@ -221,15 +222,16 @@ class TemporalValidityFields extends StatelessWidget {
           'overlaps': 'Overlaps',
           'simultaneous': 'Simultaneous',
         }, (relation) => onChanged(input.copyWith(relation: relation))),
-        _text(
-          'Target universe ID (optional)',
-          input.targetUniverse,
-          (value) => onChanged(input.copyWith(targetUniverse: value)),
-        ),
-        _text(
-          'Target record ID',
-          input.targetRecord,
-          (value) => onChanged(input.copyWith(targetRecord: value)),
+        RecordReferenceFields(
+          changes: changes,
+          draft: draft,
+          record: input.targetRecord,
+          universe: input.targetUniverse,
+          label: 'Relative target',
+          disabled: disabled,
+          onChanged: (record, universe) => onChanged(
+            input.copyWith(targetRecord: record, targetUniverse: universe),
+          ),
         ),
       ] else if (input.kind == 'instant_unspecified')
         const Text('The time expression is explicitly unspecified.')

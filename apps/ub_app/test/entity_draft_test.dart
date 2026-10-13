@@ -7,6 +7,7 @@ import 'package:test/test.dart';
 import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/entity_draft.dart';
+import 'package:ub_app/draft_record_choices.dart';
 import 'package:ub_app/qualifier_draft.dart';
 import 'package:ub_app/saved_changes.dart';
 import 'package:ub_app/temporal_validity_draft.dart';
@@ -111,6 +112,102 @@ void main() {
         (await changes().load())!,
         startNew: true,
       );
+      final choiceContext = await openDraftChoiceContext(changes(), fresh);
+      final choices = await searchDraftChoices(
+        changes: changes(),
+        context: choiceContext,
+        kind: null,
+      );
+      final hit = choices.result.hits.singleWhere(
+        (h) => h.recordId == entity.identity.recordId,
+      );
+      final chosen = await selectDraftChoice(
+        changes: changes(),
+        context: choiceContext,
+        hit: hit,
+        kind: null,
+      );
+      expect(chosen.record, entity.identity.recordId);
+      expect(chosen.universe, scope.universe);
+      final summary = await readDraftChoiceSummary(
+        changes: changes(),
+        context: choiceContext,
+        record: chosen.record,
+        kind: null,
+      );
+      expect(summary.label, 'Mara');
+      await expectLater(
+        selectDraftChoice(
+          changes: changes(),
+          context: choiceContext,
+          hit: hit,
+          kind: RecordKind.proposition,
+        ),
+        throwsFormatException,
+      );
+      await expectLater(
+        selectDraftChoice(
+          changes: changes(),
+          context: choiceContext,
+          hit: SearchHit(
+            recordId: hit.recordId,
+            kind: RecordKind.proposition,
+            label: hit.label,
+            worldIds: hit.worldIds,
+            scopeCategory: hit.scopeCategory,
+          ),
+          kind: null,
+        ),
+        throwsFormatException,
+      );
+      for (final universe in ['', chosen.universe!.value]) {
+        for (final kind in ['entity_ref', 'record_ref', 'proposition_ref']) {
+          final input = QualifierInput(
+            kind: kind,
+            value: chosen.record.value,
+            universe: universe,
+          );
+          final recovered = QualifierInput.fromWire(input.toWire());
+          final value = buildQualifierValue(recovered, null) as ReferenceValue;
+          expect(value.record.record, chosen.record);
+          expect(
+            value.record.universe?.value,
+            universe.isEmpty ? null : universe,
+          );
+        }
+        final spatial = buildQualifierValue(
+          QualifierInput.fromWire(
+            QualifierInput(
+              kind: 'spatial_contained_in',
+              value: chosen.record.value,
+              universe: universe,
+            ).toWire(),
+          ),
+          null,
+        ) as SpatialValue;
+        expect((spatial.spatial as SpatialLink).target.record, chosen.record);
+        expect(
+          (spatial.spatial as SpatialLink).target.universe?.value,
+          universe.isEmpty ? null : universe,
+        );
+        final relative = buildTemporalValidity(
+          TemporalValidityInput.fromWire(
+            TemporalValidityInput(
+              kind: 'instant_relative',
+              calendar: CalendarId.generate().value,
+              relation: 'after',
+              targetRecord: chosen.record.value,
+              targetUniverse: universe,
+            ).toWire(),
+          ),
+          null,
+        ) as InstantValidity;
+        expect((relative.at as RelativeTime).target.record, chosen.record);
+        expect(
+          (relative.at as RelativeTime).target.universe?.value,
+          universe.isEmpty ? null : universe,
+        );
+      }
       final formScope = EditorFormScope(
         instance: instance,
         profile: author,

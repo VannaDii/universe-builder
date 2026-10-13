@@ -3,6 +3,7 @@ import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'package:ub_domain/ub_domain.dart';
 
 import 'saved_changes.dart';
+import 'record_reference_fields.dart';
 import 'draft_record_choice_field.dart';
 import 'draft_record_choices.dart';
 import 'unit_reference_field.dart';
@@ -185,8 +186,7 @@ class _ValueInputFieldsState extends State<ValueInputFields> {
                   : ExactFields(value: retained.toWire())
             else ...[
               if (fields.kind == 'spatial_distance') ...[
-                _field(fields.universe, 'From universe ID (optional)'),
-                _field(fields.value, 'From record ID'),
+                _referenceChoice(fields, label: 'Distance reference'),
                 _qualifierRow(
                   [fields.lower!],
                   0,
@@ -203,8 +203,7 @@ class _ValueInputFieldsState extends State<ValueInputFields> {
                 'spatial_adjacent_to',
                 'spatial_connected_to',
               ].contains(fields.kind)) ...[
-                _field(fields.universe, 'Target universe ID (optional)'),
-                _field(fields.value, 'Target record ID'),
+                _referenceChoice(fields),
               ] else if (fields.kind == 'spatial_unspecified')
                 const Text('The spatial expression is explicitly unspecified.')
               else if (fields.kind == 'temporal')
@@ -317,8 +316,14 @@ class _ValueInputFieldsState extends State<ValueInputFields> {
                 'record_ref',
                 'proposition_ref',
               ].contains(fields.kind)) ...[
-                _field(fields.universe, 'Target universe ID (optional)'),
-                _field(fields.value, 'Target record ID'),
+                _referenceChoice(
+                  fields,
+                  kind: switch (fields.kind) {
+                    'entity_ref' => RecordKind.entity,
+                    'proposition_ref' => RecordKind.proposition,
+                    _ => null,
+                  },
+                ),
               ] else if (fields.kind == 'enum') ...[
                 _definitionChoice(fields, 'Enumeration definition'),
                 _field(fields.value, 'Enumeration entry key'),
@@ -404,6 +409,27 @@ class _ValueInputFieldsState extends State<ValueInputFields> {
       ),
     );
   }
+
+  Widget _referenceChoice(
+    _QualifierFields fields, {
+    String label = 'Target record',
+    RecordKind? kind,
+  }) => RecordReferenceFields(
+    changes: widget.changes,
+    draft: widget.draft,
+    record: fields.value.text,
+    universe: fields.universe.text,
+    kind: kind,
+    label: label,
+    disabled: _disabled,
+    onChanged: (record, universe) {
+      setState(() {
+        fields.value.text = record;
+        fields.universe.text = universe;
+      });
+      _changed();
+    },
+  );
 
   Widget _definitionChoice(_QualifierFields fields, String label) {
     String record;

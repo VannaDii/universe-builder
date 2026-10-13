@@ -32,7 +32,7 @@ LibraryEntry _library(SavedChanges changes) =>
 Future<Envelope<SearchResults>> searchDraftChoices({
   required SavedChanges changes,
   required OpenedContext context,
-  required RecordKind kind,
+  required RecordKind? kind,
   String query = '',
   String? cursor,
   int limit = 50,
@@ -50,7 +50,7 @@ Future<RecordSummary> readDraftChoiceSummary({
   required SavedChanges changes,
   required OpenedContext context,
   required RecordId record,
-  required RecordKind kind,
+  required RecordKind? kind,
 }) async {
   final read = await readContextRecordMaterial(
     session: changes.session,
@@ -62,7 +62,7 @@ Future<RecordSummary> readDraftChoiceSummary({
   if (!read.delivery.complete ||
       read.result.summaries.length != 1 ||
       read.result.summaries.single.recordId != record ||
-      read.result.summaries.single.kind != kind) {
+      (kind != null && read.result.summaries.single.kind != kind)) {
     throw const FormatException('Record is not available for this choice.');
   }
   return read.result.summaries.single;
@@ -72,9 +72,9 @@ Future<RecordRef> selectDraftChoice({
   required SavedChanges changes,
   required OpenedContext context,
   required SearchHit hit,
-  required RecordKind kind,
+  required RecordKind? kind,
 }) async {
-  if (hit.kind != kind) {
+  if (kind != null && hit.kind != kind) {
     throw const FormatException('Choose the required record type.');
   }
   final record = await readContextRecord(
@@ -83,7 +83,7 @@ Future<RecordRef> selectDraftChoice({
     context: context,
     record: hit.recordId,
   );
-  if (record.payload.recordKind != kind) {
+  if (record.payload.recordKind != (kind ?? hit.kind)) {
     throw const FormatException('Choose the required record type.');
   }
   return RecordRef(

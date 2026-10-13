@@ -19,7 +19,7 @@ class DraftRecordChoiceField extends StatefulWidget {
   });
   final SavedChanges changes;
   final SavedDraft draft;
-  final RecordKind kind;
+  final RecordKind? kind;
   final String label, record, universe;
   final bool disabled;
   final ValueChanged<RecordRef> onChanged;
@@ -42,6 +42,11 @@ class _DraftRecordChoiceFieldState extends State<DraftRecordChoiceField> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.record != widget.record ||
         oldWidget.universe != widget.universe ||
+        oldWidget.kind != widget.kind ||
+        oldWidget.changes.session != widget.changes.session ||
+        oldWidget.changes.scope.universe != widget.changes.scope.universe ||
+        oldWidget.draft.content.representedContext !=
+            widget.draft.content.representedContext ||
         oldWidget.draft.content.baseRevision !=
             widget.draft.content.baseRevision) {
       _readName();
@@ -117,7 +122,7 @@ class _DraftRecordPicker extends StatefulWidget {
   });
   final SavedChanges changes;
   final SavedDraft draft;
-  final RecordKind kind;
+  final RecordKind? kind;
   final String label;
   @override
   State<_DraftRecordPicker> createState() => _DraftRecordPickerState();
