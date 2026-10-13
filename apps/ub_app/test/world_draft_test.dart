@@ -4,6 +4,60 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 void main() {
+  test(
+    'world field edits preserve external references and unexposed details',
+    () {
+      final world = CreateWorldOperation(
+        clientRef: 'writer/world:river',
+        record: WorldRecord(
+          selector: 'River',
+          aliases: ['Old river', '古河'],
+          settingType: '',
+          labels: {'en': '', 'fr': 'Rivière'},
+          metadata: {'source note': const TextValue('Keep\r\nexact')},
+        ),
+      );
+      final other = CreateWorldOperation(
+        clientRef: 'mountain',
+        record: WorldRecord(selector: 'Mountain'),
+      );
+      final draft = DraftContent(
+        baseRevision: RevisionId.generate(),
+        representedContext: RecordId.generate(),
+        operations: [other, world],
+        rationale: 'Keep this rationale',
+      );
+      DraftContent edit(String name, String type, String label) =>
+          editWorldDraftFields(
+            draft: draft,
+            index: 1,
+            selector: name,
+            settingType: type,
+            englishLabel: label,
+          );
+      expect(edit('River', '', '').toWire().toText(), draft.toWire().toText());
+      final changed = edit(' River delta ', 'Historical', 'River delta');
+      final operation = changed.operations.last as CreateWorldOperation;
+      expect(operation.clientRef, world.clientRef);
+      expect(operation.record.selector, ' River delta ');
+      expect(operation.record.aliases, world.record.aliases);
+      expect(operation.record.labels, {'en': 'River delta', 'fr': 'Rivière'});
+      expect(
+        operation.record.metadata['source note']!.toWire().toText(),
+        world.record.metadata['source note']!.toWire().toText(),
+      );
+      expect(
+        changed.operations.first.toWire().toText(),
+        other.toWire().toText(),
+      );
+      expect(changed.baseRevision, draft.baseRevision);
+      expect(changed.representedContext, draft.representedContext);
+      expect(changed.rationale, draft.rationale);
+      expect(world.record.selector, 'River');
+      expect(() => edit(' \n ', '', ''), throwsFormatException);
+    },
+  );
+
   test('completed worlds preserve exact fields and existing changes', () {
     final revision = RevisionId.generate();
     final context = RecordId.generate();

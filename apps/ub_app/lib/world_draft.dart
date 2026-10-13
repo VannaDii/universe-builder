@@ -1,6 +1,63 @@
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
+/// Edits the visible fields without replacing an operation's authored identity
+/// or details that this editor does not expose.
+DraftContent editWorldDraftFields({
+  required DraftContent draft,
+  required int index,
+  required String selector,
+  required String settingType,
+  required String englishLabel,
+}) {
+  if (draft.proposal != null) {
+    throw const FormatException(
+      'Continue editing separately before changing a submitted proposal.',
+    );
+  }
+  if (selector.trim().isEmpty) {
+    throw const FormatException('Enter a world name before saving changes.');
+  }
+  final operation = draft.operations[index];
+  if (operation is! CreateWorldOperation) {
+    throw const FormatException(
+      'Choose a world creation to edit these fields.',
+    );
+  }
+  final original = operation.record;
+  final labels = {...original.labels};
+  // An untouched empty value remains exact; explicitly clearing a label removes
+  // it, matching the ordinary new-world form's optional label behavior.
+  if (englishLabel != (original.labels['en'] ?? '')) {
+    if (englishLabel.isEmpty) {
+      labels.remove('en');
+    } else {
+      labels['en'] = englishLabel;
+    }
+  }
+  final operations = [...draft.operations];
+  operations[index] = CreateWorldOperation(
+    clientRef: operation.clientRef,
+    record: WorldRecord(
+      selector: selector,
+      settingType: settingType == (original.settingType ?? '')
+          ? original.settingType
+          : settingType.isEmpty
+          ? null
+          : settingType,
+      aliases: original.aliases,
+      labels: labels,
+      metadata: original.metadata,
+    ),
+  );
+  return DraftContent(
+    baseRevision: draft.baseRevision,
+    representedContext: draft.representedContext,
+    operations: operations,
+    rationale: draft.rationale,
+  );
+}
+
 /// Converts completed fields only when the author explicitly adds them.
 SaveDraftEngineRequest worldDraftRequest({
   required Selector universe,

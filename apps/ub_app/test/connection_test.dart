@@ -456,6 +456,71 @@ void main() {
       expect(emptyDraft.content.operations, isEmpty);
       expect(emptyDraft.content.baseRevision, secondReceipt.revision);
       expect(emptyDraft.content.rationale, isEmpty);
+      final worldToEdit = await resumedChanges.saveContent(
+        emptyDraft,
+        DraftContent(
+          baseRevision: emptyDraft.content.baseRevision,
+          representedContext: emptyDraft.content.representedContext,
+          operations: [
+            CreateWorldOperation(
+              clientRef: 'external-writer/new-world',
+              record: WorldRecord(
+                selector: 'Local draft world',
+                aliases: ['Earlier name'],
+                labels: {'fr': 'Monde'},
+                metadata: {'notes': const TextValue('Author supplied')},
+              ),
+            ),
+          ],
+          rationale: 'Edit the draft, preserving its identity.',
+        ),
+      );
+      final editedWorld = await resumedChanges.editWorldFields(
+        worldToEdit,
+        0,
+        selector: 'Edited local world',
+        settingType: 'Historical',
+        englishLabel: 'Edited world',
+      );
+      final savedWorld =
+          (await resumedChanges.load())!.content.operations.single
+              as CreateWorldOperation;
+      expect(savedWorld.clientRef, 'external-writer/new-world');
+      expect(savedWorld.record.selector, 'Edited local world');
+      expect(savedWorld.record.aliases, ['Earlier name']);
+      expect(savedWorld.record.labels, {'fr': 'Monde', 'en': 'Edited world'});
+      expect(savedWorld.record.metadata['notes'], isA<TextValue>());
+      expect(editedWorld.content.rationale, worldToEdit.content.rationale);
+      await expectLater(
+        resumedChanges.editWorldFields(
+          worldToEdit,
+          0,
+          selector: 'Competing edit',
+          settingType: '',
+          englishLabel: '',
+        ),
+        throwsA(isA<BaseRevisionConflictError>()),
+      );
+      expect(
+        (await resumedChanges.editWorldFields(
+          worldToEdit,
+          0,
+          selector: 'Edited local world',
+          settingType: 'Historical',
+          englishLabel: 'Edited world',
+        )).version,
+        editedWorld.version,
+      );
+      expect(
+        () => resumedChanges.editWorldFields(
+          linked,
+          0,
+          selector: 'Cannot edit submitted world',
+          settingType: '',
+          englishLabel: '',
+        ),
+        throwsFormatException,
+      );
       final unchangedHead = Envelope<Description>.fromWire(
         await owner.call(
           ToolEngineRequest(

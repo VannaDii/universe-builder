@@ -2,6 +2,7 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 import 'connection.dart';
+import 'world_draft.dart';
 
 /// Uses the service's existing drafts, operation recovery and frozen proposals.
 final class SavedChanges {
@@ -226,6 +227,23 @@ final class SavedChanges {
         expectedVersion: draft.version,
         content: content,
       ),
+    ),
+  );
+
+  Future<SavedDraft> editWorldFields(
+    SavedDraft draft,
+    int index, {
+    required String selector,
+    required String settingType,
+    required String englishLabel,
+  }) => saveContent(
+    draft,
+    editWorldDraftFields(
+      draft: draft.content,
+      index: index,
+      selector: selector,
+      settingType: settingType,
+      englishLabel: englishLabel,
     ),
   );
 
