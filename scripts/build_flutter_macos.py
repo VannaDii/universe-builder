@@ -15,6 +15,12 @@ args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
 app = root / 'apps/ub_app'
 engine = root / 'apps/ub_engine'
+bundle = app / f'build/macos/Build/Products/{args.mode.capitalize()}/Universe Builder.app'
+contents = bundle / 'Contents'
+helper_command = str(contents / 'MacOS/universe-engine') + ' '
+if any(line.strip().startswith(helper_command) for line in
+       subprocess.check_output(['/bin/ps', '-axo', 'command='], text=True).splitlines()):
+    parser.error('Stop this bundle\'s local engine before rebuilding it. Installation data is retained.')
 
 def run(*command, cwd=root):
     subprocess.run(command, cwd=cwd, check=True)
@@ -22,8 +28,6 @@ def run(*command, cwd=root):
 run('dart', 'build', 'cli', '--target', 'bin/universe-engine.dart',
     '--output', 'build/native', '--verbosity=error', cwd=engine)
 run('flutter', 'build', 'macos', f'--{args.mode}', '--no-pub', cwd=app)
-bundle = app / f'build/macos/Build/Products/{args.mode.capitalize()}/Universe Builder.app'
-contents = bundle / 'Contents'
 native = engine / 'build/native/bundle'
 shutil.copy2(native / 'bin/universe-engine', contents / 'MacOS/universe-engine')
 shutil.copytree(native / 'lib', contents / 'lib', dirs_exist_ok=True)

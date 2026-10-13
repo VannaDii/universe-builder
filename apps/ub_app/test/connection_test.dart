@@ -13,6 +13,7 @@ import 'package:ub_store/profile_credentials.dart';
 
 import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
+import 'package:ub_app/universe_creation.dart';
 
 void main() {
   test(
@@ -47,7 +48,7 @@ void main() {
         '--engine=/nonexistent/universe-engine',
       ]);
       try {
-      expect(DeviceConnection(['--installation=']).available, isFalse);
+        expect(DeviceConnection(['--installation=']).available, isFalse);
         owner = await connection(author).connect();
         expect(owner.author, isTrue);
         expect(
@@ -57,10 +58,13 @@ void main() {
           isEmpty,
         );
         await owner.call(
-          const CreateUniverseEngineRequest(
+          const UniverseCreationForm(
             name: 'A shared history',
-            start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
-          ),
+            calendar: CreationCalendar.gregorian,
+            date: '2040-01-01',
+            time: '00:00:00',
+            offset: '+05:30',
+          ).request(),
         );
         final catalog = InstanceLibrary.fromWire(
           await owner.call(const StatusEngineRequest()),
@@ -77,8 +81,38 @@ void main() {
           Description.fromWire,
         );
         expect(description.result.continuities, isNotEmpty);
+        final fictional = createdUniverse(
+          await owner.call(
+            const UniverseCreationForm(
+              name: 'Before the first age',
+              calendar: CreationCalendar.fictional,
+              calendarName: 'Ages',
+              initialTick: '-123456789012345678901234567890',
+              tickLabel: 'beat',
+            ).request(),
+          ),
+        );
+        expect(fictional.name, 'Before the first age');
+        expect(
+          InstanceLibrary.fromWire(
+            await owner.call(const StatusEngineRequest()),
+          ).universes.map((row) => row.id),
+          contains(fictional.id),
+        );
         contributor = await connection(writer).connect();
         expect(contributor.author, isFalse);
+        await expectLater(
+          contributor.call(
+            const UniverseCreationForm(
+              name: 'Not permitted',
+              calendar: CreationCalendar.gregorian,
+              date: '2040-01-01',
+              time: '00:00:00',
+              offset: 'Z',
+            ).request(),
+          ),
+          throwsA(isA<ProtocolError>()),
+        );
         expect(
           InstanceLibrary.fromWire(
             await contributor.call(const StatusEngineRequest()),

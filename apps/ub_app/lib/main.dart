@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:ub_contracts/ub_contracts.dart' hide State;
 
 import 'connection.dart';
+import 'create_universe_page.dart';
+import 'universe_creation.dart';
 import 'connection_stub.dart' if (dart.library.io) 'connection_native.dart';
 
 void main(List<String> arguments) =>
@@ -113,6 +115,54 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
     }
   }
 
+  Future<void> _newUniverse(BuildContext context) async {
+    final session = _session!;
+    final result = await Navigator.of(context).push<CreationResult>(
+      MaterialPageRoute(
+        builder: (_) => CreateUniversePage(
+          create: (request) async =>
+              createdUniverse(await session.call(request)),
+        ),
+      ),
+    );
+    if (!mounted || result == null) return;
+    if (result.refresh) {
+      await _connect();
+      return;
+    }
+    final created = result.created!;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final library = InstanceLibrary.fromWire(
+        await session.call(const StatusEngineRequest()),
+      );
+      if (!mounted) return;
+      setState(() {
+        _library = library;
+      });
+      final entry = library.universes.singleWhere(
+        (entry) => entry.id == created.id,
+      );
+      await _open(entry);
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _error =
+              'The universe was created. Refresh your connection to open it.';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
+  }
+
   ThemeData _colors(Brightness brightness) {
     final scheme = ColorScheme.fromSeed(
       seedColor: const Color(0xff516b80),
@@ -147,7 +197,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
               : _library == null
               ? _entry()
               : _selected == null
-              ? _universes()
+              ? _universes(context)
               : _overview();
           return Scaffold(
             appBar: AppBar(
@@ -279,7 +329,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
     ),
   );
 
-  Widget _universes() => ListView(
+  Widget _universes(BuildContext context) => ListView(
     padding: const EdgeInsets.all(32),
     children: [
       const Text(
@@ -291,6 +341,17 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
         'This computer · ${_session!.author ? 'Approval owner' : 'Contributor'}',
       ),
       const SizedBox(height: 24),
+      if (_session!.author) ...[
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.icon(
+            onPressed: _busy ? null : () => _newUniverse(context),
+            icon: const Icon(Icons.add),
+            label: const Text('Create universe'),
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
       if (_library!.universes.isEmpty)
         const Text('No universes are available to this profile.'),
       for (final universe in _library!.universes)

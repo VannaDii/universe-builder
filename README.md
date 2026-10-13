@@ -16,6 +16,8 @@ through its bundled engine. Build this local bundle with
 `python3 scripts/build_flutter_macos.py`; it includes native Dart assets, the
 approved icns, an inherited helper sandbox and a local ad-hoc code signature.
 This does not publish a release or provide distribution signing/notarization.
+Stop the bundle's engine before rebuilding; the build command refuses to replace
+a running helper.
 An explicit installation without a profile uses the same local device setup.
 The engine's `--device-profile` action prints only the retained profile ID;
 `--initialize` keeps its existing create-only behavior. The app starts HTTP-only
@@ -28,6 +30,16 @@ progress. Web explains its instance connection requirement;
 it does not offer local database authority. Generated mobile/Windows/Linux runners
 are not yet qualified. Build the shell from `apps/ub_app` with `flutter build web`
 or, on macOS, `flutter build macos --debug`.
+
+Connected approval owners can create a universe from Library. Gregorian creation
+uses an explicitly entered date, whole-second time and fixed UTC offset, with an
+exact start preview. Fictional creation uses a calendar name, signed initial tick,
+tick label and optional authored month conversion. No current date or inferred
+month conversion is supplied. Successful creation refreshes the catalog and opens
+the universe summary. Invalid input and known rejection retain the form; an
+interrupted response requires an explicit library check rather than resubmitting
+creation automatically. Unfinished creation fields are not yet recovered after
+app termination; typed durable form recovery remains in progress.
 
 The approved [conversion plan](docs/dart-conversion-plan.md) is being implemented
 alongside the current runtime. The Dart workspace currently contains the shared
