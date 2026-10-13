@@ -3903,6 +3903,77 @@ void main() {
           CommitReceipt.fromWire,
         );
         expect(published.frame!.revision, opened.frame.revision);
+        final sourceContext = await tool(
+          author,
+          OpenContextRequest(
+            universe: selector,
+            universeId: universe,
+            continuityId: continuity,
+            revision: ExactRevisionSelector(
+              revisionId: published.result.revision,
+            ),
+            representedContext: ContextIdSelector(
+              RecordId.parse(created.string('context_id')),
+            ),
+            temporalQuery: const TimelessFrameTime(),
+            temporalSystems: [],
+            perspective: const AuthorPerspective(),
+          ),
+          OpenedContext.fromWire,
+        );
+        final sourceRows = await tool(
+          author,
+          GetRequest(
+            universe: selector,
+            universeId: universe,
+            contextId: sourceContext.contextId,
+            recordIds: [anchor.sourceVersion.record],
+            fieldGroups: [FieldGroup.payload],
+          ),
+          Records.fromWire,
+        );
+        final retainedVersion = sourceRows.records.single;
+        final readSource = ReadSourceEngineRequest(
+          universe: selector,
+          contextId: sourceContext.contextId,
+          sourceVersion: VersionRef(
+            universe: universe,
+            record: retainedVersion.identity.recordId,
+            version: retainedVersion.recordVersionId,
+          ),
+          after: BigInt.zero,
+        );
+        final sourcePage = WireFields(await author.execute(readSource), {
+          'text',
+          'after',
+          'next',
+        });
+        expect(sourcePage.string('text'), source);
+        expect(sourcePage.require('next'), isA<CanonicalNull>());
+        await expectLater(
+          author.execute(ReadSourceEngineRequest(
+            universe: selector,
+            contextId: opened.contextId,
+            sourceVersion: readSource.sourceVersion,
+            after: BigInt.zero,
+          )),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        await expectLater(
+          author.execute(
+            ReadSourceEngineRequest(
+              universe: selector,
+              contextId: sourceContext.contextId,
+              sourceVersion: VersionRef(
+                universe: universe,
+                record: retainedVersion.identity.recordId,
+                version: RecordVersionId.generate(),
+              ),
+              after: BigInt.zero,
+            ),
+          ),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
         await store.transaction((s) async {
           final version = StoredVersion.build(
             RecordVersionId.generate(),
