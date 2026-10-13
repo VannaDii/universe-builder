@@ -554,6 +554,31 @@ class _ChangesPageState extends State<ChangesPage> {
                               const Text('After'),
                               ExactFields(value: record.toWire()),
                             ] else if (operations[index]
+                                case IntroduceDefinitionOperation(
+                                  :final name,
+                                  :final namespace,
+                                  :final key,
+                                  :final parent,
+                                  :final applicability,
+                                  :final classificationExecutable,
+                                )) ...[
+                              const Text('Type definition'),
+                              SelectableText(name),
+                              SelectableText('Namespace: $namespace'),
+                              SelectableText('Definition key: $key'),
+                              Text(
+                                parent == null
+                                    ? 'No parent (root definition)'
+                                    : 'Parent definition selected',
+                              ),
+                              const Text('Applicability'),
+                              ExactFields(value: applicability.toWire()),
+                              Text(
+                                classificationExecutable
+                                    ? 'Executable classification: Yes'
+                                    : 'Executable classification: No',
+                              ),
+                            ] else if (operations[index]
                                 case RenameWorldSelectorOperation(
                                   :final newSelector,
                                 )) ...[

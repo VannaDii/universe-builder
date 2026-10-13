@@ -9,6 +9,7 @@ import 'world_editor_page.dart';
 import 'world_browser.dart';
 import 'world_detail_page.dart';
 import 'record_browser_page.dart';
+import 'type_editor_page.dart';
 import 'changes_page.dart';
 import 'saved_changes.dart';
 import 'postgres_settings.dart';
@@ -619,6 +620,40 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                 if (_session!.author)
                   Wrap(
                     children: [
+                      if (_contexts.containsKey(continuity.id))
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context)
+                                    .push<void>(
+                                      MaterialPageRoute(
+                                        builder: (_) => TypeEditorPage(
+                                          session: _session!,
+                                          universe: _selected!,
+                                          continuity: continuity,
+                                          representedContext:
+                                              selectedRepresentedContext(
+                                                continuity,
+                                                _contexts[continuity.id],
+                                              )!,
+                                          scope: EditorFormScope(
+                                            instance: _library!.instance,
+                                            profile: _session!.principal,
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            representedContext:
+                                                _contexts[continuity.id],
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                    .then((_) {
+                                      if (mounted && _selected != null) {
+                                        _open(_selected!);
+                                      }
+                                    }),
+                          child: const Text('Type definition'),
+                        ),
                       if (_contexts.containsKey(continuity.id))
                         TextButton(
                           onPressed: _busy
