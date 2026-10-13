@@ -394,6 +394,82 @@ void main() {
         (renamed.compiledChanges.single.next!.payload as WorldRecord).selector,
         'Renamed world',
       );
+      final linkedRename = (await resumedChanges.load())!;
+      final renameValidation =
+          await resumedChanges.validate(renamed) as EvaluatedValidation;
+      await resumedChanges.approve(renamed, renameValidation);
+      final secondReceipt = await resumedChanges.publish(
+        renamed,
+        renameValidation.execution.runId,
+      );
+      final editable = await resumedChanges.continueEditing(linkedRename);
+      expect(editable.content.proposal, isNull);
+      expect(editable.content.operations, hasLength(1));
+      final removed = await resumedChanges.removeOperation(editable, 0);
+      expect(removed.content.operations, isEmpty);
+      expect(removed.content.rationale, editable.content.rationale);
+      expect(
+        (await resumedChanges.removeOperation(editable, 0)).version,
+        removed.version,
+      );
+      await expectLater(
+        resumedChanges.saveRationale(editable, 'Competing rationale'),
+        throwsA(isA<BaseRevisionConflictError>()),
+      );
+      final restored = await resumedChanges.saveContent(
+        removed,
+        editable.content,
+      );
+      expect(
+        restored.content.toWire().toText(),
+        editable.content.toWire().toText(),
+      );
+      final redone = await resumedChanges.saveContent(
+        restored,
+        removed.content,
+      );
+      expect(redone.content.operations, isEmpty);
+      final undoneAgain = await resumedChanges.saveContent(
+        redone,
+        editable.content,
+      );
+      final rebased = await resumedChanges.rebase(undoneAgain);
+      expect(rebased.content.baseRevision, secondReceipt.revision);
+      expect(
+        rebased.content.operations.single.toWire().toText(),
+        editable.content.operations.single.toWire().toText(),
+      );
+      // The original expected record version is not silently changed by rebase.
+      await expectLater(
+        resumedChanges.submit(rebased),
+        throwsA(isA<InvalidArgumentError>()),
+      );
+      final oldProposal = await resumedChanges.proposal(
+        resumedChanges.reference(renamed),
+      );
+      expect(oldProposal.digest, renamed.digest);
+      expect(
+        oldProposal.operations.single.toWire().toText(),
+        renamed.operations.single.toWire().toText(),
+      );
+      final emptyDraft = await resumedChanges.rebase(rebased, startNew: true);
+      expect(emptyDraft.content.operations, isEmpty);
+      expect(emptyDraft.content.baseRevision, secondReceipt.revision);
+      expect(emptyDraft.content.rationale, isEmpty);
+      final unchangedHead = Envelope<Description>.fromWire(
+        await owner.call(
+          ToolEngineRequest(
+            request: DescribeSummaryRequest(
+              universe: Selector('A shared history'),
+            ),
+          ),
+        ),
+        Description.fromWire,
+      );
+      expect(
+        unchangedHead.result.continuities.single.revisionId,
+        secondReceipt.revision,
+      );
       final fictional = createdUniverse(
         await owner.call(
           const UniverseCreationForm(

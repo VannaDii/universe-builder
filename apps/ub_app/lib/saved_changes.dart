@@ -215,6 +215,88 @@ final class SavedChanges {
     );
   }
 
+  Future<SavedDraft> saveContent(
+    SavedDraft draft,
+    DraftContent content,
+  ) async => SavedDraft.fromWire(
+    await session.call(
+      SaveDraftEngineRequest(
+        universe: universe,
+        continuityId: scope.continuity,
+        expectedVersion: draft.version,
+        content: content,
+      ),
+    ),
+  );
+
+  Future<SavedDraft> removeOperation(SavedDraft draft, int index) {
+    if (draft.content.proposal != null) {
+      throw const FormatException(
+        'Continue editing separately before changing a submitted proposal.',
+      );
+    }
+    final operations = [...draft.content.operations]..removeAt(index);
+    return saveContent(
+      draft,
+      DraftContent(
+        baseRevision: draft.content.baseRevision,
+        representedContext: draft.content.representedContext,
+        operations: operations,
+        rationale: draft.content.rationale,
+      ),
+    );
+  }
+
+  Future<SavedDraft> continueEditing(SavedDraft draft) => saveContent(
+    draft,
+    DraftContent(
+      baseRevision: draft.content.baseRevision,
+      representedContext: draft.content.representedContext,
+      operations: draft.content.operations,
+      rationale: draft.content.rationale,
+    ),
+  );
+
+  Future<SavedDraft> rebase(SavedDraft draft, {bool startNew = false}) async {
+    if (draft.content.proposal != null && !startNew) {
+      throw const FormatException(
+        'Continue editing separately before rebasing a submitted proposal.',
+      );
+    }
+    final summary = Envelope<Description>.fromWire(
+      await session.call(
+        ToolEngineRequest(
+          request: DescribeSummaryRequest(
+            universe: universe,
+            universeId: scope.universe,
+          ),
+        ),
+      ),
+      Description.fromWire,
+    ).result;
+    final continuity = summary.continuities.singleWhere(
+      (item) => item.id == scope.continuity,
+    );
+    if (!continuity.representedContexts.any(
+      (context) => context.id == draft.content.representedContext,
+    )) {
+      throw const FormatException(
+        'The represented context is no longer available. Choose a context before rebasing.',
+      );
+    }
+    // Keep expected record versions and exact authored operations unchanged.
+    // Submission resolves any conflicting edits; rebase never guesses a merge.
+    return saveContent(
+      draft,
+      DraftContent(
+        baseRevision: continuity.revisionId,
+        representedContext: draft.content.representedContext,
+        operations: startNew ? [] : draft.content.operations,
+        rationale: startNew ? '' : draft.content.rationale,
+      ),
+    );
+  }
+
   Future<Proposal> proposal(ProposalRef reference) async {
     String? cursor;
     Proposal? first;

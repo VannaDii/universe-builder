@@ -78,9 +78,18 @@ exact proposal and check run; **Publish approved changes** is a separate action.
 to recover the outcome without retrying publication automatically. The confirmed
 receipt names its revision, and **Read published records** opens that exact
 revision with current access. Returning to Overview refreshes the canon summary.
-Operation editing/rebase, other record forms, creation-form recovery and
-multi-context editor selection remain in progress. Existing owner-only service
-draft permissions remain unchanged.
+Unsubmitted operations can be removed with **Remove from draft**. Draft changes
+use expected generations; **Undo draft change** and **Redo draft change** save
+the selected prior content without changing canon. Undo/redo history stays within
+the current Changes page and resets on reload. **Continue editing separately**
+copies a submitted proposal's operations into an editable draft, retaining the
+original proposal and approvals. **Rebase draft to current revision** explicitly
+updates the draft's base while preserving exact operations and expected record
+versions; conflicting record edits must still be resolved. After publication,
+**Start new changes** opens an empty draft at the current revision. Operation
+field editing, other record forms, creation-form recovery and multi-context
+editor selection remain in progress. Existing owner-only service draft
+permissions remain unchanged.
 
 The approved [conversion plan](docs/dart-conversion-plan.md) is being implemented
 alongside the current runtime. The Dart workspace currently contains the shared

@@ -24,6 +24,7 @@ class _ChangesPageState extends State<ChangesPage> {
   CommitReceipt? _receipt;
   ({ValidationRunId run, OperationStatusV3 status})? _publication;
   List<RecordVersion> _publishedRecords = [];
+  final _undo = <DraftContent>[], _redo = <DraftContent>[];
   @override
   void dispose() {
     _rationale.dispose();
@@ -48,6 +49,8 @@ class _ChangesPageState extends State<ChangesPage> {
       _receipt = null;
       _publication = null;
       _publishedRecords = [];
+      _undo.clear();
+      _redo.clear();
     });
     try {
       final draft = await widget.changes.load();
@@ -150,6 +153,8 @@ class _ChangesPageState extends State<ChangesPage> {
       final saved = await widget.changes.saveRationale(draft, _rationale.text);
       if (mounted) {
         setState(() {
+          _undo.add(draft.content);
+          _redo.clear();
           _draft = saved;
           _rationaleDirty = false;
         });
@@ -346,6 +351,86 @@ class _ChangesPageState extends State<ChangesPage> {
     }
   }
 
+  Future<bool> _changeDraft(
+    Future<SavedDraft> Function(SavedDraft) change, {
+    bool keepUndo = true,
+  }) async {
+    if (_rationaleDirty) await _saveRationale();
+    final draft = _draft;
+    if (!mounted || draft == null || _busy || _rationaleDirty) return false;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final saved = await change(draft);
+      final proposal = await widget.changes.recover(saved);
+      final before = proposal == null
+          ? <RecordId, RecordVersion>{}
+          : await widget.changes.before(proposal);
+      final publication = proposal == null
+          ? null
+          : await widget.changes.publication(proposal);
+      if (!mounted) return false;
+      setState(() {
+        if (keepUndo) {
+          _undo.add(draft.content);
+          _redo.clear();
+        }
+        _draft = saved;
+        _proposal = proposal;
+        _before = before;
+        _publication = publication;
+        _receipt = publication?.status.receipt;
+        _validation = null;
+        _approved = false;
+        _publishedRecords = [];
+        _rationale.text = saved.content.rationale;
+        _rationaleDirty = false;
+      });
+      return true;
+    } on FormatException catch (error) {
+      if (mounted) {
+        setState(() {
+          _error = error.message;
+        });
+      }
+      return false;
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _error = 'Could not confirm the draft change. Your saved work remains. Check saved changes before trying again; another window may have saved newer work.';
+        });
+      }
+      return false;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _undoChange({bool redo = false}) async {
+    if (_rationaleDirty) await _saveRationale();
+    if (!mounted || _busy || _rationaleDirty) return;
+    final stack = redo ? _redo : _undo;
+    if (stack.isEmpty || _draft == null) return;
+    final previous = _draft!.content, target = stack.last;
+    if (await _changeDraft(
+      (draft) => widget.changes.saveContent(draft, target),
+      keepUndo: false,
+    )) {
+      if (mounted) {
+        setState(() {
+          stack.removeLast();
+          (redo ? _undo : _redo).add(previous);
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final operations =
@@ -466,6 +551,16 @@ class _ChangesPageState extends State<ChangesPage> {
                               _ExactFields(value: record.toWire()),
                             ] else
                               _ExactFields(value: operations[index].toWire()),
+                            if (_proposal == null)
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _changeDraft(
+                                        (draft) => widget.changes
+                                            .removeOperation(draft, index),
+                                      ),
+                                child: const Text('Remove from draft'),
+                              ),
                           ],
                         ),
                       ),
@@ -580,10 +675,66 @@ class _ChangesPageState extends State<ChangesPage> {
                     ),
                   ],
                 ],
+                if (_draft != null && _proposal == null)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'Rebase preserves entered operations and expected record versions. Conflicting record edits still need review.',
+                    ),
+                  ),
+                if (_proposal != null && _receipt == null)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'Editing separately retains this proposal and its approvals. New changes require a new submission and review.',
+                    ),
+                  ),
                 Wrap(
                   spacing: 12,
                   runSpacing: 12,
                   children: [
+                    if (_draft != null) ...[
+                      OutlinedButton(
+                        onPressed: _busy || _undo.isEmpty ? null : _undoChange,
+                        child: const Text('Undo draft change'),
+                      ),
+                      OutlinedButton(
+                        onPressed: _busy || _redo.isEmpty
+                            ? null
+                            : () => _undoChange(redo: true),
+                        child: const Text('Redo draft change'),
+                      ),
+                      if (_proposal == null)
+                        OutlinedButton(
+                          onPressed: _busy
+                              ? null
+                              : () => _changeDraft(
+                                  (draft) => widget.changes.rebase(draft),
+                                ),
+                          child: const Text('Rebase draft to current revision'),
+                        ),
+                      if (_proposal != null && _receipt == null)
+                        OutlinedButton(
+                          onPressed: _busy
+                              ? null
+                              : () => _changeDraft(
+                                  widget.changes.continueEditing,
+                                ),
+                          child: const Text('Continue editing separately'),
+                        ),
+                      if (_receipt != null)
+                        OutlinedButton(
+                          onPressed: _busy
+                              ? null
+                              : () => _changeDraft(
+                                  (draft) => widget.changes.rebase(
+                                    draft,
+                                    startNew: true,
+                                  ),
+                                ),
+                          child: const Text('Start new changes'),
+                        ),
+                    ],
                     if (_receipt != null)
                       OutlinedButton(
                         onPressed: _busy ? null : _readPublished,
