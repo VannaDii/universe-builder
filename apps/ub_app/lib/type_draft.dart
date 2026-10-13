@@ -7,38 +7,7 @@ SaveDraftEngineRequest typeDraftRequest({
   required UnfinishedTypeForm form,
   required SavedDraft? previous,
 }) {
-  if (form.namespace.trim().isEmpty ||
-      form.key.trim().isEmpty ||
-      form.clientRef.trim().isEmpty) {
-    throw const FormatException('Enter a namespace and definition key.');
-  }
-  if (form.parentChoice.isEmpty) {
-    throw const FormatException(
-      'Choose a parent or explicitly choose no parent.',
-    );
-  }
-  final applicability = switch (form.applicabilityChoice) {
-    'unspecified' => const UnspecifiedApplicability(),
-    'universe_wide' => const UniverseApplicability(),
-    'worlds' => WorldsApplicability(form.worlds),
-    _ => throw const FormatException('Choose where this definition applies.'),
-  };
-  if (form.classificationExecutable == null) {
-    throw const FormatException(
-      'Choose whether classification can be executed.',
-    );
-  }
-  final operation = IntroduceDefinitionOperation(
-    clientRef: form.clientRef,
-    namespace: form.namespace,
-    key: form.key,
-    name: form.name.trim().isEmpty ? form.key : form.name,
-    parent: form.parentChoice == 'none'
-        ? null
-        : RecordId.parse(form.parentChoice),
-    applicability: applicability,
-    classificationExecutable: form.classificationExecutable!,
-  );
+  final operation = _typeOperation(form);
   final old = previous?.content;
   if (old != null &&
       (old.baseRevision != form.baseRevision ||
@@ -82,5 +51,97 @@ SaveDraftEngineRequest typeDraftRequest({
         if (form.rationale.isNotEmpty) form.rationale,
       ].join('\n\n'),
     ),
+  );
+}
+
+IntroduceDefinitionOperation _typeOperation(UnfinishedTypeForm form) {
+  if (form.namespace.trim().isEmpty ||
+      form.key.trim().isEmpty ||
+      form.clientRef.trim().isEmpty) {
+    throw const FormatException('Enter a namespace and definition key.');
+  }
+  if (form.parentChoice.isEmpty) {
+    throw const FormatException(
+      'Choose a parent or explicitly choose no parent.',
+    );
+  }
+  final applicability = switch (form.applicabilityChoice) {
+    'unspecified' => const UnspecifiedApplicability(),
+    'universe_wide' => const UniverseApplicability(),
+    'worlds' => WorldsApplicability(form.worlds),
+    _ => throw const FormatException('Choose where this definition applies.'),
+  };
+  if (form.classificationExecutable == null) {
+    throw const FormatException(
+      'Choose whether classification can be executed.',
+    );
+  }
+  return IntroduceDefinitionOperation(
+    clientRef: form.clientRef,
+    namespace: form.namespace,
+    key: form.key,
+    name: form.name.trim().isEmpty ? form.key : form.name,
+    parent: form.parentChoice == 'none'
+        ? null
+        : RecordId.parse(form.parentChoice),
+    applicability: applicability,
+    classificationExecutable: form.classificationExecutable!,
+  );
+}
+
+UnfinishedTypeForm typeFormFromDraft(SavedDraft draft, int index) {
+  final operation = draft.content.operations[index];
+  if (operation is! IntroduceDefinitionOperation) {
+    throw const FormatException('Choose a type definition from Changes.');
+  }
+  return UnfinishedTypeForm(
+    baseRevision: draft.content.baseRevision,
+    representedContext: draft.content.representedContext,
+    clientRef: operation.clientRef,
+    namespace: operation.namespace,
+    key: operation.key,
+    name: operation.name,
+    parentChoice: operation.parent?.value ?? 'none',
+    applicabilityChoice: switch (operation.applicability) {
+      UnspecifiedApplicability() => 'unspecified',
+      UniverseApplicability() => 'universe_wide',
+      WorldsApplicability() => 'worlds',
+      ConditionalApplicability() => throw const FormatException(
+        'Conditional applicability is retained in Changes; this form cannot edit it yet.',
+      ),
+    },
+    classificationExecutable: operation.classificationExecutable,
+    worlds: operation.applicability is WorldsApplicability
+        ? (operation.applicability as WorldsApplicability).worldIds
+        : const [],
+    rationale: '',
+    draftVersion: draft.version,
+  );
+}
+
+DraftContent replaceDraftType({
+  required SavedDraft draft,
+  required int index,
+  required UnfinishedTypeForm form,
+}) {
+  final old = typeFormFromDraft(draft, index);
+  if (draft.content.proposal != null ||
+      form.draftVersion != draft.version ||
+      form.clientRef != old.clientRef ||
+      form.baseRevision != old.baseRevision ||
+      form.representedContext != old.representedContext) {
+    throw const FormatException(
+      'The draft changed. Reopen its current type fields before saving.',
+    );
+  }
+  final operation = _typeOperation(form);
+  return DraftContent(
+    baseRevision: draft.content.baseRevision,
+    representedContext: draft.content.representedContext,
+    operations: [
+      for (var i = 0; i < draft.content.operations.length; i++)
+        i == index ? operation : draft.content.operations[i],
+    ],
+    rationale: draft.content.rationale,
   );
 }

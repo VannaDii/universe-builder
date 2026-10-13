@@ -166,40 +166,91 @@ void main() {
         ).content.toWire().toText(),
         saved.content.toWire().toText(),
       );
-      final changes = SavedChanges(
+      final editScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: 'writer-person',
+      );
+      final initial = typeFormFromDraft(saved, 1);
+      final edited = UnfinishedTypeForm(
+        baseRevision: initial.baseRevision,
+        representedContext: initial.representedContext,
+        clientRef: initial.clientRef,
+        namespace: initial.namespace,
+        key: initial.key,
+        name: 'Person revised',
+        parentChoice: initial.parentChoice,
+        applicabilityChoice: initial.applicabilityChoice,
+        classificationExecutable: initial.classificationExecutable,
+        rationale: '',
+        draftVersion: initial.draftVersion,
+      );
+      await session.close();
+      await session.saveTypeForm(editScope, edited, BigInt.zero);
+      session = await device.connect();
+      final pendingEdit = (await session.loadTypeForm(editScope))!.form;
+      expect(
+        (await session.loadTypeForm(scope))!.form.toWire().toText(),
+        recovered.toWire().toText(),
+      );
+      final currentChanges = SavedChanges(
         session: session,
         universe: Selector('Type history'),
         scope: scope,
       );
-      final proposal = await changes.submit(saved);
+      final updated = await currentChanges.saveContent(
+        saved,
+        replaceDraftType(draft: saved, index: 1, form: pendingEdit),
+      );
+      expect(
+        (updated.content.operations[1] as IntroduceDefinitionOperation)
+            .clientRef,
+        'writer-person',
+      );
+      expect(
+        updated.content.operations.first.toWire().toText(),
+        saved.content.operations.first.toWire().toText(),
+      );
+      expect(updated.content.rationale, saved.content.rationale);
+      expect(
+        () => replaceDraftType(draft: updated, index: 1, form: pendingEdit),
+        throwsFormatException,
+      );
+      final proposal = await currentChanges.submit(updated);
       final definition = proposal.compiledChanges
           .map((change) => change.next?.payload)
           .whereType<EntityTypeRecord>()
           .single;
       expect(definition.namespace, 'authored');
       expect(definition.key, 'person');
-      expect(definition.name, '人物');
+      expect(definition.name, 'Person revised');
       expect(definition.parent, isNull);
       expect(definition.parentResolution, ParentResolution.root);
       expect(definition.applicability, isA<UniverseApplicability>());
       expect(definition.classificationExecutable, isTrue);
       final validation =
-          await changes.validate(proposal) as EvaluatedValidation;
-      await changes.approve(proposal, validation);
-      final receipt = await changes.publish(
+          await currentChanges.validate(proposal) as EvaluatedValidation;
+      await currentChanges.approve(proposal, validation);
+      final receipt = await currentChanges.publish(
         proposal,
         validation.execution.runId,
       );
       expect(
-        (await changes.readPublished(proposal, receipt))
+        (await currentChanges.readPublished(proposal, receipt))
             .map((record) => record.payload)
             .whereType<EntityTypeRecord>()
             .single
             .name,
-        '人物',
+        'Person revised',
       );
       expect(
-        (await changes.publish(proposal, validation.execution.runId)).revision,
+        (await currentChanges.publish(
+          proposal,
+          validation.execution.runId,
+        )).revision,
         receipt.revision,
       );
     } finally {

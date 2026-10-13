@@ -28,6 +28,7 @@ final class EditorFormScope {
     this.worldClientRef,
     this.representedContext,
     this.worldRecord,
+    this.typeClientRef,
   });
   final OperationId instance;
   final ProfileId profile;
@@ -39,6 +40,9 @@ final class EditorFormScope {
   final String? worldClientRef;
   final RecordId? representedContext;
   final RecordId? worldRecord;
+
+  /// Null is creation; a draft definition reference identifies its edit slot.
+  final String? typeClientRef;
 }
 
 /// Entered fields can be incomplete or invalid. Completing an editor must build
@@ -113,7 +117,9 @@ final class UnfinishedTypeForm {
     required this.rationale,
     this.classificationExecutable,
     Iterable<WorldId> worlds = const [],
-  }) : worlds = List.unmodifiable(worlds);
+    BigInt? draftVersion,
+  }) : worlds = List.unmodifiable(worlds),
+       draftVersion = draftVersion == null ? null : checkedU64(draftVersion);
   final RevisionId baseRevision;
   final RecordId representedContext;
   final String clientRef,
@@ -125,11 +131,14 @@ final class UnfinishedTypeForm {
       rationale;
   final bool? classificationExecutable;
   final List<WorldId> worlds;
+  final BigInt? draftVersion;
 
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
     MapEntry('represented_context', CanonicalString(representedContext.value)),
     MapEntry('client_ref', CanonicalString(clientRef)),
+    if (draftVersion != null)
+      MapEntry('draft_version', CanonicalString(draftVersion.toString())),
     MapEntry('namespace', CanonicalString(namespace)),
     MapEntry('key', CanonicalString(key)),
     MapEntry('name', CanonicalString(name)),

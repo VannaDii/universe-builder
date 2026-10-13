@@ -64,7 +64,13 @@ Parent choices and worlds are read at the form's revision. Adding a completed
 form appends the existing definition operation to compatible Changes, preserves
 other draft work and does not duplicate an exact retry. **Start another type**
 uses a fresh reference at the current revision. Publication remains a separate
-review, approval and commit flow.
+review, approval and commit flow. **Edit type fields** in Changes reopens a
+completed definition while preserving its reference, the other operations and
+draft rationale. Pending edits recover separately from new-type input. Edits
+from an earlier draft remain visible until **Use current draft fields** is chosen;
+they cannot overwrite the newer draft. Leaving the form saves unfinished input
+before returning. Conditional applicability remains retained in Changes, but
+this form cannot edit it yet.
 Opening a listed world displays its complete published record in that frame,
 including aliases, multilingual labels and metadata. **Rename world** opens a
 recoverable name-and-rationale form pinned to the record's version. **Add rename

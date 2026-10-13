@@ -19,7 +19,11 @@ class TypeEditorPage extends StatefulWidget {
     required this.scope,
     required this.continuity,
     required this.representedContext,
+    this.editingDraft,
+    this.operationIndex,
   });
+  final SavedDraft? editingDraft;
+  final int? operationIndex;
   final AppSession session;
   final LibraryEntry universe;
   final EditorFormScope scope;
@@ -48,12 +52,15 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
   bool _loading = true, _saving = false, _adding = false, _dirty = false;
   String? _error, _added;
   Timer? _autosave;
+  SavedDraft? _editingDraft, _savedDraft;
+  bool _stale = false, _leaving = false;
 
   bool get _disabled => _loading || _saving || _adding || _base == null;
   @override
   void initState() {
     super.initState();
     _revision = widget.continuity.revisionId;
+    _editingDraft = widget.editingDraft;
     _load();
   }
 
@@ -66,17 +73,19 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
     super.dispose();
   }
 
-  UnfinishedTypeForm _fresh() => UnfinishedTypeForm(
-    baseRevision: _revision,
-    representedContext: widget.representedContext.id,
-    clientRef: RecordId.generate().value,
-    namespace: '',
-    key: '',
-    name: '',
-    parentChoice: '',
-    applicabilityChoice: '',
-    rationale: '',
-  );
+  UnfinishedTypeForm _fresh() => _editingDraft != null
+      ? typeFormFromDraft(_editingDraft!, widget.operationIndex!)
+      : UnfinishedTypeForm(
+          baseRevision: _revision,
+          representedContext: widget.representedContext.id,
+          clientRef: RecordId.generate().value,
+          namespace: '',
+          key: '',
+          name: '',
+          parentChoice: '',
+          applicabilityChoice: '',
+          rationale: '',
+        );
 
   void _enter(UnfinishedTypeForm form) {
     _base = form;
@@ -99,6 +108,12 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
       final saved = await widget.session.loadTypeForm(widget.scope);
       if (!mounted) return;
       _enter(saved?.form ?? _fresh());
+      _stale =
+          _editingDraft != null &&
+          (_base!.draftVersion != _editingDraft!.version ||
+              _base!.baseRevision != _editingDraft!.content.baseRevision ||
+              _base!.representedContext !=
+                  _editingDraft!.content.representedContext);
       _generation = saved?.generation ?? BigInt.zero;
       _dirty = false;
       await _loadChoices();
@@ -185,6 +200,7 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
     rationale: _rationale.text,
     classificationExecutable: _executable,
     worlds: _selectedWorlds,
+    draftVersion: _base!.draftVersion,
   );
 
   void _changed() {
@@ -227,6 +243,39 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
     }
   }
 
+  Future<void> _leave() async {
+    if (_saving || _adding || _loading) return;
+    _autosave?.cancel();
+    if (_dirty) await _save();
+    if (!mounted || _dirty || _saving) return;
+    // Allow PopScope to rebuild after the local save before popping.
+    setState(() => _leaving = true);
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted && !_dirty && !_saving && !_adding) {
+      Navigator.of(context).pop(_savedDraft);
+    }
+  }
+
+  Future<void> _useCurrentFields() async {
+    setState(() {
+      _enter(_fresh());
+      _stale = false;
+      _dirty = true;
+      _added = null;
+    });
+    await _save();
+    try {
+      await _loadChoices();
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _error =
+              'Could not reload the current choices. Retry opening this form.',
+        );
+      }
+    }
+  }
+
   Future<void> _add() async {
     _autosave?.cancel();
     await _save();
@@ -236,6 +285,34 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
       _error = null;
     });
     try {
+      if (_editingDraft != null) {
+        if (_stale) {
+          throw const FormatException(
+            'These unfinished edits use an earlier draft. Use current draft fields before saving.',
+          );
+        }
+        final content = replaceDraftType(
+          draft: _editingDraft!,
+          index: widget.operationIndex!,
+          form: _entered(),
+        );
+        final saved = await SavedChanges(
+          session: widget.session,
+          universe: Selector(widget.universe.name),
+          scope: widget.scope,
+        ).saveContent(_editingDraft!, content);
+        if (!mounted) return;
+        setState(() {
+          _editingDraft = saved;
+          _savedDraft = saved;
+          _base = typeFormFromDraft(saved, widget.operationIndex!);
+          _dirty = true;
+          _added =
+              'Type updated in saved changes. Return to Changes to review it.';
+        });
+        await _save();
+        return;
+      }
       final loaded = await widget.session.call(
         LoadDraftEngineRequest(
           universe: Selector(widget.universe.name),
@@ -332,209 +409,244 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
   );
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Type definition')),
-    body: Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 760),
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            Text(
-              widget.continuity.name,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            Text(
-              'Context: ${representedContextName(widget.representedContext)}',
-            ),
-            const Text(
-              'Unfinished work stays on this device. Definitions go into Changes for review; saving this form does not change canon.',
-            ),
-            if (_loading || _saving || _adding) const LinearProgressIndicator(),
-            if (_base != null && _base!.baseRevision != _revision)
+  Widget build(BuildContext context) => PopScope<SavedDraft>(
+    canPop:
+        _leaving ||
+        (widget.editingDraft == null && !_dirty && !_saving && !_adding),
+    onPopInvokedWithResult: (didPop, _) {
+      if (!didPop) _leave();
+    },
+    child: Scaffold(
+      appBar: AppBar(
+        title: Text(
+          widget.editingDraft == null
+              ? 'Type definition'
+              : 'Edit type in changes',
+        ),
+      ),
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              Text(
+                widget.continuity.name,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              Text(
+                'Context: ${representedContextName(widget.representedContext)}',
+              ),
               const Text(
-                'Recovered fields use an earlier revision. Changes will retain that revision until you explicitly rebase the draft.',
+                'Unfinished work stays on this device. Definitions go into Changes for review; saving this form does not change canon.',
               ),
-            _field(_namespace, 'Namespace'),
-            _field(_key, 'Definition key'),
-            _field(_name, 'Display name (optional)'),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              key: ValueKey('parent:$_parent'),
-              initialValue: _parent,
-              decoration: const InputDecoration(labelText: 'Parent definition'),
-              items: [
-                const DropdownMenuItem(
-                  value: '',
-                  child: Text('Choose a parent or no parent'),
-                ),
-                const DropdownMenuItem(
-                  value: 'none',
-                  child: Text('No parent (root definition)'),
-                ),
-                for (final parent in _parents)
-                  DropdownMenuItem(
-                    value: parent.recordId.value,
-                    child: Text(parent.label),
-                  ),
-                if (_parent != '' &&
-                    _parent != 'none' &&
-                    !_parents.any((parent) => parent.recordId.value == _parent))
-                  DropdownMenuItem(
-                    value: _parent,
-                    child: const Text('Saved parent (not in loaded list)'),
-                  ),
-              ],
-              onChanged: _disabled
-                  ? null
-                  : (value) {
-                      setState(() => _parent = value!);
-                      _changed();
-                    },
-            ),
-            if (_parentDelivery?.complete == false)
-              TextButton(
-                onPressed: _disabled || _parentDelivery?.cursor == null
-                    ? null
-                    : _moreParents,
-                child: const Text('Load more parent definitions'),
-              ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              key: ValueKey('scope:$_applicability'),
-              initialValue: _applicability,
-              decoration: const InputDecoration(
-                labelText: 'Where this definition applies',
-              ),
-              items: const [
-                DropdownMenuItem(
-                  value: '',
-                  child: Text('Choose applicability'),
-                ),
-                DropdownMenuItem(
-                  value: 'unspecified',
-                  child: Text('Unspecified (remains unresolved)'),
-                ),
-                DropdownMenuItem(
-                  value: 'universe_wide',
-                  child: Text('Universe wide'),
-                ),
-                DropdownMenuItem(
-                  value: 'worlds',
-                  child: Text('Selected worlds'),
-                ),
-              ],
-              onChanged: _disabled
-                  ? null
-                  : (value) {
-                      setState(() => _applicability = value!);
-                      _changed();
-                    },
-            ),
-            if (_applicability == 'worlds') ...[
-              const Text(
-                'No selected worlds means this definition applies nowhere.',
-              ),
-              for (final world in _worlds)
-                CheckboxListTile(
-                  title: Text(world.name.value),
-                  value: _selectedWorlds.contains(world.id),
-                  onChanged: _disabled
-                      ? null
-                      : (selected) {
-                          setState(() {
-                            if (selected!) {
-                              _selectedWorlds.add(world.id);
-                            } else {
-                              _selectedWorlds.remove(world.id);
-                            }
-                          });
-                          _changed();
-                        },
-                ),
-              if (!_worldsComplete)
-                const Text('Only part of the world list was returned.'),
-              if (_selectedWorlds.any(
-                (id) => !_worlds.any((world) => world.id == id),
-              ))
+              if (_loading || _saving || _adding)
+                const LinearProgressIndicator(),
+              if (_base != null && _base!.baseRevision != _revision)
                 const Text(
-                  'Saved world selections outside this list are retained.',
+                  'Recovered fields use an earlier revision. Changes will retain that revision until you explicitly rebase the draft.',
                 ),
-            ],
-            const SizedBox(height: 12),
-            DropdownButtonFormField<bool>(
-              key: ValueKey('executable:$_executable'),
-              initialValue: _executable,
-              decoration: const InputDecoration(
-                labelText: 'Use for executable classification',
-              ),
-              hint: const Text('Choose explicitly'),
-              items: const [
-                DropdownMenuItem(value: true, child: Text('Yes')),
-                DropdownMenuItem(
-                  value: false,
-                  child: Text('No — retain as non-executable'),
+              if (_stale) ...[
+                const Text(
+                  'Recovered edits belong to an earlier draft. Your fields remain visible; use the current draft fields before saving changes.',
+                ),
+                TextButton(
+                  onPressed: _disabled ? null : _useCurrentFields,
+                  child: const Text('Use current draft fields'),
                 ),
               ],
-              onChanged: _disabled
-                  ? null
-                  : (value) {
-                      setState(() => _executable = value);
-                      _changed();
-                    },
-            ),
-            const Text(
-              'Ancestor applicability is checked separately. A child does not widen its parent’s scope.',
-            ),
-            _field(_rationale, 'Notes and rationale'),
-            const SizedBox(height: 16),
-            Text(
-              _dirty
-                  ? 'Unsaved fields'
-                  : _generation == BigInt.zero
-                  ? 'No saved fields yet'
-                  : 'Saved on this device',
-            ),
-            if (_error != null)
-              Semantics(liveRegion: true, child: Text(_error!)),
-            if (_added != null) ...[
-              Semantics(liveRegion: true, child: Text(_added!)),
-              TextButton(
-                onPressed: _disabled ? null : _startAnother,
-                child: const Text('Start another type'),
+              _field(_namespace, 'Namespace'),
+              _field(_key, 'Definition key'),
+              _field(_name, 'Display name (optional)'),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                key: ValueKey('parent:$_parent'),
+                initialValue: _parent,
+                decoration: const InputDecoration(
+                  labelText: 'Parent definition',
+                ),
+                items: [
+                  const DropdownMenuItem(
+                    value: '',
+                    child: Text('Choose a parent or no parent'),
+                  ),
+                  const DropdownMenuItem(
+                    value: 'none',
+                    child: Text('No parent (root definition)'),
+                  ),
+                  for (final parent in _parents)
+                    DropdownMenuItem(
+                      value: parent.recordId.value,
+                      child: Text(parent.label),
+                    ),
+                  if (_parent != '' &&
+                      _parent != 'none' &&
+                      !_parents.any(
+                        (parent) => parent.recordId.value == _parent,
+                      ))
+                    DropdownMenuItem(
+                      value: _parent,
+                      child: const Text('Saved parent (not in loaded list)'),
+                    ),
+                ],
+                onChanged: _disabled
+                    ? null
+                    : (value) {
+                        setState(() => _parent = value!);
+                        _changed();
+                      },
               ),
-            ],
-            FilledButton(
-              onPressed: _disabled ? null : _add,
-              child: const Text('Add type to changes'),
-            ),
-            TextButton(
-              onPressed: _disabled || !_dirty ? null : _save,
-              child: const Text('Save unfinished work'),
-            ),
-            TextButton(
-              onPressed: _disabled
-                  ? null
-                  : () => Navigator.of(context).push<void>(
-                      MaterialPageRoute(
-                        builder: (_) => ChangesPage(
-                          changes: SavedChanges(
-                            session: widget.session,
-                            universe: Selector(widget.universe.name),
-                            scope: widget.scope,
+              if (_parentDelivery?.complete == false)
+                TextButton(
+                  onPressed: _disabled || _parentDelivery?.cursor == null
+                      ? null
+                      : _moreParents,
+                  child: const Text('Load more parent definitions'),
+                ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                key: ValueKey('scope:$_applicability'),
+                initialValue: _applicability,
+                decoration: const InputDecoration(
+                  labelText: 'Where this definition applies',
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: '',
+                    child: Text('Choose applicability'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'unspecified',
+                    child: Text('Unspecified (remains unresolved)'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'universe_wide',
+                    child: Text('Universe wide'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'worlds',
+                    child: Text('Selected worlds'),
+                  ),
+                ],
+                onChanged: _disabled
+                    ? null
+                    : (value) {
+                        setState(() => _applicability = value!);
+                        _changed();
+                      },
+              ),
+              if (_applicability == 'worlds') ...[
+                const Text(
+                  'No selected worlds means this definition applies nowhere.',
+                ),
+                for (final world in _worlds)
+                  CheckboxListTile(
+                    title: Text(world.name.value),
+                    value: _selectedWorlds.contains(world.id),
+                    onChanged: _disabled
+                        ? null
+                        : (selected) {
+                            setState(() {
+                              if (selected!) {
+                                _selectedWorlds.add(world.id);
+                              } else {
+                                _selectedWorlds.remove(world.id);
+                              }
+                            });
+                            _changed();
+                          },
+                  ),
+                if (!_worldsComplete)
+                  const Text('Only part of the world list was returned.'),
+                if (_selectedWorlds.any(
+                  (id) => !_worlds.any((world) => world.id == id),
+                ))
+                  const Text(
+                    'Saved world selections outside this list are retained.',
+                  ),
+              ],
+              const SizedBox(height: 12),
+              DropdownButtonFormField<bool>(
+                key: ValueKey('executable:$_executable'),
+                initialValue: _executable,
+                decoration: const InputDecoration(
+                  labelText: 'Use for executable classification',
+                ),
+                hint: const Text('Choose explicitly'),
+                items: const [
+                  DropdownMenuItem(value: true, child: Text('Yes')),
+                  DropdownMenuItem(
+                    value: false,
+                    child: Text('No — retain as non-executable'),
+                  ),
+                ],
+                onChanged: _disabled
+                    ? null
+                    : (value) {
+                        setState(() => _executable = value);
+                        _changed();
+                      },
+              ),
+              const Text(
+                'Ancestor applicability is checked separately. A child does not widen its parent’s scope.',
+              ),
+              if (widget.editingDraft == null)
+                _field(_rationale, 'Notes and rationale'),
+              const SizedBox(height: 16),
+              Text(
+                _dirty
+                    ? 'Unsaved fields'
+                    : _generation == BigInt.zero
+                    ? 'No saved fields yet'
+                    : 'Saved on this device',
+              ),
+              if (_error != null)
+                Semantics(liveRegion: true, child: Text(_error!)),
+              if (_added != null) ...[
+                Semantics(liveRegion: true, child: Text(_added!)),
+                if (widget.editingDraft == null)
+                  TextButton(
+                    onPressed: _disabled ? null : _startAnother,
+                    child: const Text('Start another type'),
+                  ),
+              ],
+              FilledButton(
+                onPressed: _disabled || _stale ? null : _add,
+                child: Text(
+                  widget.editingDraft == null
+                      ? 'Add type to changes'
+                      : 'Save type changes',
+                ),
+              ),
+              TextButton(
+                onPressed: _disabled || !_dirty ? null : _save,
+                child: const Text('Save unfinished work'),
+              ),
+              if (widget.editingDraft == null)
+                TextButton(
+                  onPressed: _disabled
+                      ? null
+                      : () => Navigator.of(context).push<void>(
+                          MaterialPageRoute(
+                            builder: (_) => ChangesPage(
+                              changes: SavedChanges(
+                                session: widget.session,
+                                universe: Selector(widget.universe.name),
+                                scope: widget.scope,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-              child: const Text('Review saved changes'),
-            ),
-            if (_error != null && !_loading && !_saving && !_adding)
-              TextButton(
-                onPressed: _load,
-                child: const Text('Reload saved form and choices'),
-              ),
-          ],
+                  child: const Text('Review saved changes'),
+                ),
+              if (_error != null && !_loading && !_saving && !_adding)
+                TextButton(
+                  onPressed: _load,
+                  child: const Text('Reload saved form and choices'),
+                ),
+            ],
+          ),
         ),
       ),
     ),
