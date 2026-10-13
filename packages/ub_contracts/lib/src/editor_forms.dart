@@ -599,6 +599,38 @@ final class EntityNameForm {
   }
 }
 
+/// Recoverable selection for a new fact about an existing entity.
+final class AttributeCreationInput {
+  const AttributeCreationInput({
+    required this.subject,
+    required this.operationRef,
+    this.propertyRecord = '',
+    this.propertyUniverse = '',
+  });
+  final VersionRef subject;
+  final String operationRef, propertyRecord, propertyUniverse;
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('subject', subject.toCanonical()),
+    MapEntry('operation_ref', CanonicalString(operationRef)),
+    MapEntry('property_record', CanonicalString(propertyRecord)),
+    MapEntry('property_universe', CanonicalString(propertyUniverse)),
+  ]);
+  factory AttributeCreationInput.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {
+      'subject',
+      'operation_ref',
+      'property_record',
+      'property_universe',
+    });
+    return AttributeCreationInput(
+      subject: VersionRef.fromCanonical(f.require('subject')),
+      operationRef: f.string('operation_ref'),
+      propertyRecord: f.string('property_record'),
+      propertyUniverse: f.string('property_universe'),
+    );
+  }
+}
+
 /// Pending value edits do not replace the property shape or authored evidence.
 final class UnfinishedAttributeForm {
   UnfinishedAttributeForm({
@@ -608,6 +640,7 @@ final class UnfinishedAttributeForm {
     required BigInt draftVersion,
     required this.value,
     this.evidenceInput,
+    this.creationInput,
   }) : draftVersion = checkedU64(draftVersion);
   final RevisionId baseRevision;
   final RecordId representedContext;
@@ -615,6 +648,7 @@ final class UnfinishedAttributeForm {
   final BigInt draftVersion;
   final QualifierInput value;
   final AttributeEvidenceInput? evidenceInput;
+  final AttributeCreationInput? creationInput;
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
     MapEntry('represented_context', CanonicalString(representedContext.value)),
@@ -623,6 +657,8 @@ final class UnfinishedAttributeForm {
     MapEntry('value', value.toWire()),
     if (evidenceInput != null)
       MapEntry('evidence_input', evidenceInput!.toWire()),
+    if (creationInput != null)
+      MapEntry('creation_input', creationInput!.toWire()),
   ]);
 }
 

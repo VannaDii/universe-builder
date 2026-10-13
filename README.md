@@ -107,6 +107,14 @@ selection. It classifies an unclassified entity or refines its current type to a
 descendant. **Edit classification fields** in Changes revises the pending choice.
 The entity’s names, associations and other facts remain intact; unrelated type
 changes still require an explicit authored correction.
+**Add factual attribute** in an entity dossier selects an accessible existing
+property by name at the dossier revision and opens the typed value, scope and
+evidence controls. Unfinished input recovers on this device. **Add to Changes**
+appends an assertion using that exact property and entity; it does not redefine
+the property. Applicability starts unspecified; unknown validity and unresolved
+precision remain explicit until edited. **Start another attribute** creates a fresh pending fact while preserving
+other Changes. Stale input requires current fields or reopening the dossier.
+Publication still requires the normal review, validation and exact approval.
 **Edit attribute** in Changes opens the existing typed value controls for
 a named factual attribute or a value assertion using an existing property, including
 nested and exact values. Existing-property edits retain the exact predicate,

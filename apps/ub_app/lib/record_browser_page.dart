@@ -7,6 +7,8 @@ import 'record_browser.dart';
 import 'record_fields.dart';
 import 'world_browser.dart';
 import 'entity_editor_page.dart';
+import 'attribute_editor_page.dart';
+import 'saved_changes.dart';
 
 class RecordBrowserPage extends StatefulWidget {
   const RecordBrowserPage({
@@ -253,6 +255,56 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
     }
   }
 
+  Future<void> _addAttribute(RecordVersion entity) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final changes = SavedChanges(
+        session: widget.session,
+        universe: Selector(widget.universe.name),
+        scope: EditorFormScope(
+          instance: widget.scope.instance,
+          profile: widget.scope.profile,
+          universe: widget.universe.id,
+          continuity: widget.continuity.id,
+          representedContext: widget.representedContext.id,
+        ),
+      );
+      final draft =
+          await changes.load() ??
+          SavedDraft(
+            version: BigInt.zero,
+            content: DraftContent(
+              baseRevision: widget.context.frame.revision,
+              representedContext: widget.representedContext.id,
+              operations: [],
+              rationale: '',
+            ),
+          );
+      if (!mounted) return;
+      await Navigator.of(context).push<SavedDraft>(
+        MaterialPageRoute(
+          builder: (_) => AttributeEditorPage.create(
+            changes: changes,
+            draft: draft,
+            publishedEntity: entity,
+            openedRevision: widget.context.frame.revision,
+          ),
+        ),
+      );
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _error = 'Could not open attribute fields. Check the connection and retry.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -303,6 +355,13 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       ExactFields(value: record.payload.toWire()),
+                      if (widget.session.author &&
+                          _material!.delivery.complete &&
+                          record.payload is EntityRecord)
+                        TextButton(
+                          onPressed: _busy ? null : () => _addAttribute(record),
+                          child: const Text('Add factual attribute'),
+                        ),
                       if (widget.session.author &&
                           _material!.delivery.complete &&
                           record.payload is EntityRecord)

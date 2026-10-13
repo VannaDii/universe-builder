@@ -924,39 +924,129 @@ void main() {
         SequenceValue([const TextValue('alternative')]),
       ]);
       final property = result.where((r) => r.payload is PropertyRecord).single;
-      final factId = RecordId.generate();
-      final existingPropertyOp = AssertPropositionOperation(
-        clientRef: factId.value,
-        proposition: PropositionRecord(
-          predicate: RecordRef(
-            universe: scope.universe,
-            record: property.identity.recordId,
-          ),
-          subject: operation.subject,
-          value: fact.value,
-          quantification: Quantification.particular,
-          context: assertion.scope.context,
+      final newFields = newAttributeForm(draft: nextDraft, entity: entity);
+      expect(
+        newAttributeEvidence(
+          scope.universe,
+          scope.representedContext!,
+        ).scope.applicability,
+        const UnspecifiedApplicability(),
+      );
+      final creation = newFields.creationInput!;
+      final factId = RecordId.parse(creation.operationRef);
+      final newScope = EditorFormScope(
+        instance: instance,
+        profile: author,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        attributeClientRef: newFields.clientRef,
+      );
+      final enteredFact = UnfinishedAttributeForm(
+        baseRevision: newFields.baseRevision,
+        representedContext: newFields.representedContext,
+        clientRef: newFields.clientRef,
+        draftVersion: newFields.draftVersion,
+        value: const QualifierInput(
+          kind: 'sequence',
+          children: [
+            QualifierInput(kind: 'text', value: '記憶 😀 another account'),
+          ],
         ),
-        assertion: AssertionRecord(
-          proposition: RecordRef(universe: scope.universe, record: factId),
-          attributeMode: assertion.attributeMode,
-          polarity: assertion.polarity,
-          scope: assertion.scope,
-          validity: assertion.validity,
-          persistence: assertion.persistence,
-          precision: assertion.precision,
-          alternatives: assertion.alternatives,
-          basis: assertion.basis,
+        evidenceInput: AttributeEvidenceInput(
+          scope: ScopeInput(
+            applicability: 'universe_wide',
+            contextRecord: newFields.representedContext.value,
+            contextUniverse: scope.universe.value,
+          ),
+          basis: const EvidenceBasisInput(
+            kind: 'author_decision',
+            note: 'Another account.',
+          ),
+          precision: Precision.exact,
+        ),
+        creationInput: AttributeCreationInput(
+          subject: creation.subject,
+          operationRef: creation.operationRef,
+          propertyRecord: property.identity.recordId.value,
+          propertyUniverse: property.identity.universeId.value,
         ),
       );
-      final existingDraft = await changes().saveContent(
-        nextDraft,
-        DraftContent(
-          baseRevision: nextDraft.content.baseRevision,
-          representedContext: nextDraft.content.representedContext,
-          operations: [existingPropertyOp],
-          rationale: 'Another attributed account.',
+      await session.saveAttributeForm(newScope, enteredFact, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredFact = (await session.loadAttributeForm(newScope))!.form;
+      expect(recoveredFact.toWire().toText(), enteredFact.toWire().toText());
+      final newContent = appendDraftAttribute(
+        draft: nextDraft,
+        form: recoveredFact,
+        entity: entity,
+        property: property,
+      );
+      final existingPropertyOp =
+          newContent.operations.single as AssertPropositionOperation;
+      expect(existingPropertyOp.clientRef, creation.operationRef);
+      expect(
+        existingPropertyOp.proposition.predicate,
+        RecordRef(universe: scope.universe, record: property.identity.recordId),
+      );
+      expect(existingPropertyOp.proposition.subject, operation.subject);
+      expect(existingPropertyOp.assertion.precision, Precision.exact);
+      expect(existingPropertyOp.assertion.validity, const UnknownValidity());
+      expect(existingPropertyOp.assertion.proposition.record, factId);
+      expect(
+        () => appendDraftAttribute(
+          draft: nextDraft,
+          form: newFields,
+          entity: entity,
+          property: property,
         ),
+        throwsFormatException,
+      );
+      final competing = SavedDraft(
+        version: nextDraft.version + BigInt.one,
+        content: nextDraft.content,
+      );
+      expect(
+        () => appendDraftAttribute(
+          draft: competing,
+          form: recoveredFact,
+          entity: entity,
+          property: property,
+        ),
+        throwsFormatException,
+      );
+      final existingDraft = await changes().saveContent(nextDraft, newContent);
+      expect(
+        appendDraftAttribute(
+          draft: existingDraft,
+          form: recoveredFact,
+          entity: entity,
+          property: property,
+        ).toWire().toText(),
+        newContent.toWire().toText(),
+      );
+      expect(newContent.rationale, nextDraft.content.rationale);
+      final changedEntry = UnfinishedAttributeForm(
+        baseRevision: recoveredFact.baseRevision,
+        representedContext: recoveredFact.representedContext,
+        clientRef: recoveredFact.clientRef,
+        draftVersion: recoveredFact.draftVersion,
+        value: const QualifierInput(
+          kind: 'text',
+          value: 'Changed after adding',
+        ),
+        evidenceInput: recoveredFact.evidenceInput,
+        creationInput: recoveredFact.creationInput,
+      );
+      expect(
+        () => appendDraftAttribute(
+          draft: existingDraft,
+          form: changedEntry,
+          entity: entity,
+          property: property,
+        ),
+        throwsFormatException,
       );
       final existingFields = attributeFormFromDraft(existingDraft, 0);
       final existingScope = EditorFormScope(
@@ -994,7 +1084,11 @@ void main() {
           form: recoveredExisting,
         ),
       );
-      final existingProposal = await changes().submit(revisedDraft);
+      final ready = await changes().saveRationale(
+        revisedDraft,
+        'Another attributed account.',
+      );
+      final existingProposal = await changes().submit(ready);
       final existingValidation =
           await changes().validate(existingProposal) as EvaluatedValidation;
       await changes().approve(existingProposal, existingValidation);
@@ -1025,7 +1119,7 @@ void main() {
           .single;
       expect(
         existingAssertion.basis.toWire().toText(),
-        assertion.basis.toWire().toText(),
+        const AuthorDecisionBasis('Another account.').toWire().toText(),
       );
     } finally {
       await session?.close();

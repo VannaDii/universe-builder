@@ -10,98 +10,119 @@ import 'package:ub_store/editor_forms.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 void main() {
-  test('legacy attribute value recovery retains pending fields when assertion input is added', () {
-    final root = Directory('/tmp').createTempSync('ub-attribute-v1-');
-    final path = '${root.path}/forms.sqlite';
-    final scope = EditorFormScope(
-      instance: OperationId.generate(),
-      profile: ProfileId.generate(),
-      universe: UniverseId.generate(),
-      continuity: ContinuityId.generate(),
-      representedContext: RecordId.generate(),
-      attributeClientRef: 'attribute',
-    );
-    final initial = UnfinishedAttributeForm(
-      baseRevision: RevisionId.generate(),
-      representedContext: scope.representedContext!,
-      clientRef: 'attribute',
-      draftVersion: BigInt.two,
-      value: const QualifierInput(kind: 'decimal', value: 'unfinished 😀'),
-    );
-    var store = AttributeFormRecoveryStore.open(path);
-    store.save(scope, initial, BigInt.zero);
-    store.close();
-    final db = sqlite3.open(path);
-    db.execute(
-      'ALTER TABLE attribute_form DROP COLUMN evidence_input; PRAGMA user_version=1',
-    );
-    db.close();
-    store = AttributeFormRecoveryStore.open(path);
-    try {
-      final legacy = store.load(scope)!;
-      expect(legacy.form.toWire().toText(), initial.toWire().toText());
-      expect(legacy.form.evidenceInput, isNull);
-      final pending = UnfinishedAttributeForm(
-        baseRevision: initial.baseRevision,
-        representedContext: initial.representedContext,
-        clientRef: initial.clientRef,
-        draftVersion: initial.draftVersion,
-        value: initial.value,
-        evidenceInput: const AttributeEvidenceInput(
-          basis: EvidenceBasisInput(
-            kind: 'source_anchor',
-            note: 'unfinished account 記憶 😀',
-            anchorRecord: 'unfinished anchor',
-            anchorUniverse: 'unfinished universe',
-            verified: true,
-          ),
-          attributeMode: AttributeMode.initialValue,
-          scope: ScopeInput(
-            applicability: 'worlds',
-            worlds: ['unfinished world 記憶 😀', '', 'unfinished world 記憶 😀'],
-            contextRecord: 'unfinished context',
-            contextUniverse: 'unfinished universe',
-            hasRealm: true,
-            realmRecord: 'unfinished realm',
-            realmUniverse: 'unfinished realm universe',
-          ),
-          alternatives: [
-            QualifierInput(kind: 'retain', originalKey: '1'),
-            QualifierInput(
-              kind: 'sequence',
-              children: [
-                QualifierInput(kind: 'decimal', value: 'unfinished 記憶 😀'),
-              ],
+  for (final schemaVersion in [1, 2]) {
+    test(
+      'legacy v$schemaVersion attribute recovery retains pending fields with creation input',
+      () {
+        final root = Directory('/tmp').createTempSync('ub-attribute-v1-');
+        final path = '${root.path}/forms.sqlite';
+        final scope = EditorFormScope(
+          instance: OperationId.generate(),
+          profile: ProfileId.generate(),
+          universe: UniverseId.generate(),
+          continuity: ContinuityId.generate(),
+          representedContext: RecordId.generate(),
+          attributeClientRef: 'attribute',
+        );
+        final initial = UnfinishedAttributeForm(
+          baseRevision: RevisionId.generate(),
+          representedContext: scope.representedContext!,
+          clientRef: 'attribute',
+          draftVersion: BigInt.two,
+          value: const QualifierInput(kind: 'decimal', value: 'unfinished 😀'),
+        );
+        var store = AttributeFormRecoveryStore.open(path);
+        store.save(scope, initial, BigInt.zero);
+        store.close();
+        final db = sqlite3.open(path);
+        db.execute(
+          'ALTER TABLE attribute_form DROP COLUMN creation_input; '
+          '${schemaVersion == 1 ? 'ALTER TABLE attribute_form DROP COLUMN evidence_input; ' : ''}'
+          'PRAGMA user_version=$schemaVersion',
+        );
+        db.close();
+        store = AttributeFormRecoveryStore.open(path);
+        try {
+          final legacy = store.load(scope)!;
+          expect(legacy.form.toWire().toText(), initial.toWire().toText());
+          expect(legacy.form.evidenceInput, isNull);
+          final pending = UnfinishedAttributeForm(
+            baseRevision: initial.baseRevision,
+            representedContext: initial.representedContext,
+            clientRef: initial.clientRef,
+            draftVersion: initial.draftVersion,
+            value: initial.value,
+            creationInput: AttributeCreationInput(
+              subject: VersionRef(
+                universe: scope.universe,
+                record: RecordId.generate(),
+                version: RecordVersionId.generate(),
+              ),
+              operationRef: RecordId.generate().value,
+              propertyRecord: 'unfinished property 記憶 😀',
+              propertyUniverse: 'unfinished universe',
             ),
-          ],
-          polarity: Polarity.refutation,
-          precision: Precision.unresolved,
-          persistence: PersistenceSemantics.conditionDependent,
-          temporalValidity: TemporalValidityInput(
-            kind: 'instant_duration',
-            calendar: 'unfinished calendar 😀',
-            start: TemporalBoundInput(
-              uncertaintyKind: 'typed',
-              amount: QualifierInput(
-                kind: 'sequence',
-                children: [
-                  QualifierInput(kind: 'text', value: '記憶 😀\namount'),
+            evidenceInput: const AttributeEvidenceInput(
+              basis: EvidenceBasisInput(
+                kind: 'source_anchor',
+                note: 'unfinished account 記憶 😀',
+                anchorRecord: 'unfinished anchor',
+                anchorUniverse: 'unfinished universe',
+                verified: true,
+              ),
+              attributeMode: AttributeMode.initialValue,
+              scope: ScopeInput(
+                applicability: 'worlds',
+                worlds: [
+                  'unfinished world 記憶 😀',
+                  '',
+                  'unfinished world 記憶 😀',
                 ],
+                contextRecord: 'unfinished context',
+                contextUniverse: 'unfinished universe',
+                hasRealm: true,
+                realmRecord: 'unfinished realm',
+                realmUniverse: 'unfinished realm universe',
+              ),
+              alternatives: [
+                QualifierInput(kind: 'retain', originalKey: '1'),
+                QualifierInput(
+                  kind: 'sequence',
+                  children: [
+                    QualifierInput(kind: 'decimal', value: 'unfinished 記憶 😀'),
+                  ],
+                ),
+              ],
+              polarity: Polarity.refutation,
+              precision: Precision.unresolved,
+              persistence: PersistenceSemantics.conditionDependent,
+              temporalValidity: TemporalValidityInput(
+                kind: 'instant_duration',
+                calendar: 'unfinished calendar 😀',
+                start: TemporalBoundInput(
+                  uncertaintyKind: 'typed',
+                  amount: QualifierInput(
+                    kind: 'sequence',
+                    children: [
+                      QualifierInput(kind: 'text', value: '記憶 😀\namount'),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-      );
-      store.save(scope, pending, legacy.generation);
-      store.close();
-      store = AttributeFormRecoveryStore.open(path);
-      expect(
-        store.load(scope)!.form.toWire().toText(),
-        pending.toWire().toText(),
-      );
-    } finally {
-      store.close();
-      root.deleteSync(recursive: true);
-    }
-  });
+          );
+          store.save(scope, pending, legacy.generation);
+          store.close();
+          store = AttributeFormRecoveryStore.open(path);
+          expect(
+            store.load(scope)!.form.toWire().toText(),
+            pending.toWire().toText(),
+          );
+        } finally {
+          store.close();
+          root.deleteSync(recursive: true);
+        }
+      },
+    );
+  }
 }

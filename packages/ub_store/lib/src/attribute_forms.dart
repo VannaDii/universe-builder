@@ -9,7 +9,8 @@ import 'ownership.dart';
 
 const _v1Columns =
     'instance,profile,universe,continuity,context,editor_key,generation,base_revision,draft_version,value_input';
-const _columns = '$_v1Columns,evidence_input';
+const _v2Columns = '$_v1Columns,evidence_input';
+const _columns = '$_v2Columns,creation_input';
 const _where =
     'instance=? AND profile=? AND universe=? AND continuity=? AND context=? AND editor_key=?';
 const _schema = """
@@ -17,10 +18,10 @@ CREATE TABLE attribute_form (
  instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
  continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL,
  generation TEXT NOT NULL, base_revision TEXT NOT NULL, draft_version TEXT NOT NULL,
- value_input TEXT NOT NULL, evidence_input TEXT,
+ value_input TEXT NOT NULL, evidence_input TEXT, creation_input TEXT,
  PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)
 ) STRICT;
-PRAGMA user_version=2;
+PRAGMA user_version=3;
 """;
 
 /// Device-private incomplete attribute value input, separate from canon.
@@ -58,7 +59,12 @@ final class AttributeFormRecoveryStore {
           db.execute(
             'ALTER TABLE attribute_form ADD COLUMN evidence_input TEXT',
           );
-          db.execute('PRAGMA user_version=2');
+        }
+        if (version == 1 || version == 2) {
+          db.execute(
+            'ALTER TABLE attribute_form ADD COLUMN creation_input TEXT',
+          );
+          db.execute('PRAGMA user_version=3');
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -87,12 +93,16 @@ final class AttributeFormRecoveryStore {
     if (tables.isEmpty) return 0;
     final version = db.select('PRAGMA user_version').single.values.single;
     if (tables.length != 1 ||
-        (version != 1 && version != 2) ||
+        (version != 1 && version != 2 && version != 3) ||
         db
                 .select('PRAGMA table_info(attribute_form)')
                 .map((row) => row['name'])
                 .join(',') !=
-            (version == 1 ? _v1Columns : _columns)) {
+            (version == 1
+                ? _v1Columns
+                : version == 2
+                ? _v2Columns
+                : _columns)) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );
@@ -143,6 +153,11 @@ final class AttributeFormRecoveryStore {
             : AttributeEvidenceInput.fromWire(
                 CanonicalValue.parseWireJson(row['evidence_input'] as String),
               ),
+        creationInput: row['creation_input'] == null
+            ? null
+            : AttributeCreationInput.fromWire(
+                CanonicalValue.parseWireJson(row['creation_input'] as String),
+              ),
         value: QualifierInput.fromWire(
           CanonicalValue.parseWireJson(row['value_input'] as String),
         ),
@@ -179,6 +194,11 @@ final class AttributeFormRecoveryStore {
     for (final text in [
       form.clientRef,
       ...form.value.exactTexts,
+      if (form.creationInput case final creation?) ...[
+        creation.operationRef,
+        creation.propertyRecord,
+        creation.propertyUniverse,
+      ],
       if (form.evidenceInput != null) ...form.evidenceInput!.exactTexts,
     ]) {
       if (decodeExactUtf8(utf8.encode(text)) != text) {
@@ -207,7 +227,7 @@ final class AttributeFormRecoveryStore {
         form: form,
       );
       _db.execute(
-        'INSERT INTO attribute_form VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(instance,profile,universe,continuity,context,editor_key) DO UPDATE SET generation=excluded.generation,base_revision=excluded.base_revision,draft_version=excluded.draft_version,value_input=excluded.value_input,evidence_input=excluded.evidence_input',
+        'INSERT INTO attribute_form VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(instance,profile,universe,continuity,context,editor_key) DO UPDATE SET generation=excluded.generation,base_revision=excluded.base_revision,draft_version=excluded.draft_version,value_input=excluded.value_input,evidence_input=excluded.evidence_input,creation_input=excluded.creation_input',
         [
           ...binding,
           saved.generation.toString(),
@@ -215,6 +235,7 @@ final class AttributeFormRecoveryStore {
           form.draftVersion.toString(),
           form.value.toWire().toText(),
           form.evidenceInput?.toWire().toText(),
+          form.creationInput?.toWire().toText(),
         ],
       );
       _db.execute('COMMIT');

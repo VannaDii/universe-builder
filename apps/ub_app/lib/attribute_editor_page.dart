@@ -5,6 +5,10 @@ import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'package:ub_domain/ub_domain.dart';
 
 import 'attribute_draft.dart';
+import 'connection.dart';
+import 'draft_record_choice_field.dart';
+import 'draft_record_choices.dart';
+import 'record_browser.dart';
 import 'evidence_basis_draft.dart';
 import 'evidence_basis_fields.dart';
 import 'qualifier_draft.dart';
@@ -22,10 +26,21 @@ class AttributeEditorPage extends StatefulWidget {
     required this.changes,
     required this.draft,
     required this.index,
-  });
+  }) : publishedEntity = null,
+       openedRevision = null;
+  const AttributeEditorPage.create({
+    super.key,
+    required this.changes,
+    required this.draft,
+    required this.publishedEntity,
+    required this.openedRevision,
+  }) : index = null;
   final SavedChanges changes;
   final SavedDraft draft;
-  final int index;
+  final int? index;
+  final RecordVersion? publishedEntity;
+  final RevisionId? openedRevision;
+  bool get creating => publishedEntity != null;
   @override
   State<AttributeEditorPage> createState() => _AttributeEditorPageState();
 }
@@ -44,9 +59,33 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
   Timer? _autosave;
   SavedDraft? _result;
   late EditorFormScope _scope;
-  bool get _disabled => _loading || _saving || _updating || _form == null;
-  DomainOperation get _source => _draft.content.operations[widget.index];
-  AttributeEvidence get _evidence => attributeEvidence(_source);
+  bool get _added =>
+      widget.creating &&
+      _form?.creationInput != null &&
+      _draft.content.operations.any(
+        (op) =>
+            op is AssertPropositionOperation &&
+            op.clientRef == _form!.creationInput!.operationRef,
+      );
+  bool get _disabled =>
+      _loading || _saving || _updating || _form == null || _added;
+  DomainOperation? get _source =>
+      widget.creating ? null : _draft.content.operations[widget.index!];
+  DomainValue? get _value => _source == null ? null : attributeValue(_source!);
+  AttributeEvidence get _evidence => widget.creating
+      ? newAttributeEvidence(
+          widget.changes.scope.universe,
+          _form?.representedContext ?? widget.changes.scope.representedContext!,
+        )
+      : attributeEvidence(_source!);
+  UnfinishedAttributeForm _freshForm() => widget.creating
+      ? newAttributeForm(
+          draft: _draft,
+          entity: widget.publishedEntity!,
+          baseRevision: widget.openedRevision,
+          representedContext: widget.changes.scope.representedContext,
+        )
+      : attributeFormFromDraft(_draft, widget.index!);
   @override
   void initState() {
     super.initState();
@@ -57,8 +96,12 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
       profile: scope.profile,
       universe: scope.universe,
       continuity: scope.continuity,
-      representedContext: _draft.content.representedContext,
-      attributeClientRef: attributeClientRef(_source),
+      representedContext: widget.creating
+          ? scope.representedContext
+          : _draft.content.representedContext,
+      attributeClientRef: widget.creating
+          ? 'new-attribute:${widget.publishedEntity!.identity.recordId.value}'
+          : attributeClientRef(_source!),
     );
     _load();
   }
@@ -77,7 +120,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
     try {
       final saved = await widget.changes.session.loadAttributeForm(_scope);
       if (!mounted) return;
-      final form = saved?.form ?? attributeFormFromDraft(_draft, widget.index);
+      final form = saved?.form ?? _freshForm();
       setState(() {
         _form = form;
         _generation = saved?.generation ?? BigInt.zero;
@@ -85,7 +128,13 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
         _stale =
             form.draftVersion != _draft.version ||
             form.baseRevision != _draft.content.baseRevision ||
-            form.representedContext != _draft.content.representedContext;
+            form.representedContext != _draft.content.representedContext ||
+            (widget.creating &&
+                (widget.openedRevision != _draft.content.baseRevision ||
+                    _scope.representedContext !=
+                        _draft.content.representedContext ||
+                    form.creationInput?.subject.version !=
+                        widget.publishedEntity!.recordVersionId));
       });
     } on Object {
       if (mounted) {
@@ -98,7 +147,11 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
     }
   }
 
-  void _change(QualifierInput value, {AttributeEvidenceInput? evidence}) {
+  void _change(
+    QualifierInput value, {
+    AttributeEvidenceInput? evidence,
+    AttributeCreationInput? creation,
+  }) {
     final old = _form!;
     setState(() {
       _form = UnfinishedAttributeForm(
@@ -108,6 +161,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
         draftVersion: old.draftVersion,
         value: value,
         evidenceInput: evidence ?? old.evidenceInput,
+        creationInput: creation ?? old.creationInput,
       );
       _dirty = true;
       _updated = null;
@@ -352,13 +406,36 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
 
   Future<void> _useCurrent() async {
     _autosave?.cancel();
-    setState(() {
-      _form = attributeFormFromDraft(_draft, widget.index);
-      _stale = false;
-      _dirty = true;
-      _updated = null;
-    });
-    await _save();
+    try {
+      if (widget.creating) {
+        final latest = await widget.changes.load();
+        if (latest != null) _draft = latest;
+        if (_draft.content.baseRevision != widget.openedRevision ||
+            _draft.content.representedContext != _scope.representedContext ||
+            _draft.content.proposal != null) {
+          throw const FormatException(
+            'Review Changes and reopen the dossier at its current revision.',
+          );
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _form = _freshForm();
+        _stale = false;
+        _dirty = true;
+        _updated = null;
+      });
+      await _save();
+    } on FormatException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _error =
+              'Could not open the current draft. Retry when connected.',
+        );
+      }
+    }
   }
 
   Future<void> _update() async {
@@ -370,23 +447,86 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
       _error = null;
     });
     try {
-      final content = replaceDraftAttribute(
-        draft: _draft,
-        index: widget.index,
-        form: _form!,
-      );
-      final saved = await widget.changes.saveContent(_draft, content);
+      final DraftContent content;
+      SavedDraft current = _draft;
+      if (widget.creating) {
+        current = await widget.changes.load() ?? _draft;
+        _draft = current;
+        final creation = _form!.creationInput!;
+        final context = await openDraftChoiceContext(widget.changes, current);
+        if (creation.propertyUniverse != widget.changes.scope.universe.value) {
+          throw const FormatException(
+            'Choose an existing property in this universe.',
+          );
+        }
+        final property = await readContextRecord(
+          session: widget.changes.session,
+          universe: LibraryEntry(
+            widget.changes.scope.universe,
+            widget.changes.universe.value,
+          ),
+          context: context,
+          record: RecordId.parse(creation.propertyRecord),
+        );
+        final entity = await readContextRecord(
+          session: widget.changes.session,
+          universe: LibraryEntry(
+            widget.changes.scope.universe,
+            widget.changes.universe.value,
+          ),
+          context: context,
+          record: creation.subject.record,
+        );
+        content = appendDraftAttribute(
+          draft: current,
+          form: _form!,
+          entity: entity,
+          property: property,
+        );
+      } else {
+        content = replaceDraftAttribute(
+          draft: current,
+          index: widget.index!,
+          form: _form!,
+        );
+      }
+      final saved =
+          content.toWire().toText() == current.content.toWire().toText()
+          ? current
+          : await widget.changes.saveContent(current, content);
       if (!mounted) return;
       setState(() {
         _draft = saved;
         _result = saved;
-        _form = attributeFormFromDraft(saved, widget.index);
+        _form = widget.creating
+            ? UnfinishedAttributeForm(
+                baseRevision: _form!.baseRevision,
+                representedContext: _form!.representedContext,
+                clientRef: _form!.clientRef,
+                draftVersion: saved.version,
+                value: _form!.value,
+                evidenceInput: _form!.evidenceInput,
+                creationInput: _form!.creationInput,
+              )
+            : attributeFormFromDraft(saved, widget.index!);
         _dirty = true;
-        _updated = 'Attribute updated in saved changes. Return to Changes to review it.';
+        _stale = false;
+        _updated =
+            'Attribute saved in Changes. Return to Changes to review it.';
       });
       await _save();
     } on FormatException catch (error) {
-      if (mounted) setState(() => _error = error.message);
+      if (mounted) {
+        setState(() {
+          _error = error.message;
+          if (widget.creating) {
+            _stale =
+                _form!.draftVersion != _draft.version ||
+                _form!.baseRevision != _draft.content.baseRevision ||
+                _form!.representedContext != _draft.content.representedContext;
+          }
+        });
+      }
     } on Object {
       if (mounted) {
         setState(
@@ -415,7 +555,11 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
       if (!didPop) _leave();
     },
     child: Scaffold(
-      appBar: AppBar(title: const Text('Edit attribute')),
+      appBar: AppBar(
+        title: Text(
+          widget.creating ? 'Add factual attribute' : 'Edit attribute',
+        ),
+      ),
       body: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
@@ -444,11 +588,33 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                     child: const Text('Use current draft fields'),
                   ),
                 ],
+                if (widget.creating && _form?.creationInput != null)
+                  DraftRecordChoiceField(
+                    changes: widget.changes,
+                    draft: _draft,
+                    kind: RecordKind.property,
+                    label: 'Property',
+                    record: _form!.creationInput!.propertyRecord,
+                    universe: _form!.creationInput!.propertyUniverse,
+                    disabled: _disabled,
+                    onChanged: (ref) {
+                      final creation = _form!.creationInput!;
+                      _change(
+                        _form!.value,
+                        creation: AttributeCreationInput(
+                          subject: creation.subject,
+                          operationRef: creation.operationRef,
+                          propertyRecord: ref.record.value,
+                          propertyUniverse: ref.universe!.value,
+                        ),
+                      );
+                    },
+                  ),
                 if (_form != null)
                   ValueInputFields(
                     key: const ValueKey('attribute value'),
                     input: _form!.value,
-                    original: attributeValue(_source),
+                    original: _value,
                     disabled: _disabled,
                     label: 'Attribute value',
                     onChanged: _change,
@@ -488,11 +654,12 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                     ],
                   ),
                 ],
-                ExpansionTile(
-                  key: const ValueKey('original attribute'),
-                  title: const Text('Original attribute and evidence'),
-                  children: [ExactFields(value: _source.toWire())],
-                ),
+                if (_source != null)
+                  ExpansionTile(
+                    key: const ValueKey('original attribute'),
+                    title: const Text('Original attribute and evidence'),
+                    children: [ExactFields(value: _source!.toWire())],
+                  ),
                 Text(
                   _dirty
                       ? 'Unsaved fields'
@@ -506,8 +673,23 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                   Semantics(liveRegion: true, child: Text(_updated!)),
                 FilledButton(
                   onPressed: _disabled || _stale ? null : _update,
-                  child: const Text('Save attribute changes'),
+                  child: Text(
+                    widget.creating
+                        ? 'Add to Changes'
+                        : 'Save attribute changes',
+                  ),
                 ),
+                if (_added) ...[
+                  const Text(
+                    'This fact is in Changes. Review or edit it there before publication.',
+                  ),
+                  TextButton(
+                    onPressed: _loading || _saving || _updating
+                        ? null
+                        : _useCurrent,
+                    child: const Text('Start another attribute'),
+                  ),
+                ],
                 TextButton(
                   onPressed: _disabled || !_dirty ? null : _save,
                   child: const Text('Save unfinished work'),

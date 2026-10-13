@@ -68,39 +68,7 @@ DraftContent replaceDraftAttribute({
   final op = draft.content.operations[index];
   final originalEvidence = attributeEvidence(op);
   final value = buildQualifierValue(form.value, attributeValue(op));
-  final evidence = AttributeEvidence(
-    attributeMode:
-        form.evidenceInput?.attributeMode ?? originalEvidence.attributeMode,
-    polarity: form.evidenceInput?.polarity ?? originalEvidence.polarity,
-    scope: form.evidenceInput?.scope == null
-        ? originalEvidence.scope
-        : buildScope(form.evidenceInput!.scope!),
-    validity: form.evidenceInput?.temporalValidity != null
-        ? buildTemporalValidity(
-            form.evidenceInput!.temporalValidity!,
-            originalEvidence.validity,
-          )
-        : form.evidenceInput?.validity ?? originalEvidence.validity,
-    persistence:
-        form.evidenceInput?.persistence ?? originalEvidence.persistence,
-    precision: form.evidenceInput?.precision ?? originalEvidence.precision,
-    alternatives: form.evidenceInput?.alternatives == null
-        ? originalEvidence.alternatives
-        : form.evidenceInput!.alternatives!.map(
-            (input) => buildQualifierValue(
-              input,
-              qualifierChildren(
-                SequenceValue(originalEvidence.alternatives),
-              )[input.originalKey],
-            ),
-          ),
-    basis: form.evidenceInput?.basis == null
-        ? originalEvidence.basis
-        : buildEvidenceBasis(
-            form.evidenceInput!.basis!,
-            originalEvidence.basis,
-          ),
-  );
+  final evidence = editAttributeEvidence(form.evidenceInput, originalEvidence);
   final DomainOperation edited;
   if (op is AddNamedAttributeOperation) {
     edited = AddNamedAttributeOperation(
@@ -151,6 +119,176 @@ DraftContent replaceDraftAttribute({
       for (var i = 0; i < draft.content.operations.length; i++)
         i == index ? edited : draft.content.operations[i],
     ],
+    rationale: draft.content.rationale,
+  );
+}
+
+AttributeEvidence editAttributeEvidence(
+  AttributeEvidenceInput? input,
+  AttributeEvidence originalEvidence,
+) {
+  return AttributeEvidence(
+    attributeMode: input?.attributeMode ?? originalEvidence.attributeMode,
+    polarity: input?.polarity ?? originalEvidence.polarity,
+    scope: input?.scope == null
+        ? originalEvidence.scope
+        : buildScope(input!.scope!),
+    validity: input?.temporalValidity != null
+        ? buildTemporalValidity(
+            input!.temporalValidity!,
+            originalEvidence.validity,
+          )
+        : input?.validity ?? originalEvidence.validity,
+    persistence: input?.persistence ?? originalEvidence.persistence,
+    precision: input?.precision ?? originalEvidence.precision,
+    alternatives: input?.alternatives == null
+        ? originalEvidence.alternatives
+        : input!.alternatives!.map(
+            (input) => buildQualifierValue(
+              input,
+              qualifierChildren(
+                SequenceValue(originalEvidence.alternatives),
+              )[input.originalKey],
+            ),
+          ),
+    basis: input?.basis == null
+        ? originalEvidence.basis
+        : buildEvidenceBasis(input!.basis!, originalEvidence.basis),
+  );
+}
+
+AttributeEvidence newAttributeEvidence(UniverseId universe, RecordId context) =>
+    AttributeEvidence(
+      attributeMode: AttributeMode.instance,
+      polarity: Polarity.support,
+      scope: Scope(
+        context: RecordRef(universe: universe, record: context),
+        applicability: const UnspecifiedApplicability(),
+      ),
+      validity: const UnknownValidity(),
+      persistence: PersistenceSemantics.unspecified,
+      precision: Precision.unresolved,
+      basis: const AuthorDecisionBasis(''),
+    );
+
+UnfinishedAttributeForm newAttributeForm({
+  required SavedDraft draft,
+  required RecordVersion entity,
+  RevisionId? baseRevision,
+  RecordId? representedContext,
+}) {
+  if (entity.payload is! EntityRecord) {
+    throw const FormatException('Choose an entity for this fact.');
+  }
+  return UnfinishedAttributeForm(
+    baseRevision: baseRevision ?? draft.content.baseRevision,
+    representedContext: representedContext ?? draft.content.representedContext,
+    clientRef: 'new-attribute:${entity.identity.recordId.value}',
+    draftVersion: draft.version,
+    value: const QualifierInput(kind: 'text'),
+    creationInput: AttributeCreationInput(
+      subject: VersionRef(
+        universe: entity.identity.universeId,
+        record: entity.identity.recordId,
+        version: entity.recordVersionId,
+      ),
+      operationRef: RecordId.generate().value,
+    ),
+  );
+}
+
+DraftContent appendDraftAttribute({
+  required SavedDraft draft,
+  required UnfinishedAttributeForm form,
+  required RecordVersion entity,
+  required RecordVersion property,
+}) {
+  final creation = form.creationInput;
+  if (creation == null ||
+      entity.payload is! EntityRecord ||
+      property.payload is! PropertyRecord ||
+      creation.subject.record != entity.identity.recordId ||
+      creation.subject.universe != entity.identity.universeId ||
+      creation.subject.version != entity.recordVersionId ||
+      creation.propertyRecord != property.identity.recordId.value ||
+      creation.propertyUniverse != property.identity.universeId.value ||
+      entity.identity.universeId != property.identity.universeId ||
+      form.clientRef != 'new-attribute:${entity.identity.recordId.value}') {
+    throw const FormatException(
+      'Reopen the entity and choose an existing property.',
+    );
+  }
+  if (draft.content.proposal != null ||
+      form.baseRevision != draft.content.baseRevision ||
+      form.representedContext != draft.content.representedContext) {
+    throw const FormatException(
+      'Reopen the dossier at the current draft revision.',
+    );
+  }
+  final evidence = editAttributeEvidence(
+    form.evidenceInput,
+    newAttributeEvidence(entity.identity.universeId, form.representedContext),
+  );
+  final op = AssertPropositionOperation(
+    clientRef: creation.operationRef,
+    proposition: PropositionRecord(
+      predicate: RecordRef(
+        universe: property.identity.universeId,
+        record: property.identity.recordId,
+      ),
+      subject: RecordRef(
+        universe: entity.identity.universeId,
+        record: entity.identity.recordId,
+      ),
+      value: buildQualifierValue(form.value, null),
+      quantification: Quantification.particular,
+      context: evidence.scope.context,
+    ),
+    assertion: AssertionRecord(
+      proposition: RecordRef(
+        universe: entity.identity.universeId,
+        record: RecordId.parse(creation.operationRef),
+      ),
+      attributeMode: evidence.attributeMode,
+      polarity: evidence.polarity,
+      scope: evidence.scope,
+      validity: evidence.validity,
+      persistence: evidence.persistence,
+      precision: evidence.precision,
+      alternatives: evidence.alternatives,
+      basis: evidence.basis,
+    ),
+  );
+  final existing = draft.content.operations
+      .where(
+        (other) => other.toWire().fields.any(
+          (field) =>
+              field.key == 'client_ref' &&
+              switch (field.value) {
+                CanonicalString(:final value) => value == creation.operationRef,
+                _ => false,
+              },
+        ),
+      )
+      .toList();
+  if (existing.isNotEmpty) {
+    if (existing.length == 1 &&
+        existing.single.toWire().toText() == op.toWire().toText()) {
+      return draft.content;
+    }
+    throw const FormatException(
+      'This fact is already in Changes. Edit it there.',
+    );
+  }
+  if (form.draftVersion != draft.version) {
+    throw const FormatException(
+      'Changes were edited elsewhere. Use current draft fields before adding this fact.',
+    );
+  }
+  return DraftContent(
+    baseRevision: draft.content.baseRevision,
+    representedContext: draft.content.representedContext,
+    operations: [...draft.content.operations, op],
     rationale: draft.content.rationale,
   );
 }
