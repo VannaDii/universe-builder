@@ -391,9 +391,27 @@ final class QualifierInput {
     this.universe = '',
     this.definition = '',
     this.originalKey,
+    this.children = const [],
   });
   final String key, kind, value, denominator, unit, universe, definition;
   final String? originalKey;
+  final List<QualifierInput> children;
+  Iterable<String> get exactTexts sync* {
+    yield* [
+      key,
+      kind,
+      value,
+      denominator,
+      unit,
+      universe,
+      definition,
+      ?originalKey,
+    ];
+    for (final child in children) {
+      yield* child.exactTexts;
+    }
+  }
+
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('key', CanonicalString(key)),
     MapEntry('kind', CanonicalString(kind)),
@@ -402,10 +420,12 @@ final class QualifierInput {
     MapEntry('unit', CanonicalString(unit)),
     MapEntry('universe', CanonicalString(universe)),
     MapEntry('definition', CanonicalString(definition)),
+    MapEntry('children', CanonicalArray(children.map((c) => c.toWire()))),
     if (originalKey != null)
       MapEntry('original_key', CanonicalString(originalKey!)),
   ]);
-  factory QualifierInput.fromWire(CanonicalValue value) {
+  factory QualifierInput.fromWire(CanonicalValue value, {int depth = 0}) {
+    if (depth > 128) throw const FormatException('Value nesting limit');
     final f = WireFields(value, {
       'key',
       'kind',
@@ -415,6 +435,7 @@ final class QualifierInput {
       'original_key',
       'universe',
       'definition',
+      'children',
     });
     return QualifierInput(
       key: f.string('key'),
@@ -425,6 +446,10 @@ final class QualifierInput {
       universe: f.optional('universe', wireString) ?? '',
       definition: f.optional('definition', wireString) ?? '',
       originalKey: f.optional('original_key', wireString),
+      children: f
+          .array('children', defaultEmpty: true)
+          .map((c) => QualifierInput.fromWire(c, depth: depth + 1))
+          .toList(),
     );
   }
 }

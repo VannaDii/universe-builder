@@ -38,6 +38,16 @@ void main() {
         RecordRef(record: RecordId.generate()),
       ),
       'enum': EnumValue(ValueDefinitionId.generate(), '記憶 😀'),
+      'set': SetValue([
+        const DecimalValue('1.000000000000000001'),
+        const TextValue('記憶 😀'),
+      ]),
+      'fields': StructuredValue(ValueDefinitionId.generate(), {
+        'nested': SequenceValue([
+          const RationalValue('001', '03'),
+          const TemporalValue(UnspecifiedTime()),
+        ]),
+      }),
       'structured': SequenceValue([
         const TextValue('first'),
         const BooleanValue(false),
@@ -106,6 +116,76 @@ void main() {
       throwsFormatException,
     );
   });
+  test(
+    'collection edits preserve order, retained children and field names',
+    () {
+      final opaque = const TemporalValue(UnspecifiedTime());
+      final source = SequenceValue([
+        const TextValue('first'),
+        opaque,
+        const BooleanValue(false),
+      ]);
+      final input = qualifierInput('list', source);
+      final edited = QualifierInput(
+        key: 'renamed list',
+        kind: 'sequence',
+        originalKey: 'list',
+        children: [
+          input.children[2],
+          input.children[1],
+          const QualifierInput(kind: 'text', value: 'new 😀'),
+        ],
+      );
+      final recovered = QualifierInput.fromWire(edited.toWire());
+      expect(
+        buildQualifiers([recovered], {'list': source})['renamed list'],
+        SequenceValue([
+          const BooleanValue(false),
+          opaque,
+          const TextValue('new 😀'),
+        ]),
+      );
+      final definition = ValueDefinitionId.generate();
+      final structure = StructuredValue(definition, {'old': opaque});
+      final changed = QualifierInput(
+        key: 'fields',
+        kind: 'structured',
+        definition: definition.value,
+        originalKey: 'fields',
+        children: [
+          const QualifierInput(
+            key: 'renamed',
+            kind: 'retain',
+            originalKey: 'old',
+          ),
+        ],
+      );
+      expect(
+        buildQualifiers([changed], {'fields': structure})['fields'],
+        StructuredValue(definition, {'renamed': opaque}),
+      );
+      expect(
+        () => buildQualifiers([
+          QualifierInput(
+            key: 'fields',
+            kind: 'structured',
+            definition: definition.value,
+            children: [
+              const QualifierInput(key: 'x'),
+              const QualifierInput(key: 'x'),
+            ],
+          ),
+        ], {}),
+        throwsFormatException,
+      );
+      expect(
+        buildQualifiers([
+          const QualifierInput(key: 'empty', kind: 'set'),
+        ], {})['empty'],
+        SetValue([]),
+      );
+    },
+  );
   test(
     'reference and enumeration edits retain targets and recover older forms',
     () {
@@ -840,6 +920,23 @@ void main() {
                 qualifiers: [
                   QualifierInput(key: 'account', value: '記憶 😀'),
                   QualifierInput(
+                    key: 'list',
+                    kind: 'sequence',
+                    children: [
+                      QualifierInput(kind: 'text', value: 'first 😀'),
+                      QualifierInput(
+                        kind: 'set',
+                        children: [
+                          QualifierInput(
+                            kind: 'decimal',
+                            value: '1.000000000000000001',
+                          ),
+                          QualifierInput(kind: 'boolean', value: 'false'),
+                        ],
+                      ),
+                    ],
+                  ),
+                  QualifierInput(
                     key: 'setting',
                     kind: 'record_ref',
                     value: worldRecord.identity.recordId.value,
@@ -907,6 +1004,16 @@ void main() {
             record: worldRecord.identity.recordId,
           ),
         ),
+      );
+      expect(
+        published.worldAssociations.single.qualifiers['list'],
+        SequenceValue([
+          const TextValue('first 😀'),
+          SetValue([
+            const DecimalValue('1.000000000000000001'),
+            const BooleanValue(false),
+          ]),
+        ]),
       );
       expect(
         published.worldAssociations.single.qualifiers['confirmed'],

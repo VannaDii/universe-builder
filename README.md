@@ -83,9 +83,11 @@ Text and boolean amounts can be edited without converting their types; units
 apply to numeric amounts. Association qualifiers can be added, renamed, edited or removed with text,
 boolean, integer, decimal, rational, numeric quantity, record/entity/proposition
 reference and enumeration values. Reference targets and enumeration definitions
-currently use explicit IDs; an omitted target universe remains omitted. Structured
-amount and qualifier value editors remain unfinished; existing exact structured
-values can be retained, including when a qualifier is renamed. Review, approval and publication remain separate steps.
+currently use explicit IDs; an omitted target universe remains omitted. Sequences,
+sets and structured fields support nested typed values, item addition/removal,
+item reordering and field renaming. Range, spatial and temporal qualifier editors and structured
+amount editors remain unfinished; their exact values can be retained, including
+when a containing qualifier or field is renamed. Review, approval and publication remain separate steps.
 **Type definition** opens a recoverable typed form for namespace, key, display
 name, parent, applicability, executable classification and rationale. Parent,
 applicability and classification require explicit choices. Unspecified and

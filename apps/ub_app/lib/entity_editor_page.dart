@@ -451,11 +451,12 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     ),
   );
   Widget _qualifierRow(
-    _AssociationFields association,
+    List<_QualifierFields> rows,
     int index,
-    Map<String, DomainValue> original,
-  ) {
-    final fields = association.qualifiers[index];
+    Map<String, DomainValue> original, {
+    bool named = true,
+  }) {
+    final fields = rows[index];
     final retained = original[fields.originalKey];
     return Card(
       key: ValueKey(fields),
@@ -464,7 +465,10 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _field(fields.name, 'Qualifier name'),
+            if (named)
+              _field(fields.name, 'Qualifier name')
+            else
+              Text('Item ${index + 1}'),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               key: ValueKey((fields, fields.kind)),
@@ -488,6 +492,9 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                   'record_ref': 'Record reference',
                   'proposition_ref': 'Proposition reference',
                   'enum': 'Enumeration',
+                  'sequence': 'Sequence',
+                  'set': 'Set',
+                  'structured': 'Structured fields',
                 }.entries)
                   DropdownMenuItem(
                     value: choice.key,
@@ -508,7 +515,32 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                     )
                   : ExactFields(value: retained.toWire())
             else ...[
-              if (fields.kind == 'boolean')
+              if (['sequence', 'set', 'structured'].contains(fields.kind)) ...[
+                if (fields.kind == 'structured')
+                  _field(fields.definition, 'Structure definition ID'),
+                for (var c = 0; c < fields.children.length; c++)
+                  _qualifierRow(
+                    fields.children,
+                    c,
+                    qualifierChildren(retained),
+                    named: fields.kind == 'structured',
+                  ),
+                TextButton(
+                  onPressed: _disabled
+                      ? null
+                      : () {
+                          setState(
+                            () => fields.children.add(
+                              _QualifierFields(const QualifierInput()),
+                            ),
+                          );
+                          _changed();
+                        },
+                  child: Text(
+                    fields.kind == 'structured' ? 'Add field' : 'Add item',
+                  ),
+                ),
+              ] else if (fields.kind == 'boolean')
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: DropdownButtonFormField<String>(
@@ -564,15 +596,44 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                 _field(fields.denominator, 'Denominator'),
               _field(fields.unit, 'Unit ID (numeric values only, optional)'),
             ],
+            if (!named)
+              Wrap(
+                children: [
+                  TextButton(
+                    onPressed: _disabled || index == 0
+                        ? null
+                        : () {
+                            setState(() {
+                              rows.removeAt(index);
+                              rows.insert(index - 1, fields);
+                            });
+                            _changed();
+                          },
+                    child: const Text('Move earlier'),
+                  ),
+                  TextButton(
+                    onPressed: _disabled || index == rows.length - 1
+                        ? null
+                        : () {
+                            setState(() {
+                              rows.removeAt(index);
+                              rows.insert(index + 1, fields);
+                            });
+                            _changed();
+                          },
+                    child: const Text('Move later'),
+                  ),
+                ],
+              ),
             TextButton(
               onPressed: _disabled
                   ? null
                   : () {
-                      setState(() => association.qualifiers.removeAt(index));
+                      setState(() => rows.removeAt(index));
                       fields.dispose();
                       _changed();
                     },
-              child: const Text('Remove qualifier'),
+              child: Text(named ? 'Remove qualifier or field' : 'Remove item'),
             ),
           ],
         ),
@@ -713,7 +774,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
               ),
             const Text('Association qualifiers'),
             for (var q = 0; q < fields.qualifiers.length; q++)
-              _qualifierRow(fields, q, original?.qualifiers ?? {}),
+              _qualifierRow(fields.qualifiers, q, original?.qualifiers ?? {}),
             if (fields.qualifiers.isEmpty) const Text('No qualifiers'),
             TextButton(
               onPressed: _disabled
@@ -999,6 +1060,7 @@ final class _QualifierFields {
       universe = TextEditingController(text: form.universe),
       definition = TextEditingController(text: form.definition),
       kind = form.kind,
+      children = form.children.map(_QualifierFields.new).toList(),
       originalKey = form.originalKey;
   final TextEditingController name,
       value,
@@ -1007,6 +1069,7 @@ final class _QualifierFields {
       universe,
       definition;
   String kind;
+  final List<_QualifierFields> children;
   final String? originalKey;
   QualifierInput get form => QualifierInput(
     key: name.text,
@@ -1017,6 +1080,7 @@ final class _QualifierFields {
     universe: universe.text,
     definition: definition.text,
     originalKey: originalKey,
+    children: children.map((c) => c.form).toList(),
   );
   void dispose() {
     name.dispose();
@@ -1025,5 +1089,8 @@ final class _QualifierFields {
     unit.dispose();
     universe.dispose();
     definition.dispose();
+    for (final child in children) {
+      child.dispose();
+    }
   }
 }

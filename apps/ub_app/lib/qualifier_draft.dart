@@ -20,6 +20,22 @@ QualifierInput qualifierInput(String key, DomainValue value) {
       originalKey: key,
     );
   }
+  if (value is SequenceValue || value is SetValue || value is StructuredValue) {
+    return QualifierInput(
+      key: key,
+      kind: value is SequenceValue
+          ? 'sequence'
+          : value is SetValue
+          ? 'set'
+          : 'structured',
+      definition: value is StructuredValue ? value.definition.value : '',
+      originalKey: key,
+      children: [
+        for (final entry in qualifierChildren(value).entries)
+          qualifierInput(entry.key, entry.value),
+      ],
+    );
+  }
   final unit = value is QuantityValue ? value.unit.value : '';
   final amount = value is QuantityValue ? value.value : value;
   final (kind, text, denominator) = switch (amount) {
@@ -56,45 +72,66 @@ Map<String, DomainValue> buildQualifiers(
     if (result.containsKey(row.key)) {
       throw const FormatException('Qualifier names must be distinct.');
     }
-    if (row.kind == 'retain') {
-      final value = original[row.originalKey];
-      if (value == null) {
-        throw const FormatException(
-          'The original qualifier is unavailable. Reopen current fields.',
-        );
-      }
-      result[row.key] = value;
-      continue;
-    }
-    final amount = switch (row.kind) {
-      'entity_ref' || 'record_ref' || 'proposition_ref' => ReferenceValue(
-        ValueReferenceKind.parse(row.kind),
-        RecordRef(
-          universe: row.universe.isEmpty
-              ? null
-              : UniverseId.parse(row.universe),
-          record: RecordId.parse(row.value),
-        ),
-      ),
-      'enum' => EnumValue(ValueDefinitionId.parse(row.definition), row.value),
-      'text' => TextValue(row.value),
-      'boolean' => BooleanValue(switch (row.value) {
-        'true' => true,
-        'false' => false,
-        _ => throw const FormatException(
-          'Choose true or false for each boolean qualifier.',
-        ),
-      }),
-      'integer' => IntegerValue(row.value),
-      'decimal' => DecimalValue(row.value),
-      'rational' => RationalValue(row.value, row.denominator),
-      _ => throw const FormatException('Choose a qualifier value type.'),
-    };
-    final value = row.unit.isEmpty
-        ? amount
-        : QuantityValue(amount, UnitId.parse(row.unit));
-    value.validate();
-    result[row.key] = value;
+    result[row.key] = buildQualifierValue(row, original[row.originalKey]);
   }
   return result;
+}
+
+Map<String, DomainValue> qualifierChildren(DomainValue? value) =>
+    switch (value) {
+      SequenceValue(:final items) || SetValue(:final items) => {
+        for (var i = 0; i < items.length; i++) i.toString(): items[i],
+      },
+      StructuredValue(:final fields) => fields,
+      _ => {},
+    };
+
+DomainValue buildQualifierValue(QualifierInput row, DomainValue? original) {
+  if (row.kind == 'retain') {
+    final value = original;
+    if (value == null) {
+      throw const FormatException(
+        'The original qualifier is unavailable. Reopen current fields.',
+      );
+    }
+    return value;
+  }
+  final sources = qualifierChildren(original);
+  final amount = switch (row.kind) {
+    'sequence' => SequenceValue(
+      row.children.map((c) => buildQualifierValue(c, sources[c.originalKey])),
+    ),
+    'set' => SetValue(
+      row.children.map((c) => buildQualifierValue(c, sources[c.originalKey])),
+    ),
+    'structured' => StructuredValue(
+      ValueDefinitionId.parse(row.definition),
+      buildQualifiers(row.children, sources),
+    ),
+    'entity_ref' || 'record_ref' || 'proposition_ref' => ReferenceValue(
+      ValueReferenceKind.parse(row.kind),
+      RecordRef(
+        universe: row.universe.isEmpty ? null : UniverseId.parse(row.universe),
+        record: RecordId.parse(row.value),
+      ),
+    ),
+    'enum' => EnumValue(ValueDefinitionId.parse(row.definition), row.value),
+    'text' => TextValue(row.value),
+    'boolean' => BooleanValue(switch (row.value) {
+      'true' => true,
+      'false' => false,
+      _ => throw const FormatException(
+        'Choose true or false for each boolean qualifier.',
+      ),
+    }),
+    'integer' => IntegerValue(row.value),
+    'decimal' => DecimalValue(row.value),
+    'rational' => RationalValue(row.value, row.denominator),
+    _ => throw const FormatException('Choose a qualifier value type.'),
+  };
+  final value = row.unit.isEmpty
+      ? amount
+      : QuantityValue(amount, UnitId.parse(row.unit));
+  value.validate();
+  return value;
 }

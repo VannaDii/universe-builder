@@ -101,6 +101,23 @@ void main() {
                 value: '記憶',
               ),
               QualifierInput(
+                key: 'list',
+                kind: 'sequence',
+                children: [
+                  QualifierInput(
+                    kind: 'structured',
+                    definition: 'unfinished 😀',
+                    children: [
+                      QualifierInput(
+                        key: '',
+                        kind: 'text',
+                        value: 'nested 記憶 😀',
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              QualifierInput(
                 key: 'amount',
                 kind: 'rational',
                 value: '1',

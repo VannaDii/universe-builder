@@ -305,16 +305,7 @@ final class EntityFormRecoveryStore {
       for (final a in form.associations ?? <EntityAssociationForm>[]) ...[
         a.world,
         a.role,
-        for (final q in a.qualifiers ?? <QualifierInput>[]) ...[
-          q.key,
-          q.kind,
-          q.value,
-          q.denominator,
-          q.unit,
-          q.universe,
-          q.definition,
-          if (q.originalKey != null) q.originalKey!,
-        ],
+        for (final q in a.qualifiers ?? <QualifierInput>[]) ...q.exactTexts,
         if (a.temporalValidity != null) ...[
           a.temporalValidity!.kind,
           a.temporalValidity!.calendar,
