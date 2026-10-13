@@ -14,6 +14,174 @@ final class SavedChanges {
   final Selector universe;
   final EditorFormScope scope;
 
+  ProposalRef reference(Proposal proposal) => ProposalRef(
+    proposalId: proposal.proposalId,
+    version: proposal.version,
+    digest: proposal.digest,
+  );
+
+  Future<ValidationV3> validate(Proposal proposal) async {
+    final frame = proposal.baseFrame;
+    final opened = Envelope<OpenedContext>.fromWire(
+      await session.call(
+        ToolEngineRequest(
+          request: OpenContextRequest(
+            universe: universe,
+            universeId: scope.universe,
+            continuityId: frame.continuity,
+            revision: ExactRevisionSelector(revisionId: frame.revision),
+            representedContext: ContextIdSelector(frame.context.record),
+            temporalQuery: frame.time,
+            temporalSystems: [],
+            perspective: frame.perspective,
+          ),
+        ),
+      ),
+      OpenedContext.fromWire,
+    ).result;
+    return Envelope<ValidationV3>.fromWire(
+      await session.call(
+        ToolEngineRequest(
+          request: ProposalValidationRequest(
+            universe: universe,
+            universeId: scope.universe,
+            contextId: opened.contextId,
+            proposalReference: reference(proposal),
+            checkScope: CheckScope.universe,
+          ),
+        ),
+      ),
+      ValidationV3.fromWire,
+    ).result;
+  }
+
+  Future<void> approve(
+    Proposal proposal,
+    EvaluatedValidation validation,
+  ) async {
+    await session.call(
+      ApproveEngineRequest(
+        universe: universe,
+        proposalReference: reference(proposal),
+        validationRun: validation.execution.runId,
+      ),
+    );
+  }
+
+  String publicationKey(Proposal proposal, ValidationRunId run) =>
+      'flutter-publish-${proposal.digest}-${run.value}';
+
+  Future<CommitReceipt> publish(Proposal proposal, ValidationRunId run) async =>
+      Envelope<CommitReceipt>.fromWire(
+        await session.call(
+          ToolEngineRequest(
+            request: CommitRequest(
+              universe: universe,
+              universeId: scope.universe,
+              proposalReference: reference(proposal),
+              expectedBaseRevision: proposal.baseFrame.revision,
+              validationRun: run,
+              idempotencyKey: publicationKey(proposal, run),
+            ),
+          ),
+        ),
+        CommitReceipt.fromWire,
+      ).result;
+
+  /// Existing author approvals identify exact publication requests after restart.
+  /// Looking them up never approves or retries publication.
+  Future<({ValidationRunId run, OperationStatusV3 status})?> publication(
+    Proposal proposal,
+  ) async {
+    final library = await session.call(
+      LibraryEngineRequest(universe: universe),
+    );
+    final body = Map.fromEntries((library as CanonicalObject).fields);
+    final writing = WireFields(body['writing']!, {'approved', 'proposals'});
+    ({ValidationRunId run, OperationStatusV3 status})? pending;
+    for (final row in writing.array('approved')) {
+      final approval = WireFields(row, {
+        'candidate',
+        'validation_run',
+        'label',
+      });
+      if (ProposalRef.fromWire(approval.require('candidate')) !=
+          reference(proposal)) {
+        continue;
+      }
+      final run = ValidationRunId.parse(approval.string('validation_run'));
+      OperationStatusV3 status;
+      try {
+        status = Envelope<OperationStatusV3>.fromWire(
+          await session.call(
+            ToolEngineRequest(
+              request: GetOperationKeyRequest(
+                universe: universe,
+                universeId: scope.universe,
+                operationKind: OperationKind.commit,
+                idempotencyKey: publicationKey(proposal, run),
+              ),
+            ),
+          ),
+          OperationStatusV3.fromWire,
+        ).result;
+      } on NotFoundOrNotAccessibleError {
+        continue;
+      }
+      if (status.receipt != null) return (run: run, status: status);
+      pending ??= (run: run, status: status);
+    }
+    return pending;
+  }
+
+  Future<List<RecordVersion>> readPublished(
+    Proposal proposal,
+    CommitReceipt receipt,
+  ) async {
+    final frame = proposal.baseFrame;
+    final opened = Envelope<OpenedContext>.fromWire(
+      await session.call(
+        ToolEngineRequest(
+          request: OpenContextRequest(
+            universe: universe,
+            universeId: scope.universe,
+            continuityId: frame.continuity,
+            revision: ExactRevisionSelector(revisionId: receipt.revision),
+            representedContext: ContextIdSelector(frame.context.record),
+            temporalQuery: const TimelessFrameTime(),
+            temporalSystems: [],
+            perspective: const AuthorPerspective(),
+          ),
+        ),
+      ),
+      OpenedContext.fromWire,
+    ).result;
+    final records = <RecordVersion>[];
+    for (final change in proposal.compiledChanges.where(
+      (change) => change.next != null,
+    )) {
+      final read = Envelope<Records>.fromWire(
+        await session.call(
+          ToolEngineRequest(
+            request: GetRequest(
+              universe: universe,
+              universeId: scope.universe,
+              contextId: opened.contextId,
+              recordIds: [change.recordId],
+              fieldGroups: [FieldGroup.payload],
+            ),
+          ),
+        ),
+        Records.fromWire,
+      );
+      if (!read.delivery.complete) {
+        throw const FormatException('Record delivery is incomplete.');
+      }
+      records.addAll(read.result.records);
+    }
+    return records;
+  }
+
   Future<SavedDraft?> load() async {
     final value = await session.call(
       LoadDraftEngineRequest(

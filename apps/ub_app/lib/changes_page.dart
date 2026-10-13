@@ -19,6 +19,11 @@ class _ChangesPageState extends State<ChangesPage> {
   String? _error;
   final _rationale = TextEditingController();
   bool _rationaleDirty = false;
+  ValidationV3? _validation;
+  bool _approved = false;
+  CommitReceipt? _receipt;
+  ({ValidationRunId run, OperationStatusV3 status})? _publication;
+  List<RecordVersion> _publishedRecords = [];
   @override
   void dispose() {
     _rationale.dispose();
@@ -38,6 +43,11 @@ class _ChangesPageState extends State<ChangesPage> {
       _draft = null;
       _proposal = null;
       _before = {};
+      _validation = null;
+      _approved = false;
+      _receipt = null;
+      _publication = null;
+      _publishedRecords = [];
     });
     try {
       final draft = await widget.changes.load();
@@ -47,6 +57,9 @@ class _ChangesPageState extends State<ChangesPage> {
       final before = proposal == null
           ? <RecordId, RecordVersion>{}
           : await widget.changes.before(proposal);
+      final publication = proposal == null
+          ? null
+          : await widget.changes.publication(proposal);
       if (mounted) {
         setState(() {
           _draft = draft;
@@ -54,6 +67,8 @@ class _ChangesPageState extends State<ChangesPage> {
           _before = before;
           _rationale.text = draft?.content.rationale ?? '';
           _rationaleDirty = false;
+          _publication = publication;
+          _receipt = publication?.status.receipt;
         });
       }
     } on Object {
@@ -162,6 +177,175 @@ class _ChangesPageState extends State<ChangesPage> {
     if (mounted && !_busy && !_rationaleDirty) Navigator.of(context).pop();
   }
 
+  Future<void> _validate() async {
+    final proposal = _proposal;
+    if (proposal == null || _busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+      _validation = null;
+      _approved = false;
+    });
+    try {
+      final validation = await widget.changes.validate(proposal);
+      if (mounted) {
+        setState(() {
+          _validation = validation;
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _error = 'Could not finish checks. Check your connection and access, then run them again.';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _approve() async {
+    final proposal = _proposal, report = _validation;
+    if (proposal == null || report is! EvaluatedValidation || _busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+      _approved = false;
+    });
+    try {
+      await widget.changes.approve(proposal, report);
+      if (mounted) {
+        setState(() {
+          _approved = true;
+        });
+      }
+    } on PolicyDeniedError {
+      if (mounted) {
+        setState(() {
+          _error = 'Checks block approval. Review the findings and resolve the proposed changes.';
+        });
+      }
+    } on ApprovalStaleError {
+      if (mounted) {
+        setState(() {
+          _error = 'The proposal or its supporting context changed since review. Review it and run checks again before approval.';
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _error = 'Could not confirm approval. Canon is unchanged. Check your connection before trying again.';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _publish() async {
+    final proposal = _proposal;
+    final run = _approved ? _validation?.execution?.runId : _publication?.run;
+    if (proposal == null || run == null || _busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final receipt = await widget.changes.publish(proposal, run);
+      if (mounted) {
+        setState(() {
+          _receipt = receipt;
+        });
+      }
+    } on ApprovalStaleError {
+      if (mounted) {
+        setState(() {
+          _approved = false;
+          _error = 'Publication was refused because the reviewed proposal or context changed. Review and run checks again.';
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _error = 'Could not confirm publication. Check publication to recover its outcome before trying again.';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _checkPublication() async {
+    final proposal = _proposal;
+    if (proposal == null || _busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final publication = await widget.changes.publication(proposal);
+      if (mounted) {
+        setState(() {
+          _publication = publication;
+          _receipt = publication?.status.receipt;
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _error = 'Could not check publication. Check your connection and current access.';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _readPublished() async {
+    final proposal = _proposal, receipt = _receipt;
+    if (proposal == null || receipt == null || _busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final records = await widget.changes.readPublished(proposal, receipt);
+      if (mounted) {
+        setState(() {
+          _publishedRecords = records;
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _error = 'Publication is confirmed, but the committed records could not be read with your current connection and access.';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final operations =
@@ -182,7 +366,11 @@ class _ChangesPageState extends State<ChangesPage> {
               children: [
                 if (_busy) const LinearProgressIndicator(),
                 Text(
-                  _proposal == null ? 'Saved changes' : 'Submitted proposal',
+                  _receipt != null
+                      ? 'Published changes'
+                      : _proposal == null
+                      ? 'Saved changes'
+                      : 'Submitted proposal',
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 12),
@@ -191,6 +379,45 @@ class _ChangesPageState extends State<ChangesPage> {
                 ),
                 if (_error != null)
                   Semantics(liveRegion: true, child: Text(_error!)),
+                if (_receipt != null)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Publication confirmed'),
+                          SelectableText(
+                            'Revision: ${_receipt!.revision.value}',
+                          ),
+                          SelectableText(
+                            'Operation: ${_receipt!.operationId.value}',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                for (final record in _publishedRecords)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Published record'),
+                          _ExactFields(value: record.payload.toWire()),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (_publication != null && _receipt == null)
+                  Text(
+                    'Publication status: ${_publication!.status.state.wireName.replaceAll('_', ' ')}',
+                  ),
+                if (_approved && _receipt == null)
+                  const Text(
+                    'This exact proposal and check run are approved. Publication is a separate action.',
+                  ),
                 if (_draft == null && !_busy && _error == null)
                   const Text('No saved changes in this continuity.'),
                 if (_draft != null) ...[
@@ -293,10 +520,104 @@ class _ChangesPageState extends State<ChangesPage> {
                   ],
                 ],
                 const SizedBox(height: 20),
+                if (_validation case final report?) ...[
+                  Text(
+                    'Check results',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  if (report is RestrictedValidation)
+                    const Text(
+                      'Checks are restricted with this access. An approval owner must review the complete universe.',
+                    )
+                  else if (report is EvaluatedValidation) ...[
+                    Text('Coverage: ${report.execution.coverage.wireName}'),
+                    if (report.execution.findings.isEmpty)
+                      const Text(
+                        'No findings were returned. Coverage and unsupported checks still apply.',
+                      ),
+                    for (final finding in report.execution.findings)
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${finding.outcome.wireName.replaceAll('_', ' ')} · ${finding.coverage.wireName}',
+                              ),
+                              if (finding.message != null)
+                                SelectableText(finding.message!),
+                              ExpansionTile(
+                                title: const Text('Rule, records and evidence'),
+                                children: [
+                                  _ExactFields(value: finding.toWire()),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    if (report
+                        .execution
+                        .unsupportedCapabilities
+                        .isNotEmpty) ...[
+                      const Text('Unsupported checks'),
+                      for (final capability
+                          in report.execution.unsupportedCapabilities)
+                        SelectableText(capability),
+                    ],
+                    for (final evidence in report.execution.opposingEvidence)
+                      ExpansionTile(
+                        title: const Text('Opposing evidence'),
+                        children: [_ExactFields(value: evidence.toWire())],
+                      ),
+                    ExpansionTile(
+                      title: const Text('Submitted evidence and assessment'),
+                      children: [
+                        _ExactFields(value: report.submittedInput.toWire()),
+                        _ExactFields(value: report.assessment.toWire()),
+                      ],
+                    ),
+                  ],
+                ],
                 Wrap(
                   spacing: 12,
                   runSpacing: 12,
                   children: [
+                    if (_receipt != null)
+                      OutlinedButton(
+                        onPressed: _busy ? null : _readPublished,
+                        child: const Text('Read published records'),
+                      ),
+                    if (_proposal != null && _receipt == null) ...[
+                      OutlinedButton(
+                        onPressed: _busy ? null : _validate,
+                        child: const Text('Run checks'),
+                      ),
+                      OutlinedButton(
+                        onPressed: _busy ? null : _checkPublication,
+                        child: const Text('Check publication'),
+                      ),
+                      if (_validation is EvaluatedValidation && !_approved)
+                        FilledButton(
+                          onPressed: _busy ? null : _approve,
+                          child: const Text('Approve reviewed changes'),
+                        ),
+                      if (_approved ||
+                          (_publication != null &&
+                              !{
+                                OperationState.failed,
+                                OperationState.cancelled,
+                              }.contains(_publication!.status.state)))
+                        FilledButton(
+                          onPressed: _busy ? null : _publish,
+                          child: Text(
+                            _publication == null
+                                ? 'Publish approved changes'
+                                : 'Continue publication',
+                          ),
+                        ),
+                    ],
                     OutlinedButton(
                       onPressed: _busy || _rationaleDirty ? null : _load,
                       child: const Text('Check saved changes'),

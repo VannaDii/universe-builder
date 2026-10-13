@@ -68,10 +68,19 @@ frozen review loads every page and shows compiled before/after record fields,
 including prior values from the pinned revision. Submission does not approve or
 publish. Reopening checks durable operation recovery before offering submission;
 an interrupted draft-link save can be completed with **Save proposal with
-changes**, preserving the existing proposal. Validation findings, approval and
-publication controls, operation editing/rebase, other record forms,
-creation-form recovery and multi-context editor selection remain in progress.
-Existing owner-only service draft permissions remain unchanged.
+changes**, preserving the existing proposal. **Run checks** evaluates the exact
+proposal against the complete universe. Findings retain their outcome, coverage,
+records and evidence, with opposing evidence, unsupported checks and the submitted
+assessment available for review. The service's existing rules decide whether
+approval is admissible. **Approve reviewed changes** retains approval for this
+exact proposal and check run; **Publish approved changes** is a separate action.
+**Check publication** and reopening use existing approvals and operation lookup
+to recover the outcome without retrying publication automatically. The confirmed
+receipt names its revision, and **Read published records** opens that exact
+revision with current access. Returning to Overview refreshes the canon summary.
+Operation editing/rebase, other record forms, creation-form recovery and
+multi-context editor selection remain in progress. Existing owner-only service
+draft permissions remain unchanged.
 
 The approved [conversion plan](docs/dart-conversion-plan.md) is being implemented
 alongside the current runtime. The Dart workspace currently contains the shared

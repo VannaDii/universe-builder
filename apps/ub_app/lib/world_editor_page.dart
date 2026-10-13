@@ -199,7 +199,7 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
       }
       if (mounted) {
         setState(() {
-          _added = 'Added to saved changes. Canon is unchanged. Proposal review is still required.';
+          _added = 'World added to saved changes. Open Changes to review its current proposal and publication status.';
         });
       }
     } on FormatException catch (error) {

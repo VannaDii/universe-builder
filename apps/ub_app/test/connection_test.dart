@@ -281,63 +281,80 @@ void main() {
         afterSubmitting.result.continuities.single.revisionId,
         continuity.revisionId,
       );
-      final openedForChecks = Envelope<OpenedContext>.fromWire(
-        await owner.call(
-          ToolEngineRequest(
-            request: OpenContextRequest(
-              universe: Selector('A shared history'),
-              continuityId: continuity.id,
-              revision: ExactRevisionSelector(
-                revisionId: continuity.revisionId,
-              ),
-              representedContext: ContextIdSelector(
-                completed.representedContext,
-              ),
-              temporalQuery: const TimelessFrameTime(),
-              temporalSystems: [],
-              perspective: const AuthorPerspective(),
-            ),
-          ),
-        ),
-        OpenedContext.fromWire,
-      ).result;
-      final ref = linked.content.proposal!;
       final validation =
-          Envelope<ValidationV3>.fromWire(
-                await owner.call(
-                  ToolEngineRequest(
-                    request: ProposalValidationRequest(
-                      universe: Selector('A shared history'),
-                      contextId: openedForChecks.contextId,
-                      proposalReference: ref,
-                      checkScope: CheckScope.universe,
-                    ),
-                  ),
-                ),
-                ValidationV3.fromWire,
-              ).result
-              as EvaluatedValidation;
-      await owner.call(
-        ApproveEngineRequest(
-          universe: Selector('A shared history'),
-          proposalReference: ref,
-          validationRun: validation.execution.runId,
-        ),
+          await changes.validate(recoveredProposal) as EvaluatedValidation;
+      expect(validation.execution.coverage, Coverage.complete);
+      await expectLater(
+        changes.publish(recoveredProposal, validation.execution.runId),
+        throwsA(isA<ApprovalRequiredError>()),
       );
-      final receipt = Envelope<CommitReceipt>.fromWire(
+      await changes.approve(recoveredProposal, validation);
+      final afterApproval = Envelope<Description>.fromWire(
         await owner.call(
           ToolEngineRequest(
-            request: CommitRequest(
+            request: DescribeSummaryRequest(
               universe: Selector('A shared history'),
-              proposalReference: ref,
-              expectedBaseRevision: continuity.revisionId,
-              validationRun: validation.execution.runId,
-              idempotencyKey: 'disposable-app-publish',
             ),
           ),
         ),
-        CommitReceipt.fromWire,
-      ).result;
+        Description.fromWire,
+      );
+      expect(afterApproval.result.worlds, isEmpty);
+      final publishingSession = owner;
+      final interruptedPublication = AppSession(
+        call: (request) async {
+          final response = await publishingSession.call(request);
+          if (request is ToolEngineRequest &&
+              request.request is CommitRequest) {
+            throw const FormatException('Disposable lost publication response');
+          }
+          return response;
+        },
+        close: publishingSession.close,
+        author: publishingSession.author,
+        principal: publishingSession.principal,
+        loadWorldForm: publishingSession.loadWorldForm,
+        saveWorldForm: publishingSession.saveWorldForm,
+      );
+      await expectLater(
+        SavedChanges(
+          session: interruptedPublication,
+          universe: Selector('A shared history'),
+          scope: scope,
+        ).publish(recoveredProposal, validation.execution.runId),
+        throwsFormatException,
+      );
+      await owner.close();
+      owner = await connection(author).connect();
+      final resumedChanges = SavedChanges(
+        session: owner,
+        universe: Selector('A shared history'),
+        scope: scope,
+      );
+      final publication = (await resumedChanges.publication(
+        recoveredProposal,
+      ))!;
+      final receipt = publication.status.receipt!;
+      expect(publication.run, validation.execution.runId);
+      expect(receipt.revision, isNot(continuity.revisionId));
+      expect(
+        (await resumedChanges.publish(
+          recoveredProposal,
+          publication.run,
+        )).toWire().toText(),
+        receipt.toWire().toText(),
+      );
+      final publishedRecords = await resumedChanges.readPublished(
+        recoveredProposal,
+        receipt,
+      );
+      expect(publishedRecords, hasLength(25));
+      expect(
+        publishedRecords.map(
+          (record) => (record.payload as WorldRecord).selector,
+        ),
+        contains('A river world'),
+      );
       final original = recoveredProposal.compiledChanges.first.next!;
       final changedDraft = SavedDraft.fromWire(
         await owner.call(
@@ -363,8 +380,8 @@ void main() {
           ),
         ),
       );
-      final renamed = await changes.submit(changedDraft);
-      final oldRecords = await changes.before(renamed);
+      final renamed = await resumedChanges.submit(changedDraft);
+      final oldRecords = await resumedChanges.before(renamed);
       expect(
         oldRecords.values.single.recordVersionId,
         original.recordVersionId,

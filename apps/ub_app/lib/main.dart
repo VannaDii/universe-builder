@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ub_contracts/ub_contracts.dart' hide State;
+import 'package:ub_domain/ub_domain.dart'
+    show ContinuityId, TimelessFrameTime, AuthorPerspective;
 
 import 'connection.dart';
 import 'create_universe_page.dart';
@@ -25,6 +27,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
   InstanceLibrary? _library;
   LibraryEntry? _selected;
   Envelope<Description>? _description;
+  Map<ContinuityId, Envelope<Description>> _worlds = {};
   String? _error;
   bool _busy = false;
   var _page = 0;
@@ -46,6 +49,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       _library = null;
       _selected = null;
       _description = null;
+      _worlds = {};
     });
     AppSession? session;
     try {
@@ -87,6 +91,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       _error = null;
       _description = null;
       _selected = entry;
+      _worlds = {};
     });
     try {
       final value = await _session!.call(
@@ -98,9 +103,48 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
         value,
         Description.fromWire,
       );
+      final worlds = <ContinuityId, Envelope<Description>>{};
+      for (final continuity in description.result.continuities.where(
+        (item) => item.representedContexts.length == 1,
+      )) {
+        final opened = Envelope<OpenedContext>.fromWire(
+          await _session!.call(
+            ToolEngineRequest(
+              request: OpenContextRequest(
+                universe: Selector(entry.name),
+                universeId: entry.id,
+                continuityId: continuity.id,
+                revision: ExactRevisionSelector(
+                  revisionId: continuity.revisionId,
+                ),
+                representedContext: ContextIdSelector(
+                  continuity.representedContexts.single.id,
+                ),
+                temporalQuery: const TimelessFrameTime(),
+                temporalSystems: [],
+                perspective: const AuthorPerspective(),
+              ),
+            ),
+          ),
+          OpenedContext.fromWire,
+        ).result;
+        worlds[continuity.id] = Envelope<Description>.fromWire(
+          await _session!.call(
+            ToolEngineRequest(
+              request: DescribeWorldsRequest(
+                universe: Selector(entry.name),
+                universeId: entry.id,
+                contextId: opened.contextId,
+              ),
+            ),
+          ),
+          Description.fromWire,
+        );
+      }
       if (mounted) {
         setState(() {
           _description = description;
+          _worlds = worlds;
         });
       }
     } on Object {
@@ -409,42 +453,54 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<void>(
-                                  MaterialPageRoute(
-                                    builder: (_) => WorldEditorPage(
-                                      session: _session!,
-                                      continuity: continuity,
-                                      universe: Selector(_selected!.name),
-                                      scope: EditorFormScope(
-                                        instance: _library!.instance,
-                                        profile: _session!.principal,
-                                        universe: _selected!.id,
-                                        continuity: continuity.id,
+                              : () => Navigator.of(context)
+                                    .push<void>(
+                                      MaterialPageRoute(
+                                        builder: (_) => WorldEditorPage(
+                                          session: _session!,
+                                          continuity: continuity,
+                                          universe: Selector(_selected!.name),
+                                          scope: EditorFormScope(
+                                            instance: _library!.instance,
+                                            profile: _session!.principal,
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                ),
+                                    )
+                                    .then((_) {
+                                      if (mounted && _selected != null) {
+                                        _open(_selected!);
+                                      }
+                                    }),
                           child: const Text('World draft'),
                         ),
                       TextButton(
                         onPressed: _busy
                             ? null
-                            : () => Navigator.of(context).push<void>(
-                                MaterialPageRoute(
-                                  builder: (_) => ChangesPage(
-                                    changes: SavedChanges(
-                                      session: _session!,
-                                      universe: Selector(_selected!.name),
-                                      scope: EditorFormScope(
-                                        instance: _library!.instance,
-                                        profile: _session!.principal,
-                                        universe: _selected!.id,
-                                        continuity: continuity.id,
+                            : () => Navigator.of(context)
+                                  .push<void>(
+                                    MaterialPageRoute(
+                                      builder: (_) => ChangesPage(
+                                        changes: SavedChanges(
+                                          session: _session!,
+                                          universe: Selector(_selected!.name),
+                                          scope: EditorFormScope(
+                                            instance: _library!.instance,
+                                            profile: _session!.principal,
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ),
-                              ),
+                                  )
+                                  .then((_) {
+                                    if (mounted && _selected != null) {
+                                      _open(_selected!);
+                                    }
+                                  }),
                         child: const Text('Changes'),
                       ),
                     ],
@@ -458,13 +514,21 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 12),
-        if (_description!.result.worlds.isEmpty)
-          const Text('No worlds are visible in this scope.'),
-        for (final world in _description!.result.worlds)
-          ListTile(
-            title: Text(world.name.value),
-            leading: const Icon(Icons.public_outlined),
-          ),
+        for (final continuity in _description!.result.continuities) ...[
+          Text(continuity.name, style: Theme.of(context).textTheme.titleMedium),
+          if (!_worlds.containsKey(continuity.id))
+            const Text('World browsing requires a represented context.'),
+          if (_worlds[continuity.id]?.result.worlds.isEmpty ?? false)
+            const Text('No worlds are visible in this context.'),
+          for (final world
+              in _worlds[continuity.id]?.result.worlds ?? <WorldSummary>[])
+            ListTile(
+              title: Text(world.name.value),
+              leading: const Icon(Icons.public_outlined),
+            ),
+          if (_worlds[continuity.id]?.delivery.complete == false)
+            const Text('Only part of this world list was delivered.'),
+        ],
         if (!_description!.delivery.complete)
           const Padding(
             padding: EdgeInsets.only(top: 16),
