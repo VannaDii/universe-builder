@@ -407,6 +407,9 @@ class _ChangesPageState extends State<ChangesPage> {
   Future<SavedDraft> _editEntity(SavedDraft draft, int index) async {
     final operation = draft.content.operations[index];
     final name = operation is AddNameOperation ? operation : null;
+    final classification = operation is RefineClassificationOperation
+        ? operation
+        : null;
     final summary = Envelope<Description>.fromWire(
       await widget.changes.session.call(
         ToolEngineRequest(
@@ -441,11 +444,14 @@ class _ChangesPageState extends State<ChangesPage> {
                 universe: widget.changes.scope.universe,
                 continuity: widget.changes.scope.continuity,
                 representedContext: draft.content.representedContext,
-                entityClientRef: name == null
+                entityClientRef: name == null && classification == null
                     ? (operation as IntroduceInstanceOperation).clientRef
                     : null,
                 entityNameRecord: name?.record.record,
-                entityNameOperationIndex: name == null ? null : index,
+                entityClassificationRecord: classification?.record.record,
+                entityOperationIndex: name == null && classification == null
+                    ? null
+                    : index,
               ),
               editingDraft: draft,
               operationIndex: index,
@@ -721,7 +727,9 @@ class _ChangesPageState extends State<ChangesPage> {
                             if (_proposal == null &&
                                 (operations[index]
                                         is IntroduceInstanceOperation ||
-                                    operations[index] is AddNameOperation))
+                                    operations[index] is AddNameOperation ||
+                                    operations[index]
+                                        is RefineClassificationOperation))
                               TextButton(
                                 onPressed: _busy
                                     ? null
@@ -729,7 +737,10 @@ class _ChangesPageState extends State<ChangesPage> {
                                         (draft) => _editEntity(draft, index),
                                       ),
                                 child: Text(
-                                  operations[index] is AddNameOperation
+                                  operations[index]
+                                          is RefineClassificationOperation
+                                      ? 'Edit classification fields'
+                                      : operations[index] is AddNameOperation
                                       ? 'Edit name fields'
                                       : 'Edit entity fields',
                                 ),

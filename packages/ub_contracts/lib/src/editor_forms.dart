@@ -31,7 +31,8 @@ final class EditorFormScope {
     this.typeClientRef,
     this.entityClientRef,
     this.entityNameRecord,
-    this.entityNameOperationIndex,
+    this.entityClassificationRecord,
+    this.entityOperationIndex,
   });
   final OperationId instance;
   final ProfileId profile;
@@ -50,9 +51,10 @@ final class EditorFormScope {
 
   /// Published entity receiving a contextual name; separate from creation/edit slots.
   final RecordId? entityNameRecord;
+  final RecordId? entityClassificationRecord;
 
-  /// Null adds a name; an index selects its unfinished edits in Changes.
-  final int? entityNameOperationIndex;
+  /// Null opens a published-record form; an index selects its edits in Changes.
+  final int? entityOperationIndex;
 }
 
 /// Entered fields can be incomplete or invalid. Completing an editor must build

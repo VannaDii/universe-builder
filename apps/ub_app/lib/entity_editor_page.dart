@@ -27,8 +27,10 @@ class EntityEditorPage extends StatefulWidget {
     this.editingDraft,
     this.operationIndex,
     this.publishedEntity,
+    this.refineClassification = false,
   });
   final RecordVersion? publishedEntity;
+  final bool refineClassification;
   final SavedDraft? editingDraft;
   final int? operationIndex;
   final AppSession session;
@@ -71,8 +73,14 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
   bool _stale = false;
   late RevisionId _revision;
   bool get _disabled => _loading || _saving || _adding || _base == null;
+  bool get _classificationOnly =>
+      widget.refineClassification ||
+      (_editingDraft != null &&
+          _editingDraft!.content.operations[widget.operationIndex!]
+              is RefineClassificationOperation);
+  bool get _recordOnly => _nameOnly || _classificationOnly;
   bool get _nameOnly =>
-      widget.publishedEntity != null ||
+      (widget.publishedEntity != null && !widget.refineClassification) ||
       (_editingDraft != null &&
           _editingDraft!.content.operations[widget.operationIndex!]
               is AddNameOperation);
@@ -151,7 +159,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     _associations.clear();
     final rows =
         form.associations ??
-        (_editingDraft == null || _nameOnly
+        (_editingDraft == null || _recordOnly
             ? <EntityAssociationForm>[]
             : entityFormFromDraft(
                 _editingDraft!,
@@ -252,14 +260,16 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
       pinned,
       widget.representedContext,
     );
-    final worlds = await readContextWorlds(
-      session: widget.session,
-      universe: widget.universe,
-      continuity: pinned,
-      representedContext: widget.representedContext,
-    );
-    _worlds = worlds.result.worlds;
-    _worldsComplete = worlds.delivery.complete;
+    if (!_classificationOnly) {
+      final worlds = await readContextWorlds(
+        session: widget.session,
+        universe: widget.universe,
+        continuity: pinned,
+        representedContext: widget.representedContext,
+      );
+      _worlds = worlds.result.worlds;
+      _worldsComplete = worlds.delivery.complete;
+    }
     _types.clear();
     await _readTypes();
   }
@@ -403,7 +413,9 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
           _savedDraft = saved;
           _enter(entityFormFromDraft(saved, widget.operationIndex!));
           _dirty = true;
-          _added = _nameOnly
+          _added = _classificationOnly
+              ? 'Classification updated in saved changes. Return to Changes to review it.'
+              : _nameOnly
               ? 'Name updated in saved changes. Return to Changes to review it.'
               : 'Entity updated in saved changes. Return to Changes to review it.';
         });
@@ -424,6 +436,15 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
               form: _form,
               previous: old,
             )
+          : _classificationOnly
+          ? entityClassificationDraftRequest(
+              universe: Selector(widget.universe.name),
+              universeId: widget.universe.id,
+              continuity: widget.scope.continuity,
+              record: widget.publishedEntity!.identity.recordId,
+              form: _form,
+              previous: old,
+            )
           : entityNameDraftRequest(
               universe: Selector(widget.universe.name),
               universeId: widget.universe.id,
@@ -437,7 +458,9 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
       }
       if (mounted) {
         setState(
-          () => _added = widget.publishedEntity == null
+          () => _added = _classificationOnly
+              ? 'Classification added to saved changes. Review, approve and publish it in Changes.'
+              : widget.publishedEntity == null
               ? 'Entity added to saved changes. Review, approve and publish it in Changes.'
               : 'Name added to saved changes. Review, approve and publish it in Changes.',
         );
@@ -825,7 +848,11 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     child: Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.publishedEntity != null
+          _classificationOnly
+              ? widget.editingDraft == null
+                    ? 'Refine classification'
+                    : 'Edit classification in changes'
+              : widget.publishedEntity != null
               ? 'Add contextual name'
               : widget.editingDraft == null
               ? 'Person, place or other entity'
@@ -848,8 +875,10 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
               Text(
                 'Context: ${representedContextName(widget.representedContext)}',
               ),
-              const Text(
-                'A name is enough to start. Unfinished work stays on this device; adding to Changes does not change canon.',
+              Text(
+                _classificationOnly
+                    ? 'Choose a type for an unclassified entity, or a descendant of its current type. Changes preserve its identity and existing facts.'
+                    : 'A name is enough to start. Unfinished work stays on this device; adding to Changes does not change canon.',
               ),
               if (_loading || _saving || _adding)
                 const LinearProgressIndicator(),
@@ -866,20 +895,28 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                   child: const Text('Use current draft fields'),
                 ),
               ],
-              _field(_name, 'Name'),
-              _nameDetailsFields(),
+              if (!_classificationOnly) ...[
+                _field(_name, 'Name'),
+                _nameDetailsFields(),
+              ],
               const SizedBox(height: 12),
               if (!_nameOnly)
                 DropdownButtonFormField<String>(
                   key: ValueKey(_classification),
                   initialValue: _classification,
-                  decoration: const InputDecoration(
-                    labelText: 'Classification (optional)',
+                  decoration: InputDecoration(
+                    labelText: _classificationOnly
+                        ? 'Classification'
+                        : 'Classification (optional)',
                   ),
                   items: [
-                    const DropdownMenuItem(
+                    DropdownMenuItem(
                       value: '',
-                      child: Text('Leave unclassified'),
+                      child: Text(
+                        _classificationOnly
+                            ? 'Choose a classification'
+                            : 'Leave unclassified',
+                      ),
                     ),
                     for (final type in _types)
                       DropdownMenuItem(
@@ -910,7 +947,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                   child: const Text('Load more classifications'),
                 ),
               const SizedBox(height: 12),
-              if (_editingDraft != null) ...[
+              if (_editingDraft != null && !_classificationOnly) ...[
                 const Text('Original name details'),
                 Text(
                   _nameOnly
@@ -919,7 +956,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                 ),
                 ExactFields(value: _originalName!.toWire()),
               ],
-              if (_editingDraft != null && !_nameOnly) ...[
+              if (_editingDraft != null && !_recordOnly) ...[
                 const Text('World associations (not location)'),
                 for (var i = 0; i < _associations.length; i++)
                   _associationRow(i),
@@ -944,7 +981,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                         },
                   child: const Text('Add world association'),
                 ),
-              ] else if (!_nameOnly) ...[
+              ] else if (!_recordOnly) ...[
                 const Text('World associations'),
                 const Text(
                   'Selecting several worlds preserves one shared identity. No selection declares no association. Associations do not establish location.',
@@ -979,8 +1016,10 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                 _field(_rationale, 'Notes and rationale'),
               ],
               if (widget.publishedEntity != null) ...[
-                const Text(
-                  'Existing names remain attached to the same identity.',
+                Text(
+                  _classificationOnly
+                      ? 'Names, world associations and other entity facts are retained.'
+                      : 'Existing names remain attached to the same identity.',
                 ),
                 if (_base?.expectedRecordVersion !=
                     widget.publishedEntity!.recordVersionId)
@@ -1012,9 +1051,13 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                 onPressed: _disabled || _stale ? null : _add,
                 child: Text(
                   widget.publishedEntity != null
-                      ? 'Add name to changes'
+                      ? _classificationOnly
+                            ? 'Add classification to changes'
+                            : 'Add name to changes'
                       : widget.editingDraft == null
                       ? 'Add entity to changes'
+                      : _classificationOnly
+                      ? 'Save classification changes'
                       : _nameOnly
                       ? 'Save name changes'
                       : 'Save entity changes',

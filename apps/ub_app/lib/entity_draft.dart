@@ -144,8 +144,86 @@ SaveDraftEngineRequest entityNameDraftRequest({
   );
 }
 
+SaveDraftEngineRequest entityClassificationDraftRequest({
+  required Selector universe,
+  required UniverseId universeId,
+  required ContinuityId continuity,
+  required RecordId record,
+  required UnfinishedEntityForm form,
+  required SavedDraft? previous,
+}) {
+  if (form.classification.isEmpty ||
+      form.clientRef != record.value ||
+      form.expectedRecordVersion == null) {
+    throw const FormatException(
+      'Choose a classification and reopen its published entity.',
+    );
+  }
+  final operation = RefineClassificationOperation(
+    record: RecordRef(universe: universeId, record: record),
+    expectedVersion: form.expectedRecordVersion!,
+    entityType: RecordId.parse(form.classification),
+  );
+  final old = previous?.content;
+  if (old != null &&
+      (old.baseRevision != form.baseRevision ||
+          old.representedContext != form.representedContext)) {
+    throw const FormatException(
+      'These changes use another revision or context. Review them before refining classification.',
+    );
+  }
+  for (final existing in old?.operations ?? <DomainOperation>[]) {
+    if (existing is RefineClassificationOperation &&
+        existing.record == operation.record) {
+      if (existing.toWire().toText() != operation.toWire().toText()) {
+        throw const FormatException(
+          'This entity already has a different classification refinement in Changes. Edit it there.',
+        );
+      }
+      return SaveDraftEngineRequest(
+        universe: universe,
+        continuityId: continuity,
+        expectedVersion: previous!.version,
+        content: old!,
+      );
+    }
+  }
+  if (old?.proposal != null) {
+    throw const FormatException(
+      'Continue editing separately in Changes before adding to a submitted proposal.',
+    );
+  }
+  return SaveDraftEngineRequest(
+    universe: universe,
+    continuityId: continuity,
+    expectedVersion: previous?.version ?? BigInt.zero,
+    content: DraftContent(
+      baseRevision: form.baseRevision,
+      representedContext: form.representedContext,
+      operations: [...?old?.operations, operation],
+      rationale: [
+        if (old != null && old.rationale.isNotEmpty) old.rationale,
+        if (form.rationale.isNotEmpty) form.rationale,
+      ].join('\n\n'),
+    ),
+  );
+}
+
 UnfinishedEntityForm entityFormFromDraft(SavedDraft draft, int index) {
   final operation = draft.content.operations[index];
+  if (operation is RefineClassificationOperation) {
+    return UnfinishedEntityForm(
+      baseRevision: draft.content.baseRevision,
+      representedContext: draft.content.representedContext,
+      clientRef: operation.record.record.value,
+      expectedRecordVersion: operation.expectedVersion,
+      name: '',
+      classification: operation.entityType.value,
+      worldRole: '',
+      rationale: '',
+      draftVersion: draft.version,
+    );
+  }
   if (operation is AddNameOperation) {
     return UnfinishedEntityForm(
       baseRevision: draft.content.baseRevision,
@@ -214,6 +292,29 @@ DraftContent replaceDraftEntity({
       form.representedContext != old.representedContext) {
     throw const FormatException(
       'The draft changed. Reopen its current entity fields before saving.',
+    );
+  }
+  if (old.expectedRecordVersion != null &&
+      draft.content.operations[index] is RefineClassificationOperation) {
+    if (form.classification.isEmpty) {
+      throw const FormatException('Choose a classification.');
+    }
+    final source =
+        draft.content.operations[index] as RefineClassificationOperation;
+    return DraftContent(
+      baseRevision: draft.content.baseRevision,
+      representedContext: draft.content.representedContext,
+      operations: [
+        for (var i = 0; i < draft.content.operations.length; i++)
+          i == index
+              ? RefineClassificationOperation(
+                  record: source.record,
+                  expectedVersion: source.expectedVersion,
+                  entityType: RecordId.parse(form.classification),
+                )
+              : draft.content.operations[i],
+      ],
+      rationale: draft.content.rationale,
     );
   }
   if (form.name.trim().isEmpty) throw const FormatException('Enter a name.');

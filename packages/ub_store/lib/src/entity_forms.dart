@@ -206,15 +206,17 @@ final class EntityFormRecoveryStore {
   }
 
   List<String> _binding(EditorFormScope scope) {
+    final target = scope.entityNameRecord ?? scope.entityClassificationRecord;
     if (scope.representedContext == null ||
         scope.worldClientRef != null ||
         scope.worldRecord != null ||
         scope.typeClientRef != null ||
         scope.entityClientRef == '' ||
-        (scope.entityClientRef != null && scope.entityNameRecord != null) ||
-        (scope.entityNameOperationIndex != null &&
-            (scope.entityNameRecord == null ||
-                scope.entityNameOperationIndex! < 0))) {
+        (scope.entityClientRef != null && target != null) ||
+        (scope.entityNameRecord != null &&
+            scope.entityClassificationRecord != null) ||
+        (scope.entityOperationIndex != null &&
+            (target == null || scope.entityOperationIndex! < 0))) {
       throw const FormatException('Choose the entity form context.');
     }
     return [
@@ -223,11 +225,9 @@ final class EntityFormRecoveryStore {
       scope.universe.value,
       scope.continuity.value,
       scope.representedContext!.value,
-      scope.entityNameRecord == null
+      target == null
           ? scope.entityClientRef ?? ''
-          : scope.entityNameOperationIndex == null
-          ? 'name:${scope.entityNameRecord!.value}'
-          : 'name:${scope.entityNameRecord!.value}:edit:${scope.entityNameOperationIndex}',
+          : '${scope.entityNameRecord == null ? 'classification' : 'name'}:${target.value}${scope.entityOperationIndex == null ? '' : ':edit:${scope.entityOperationIndex}'}',
     ];
   }
 
@@ -327,8 +327,10 @@ final class EntityFormRecoveryStore {
     if (scope.representedContext != form.representedContext ||
         (scope.entityClientRef != null &&
             scope.entityClientRef != form.clientRef) ||
-        (scope.entityNameRecord != null &&
-            scope.entityNameRecord!.value != form.clientRef)) {
+        ((scope.entityNameRecord ?? scope.entityClassificationRecord) != null &&
+            (scope.entityNameRecord ?? scope.entityClassificationRecord)!
+                    .value !=
+                form.clientRef)) {
       throw const FormatException('Entity form context does not match.');
     }
     for (final text in [

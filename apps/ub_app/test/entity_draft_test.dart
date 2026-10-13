@@ -17,6 +17,221 @@ import 'package:ub_service/local_profiles.dart';
 import 'package:ub_store/installation.dart';
 
 void main() {
+  test('published classification input and edits recover without replacing the entity', () async {
+    final root = Directory('/tmp')
+        .createTempSync('ub-classification-workflow-');
+    final store = SqliteInstallationStore.create(root.path);
+    final instance = store.instanceId;
+    final author = InstallationAuthority(store).initializeAuthor();
+    store.close();
+    final server = await LocalSqliteEngineServer.start(
+      root.path,
+      compatibilitySocket: false,
+    );
+    AppSession? session;
+    try {
+      final device = DeviceConnection([
+        '--installation',
+        root.path,
+        '--profile',
+        author.value,
+        '--engine=/nonexistent/universe-engine',
+      ]);
+      session = await device.connect();
+      final created = WireFields(
+        await session.call(
+          const CreateUniverseEngineRequest(
+            name: 'Classification',
+            start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
+          ),
+        ),
+        {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
+      );
+      final scope = EditorFormScope(
+        instance: instance,
+        profile: author,
+        universe: UniverseId.parse(created.string('universe_id')),
+        continuity: ContinuityId.parse(created.string('continuity_id')),
+        representedContext: RecordId.parse(created.string('context_id')),
+      );
+      SavedChanges changes() => SavedChanges(
+        session: session!,
+        universe: Selector('Classification'),
+        scope: scope,
+      );
+      final initial = SavedDraft.fromWire(
+        await session.call(
+          SaveDraftEngineRequest(
+            universe: Selector('Classification'),
+            continuityId: scope.continuity,
+            expectedVersion: BigInt.zero,
+            content: DraftContent(
+              baseRevision: RevisionId.parse(created.string('revision')),
+              representedContext: scope.representedContext!,
+              rationale: 'Introduce an entity and definitions.',
+              operations: [
+                IntroduceInstanceOperation(
+                  clientRef: 'person',
+                  name: const ContextualName(
+                    text: 'Mara',
+                    community: 'River',
+                    validity: UnknownValidity(),
+                  ),
+                  worldAssociations: [],
+                ),
+                for (final key in ['person', 'traveler'])
+                  IntroduceDefinitionOperation(
+                    clientRef: 'type-$key',
+                    namespace: 'authored',
+                    key: key,
+                    name: key,
+                    parent: null,
+                    applicability: const UniverseApplicability(),
+                    classificationExecutable: true,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+      final proposal = await changes().submit(initial);
+      final validation =
+          await changes().validate(proposal) as EvaluatedValidation;
+      await changes().approve(proposal, validation);
+      final receipt = await changes().publish(
+        proposal,
+        validation.execution.runId,
+      );
+      final records = await changes().readPublished(proposal, receipt);
+      final entity = records.singleWhere((r) => r.payload is EntityRecord);
+      final types = records
+          .where((r) => r.payload is EntityTypeRecord)
+          .toList();
+      final fresh = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final formScope = EditorFormScope(
+        instance: instance,
+        profile: author,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        entityClassificationRecord: entity.identity.recordId,
+      );
+      UnfinishedEntityForm form(String classification) => UnfinishedEntityForm(
+        baseRevision: fresh.content.baseRevision,
+        representedContext: fresh.content.representedContext,
+        clientRef: entity.identity.recordId.value,
+        expectedRecordVersion: entity.recordVersionId,
+        name: '',
+        classification: classification,
+        worldRole: '',
+        rationale: 'Classify the existing identity.',
+      );
+      await session.saveEntityForm(formScope, form(''), BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final incomplete = (await session.loadEntityForm(formScope))!.form;
+      expect(incomplete.classification, '');
+      SaveDraftEngineRequest request(
+        UnfinishedEntityForm fields,
+        SavedDraft? old,
+      ) => entityClassificationDraftRequest(
+        universe: Selector('Classification'),
+        universeId: scope.universe,
+        continuity: scope.continuity,
+        record: entity.identity.recordId,
+        form: fields,
+        previous: old,
+      );
+      expect(() => request(incomplete, fresh), throwsFormatException);
+      await session.saveEntityForm(
+        formScope,
+        form(types.first.identity.recordId.value),
+        BigInt.one,
+      );
+      final recovered = (await session.loadEntityForm(formScope))!.form;
+      final saved = SavedDraft.fromWire(
+        await session.call(request(recovered, fresh)),
+      );
+      expect(
+        request(recovered, saved).content.toWire().toText(),
+        saved.content.toWire().toText(),
+      );
+      expect(
+        () => request(form(types.last.identity.recordId.value), saved),
+        throwsFormatException,
+      );
+      final editScope = EditorFormScope(
+        instance: instance,
+        profile: author,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        entityClassificationRecord: entity.identity.recordId,
+        entityOperationIndex: 0,
+      );
+      final fields = entityFormFromDraft(saved, 0);
+      final edit = UnfinishedEntityForm(
+        baseRevision: fields.baseRevision,
+        representedContext: fields.representedContext,
+        clientRef: fields.clientRef,
+        expectedRecordVersion: fields.expectedRecordVersion,
+        draftVersion: fields.draftVersion,
+        name: '',
+        classification: types.last.identity.recordId.value,
+        worldRole: '',
+        rationale: '',
+      );
+      await session.saveEntityForm(editScope, edit, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final pending = (await session.loadEntityForm(editScope))!.form;
+      expect(pending.toWire().toText(), edit.toWire().toText());
+      expect(
+        (await session.loadEntityForm(formScope))!.form.toWire().toText(),
+        recovered.toWire().toText(),
+      );
+      final edited = await changes().saveContent(
+        saved,
+        replaceDraftEntity(draft: saved, index: 0, form: pending),
+      );
+      expect(edited.content.rationale, saved.content.rationale);
+      expect(
+        () => replaceDraftEntity(draft: edited, index: 0, form: pending),
+        throwsFormatException,
+      );
+      final refined = await changes().submit(edited);
+      final checked = await changes().validate(refined) as EvaluatedValidation;
+      await changes().approve(refined, checked);
+      final committed = await changes().publish(
+        refined,
+        checked.execution.runId,
+      );
+      final result = (await changes().readPublished(refined, committed)).single;
+      expect(result.identity.recordId, entity.identity.recordId);
+      final payload = result.payload as EntityRecord;
+      expect(payload.classification, types.last.identity.recordId);
+      expect(
+        payload.classificationResolution,
+        ClassificationResolution.resolved,
+      );
+      expect(
+        payload.names.map((n) => n.toWire().toText()),
+        (entity.payload as EntityRecord).names.map((n) => n.toWire().toText()),
+      );
+      expect(
+        payload.worldAssociations,
+        (entity.payload as EntityRecord).worldAssociations,
+      );
+    } finally {
+      await session?.close();
+      await server.close();
+      root.deleteSync(recursive: true);
+    }
+  });
+
   test(
     'contextual names recover and publish on the existing identity',
     () async {
@@ -160,7 +375,7 @@ void main() {
           continuity: scope.continuity,
           representedContext: scope.representedContext,
           entityNameRecord: record.identity.recordId,
-          entityNameOperationIndex: 0,
+          entityOperationIndex: 0,
         );
         final fields = entityFormFromDraft(saved, 0);
         final editedForm = UnfinishedEntityForm(

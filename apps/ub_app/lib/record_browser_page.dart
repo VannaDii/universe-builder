@@ -329,6 +329,34 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                           ),
                           child: const Text('Add contextual name'),
                         ),
+                      if (widget.session.author &&
+                          _material!.delivery.complete &&
+                          record.payload is EntityRecord)
+                        TextButton(
+                          onPressed: () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => EntityEditorPage(
+                                session: widget.session,
+                                universe: widget.universe,
+                                continuity: widget.continuity,
+                                representedContext: widget.representedContext,
+                                publishedEntity: record,
+                                refineClassification: true,
+                                scope: EditorFormScope(
+                                  instance: widget.scope.instance,
+                                  profile: widget.scope.profile,
+                                  universe: widget.universe.id,
+                                  continuity: widget.continuity.id,
+                                  representedContext:
+                                      widget.representedContext.id,
+                                  entityClassificationRecord:
+                                      record.identity.recordId,
+                                ),
+                              ),
+                            ),
+                          ),
+                          child: const Text('Refine classification'),
+                        ),
                     ],
                   ),
               if (_group == FieldGroup.evidence) ...[

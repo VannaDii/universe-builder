@@ -102,6 +102,11 @@ intact; review, validation, exact approval and publication use the ordinary flow
 **Edit name fields** in Changes revises the name and optional details before
 submission. Pending edits recover separately from the new-name form, retaining
 the target record, expected version, other operations and draft rationale.
+**Refine classification** in a published entity dossier opens a recoverable type
+selection. It classifies an unclassified entity or refines its current type to a
+descendant. **Edit classification fields** in Changes revises the pending choice.
+The entity’s names, associations and other facts remain intact; unrelated type
+changes still require an explicit authored correction.
 **Type definition** opens a recoverable typed form for namespace, key, display
 name, parent, applicability, executable classification and rationale. Parent,
 applicability and classification require explicit choices. Unspecified and
