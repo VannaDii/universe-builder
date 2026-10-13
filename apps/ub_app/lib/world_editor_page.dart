@@ -6,6 +6,8 @@ import 'package:ub_domain/ub_domain.dart' show RecordId, CanonicalNull;
 
 import 'connection.dart';
 import 'world_draft.dart';
+import 'changes_page.dart';
+import 'saved_changes.dart';
 
 class WorldEditorPage extends StatefulWidget {
   const WorldEditorPage({
@@ -299,6 +301,27 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
               const SizedBox(height: 20),
               if (_added != null)
                 Semantics(liveRegion: true, child: Text(_added!)),
+              if (_added != null)
+                TextButton(
+                  onPressed: _saving || _adding
+                      ? null
+                      : () async {
+                          if (_dirty) await _save();
+                          if (!mounted || _dirty || _saving) return;
+                          await Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => ChangesPage(
+                                changes: SavedChanges(
+                                  session: widget.session,
+                                  universe: widget.universe,
+                                  scope: widget.scope,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                  child: const Text('Review saved changes'),
+                ),
               if (_base != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),

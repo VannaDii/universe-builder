@@ -58,9 +58,20 @@ checks the saved draft before adding, so the same world is not duplicated. Field
 are preserved exactly, with empty optional fields omitted. Different revisions
 or contexts, changed fields for an already-added world, and drafts already linked
 to proposals require review rather than silent replacement. Adding leaves canon
-unchanged. Proposal submission, exact Changes review, other record forms,
-creation-form recovery and multi-context selection remain in progress. Existing
-owner-only service draft permissions remain unchanged.
+unchanged. **Changes** opens the author-owned draft for a continuity, showing
+entered operations and rationale. Before submission, the rationale can be edited
+and explicitly saved with the draft's expected generation; failed saves retain
+the text. Empty rationale remains recoverable but the service's required
+rationale rejection explains what to complete. **Submit proposal** pins its original revision
+and context and creates a submitted proposal through the existing service. The
+frozen review loads every page and shows compiled before/after record fields,
+including prior values from the pinned revision. Submission does not approve or
+publish. Reopening checks durable operation recovery before offering submission;
+an interrupted draft-link save can be completed with **Save proposal with
+changes**, preserving the existing proposal. Validation findings, approval and
+publication controls, operation editing/rebase, other record forms,
+creation-form recovery and multi-context editor selection remain in progress.
+Existing owner-only service draft permissions remain unchanged.
 
 The approved [conversion plan](docs/dart-conversion-plan.md) is being implemented
 alongside the current runtime. The Dart workspace currently contains the shared

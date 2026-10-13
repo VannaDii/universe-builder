@@ -5,6 +5,8 @@ import 'connection.dart';
 import 'create_universe_page.dart';
 import 'universe_creation.dart';
 import 'world_editor_page.dart';
+import 'changes_page.dart';
+import 'saved_changes.dart';
 import 'connection_stub.dart' if (dart.library.io) 'connection_native.dart';
 
 void main(List<String> arguments) =>
@@ -394,32 +396,61 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
         for (final continuity in _description!.result.continuities)
           ListTile(
             title: Text(continuity.name),
-            subtitle: Text(
-              '${continuity.representedContexts.length} represented contexts',
-            ),
-            trailing:
-                _session!.author && continuity.representedContexts.length == 1
-                ? TextButton(
-                    onPressed: _busy
-                        ? null
-                        : () => Navigator.of(context).push<void>(
-                            MaterialPageRoute(
-                              builder: (_) => WorldEditorPage(
-                                session: _session!,
-                                continuity: continuity,
-                                universe: Selector(_selected!.name),
-                                scope: EditorFormScope(
-                                  instance: _library!.instance,
-                                  profile: _session!.principal,
-                                  universe: _selected!.id,
-                                  continuity: continuity.id,
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${continuity.representedContexts.length} represented contexts',
+                ),
+                if (_session!.author)
+                  Wrap(
+                    children: [
+                      if (continuity.representedContexts.length == 1)
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context).push<void>(
+                                  MaterialPageRoute(
+                                    builder: (_) => WorldEditorPage(
+                                      session: _session!,
+                                      continuity: continuity,
+                                      universe: Selector(_selected!.name),
+                                      scope: EditorFormScope(
+                                        instance: _library!.instance,
+                                        profile: _session!.principal,
+                                        universe: _selected!.id,
+                                        continuity: continuity.id,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                          child: const Text('World draft'),
+                        ),
+                      TextButton(
+                        onPressed: _busy
+                            ? null
+                            : () => Navigator.of(context).push<void>(
+                                MaterialPageRoute(
+                                  builder: (_) => ChangesPage(
+                                    changes: SavedChanges(
+                                      session: _session!,
+                                      universe: Selector(_selected!.name),
+                                      scope: EditorFormScope(
+                                        instance: _library!.instance,
+                                        profile: _session!.principal,
+                                        universe: _selected!.id,
+                                        continuity: continuity.id,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                    child: const Text('World draft'),
-                  )
-                : null,
+                        child: const Text('Changes'),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
           ),
         const SizedBox(height: 24),
         const Text(
