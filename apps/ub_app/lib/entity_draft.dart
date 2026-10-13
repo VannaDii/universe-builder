@@ -155,7 +155,10 @@ DraftContent replaceDraftEntity({
             return WorldAssociation(
               world: world,
               role: a.role,
-              validity: original?.validity ?? const UnspecifiedValidity(),
+              validity:
+                  a.validity ??
+                  original?.validity ??
+                  const UnspecifiedValidity(),
               qualifiers: original?.qualifiers ?? {},
             );
           }),

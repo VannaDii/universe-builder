@@ -86,6 +86,7 @@ void main() {
           const EntityAssociationForm(
             world: '',
             role: 'Unfinished',
+            validity: UnknownValidity(),
             originalOrdinal: 1,
           ),
           const EntityAssociationForm(world: '', role: ''),
@@ -99,6 +100,27 @@ void main() {
         );
         store.save(scope, form([]), BigInt.from(8));
         expect(store.load(scope)!.form.associations, isEmpty);
+        store.save(scope, pending, BigInt.from(9));
+        store.close();
+        final legacy = sqlite3.open(path);
+        legacy.execute(
+          'ALTER TABLE entity_form_association DROP COLUMN validity; PRAGMA user_version=3',
+        );
+        legacy.close();
+        store = EntityFormRecoveryStore.open(path);
+        final upgraded = store.load(scope)!;
+        expect(upgraded.generation, BigInt.from(10));
+        expect(upgraded.form.associations!.first.world, '');
+        expect(upgraded.form.associations!.first.role, 'Unfinished');
+        expect(upgraded.form.associations!.first.originalOrdinal, 1);
+        expect(upgraded.form.associations!.first.validity, isNull);
+        store.save(scope, pending, upgraded.generation);
+        store.close();
+        store = EntityFormRecoveryStore.open(path);
+        expect(
+          store.load(scope)!.form.toWire().toText(),
+          pending.toWire().toText(),
+        );
       } finally {
         store.close();
         root.deleteSync(recursive: true);
@@ -282,7 +304,7 @@ void main() {
       final store = EntityFormRecoveryStore.open(path);
       store.close();
       final db = sqlite3.open(path);
-      db.execute('PRAGMA user_version=4');
+      db.execute('PRAGMA user_version=5');
       db.close();
       final before = File(path).readAsBytesSync();
       try {

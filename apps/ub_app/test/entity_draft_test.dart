@@ -212,6 +212,32 @@ void main() {
     );
     expect(result.last.validity, isA<UnspecifiedValidity>());
     expect(result.last.qualifiers, isEmpty);
+    for (final validity in <Validity>[
+      const UnspecifiedValidity(),
+      const UnknownValidity(),
+      const ConditionalValidity(),
+    ]) {
+      final explicit = replaceDraftEntity(
+        draft: draft,
+        index: 0,
+        form: form([
+          EntityAssociationForm(
+            world: world.value,
+            role: 'home',
+            originalOrdinal: 0,
+            validity: validity,
+          ),
+        ]),
+      );
+      final row = (explicit.operations.single as IntroduceInstanceOperation)
+          .worldAssociations
+          .single;
+      expect(row.validity, validity);
+      expect(
+        row.qualifiers['account'],
+        original.worldAssociations.first.qualifiers['account'],
+      );
+    }
     expect(
       (replaceDraftEntity(
                 draft: draft,
@@ -464,7 +490,11 @@ void main() {
             rationale: '',
             draftVersion: fields.draftVersion,
             associations: [
-              EntityAssociationForm(world: world.value, role: 'home'),
+              EntityAssociationForm(
+                world: world.value,
+                role: 'home',
+                validity: const UnknownValidity(),
+              ),
             ],
           ),
         ),
@@ -500,7 +530,7 @@ void main() {
       expect(published.worldAssociations.single.role, 'home');
       expect(
         published.worldAssociations.single.validity,
-        isA<UnspecifiedValidity>(),
+        isA<UnknownValidity>(),
       );
     } finally {
       try {

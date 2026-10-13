@@ -129,6 +129,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
               world: a.world,
               role: a.role.text,
               originalOrdinal: a.originalOrdinal,
+              validity: a.validity,
             ),
           ),
   );
@@ -466,8 +467,50 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                     },
             ),
             _field(fields.role, 'Association role'),
+            DropdownButtonFormField<String>(
+              key: ValueKey((fields, fields.validity)),
+              initialValue: fields.validity == null
+                  ? 'retain'
+                  : switch (fields.validity!) {
+                      UnspecifiedValidity() => 'unspecified',
+                      UnknownValidity() => 'unknown',
+                      ConditionalValidity() => 'conditional',
+                      _ => 'retain',
+                    },
+              decoration: const InputDecoration(
+                labelText: 'Association validity',
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'retain',
+                  child: Text('Keep current validity'),
+                ),
+                DropdownMenuItem(
+                  value: 'unspecified',
+                  child: Text('Unspecified'),
+                ),
+                DropdownMenuItem(value: 'unknown', child: Text('Unknown')),
+                DropdownMenuItem(
+                  value: 'conditional',
+                  child: Text('Condition dependent'),
+                ),
+              ],
+              onChanged: _disabled
+                  ? null
+                  : (value) {
+                      setState(
+                        () => fields.validity = switch (value) {
+                          'unspecified' => const UnspecifiedValidity(),
+                          'unknown' => const UnknownValidity(),
+                          'conditional' => const ConditionalValidity(),
+                          _ => null,
+                        },
+                      );
+                      _changed();
+                    },
+            ),
             if (original != null) ...[
-              const Text('Retained validity and qualifiers'),
+              const Text('Original validity and retained qualifiers'),
               ExactFields(
                 value: CanonicalObject([
                   MapEntry('validity', original.validity.toWire()),
@@ -483,7 +526,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
               ),
             ] else
               const Text(
-                'New association: unspecified validity, no qualifiers.',
+                'New associations default to unspecified validity and no qualifiers.',
               ),
             TextButton(
               onPressed: _disabled
@@ -594,7 +637,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
               if (_editingDraft != null) ...[
                 const Text('Retained name details'),
                 const Text(
-                  'Name metadata is retained. Each world association keeps its validity and qualifiers when its world or role is edited.',
+                  'Name metadata is retained. World and role edits retain validity and qualifiers unless validity is explicitly changed.',
                 ),
                 ExactFields(
                   value:
@@ -725,8 +768,10 @@ final class _AssociationFields {
   _AssociationFields(EntityAssociationForm form)
     : world = form.world,
       originalOrdinal = form.originalOrdinal,
-      role = TextEditingController(text: form.role);
+      role = TextEditingController(text: form.role),
+      validity = form.validity;
   String world;
+  Validity? validity;
   final int? originalOrdinal;
   final TextEditingController role;
 }

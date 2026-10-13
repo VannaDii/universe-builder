@@ -70,8 +70,9 @@ separately from new-entity input. Earlier-draft edits stay visible but require
 **Use current draft fields** before saving to a newer draft. Association rows can
 be added, changed or explicitly removed. Editing an existing world or role
 retains that row’s exact validity and qualifiers. A new
-row uses unspecified validity and no qualifiers; editing those details remains
-unfinished. Review, approval and publication remain separate steps.
+row defaults to unspecified validity and no qualifiers. Validity can be explicitly
+set to unspecified, unknown or condition dependent, or the current exact value
+can be retained. Temporal validity fields and qualifier editing remain unfinished. Review, approval and publication remain separate steps.
 **Type definition** opens a recoverable typed form for namespace, key, display
 name, parent, applicability, executable classification and rationale. Parent,
 applicability and classification require explicit choices. Unspecified and

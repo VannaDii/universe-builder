@@ -223,18 +223,22 @@ final class SavedEntityForm {
 }
 
 /// Entered association fields reference their source row in the exact draft.
-/// Source validity and qualifiers stay in that draft, rather than being rebuilt.
+/// Null validity retains the exact source value; an explicit value replaces it.
+/// Qualifiers remain in the source draft.
 final class EntityAssociationForm {
   const EntityAssociationForm({
     required this.world,
     required this.role,
     this.originalOrdinal,
+    this.validity,
   });
+  final Validity? validity;
   final String world, role;
   final int? originalOrdinal;
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('world', CanonicalString(world)),
     MapEntry('role', CanonicalString(role)),
+    if (validity != null) MapEntry('validity', validity!.toWire()),
     if (originalOrdinal != null)
       MapEntry('original_ordinal', CanonicalString(originalOrdinal.toString())),
   ]);
