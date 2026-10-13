@@ -407,6 +407,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               builder: (_) => WorldEditorPage(
                                 session: _session!,
                                 continuity: continuity,
+                                universe: Selector(_selected!.name),
                                 scope: EditorFormScope(
                                   instance: _library!.instance,
                                   profile: _session!.principal,

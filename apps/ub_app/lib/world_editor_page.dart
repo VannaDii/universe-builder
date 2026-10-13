@@ -2,9 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:ub_contracts/ub_contracts.dart' hide State;
-import 'package:ub_domain/ub_domain.dart' show RecordId;
+import 'package:ub_domain/ub_domain.dart' show RecordId, CanonicalNull;
 
 import 'connection.dart';
+import 'world_draft.dart';
 
 class WorldEditorPage extends StatefulWidget {
   const WorldEditorPage({
@@ -12,10 +13,12 @@ class WorldEditorPage extends StatefulWidget {
     required this.session,
     required this.scope,
     required this.continuity,
+    required this.universe,
   });
   final AppSession session;
   final EditorFormScope scope;
   final ContinuitySummary continuity;
+  final Selector universe;
   @override
   State<WorldEditorPage> createState() => _WorldEditorPageState();
 }
@@ -27,8 +30,9 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
       _rationale = TextEditingController();
   UnfinishedWorldForm? _base;
   BigInt _generation = BigInt.zero;
-  bool _loading = true, _saving = false, _dirty = false;
+  bool _loading = true, _saving = false, _dirty = false, _adding = false;
   String? _error;
+  String? _added;
   Timer? _autosave;
 
   @override
@@ -99,6 +103,7 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
   void _changed(String _) {
     setState(() {
       _dirty = true;
+      _added = null;
     });
     _autosave?.cancel();
     if (_error == null) {
@@ -153,11 +158,67 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
   }
 
   Future<void> _leave() async {
-    if (_saving) return;
+    if (_saving || _adding) return;
     if (_dirty) await _save();
     if (!mounted || _dirty || _saving) return;
     await WidgetsBinding.instance.endOfFrame;
-    if (mounted && !_dirty && !_saving) Navigator.of(context).pop();
+    if (mounted && !_dirty && !_saving && !_adding) Navigator.of(context).pop();
+  }
+
+  Future<void> _add() async {
+    if (_base == null || _saving || _adding) return;
+    if (_dirty) await _save();
+    if (!mounted || _dirty || _saving) return;
+    final entered = _form;
+    setState(() {
+      _adding = true;
+      _error = null;
+      _added = null;
+    });
+    try {
+      final loaded = await widget.session.call(
+        LoadDraftEngineRequest(
+          universe: widget.universe,
+          continuityId: widget.scope.continuity,
+        ),
+      );
+      final previous = loaded is CanonicalNull
+          ? null
+          : SavedDraft.fromWire(loaded);
+      final request = worldDraftRequest(
+        universe: widget.universe,
+        continuity: widget.scope.continuity,
+        form: entered,
+        previous: previous,
+      );
+      if (previous?.content.toWire().toText() !=
+          request.content.toWire().toText()) {
+        SavedDraft.fromWire(await widget.session.call(request));
+      }
+      if (mounted) {
+        setState(() {
+          _added = 'Added to saved changes. Canon is unchanged. Proposal review is still required.';
+        });
+      }
+    } on FormatException catch (error) {
+      if (mounted) {
+        setState(() {
+          _error = error.message;
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _error = 'Could not confirm adding this world. Your fields remain saved. Try again to check the saved changes before adding.';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _adding = false;
+        });
+      }
+    }
   }
 
   Widget _field(
@@ -170,7 +231,7 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
       label: label,
       child: TextField(
         controller: controller,
-        enabled: _base != null && !_loading,
+        enabled: _base != null && !_loading && !_adding,
         maxLines: lines,
         decoration: InputDecoration(labelText: label),
         onChanged: _changed,
@@ -180,7 +241,7 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
 
   @override
   Widget build(BuildContext context) => PopScope(
-    canPop: !_dirty && !_saving,
+    canPop: !_dirty && !_saving && !_adding,
     onPopInvokedWithResult: (didPop, _) {
       if (!didPop) _leave();
     },
@@ -202,7 +263,8 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
                 'Unfinished work stays on this device. Saving here does not change canon.',
               ),
               const SizedBox(height: 24),
-              if (_loading || _saving) const LinearProgressIndicator(),
+              if (_loading || _saving || _adding)
+                const LinearProgressIndicator(),
               _field(_name, 'World name'),
               _field(_label, 'Display label (English, optional)'),
               _field(_setting, 'Setting type (optional)'),
@@ -235,6 +297,19 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
                     : 'No saved fields yet',
               ),
               const SizedBox(height: 20),
+              if (_added != null)
+                Semantics(liveRegion: true, child: Text(_added!)),
+              if (_base != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilledButton(
+                      onPressed: _saving || _adding ? null : _add,
+                      child: const Text('Add to changes'),
+                    ),
+                  ),
+                ),
               Align(
                 alignment: Alignment.centerLeft,
                 child: _base == null
@@ -243,7 +318,7 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
                         child: const Text('Retry'),
                       )
                     : FilledButton(
-                        onPressed: _saving || !_dirty ? null : _save,
+                        onPressed: _saving || _adding || !_dirty ? null : _save,
                         child: const Text('Save unfinished work'),
                       ),
               ),

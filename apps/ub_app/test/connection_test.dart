@@ -14,6 +14,7 @@ import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/universe_creation.dart';
+import 'package:ub_app/world_draft.dart';
 
 void main() {
   test(
@@ -130,6 +131,56 @@ void main() {
         expect(afterRecovery.result.worlds, isEmpty);
         expect(
           afterRecovery.result.continuities.single.revisionId,
+          continuity.revisionId,
+        );
+        final completed = UnfinishedWorldForm(
+          baseRevision: unfinished.baseRevision,
+          representedContext: unfinished.representedContext,
+          record: unfinished.record,
+          selector: 'A river world',
+          settingType: unfinished.settingType,
+          rationale: unfinished.rationale,
+        );
+        final draftRequest = worldDraftRequest(
+          universe: Selector('A shared history'),
+          continuity: continuity.id,
+          form: completed,
+          previous: null,
+        );
+        final added = SavedDraft.fromWire(await owner.call(draftRequest));
+        expect(added.version, BigInt.one);
+        final loadedDraft = SavedDraft.fromWire(
+          await owner.call(
+            LoadDraftEngineRequest(
+              universe: Selector('A shared history'),
+              continuityId: continuity.id,
+            ),
+          ),
+        );
+        final retry = worldDraftRequest(
+          universe: Selector('A shared history'),
+          continuity: continuity.id,
+          form: completed,
+          previous: loadedDraft,
+        );
+        expect(
+          retry.content.toWire().toText(),
+          added.content.toWire().toText(),
+        );
+        expect(retry.content.operations, hasLength(1));
+        final afterAdding = Envelope<Description>.fromWire(
+          await owner.call(
+            ToolEngineRequest(
+              request: DescribeSummaryRequest(
+                universe: Selector('A shared history'),
+              ),
+            ),
+          ),
+          Description.fromWire,
+        );
+        expect(afterAdding.result.worlds, isEmpty);
+        expect(
+          afterAdding.result.continuities.single.revisionId,
           continuity.revisionId,
         );
         final fictional = createdUniverse(

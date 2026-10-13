@@ -52,9 +52,15 @@ windows use expected generations, and conflicting saves retain the current text.
 **Saved on this device** means the local transaction completed. Fields changed
 just before termination may still be pending. This recovery file lives under
 `client-recovery/world-forms.sqlite` and is separate from canon and proposal
-operations. The editor does not yet add a completed world operation to a proposal;
-other record forms, creation-form recovery and multi-context selection remain
-in progress. Existing owner-only service draft commands remain unchanged.
+operations. **Add to changes** explicitly adds a completed world operation to the
+existing author-owned service draft, preserving its other operations. A retry
+checks the saved draft before adding, so the same world is not duplicated. Fields
+are preserved exactly, with empty optional fields omitted. Different revisions
+or contexts, changed fields for an already-added world, and drafts already linked
+to proposals require review rather than silent replacement. Adding leaves canon
+unchanged. Proposal submission, exact Changes review, other record forms,
+creation-form recovery and multi-context selection remain in progress. Existing
+owner-only service draft permissions remain unchanged.
 
 The approved [conversion plan](docs/dart-conversion-plan.md) is being implemented
 alongside the current runtime. The Dart workspace currently contains the shared
