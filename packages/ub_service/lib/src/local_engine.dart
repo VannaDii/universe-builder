@@ -9,6 +9,7 @@ import 'package:ub_store/local_socket.dart';
 
 import 'installation_authority.dart';
 import 'sqlite_runtime.dart';
+import 'loopback_engine.dart';
 
 enum LocalEngineServerFailure { unavailable, shutdownFailed }
 
@@ -23,10 +24,16 @@ final class LocalEngineServerException implements Exception {
 /// Owns the installation lock, runtime and endpoint for its entire lifetime.
 /// Opening is explicit: it never initializes profiles or converts old data.
 final class LocalSqliteEngineServer {
-  LocalSqliteEngineServer._(this._store, this._runtime, this._listener);
+  LocalSqliteEngineServer._(
+    this._store,
+    this._runtime,
+    this._listener,
+    this._http,
+  );
   final SqliteInstallationStore _store;
   final NativeSqliteRuntime _runtime;
   final ServerSocket _listener;
+  final LoopbackEngineServer _http;
   late final StreamSubscription<Socket> _subscription;
   late final Timer _idle;
   final _clients = <Socket, Future<void>>{};
@@ -36,10 +43,13 @@ final class LocalSqliteEngineServer {
   Future<void>? _shutdown;
 
   Future<void> get done => _done.future;
+  Uri get httpEndpoint => _http.endpoint;
 
   static Future<LocalSqliteEngineServer> start(String root) async {
     SqliteInstallationStore? store;
     ServerSocket? listener;
+    NativeSqliteRuntime? runtime;
+    LoopbackEngineServer? http;
     try {
       store = SqliteInstallationStore.openExisting(root);
       final endpoint = '${store.root}/engine.sock';
@@ -53,17 +63,19 @@ final class LocalSqliteEngineServer {
         0,
       );
       protectLocalSocketEndpoint(endpoint);
-      final server = LocalSqliteEngineServer._(
-        store,
-        NativeSqliteRuntime(authority: InstallationAuthority(store)),
-        listener,
-      );
+      runtime = NativeSqliteRuntime(authority: InstallationAuthority(store));
+      http = await LoopbackEngineServer.sqlite(runtime);
+      final server = LocalSqliteEngineServer._(store, runtime, listener, http);
+      http.done.then((_) => server.close().ignore());
       server._subscription = listener.listen(
         server._accept,
         onError: (Object _) => server.close().ignore(),
       );
       server._idle = Timer.periodic(const Duration(seconds: 60), (_) {
         if (server._clients.isEmpty &&
+            server._http.isIdle &&
+            DateTime.now().difference(server._http.lastActive) >=
+                const Duration(minutes: 15) &&
             DateTime.now().difference(server._lastActive) >=
                 const Duration(minutes: 15)) {
           server.close().ignore();
@@ -73,6 +85,8 @@ final class LocalSqliteEngineServer {
     } on Object {
       try {
         await listener?.close();
+        await http?.close();
+        await runtime?.close();
       } on Object {
         // Startup diagnostics remain redacted even if cleanup also fails.
       } finally {
@@ -192,7 +206,11 @@ final class LocalSqliteEngineServer {
           await Future.wait(_clients.values.toList());
         } finally {
           try {
-            await _runtime.close();
+            try {
+              await _http.close();
+            } finally {
+              await _runtime.close();
+            }
           } finally {
             try {
               _store.close();

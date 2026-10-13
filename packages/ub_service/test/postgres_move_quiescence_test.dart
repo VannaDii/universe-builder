@@ -11,6 +11,7 @@ import 'package:ub_client/archive_transfer.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_profiles.dart';
+import 'package:ub_service/loopback_engine.dart';
 import 'package:ub_service/postgres_runtime.dart';
 import 'package:ub_service/sqlite_runtime.dart';
 import 'package:ub_store/installation.dart';
@@ -440,6 +441,40 @@ void main() {
           await sourceRuntime.close();
           sourceStore.close();
           root.deleteSync(recursive: true);
+        }
+      });
+
+      test('loopback HTTP dispatches authenticated PostgreSQL calls', () async {
+        final server = await LoopbackEngineServer.postgres(runtime);
+        final http = HttpClient();
+        try {
+          final request = await http.postUrl(
+            server.endpoint.resolve('/engine/call'),
+          );
+          request.headers.set(
+            HttpHeaders.authorizationHeader,
+            'UB ${base64Encode(hello(authorId).toWire().toBytes())}',
+          );
+          request.add(
+            EngineCall(
+              id: BigInt.from(17),
+              request: const StatusEngineRequest(),
+            ).toWire().toBytes(),
+          );
+          final response = await request.close();
+          expect(response.statusCode, HttpStatus.ok);
+          final reply = EngineReply.fromWire(
+            CanonicalValue.parseWireJson(
+              await utf8.decoder.bind(response).join(),
+            ),
+          );
+          expect(reply.id, BigInt.from(17));
+          final body = (reply.result as EngineSuccess).value;
+          expect(text(body, 'instance_id'), store.instanceId.value);
+          expect(text(body, 'service_instance'), runtime.instance.value);
+        } finally {
+          http.close(force: true);
+          await server.close();
         }
       });
 

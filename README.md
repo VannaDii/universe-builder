@@ -616,6 +616,26 @@ digest and record count. Functional checks cover source/target restart and audit
 failure before target admission and after target completion, with one retained
 audit event per successful transition. Source retirement
 and the Flutter move flow remain pending.
+The shared native service now includes an authenticated loopback HTTP adapter.
+`LocalSqliteEngineServer` starts it alongside its compatibility Unix socket and
+exposes the dynamically assigned loopback address through `httpEndpoint`.
+`LoopbackEngineServer.postgres` adapts an explicitly opened PostgreSQL runtime;
+the caller retains runtime/store ownership and closes them after the listener.
+HTTP activity participates in the installed engine's existing idle shutdown.
+
+The private HTTP contract uses `POST /engine/hello` with an empty body to return
+the existing welcome, and `POST /engine/call` with an existing `EngineCall` JSON
+body to return its correlated `EngineReply`. Each request carries
+`Authorization: UB <base64 of the UTF-8 EngineHello JSON>` and authenticates the
+current profile. Credentials never enter URLs. The adapter binds only IPv4
+loopback, checks the exact host and any supplied origin, bounds input/output and
+concurrent requests, and marks responses `no-store`. Failed transport does not
+replay a command; callers recover uncertain outcomes through existing receipts.
+An authorized HTTP shutdown drains the listener and closes the installed engine.
+Native client endpoint discovery/bootstrap, browser sessions, Flutter clients
+and hosted HTTPS integration remain pending. This is not a browser cookie session
+or a public hosted endpoint.
+
 Coordinated backend cutover and hosted server backup operation remain pending.
 Socket/launcher integration, cross-process worker qualification and
 backend parity qualification are pending. Coordinated transfer and live
