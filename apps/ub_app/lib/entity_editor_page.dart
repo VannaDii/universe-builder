@@ -494,6 +494,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                   'record_ref': 'Record reference',
                   'proposition_ref': 'Proposition reference',
                   'enum': 'Enumeration',
+                  'temporal': 'Temporal expression',
                   'range': 'Range',
                   'sequence': 'Sequence',
                   'set': 'Set',
@@ -509,6 +510,11 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                   : (value) {
                       setState(() {
                         fields.kind = value!;
+                        if (value == 'temporal') {
+                          fields.temporal ??= const TemporalValidityInput(
+                            kind: 'instant',
+                          );
+                        }
                         if (value == 'range') {
                           fields.lower ??= _QualifierFields(
                             const QualifierInput(),
@@ -528,7 +534,18 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                     )
                   : ExactFields(value: retained.toWire())
             else ...[
-              if (fields.kind == 'range') ...[
+              if (fields.kind == 'temporal')
+                TemporalValidityFields(
+                  key: ValueKey(('qualifier temporal', fields)),
+                  input: fields.temporal!,
+                  expressionOnly: true,
+                  disabled: _disabled,
+                  onChanged: (input) {
+                    setState(() => fields.temporal = input);
+                    _changed();
+                  },
+                )
+              else if (fields.kind == 'range') ...[
                 _qualifierRow(
                   [fields.lower!],
                   0,
@@ -1144,6 +1161,11 @@ final class _QualifierFields {
       definition = TextEditingController(text: form.definition),
       kind = form.kind,
       children = form.children.map(_QualifierFields.new).toList(),
+      temporal =
+          form.temporal ??
+          (form.kind == 'temporal'
+              ? const TemporalValidityInput(kind: 'instant')
+              : null),
       lower = form.lower == null
           ? (form.kind == 'range'
                 ? _QualifierFields(const QualifierInput())
@@ -1166,6 +1188,7 @@ final class _QualifierFields {
   String kind;
   final List<_QualifierFields> children;
   _QualifierFields? lower, upper;
+  TemporalValidityInput? temporal;
   String lowerInclusive, upperInclusive;
   final String? originalKey;
   QualifierInput get form => QualifierInput(
@@ -1178,6 +1201,7 @@ final class _QualifierFields {
     definition: definition.text,
     originalKey: originalKey,
     children: children.map((c) => c.form).toList(),
+    temporal: temporal,
     lower: lower?.form,
     upper: upper?.form,
     lowerInclusive: lowerInclusive,

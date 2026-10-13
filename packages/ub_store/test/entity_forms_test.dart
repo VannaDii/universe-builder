@@ -124,6 +124,17 @@ void main() {
                 upperInclusive: 'false',
               ),
               QualifierInput(
+                key: 'time',
+                kind: 'temporal',
+                temporal: TemporalValidityInput(
+                  kind: 'instant_relative',
+                  calendar: 'unfinished 😀',
+                  relation: 'after',
+                  targetRecord: 'unfinished record',
+                  start: TemporalBoundInput(uncertainty: '記憶 😀'),
+                ),
+              ),
+              QualifierInput(
                 key: 'amount',
                 kind: 'rational',
                 value: '1',

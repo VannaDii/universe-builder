@@ -1,7 +1,17 @@
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
+import 'temporal_validity_draft.dart';
+
 QualifierInput qualifierInput(String key, DomainValue value) {
+  if (value is TemporalValue) {
+    return QualifierInput(
+      key: key,
+      kind: 'temporal',
+      originalKey: key,
+      temporal: temporalValidityInput(InstantValidity(value.temporal)),
+    );
+  }
   if (value is RangeValue) {
     return QualifierInput(
       key: key,
@@ -110,6 +120,10 @@ DomainValue buildQualifierValue(QualifierInput row, DomainValue? original) {
   }
   final sources = qualifierChildren(original);
   final amount = switch (row.kind) {
+    'temporal' => _buildTemporal(
+      row,
+      original is TemporalValue ? original : null,
+    ),
     'range' => _buildRange(row, original is RangeValue ? original : null),
     'sequence' => SequenceValue(
       row.children.map((c) => buildQualifierValue(c, sources[c.originalKey])),
@@ -167,4 +181,16 @@ RangeValue _buildRange(QualifierInput row, RangeValue? original) {
     upperInclusive: included(row.upperInclusive),
     unit: row.unit.isEmpty ? null : UnitId.parse(row.unit),
   );
+}
+
+TemporalValue _buildTemporal(QualifierInput row, TemporalValue? original) {
+  final input = row.temporal;
+  if (input == null || !input.kind.startsWith('instant')) {
+    throw const FormatException('Choose a temporal expression.');
+  }
+  final validity = buildTemporalValidity(
+    input,
+    original == null ? null : InstantValidity(original.temporal),
+  );
+  return TemporalValue((validity as InstantValidity).at);
 }

@@ -7,9 +7,11 @@ class TemporalValidityFields extends StatelessWidget {
     required this.input,
     required this.disabled,
     required this.onChanged,
+    this.expressionOnly = false,
   });
   final TemporalValidityInput input;
   final bool disabled;
+  final bool expressionOnly;
   final ValueChanged<TemporalValidityInput> onChanged;
 
   Widget _text(
@@ -126,17 +128,22 @@ class TemporalValidityFields extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      _choice('Temporal validity', input.kind, {
-        'instant': 'At an exact time',
-        'instant_interval': 'At a time interval',
-        'instant_approximate': 'At an approximate time',
-        'instant_duration': 'Duration expression',
-        'instant_relative': 'At a relative time',
-        'instant_unspecified': 'Unspecified time expression',
-        'interval': 'Interval',
-        'calendar_interval': 'Interval in a calendar',
-        'persistent': 'From a bound until changed',
-      }, (kind) => onChanged(input.copyWith(kind: kind))),
+      _choice(
+        expressionOnly ? 'Temporal expression' : 'Temporal validity',
+        input.kind,
+        {
+          'instant': 'At an exact time',
+          'instant_interval': 'At a time interval',
+          'instant_approximate': 'At an approximate time',
+          'instant_duration': 'Duration expression',
+          'instant_relative': 'At a relative time',
+          'instant_unspecified': 'Unspecified time expression',
+          if (!expressionOnly) 'interval': 'Interval',
+          if (!expressionOnly) 'calendar_interval': 'Interval in a calendar',
+          if (!expressionOnly) 'persistent': 'From a bound until changed',
+        },
+        (kind) => onChanged(input.copyWith(kind: kind)),
+      ),
       if ((input.kind.startsWith('instant') &&
               input.kind != 'instant_unspecified') ||
           input.kind == 'calendar_interval')

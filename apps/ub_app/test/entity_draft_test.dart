@@ -123,6 +123,54 @@ void main() {
       throwsFormatException,
     );
   });
+  test('temporal qualifier edits require expression fields and retain exact amounts', () {
+    final calendar = CalendarId.generate(), target = RecordId.generate();
+    final row = QualifierInput(
+      key: 'time',
+      kind: 'temporal',
+      temporal: TemporalValidityInput(
+        kind: 'instant_relative',
+        calendar: calendar.value,
+        relation: 'after',
+        targetRecord: target.value,
+      ),
+    );
+    expect(
+      buildQualifiers([row], {})['time'],
+      TemporalValue(
+        RelativeTime(
+          calendar,
+          TemporalRelation.after,
+          RecordRef(record: target),
+        ),
+      ),
+    );
+    for (final input in [
+      const QualifierInput(key: 'time', kind: 'temporal'),
+      const QualifierInput(
+        key: 'time',
+        kind: 'temporal',
+        temporal: TemporalValidityInput(),
+      ),
+      QualifierInput(
+        key: 'time',
+        kind: 'temporal',
+        temporal: row.temporal!.copyWith(relation: ''),
+      ),
+    ]) {
+      expect(() => buildQualifiers([input], {}), throwsFormatException);
+    }
+    final original = TemporalValue(
+      DurationTime(calendar, SequenceValue([const TextValue('one lifetime')])),
+    );
+    expect(
+      buildQualifiers(
+        [qualifierInput('time', original)],
+        {'time': original},
+      )['time'],
+      original,
+    );
+  });
   test(
     'range edits preserve typed bounds and require explicit inclusivity',
     () {
@@ -384,6 +432,13 @@ void main() {
         final input = temporalValidityInput(original);
         final recovered = TemporalValidityInput.fromWire(input.toWire());
         expect(buildTemporalValidity(recovered, original), original);
+        if (original is InstantValidity) {
+          final value = TemporalValue(original.at);
+          final row = QualifierInput.fromWire(
+            qualifierInput('time', value).toWire(),
+          );
+          expect(buildQualifiers([row], {'time': value})['time'], value);
+        }
       }
       final legacy = TemporalValidityInput.fromWire(
         CanonicalObject([
@@ -981,6 +1036,13 @@ void main() {
                 qualifiers: [
                   QualifierInput(key: 'account', value: '記憶 😀'),
                   QualifierInput(
+                    key: 'time',
+                    kind: 'temporal',
+                    temporal: TemporalValidityInput(
+                      kind: 'instant_unspecified',
+                    ),
+                  ),
+                  QualifierInput(
                     key: 'range',
                     kind: 'range',
                     lower: QualifierInput(kind: 'integer', value: '001'),
@@ -1092,6 +1154,10 @@ void main() {
           lowerInclusive: false,
           upperInclusive: true,
         ),
+      );
+      expect(
+        published.worldAssociations.single.qualifiers['time'],
+        const TemporalValue(UnspecifiedTime()),
       );
       expect(
         published.worldAssociations.single.qualifiers['confirmed'],

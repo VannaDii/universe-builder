@@ -392,6 +392,7 @@ final class QualifierInput {
     this.definition = '',
     this.originalKey,
     this.children = const [],
+    this.temporal,
     this.lower,
     this.upper,
     this.lowerInclusive = '',
@@ -401,6 +402,7 @@ final class QualifierInput {
   final String? originalKey;
   final List<QualifierInput> children;
   final QualifierInput? lower, upper;
+  final TemporalValidityInput? temporal;
   final String lowerInclusive, upperInclusive;
   Iterable<String> get exactTexts sync* {
     yield* [
@@ -415,6 +417,20 @@ final class QualifierInput {
       lowerInclusive,
       upperInclusive,
     ];
+    if (temporal case final t?) {
+      yield* [t.kind, t.calendar, t.relation, t.targetUniverse, t.targetRecord];
+      for (final b in [t.start, t.end]) {
+        yield* [
+          b.kind,
+          b.value,
+          b.upper,
+          b.uncertaintyKind,
+          b.uncertainty,
+          b.denominator,
+          b.unit,
+        ];
+      }
+    }
     for (final child in [...children, ?lower, ?upper]) {
       yield* child.exactTexts;
     }
@@ -428,6 +444,7 @@ final class QualifierInput {
     MapEntry('unit', CanonicalString(unit)),
     MapEntry('universe', CanonicalString(universe)),
     MapEntry('definition', CanonicalString(definition)),
+    if (temporal != null) MapEntry('temporal', temporal!.toWire()),
     if (lower != null) MapEntry('lower', lower!.toWire()),
     if (upper != null) MapEntry('upper', upper!.toWire()),
     MapEntry('lower_inclusive', CanonicalString(lowerInclusive)),
@@ -448,12 +465,14 @@ final class QualifierInput {
       'universe',
       'definition',
       'children',
+      'temporal',
       'lower',
       'upper',
       'lower_inclusive',
       'upper_inclusive',
     });
     return QualifierInput(
+      temporal: f.optional('temporal', TemporalValidityInput.fromWire),
       lower: f.optional(
         'lower',
         (v) => QualifierInput.fromWire(v, depth: depth + 1),
