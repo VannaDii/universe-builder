@@ -8,6 +8,8 @@ import 'attribute_draft.dart';
 import 'record_fields.dart';
 import 'saved_changes.dart';
 import 'value_input_fields.dart';
+import 'temporal_validity_draft.dart';
+import 'temporal_validity_fields.dart';
 
 class AttributeEditorPage extends StatefulWidget {
   const AttributeEditorPage({
@@ -91,7 +93,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
     }
   }
 
-  void _change(QualifierInput value) {
+  void _change(QualifierInput value, {AttributeEvidenceInput? evidence}) {
     final old = _form!;
     setState(() {
       _form = UnfinishedAttributeForm(
@@ -100,12 +102,125 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
         clientRef: old.clientRef,
         draftVersion: old.draftVersion,
         value: value,
+        evidenceInput: evidence ?? old.evidenceInput,
       );
       _dirty = true;
       _updated = null;
     });
     _autosave?.cancel();
     _autosave = Timer(const Duration(milliseconds: 500), _save);
+  }
+
+  void _editEvidence({
+    Polarity? polarity,
+    Precision? precision,
+    PersistenceSemantics? persistence,
+    String? validityChoice,
+    TemporalValidityInput? temporal,
+  }) {
+    final old = _form!.evidenceInput ?? const AttributeEvidenceInput();
+    _change(
+      _form!.value,
+      evidence: AttributeEvidenceInput(
+        polarity: polarity ?? old.polarity,
+        precision: precision ?? old.precision,
+        persistence: persistence ?? old.persistence,
+        validity: validityChoice == null
+            ? old.validity
+            : switch (validityChoice) {
+                'unspecified' => const UnspecifiedValidity(),
+                'unknown' => const UnknownValidity(),
+                'conditional' => const ConditionalValidity(),
+                _ => null,
+              },
+        temporalValidity: validityChoice == null
+            ? temporal ?? old.temporalValidity
+            : validityChoice == 'temporal'
+            ? temporalValidityInput(_source.evidence.validity)
+            : null,
+      ),
+    );
+  }
+
+  Widget _choice<T>(
+    String label,
+    T value,
+    Map<T, String> choices,
+    ValueChanged<T> change,
+  ) => DropdownButtonFormField<T>(
+    key: ValueKey((label, value)),
+    initialValue: value,
+    decoration: InputDecoration(labelText: label),
+    items: [
+      for (final e in choices.entries)
+        DropdownMenuItem(value: e.key, child: Text(e.value)),
+    ],
+    onChanged: _disabled
+        ? null
+        : (v) {
+            if (v != null) change(v);
+          },
+  );
+  Widget _evidenceFields() {
+    final input = _form!.evidenceInput;
+    final original = _source.evidence;
+    final choice = input?.temporalValidity != null
+        ? 'temporal'
+        : switch (input?.validity) {
+            UnspecifiedValidity() => 'unspecified',
+            UnknownValidity() => 'unknown',
+            ConditionalValidity() => 'conditional',
+            _ => 'retain',
+          };
+    return ExpansionTile(
+      key: const ValueKey('attribute assertion details'),
+      title: const Text('Assertion details'),
+      children: [
+        _choice('Polarity', input?.polarity ?? original.polarity, const {
+          Polarity.support: 'Supports this fact',
+          Polarity.refutation: 'Refutes this fact',
+        }, (v) => _editEvidence(polarity: v)),
+        _choice('Precision', input?.precision ?? original.precision, const {
+          Precision.exact: 'Exact',
+          Precision.approximate: 'Approximate',
+          Precision.range: 'Range',
+          Precision.oneOf: 'One of the authored alternatives',
+          Precision.unresolved: 'Unresolved',
+        }, (v) => _editEvidence(precision: v)),
+        _choice(
+          'Persistence',
+          input?.persistence ?? original.persistence,
+          const {
+            PersistenceSemantics.explicitInterval: 'Explicit interval',
+            PersistenceSemantics.persistentUntilChanged:
+                'Persistent until changed',
+            PersistenceSemantics.instantaneousObservation:
+                'Instantaneous observation',
+            PersistenceSemantics.conditionDependent: 'Condition dependent',
+            PersistenceSemantics.unspecified: 'Unspecified',
+          },
+          (v) => _editEvidence(persistence: v),
+        ),
+        _choice('Validity', choice, const {
+          'retain': 'Keep current validity',
+          'unspecified': 'Unspecified',
+          'unknown': 'Unknown',
+          'conditional': 'Conditional',
+          'temporal': 'Temporal validity',
+        }, (v) => _editEvidence(validityChoice: v)),
+        if (input?.temporalValidity != null)
+          TemporalValidityFields(
+            key: const ValueKey('attribute temporal'),
+            input: input!.temporalValidity!,
+            originalAmounts: temporalOriginalAmounts(original.validity),
+            disabled: _disabled,
+            onChanged: (v) => _editEvidence(temporal: v),
+          ),
+        const Text(
+          'Attribute mode, scope, alternatives and source basis retain their authored values.',
+        ),
+      ],
+    );
   }
 
   Future<void> _save() async {
@@ -170,7 +285,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
         _result = saved;
         _form = attributeFormFromDraft(saved, widget.index);
         _dirty = true;
-        _updated = 'Attribute value updated in saved changes. Return to Changes to review it.';
+        _updated = 'Attribute updated in saved changes. Return to Changes to review it.';
       });
       await _save();
     } on FormatException catch (error) {
@@ -203,7 +318,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
       if (!didPop) _leave();
     },
     child: Scaffold(
-      appBar: AppBar(title: const Text('Edit attribute value')),
+      appBar: AppBar(title: const Text('Edit attribute')),
       body: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
@@ -216,7 +331,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const Text(
-                'Unfinished value edits stay on this device. The property definition and authored evidence remain intact. Save into Changes for review before publication.',
+                'Unfinished edits stay on this device. The property definition remains intact. Assertion details change only when edited. Save into Changes for review before publication.',
               ),
               if (_loading || _saving || _updating)
                 const LinearProgressIndicator(),
@@ -231,13 +346,16 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
               ],
               if (_form != null)
                 ValueInputFields(
+                  key: const ValueKey('attribute value'),
                   input: _form!.value,
                   original: _source.value,
                   disabled: _disabled,
                   label: 'Attribute value',
                   onChanged: _change,
                 ),
+              if (_form != null) _evidenceFields(),
               ExpansionTile(
+                key: const ValueKey('original attribute'),
                 title: const Text('Original attribute and evidence'),
                 children: [ExactFields(value: _source.toWire())],
               ),

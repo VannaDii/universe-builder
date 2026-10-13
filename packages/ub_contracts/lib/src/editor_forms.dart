@@ -607,18 +607,22 @@ final class UnfinishedAttributeForm {
     required this.clientRef,
     required BigInt draftVersion,
     required this.value,
+    this.evidenceInput,
   }) : draftVersion = checkedU64(draftVersion);
   final RevisionId baseRevision;
   final RecordId representedContext;
   final String clientRef;
   final BigInt draftVersion;
   final QualifierInput value;
+  final AttributeEvidenceInput? evidenceInput;
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
     MapEntry('represented_context', CanonicalString(representedContext.value)),
     MapEntry('client_ref', CanonicalString(clientRef)),
     MapEntry('draft_version', CanonicalString(draftVersion.toString())),
     MapEntry('value', value.toWire()),
+    if (evidenceInput != null)
+      MapEntry('evidence_input', evidenceInput!.toWire()),
   ]);
 }
 
@@ -627,4 +631,55 @@ final class SavedAttributeForm {
     : generation = checkedU64(generation);
   final BigInt generation;
   final UnfinishedAttributeForm form;
+}
+
+/// Null fields retain the authored assertion details; explicit input replaces them.
+final class AttributeEvidenceInput {
+  const AttributeEvidenceInput({
+    this.polarity,
+    this.precision,
+    this.persistence,
+    this.validity,
+    this.temporalValidity,
+  });
+  final Polarity? polarity;
+  final Precision? precision;
+  final PersistenceSemantics? persistence;
+  final Validity? validity;
+  final TemporalValidityInput? temporalValidity;
+  CanonicalObject toWire() => CanonicalObject([
+    if (polarity != null) MapEntry('polarity', polarity!.toWire()),
+    if (precision != null) MapEntry('precision', precision!.toWire()),
+    if (persistence != null) MapEntry('persistence', persistence!.toWire()),
+    if (validity != null) MapEntry('validity', validity!.toWire()),
+    if (temporalValidity != null)
+      MapEntry('temporal_validity', temporalValidity!.toWire()),
+  ]);
+  factory AttributeEvidenceInput.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {
+      'polarity',
+      'precision',
+      'persistence',
+      'validity',
+      'temporal_validity',
+    });
+    return AttributeEvidenceInput(
+      polarity: f.optional('polarity', Polarity.fromWire),
+      precision: f.optional('precision', Precision.fromWire),
+      persistence: f.optional('persistence', PersistenceSemantics.fromWire),
+      validity: f.optional('validity', Validity.fromWire),
+      temporalValidity: f.optional(
+        'temporal_validity',
+        TemporalValidityInput.fromWire,
+      ),
+    );
+  }
+  Iterable<String> get exactTexts sync* {
+    if (temporalValidity != null) {
+      yield* QualifierInput(
+        kind: 'temporal',
+        temporal: temporalValidity,
+      ).exactTexts;
+    }
+  }
 }

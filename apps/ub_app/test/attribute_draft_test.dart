@@ -15,6 +15,116 @@ import 'package:ub_service/local_profiles.dart';
 import 'package:ub_store/installation.dart';
 
 void main() {
+  test('assertion edits retain scope, alternatives and basis while changed validity is exact', () {
+    final calendar = CalendarId.generate();
+    final evidence = AttributeEvidence(
+      attributeMode: AttributeMode.shared,
+      polarity: Polarity.support,
+      scope: Scope(
+        context: RecordRef(record: RecordId.generate()),
+        applicability: const ConditionalApplicability(),
+      ),
+      validity: InstantValidity(
+        DurationTime(calendar, const TextValue('one lifetime')),
+      ),
+      persistence: PersistenceSemantics.persistentUntilChanged,
+      precision: Precision.oneOf,
+      alternatives: [const TextValue('alternative')],
+      basis: const AuthorDecisionBasis('Authored source.'),
+    );
+    final op = AddNamedAttributeOperation(
+      clientRef: 'attribute',
+      subject: RecordRef(record: RecordId.generate()),
+      namespace: 'authored',
+      key: 'account',
+      valueShape: const SimpleValueShape(SimpleShapeKind.text),
+      subjectTypes: [RecordId.generate()],
+      multiplicity: Multiplicity.multiple,
+      value: const TextValue('account'),
+      evidence: evidence,
+    );
+    final draft = SavedDraft(
+      version: BigInt.two,
+      content: DraftContent(
+        baseRevision: RevisionId.generate(),
+        representedContext: RecordId.generate(),
+        operations: [op],
+        rationale: 'Authored rationale.',
+      ),
+    );
+    final fields = attributeFormFromDraft(draft, 0);
+    UnfinishedAttributeForm form(AttributeEvidenceInput input) =>
+        UnfinishedAttributeForm(
+          baseRevision: fields.baseRevision,
+          representedContext: fields.representedContext,
+          clientRef: fields.clientRef,
+          draftVersion: fields.draftVersion,
+          value: fields.value,
+          evidenceInput: input,
+        );
+    final retained =
+        (replaceDraftAttribute(
+                  draft: draft,
+                  index: 0,
+                  form: fields,
+                ).operations.single
+                as AddNamedAttributeOperation)
+            .evidence;
+    expect(retained.toWire().toText(), evidence.toWire().toText());
+    final input = AttributeEvidenceInput(
+      polarity: Polarity.refutation,
+      precision: Precision.approximate,
+      persistence: PersistenceSemantics.instantaneousObservation,
+      temporalValidity: TemporalValidityInput(
+        kind: 'instant_duration',
+        calendar: calendar.value,
+        start: const TemporalBoundInput(
+          uncertaintyKind: 'text',
+          uncertainty: 'two lifetimes 記憶 😀',
+        ),
+      ),
+    );
+    final parsed = AttributeEvidenceInput.fromWire(input.toWire());
+    final edited =
+        (replaceDraftAttribute(
+                  draft: draft,
+                  index: 0,
+                  form: form(parsed),
+                ).operations.single
+                as AddNamedAttributeOperation)
+            .evidence;
+    expect(edited.polarity, Polarity.refutation);
+    expect(edited.precision, Precision.approximate);
+    expect(edited.persistence, PersistenceSemantics.instantaneousObservation);
+    expect(
+      edited.validity,
+      InstantValidity(
+        DurationTime(calendar, const TextValue('two lifetimes 記憶 😀')),
+      ),
+    );
+    expect(edited.attributeMode, evidence.attributeMode);
+    expect(edited.scope, evidence.scope);
+    expect(edited.alternatives, evidence.alternatives);
+    expect(edited.basis.toWire().toText(), evidence.basis.toWire().toText());
+    for (final marker in [
+      const UnspecifiedValidity(),
+      const UnknownValidity(),
+      const ConditionalValidity(),
+    ]) {
+      expect(
+        (replaceDraftAttribute(
+                  draft: draft,
+                  index: 0,
+                  form: form(AttributeEvidenceInput(validity: marker)),
+                ).operations.single
+                as AddNamedAttributeOperation)
+            .evidence
+            .validity,
+        marker,
+      );
+    }
+  });
+
   test('attribute values recover and publish with their exact definition and evidence', () async {
     final root = Directory('/tmp').createTempSync('ub-attribute-workflow-');
     final store = SqliteInstallationStore.create(root.path);
@@ -199,7 +309,31 @@ void main() {
         saved.content.operations.last.toWire().toText(),
       );
       expect(replacement.rationale, saved.content.rationale);
-      final updated = await changes().saveContent(saved, replacement);
+      final detailsForm = UnfinishedAttributeForm(
+        baseRevision: recovered.form.baseRevision,
+        representedContext: recovered.form.representedContext,
+        clientRef: recovered.form.clientRef,
+        draftVersion: recovered.form.draftVersion,
+        value: recovered.form.value,
+        evidenceInput: const AttributeEvidenceInput(
+          polarity: Polarity.refutation,
+          validity: UnspecifiedValidity(),
+        ),
+      );
+      await session.saveAttributeForm(
+        formScope,
+        detailsForm,
+        recovered.generation,
+      );
+      await session.close();
+      session = await device.connect();
+      final detailsRecovered = (await session.loadAttributeForm(formScope))!
+          .form;
+      expect(detailsRecovered.toWire().toText(), detailsForm.toWire().toText());
+      final updated = await changes().saveContent(
+        saved,
+        replaceDraftAttribute(draft: saved, index: 0, form: detailsRecovered),
+      );
       expect(
         () => replaceDraftAttribute(
           draft: updated,
@@ -233,7 +367,8 @@ void main() {
         assertion.basis.toWire().toText(),
         evidence.basis.toWire().toText(),
       );
-      expect(assertion.validity, const UnknownValidity());
+      expect(assertion.validity, const UnspecifiedValidity());
+      expect(assertion.polarity, Polarity.refutation);
     } finally {
       await session?.close();
       await server.close();

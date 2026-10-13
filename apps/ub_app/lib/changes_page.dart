@@ -746,7 +746,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                             ) ??
                                             draft,
                                       ),
-                                child: const Text('Edit attribute value'),
+                                child: const Text('Edit attribute'),
                               ),
                             if (_proposal == null &&
                                 (operations[index]
