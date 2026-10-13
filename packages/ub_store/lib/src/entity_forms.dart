@@ -12,7 +12,8 @@ const _legacyColumns =
 const _v2Columns =
     'instance,profile,universe,continuity,context,editor_key,generation,base_revision,client_ref,name,classification,world_role,rationale,draft_version';
 const _v6Columns = '$_v2Columns,association_edits_present';
-const _columns = '$_v6Columns,name_input';
+const _v7Columns = '$_v6Columns,name_input';
+const _columns = '$_v7Columns,expected_record_version';
 const _where =
     'instance=? AND profile=? AND universe=? AND continuity=? AND context=? AND editor_key=?';
 const _schema =
@@ -23,7 +24,7 @@ CREATE TABLE entity_form (
  base_revision TEXT NOT NULL, client_ref TEXT NOT NULL, name TEXT NOT NULL,
  classification TEXT NOT NULL, world_role TEXT NOT NULL, rationale TEXT NOT NULL, draft_version TEXT,
  association_edits_present INTEGER NOT NULL DEFAULT 0 CHECK(association_edits_present IN (0,1)),
- name_input TEXT,
+ name_input TEXT, expected_record_version TEXT,
  PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)
 ) STRICT;
 CREATE TABLE entity_form_world (
@@ -33,7 +34,7 @@ CREATE TABLE entity_form_world (
  FOREIGN KEY(instance,profile,universe,continuity,context,editor_key) REFERENCES entity_form(instance,profile,universe,continuity,context,editor_key) ON DELETE CASCADE
 ) STRICT;
 $_associationSchema
-PRAGMA user_version=7;
+PRAGMA user_version=8;
 ''';
 
 const _associationSchema = '''
@@ -85,7 +86,7 @@ final class EntityFormRecoveryStore {
           db.execute('ALTER TABLE entity_form RENAME TO legacy_entity_form');
           db.execute(_schema);
           db.execute(
-            "INSERT INTO entity_form SELECT instance,profile,universe,continuity,context,'',generation,base_revision,client_ref,name,classification,world_role,rationale,NULL,0,NULL FROM legacy_entity_form",
+            "INSERT INTO entity_form SELECT instance,profile,universe,continuity,context,'',generation,base_revision,client_ref,name,classification,world_role,rationale,NULL,0,NULL,NULL FROM legacy_entity_form",
           );
           db.execute(
             "INSERT INTO entity_form_world SELECT instance,profile,universe,continuity,context,'',ordinal,world FROM legacy_entity_form_world",
@@ -123,6 +124,12 @@ final class EntityFormRecoveryStore {
           db.execute('ALTER TABLE entity_form ADD COLUMN name_input TEXT');
           db.execute('PRAGMA user_version=7');
         }
+        if (version >= 2 && version <= 7) {
+          db.execute(
+            'ALTER TABLE entity_form ADD COLUMN expected_record_version TEXT',
+          );
+          db.execute('PRAGMA user_version=8');
+        }
         db.execute('COMMIT');
       } catch (_) {
         if (!db.autocommit) db.execute('ROLLBACK');
@@ -150,14 +157,15 @@ final class EntityFormRecoveryStore {
     if (tables.isEmpty) return 0;
     final version =
         db.select('PRAGMA user_version').single.values.single as int;
-    if (tables.length != ((version >= 3 && version <= 7) ? 3 : 2) ||
+    if (tables.length != ((version >= 3 && version <= 8) ? 3 : 2) ||
         (version != 1 &&
             version != 2 &&
             version != 3 &&
             version != 4 &&
             version != 5 &&
             version != 6 &&
-            version != 7) ||
+            version != 7 &&
+            version != 8) ||
         db
                 .select('PRAGMA table_info(entity_form)')
                 .map((row) => row['name'])
@@ -168,6 +176,8 @@ final class EntityFormRecoveryStore {
                 ? _v2Columns
                 : version <= 6
                 ? _v6Columns
+                : version == 7
+                ? _v7Columns
                 : _columns) ||
         db
                 .select('PRAGMA table_info(entity_form_world)')
@@ -176,7 +186,7 @@ final class EntityFormRecoveryStore {
             (version == 1
                 ? 'instance,profile,universe,continuity,context,ordinal,world'
                 : 'instance,profile,universe,continuity,context,editor_key,ordinal,world') ||
-        ((version >= 3 && version <= 7) &&
+        ((version >= 3 && version <= 8) &&
             db
                     .select('PRAGMA table_info(entity_form_association)')
                     .map((r) => r['name'])
@@ -200,7 +210,8 @@ final class EntityFormRecoveryStore {
         scope.worldClientRef != null ||
         scope.worldRecord != null ||
         scope.typeClientRef != null ||
-        scope.entityClientRef == '') {
+        scope.entityClientRef == '' ||
+        (scope.entityClientRef != null && scope.entityNameRecord != null)) {
       throw const FormatException('Choose the entity form context.');
     }
     return [
@@ -209,7 +220,9 @@ final class EntityFormRecoveryStore {
       scope.universe.value,
       scope.continuity.value,
       scope.representedContext!.value,
-      scope.entityClientRef ?? '',
+      scope.entityNameRecord == null
+          ? scope.entityClientRef ?? ''
+          : 'name:${scope.entityNameRecord!.value}',
     ];
   }
 
@@ -227,6 +240,9 @@ final class EntityFormRecoveryStore {
         draftVersion: row['draft_version'] == null
             ? null
             : BigInt.parse(row['draft_version'] as String),
+        expectedRecordVersion: row['expected_record_version'] == null
+            ? null
+            : RecordVersionId.parse(row['expected_record_version'] as String),
         nameDetails: row['name_input'] == null
             ? null
             : EntityNameForm.fromWire(
@@ -305,7 +321,9 @@ final class EntityFormRecoveryStore {
     }
     if (scope.representedContext != form.representedContext ||
         (scope.entityClientRef != null &&
-            scope.entityClientRef != form.clientRef)) {
+            scope.entityClientRef != form.clientRef) ||
+        (scope.entityNameRecord != null &&
+            scope.entityNameRecord!.value != form.clientRef)) {
       throw const FormatException('Entity form context does not match.');
     }
     for (final text in [
@@ -367,7 +385,7 @@ final class EntityFormRecoveryStore {
         form: form,
       );
       _db.execute(
-        'INSERT INTO entity_form VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(instance,profile,universe,continuity,context,editor_key) DO UPDATE SET generation=excluded.generation,base_revision=excluded.base_revision,client_ref=excluded.client_ref,name=excluded.name,classification=excluded.classification,world_role=excluded.world_role,rationale=excluded.rationale,draft_version=excluded.draft_version,association_edits_present=excluded.association_edits_present,name_input=excluded.name_input',
+        'INSERT INTO entity_form VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(instance,profile,universe,continuity,context,editor_key) DO UPDATE SET generation=excluded.generation,base_revision=excluded.base_revision,client_ref=excluded.client_ref,name=excluded.name,classification=excluded.classification,world_role=excluded.world_role,rationale=excluded.rationale,draft_version=excluded.draft_version,association_edits_present=excluded.association_edits_present,name_input=excluded.name_input,expected_record_version=excluded.expected_record_version',
         [
           ...binding,
           saved.generation.toString(),
@@ -380,6 +398,7 @@ final class EntityFormRecoveryStore {
           form.draftVersion?.toString(),
           form.associations == null ? 0 : 1,
           form.nameDetails?.toWire().toText(),
+          form.expectedRecordVersion?.value,
         ],
       );
       _db.execute('DELETE FROM entity_form_world WHERE $_where', binding);

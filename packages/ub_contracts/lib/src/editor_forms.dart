@@ -30,6 +30,7 @@ final class EditorFormScope {
     this.worldRecord,
     this.typeClientRef,
     this.entityClientRef,
+    this.entityNameRecord,
   });
   final OperationId instance;
   final ProfileId profile;
@@ -45,6 +46,9 @@ final class EditorFormScope {
   /// Null is creation; a draft definition reference identifies its edit slot.
   final String? typeClientRef;
   final String? entityClientRef;
+
+  /// Published entity receiving a contextual name; separate from creation/edit slots.
+  final RecordId? entityNameRecord;
 }
 
 /// Entered fields can be incomplete or invalid. Completing an editor must build
@@ -181,6 +185,7 @@ final class UnfinishedEntityForm {
     BigInt? draftVersion,
     Iterable<EntityAssociationForm>? associations,
     this.nameDetails,
+    this.expectedRecordVersion,
   }) : associations = associations == null
            ? null
            : List.unmodifiable(associations),
@@ -195,7 +200,13 @@ final class UnfinishedEntityForm {
   /// Null retains the draft associations (older recovery forms). Empty explicitly removes them.
   final List<EntityAssociationForm>? associations;
   final EntityNameForm? nameDetails;
+  final RecordVersionId? expectedRecordVersion;
   CanonicalObject toWire() => CanonicalObject([
+    if (expectedRecordVersion != null)
+      MapEntry(
+        'expected_record_version',
+        CanonicalString(expectedRecordVersion!.value),
+      ),
     if (nameDetails != null) MapEntry('name_details', nameDetails!.toWire()),
     if (associations != null)
       MapEntry(

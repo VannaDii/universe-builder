@@ -6,6 +6,7 @@ import 'connection.dart';
 import 'record_browser.dart';
 import 'record_fields.dart';
 import 'world_browser.dart';
+import 'entity_editor_page.dart';
 
 class RecordBrowserPage extends StatefulWidget {
   const RecordBrowserPage({
@@ -14,7 +15,9 @@ class RecordBrowserPage extends StatefulWidget {
     required this.universe,
     required this.continuity,
     required this.representedContext,
+    required this.scope,
   });
+  final EditorFormScope scope;
   final AppSession session;
   final LibraryEntry universe;
   final ContinuitySummary continuity;
@@ -164,6 +167,9 @@ class _RecordBrowserPageState extends State<RecordBrowserPage> {
                             universe: widget.universe,
                             context: _context!,
                             hit: hit,
+                            scope: widget.scope,
+                            continuity: widget.continuity,
+                            representedContext: widget.representedContext,
                           ),
                         ),
                       ),
@@ -189,7 +195,13 @@ class _RecordDetailPage extends StatefulWidget {
     required this.universe,
     required this.context,
     required this.hit,
+    required this.scope,
+    required this.continuity,
+    required this.representedContext,
   });
+  final EditorFormScope scope;
+  final ContinuitySummary continuity;
+  final RepresentedContextSummary representedContext;
   final AppSession session;
   final LibraryEntry universe;
   final OpenedContext context;
@@ -287,7 +299,38 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                 const Text('Only part of this view was returned.'),
               if (_group == FieldGroup.payload)
                 for (final record in _material!.result.records)
-                  ExactFields(value: record.payload.toWire()),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ExactFields(value: record.payload.toWire()),
+                      if (widget.session.author &&
+                          _material!.delivery.complete &&
+                          record.payload is EntityRecord)
+                        TextButton(
+                          onPressed: () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => EntityEditorPage(
+                                session: widget.session,
+                                universe: widget.universe,
+                                continuity: widget.continuity,
+                                representedContext: widget.representedContext,
+                                publishedEntity: record,
+                                scope: EditorFormScope(
+                                  instance: widget.scope.instance,
+                                  profile: widget.scope.profile,
+                                  universe: widget.universe.id,
+                                  continuity: widget.continuity.id,
+                                  representedContext:
+                                      widget.representedContext.id,
+                                  entityNameRecord: record.identity.recordId,
+                                ),
+                              ),
+                            ),
+                          ),
+                          child: const Text('Add contextual name'),
+                        ),
+                    ],
+                  ),
               if (_group == FieldGroup.evidence) ...[
                 const Text(
                   'Sources, assertions and related declarations accessible in this context.',

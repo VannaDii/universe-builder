@@ -132,6 +132,7 @@ final class TypeFormRecoveryStore {
         scope.worldClientRef != null ||
         scope.worldRecord != null ||
         scope.entityClientRef != null ||
+        scope.entityNameRecord != null ||
         scope.typeClientRef == '') {
       throw const FormatException('Choose the type form context.');
     }

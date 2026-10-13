@@ -76,6 +76,74 @@ SaveDraftEngineRequest entityDraftRequest({
   );
 }
 
+/// Adds another authored name to an existing identity, retaining its exact
+/// opened revision and expected version through recovery and Changes.
+SaveDraftEngineRequest entityNameDraftRequest({
+  required Selector universe,
+  required UniverseId universeId,
+  required ContinuityId continuity,
+  required RecordId record,
+  required UnfinishedEntityForm form,
+  required SavedDraft? previous,
+}) {
+  if (form.name.trim().isEmpty ||
+      form.clientRef != record.value ||
+      form.expectedRecordVersion == null) {
+    throw const FormatException(
+      'Enter a name and reopen its published entity.',
+    );
+  }
+  final operation = AddNameOperation(
+    record: RecordRef(universe: universeId, record: record),
+    expectedVersion: form.expectedRecordVersion!,
+    name: _name(form, null),
+  );
+  final old = previous?.content;
+  if (old != null &&
+      (old.baseRevision != form.baseRevision ||
+          old.representedContext != form.representedContext)) {
+    throw const FormatException(
+      'These changes use another revision or context. Review them before adding this name.',
+    );
+  }
+  for (final existing in old?.operations ?? <DomainOperation>[]) {
+    if (existing is AddNameOperation &&
+        existing.record == operation.record &&
+        existing.name.toWire().toText() == operation.name.toWire().toText()) {
+      if (existing.expectedVersion != operation.expectedVersion) {
+        throw const FormatException(
+          'Changes already contains this name based on another entity version. Review it before replacing it.',
+        );
+      }
+      return SaveDraftEngineRequest(
+        universe: universe,
+        continuityId: continuity,
+        expectedVersion: previous!.version,
+        content: old!,
+      );
+    }
+  }
+  if (old?.proposal != null) {
+    throw const FormatException(
+      'Continue editing separately in Changes before adding to a submitted proposal.',
+    );
+  }
+  return SaveDraftEngineRequest(
+    universe: universe,
+    continuityId: continuity,
+    expectedVersion: previous?.version ?? BigInt.zero,
+    content: DraftContent(
+      baseRevision: form.baseRevision,
+      representedContext: form.representedContext,
+      operations: [...?old?.operations, operation],
+      rationale: [
+        if (old != null && old.rationale.isNotEmpty) old.rationale,
+        if (form.rationale.isNotEmpty) form.rationale,
+      ].join('\n\n'),
+    ),
+  );
+}
+
 UnfinishedEntityForm entityFormFromDraft(SavedDraft draft, int index) {
   final operation = draft.content.operations[index];
   if (operation is! IntroduceInstanceOperation) {

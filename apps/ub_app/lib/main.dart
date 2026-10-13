@@ -608,6 +608,12 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                               builder: (_) => RecordBrowserPage(
                                 session: _session!,
                                 universe: _selected!,
+                                scope: EditorFormScope(
+                                  instance: _library!.instance,
+                                  profile: _session!.principal,
+                                  universe: _selected!.id,
+                                  continuity: continuity.id,
+                                ),
                                 continuity: continuity,
                                 representedContext: selectedRepresentedContext(
                                   continuity,

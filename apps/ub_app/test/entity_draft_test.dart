@@ -17,6 +17,166 @@ import 'package:ub_service/local_profiles.dart';
 import 'package:ub_store/installation.dart';
 
 void main() {
+  test(
+    'contextual names recover and publish on the existing identity',
+    () async {
+      final root = Directory('/tmp').createTempSync('ub-name-workflow-');
+      final store = SqliteInstallationStore.create(root.path);
+      final instance = store.instanceId;
+      final author = InstallationAuthority(store).initializeAuthor();
+      store.close();
+      final server = await LocalSqliteEngineServer.start(
+        root.path,
+        compatibilitySocket: false,
+      );
+      AppSession? session;
+      try {
+        final device = DeviceConnection([
+          '--installation',
+          root.path,
+          '--profile',
+          author.value,
+          '--engine=/nonexistent/universe-engine',
+        ]);
+        session = await device.connect();
+        final created = WireFields(
+          await session.call(
+            const CreateUniverseEngineRequest(
+              name: 'Names',
+              start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
+            ),
+          ),
+          {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
+        );
+        final scope = EditorFormScope(
+          instance: instance,
+          profile: author,
+          universe: UniverseId.parse(created.string('universe_id')),
+          continuity: ContinuityId.parse(created.string('continuity_id')),
+          representedContext: RecordId.parse(created.string('context_id')),
+        );
+        final changes = SavedChanges(
+          session: session,
+          universe: Selector('Names'),
+          scope: scope,
+        );
+        final initial = SavedDraft.fromWire(
+          await session.call(
+            entityDraftRequest(
+              universe: Selector('Names'),
+              continuity: scope.continuity,
+              previous: null,
+              form: UnfinishedEntityForm(
+                baseRevision: RevisionId.parse(created.string('revision')),
+                representedContext: scope.representedContext!,
+                clientRef: 'person',
+                name: 'Mara',
+                classification: '',
+                worldRole: '',
+                rationale: 'Introduce Mara.',
+              ),
+            ),
+          ),
+        );
+        final proposal = await changes.submit(initial);
+        final validation =
+            await changes.validate(proposal) as EvaluatedValidation;
+        await changes.approve(proposal, validation);
+        final receipt = await changes.publish(
+          proposal,
+          validation.execution.runId,
+        );
+        final record = (await changes.readPublished(proposal, receipt)).single;
+        final fresh = await changes.rebase(
+          (await changes.load())!,
+          startNew: true,
+        );
+        final nameScope = EditorFormScope(
+          instance: instance,
+          profile: author,
+          universe: scope.universe,
+          continuity: scope.continuity,
+          representedContext: scope.representedContext,
+          entityNameRecord: record.identity.recordId,
+        );
+        final form = UnfinishedEntityForm(
+          baseRevision: fresh.content.baseRevision,
+          representedContext: fresh.content.representedContext,
+          clientRef: record.identity.recordId.value,
+          expectedRecordVersion: record.recordVersionId,
+          name: '記憶 😀',
+          nameDetails: const EntityNameForm(
+            language: '',
+            community: 'River',
+            role: 'pseudonym',
+            validity: UnknownValidity(),
+          ),
+          classification: '',
+          worldRole: '',
+          rationale: 'A contextual name, same person.',
+        );
+        await session.saveEntityForm(nameScope, form, BigInt.zero);
+        await session.close();
+        session = await device.connect();
+        final recovered = (await session.loadEntityForm(nameScope))!.form;
+        expect(recovered.toWire().toText(), form.toWire().toText());
+        expect(await session.loadEntityForm(scope), isNull);
+        SaveDraftEngineRequest request(SavedDraft? previous) =>
+            entityNameDraftRequest(
+              universe: Selector('Names'),
+              universeId: scope.universe,
+              continuity: scope.continuity,
+              record: record.identity.recordId,
+              form: recovered,
+              previous: previous,
+            );
+        final saved = SavedDraft.fromWire(await session.call(request(fresh)));
+        expect(
+          request(saved).content.toWire().toText(),
+          saved.content.toWire().toText(),
+        );
+        expect(
+          (saved.content.operations.single as AddNameOperation).expectedVersion,
+          record.recordVersionId,
+        );
+        expect(
+          () => request(
+            SavedDraft(
+              version: BigInt.one,
+              content: DraftContent(
+                baseRevision: RevisionId.generate(),
+                representedContext: form.representedContext,
+                operations: [],
+                rationale: 'Other revision.',
+              ),
+            ),
+          ),
+          throwsFormatException,
+        );
+        final current = SavedChanges(
+          session: session,
+          universe: Selector('Names'),
+          scope: scope,
+        );
+        final named = await current.submit(saved);
+        final checked = await current.validate(named) as EvaluatedValidation;
+        await current.approve(named, checked);
+        final published = await current.publish(named, checked.execution.runId);
+        final renamed = (await current.readPublished(named, published)).single;
+        expect(renamed.identity.recordId, record.identity.recordId);
+        final entity = renamed.payload as EntityRecord;
+        expect(entity.names.map((n) => n.text), ['Mara', form.name]);
+        expect(entity.names.last.language, '');
+        expect(entity.names.last.community, 'River');
+        expect(entity.names.last.role, 'pseudonym');
+        expect(entity.names.last.validity, const UnknownValidity());
+      } finally {
+        await session?.close();
+        await server.close();
+        root.deleteSync(recursive: true);
+      }
+    },
+  );
   test('qualifiers retain exact values and reject duplicate names and incomplete scalars', () {
     final original = <String, DomainValue>{
       'text': const TextValue('記憶 😀\naccount'),

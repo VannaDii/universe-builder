@@ -26,7 +26,9 @@ class EntityEditorPage extends StatefulWidget {
     required this.representedContext,
     this.editingDraft,
     this.operationIndex,
+    this.publishedEntity,
   });
+  final RecordVersion? publishedEntity;
   final SavedDraft? editingDraft;
   final int? operationIndex;
   final AppSession session;
@@ -97,7 +99,10 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
       : UnfinishedEntityForm(
           baseRevision: _revision,
           representedContext: widget.representedContext.id,
-          clientRef: RecordId.generate().value,
+          clientRef:
+              widget.publishedEntity?.identity.recordId.value ??
+              RecordId.generate().value,
+          expectedRecordVersion: widget.publishedEntity?.recordVersionId,
           name: '',
           classification: '',
           worldRole: '',
@@ -164,6 +169,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     baseRevision: _base!.baseRevision,
     representedContext: _base!.representedContext,
     clientRef: _base!.clientRef,
+    expectedRecordVersion: _base!.expectedRecordVersion,
     name: _name.text,
     nameDetails: EntityNameForm(
       language: _languageValue,
@@ -207,7 +213,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                   _editingDraft!.content.representedContext);
       _generation = saved?.generation ?? BigInt.zero;
       _dirty = false;
-      await _choices();
+      if (widget.publishedEntity == null) await _choices();
     } on Object {
       if (mounted) {
         setState(
@@ -395,18 +401,29 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
         ),
       );
       final old = loaded is CanonicalNull ? null : SavedDraft.fromWire(loaded);
-      final request = entityDraftRequest(
-        universe: Selector(widget.universe.name),
-        continuity: widget.scope.continuity,
-        form: _form,
-        previous: old,
-      );
+      final request = widget.publishedEntity == null
+          ? entityDraftRequest(
+              universe: Selector(widget.universe.name),
+              continuity: widget.scope.continuity,
+              form: _form,
+              previous: old,
+            )
+          : entityNameDraftRequest(
+              universe: Selector(widget.universe.name),
+              universeId: widget.universe.id,
+              continuity: widget.scope.continuity,
+              record: widget.publishedEntity!.identity.recordId,
+              form: _form,
+              previous: old,
+            );
       if (old?.content.toWire().toText() != request.content.toWire().toText()) {
         await widget.session.call(request);
       }
       if (mounted) {
         setState(
-          () => _added = 'Entity added to saved changes. Review, approve and publish it in Changes.',
+          () => _added = widget.publishedEntity == null
+              ? 'Entity added to saved changes. Review, approve and publish it in Changes.'
+              : 'Name added to saved changes. Review, approve and publish it in Changes.',
         );
       }
     } on FormatException catch (error) {
@@ -797,7 +814,9 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     child: Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.editingDraft == null
+          widget.publishedEntity != null
+              ? 'Add contextual name'
+              : widget.editingDraft == null
               ? 'Person, place or other entity'
               : 'Edit entity in changes',
         ),
@@ -837,38 +856,39 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
               _field(_name, 'Name'),
               _nameDetailsFields(),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                key: ValueKey(_classification),
-                initialValue: _classification,
-                decoration: const InputDecoration(
-                  labelText: 'Classification (optional)',
-                ),
-                items: [
-                  const DropdownMenuItem(
-                    value: '',
-                    child: Text('Leave unclassified'),
+              if (widget.publishedEntity == null)
+                DropdownButtonFormField<String>(
+                  key: ValueKey(_classification),
+                  initialValue: _classification,
+                  decoration: const InputDecoration(
+                    labelText: 'Classification (optional)',
                   ),
-                  for (final type in _types)
-                    DropdownMenuItem(
-                      value: type.recordId.value,
-                      child: Text(type.label),
+                  items: [
+                    const DropdownMenuItem(
+                      value: '',
+                      child: Text('Leave unclassified'),
                     ),
-                  if (_classification.isNotEmpty &&
-                      !_types.any((t) => t.recordId.value == _classification))
-                    DropdownMenuItem(
-                      value: _classification,
-                      child: const Text(
-                        'Saved classification (not in loaded list)',
+                    for (final type in _types)
+                      DropdownMenuItem(
+                        value: type.recordId.value,
+                        child: Text(type.label),
                       ),
-                    ),
-                ],
-                onChanged: _disabled
-                    ? null
-                    : (value) {
-                        setState(() => _classification = value!);
-                        _changed();
-                      },
-              ),
+                    if (_classification.isNotEmpty &&
+                        !_types.any((t) => t.recordId.value == _classification))
+                      DropdownMenuItem(
+                        value: _classification,
+                        child: const Text(
+                          'Saved classification (not in loaded list)',
+                        ),
+                      ),
+                  ],
+                  onChanged: _disabled
+                      ? null
+                      : (value) {
+                          setState(() => _classification = value!);
+                          _changed();
+                        },
+                ),
               if (_delivery?.complete == false)
                 TextButton(
                   onPressed: _disabled || _delivery?.cursor == null
@@ -913,7 +933,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                         },
                   child: const Text('Add world association'),
                 ),
-              ] else ...[
+              ] else if (widget.publishedEntity == null) ...[
                 const Text('World associations'),
                 const Text(
                   'Selecting several worlds preserves one shared identity. No selection declares no association. Associations do not establish location.',
@@ -947,6 +967,17 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                   _field(_role, 'World association role'),
                 _field(_rationale, 'Notes and rationale'),
               ],
+              if (widget.publishedEntity != null) ...[
+                const Text(
+                  'Existing names remain attached to the same identity.',
+                ),
+                if (_base?.expectedRecordVersion !=
+                    widget.publishedEntity!.recordVersionId)
+                  const Text(
+                    'Recovered input retains an earlier entity version. Review or rebase it in Changes before publication.',
+                  ),
+                _field(_rationale, 'Notes and rationale'),
+              ],
               const SizedBox(height: 16),
               Text(
                 _dirty
@@ -959,7 +990,8 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                 Semantics(liveRegion: true, child: Text(_error!)),
               if (_added != null) ...[
                 Semantics(liveRegion: true, child: Text(_added!)),
-                if (widget.editingDraft == null)
+                if (widget.editingDraft == null &&
+                    widget.publishedEntity == null)
                   TextButton(
                     onPressed: _disabled ? null : _startAnother,
                     child: const Text('Start another entity'),
@@ -968,7 +1000,9 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
               FilledButton(
                 onPressed: _disabled || _stale ? null : _add,
                 child: Text(
-                  widget.editingDraft == null
+                  widget.publishedEntity != null
+                      ? 'Add name to changes'
+                      : widget.editingDraft == null
                       ? 'Add entity to changes'
                       : 'Save entity changes',
                 ),

@@ -11,6 +11,48 @@ import 'package:ub_store/editor_forms.dart';
 import 'package:ub_store/src/ownership.dart';
 
 void main() {
+  test(
+    'version-seven pending names retain input when expected versions are added',
+    () {
+      final root = Directory('/tmp').createTempSync('ub-entity-v7-');
+      final path = '${root.path}/entities.sqlite';
+      final scope = EditorFormScope(
+        instance: OperationId.generate(),
+        profile: ProfileId.generate(),
+        universe: UniverseId.generate(),
+        continuity: ContinuityId.generate(),
+        representedContext: RecordId.generate(),
+      );
+      var store = EntityFormRecoveryStore.open(path);
+      final form = UnfinishedEntityForm(
+        baseRevision: RevisionId.generate(),
+        representedContext: scope.representedContext!,
+        clientRef: 'person',
+        name: '記憶 😀',
+        nameDetails: const EntityNameForm(role: ''),
+        classification: '',
+        worldRole: '',
+        rationale: 'Pending.',
+      );
+      store.save(scope, form, BigInt.zero);
+      store.close();
+      final db = sqlite3.open(path);
+      db.execute(
+        'ALTER TABLE entity_form DROP COLUMN expected_record_version; PRAGMA user_version=7',
+      );
+      db.close();
+      store = EntityFormRecoveryStore.open(path);
+      try {
+        final recovered = store.load(scope)!;
+        expect(recovered.form.toWire().toText(), form.toWire().toText());
+        expect(recovered.form.expectedRecordVersion, isNull);
+      } finally {
+        store.close();
+        root.deleteSync(recursive: true);
+      }
+    },
+  );
+
   test('version-two drafts retain pending input when association editing is added', () {
     final root = Directory('/tmp').createTempSync('ub-entity-v2-');
     final path = '${root.path}/entities.sqlite';
@@ -199,7 +241,7 @@ void main() {
       store.close();
       final legacy = sqlite3.open(path);
       legacy.execute(
-        'ALTER TABLE entity_form DROP COLUMN name_input; ALTER TABLE entity_form_association DROP COLUMN validity; ALTER TABLE entity_form_association DROP COLUMN temporal_input; ALTER TABLE entity_form_association DROP COLUMN qualifier_input; PRAGMA user_version=3',
+        'ALTER TABLE entity_form DROP COLUMN expected_record_version; ALTER TABLE entity_form DROP COLUMN name_input; ALTER TABLE entity_form_association DROP COLUMN validity; ALTER TABLE entity_form_association DROP COLUMN temporal_input; ALTER TABLE entity_form_association DROP COLUMN qualifier_input; PRAGMA user_version=3',
       );
       legacy.close();
       store = EntityFormRecoveryStore.open(path);
@@ -220,7 +262,7 @@ void main() {
       store.close();
       final v4 = sqlite3.open(path);
       v4.execute(
-        'ALTER TABLE entity_form DROP COLUMN name_input; ALTER TABLE entity_form_association DROP COLUMN temporal_input; ALTER TABLE entity_form_association DROP COLUMN qualifier_input; PRAGMA user_version=4',
+        'ALTER TABLE entity_form DROP COLUMN expected_record_version; ALTER TABLE entity_form DROP COLUMN name_input; ALTER TABLE entity_form_association DROP COLUMN temporal_input; ALTER TABLE entity_form_association DROP COLUMN qualifier_input; PRAGMA user_version=4',
       );
       v4.close();
       store = EntityFormRecoveryStore.open(path);
@@ -240,7 +282,7 @@ void main() {
       store.close();
       final v5 = sqlite3.open(path);
       v5.execute(
-        'ALTER TABLE entity_form DROP COLUMN name_input; ALTER TABLE entity_form_association DROP COLUMN qualifier_input; PRAGMA user_version=5',
+        'ALTER TABLE entity_form DROP COLUMN expected_record_version; ALTER TABLE entity_form DROP COLUMN name_input; ALTER TABLE entity_form_association DROP COLUMN qualifier_input; PRAGMA user_version=5',
       );
       v5.close();
       store = EntityFormRecoveryStore.open(path);
@@ -258,7 +300,7 @@ void main() {
       store.close();
       final v6 = sqlite3.open(path);
       v6.execute(
-        'ALTER TABLE entity_form DROP COLUMN name_input; PRAGMA user_version=6',
+        'ALTER TABLE entity_form DROP COLUMN expected_record_version; ALTER TABLE entity_form DROP COLUMN name_input; PRAGMA user_version=6',
       );
       v6.close();
       store = EntityFormRecoveryStore.open(path);
@@ -457,7 +499,7 @@ void main() {
       final store = EntityFormRecoveryStore.open(path);
       store.close();
       final db = sqlite3.open(path);
-      db.execute('PRAGMA user_version=8');
+      db.execute('PRAGMA user_version=9');
       db.close();
       final before = File(path).readAsBytesSync();
       try {

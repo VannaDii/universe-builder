@@ -95,6 +95,10 @@ Older saved inputs retaining an exact amount remain readable. Review, approval a
 **Name details** edits optional language, community, naming role and validity.
 Clear removes a metadata field; an explicitly entered empty string remains empty.
 Edits retain the entity identity and recover separately from canon.
+In **Records**, an author can open a published entity and choose **Add contextual
+name**. This recoverable form adds a name to the same identity through Changes,
+retaining the opened revision and expected entity version. Existing names remain
+intact; review, validation, exact approval and publication use the ordinary flow.
 **Type definition** opens a recoverable typed form for namespace, key, display
 name, parent, applicability, executable classification and rationale. Parent,
 applicability and classification require explicit choices. Unspecified and
