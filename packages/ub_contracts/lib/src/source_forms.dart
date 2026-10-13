@@ -11,11 +11,13 @@ final class UnfinishedSourceForm {
     this.text = '',
     this.rationale = '',
     Iterable<DomainOperation> staged = const [],
+    this.anchorSource,
   }) : staged = List.unmodifiable(staged);
   final RevisionId baseRevision;
   final RecordId representedContext;
   final String clientRef, label, text, rationale;
   final List<DomainOperation> staged;
+  final VersionRef? anchorSource;
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
     MapEntry('represented_context', CanonicalString(representedContext.value)),
@@ -24,6 +26,8 @@ final class UnfinishedSourceForm {
     MapEntry('text', CanonicalString(text)),
     MapEntry('rationale', CanonicalString(rationale)),
     MapEntry('staged', CanonicalArray(staged.map((o) => o.toWire()))),
+    if (anchorSource != null)
+      MapEntry('anchor_source', anchorSource!.toCanonical()),
   ]);
   factory UnfinishedSourceForm.fromWire(CanonicalValue value) {
     final f = WireFields(value, {
@@ -34,6 +38,7 @@ final class UnfinishedSourceForm {
       'text',
       'rationale',
       'staged',
+      'anchor_source',
     });
     return UnfinishedSourceForm(
       baseRevision: RevisionId.parse(f.string('base_revision')),
@@ -43,6 +48,7 @@ final class UnfinishedSourceForm {
       text: f.string('text'),
       rationale: f.string('rationale'),
       staged: f.array('staged').map(DomainOperation.fromWire),
+      anchorSource: f.optional('anchor_source', VersionRef.fromCanonical),
     );
   }
   Iterable<String> get exactTexts => [

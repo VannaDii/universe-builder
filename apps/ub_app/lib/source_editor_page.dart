@@ -6,6 +6,8 @@ import 'package:ub_domain/ub_domain.dart';
 
 import 'changes_page.dart';
 import 'source_draft.dart';
+import 'source_anchor.dart';
+import 'source_text_view.dart';
 import 'saved_changes.dart';
 
 class SourceEditorPage extends StatefulWidget {
@@ -13,9 +15,13 @@ class SourceEditorPage extends StatefulWidget {
     super.key,
     required this.changes,
     required this.revision,
+    this.source,
+    this.context,
   });
   final SavedChanges changes;
   final RevisionId revision;
+  final VersionRef? source;
+  final ContextId? context;
   @override
   State<SourceEditorPage> createState() => _SourceEditorPageState();
 }
@@ -31,6 +37,9 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
       _stale = false,
       _leaving = false;
   String? _error, _added;
+  String _occurrence = '';
+  int? _matches;
+  bool get _anchor => widget.source != null;
   Timer? _autosave;
   int _fields = 0;
   bool get _disabled =>
@@ -61,6 +70,7 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
     baseRevision: widget.revision,
     representedContext: _scope.representedContext!,
     clientRef: RecordId.generate().value,
+    anchorSource: widget.source,
   );
   Future<void> _load() async {
     setState(() {
@@ -76,7 +86,9 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
         _generation = saved?.generation ?? BigInt.zero;
         _fields++;
         _dirty = false;
-        _stale = _form!.baseRevision != widget.revision;
+        _stale =
+            _form!.baseRevision != widget.revision ||
+            _form!.anchorSource != widget.source;
         _added =
             _form!.staged.isNotEmpty &&
                 (_draft?.content.operations.isNotEmpty ?? false) &&
@@ -111,8 +123,10 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
         text: text ?? f.text,
         rationale: rationale ?? f.rationale,
         staged: label == null && text == null ? f.staged : const [],
+        anchorSource: f.anchorSource,
       );
       _dirty = true;
+      if (text != null) _matches = null;
     });
     _autosave?.cancel();
     _autosave = Timer(const Duration(milliseconds: 500), _save);
@@ -156,8 +170,83 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
       _dirty = true;
       _stale = false;
       _added = null;
+      _occurrence = '';
+      _matches = null;
     });
     await _save();
+  }
+
+  Future<void> _find() async {
+    _autosave?.cancel();
+    await _save();
+    if (_dirty || !mounted) return;
+    setState(() {
+      _adding = true;
+      _error = null;
+    });
+    try {
+      final occurrence = _occurrence.isEmpty ? null : int.tryParse(_occurrence);
+      if (_occurrence.isNotEmpty && occurrence == null) {
+        throw const FormatException('Enter a whole occurrence number.');
+      }
+      final f = _form!;
+      final text = await readSourceText(
+        session: widget.changes.session,
+        universe: widget.changes.universe,
+        context: widget.context!,
+        source: f.anchorSource!,
+      );
+      final match = sourceExcerptMatch(
+        text: text,
+        excerpt: f.text,
+        source: f.anchorSource!,
+        context: RecordRef(
+          universe: _scope.universe,
+          record: f.representedContext,
+        ),
+        occurrence: occurrence,
+      );
+      if (!mounted) return;
+      setState(() {
+        _matches = match.count;
+      });
+      if (match.selected == null) {
+        throw FormatException(
+          match.count == 0
+              ? 'The exact excerpt does not occur in this source.'
+              : 'Found ${match.count} occurrences. Enter the occurrence number to select.',
+        );
+      }
+      setState(() {
+        _form = UnfinishedSourceForm(
+          baseRevision: f.baseRevision,
+          representedContext: f.representedContext,
+          clientRef: f.clientRef,
+          text: f.text,
+          rationale: f.rationale,
+          anchorSource: f.anchorSource,
+          staged: [
+            AddSourceAnchorOperation(
+              clientRef: f.clientRef,
+              record: match.selected!,
+            ),
+          ],
+        );
+        _dirty = true;
+      });
+      await _save();
+    } on FormatException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _error =
+              'Could not read this source. Check the connection and access.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
   }
 
   Future<void> _add() async {
@@ -169,8 +258,11 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
       _error = null;
     });
     try {
-      if (_form!.label.trim().isEmpty || _form!.text.isEmpty) {
+      if ((!_anchor && _form!.label.trim().isEmpty) || _form!.text.isEmpty) {
         throw const FormatException('Enter a source label and its exact text.');
+      }
+      if (_anchor && _form!.staged.isEmpty) {
+        throw const FormatException('Find and select this excerpt first.');
       }
       if (_form!.staged.isEmpty) {
         final f = _form!;
@@ -216,7 +308,9 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
       setState(() {
         _draft = saved;
         _result = saved;
-        _added = 'Source added to Changes. Review it before publication.';
+        _added = _anchor
+            ? 'Source anchor added to Changes. Review it before publication.'
+            : 'Source added to Changes. Review it before publication.';
       });
       await _save();
     } on FormatException catch (e) {
@@ -291,15 +385,23 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
                   ),
                 ],
                 if (_form case final f?) ...[
-                  _text(
-                    'label',
-                    'Source label',
-                    f.label,
-                    (v) => _change(label: v),
-                  ),
+                  if (_anchor)
+                    SourceTextView(
+                      session: widget.changes.session,
+                      universe: widget.changes.universe,
+                      context: widget.context!,
+                      version: f.anchorSource!,
+                    ),
+                  if (!_anchor)
+                    _text(
+                      'label',
+                      'Source label',
+                      f.label,
+                      (v) => _change(label: v),
+                    ),
                   _text(
                     'text',
-                    'Exact source text',
+                    _anchor ? 'Exact excerpt' : 'Exact source text',
                     f.text,
                     (v) => _change(text: v),
                     maxLines: 12,
@@ -311,6 +413,26 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
                     (v) => _change(rationale: v),
                     maxLines: 3,
                   ),
+                  if (_anchor) ...[
+                    _text(
+                      'occurrence',
+                      'Occurrence number (if repeated)',
+                      _occurrence,
+                      (v) {
+                        _occurrence = v;
+                        _change(text: _form!.text);
+                      },
+                    ),
+                    OutlinedButton(
+                      onPressed: _disabled ? null : _find,
+                      child: const Text('Find excerpt in source'),
+                    ),
+                    if (_matches != null) Text('$_matches exact matches'),
+                    if (_form!.staged.isNotEmpty)
+                      const Text(
+                        'Selected excerpt is retained. Ready to add to Changes.',
+                      ),
+                  ],
                   Text(
                     _dirty
                         ? 'Unsaved fields'

@@ -13,6 +13,7 @@ import 'package:ub_app/saved_changes.dart';
 import 'package:ub_app/scope_draft.dart';
 import 'package:ub_app/dossier_sources.dart';
 import 'package:ub_app/source_draft.dart';
+import 'package:ub_app/source_anchor.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_engine.dart';
@@ -607,11 +608,6 @@ void main() {
           .array('operations')
           .map(DomainOperation.fromWire)
           .toList();
-      final sourcePayload = sourceOperations
-          .whereType<RecordNarrativeReferenceOperation>()
-          .map((op) => op.payload)
-          .whereType<SourceVersionRecord>()
-          .single;
       final sourceForm = UnfinishedSourceForm(
         baseRevision: RevisionId.parse(created.string('revision')),
         representedContext: scope.representedContext!,
@@ -714,28 +710,58 @@ void main() {
         (await changes().load())!,
         startNew: true,
       );
+      final anchorReference = VersionRef(
+        universe: scope.universe,
+        record: sourceVersion.identity.recordId,
+        version: sourceVersion.recordVersionId,
+      );
+      final anchorSelection = sourceExcerptMatch(
+        text: sourceText,
+        excerpt: sourceText,
+        source: anchorReference,
+        context: RecordRef(
+          universe: scope.universe,
+          record: scope.representedContext!,
+        ),
+      );
+      final anchorForm = UnfinishedSourceForm(
+        baseRevision: fresh.content.baseRevision,
+        representedContext: fresh.content.representedContext,
+        clientRef: RecordId.generate().value,
+        text: sourceText,
+        rationale: 'Retain the exact diary excerpt.',
+        anchorSource: anchorReference,
+        staged: [
+          AddSourceAnchorOperation(
+            clientRef: 'diary-anchor',
+            record: anchorSelection.selected!,
+          ),
+        ],
+      );
+      final anchorScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: sourceVersion.recordVersionId.value,
+      );
+      await session.saveSourceForm(anchorScope, anchorForm, BigInt.zero);
+      final recoveredAnchor = (await session.loadSourceForm(anchorScope))!.form;
+      expect(recoveredAnchor.toWire().toText(), anchorForm.toWire().toText());
+      expect(
+        (await session.loadSourceForm(scope))!.form.toWire().toText(),
+        sourceForm.toWire().toText(),
+      );
+      final anchorRequest = sourceDraftRequest(
+        draft: fresh,
+        form: recoveredAnchor,
+        universe: const Selector('Attributes'),
+        continuity: scope.continuity,
+      );
       final anchorDraft = await changes().saveContent(
         fresh,
-        DraftContent(
-          baseRevision: fresh.content.baseRevision,
-          representedContext: fresh.content.representedContext,
-          operations: [
-            AddSourceAnchorOperation(
-              clientRef: 'diary-anchor',
-              record: AnchorRecord(
-                sourceVersion: VersionRef(
-                  universe: scope.universe,
-                  record: sourceVersion.identity.recordId,
-                  version: sourceVersion.recordVersionId,
-                ),
-                locator: ByteRangeLocator(BigInt.zero, sourcePayload.byteSize),
-                excerptDigest: sourcePayload.contentDigest,
-                excerpt: sourceText,
-              ),
-            ),
-          ],
-          rationale: 'Retain the exact diary excerpt.',
-        ),
+        anchorRequest.content,
       );
       final anchorProposal = await changes().submit(anchorDraft);
       final anchorValidation =
@@ -889,6 +915,8 @@ void main() {
           sourceRows.singleWhere((row) => row.payload is AnchorRecord).payload
               as AnchorRecord;
       expect(sourceAnchor.excerpt, sourceText);
+      expect(await readSourceText(session: session, universe: const Selector('Attributes'),
+        context: choiceContext.contextId, source: sourceAnchor.sourceVersion), sourceText);
       final textRequest = ReadSourceEngineRequest(
         universe: const Selector('Attributes'),
         contextId: choiceContext.contextId,

@@ -12,23 +12,28 @@ SaveDraftEngineRequest sourceDraftRequest({
       draft.content.representedContext != form.representedContext) {
     throw const FormatException('Review Changes before adding this source.');
   }
-  if (form.staged.length != 2 ||
-      form.staged.any(
-        (op) =>
-            op is! RecordNarrativeReferenceOperation ||
-            (op.payload is! SourceRecord && op.payload is! SourceVersionRecord),
-      )) {
+  final anchor = form.anchorSource != null;
+  if (anchor
+      ? (form.staged.length != 1 ||
+            form.staged.single is! AddSourceAnchorOperation)
+      : (form.staged.length != 2 ||
+            form.staged.any(
+              (op) =>
+                  op is! RecordNarrativeReferenceOperation ||
+                  (op.payload is! SourceRecord &&
+                      op.payload is! SourceVersionRecord),
+            ))) {
     throw const FormatException(
       'Retain the source before adding it to Changes.',
     );
   }
   final operations = [...draft.content.operations];
   for (final op in form.staged) {
-    final ref = (op as RecordNarrativeReferenceOperation).clientRef;
+    final ref = Map.fromEntries(op.toWire().fields)['client_ref'];
     final matching = operations.where(
       (existing) =>
-          existing is RecordNarrativeReferenceOperation &&
-          existing.clientRef == ref,
+          Map.fromEntries(existing.toWire().fields)['client_ref']?.toText() ==
+          ref?.toText(),
     );
     if (matching.isNotEmpty) {
       if (matching.length != 1 ||

@@ -18,6 +18,7 @@ import 'relationship_diagram.dart';
 import 'dossier_appearance_view.dart';
 import 'image_preview_view.dart';
 import 'dossier_sources_view.dart';
+import 'source_editor_page.dart';
 
 enum _DossierView {
   fields,
@@ -546,6 +547,42 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       ExactFields(value: record.payload.toWire()),
+                      if (widget.session.author &&
+                          record.payload is SourceVersionRecord)
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context).push<SavedDraft>(
+                                  MaterialPageRoute(
+                                    builder: (_) => SourceEditorPage(
+                                      revision: widget.context.frame.revision,
+                                      context: widget.context.contextId,
+                                      source: VersionRef(
+                                        universe: widget.universe.id,
+                                        record: record.identity.recordId,
+                                        version: record.recordVersionId,
+                                      ),
+                                      changes: SavedChanges(
+                                        session: widget.session,
+                                        universe: Selector(
+                                          widget.universe.name,
+                                        ),
+                                        scope: EditorFormScope(
+                                          instance: widget.scope.instance,
+                                          profile: widget.scope.profile,
+                                          universe: widget.universe.id,
+                                          continuity: widget.continuity.id,
+                                          representedContext:
+                                              widget.representedContext.id,
+                                          typeClientRef:
+                                              record.recordVersionId.value,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                          child: const Text('Anchor an excerpt'),
+                        ),
                       if (record.payload is ImageAssetRecord)
                         ImagePreviewView(
                           session: widget.session,
