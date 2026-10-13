@@ -294,7 +294,11 @@ final class TemporalValidityInput {
     MapEntry('start', start.toWire()),
     MapEntry('end', end.toWire()),
   ]);
-  factory TemporalValidityInput.fromWire(CanonicalValue value) {
+  factory TemporalValidityInput.fromWire(
+    CanonicalValue value, {
+    int depth = 0,
+  }) {
+    if (depth > 128) throw const FormatException('Value nesting limit');
     final f = WireFields(value, {
       'kind',
       'calendar',
@@ -310,8 +314,8 @@ final class TemporalValidityInput {
       relation: f.optional('relation', wireString) ?? '',
       targetUniverse: f.optional('target_universe', wireString) ?? '',
       targetRecord: f.optional('target_record', wireString) ?? '',
-      start: TemporalBoundInput.fromWire(f.require('start')),
-      end: TemporalBoundInput.fromWire(f.require('end')),
+      start: TemporalBoundInput.fromWire(f.require('start'), depth: depth),
+      end: TemporalBoundInput.fromWire(f.require('end'), depth: depth),
     );
   }
 }
@@ -325,6 +329,7 @@ final class TemporalBoundInput {
     this.uncertainty = '',
     this.denominator = '1',
     this.unit = '',
+    this.amount,
   });
   final String kind,
       value,
@@ -333,6 +338,7 @@ final class TemporalBoundInput {
       uncertainty,
       denominator,
       unit;
+  final QualifierInput? amount;
   TemporalBoundInput copyWith({
     String? kind,
     String? value,
@@ -341,7 +347,9 @@ final class TemporalBoundInput {
     String? uncertainty,
     String? denominator,
     String? unit,
+    QualifierInput? amount,
   }) => TemporalBoundInput(
+    amount: amount ?? this.amount,
     kind: kind ?? this.kind,
     value: value ?? this.value,
     upper: upper ?? this.upper,
@@ -351,6 +359,7 @@ final class TemporalBoundInput {
     unit: unit ?? this.unit,
   );
   CanonicalObject toWire() => CanonicalObject([
+    if (amount != null) MapEntry('amount', amount!.toWire()),
     MapEntry('kind', CanonicalString(kind)),
     MapEntry('value', CanonicalString(value)),
     MapEntry('upper', CanonicalString(upper)),
@@ -359,8 +368,10 @@ final class TemporalBoundInput {
     MapEntry('denominator', CanonicalString(denominator)),
     MapEntry('unit', CanonicalString(unit)),
   ]);
-  factory TemporalBoundInput.fromWire(CanonicalValue value) {
+  factory TemporalBoundInput.fromWire(CanonicalValue value, {int depth = 0}) {
+    if (depth > 128) throw const FormatException('Value nesting limit');
     final f = WireFields(value, {
+      'amount',
       'kind',
       'value',
       'upper',
@@ -370,6 +381,10 @@ final class TemporalBoundInput {
       'unit',
     });
     return TemporalBoundInput(
+      amount: f.optional(
+        'amount',
+        (v) => QualifierInput.fromWire(v, depth: depth + 1),
+      ),
       kind: f.string('kind'),
       value: f.string('value'),
       upper: f.string('upper'),
@@ -420,6 +435,7 @@ final class QualifierInput {
     if (temporal case final t?) {
       yield* [t.kind, t.calendar, t.relation, t.targetUniverse, t.targetRecord];
       for (final b in [t.start, t.end]) {
+        if (b.amount != null) yield* b.amount!.exactTexts;
         yield* [
           b.kind,
           b.value,
@@ -472,7 +488,10 @@ final class QualifierInput {
       'upper_inclusive',
     });
     return QualifierInput(
-      temporal: f.optional('temporal', TemporalValidityInput.fromWire),
+      temporal: f.optional(
+        'temporal',
+        (v) => TemporalValidityInput.fromWire(v, depth: depth + 1),
+      ),
       lower: f.optional(
         'lower',
         (v) => QualifierInput.fromWire(v, depth: depth + 1),

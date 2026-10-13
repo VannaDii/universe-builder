@@ -147,6 +147,62 @@ void main() {
       throwsFormatException,
     );
   });
+  test('nested temporal amounts can be edited and recovered without a source value', () {
+    final calendar = CalendarId.generate();
+    final input = TemporalValidityInput(
+      kind: 'instant_duration',
+      calendar: calendar.value,
+      start: const TemporalBoundInput(
+        uncertaintyKind: 'typed',
+        amount: QualifierInput(
+          kind: 'sequence',
+          children: [
+            QualifierInput(kind: 'text', value: '記憶 😀'),
+            QualifierInput(kind: 'rational', value: '001', denominator: '03'),
+          ],
+        ),
+      ),
+    );
+    final recovered = TemporalValidityInput.fromWire(input.toWire());
+    expect(
+      buildTemporalValidity(recovered, null),
+      InstantValidity(
+        DurationTime(
+          calendar,
+          SequenceValue([
+            const TextValue('記憶 😀'),
+            const RationalValue('001', '03'),
+          ]),
+        ),
+      ),
+    );
+    final approximate = TemporalValidityInput(
+      start: input.start.copyWith(kind: 'approximate', value: 'Day 1'),
+      end: const TemporalBoundInput(kind: 'unbounded'),
+    );
+    expect(
+      buildTemporalValidity(approximate, null),
+      IntervalValidity(
+        ApproximateBound(
+          'Day 1',
+          SequenceValue([
+            const TextValue('記憶 😀'),
+            const RationalValue('001', '03'),
+          ]),
+        ),
+        const UnboundedBound(),
+      ),
+    );
+    expect(
+      () => buildTemporalValidity(
+        input.copyWith(
+          start: const TemporalBoundInput(uncertaintyKind: 'typed'),
+        ),
+        null,
+      ),
+      throwsFormatException,
+    );
+  });
   test(
     'spatial edits preserve exact coordinates, targets and distance units',
     () {
@@ -1187,8 +1243,14 @@ void main() {
                   start: TemporalBoundInput(
                     kind: 'approximate',
                     value: '2040-01-01',
-                    uncertaintyKind: 'text',
-                    uncertainty: 'about a week',
+                    uncertaintyKind: 'typed',
+                    amount: QualifierInput(
+                      kind: 'sequence',
+                      children: [
+                        QualifierInput(kind: 'text', value: 'about a week'),
+                        QualifierInput(kind: 'boolean', value: 'false'),
+                      ],
+                    ),
                   ),
                   end: TemporalBoundInput(kind: 'unbounded'),
                 ),
@@ -1277,8 +1339,14 @@ void main() {
       );
       expect(
         published.worldAssociations.single.validity,
-        const IntervalValidity(
-          ApproximateBound('2040-01-01', TextValue('about a week')),
+        IntervalValidity(
+          ApproximateBound(
+            '2040-01-01',
+            SequenceValue([
+              const TextValue('about a week'),
+              const BooleanValue(false),
+            ]),
+          ),
           UnboundedBound(),
         ),
       );

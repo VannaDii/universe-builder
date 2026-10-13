@@ -156,7 +156,16 @@ void main() {
               relation: 'after',
               targetUniverse: 'unfinished universe',
               targetRecord: 'unfinished record',
-              start: TemporalBoundInput(value: 'unknown text'),
+              start: TemporalBoundInput(
+                value: 'unknown text',
+                uncertaintyKind: 'typed',
+                amount: QualifierInput(
+                  kind: 'sequence',
+                  children: [
+                    QualifierInput(kind: 'decimal', value: 'unfinished 記憶 😀'),
+                  ],
+                ),
+              ),
             ),
             originalOrdinal: 1,
           ),

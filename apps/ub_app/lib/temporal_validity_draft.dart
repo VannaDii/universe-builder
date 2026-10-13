@@ -1,6 +1,8 @@
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
+import 'qualifier_draft.dart';
+
 TemporalValidityInput temporalValidityInput(Validity? value) => switch (value) {
   InstantValidity(at: ExactTime(:final calendar, :final value)) =>
     TemporalValidityInput(
@@ -115,7 +117,12 @@ TemporalBoundInput _approximate(String value, DomainValue uncertainty) {
       denominator: denominator,
       unit: unit,
     ),
-    _ => const TemporalBoundInput(kind: 'retain'),
+    _ => TemporalBoundInput(
+      kind: 'approximate',
+      value: value,
+      uncertaintyKind: 'typed',
+      amount: qualifierInput('amount', amount),
+    ),
   };
 }
 
@@ -227,6 +234,12 @@ TemporalBound _bound(
   _ => throw const FormatException('Choose a temporal bound kind.'),
 };
 DomainValue _uncertainty(TemporalBoundInput input, [DomainValue? original]) {
+  if (input.uncertaintyKind == 'typed') {
+    if (input.amount == null) {
+      throw const FormatException('Enter the typed amount.');
+    }
+    return buildQualifierValue(input.amount!, original);
+  }
   if (input.uncertaintyKind == 'retain') {
     return original ??
         (throw const FormatException('No original amount to retain.'));
@@ -247,5 +260,29 @@ DomainValue _uncertainty(TemporalBoundInput input, [DomainValue? original]) {
       ? amount
       : QuantityValue(amount, UnitId.parse(input.unit));
   result.validate();
+  return result;
+}
+
+Map<String, DomainValue> temporalOriginalAmounts(Validity? original) {
+  final result = <String, DomainValue>{};
+  void bound(String key, TemporalBound? value) {
+    if (value is ApproximateBound) result[key] = value.uncertainty;
+  }
+
+  switch (original) {
+    case InstantValidity(at: DurationTime(:final amount)):
+      result['Duration'] = amount;
+    case InstantValidity(at: ApproximateTime(:final uncertainty)):
+      result['Time uncertainty'] = uncertainty;
+    case InstantValidity(at: IntervalTime(:final start, :final end)) ||
+        IntervalValidity(:final start, :final end) ||
+        CalendarIntervalValidity(:final start, :final end):
+      bound('Start uncertainty', start);
+      bound('End uncertainty', end);
+    case PersistentValidity(:final from):
+      bound('Start uncertainty', from);
+    default:
+      break;
+  }
   return result;
 }

@@ -316,6 +316,7 @@ final class EntityFormRecoveryStore {
             a.temporalValidity!.start,
             a.temporalValidity!.end,
           ]) ...[
+            if (b.amount != null) ...b.amount!.exactTexts,
             b.kind,
             b.value,
             b.upper,

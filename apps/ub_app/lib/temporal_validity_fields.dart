@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:ub_contracts/ub_contracts.dart';
+import 'package:ub_domain/ub_domain.dart';
+
+import 'value_input_fields.dart';
 
 class TemporalValidityFields extends StatelessWidget {
   const TemporalValidityFields({
@@ -8,10 +11,12 @@ class TemporalValidityFields extends StatelessWidget {
     required this.disabled,
     required this.onChanged,
     this.expressionOnly = false,
+    this.originalAmounts = const {},
   });
   final TemporalValidityInput input;
   final bool disabled;
   final bool expressionOnly;
+  final Map<String, DomainValue> originalAmounts;
   final ValueChanged<TemporalValidityInput> onChanged;
 
   Widget _text(
@@ -88,13 +93,23 @@ class TemporalValidityFields extends StatelessWidget {
       _choice('$label type', amount.uncertaintyKind, {
         if (amount.uncertaintyKind == 'retain')
           'retain': 'Keep original exact amount',
+        'typed': 'Nested typed value',
         'text': 'Text',
         'boolean': 'Boolean',
         'integer': 'Integer',
         'decimal': 'Decimal',
         'rational': 'Rational',
       }, (kind) => change(amount.copyWith(uncertaintyKind: kind))),
-      if (amount.uncertaintyKind != 'retain') ...[
+      if (amount.uncertaintyKind == 'typed')
+        ValueInputFields(
+          key: ValueKey(('amount', label)),
+          input: amount.amount ?? const QualifierInput(),
+          original: originalAmounts[label],
+          disabled: disabled,
+          label: label,
+          onChanged: (input) => change(amount.copyWith(amount: input)),
+        )
+      else if (amount.uncertaintyKind != 'retain') ...[
         if (amount.uncertaintyKind == 'boolean')
           _choice('$label boolean value', amount.uncertainty, {
             '': 'Choose true or false',
