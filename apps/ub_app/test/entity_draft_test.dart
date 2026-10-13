@@ -7,6 +7,7 @@ import 'package:test/test.dart';
 import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/entity_draft.dart';
+import 'package:ub_app/qualifier_draft.dart';
 import 'package:ub_app/saved_changes.dart';
 import 'package:ub_app/temporal_validity_draft.dart';
 import 'package:ub_contracts/ub_contracts.dart';
@@ -16,6 +17,82 @@ import 'package:ub_service/local_profiles.dart';
 import 'package:ub_store/installation.dart';
 
 void main() {
+  test('qualifiers retain exact values and reject duplicate names and incomplete scalars', () {
+    final original = <String, DomainValue>{
+      'text': const TextValue('記憶 😀\naccount'),
+      'flag': const BooleanValue(false),
+      'integer': const IntegerValue('0001'),
+      'decimal': const DecimalValue('1.00000000000000001'),
+      'rational': const RationalValue('001', '03'),
+      'quantity': QuantityValue(const DecimalValue('2.00'), UnitId.generate()),
+      'structured': SequenceValue([
+        const TextValue('first'),
+        const BooleanValue(false),
+      ]),
+    };
+    final rows = original.entries
+        .map((q) => qualifierInput(q.key, q.value))
+        .toList();
+    final recovered = rows
+        .map((q) => QualifierInput.fromWire(q.toWire()))
+        .toList();
+    expect(buildQualifiers(recovered, original), original);
+    expect(
+      buildQualifiers([
+        const QualifierInput(
+          key: 'renamed',
+          kind: 'retain',
+          originalKey: 'structured',
+        ),
+      ], original)['renamed'],
+      original['structured'],
+    );
+    expect(buildQualifiers([], original), isEmpty);
+    expect(
+      buildQualifiers([
+        const QualifierInput(key: 'flag', kind: 'boolean', value: 'false'),
+      ], {})['flag'],
+      const BooleanValue(false),
+    );
+    expect(
+      () => buildQualifiers([
+        const QualifierInput(key: 'x'),
+        const QualifierInput(key: 'x'),
+      ], {}),
+      throwsFormatException,
+    );
+    expect(
+      () => buildQualifiers([const QualifierInput(key: '')], {}),
+      throwsFormatException,
+    );
+    expect(
+      () => buildQualifiers([
+        const QualifierInput(key: 'flag', kind: 'boolean'),
+      ], {}),
+      throwsFormatException,
+    );
+    expect(
+      () => buildQualifiers([
+        const QualifierInput(
+          key: 'amount',
+          kind: 'rational',
+          value: '1',
+          denominator: '0',
+        ),
+      ], {}),
+      throwsFormatException,
+    );
+    expect(
+      () => buildQualifiers([
+        const QualifierInput(
+          key: 'old',
+          kind: 'retain',
+          originalKey: 'missing',
+        ),
+      ], original),
+      throwsFormatException,
+    );
+  });
   test(
     'temporal validity retains exact calendar notation and uncertain bounds',
     () {
@@ -684,6 +761,14 @@ void main() {
               EntityAssociationForm(
                 world: world.value,
                 role: 'home',
+                qualifiers: [
+                  QualifierInput(key: 'account', value: '記憶 😀'),
+                  QualifierInput(
+                    key: 'confirmed',
+                    kind: 'boolean',
+                    value: 'false',
+                  ),
+                ],
                 temporalValidity: const TemporalValidityInput(
                   start: TemporalBoundInput(
                     kind: 'approximate',
@@ -727,6 +812,14 @@ void main() {
       )).map((r) => r.payload).whereType<EntityRecord>().single;
       expect(published.worldAssociations.single.world, world);
       expect(published.worldAssociations.single.role, 'home');
+      expect(
+        published.worldAssociations.single.qualifiers['account'],
+        const TextValue('記憶 😀'),
+      );
+      expect(
+        published.worldAssociations.single.qualifiers['confirmed'],
+        const BooleanValue(false),
+      );
       expect(
         published.worldAssociations.single.validity,
         const IntervalValidity(

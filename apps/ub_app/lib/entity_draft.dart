@@ -2,6 +2,7 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 import 'temporal_validity_draft.dart';
+import 'qualifier_draft.dart';
 
 SaveDraftEngineRequest entityDraftRequest({
   required Selector universe,
@@ -98,6 +99,10 @@ UnfinishedEntityForm entityFormFromDraft(SavedDraft draft, int index) {
           world: operation.worldAssociations[i].world.value,
           role: operation.worldAssociations[i].role,
           originalOrdinal: i,
+          qualifiers: [
+            for (final q in operation.worldAssociations[i].qualifiers.entries)
+              qualifierInput(q.key, q.value),
+          ],
         ),
     ],
   );
@@ -165,7 +170,9 @@ DraftContent replaceDraftEntity({
                   : a.validity ??
                         original?.validity ??
                         const UnspecifiedValidity(),
-              qualifiers: original?.qualifiers ?? {},
+              qualifiers: a.qualifiers == null
+                  ? original?.qualifiers ?? {}
+                  : buildQualifiers(a.qualifiers!, original?.qualifiers ?? {}),
             );
           }),
   );

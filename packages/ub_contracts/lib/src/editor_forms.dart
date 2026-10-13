@@ -224,7 +224,7 @@ final class SavedEntityForm {
 
 /// Entered association fields reference their source row in the exact draft.
 /// Null validity retains the exact source value; an explicit value replaces it.
-/// Qualifiers remain in the source draft.
+/// Null qualifier input retains the source; an empty list explicitly clears it.
 final class EntityAssociationForm {
   const EntityAssociationForm({
     required this.world,
@@ -232,14 +232,21 @@ final class EntityAssociationForm {
     this.originalOrdinal,
     this.validity,
     this.temporalValidity,
+    this.qualifiers,
   });
   final Validity? validity;
   final TemporalValidityInput? temporalValidity;
+  final List<QualifierInput>? qualifiers;
   final String world, role;
   final int? originalOrdinal;
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('world', CanonicalString(world)),
     MapEntry('role', CanonicalString(role)),
+    if (qualifiers != null)
+      MapEntry(
+        'qualifiers',
+        CanonicalArray(qualifiers!.map((q) => q.toWire())),
+      ),
     if (validity != null) MapEntry('validity', validity!.toWire()),
     if (temporalValidity != null)
       MapEntry('temporal_validity', temporalValidity!.toWire()),
@@ -370,6 +377,46 @@ final class TemporalBoundInput {
       uncertainty: f.string('uncertainty'),
       denominator: f.string('denominator'),
       unit: f.string('unit'),
+    );
+  }
+}
+
+final class QualifierInput {
+  const QualifierInput({
+    this.key = '',
+    this.kind = 'text',
+    this.value = '',
+    this.denominator = '1',
+    this.unit = '',
+    this.originalKey,
+  });
+  final String key, kind, value, denominator, unit;
+  final String? originalKey;
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('key', CanonicalString(key)),
+    MapEntry('kind', CanonicalString(kind)),
+    MapEntry('value', CanonicalString(value)),
+    MapEntry('denominator', CanonicalString(denominator)),
+    MapEntry('unit', CanonicalString(unit)),
+    if (originalKey != null)
+      MapEntry('original_key', CanonicalString(originalKey!)),
+  ]);
+  factory QualifierInput.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {
+      'key',
+      'kind',
+      'value',
+      'denominator',
+      'unit',
+      'original_key',
+    });
+    return QualifierInput(
+      key: f.string('key'),
+      kind: f.string('kind'),
+      value: f.string('value'),
+      denominator: f.string('denominator'),
+      unit: f.string('unit'),
+      originalKey: f.optional('original_key', wireString),
     );
   }
 }

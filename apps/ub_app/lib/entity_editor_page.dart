@@ -6,6 +6,7 @@ import 'package:ub_domain/ub_domain.dart';
 
 import 'connection.dart';
 import 'entity_draft.dart';
+import 'qualifier_draft.dart';
 import 'temporal_validity_draft.dart';
 import 'temporal_validity_fields.dart';
 import 'record_browser.dart';
@@ -76,7 +77,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     _role.dispose();
     _rationale.dispose();
     for (final a in _associations) {
-      a.role.dispose();
+      a.dispose();
     }
     super.dispose();
   }
@@ -100,7 +101,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     _classification = form.classification;
     _selected = [...form.worlds];
     for (final a in _associations) {
-      a.role.dispose();
+      a.dispose();
     }
     _associations.clear();
     final rows =
@@ -111,7 +112,26 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                 _editingDraft!,
                 widget.operationIndex!,
               ).associations!);
-    _associations.addAll(rows.map(_AssociationFields.new));
+    _associations.addAll(
+      rows.map((row) {
+        final ordinal = row.originalOrdinal;
+        final source = _editingDraft == null || ordinal == null
+            ? null
+            : (_editingDraft!.content.operations[widget.operationIndex!]
+                      as IntroduceInstanceOperation)
+                  .worldAssociations
+                  .elementAtOrNull(ordinal);
+        return _AssociationFields(
+          row,
+          fallback: source == null
+              ? null
+              : [
+                  for (final q in source.qualifiers.entries)
+                    qualifierInput(q.key, q.value),
+                ],
+        );
+      }),
+    );
   }
 
   UnfinishedEntityForm get _form => UnfinishedEntityForm(
@@ -133,6 +153,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
               originalOrdinal: a.originalOrdinal,
               validity: a.validity,
               temporalValidity: a.temporalValidity,
+              qualifiers: a.qualifiers.map((q) => q.form).toList(),
             ),
           ),
   );
@@ -415,16 +436,136 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     }
   }
 
-  Widget _field(TextEditingController controller, String label) => Padding(
+  Widget _field(
+    TextEditingController controller,
+    String label, {
+    int? maxLines,
+  }) => Padding(
     padding: const EdgeInsets.only(top: 12),
     child: TextField(
       controller: controller,
       enabled: !_disabled,
       decoration: InputDecoration(labelText: label),
-      maxLines: controller == _rationale ? 4 : 1,
+      maxLines: maxLines ?? (controller == _rationale ? 4 : 1),
       onChanged: (_) => _changed(),
     ),
   );
+  Widget _qualifierRow(
+    _AssociationFields association,
+    int index,
+    Map<String, DomainValue> original,
+  ) {
+    final fields = association.qualifiers[index];
+    final retained = original[fields.originalKey];
+    return Card(
+      key: ValueKey(fields),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _field(fields.name, 'Qualifier name'),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              key: ValueKey((fields, fields.kind)),
+              initialValue: fields.kind,
+              decoration: const InputDecoration(
+                labelText: 'Qualifier value type',
+              ),
+              items: [
+                if (retained != null || fields.kind == 'retain')
+                  const DropdownMenuItem(
+                    value: 'retain',
+                    child: Text('Keep original exact value'),
+                  ),
+                for (final choice in {
+                  'text': 'Text',
+                  'boolean': 'Boolean',
+                  'integer': 'Integer',
+                  'decimal': 'Decimal',
+                  'rational': 'Rational',
+                }.entries)
+                  DropdownMenuItem(
+                    value: choice.key,
+                    child: Text(choice.value),
+                  ),
+              ],
+              onChanged: _disabled
+                  ? null
+                  : (value) {
+                      setState(() => fields.kind = value!);
+                      _changed();
+                    },
+            ),
+            if (fields.kind == 'retain')
+              retained == null
+                  ? const Text(
+                      'Original value unavailable. Reopen the current draft fields before saving.',
+                    )
+                  : ExactFields(value: retained.toWire())
+            else ...[
+              if (fields.kind == 'boolean')
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: DropdownButtonFormField<String>(
+                    key: ValueKey((fields, fields.value.text)),
+                    initialValue: fields.value.text,
+                    decoration: const InputDecoration(
+                      labelText: 'Boolean value',
+                    ),
+                    items: [
+                      const DropdownMenuItem(
+                        value: '',
+                        child: Text('Choose true or false'),
+                      ),
+                      const DropdownMenuItem(
+                        value: 'true',
+                        child: Text('True'),
+                      ),
+                      const DropdownMenuItem(
+                        value: 'false',
+                        child: Text('False'),
+                      ),
+                      if (!['', 'true', 'false'].contains(fields.value.text))
+                        DropdownMenuItem(
+                          value: fields.value.text,
+                          child: Text('Pending input: ${fields.value.text}'),
+                        ),
+                    ],
+                    onChanged: _disabled
+                        ? null
+                        : (value) {
+                            setState(() => fields.value.text = value!);
+                            _changed();
+                          },
+                  ),
+                )
+              else
+                _field(
+                  fields.value,
+                  fields.kind == 'rational' ? 'Numerator' : 'Qualifier value',
+                  maxLines: fields.kind == 'text' ? 4 : 1,
+                ),
+              if (fields.kind == 'rational')
+                _field(fields.denominator, 'Denominator'),
+              _field(fields.unit, 'Unit ID (numeric values only, optional)'),
+            ],
+            TextButton(
+              onPressed: _disabled
+                  ? null
+                  : () {
+                      setState(() => association.qualifiers.removeAt(index));
+                      fields.dispose();
+                      _changed();
+                    },
+              child: const Text('Remove qualifier'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _associationRow(int index) {
     final fields = _associations[index];
     final originalOrdinal = fields.originalOrdinal;
@@ -538,7 +679,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                 },
               ),
             if (original != null) ...[
-              const Text('Original validity and retained qualifiers'),
+              const Text('Original validity and qualifiers'),
               ExactFields(
                 value: CanonicalObject([
                   MapEntry('validity', original.validity.toWire()),
@@ -556,12 +697,29 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
               const Text(
                 'New associations default to unspecified validity and no qualifiers.',
               ),
+            const Text('Association qualifiers'),
+            for (var q = 0; q < fields.qualifiers.length; q++)
+              _qualifierRow(fields, q, original?.qualifiers ?? {}),
+            if (fields.qualifiers.isEmpty) const Text('No qualifiers'),
+            TextButton(
+              onPressed: _disabled
+                  ? null
+                  : () {
+                      setState(
+                        () => fields.qualifiers.add(
+                          _QualifierFields(const QualifierInput()),
+                        ),
+                      );
+                      _changed();
+                    },
+              child: const Text('Add qualifier'),
+            ),
             TextButton(
               onPressed: _disabled
                   ? null
                   : () {
                       setState(() => _associations.removeAt(index));
-                      fields.role.dispose();
+                      fields.dispose();
                       _changed();
                     },
               child: const Text('Remove association'),
@@ -665,7 +823,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
               if (_editingDraft != null) ...[
                 const Text('Retained name details'),
                 const Text(
-                  'Name metadata is retained. World and role edits retain validity and qualifiers unless validity is explicitly changed.',
+                  'Name metadata is retained. World and role edits retain validity and qualifiers unless those fields are explicitly changed.',
                 ),
                 ExactFields(
                   value:
@@ -793,15 +951,54 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
 }
 
 final class _AssociationFields {
-  _AssociationFields(EntityAssociationForm form)
-    : world = form.world,
-      originalOrdinal = form.originalOrdinal,
-      role = TextEditingController(text: form.role),
-      validity = form.validity,
-      temporalValidity = form.temporalValidity;
+  _AssociationFields(
+    EntityAssociationForm form, {
+    List<QualifierInput>? fallback,
+  }) : world = form.world,
+       originalOrdinal = form.originalOrdinal,
+       role = TextEditingController(text: form.role),
+       validity = form.validity,
+       temporalValidity = form.temporalValidity,
+       qualifiers = (form.qualifiers ?? fallback ?? [])
+           .map(_QualifierFields.new)
+           .toList();
   String world;
   Validity? validity;
   TemporalValidityInput? temporalValidity;
   final int? originalOrdinal;
   final TextEditingController role;
+  final List<_QualifierFields> qualifiers;
+  void dispose() {
+    role.dispose();
+    for (final q in qualifiers) {
+      q.dispose();
+    }
+  }
+}
+
+final class _QualifierFields {
+  _QualifierFields(QualifierInput form)
+    : name = TextEditingController(text: form.key),
+      value = TextEditingController(text: form.value),
+      denominator = TextEditingController(text: form.denominator),
+      unit = TextEditingController(text: form.unit),
+      kind = form.kind,
+      originalKey = form.originalKey;
+  final TextEditingController name, value, denominator, unit;
+  String kind;
+  final String? originalKey;
+  QualifierInput get form => QualifierInput(
+    key: name.text,
+    kind: kind,
+    value: value.text,
+    denominator: denominator.text,
+    unit: unit.text,
+    originalKey: originalKey,
+  );
+  void dispose() {
+    name.dispose();
+    value.dispose();
+    denominator.dispose();
+    unit.dispose();
+  }
 }
