@@ -4,7 +4,8 @@ library;
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
-/// Stage a move, resume its target upload, and return the target import review.
+/// Stage a move, resume its upload, retain its review at the source, and return
+/// the target import review for author approval.
 ///
 /// The caller supplies authenticated connections and retains both operation IDs
 /// for an explicit retry after interruption. This function neither reconnects
@@ -63,11 +64,64 @@ Future<CanonicalValue> prepareMoveTransfer({
       WriteArchiveChunkEngineRequest(uploadId: uploadId, chunk: chunk),
     );
   }
-  return target(
+  final report = await target(
     ReviewArchiveUploadEngineRequest(
       uploadId: uploadId,
       name: name,
       mode: ImportMode.restore,
+    ),
+  );
+  final fields = Map.fromEntries((report as CanonicalObject).fields);
+  final preview = await target(
+    GetImportEngineRequest(
+      previewId: OperationId.parse(wireString(fields['preview_id']!)),
+      digest: wireString(fields['digest']!),
+    ),
+  );
+  await source(
+    ReviewMoveEngineRequest(
+      universeId: move.universeId,
+      operationId: move.operationId,
+      targetInstance: move.targetInstance,
+      target: preview as CanonicalObject,
+    ),
+  );
+  return report;
+}
+
+/// Admit only the exact target review approved by the author, then retain its
+/// receipt at the source. An unknown target outcome is recovered by explicitly
+/// calling again with the same move and approval, using reconnected callers.
+Future<CanonicalValue> admitMoveTransfer({
+  required Future<CanonicalValue> Function(EngineRequest) source,
+  required Future<CanonicalValue> Function(EngineRequest) target,
+  required StageMoveEngineRequest move,
+  required AcceptImportEngineRequest approval,
+}) async {
+  final recovery = await source(
+    GetMoveEngineRequest(operationId: move.operationId),
+  );
+  final fields = Map.fromEntries((recovery as CanonicalObject).fields);
+  if (wireString(fields['universe_id']!) != move.universeId.value ||
+      wireString(fields['target_instance']!) != move.targetInstance.value ||
+      fields['accept_request']!.toText() != approval.toWire().toText()) {
+    throw const ApprovalStaleError();
+  }
+  if (wireString(fields['state']!) == 'admitted') return fields['receipt']!;
+  await source(
+    BeginMoveAdmissionEngineRequest(
+      universeId: move.universeId,
+      operationId: move.operationId,
+      targetInstance: move.targetInstance,
+    ),
+  );
+  final receipt = await target(approval);
+  return source(
+    RecordMoveAdmissionEngineRequest(
+      universeId: move.universeId,
+      operationId: move.operationId,
+      targetInstance: move.targetInstance,
+      receipt: receipt as CanonicalObject,
     ),
   );
 }

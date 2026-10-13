@@ -14,6 +14,32 @@ final class InstallationImportPreview {
     required this.records,
     required this.includesWorkflow,
   });
+  factory InstallationImportPreview.fromCanonical(CanonicalValue value) {
+    final f = WireFields(value, {
+      'id',
+      'owner',
+      'source_digest',
+      'target',
+      'source',
+      'name',
+      'complete',
+      'omitted_records',
+      'records',
+      'includes_workflow',
+    });
+    return InstallationImportPreview(
+      id: OperationId.parse(f.string('id')),
+      owner: ProfileId.parse(f.string('owner')),
+      sourceDigest: f.string('source_digest'),
+      target: UniverseId.parse(f.string('target')),
+      source: UniverseId.parse(f.string('source')),
+      name: f.string('name'),
+      complete: f.boolean('complete'),
+      omittedRecords: f.u64('omitted_records').toInt(),
+      records: f.u64('records').toInt(),
+      includesWorkflow: f.boolean('includes_workflow'),
+    );
+  }
   final OperationId id;
   final ProfileId owner;
   final String sourceDigest;

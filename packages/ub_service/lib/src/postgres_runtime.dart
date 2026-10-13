@@ -363,6 +363,37 @@ final class NativePostgresRuntime {
               return CanonicalObject([
                 MapEntry('profile_id', CanonicalString(id.value)),
               ]);
+            case GetImportEngineRequest():
+              return (await session.loadImport(
+                actor: principal.id,
+                id: request.previewId,
+                digest: request.digest,
+              )).toCanonical();
+            case ReviewMoveEngineRequest():
+              return (await session.reviewMoveTarget(
+                actor: principal.id,
+                universe: request.universeId,
+                operation: request.operationId,
+                targetInstance: request.targetInstance,
+                preview: InstallationImportPreview.fromCanonical(
+                  request.target,
+                ),
+              )).preview.toCanonical();
+            case BeginMoveAdmissionEngineRequest():
+              return (await session.beginMoveAdmission(
+                actor: principal.id,
+                universe: request.universeId,
+                operation: request.operationId,
+                targetInstance: request.targetInstance,
+              )).acceptRequest.toWire();
+            case RecordMoveAdmissionEngineRequest():
+              return (await session.recordMoveAdmission(
+                actor: principal.id,
+                universe: request.universeId,
+                operation: request.operationId,
+                targetInstance: request.targetInstance,
+                receipt: request.receipt,
+              )).preview.receipt;
             case BeginArchiveUploadEngineRequest():
               return session.beginArchiveUpload(
                 actor: principal.id,

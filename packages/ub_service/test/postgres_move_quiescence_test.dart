@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
+import 'package:ub_client/archive_transfer.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_profiles.dart';
@@ -321,11 +322,12 @@ void main() {
               mode: ImportMode.restore,
             ),
           );
-          final targetReview = await store.transaction(
-            (s) => s.loadImport(
-              actor: authorId,
-              id: OperationId.parse(text(preview, 'preview_id')),
-              digest: text(preview, 'digest'),
+          final targetReview = InstallationImportPreview.fromCanonical(
+            await target.execute(
+              GetImportEngineRequest(
+                previewId: OperationId.parse(text(preview, 'preview_id')),
+                digest: text(preview, 'digest'),
+              ),
             ),
           );
           final sourcePrincipal = sourceAuthority.authenticateHello(
@@ -437,6 +439,63 @@ void main() {
         } finally {
           await sourceRuntime.close();
           sourceStore.close();
+          root.deleteSync(recursive: true);
+        }
+      });
+
+      test('client moves PostgreSQL source to SQLite through private service requests', () async {
+        final root = Directory.systemTemp.createTempSync('ub-client-pg-move-');
+        final targetStore = SqliteInstallationStore.create(root.path);
+        final authority = InstallationAuthority(targetStore);
+        final owner = authority.initializeAuthor();
+        final targetRuntime = NativeSqliteRuntime(authority: authority);
+        try {
+          final source = await runtime.connect(hello(authorId));
+          final target = targetRuntime.connect(
+            EngineHello(
+              protocolVersion: protocolVersion,
+              profileId: owner,
+              credential: Credential(
+                ProfileCredentialStore.read(root: root.path, profile: owner),
+              ),
+              clientName: 'Disposable transfer target',
+            ),
+          );
+          final created = await create(source, 'Client move source');
+          final move = StageMoveEngineRequest(
+            universeId: UniverseId.parse(text(created, 'universe_id')),
+            operationId: OperationId.generate(),
+            targetInstance: targetStore.instanceId,
+          );
+          final preview = await prepareMoveTransfer(
+            source: source.execute,
+            target: target.execute,
+            move: move,
+            uploadId: OperationId.generate(),
+            name: 'Client move target',
+          );
+          final receipt = await admitMoveTransfer(
+            source: source.execute,
+            target: target.execute,
+            move: move,
+            approval: AcceptImportEngineRequest(
+              previewId: OperationId.parse(text(preview, 'preview_id')),
+              digest: text(preview, 'digest'),
+            ),
+          );
+          expect(text(receipt, 'universe_id'), move.universeId.value);
+          expect(
+            text(
+              await source.execute(
+                GetMoveEngineRequest(operationId: move.operationId),
+              ),
+              'state',
+            ),
+            'admitted',
+          );
+        } finally {
+          await targetRuntime.close();
+          targetStore.close();
           root.deleteSync(recursive: true);
         }
       });

@@ -514,7 +514,7 @@ and failed preparation release the guard without granting publication authority.
 The cross-process regression checks live ownership, skipped competing evaluation,
 termination/resumption and guard cleanup. No heartbeat or authorization cache is
 introduced. See PostgreSQL's [advisory lock semantics](https://www.postgresql.org/docs/16/explicit-locking.html#ADVISORY-LOCKS).
-The internal SQLite and PostgreSQL move coordinators have an author-only durable source
+SQLite and PostgreSQL have an author-only durable source
 quiescence primitive. It binds one universe and move operation to another
 installation identity, suspends ordinary source access across connected service
 workers and restart, and retains the source catalog, aliases, grants and universe
@@ -574,11 +574,17 @@ older control layouts require explicit conversion rather than startup repair.
 Explicit conversion of older PostgreSQL control layouts remains pending.
 The shared client's `prepareMoveTransfer` uses caller-supplied authenticated
 source and target connections to stage, stream or resume an upload, and return
-the target review. Retain its source operation and target upload IDs for an
+the target review after recording it at the source. Retain its source operation and target upload IDs for an
 explicit retry after reconnecting. It stops before approval; the target still
 requires the existing exact `accept_import` request. Connections need not be
-owned by a service coordinator. Source recording of the target review and
-admission still needs client/operator wiring. The private
+owned by a service coordinator. `admitMoveTransfer` takes the author's exact
+`accept_import` approval, checks it against the retained source review, records
+the pending attempt, calls the target and records its returned receipt at the
+source. Explicit retries recover an unknown outcome with the same approval;
+completed retries return the retained receipt. Private author commands
+`get_import`, `review_move`, `begin_move_admission` and `record_move_admission`
+expose these existing operations through SQLite and PostgreSQL services.
+CLI and UI controls for this workflow remain pending. The private
 author-only `list_moves` command discovers retained operations in pages of
 1–100, with an operation-ID cursor. `get_move` returns the retained state, target
 review, exact target retry request and completed receipt without host-path or

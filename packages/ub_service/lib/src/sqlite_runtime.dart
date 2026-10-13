@@ -146,6 +146,49 @@ final class NativeSqliteRuntime {
           ),
         ]);
       }
+      if (request case ReviewMoveEngineRequest()) {
+        final review = await authority.reviewMoveTarget(
+          principal,
+          universe: request.universeId,
+          operation: request.operationId,
+          targetInstance: request.targetInstance,
+          preview: InstallationImportPreview.fromCanonical(request.target),
+        );
+        return review.preview.toCanonical();
+      }
+      if (request case BeginMoveAdmissionEngineRequest()) {
+        final review = await authority.beginMoveAdmission(
+          principal,
+          universe: request.universeId,
+          operation: request.operationId,
+          targetInstance: request.targetInstance,
+        );
+        return review.acceptRequest.toWire();
+      }
+      if (request case RecordMoveAdmissionEngineRequest()) {
+        final review = await authority.recordMoveAdmission(
+          principal,
+          universe: request.universeId,
+          operation: request.operationId,
+          targetInstance: request.targetInstance,
+          receipt: request.receipt,
+        );
+        return review.preview.receipt;
+      }
+      if (request case GetImportEngineRequest()) {
+        return await authority.coordinate(
+          principal,
+          () => authority
+              .loadImport(
+                principal,
+                AcceptImportEngineRequest(
+                  previewId: request.previewId,
+                  digest: request.digest,
+                ),
+              )
+              .toCanonical(),
+        );
+      }
       if (request is DoctorEngineRequest) return await _doctor(principal);
       if (request is ConvertLegacyEngineRequest) {
         return await authority.coordinate(principal, () {

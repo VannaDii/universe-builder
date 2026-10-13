@@ -382,7 +382,7 @@ extension PostgresInstallationMoves on PostgresInstallationSession {
     );
   });
 
-  /// Trusted coordinator only: use the authenticated target's exact receipt.
+  /// The current source author supplies the target's exact operation receipt.
   /// Successful cutover keeps the original source suspended and retained.
   Future<InstallationMoveReview> recordMoveAdmission({
     required ProfileId actor,

@@ -19,9 +19,10 @@ void main() {
       '{"digest":"${'a' * 64}","bytes":${chunkSize + 3}}',
     );
     final preview = CanonicalValue.parseWireJson(
-      '{"preview_id":"${uploadId.value}"}',
+      '{"preview_id":"${uploadId.value}","digest":"${'b' * 64}"}',
     );
     Future<CanonicalValue> source(EngineRequest request) async {
+      if (request is ReviewMoveEngineRequest) return request.target;
       if (request is StageMoveEngineRequest) {
         expect(request, same(move));
         return stage;
@@ -38,6 +39,10 @@ void main() {
 
     Future<CanonicalValue> target(EngineRequest request) async {
       switch (request) {
+        case GetImportEngineRequest():
+          expect(request.previewId, uploadId);
+          expect(request.digest, 'b' * 64);
+          return preview;
         case BeginArchiveUploadEngineRequest():
           expect(request.uploadId, uploadId);
           expect(request.bytes, chunkSize + 3);

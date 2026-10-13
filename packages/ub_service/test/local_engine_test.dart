@@ -430,7 +430,88 @@ void main() {
         previewId: uploadId,
         digest: wireString(field(preview, 'digest')),
       );
-      final receipt = await destinationClient.call(accept);
+      final move = StageMoveEngineRequest(
+        universeId: universe,
+        operationId: operation,
+        targetInstance: targetInstance,
+      );
+      await expectLater(
+        admitMoveTransfer(
+          source: source.call,
+          target: destinationClient.call,
+          move: move,
+          approval: AcceptImportEngineRequest(
+            previewId: uploadId,
+            digest: '0' * 64,
+          ),
+        ),
+        throwsA(isA<ApprovalStaleError>()),
+      );
+      expect(
+        wireString(
+          field(
+            await source.call(GetMoveEngineRequest(operationId: operation)),
+            'state',
+          ),
+        ),
+        'reviewed',
+      );
+      await expectLater(
+        denied.call(
+          BeginMoveAdmissionEngineRequest(
+            universeId: universe,
+            operationId: operation,
+            targetInstance: targetInstance,
+          ),
+        ),
+        throwsA(isA<ProtocolError>()),
+      );
+      await expectLater(
+        admitMoveTransfer(
+          source: source.call,
+          target: (request) async {
+            await destinationClient.call(request);
+            throw StateError('Disposable lost admission response');
+          },
+          move: move,
+          approval: accept,
+        ),
+        throwsStateError,
+      );
+      expect(
+        wireString(
+          field(
+            await source.call(GetMoveEngineRequest(operationId: operation)),
+            'state',
+          ),
+        ),
+        'admitting',
+      );
+      await source.close();
+      await server.close();
+      server = await LocalSqliteEngineServer.start(root.path);
+      final recoveredSource = await client(author);
+      final receipt = await admitMoveTransfer(
+        source: recoveredSource.call,
+        target: destinationClient.call,
+        move: move,
+        approval: accept,
+      );
+      final completed = await recoveredSource.call(
+        GetMoveEngineRequest(operationId: operation),
+      );
+      expect(wireString(field(completed, 'state')), 'admitted');
+      expect(field(completed, 'receipt').toText(), receipt.toText());
+      expect(
+        (await admitMoveTransfer(
+          source: recoveredSource.call,
+          target: (_) async =>
+              throw StateError('Completed move must reuse receipt'),
+          move: move,
+          approval: accept,
+        )).toText(),
+        receipt.toText(),
+      );
       expect((await destinationClient.call(accept)).toText(), receipt.toText());
       expect(wireString(field(receipt, 'universe_id')), universe.value);
       final catalog = field(

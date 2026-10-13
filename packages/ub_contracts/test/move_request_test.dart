@@ -13,6 +13,24 @@ void main() {
         const ListMovesEngineRequest(),
         ListMovesEngineRequest(after: operation, limit: 1),
         GetMoveEngineRequest(operationId: operation),
+        GetImportEngineRequest(previewId: operation, digest: 'b' * 64),
+        ReviewMoveEngineRequest(
+          universeId: UniverseId.generate(),
+          operationId: operation,
+          targetInstance: OperationId.generate(),
+          target: CanonicalObject([]),
+        ),
+        BeginMoveAdmissionEngineRequest(
+          universeId: UniverseId.generate(),
+          operationId: operation,
+          targetInstance: OperationId.generate(),
+        ),
+        RecordMoveAdmissionEngineRequest(
+          universeId: UniverseId.generate(),
+          operationId: operation,
+          targetInstance: OperationId.generate(),
+          receipt: CanonicalObject([]),
+        ),
         BeginArchiveUploadEngineRequest(
           uploadId: operation,
           digest: 'a' * 64,

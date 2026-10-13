@@ -308,7 +308,7 @@ final class InstallationAuthority {
     );
   }
 
-  /// Trusted coordinator entry; connected clients recheck the retained guard.
+  /// Author move staging; connected clients recheck the retained guard.
   Future<void> quiesceUniverseForMove(
     InstallationPrincipal principal, {
     required UniverseId universe,

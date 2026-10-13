@@ -47,6 +47,7 @@ sealed class EngineRequest {
       'proposal_reference',
       'record_ids',
       'request',
+      'receipt',
       'revision',
       'source',
       'source_revision',
@@ -66,6 +67,12 @@ sealed class EngineRequest {
       'profiles' => ProfilesEngineRequest.fromWire(value),
       'list_moves' => ListMovesEngineRequest.fromWire(value),
       'get_move' => GetMoveEngineRequest.fromWire(value),
+      'get_import' => GetImportEngineRequest.fromWire(value),
+      'review_move' => ReviewMoveEngineRequest.fromWire(value),
+      'begin_move_admission' => BeginMoveAdmissionEngineRequest.fromWire(value),
+      'record_move_admission' => RecordMoveAdmissionEngineRequest.fromWire(
+        value,
+      ),
       'stage_move' => StageMoveEngineRequest.fromWire(value),
       'read_move_chunk' => ReadMoveChunkEngineRequest.fromWire(value),
       'begin_archive_upload' => BeginArchiveUploadEngineRequest.fromWire(value),
@@ -179,6 +186,154 @@ final class GetMoveEngineRequest extends EngineRequest {
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('method', CanonicalString(method)),
     MapEntry('operation_id', CanonicalString(operationId.value)),
+  ]);
+}
+
+final class GetImportEngineRequest extends EngineRequest {
+  const GetImportEngineRequest({required this.previewId, required this.digest});
+  final OperationId previewId;
+  final String digest;
+  @override
+  String get method => 'get_import';
+  factory GetImportEngineRequest.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {'method', 'preview_id', 'digest'});
+    if (f.string('method') != 'get_import') {
+      throw const FormatException('Wrong engine method');
+    }
+    return GetImportEngineRequest(
+      previewId: OperationId.parse(f.string('preview_id')),
+      digest: f.string('digest'),
+    );
+  }
+  @override
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('method', CanonicalString(method)),
+    MapEntry('preview_id', CanonicalString(previewId.value)),
+    MapEntry('digest', CanonicalString(digest)),
+  ]);
+}
+
+final class ReviewMoveEngineRequest extends EngineRequest {
+  const ReviewMoveEngineRequest({
+    required this.universeId,
+    required this.operationId,
+    required this.targetInstance,
+    required this.target,
+  });
+  final UniverseId universeId;
+  final OperationId operationId;
+  final OperationId targetInstance;
+  final CanonicalObject target;
+  @override
+  String get method => 'review_move';
+  factory ReviewMoveEngineRequest.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {
+      'method',
+      'universe_id',
+      'operation_id',
+      'target_instance',
+      'target',
+    });
+    if (f.string('method') != 'review_move') {
+      throw const FormatException('Wrong engine method');
+    }
+    return ReviewMoveEngineRequest(
+      universeId: UniverseId.parse(f.string('universe_id')),
+      operationId: OperationId.parse(f.string('operation_id')),
+      targetInstance: OperationId.parse(f.string('target_instance')),
+      target: switch (f.require('target')) {
+        final CanonicalObject object => object,
+        _ => throw const FormatException('Expected target review object'),
+      },
+    );
+  }
+  @override
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('method', CanonicalString(method)),
+    MapEntry('universe_id', CanonicalString(universeId.value)),
+    MapEntry('operation_id', CanonicalString(operationId.value)),
+    MapEntry('target_instance', CanonicalString(targetInstance.value)),
+    MapEntry('target', target),
+  ]);
+}
+
+final class BeginMoveAdmissionEngineRequest extends EngineRequest {
+  const BeginMoveAdmissionEngineRequest({
+    required this.universeId,
+    required this.operationId,
+    required this.targetInstance,
+  });
+  final UniverseId universeId;
+  final OperationId operationId;
+  final OperationId targetInstance;
+  @override
+  String get method => 'begin_move_admission';
+  factory BeginMoveAdmissionEngineRequest.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {
+      'method',
+      'universe_id',
+      'operation_id',
+      'target_instance',
+    });
+    if (f.string('method') != 'begin_move_admission') {
+      throw const FormatException('Wrong engine method');
+    }
+    return BeginMoveAdmissionEngineRequest(
+      universeId: UniverseId.parse(f.string('universe_id')),
+      operationId: OperationId.parse(f.string('operation_id')),
+      targetInstance: OperationId.parse(f.string('target_instance')),
+    );
+  }
+  @override
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('method', CanonicalString(method)),
+    MapEntry('universe_id', CanonicalString(universeId.value)),
+    MapEntry('operation_id', CanonicalString(operationId.value)),
+    MapEntry('target_instance', CanonicalString(targetInstance.value)),
+  ]);
+}
+
+final class RecordMoveAdmissionEngineRequest extends EngineRequest {
+  const RecordMoveAdmissionEngineRequest({
+    required this.universeId,
+    required this.operationId,
+    required this.targetInstance,
+    required this.receipt,
+  });
+  final UniverseId universeId;
+  final OperationId operationId;
+  final OperationId targetInstance;
+  final CanonicalObject receipt;
+  @override
+  String get method => 'record_move_admission';
+  factory RecordMoveAdmissionEngineRequest.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {
+      'method',
+      'universe_id',
+      'operation_id',
+      'target_instance',
+      'receipt',
+    });
+    if (f.string('method') != 'record_move_admission') {
+      throw const FormatException('Wrong engine method');
+    }
+    return RecordMoveAdmissionEngineRequest(
+      universeId: UniverseId.parse(f.string('universe_id')),
+      operationId: OperationId.parse(f.string('operation_id')),
+      targetInstance: OperationId.parse(f.string('target_instance')),
+      receipt: switch (f.require('receipt')) {
+        final CanonicalObject object => object,
+        _ => throw const FormatException('Expected target receipt object'),
+      },
+    );
+  }
+  @override
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('method', CanonicalString(method)),
+    MapEntry('universe_id', CanonicalString(universeId.value)),
+    MapEntry('operation_id', CanonicalString(operationId.value)),
+    MapEntry('target_instance', CanonicalString(targetInstance.value)),
+    MapEntry('receipt', receipt),
   ]);
 }
 

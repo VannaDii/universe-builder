@@ -2,7 +2,7 @@ part of 'installation_store.dart';
 
 enum MoveAdmissionState { reviewed, admitting, admitted }
 
-/// Exact target review retained by the source coordinator. Target permissions
+/// Exact target review retained by the source. Target permissions
 /// and credentials remain solely in the target installation.
 final class InstallationMoveReview {
   const InstallationMoveReview({
@@ -241,7 +241,7 @@ extension InstallationMoves on SqliteInstallationStore {
     );
   }
 
-  /// Trusted coordinator only: supply the authenticated target's exact receipt.
+  /// The current source author supplies the target's exact operation receipt.
   /// The original remains retained and suspended after successful cutover.
   InstallationMoveReview recordMoveAdmission({
     required ProfileId actor,
