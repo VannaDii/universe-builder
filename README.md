@@ -141,6 +141,13 @@ retain the exact existing basis, including
 provenance owned by an event, evaluator or initialization workflow. Pending source
 references recover before they are complete. A content-match flag does not establish
 truth or entailment; the existing source validation and approval flow still apply.
+**Value definition** opens recoverable namespace, key, display labels and ordered
+field rows. Each field has a nested value shape and explicit required/unknown
+flags. Fields can be added, removed and reordered; incomplete rows recover on
+this device. **Edit value-definition fields** retains the definition reference,
+other Changes and rationale. Published definitions are searchable by name in
+property-shape choices for enumeration and structured values. The existing
+service validates the definition; the editor adds no new enumeration semantics.
 **Unit definition** opens recoverable namespace, key, dimension, symbol,
 multilingual labels, optional base unit, exact typed scale-to-base and validity
 fields. Base units use named choices at the form’s revision. Conversion data is

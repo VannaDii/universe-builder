@@ -42,6 +42,7 @@ String recordReadLabel(RecordVersion row) {
     PropertyRecord(:final labels, :final key) => first(labels) ?? key,
     RelationRecord(:final labels, :final key) => first(labels) ?? key,
     UnitRecord(:final labels, :final key) => first(labels) ?? key,
+    ValueDefinitionRecord(:final labels, :final key) => first(labels) ?? key,
     CalendarRecord(:final labels, :final key) => first(labels) ?? key,
     RuleRecord(:final labels, :final namespace, :final key) =>
       first(labels) ?? '$namespace:$key',

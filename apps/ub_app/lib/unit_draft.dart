@@ -13,7 +13,7 @@ DefineUnitOperation unitOperation(
   }
   final labels = <String, String>{};
   for (final label in form.labels) {
-    if (label.language.isEmpty || labels.containsKey(label.language)) {
+    if (labels.containsKey(label.language)) {
       throw const FormatException('Give each label a distinct language key.');
     }
     labels[label.language] = label.text;

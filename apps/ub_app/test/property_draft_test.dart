@@ -63,7 +63,7 @@ void main() {
     final property = PropertyRecord(
       namespace: 'authored',
       key: 'account',
-      labels: {'ja': '記憶 😀', 'en': 'Account'},
+      labels: {'ja': '記憶 😀', 'en': 'Account', '': 'Authored label'},
       subjectTypes: [RecordId.generate(), RecordId.generate()],
       value: SequenceShape(StructuredShape(ValueDefinitionId.generate())),
       multiplicity: Multiplicity.multiple,

@@ -30,7 +30,7 @@ void main() {
       key: 'measure',
       dimension: 'distance',
       symbol: '記憶 😀',
-      labels: {'en': 'Measure', 'ja': '記憶 😀'},
+      labels: {'en': 'Measure', 'ja': '記憶 😀', '': 'Authored label'},
       base: UnitId.generate(),
       scaleToBase: const RationalValue('3', '2'),
       validity: validity,

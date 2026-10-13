@@ -53,6 +53,25 @@ void main() {
       ),
       'Exact excerpt 記憶 😀',
     );
+    for (final labels in <Map<String, String>>[
+      {'\u{10000}': 'later', '\ue000': 'Value 記憶 😀'},
+      {},
+    ]) {
+      expect(
+        recordReadLabel(
+          f.row(
+            7,
+            ValueDefinitionRecord(
+              namespace: 'authored',
+              key: 'value-key',
+              labels: labels,
+              fields: [],
+            ),
+          ),
+        ),
+        labels.isEmpty ? 'value-key' : 'Value 記憶 😀',
+      );
+    }
     expect(recordReadLabel(structure.context(99)), f.id(99).value);
     expect(
       recordReadLabel(
