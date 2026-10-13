@@ -2,6 +2,7 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 import 'qualifier_draft.dart';
+import 'evidence_basis_draft.dart';
 import 'scope_draft.dart';
 import 'temporal_validity_draft.dart';
 
@@ -69,7 +70,9 @@ DraftContent replaceDraftAttribute({
                 )[input.originalKey],
               ),
             ),
-      basis: op.evidence.basis,
+      basis: form.evidenceInput?.basis == null
+          ? op.evidence.basis
+          : buildEvidenceBasis(form.evidenceInput!.basis!, op.evidence.basis),
     ),
   );
   return DraftContent(

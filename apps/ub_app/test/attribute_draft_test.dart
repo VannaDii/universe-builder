@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:ub_app/attribute_draft.dart';
+import 'package:ub_app/evidence_basis_draft.dart';
 import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/saved_changes.dart';
@@ -16,6 +17,91 @@ import 'package:ub_service/local_profiles.dart';
 import 'package:ub_store/installation.dart';
 
 void main() {
+  test(
+    'source basis edits preserve exact provenance and evaluator-owned bases',
+    () {
+      final universe = UniverseId.generate(), record = RecordId.generate();
+      final version = VersionRef(
+        universe: universe,
+        record: record,
+        version: RecordVersionId.generate(),
+      );
+      final original = const AuthorDecisionBasis('Original decision.');
+      final authored = const EvidenceBasisInput(
+        kind: 'author_decision',
+        note: '記憶 😀\nAn attributed account.',
+      );
+      expect(
+        buildEvidenceBasis(
+          EvidenceBasisInput.fromWire(authored.toWire()),
+          original,
+        ),
+        const AuthorDecisionBasis('記憶 😀\nAn attributed account.'),
+      );
+      for (final namespace in [null, universe]) {
+        for (final verified in [false, true]) {
+          final basis = SourceAnchorBasis(
+            RecordRef(universe: namespace, record: record),
+            verified,
+          );
+          expect(
+            buildEvidenceBasis(
+              EvidenceBasisInput.fromWire(evidenceBasisInput(basis).toWire()),
+              original,
+            ),
+            basis,
+          );
+        }
+      }
+      for (final basis in <EvidenceBasis>[
+        const ImportedClaimBasis(),
+        EventEffectBasis(RecordRef(record: record), 'effect 記憶 😀'),
+        InstanceInitializationBasis(version, version, RevisionId.generate()),
+        DerivationBasis([version, version], 'evaluator 記憶 😀'),
+        DerivationBasis([], null),
+      ]) {
+        final input = EvidenceBasisInput.fromWire(
+          evidenceBasisInput(basis).toWire(),
+        );
+        expect(
+          buildEvidenceBasis(input, basis).toWire().toText(),
+          basis.toWire().toText(),
+        );
+        expect(
+          buildEvidenceBasis(const EvidenceBasisInput(), basis),
+          same(basis),
+        );
+      }
+      expect(
+        () => buildEvidenceBasis(
+          const EvidenceBasisInput(
+            kind: 'source_anchor',
+            anchorRecord: 'unfinished anchor',
+          ),
+          original,
+        ),
+        throwsFormatException,
+      );
+      expect(
+        () => buildEvidenceBasis(
+          const EvidenceBasisInput(kind: 'event_effect'),
+          original,
+        ),
+        throwsFormatException,
+      );
+      expect(
+        buildEvidenceBasis(
+          const EvidenceBasisInput(
+            kind: 'imported_claim',
+            anchorRecord: 'hidden unfinished reference',
+          ),
+          original,
+        ),
+        const ImportedClaimBasis(),
+      );
+    },
+  );
+
   test('assertion edits retain scope, alternatives and basis while changed validity is exact', () {
     final calendar = CalendarId.generate();
     final evidence = AttributeEvidence(
@@ -431,6 +517,10 @@ void main() {
         draftVersion: recovered.form.draftVersion,
         value: recovered.form.value,
         evidenceInput: AttributeEvidenceInput(
+          basis: const EvidenceBasisInput(
+            kind: 'author_decision',
+            note: '記憶 😀 revised author decision.',
+          ),
           attributeMode: AttributeMode.instance,
           scope: ScopeInput(
             applicability: 'worlds',
@@ -495,7 +585,9 @@ void main() {
           .single;
       expect(
         assertion.basis.toWire().toText(),
-        evidence.basis.toWire().toText(),
+        const AuthorDecisionBasis('記憶 😀 revised author decision.')
+            .toWire()
+            .toText(),
       );
       expect(assertion.validity, const UnspecifiedValidity());
       expect(assertion.polarity, Polarity.refutation);

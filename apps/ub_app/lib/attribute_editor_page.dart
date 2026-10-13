@@ -5,6 +5,8 @@ import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'package:ub_domain/ub_domain.dart';
 
 import 'attribute_draft.dart';
+import 'evidence_basis_draft.dart';
+import 'evidence_basis_fields.dart';
 import 'qualifier_draft.dart';
 import 'scope_draft.dart';
 import 'scope_input_fields.dart';
@@ -115,6 +117,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
   }
 
   void _editEvidence({
+    EvidenceBasisInput? basis,
     AttributeMode? attributeMode,
     ScopeInput? scope,
     Polarity? polarity,
@@ -128,6 +131,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
     _change(
       _form!.value,
       evidence: AttributeEvidenceInput(
+        basis: basis ?? old.basis,
         attributeMode: attributeMode ?? old.attributeMode,
         scope: scope ?? old.scope,
         alternatives: alternatives ?? old.alternatives,
@@ -314,7 +318,6 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
             disabled: _disabled,
             onChanged: (v) => _editEvidence(temporal: v),
           ),
-        const Text('Source basis retains its authored value.'),
       ],
     );
   }
@@ -467,6 +470,20 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                     ],
                   ),
                   _alternativeFields(),
+                  ExpansionTile(
+                    key: const ValueKey('attribute source basis'),
+                    title: const Text('Source basis'),
+                    children: [
+                      EvidenceBasisFields(
+                        input:
+                            _form!.evidenceInput?.basis ??
+                            evidenceBasisInput(_source.evidence.basis),
+                        original: _source.evidence.basis,
+                        disabled: _disabled,
+                        onChanged: (v) => _editEvidence(basis: v),
+                      ),
+                    ],
+                  ),
                 ],
                 ExpansionTile(
                   key: const ValueKey('original attribute'),

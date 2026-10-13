@@ -48,6 +48,13 @@ void main() {
         draftVersion: initial.draftVersion,
         value: initial.value,
         evidenceInput: const AttributeEvidenceInput(
+          basis: EvidenceBasisInput(
+            kind: 'source_anchor',
+            note: 'unfinished account 記憶 😀',
+            anchorRecord: 'unfinished anchor',
+            anchorUniverse: 'unfinished universe',
+            verified: true,
+          ),
           attributeMode: AttributeMode.initialValue,
           scope: ScopeInput(
             applicability: 'worlds',

@@ -636,6 +636,7 @@ final class SavedAttributeForm {
 /// Null fields retain the authored assertion details; explicit input replaces them.
 final class AttributeEvidenceInput {
   const AttributeEvidenceInput({
+    this.basis,
     this.attributeMode,
     this.scope,
     this.polarity,
@@ -646,6 +647,7 @@ final class AttributeEvidenceInput {
     this.alternatives,
   });
   final AttributeMode? attributeMode;
+  final EvidenceBasisInput? basis;
   final ScopeInput? scope;
   final Polarity? polarity;
   final Precision? precision;
@@ -656,6 +658,7 @@ final class AttributeEvidenceInput {
   /// Null retains alternatives; empty explicitly removes them.
   final List<QualifierInput>? alternatives;
   CanonicalObject toWire() => CanonicalObject([
+    if (basis != null) MapEntry('basis', basis!.toWire()),
     if (attributeMode != null)
       MapEntry('attribute_mode', CanonicalString(attributeMode!.wireName)),
     if (scope != null) MapEntry('scope', scope!.toWire()),
@@ -673,6 +676,7 @@ final class AttributeEvidenceInput {
   ]);
   factory AttributeEvidenceInput.fromWire(CanonicalValue value) {
     final f = WireFields(value, {
+      'basis',
       'attribute_mode',
       'scope',
       'polarity',
@@ -683,6 +687,7 @@ final class AttributeEvidenceInput {
       'alternatives',
     });
     return AttributeEvidenceInput(
+      basis: f.optional('basis', EvidenceBasisInput.fromWire),
       attributeMode: f.optional('attribute_mode', AttributeMode.fromWire),
       scope: f.optional('scope', ScopeInput.fromWire),
       alternatives: f.optional('alternatives', (v) {
@@ -702,6 +707,7 @@ final class AttributeEvidenceInput {
     );
   }
   Iterable<String> get exactTexts sync* {
+    if (basis != null) yield* basis!.exactTexts;
     if (scope != null) yield* scope!.exactTexts;
     for (final alternative in alternatives ?? <QualifierInput>[]) {
       yield* alternative.exactTexts;
@@ -713,6 +719,44 @@ final class AttributeEvidenceInput {
       ).exactTexts;
     }
   }
+}
+
+/// Authored provenance fields can recover before their reference is complete.
+/// Evaluator-owned bases use retain rather than manufacturing their provenance.
+final class EvidenceBasisInput {
+  const EvidenceBasisInput({
+    this.kind = 'retain',
+    this.note = '',
+    this.anchorRecord = '',
+    this.anchorUniverse = '',
+    this.verified = false,
+  });
+  final String kind, note, anchorRecord, anchorUniverse;
+  final bool verified;
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('kind', CanonicalString(kind)),
+    MapEntry('note', CanonicalString(note)),
+    MapEntry('anchor_record', CanonicalString(anchorRecord)),
+    MapEntry('anchor_universe', CanonicalString(anchorUniverse)),
+    MapEntry('verified', CanonicalBool(verified)),
+  ]);
+  factory EvidenceBasisInput.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {
+      'kind',
+      'note',
+      'anchor_record',
+      'anchor_universe',
+      'verified',
+    });
+    return EvidenceBasisInput(
+      kind: f.string('kind'),
+      note: f.string('note'),
+      anchorRecord: f.string('anchor_record'),
+      anchorUniverse: f.string('anchor_universe'),
+      verified: f.boolean('verified'),
+    );
+  }
+  Iterable<String> get exactTexts => [kind, note, anchorRecord, anchorUniverse];
 }
 
 /// Unfinished factual scope fields, separate from the authenticated editor scope.

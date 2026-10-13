@@ -110,11 +110,11 @@ changes still require an explicit authored correction.
 **Edit attribute** in Changes opens the existing typed value controls for
 a named factual attribute, including nested and exact values. Unfinished input
 recovers on this device. Saving retains the subject, property definition,
-source basis, other operations and rationale; stale draft edits require
+untouched evidence, other operations and rationale; stale draft edits require
 using current fields. Validation checks the value against the retained shape.
 **Assertion details** edits attribute mode, polarity, precision, persistence and validity.
 Untouched fields retain their exact authored values. Temporal validity uses the
-shared fictional-time controls, including nested amounts. Source basis remains intact.
+shared fictional-time controls, including nested amounts.
 **Factual scope** edits applicability, context and an optional realm. Typed reference
 fields retain omitted universe IDs; world lists retain order and repeated entries.
 An empty selected-world list applies nowhere. Unfinished scope input recovers without
@@ -122,6 +122,11 @@ requiring valid references until saving into Changes; service validation still a
 **Alternative values** adds, edits, removes and reorders typed alternatives, including
 nested values. Unfinished alternatives recover on this device. Precision remains
 an explicit author choice; alternatives do not become additional established facts.
+**Source basis** edits an author decision note, source-anchor reference/content-match
+flag, or imported claim. It can also retain the exact existing basis, including
+provenance owned by an event, evaluator or initialization workflow. Pending source
+references recover before they are complete. A content-match flag does not establish
+truth or entailment; the existing source validation and approval flow still apply.
 **Type definition** opens a recoverable typed form for namespace, key, display
 name, parent, applicability, executable classification and rationale. Parent,
 applicability and classification require explicit choices. Unspecified and
