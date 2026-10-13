@@ -31,7 +31,7 @@ CREATE TABLE entity_form_world (
  FOREIGN KEY(instance,profile,universe,continuity,context,editor_key) REFERENCES entity_form(instance,profile,universe,continuity,context,editor_key) ON DELETE CASCADE
 ) STRICT;
 $_associationSchema
-PRAGMA user_version=4;
+PRAGMA user_version=5;
 ''';
 
 const _associationSchema = '''
@@ -39,7 +39,7 @@ CREATE TABLE entity_form_association (
  instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
  continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL,
  ordinal INTEGER NOT NULL CHECK(ordinal>=0), world TEXT NOT NULL, role TEXT NOT NULL,
- original_ordinal INTEGER CHECK(original_ordinal>=0), validity TEXT,
+ original_ordinal INTEGER CHECK(original_ordinal>=0), validity TEXT, temporal_input TEXT,
  PRIMARY KEY(instance,profile,universe,continuity,context,editor_key,ordinal),
  FOREIGN KEY(instance,profile,universe,continuity,context,editor_key) REFERENCES entity_form(instance,profile,universe,continuity,context,editor_key) ON DELETE CASCADE
 ) STRICT;
@@ -97,13 +97,19 @@ final class EntityFormRecoveryStore {
             'ALTER TABLE entity_form ADD COLUMN association_edits_present INTEGER NOT NULL DEFAULT 0 CHECK(association_edits_present IN (0,1))',
           );
           db.execute(_associationSchema);
-          db.execute('PRAGMA user_version=4');
+          db.execute('PRAGMA user_version=5');
         }
         if (version == 3) {
           db.execute(
             'ALTER TABLE entity_form_association ADD COLUMN validity TEXT',
           );
-          db.execute('PRAGMA user_version=4');
+          db.execute('PRAGMA user_version=5');
+        }
+        if (version == 3 || version == 4) {
+          db.execute(
+            'ALTER TABLE entity_form_association ADD COLUMN temporal_input TEXT',
+          );
+          db.execute('PRAGMA user_version=5');
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -131,8 +137,13 @@ final class EntityFormRecoveryStore {
     );
     if (tables.isEmpty) return 0;
     final version = db.select('PRAGMA user_version').single.values.single;
-    if (tables.length != ((version == 3 || version == 4) ? 3 : 2) ||
-        (version != 1 && version != 2 && version != 3 && version != 4) ||
+    if (tables.length !=
+            ((version == 3 || version == 4 || version == 5) ? 3 : 2) ||
+        (version != 1 &&
+            version != 2 &&
+            version != 3 &&
+            version != 4 &&
+            version != 5) ||
         db
                 .select('PRAGMA table_info(entity_form)')
                 .map((row) => row['name'])
@@ -149,14 +160,16 @@ final class EntityFormRecoveryStore {
             (version == 1
                 ? 'instance,profile,universe,continuity,context,ordinal,world'
                 : 'instance,profile,universe,continuity,context,editor_key,ordinal,world') ||
-        ((version == 3 || version == 4) &&
+        ((version == 3 || version == 4 || version == 5) &&
             db
                     .select('PRAGMA table_info(entity_form_association)')
                     .map((r) => r['name'])
                     .join(',') !=
                 (version == 3
                     ? 'instance,profile,universe,continuity,context,editor_key,ordinal,world,role,original_ordinal'
-                    : 'instance,profile,universe,continuity,context,editor_key,ordinal,world,role,original_ordinal,validity'))) {
+                    : version == 4
+                    ? 'instance,profile,universe,continuity,context,editor_key,ordinal,world,role,original_ordinal,validity'
+                    : 'instance,profile,universe,continuity,context,editor_key,ordinal,world,role,original_ordinal,validity,temporal_input'))) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );
@@ -212,6 +225,13 @@ final class EntityFormRecoveryStore {
                       world: r['world'] as String,
                       role: r['role'] as String,
                       originalOrdinal: r['original_ordinal'] as int?,
+                      temporalValidity: r['temporal_input'] == null
+                          ? null
+                          : TemporalValidityInput.fromWire(
+                              CanonicalValue.parseWireJson(
+                                r['temporal_input'] as String,
+                              ),
+                            ),
                       validity: r['validity'] == null
                           ? null
                           : Validity.fromWire(
@@ -267,6 +287,22 @@ final class EntityFormRecoveryStore {
       for (final a in form.associations ?? <EntityAssociationForm>[]) ...[
         a.world,
         a.role,
+        if (a.temporalValidity != null) ...[
+          a.temporalValidity!.kind,
+          a.temporalValidity!.calendar,
+          for (final b in [
+            a.temporalValidity!.start,
+            a.temporalValidity!.end,
+          ]) ...[
+            b.kind,
+            b.value,
+            b.upper,
+            b.uncertaintyKind,
+            b.uncertainty,
+            b.denominator,
+            b.unit,
+          ],
+        ],
       ],
     ]) {
       if (decodeExactUtf8(utf8.encode(text)) != text) {
@@ -322,7 +358,7 @@ final class EntityFormRecoveryStore {
       for (var i = 0; i < associations.length; i++) {
         final a = associations[i];
         _db.execute(
-          'INSERT INTO entity_form_association VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+          'INSERT INTO entity_form_association VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
           [
             ...binding,
             i,
@@ -330,6 +366,7 @@ final class EntityFormRecoveryStore {
             a.role,
             a.originalOrdinal,
             a.validity?.toWire().toText(),
+            a.temporalValidity?.toWire().toText(),
           ],
         );
       }

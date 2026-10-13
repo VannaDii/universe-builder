@@ -231,15 +231,122 @@ final class EntityAssociationForm {
     required this.role,
     this.originalOrdinal,
     this.validity,
+    this.temporalValidity,
   });
   final Validity? validity;
+  final TemporalValidityInput? temporalValidity;
   final String world, role;
   final int? originalOrdinal;
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('world', CanonicalString(world)),
     MapEntry('role', CanonicalString(role)),
     if (validity != null) MapEntry('validity', validity!.toWire()),
+    if (temporalValidity != null)
+      MapEntry('temporal_validity', temporalValidity!.toWire()),
     if (originalOrdinal != null)
       MapEntry('original_ordinal', CanonicalString(originalOrdinal.toString())),
   ]);
+}
+
+/// Unfinished temporal fields retain entered text, including incomplete bounds.
+final class TemporalValidityInput {
+  const TemporalValidityInput({
+    this.kind = 'interval',
+    this.calendar = '',
+    this.start = const TemporalBoundInput(),
+    this.end = const TemporalBoundInput(),
+  });
+  final String kind, calendar;
+  final TemporalBoundInput start, end;
+  TemporalValidityInput copyWith({
+    String? kind,
+    String? calendar,
+    TemporalBoundInput? start,
+    TemporalBoundInput? end,
+  }) => TemporalValidityInput(
+    kind: kind ?? this.kind,
+    calendar: calendar ?? this.calendar,
+    start: start ?? this.start,
+    end: end ?? this.end,
+  );
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('kind', CanonicalString(kind)),
+    MapEntry('calendar', CanonicalString(calendar)),
+    MapEntry('start', start.toWire()),
+    MapEntry('end', end.toWire()),
+  ]);
+  factory TemporalValidityInput.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {'kind', 'calendar', 'start', 'end'});
+    return TemporalValidityInput(
+      kind: f.string('kind'),
+      calendar: f.string('calendar'),
+      start: TemporalBoundInput.fromWire(f.require('start')),
+      end: TemporalBoundInput.fromWire(f.require('end')),
+    );
+  }
+}
+
+final class TemporalBoundInput {
+  const TemporalBoundInput({
+    this.kind = 'exact',
+    this.value = '',
+    this.upper = '',
+    this.uncertaintyKind = 'decimal',
+    this.uncertainty = '',
+    this.denominator = '1',
+    this.unit = '',
+  });
+  final String kind,
+      value,
+      upper,
+      uncertaintyKind,
+      uncertainty,
+      denominator,
+      unit;
+  TemporalBoundInput copyWith({
+    String? kind,
+    String? value,
+    String? upper,
+    String? uncertaintyKind,
+    String? uncertainty,
+    String? denominator,
+    String? unit,
+  }) => TemporalBoundInput(
+    kind: kind ?? this.kind,
+    value: value ?? this.value,
+    upper: upper ?? this.upper,
+    uncertaintyKind: uncertaintyKind ?? this.uncertaintyKind,
+    uncertainty: uncertainty ?? this.uncertainty,
+    denominator: denominator ?? this.denominator,
+    unit: unit ?? this.unit,
+  );
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('kind', CanonicalString(kind)),
+    MapEntry('value', CanonicalString(value)),
+    MapEntry('upper', CanonicalString(upper)),
+    MapEntry('uncertainty_kind', CanonicalString(uncertaintyKind)),
+    MapEntry('uncertainty', CanonicalString(uncertainty)),
+    MapEntry('denominator', CanonicalString(denominator)),
+    MapEntry('unit', CanonicalString(unit)),
+  ]);
+  factory TemporalBoundInput.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {
+      'kind',
+      'value',
+      'upper',
+      'uncertainty_kind',
+      'uncertainty',
+      'denominator',
+      'unit',
+    });
+    return TemporalBoundInput(
+      kind: f.string('kind'),
+      value: f.string('value'),
+      upper: f.string('upper'),
+      uncertaintyKind: f.string('uncertainty_kind'),
+      uncertainty: f.string('uncertainty'),
+      denominator: f.string('denominator'),
+      unit: f.string('unit'),
+    );
+  }
 }

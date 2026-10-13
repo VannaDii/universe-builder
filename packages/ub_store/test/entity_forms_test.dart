@@ -87,6 +87,10 @@ void main() {
             world: '',
             role: 'Unfinished',
             validity: UnknownValidity(),
+            temporalValidity: TemporalValidityInput(
+              calendar: 'unfinished',
+              start: TemporalBoundInput(value: 'unknown text'),
+            ),
             originalOrdinal: 1,
           ),
           const EntityAssociationForm(world: '', role: ''),
@@ -104,17 +108,38 @@ void main() {
         store.close();
         final legacy = sqlite3.open(path);
         legacy.execute(
-          'ALTER TABLE entity_form_association DROP COLUMN validity; PRAGMA user_version=3',
+          'ALTER TABLE entity_form_association DROP COLUMN validity; ALTER TABLE entity_form_association DROP COLUMN temporal_input; PRAGMA user_version=3',
         );
         legacy.close();
         store = EntityFormRecoveryStore.open(path);
         final upgraded = store.load(scope)!;
+        expect(upgraded.form.associations!.first.temporalValidity, isNull);
         expect(upgraded.generation, BigInt.from(10));
         expect(upgraded.form.associations!.first.world, '');
         expect(upgraded.form.associations!.first.role, 'Unfinished');
         expect(upgraded.form.associations!.first.originalOrdinal, 1);
         expect(upgraded.form.associations!.first.validity, isNull);
         store.save(scope, pending, upgraded.generation);
+        store.close();
+        store = EntityFormRecoveryStore.open(path);
+        expect(
+          store.load(scope)!.form.toWire().toText(),
+          pending.toWire().toText(),
+        );
+        store.close();
+        final v4 = sqlite3.open(path);
+        v4.execute(
+          'ALTER TABLE entity_form_association DROP COLUMN temporal_input; PRAGMA user_version=4',
+        );
+        v4.close();
+        store = EntityFormRecoveryStore.open(path);
+        final priorValidity = store.load(scope)!;
+        expect(
+          priorValidity.form.associations!.first.validity,
+          const UnknownValidity(),
+        );
+        expect(priorValidity.form.associations!.first.temporalValidity, isNull);
+        store.save(scope, pending, priorValidity.generation);
         store.close();
         store = EntityFormRecoveryStore.open(path);
         expect(
@@ -304,7 +329,7 @@ void main() {
       final store = EntityFormRecoveryStore.open(path);
       store.close();
       final db = sqlite3.open(path);
-      db.execute('PRAGMA user_version=5');
+      db.execute('PRAGMA user_version=6');
       db.close();
       final before = File(path).readAsBytesSync();
       try {

@@ -6,6 +6,8 @@ import 'package:ub_domain/ub_domain.dart';
 
 import 'connection.dart';
 import 'entity_draft.dart';
+import 'temporal_validity_draft.dart';
+import 'temporal_validity_fields.dart';
 import 'record_browser.dart';
 import 'record_fields.dart';
 import 'world_browser.dart';
@@ -130,6 +132,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
               role: a.role.text,
               originalOrdinal: a.originalOrdinal,
               validity: a.validity,
+              temporalValidity: a.temporalValidity,
             ),
           ),
   );
@@ -468,8 +471,14 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
             ),
             _field(fields.role, 'Association role'),
             DropdownButtonFormField<String>(
-              key: ValueKey((fields, fields.validity)),
-              initialValue: fields.validity == null
+              key: ValueKey((
+                fields,
+                fields.validity,
+                fields.temporalValidity != null,
+              )),
+              initialValue: fields.temporalValidity != null
+                  ? 'temporal'
+                  : fields.validity == null
                   ? 'retain'
                   : switch (fields.validity!) {
                       UnspecifiedValidity() => 'unspecified',
@@ -491,6 +500,10 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                 ),
                 DropdownMenuItem(value: 'unknown', child: Text('Unknown')),
                 DropdownMenuItem(
+                  value: 'temporal',
+                  child: Text('Temporal validity'),
+                ),
+                DropdownMenuItem(
                   value: 'conditional',
                   child: Text('Condition dependent'),
                 ),
@@ -498,17 +511,32 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
               onChanged: _disabled
                   ? null
                   : (value) {
-                      setState(
-                        () => fields.validity = switch (value) {
+                      setState(() {
+                        fields.temporalValidity = value == 'temporal'
+                            ? temporalValidityInput(
+                                fields.validity ?? original?.validity,
+                              )
+                            : null;
+                        fields.validity = switch (value) {
                           'unspecified' => const UnspecifiedValidity(),
                           'unknown' => const UnknownValidity(),
                           'conditional' => const ConditionalValidity(),
                           _ => null,
-                        },
-                      );
+                        };
+                      });
                       _changed();
                     },
             ),
+            if (fields.temporalValidity != null)
+              TemporalValidityFields(
+                key: ValueKey(('temporal', fields)),
+                input: fields.temporalValidity!,
+                disabled: _disabled,
+                onChanged: (input) {
+                  setState(() => fields.temporalValidity = input);
+                  _changed();
+                },
+              ),
             if (original != null) ...[
               const Text('Original validity and retained qualifiers'),
               ExactFields(
@@ -769,9 +797,11 @@ final class _AssociationFields {
     : world = form.world,
       originalOrdinal = form.originalOrdinal,
       role = TextEditingController(text: form.role),
-      validity = form.validity;
+      validity = form.validity,
+      temporalValidity = form.temporalValidity;
   String world;
   Validity? validity;
+  TemporalValidityInput? temporalValidity;
   final int? originalOrdinal;
   final TextEditingController role;
 }

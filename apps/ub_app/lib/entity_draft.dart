@@ -1,6 +1,8 @@
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
+import 'temporal_validity_draft.dart';
+
 SaveDraftEngineRequest entityDraftRequest({
   required Selector universe,
   required ContinuityId continuity,
@@ -155,10 +157,14 @@ DraftContent replaceDraftEntity({
             return WorldAssociation(
               world: world,
               role: a.role,
-              validity:
-                  a.validity ??
-                  original?.validity ??
-                  const UnspecifiedValidity(),
+              validity: a.temporalValidity != null
+                  ? buildTemporalValidity(
+                      a.temporalValidity!,
+                      original?.validity,
+                    )
+                  : a.validity ??
+                        original?.validity ??
+                        const UnspecifiedValidity(),
               qualifiers: original?.qualifiers ?? {},
             );
           }),

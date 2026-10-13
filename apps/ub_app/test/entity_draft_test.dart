@@ -8,6 +8,7 @@ import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/entity_draft.dart';
 import 'package:ub_app/saved_changes.dart';
+import 'package:ub_app/temporal_validity_draft.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_engine.dart';
@@ -15,6 +16,70 @@ import 'package:ub_service/local_profiles.dart';
 import 'package:ub_store/installation.dart';
 
 void main() {
+  test(
+    'temporal validity retains exact calendar notation and uncertain bounds',
+    () {
+      final calendar = CalendarId.generate();
+      final originals = <Validity>[
+        InstantValidity(ExactTime(calendar, 'Day 42.0000000000000000001')),
+        const IntervalValidity(UnknownBound(), UnboundedBound()),
+        const IntervalValidity(
+          UncertainBound('Day 1', 'Day 3'),
+          ExactBound('Day 10'),
+        ),
+        CalendarIntervalValidity(
+          calendar,
+          const ExactBound('001.00'),
+          const UnboundedBound(),
+        ),
+        const PersistentValidity(
+          ApproximateBound('Day 3', RationalValue('001', '03')),
+        ),
+      ];
+      for (final original in originals) {
+        final input = temporalValidityInput(original);
+        final recovered = TemporalValidityInput.fromWire(input.toWire());
+        expect(buildTemporalValidity(recovered, original), original);
+      }
+      final unit = UnitId.generate();
+      final original = PersistentValidity(
+        ApproximateBound(
+          'Day 4',
+          QuantityValue(const DecimalValue('0.00001'), unit),
+        ),
+      );
+      expect(
+        buildTemporalValidity(temporalValidityInput(original), original),
+        original,
+      );
+      final opaque = const PersistentValidity(
+        ApproximateBound('Day 5', TextValue('about a week')),
+      );
+      expect(
+        buildTemporalValidity(temporalValidityInput(opaque), opaque),
+        opaque,
+      );
+      expect(
+        () => buildTemporalValidity(const TemporalValidityInput(), null),
+        throwsFormatException,
+      );
+      expect(
+        () => buildTemporalValidity(
+          const TemporalValidityInput(
+            start: TemporalBoundInput(
+              kind: 'approximate',
+              value: 'Day 3',
+              uncertaintyKind: 'rational',
+              uncertainty: '1',
+              denominator: '0',
+            ),
+          ),
+          null,
+        ),
+        throwsFormatException,
+      );
+    },
+  );
   test('a name alone is enough; world associations need an explicit role', () {
     final base = RevisionId.generate(), context = RecordId.generate();
     final worlds = [WorldId.generate(), WorldId.generate()];
@@ -493,7 +558,10 @@ void main() {
               EntityAssociationForm(
                 world: world.value,
                 role: 'home',
-                validity: const UnknownValidity(),
+                temporalValidity: const TemporalValidityInput(
+                  start: TemporalBoundInput(value: '2040-01-01'),
+                  end: TemporalBoundInput(kind: 'unbounded'),
+                ),
               ),
             ],
           ),
@@ -530,7 +598,7 @@ void main() {
       expect(published.worldAssociations.single.role, 'home');
       expect(
         published.worldAssociations.single.validity,
-        isA<UnknownValidity>(),
+        const IntervalValidity(ExactBound('2040-01-01'), UnboundedBound()),
       );
     } finally {
       try {

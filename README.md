@@ -72,7 +72,12 @@ be added, changed or explicitly removed. Editing an existing world or role
 retains that row’s exact validity and qualifiers. A new
 row defaults to unspecified validity and no qualifiers. Validity can be explicitly
 set to unspecified, unknown or condition dependent, or the current exact value
-can be retained. Temporal validity fields and qualifier editing remain unfinished. Review, approval and publication remain separate steps.
+can be retained. Temporal validity supports exact instants, intervals, calendar
+intervals and persistence until changed. Bounds can be exact, unknown, unbounded,
+approximate or uncertain; numeric uncertainty retains integer, decimal, rational
+and optional unit values exactly. Calendar and unit references currently use IDs.
+Other instant expressions, nonnumeric uncertainty and qualifier editing still
+need controls; their existing exact values can be retained. Review, approval and publication remain separate steps.
 **Type definition** opens a recoverable typed form for namespace, key, display
 name, parent, applicability, executable classification and rationale. Parent,
 applicability and classification require explicit choices. Unspecified and
