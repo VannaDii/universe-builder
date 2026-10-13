@@ -6,10 +6,21 @@ final class AppSession {
     required this.call,
     required this.close,
     required this.author,
+    required this.principal,
+    required this.loadWorldForm,
+    required this.saveWorldForm,
   });
   final Future<CanonicalValue> Function(EngineRequest) call;
   final Future<void> Function() close;
   final bool author;
+  final ProfileId principal;
+  final Future<SavedWorldForm?> Function(EditorFormScope) loadWorldForm;
+  final Future<SavedWorldForm> Function(
+    EditorFormScope,
+    UnfinishedWorldForm,
+    BigInt,
+  )
+  saveWorldForm;
 }
 
 final class LibraryEntry {

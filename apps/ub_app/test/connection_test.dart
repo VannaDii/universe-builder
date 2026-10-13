@@ -81,6 +81,57 @@ void main() {
           Description.fromWire,
         );
         expect(description.result.continuities, isNotEmpty);
+        final continuity = description.result.continuities.single;
+        final scope = EditorFormScope(
+          instance: catalog.instance,
+          profile: owner.principal,
+          universe: catalog.universes.single.id,
+          continuity: continuity.id,
+        );
+        final unfinished = UnfinishedWorldForm(
+          baseRevision: continuity.revisionId,
+          representedContext: continuity.representedContexts.single.id,
+          record: RecordId.generate(),
+          selector: '',
+          settingType: 'Still deciding',
+          rationale: 'Source notes 😀\r\n',
+        );
+        final saved = await owner.saveWorldForm(scope, unfinished, BigInt.zero);
+        expect(saved.generation, BigInt.one);
+        await owner.close();
+        owner = await connection(author).connect();
+        final recovered = await owner.loadWorldForm(scope);
+        expect(recovered!.form.toWire().toText(), unfinished.toWire().toText());
+        expect(
+          (await owner.saveWorldForm(
+            scope,
+            unfinished,
+            BigInt.zero,
+          )).generation,
+          BigInt.one,
+        );
+        await owner.close();
+        expect(
+          (await owner.saveWorldForm(scope, unfinished, BigInt.one)).generation,
+          BigInt.two,
+        );
+        owner = await connection(author).connect();
+        expect((await owner.loadWorldForm(scope))!.generation, BigInt.two);
+        final afterRecovery = Envelope<Description>.fromWire(
+          await owner.call(
+            ToolEngineRequest(
+              request: DescribeSummaryRequest(
+                universe: Selector('A shared history'),
+              ),
+            ),
+          ),
+          Description.fromWire,
+        );
+        expect(afterRecovery.result.worlds, isEmpty);
+        expect(
+          afterRecovery.result.continuities.single.revisionId,
+          continuity.revisionId,
+        );
         final fictional = createdUniverse(
           await owner.call(
             const UniverseCreationForm(
@@ -101,6 +152,32 @@ void main() {
         );
         contributor = await connection(writer).connect();
         expect(contributor.author, isFalse);
+        await expectLater(
+          contributor.loadWorldForm(scope),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        await expectLater(
+          contributor.loadWorldForm(
+            EditorFormScope(
+              instance: scope.instance,
+              profile: contributor.principal,
+              universe: scope.universe,
+              continuity: scope.continuity,
+            ),
+          ),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
+        await expectLater(
+          owner.loadWorldForm(
+            EditorFormScope(
+              instance: OperationId.generate(),
+              profile: scope.profile,
+              universe: scope.universe,
+              continuity: scope.continuity,
+            ),
+          ),
+          throwsA(isA<NotFoundOrNotAccessibleError>()),
+        );
         await expectLater(
           contributor.call(
             const UniverseCreationForm(

@@ -4,6 +4,7 @@ import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'connection.dart';
 import 'create_universe_page.dart';
 import 'universe_creation.dart';
+import 'world_editor_page.dart';
 import 'connection_stub.dart' if (dart.library.io) 'connection_native.dart';
 
 void main(List<String> arguments) =>
@@ -198,7 +199,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
               ? _entry()
               : _selected == null
               ? _universes(context)
-              : _overview();
+              : _overview(context);
           return Scaffold(
             appBar: AppBar(
               title: Row(
@@ -364,7 +365,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
     ],
   );
 
-  Widget _overview() => ListView(
+  Widget _overview(BuildContext context) => ListView(
     padding: const EdgeInsets.all(32),
     children: [
       Align(
@@ -396,6 +397,28 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
             subtitle: Text(
               '${continuity.representedContexts.length} represented contexts',
             ),
+            trailing:
+                _session!.author && continuity.representedContexts.length == 1
+                ? TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => WorldEditorPage(
+                                session: _session!,
+                                continuity: continuity,
+                                scope: EditorFormScope(
+                                  instance: _library!.instance,
+                                  profile: _session!.principal,
+                                  universe: _selected!.id,
+                                  continuity: continuity.id,
+                                ),
+                              ),
+                            ),
+                          ),
+                    child: const Text('World draft'),
+                  )
+                : null,
           ),
         const SizedBox(height: 24),
         const Text(

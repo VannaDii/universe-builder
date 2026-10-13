@@ -41,6 +41,21 @@ interrupted response requires an explicit library check rather than resubmitting
 creation automatically. Unfinished creation fields are not yet recovered after
 app termination; typed durable form recovery remains in progress.
 
+In a continuity with one represented context, **World draft** opens the first
+unfinished record editor. World name, English display label, setting type and
+rationale autosave on this device, including blank or incomplete input. Ordered
+aliases, multilingual labels, the intended record ID, original revision and
+represented context are retained in typed rows. Pending input can still save
+after the service connection closes; opening saved work checks current service
+access and the exact instance/profile/universe/continuity binding. Concurrent
+windows use expected generations, and conflicting saves retain the current text.
+**Saved on this device** means the local transaction completed. Fields changed
+just before termination may still be pending. This recovery file lives under
+`client-recovery/world-forms.sqlite` and is separate from canon and proposal
+operations. The editor does not yet add a completed world operation to a proposal;
+other record forms, creation-form recovery and multi-context selection remain
+in progress. Existing owner-only service draft commands remain unchanged.
+
 The approved [conversion plan](docs/dart-conversion-plan.md) is being implemented
 alongside the current runtime. The Dart workspace currently contains the shared
 canonical encoding, digests, typed identities, values, temporal/spatial expressions

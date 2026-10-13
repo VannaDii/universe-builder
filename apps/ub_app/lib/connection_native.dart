@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:ub_client/local_engine.dart';
 import 'package:ub_client/loopback_engine.dart';
+import 'package:ub_client/editor_recovery.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 import 'connection.dart';
@@ -56,10 +57,14 @@ final class DeviceConnection {
       clientName: 'universe-builder-app',
       compatibilitySocket: false,
     );
+    final recovery = LocalWorldFormRecovery(root: root!, client: client);
     return AppSession(
       call: client.call,
       close: client.close,
       author: client.welcome.author,
+      principal: client.welcome.principal,
+      loadWorldForm: recovery.load,
+      saveWorldForm: recovery.save,
     );
   }
 }
