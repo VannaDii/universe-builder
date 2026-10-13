@@ -17,6 +17,8 @@ final class AppSession {
     required this.saveUnitForm,
     required this.loadValueDefinitionForm,
     required this.saveValueDefinitionForm,
+    required this.loadCalendarForm,
+    required this.saveCalendarForm,
     required this.loadEntityForm,
     required this.saveEntityForm,
     required this.loadAttributeForm,
@@ -62,6 +64,13 @@ final class AppSession {
     BigInt,
   )
   saveValueDefinitionForm;
+  final Future<SavedCalendarForm?> Function(EditorFormScope) loadCalendarForm;
+  final Future<SavedCalendarForm> Function(
+    EditorFormScope,
+    UnfinishedCalendarForm,
+    BigInt,
+  )
+  saveCalendarForm;
   final Future<SavedEntityForm?> Function(EditorFormScope) loadEntityForm;
   final Future<SavedEntityForm> Function(
     EditorFormScope,

@@ -181,6 +181,10 @@ final class DeviceConnection {
       root: root!,
       client: client,
     );
+    final calendarRecovery = LocalCalendarFormRecovery(
+      root: root!,
+      client: client,
+    );
     final entityRecovery = LocalEntityFormRecovery(root: root!, client: client);
     final attributeRecovery = LocalAttributeFormRecovery(
       root: root!,
@@ -201,6 +205,8 @@ final class DeviceConnection {
       saveUnitForm: unitRecovery.save,
       loadValueDefinitionForm: valueDefinitionRecovery.load,
       saveValueDefinitionForm: valueDefinitionRecovery.save,
+      loadCalendarForm: calendarRecovery.load,
+      saveCalendarForm: calendarRecovery.save,
       loadEntityForm: entityRecovery.load,
       saveEntityForm: entityRecovery.save,
       loadAttributeForm: attributeRecovery.load,

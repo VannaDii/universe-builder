@@ -322,3 +322,42 @@ final class LocalValueDefinitionFormRecovery {
     });
   }
 }
+
+final class LocalCalendarFormRecovery {
+  LocalCalendarFormRecovery({required String root, required this.client})
+    : _path = '$root/client-recovery/calendar-forms.sqlite';
+  final String _path;
+  final LoopbackEngineClient client;
+
+  Future<SavedCalendarForm?> load(EditorFormScope scope) async {
+    await _checkEditorScope(client, scope);
+    final path = _path;
+    return Isolate.run(() {
+      final store = CalendarFormRecoveryStore.open(path);
+      try {
+        return store.load(scope);
+      } finally {
+        store.close();
+      }
+    });
+  }
+
+  Future<SavedCalendarForm> save(
+    EditorFormScope scope,
+    UnfinishedCalendarForm form,
+    BigInt expectedGeneration,
+  ) async {
+    if (scope.profile != client.welcome.principal) {
+      throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
+    }
+    final path = _path;
+    return Isolate.run(() {
+      final store = CalendarFormRecoveryStore.open(path);
+      try {
+        return store.save(scope, form, expectedGeneration);
+      } finally {
+        store.close();
+      }
+    });
+  }
+}

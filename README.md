@@ -141,6 +141,15 @@ retain the exact existing basis, including
 provenance owned by an event, evaluator or initialization workflow. Pending source
 references recover before they are complete. A content-match flag does not establish
 truth or entailment; the existing source validation and approval flow still apply.
+**Calendar definition** opens recoverable namespace, key, multilingual labels,
+optional epoch, unit-structure entries and ordered conversion declarations.
+Target calendars use named choices at the form’s revision. Epoch and conversion
+expression controls retain the difference between omitted and empty values;
+conversion flags remain explicit author declarations. **Edit calendar fields**
+preserves the definition reference, other Changes and rationale. Defining a
+calendar leaves the represented story clock unchanged and does not infer
+arithmetic or synchronization between calendars. Publication uses the normal
+validation and exact approval flow.
 **Value definition** opens recoverable namespace, key, display labels and ordered
 field rows. Each field has a nested value shape and explicit required/unknown
 flags. Fields can be added, removed and reordered; incomplete rows recover on
