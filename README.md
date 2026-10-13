@@ -162,6 +162,12 @@ preserves the definition reference, other Changes and rationale. Defining a
 calendar leaves the represented story clock unchanged and does not infer
 arithmetic or synchronization between calendars. Publication uses the normal
 validation and exact approval flow.
+**Relation definition** opens recoverable namespace, key, display labels and
+ordered role rows. Each role declares participant types through named choices,
+single/multiple multiplicity and explicit ordering. Roles and participant types
+can be added, removed and reordered. **Edit relation fields** preserves exact
+references, other Changes and rationale. Incomplete input stays on the device;
+publication uses the existing service validation and approval flow.
 **Value definition** opens recoverable namespace, key, display labels and ordered
 field rows. Each field has a nested value shape and explicit required/unknown
 flags. Fields can be added, removed and reordered; incomplete rows recover on

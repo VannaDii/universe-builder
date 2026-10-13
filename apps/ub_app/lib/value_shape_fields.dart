@@ -11,19 +11,21 @@ class SubjectTypeFields extends StatelessWidget {
     required this.changes,
     required this.draft,
     required this.values,
+    this.label = 'Subject type',
     required this.disabled,
     required this.onChanged,
   });
   final SavedChanges changes;
   final SavedDraft draft;
   final List<String> values;
+  final String label;
   final bool disabled;
   final ValueChanged<List<String>> onChanged;
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      const Text('Subject types (empty means no type restriction)'),
+      Text('${label}s (empty means no type restriction)'),
       for (var i = 0; i < values.length; i++)
         Column(
           children: [
@@ -31,7 +33,7 @@ class SubjectTypeFields extends StatelessWidget {
               changes: changes,
               draft: draft,
               kind: RecordKind.entityType,
-              label: 'Subject type ${i + 1}',
+              label: '$label ${i + 1}',
               record: values[i],
               universe: changes.scope.universe.value,
               disabled: disabled,
@@ -69,7 +71,7 @@ class SubjectTypeFields extends StatelessWidget {
         ),
       TextButton(
         onPressed: disabled ? null : () => onChanged([...values, '']),
-        child: const Text('Add subject type'),
+        child: Text('Add ${label.toLowerCase()}'),
       ),
     ],
   );

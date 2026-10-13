@@ -13,6 +13,7 @@ import 'type_editor_page.dart';
 import 'property_editor_page.dart';
 import 'unit_editor_page.dart';
 import 'value_definition_editor_page.dart';
+import 'relation_editor_page.dart';
 import 'calendar_editor_page.dart';
 import 'entity_editor_page.dart';
 import 'changes_page.dart';
@@ -794,6 +795,37 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                                       }
                                     }),
                           child: const Text('Value definition'),
+                        ),
+                      if (_contexts.containsKey(continuity.id))
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context)
+                                    .push<void>(
+                                      MaterialPageRoute(
+                                        builder: (_) => RelationEditorPage(
+                                          revision: continuity.revisionId,
+                                          changes: SavedChanges(
+                                            session: _session!,
+                                            universe: Selector(_selected!.name),
+                                            scope: EditorFormScope(
+                                              instance: _library!.instance,
+                                              profile: _session!.principal,
+                                              universe: _selected!.id,
+                                              continuity: continuity.id,
+                                              representedContext:
+                                                  _contexts[continuity.id],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                    .then((_) {
+                                      if (mounted && _selected != null) {
+                                        _open(_selected!);
+                                      }
+                                    }),
+                          child: const Text('Relation definition'),
                         ),
                       if (_contexts.containsKey(continuity.id))
                         TextButton(

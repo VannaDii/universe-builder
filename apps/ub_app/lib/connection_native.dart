@@ -181,6 +181,10 @@ final class DeviceConnection {
       root: root!,
       client: client,
     );
+    final relationRecovery = LocalRelationFormRecovery(
+      root: root!,
+      client: client,
+    );
     final calendarRecovery = LocalCalendarFormRecovery(
       root: root!,
       client: client,
@@ -217,6 +221,9 @@ final class DeviceConnection {
       loadValueDefinitionForm: (scope) =>
           sequenced(() => valueDefinitionRecovery.load(scope)),
       saveValueDefinitionForm: valueDefinitionRecovery.save,
+      loadRelationForm: (scope) =>
+          sequenced(() => relationRecovery.load(scope)),
+      saveRelationForm: relationRecovery.save,
       loadCalendarForm: (scope) =>
           sequenced(() => calendarRecovery.load(scope)),
       saveCalendarForm: calendarRecovery.save,
