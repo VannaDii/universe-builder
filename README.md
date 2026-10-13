@@ -767,7 +767,7 @@ session or a public hosted endpoint.
 
 Coordinated backend cutover and hosted server backup operation remain pending.
 Socket/launcher integration, cross-process worker qualification and
-backend parity checks are pending. Coordinated transfer and live
+backend parity checks are pending. Coordinated transfer and hosted
 verified-TLS checks also remain pending. The Dart engine can now select
 PostgreSQL for local HTTP service startup and explicit installation/device setup.
 This does not complete backend parity, hosted operation or platform delivery.
@@ -784,6 +784,15 @@ engine cases are in `test/postgres_open_test.dart`, `test/postgres_validation_te
 and `test/postgres_runtime_test.dart` under `packages/ub_service` with
 the same disposable database selection. These checks use
 local fixture setup privileges and cleans its generated schemas and role.
+The compiled PostgreSQL engine launcher regression in
+`apps/ub_engine/test/postgres_engine_cli_test.dart` also uses this disposable
+database selection. For a TLS-enabled test server, set
+`UB_TEST_POSTGRES_TLS_ROOT_CERT` to its trusted CA certificate file. That path
+uses verified TLS without the development override, rejects an untrusted server,
+and checks that the running engine's database connections use TLS. Without this
+variable, the regression exercises the explicit loopback development override.
+The test administrator connection still uses local non-TLS access for disposable
+database setup and cleanup; retain that access on the test server.
 Full-schema operations need enough server object-lock capacity: on the disposable
 PostgreSQL 16.15 server with 100 connections, the default
 `max_locks_per_transaction=64` exhausted shared locks during schema removal;

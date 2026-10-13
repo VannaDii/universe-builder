@@ -17,6 +17,8 @@ void main() {
   final port = int.tryParse(
     Platform.environment['UB_TEST_POSTGRES_PORT'] ?? '',
   );
+  final rootCertificate =
+      Platform.environment['UB_TEST_POSTGRES_TLS_ROOT_CERT'];
   test(
     'compiled PostgreSQL launcher initializes, reconnects and shuts down without SQLite fallback',
     () async {
@@ -58,16 +60,18 @@ void main() {
         );
         final binary = '${root.path}/compiled/bundle/bin/universe-engine';
         final installation = '${root.path}/installation';
+        final endpoint = 'postgresql://postgres@127.0.0.1:$port/$database';
         final env = {
           'PATH': '',
           'UB_USE_POSTGRES': 'true',
-          'UB_POSTGRES_ENDPOINT':
-              'postgresql://postgres@127.0.0.1:$port/$database?sslmode=disable',
+          'UB_POSTGRES_ENDPOINT': rootCertificate == null
+              ? '$endpoint?sslmode=disable'
+              : '$endpoint?sslmode=verify-full&sslrootcert=${Uri.encodeQueryComponent(rootCertificate)}',
         };
         final options = [
           '--installation',
           installation,
-          '--allow-loopback-postgres-development',
+          if (rootCertificate == null) '--allow-loopback-postgres-development',
         ];
         Future<ProcessResult> run(List<String> arguments) => Process.run(
           binary,
@@ -80,11 +84,32 @@ void main() {
         expect(Directory(installation).existsSync(), isFalse);
         // Unverified TLS remains opt-in, even for a local database.
         expect(
-          (await run(['--installation', installation, '--initialize']))
-              .exitCode,
+          (await Process.run(
+            binary,
+            ['--installation', installation, '--initialize'],
+            workingDirectory: root.path,
+            environment: {
+              ...env,
+              'UB_POSTGRES_ENDPOINT': '$endpoint?sslmode=disable',
+            },
+          )).exitCode,
           1,
         );
         expect(Directory(installation).existsSync(), isFalse);
+        if (rootCertificate != null) {
+          final untrusted = await Process.run(
+            binary,
+            [...options, '--initialize'],
+            workingDirectory: root.path,
+            environment: {
+              ...env,
+              'UB_POSTGRES_ENDPOINT': '$endpoint?sslmode=verify-full',
+            },
+          );
+          expect(untrusted.exitCode, 1);
+          expect(untrusted.stdout, isEmpty);
+          expect(Directory(installation).existsSync(), isFalse);
+        }
         final initialized = await run([...options, '--initialize']);
         expect(initialized.exitCode, 0);
         expect(initialized.stderr, isEmpty);
@@ -139,6 +164,16 @@ void main() {
               reason: 'PostgreSQL engine did not become available',
             );
             await client!.call(const StatusEngineRequest());
+            if (rootCertificate != null) {
+              final connections = await observer.execute(
+                Sql.named(
+                  'SELECT s.ssl FROM pg_catalog.pg_stat_ssl s JOIN pg_catalog.pg_stat_activity a ON a.pid=s.pid WHERE a.datname=@database',
+                ),
+                parameters: {'database': database},
+              );
+              expect(connections, isNotEmpty);
+              expect(connections.every((row) => row.single == true), isTrue);
+            }
             // Retained authenticated device setup works while the service is active.
             final retained = await run([...options, '--device-profile']);
             expect(retained.exitCode, 0);
