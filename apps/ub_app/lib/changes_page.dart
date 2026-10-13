@@ -405,6 +405,8 @@ class _ChangesPageState extends State<ChangesPage> {
   }
 
   Future<SavedDraft> _editEntity(SavedDraft draft, int index) async {
+    final operation = draft.content.operations[index];
+    final name = operation is AddNameOperation ? operation : null;
     final summary = Envelope<Description>.fromWire(
       await widget.changes.session.call(
         ToolEngineRequest(
@@ -439,10 +441,11 @@ class _ChangesPageState extends State<ChangesPage> {
                 universe: widget.changes.scope.universe,
                 continuity: widget.changes.scope.continuity,
                 representedContext: draft.content.representedContext,
-                entityClientRef:
-                    (draft.content.operations[index]
-                            as IntroduceInstanceOperation)
-                        .clientRef,
+                entityClientRef: name == null
+                    ? (operation as IntroduceInstanceOperation).clientRef
+                    : null,
+                entityNameRecord: name?.record.record,
+                entityNameOperationIndex: name == null ? null : index,
               ),
               editingDraft: draft,
               operationIndex: index,
@@ -716,15 +719,19 @@ class _ChangesPageState extends State<ChangesPage> {
                             ] else
                               ExactFields(value: operations[index].toWire()),
                             if (_proposal == null &&
-                                operations[index] is IntroduceInstanceOperation)
+                                (operations[index]
+                                        is IntroduceInstanceOperation ||
+                                    operations[index] is AddNameOperation))
                               TextButton(
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
                                         (draft) => _editEntity(draft, index),
                                       ),
-                                child: const Text(
-                                  'Edit entity fields',
+                                child: Text(
+                                  operations[index] is AddNameOperation
+                                      ? 'Edit name fields'
+                                      : 'Edit entity fields',
                                 ),
                               ),
                             if (_proposal == null &&

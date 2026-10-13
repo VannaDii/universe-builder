@@ -99,6 +99,9 @@ In **Records**, an author can open a published entity and choose **Add contextua
 name**. This recoverable form adds a name to the same identity through Changes,
 retaining the opened revision and expected entity version. Existing names remain
 intact; review, validation, exact approval and publication use the ordinary flow.
+**Edit name fields** in Changes revises the name and optional details before
+submission. Pending edits recover separately from the new-name form, retaining
+the target record, expected version, other operations and draft rationale.
 **Type definition** opens a recoverable typed form for namespace, key, display
 name, parent, applicability, executable classification and rationale. Parent,
 applicability and classification require explicit choices. Unspecified and

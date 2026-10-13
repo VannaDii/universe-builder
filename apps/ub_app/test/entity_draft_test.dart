@@ -153,21 +153,72 @@ void main() {
           ),
           throwsFormatException,
         );
-        final current = SavedChanges(
+        final editScope = EditorFormScope(
+          instance: instance,
+          profile: author,
+          universe: scope.universe,
+          continuity: scope.continuity,
+          representedContext: scope.representedContext,
+          entityNameRecord: record.identity.recordId,
+          entityNameOperationIndex: 0,
+        );
+        final fields = entityFormFromDraft(saved, 0);
+        final editedForm = UnfinishedEntityForm(
+          baseRevision: fields.baseRevision,
+          representedContext: fields.representedContext,
+          clientRef: fields.clientRef,
+          expectedRecordVersion: fields.expectedRecordVersion,
+          draftVersion: fields.draftVersion,
+          name: '記憶 revised 😀',
+          nameDetails: const EntityNameForm(
+            language: '',
+            community: null,
+            role: 'pseudonym',
+          ),
+          classification: '',
+          worldRole: '',
+          rationale: '',
+        );
+        await session.saveEntityForm(editScope, editedForm, BigInt.zero);
+        await session.close();
+        session = await device.connect();
+        final pending = (await session.loadEntityForm(editScope))!.form;
+        expect(pending.toWire().toText(), editedForm.toWire().toText());
+        expect(
+          (await session.loadEntityForm(nameScope))!.form.toWire().toText(),
+          form.toWire().toText(),
+        );
+        final editing = SavedChanges(
           session: session,
           universe: Selector('Names'),
           scope: scope,
         );
-        final named = await current.submit(saved);
-        final checked = await current.validate(named) as EvaluatedValidation;
-        await current.approve(named, checked);
-        final published = await current.publish(named, checked.execution.runId);
-        final renamed = (await current.readPublished(named, published)).single;
+        final edited = await editing.saveContent(
+          saved,
+          replaceDraftEntity(draft: saved, index: 0, form: pending),
+        );
+        final exact = edited.content.operations.single as AddNameOperation;
+        expect(
+          exact.record,
+          (saved.content.operations.single as AddNameOperation).record,
+        );
+        expect(exact.expectedVersion, record.recordVersionId);
+        expect(exact.name.validity, const UnknownValidity());
+        expect(edited.content.rationale, saved.content.rationale);
+        expect(
+          () => replaceDraftEntity(draft: edited, index: 0, form: pending),
+          throwsFormatException,
+        );
+        final named = await editing.submit(edited);
+        final checked = await editing.validate(named) as EvaluatedValidation;
+        await editing.approve(named, checked);
+        final published = await editing.publish(named, checked.execution.runId);
+        final renamed = (await editing.readPublished(named, published)).single;
         expect(renamed.identity.recordId, record.identity.recordId);
         final entity = renamed.payload as EntityRecord;
-        expect(entity.names.map((n) => n.text), ['Mara', form.name]);
+        expect(entity.names.map((n) => n.text), ['Mara', editedForm.name]);
         expect(entity.names.last.language, '');
-        expect(entity.names.last.community, 'River');
+        expect(entity.names.last.community, isNull);
         expect(entity.names.last.role, 'pseudonym');
         expect(entity.names.last.validity, const UnknownValidity());
       } finally {

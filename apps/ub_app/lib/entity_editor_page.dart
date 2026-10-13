@@ -71,6 +71,20 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
   bool _stale = false;
   late RevisionId _revision;
   bool get _disabled => _loading || _saving || _adding || _base == null;
+  bool get _nameOnly =>
+      widget.publishedEntity != null ||
+      (_editingDraft != null &&
+          _editingDraft!.content.operations[widget.operationIndex!]
+              is AddNameOperation);
+  ContextualName? get _originalName {
+    if (_editingDraft == null) return null;
+    return switch (_editingDraft!.content.operations[widget.operationIndex!]) {
+      IntroduceInstanceOperation(:final name) => name,
+      AddNameOperation(:final name) => name,
+      _ => null,
+    };
+  }
+
   @override
   void initState() {
     super.initState();
@@ -137,7 +151,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     _associations.clear();
     final rows =
         form.associations ??
-        (_editingDraft == null
+        (_editingDraft == null || _nameOnly
             ? <EntityAssociationForm>[]
             : entityFormFromDraft(
                 _editingDraft!,
@@ -213,7 +227,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                   _editingDraft!.content.representedContext);
       _generation = saved?.generation ?? BigInt.zero;
       _dirty = false;
-      if (widget.publishedEntity == null) await _choices();
+      if (!_nameOnly) await _choices();
     } on Object {
       if (mounted) {
         setState(
@@ -345,7 +359,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     });
     try {
       await _save();
-      await _choices();
+      if (!_nameOnly) await _choices();
     } on Object {
       if (mounted) {
         setState(
@@ -389,7 +403,9 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
           _savedDraft = saved;
           _enter(entityFormFromDraft(saved, widget.operationIndex!));
           _dirty = true;
-          _added = 'Entity updated in saved changes. Return to Changes to review it.';
+          _added = _nameOnly
+              ? 'Name updated in saved changes. Return to Changes to review it.'
+              : 'Entity updated in saved changes. Return to Changes to review it.';
         });
         await _save();
         return;
@@ -533,12 +549,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     ],
   );
   Widget _nameDetailsFields() {
-    final original = _editingDraft == null
-        ? null
-        : (_editingDraft!.content.operations[widget.operationIndex!]
-                  as IntroduceInstanceOperation)
-              .name
-              .validity;
+    final original = _originalName?.validity;
     final choice = _nameTemporal != null
         ? 'temporal'
         : switch (_nameValidity) {
@@ -818,6 +829,8 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
               ? 'Add contextual name'
               : widget.editingDraft == null
               ? 'Person, place or other entity'
+              : _nameOnly
+              ? 'Edit name in changes'
               : 'Edit entity in changes',
         ),
       ),
@@ -856,7 +869,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
               _field(_name, 'Name'),
               _nameDetailsFields(),
               const SizedBox(height: 12),
-              if (widget.publishedEntity == null)
+              if (!_nameOnly)
                 DropdownButtonFormField<String>(
                   key: ValueKey(_classification),
                   initialValue: _classification,
@@ -899,16 +912,14 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
               const SizedBox(height: 12),
               if (_editingDraft != null) ...[
                 const Text('Original name details'),
-                const Text(
-                  'Name identity is retained. World and role edits retain validity and qualifiers unless those fields are explicitly changed.',
+                Text(
+                  _nameOnly
+                      ? 'The target identity and expected version are retained. Validity stays unchanged unless you edit it.'
+                      : 'Name identity is retained. World and role edits retain validity and qualifiers unless those fields are explicitly changed.',
                 ),
-                ExactFields(
-                  value:
-                      (_editingDraft!.content.operations[widget.operationIndex!]
-                              as IntroduceInstanceOperation)
-                          .name
-                          .toWire(),
-                ),
+                ExactFields(value: _originalName!.toWire()),
+              ],
+              if (_editingDraft != null && !_nameOnly) ...[
                 const Text('World associations (not location)'),
                 for (var i = 0; i < _associations.length; i++)
                   _associationRow(i),
@@ -933,7 +944,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                         },
                   child: const Text('Add world association'),
                 ),
-              ] else if (widget.publishedEntity == null) ...[
+              ] else if (!_nameOnly) ...[
                 const Text('World associations'),
                 const Text(
                   'Selecting several worlds preserves one shared identity. No selection declares no association. Associations do not establish location.',
@@ -1004,6 +1015,8 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                       ? 'Add name to changes'
                       : widget.editingDraft == null
                       ? 'Add entity to changes'
+                      : _nameOnly
+                      ? 'Save name changes'
                       : 'Save entity changes',
                 ),
               ),

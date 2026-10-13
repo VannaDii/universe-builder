@@ -211,7 +211,10 @@ final class EntityFormRecoveryStore {
         scope.worldRecord != null ||
         scope.typeClientRef != null ||
         scope.entityClientRef == '' ||
-        (scope.entityClientRef != null && scope.entityNameRecord != null)) {
+        (scope.entityClientRef != null && scope.entityNameRecord != null) ||
+        (scope.entityNameOperationIndex != null &&
+            (scope.entityNameRecord == null ||
+                scope.entityNameOperationIndex! < 0))) {
       throw const FormatException('Choose the entity form context.');
     }
     return [
@@ -222,7 +225,9 @@ final class EntityFormRecoveryStore {
       scope.representedContext!.value,
       scope.entityNameRecord == null
           ? scope.entityClientRef ?? ''
-          : 'name:${scope.entityNameRecord!.value}',
+          : scope.entityNameOperationIndex == null
+          ? 'name:${scope.entityNameRecord!.value}'
+          : 'name:${scope.entityNameRecord!.value}:edit:${scope.entityNameOperationIndex}',
     ];
   }
 

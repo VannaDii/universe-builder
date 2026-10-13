@@ -146,8 +146,28 @@ SaveDraftEngineRequest entityNameDraftRequest({
 
 UnfinishedEntityForm entityFormFromDraft(SavedDraft draft, int index) {
   final operation = draft.content.operations[index];
+  if (operation is AddNameOperation) {
+    return UnfinishedEntityForm(
+      baseRevision: draft.content.baseRevision,
+      representedContext: draft.content.representedContext,
+      clientRef: operation.record.record.value,
+      expectedRecordVersion: operation.expectedVersion,
+      name: operation.name.text,
+      nameDetails: EntityNameForm(
+        language: operation.name.language,
+        community: operation.name.community,
+        role: operation.name.role,
+      ),
+      classification: '',
+      worldRole: '',
+      rationale: '',
+      draftVersion: draft.version,
+    );
+  }
   if (operation is! IntroduceInstanceOperation) {
-    throw const FormatException('Choose a new entity from Changes.');
+    throw const FormatException(
+      'Choose an entity or contextual name from Changes.',
+    );
   }
   return UnfinishedEntityForm(
     baseRevision: draft.content.baseRevision,
@@ -189,6 +209,7 @@ DraftContent replaceDraftEntity({
   if (draft.content.proposal != null ||
       form.draftVersion != draft.version ||
       form.clientRef != old.clientRef ||
+      form.expectedRecordVersion != old.expectedRecordVersion ||
       form.baseRevision != old.baseRevision ||
       form.representedContext != old.representedContext) {
     throw const FormatException(
@@ -196,8 +217,25 @@ DraftContent replaceDraftEntity({
     );
   }
   if (form.name.trim().isEmpty) throw const FormatException('Enter a name.');
-  final operation =
-      draft.content.operations[index] as IntroduceInstanceOperation;
+  final source = draft.content.operations[index];
+  if (source is AddNameOperation) {
+    return DraftContent(
+      baseRevision: draft.content.baseRevision,
+      representedContext: draft.content.representedContext,
+      operations: [
+        for (var i = 0; i < draft.content.operations.length; i++)
+          i == index
+              ? AddNameOperation(
+                  record: source.record,
+                  expectedVersion: source.expectedVersion,
+                  name: _name(form, source.name),
+                )
+              : draft.content.operations[i],
+      ],
+      rationale: draft.content.rationale,
+    );
+  }
+  final operation = source as IntroduceInstanceOperation;
   final edited = IntroduceInstanceOperation(
     clientRef: operation.clientRef,
     name: _name(form, operation.name),
