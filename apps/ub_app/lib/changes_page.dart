@@ -7,6 +7,7 @@ import 'connection.dart';
 import 'type_editor_page.dart';
 import 'entity_editor_page.dart';
 import 'attribute_editor_page.dart';
+import 'attribute_draft.dart';
 import 'record_fields.dart';
 import 'world_editor_page.dart';
 
@@ -726,7 +727,7 @@ class _ChangesPageState extends State<ChangesPage> {
                             ] else
                               ExactFields(value: operations[index].toWire()),
                             if (_proposal == null &&
-                                operations[index] is AddNamedAttributeOperation)
+                                isEditableAttribute(operations[index]))
                               TextButton(
                                 onPressed: _busy
                                     ? null

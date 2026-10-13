@@ -108,7 +108,9 @@ descendant. **Edit classification fields** in Changes revises the pending choice
 The entity’s names, associations and other facts remain intact; unrelated type
 changes still require an explicit authored correction.
 **Edit attribute** in Changes opens the existing typed value controls for
-a named factual attribute, including nested and exact values. Unfinished input
+a named factual attribute or a value assertion using an existing property, including
+nested and exact values. Existing-property edits retain the exact predicate,
+subject, roles, quantification and event provenance. Unfinished input
 recovers on this device. Saving retains the subject, property definition,
 untouched evidence, other operations and rationale; stale draft edits require
 using current fields. Validation checks the value against the retained shape.

@@ -45,8 +45,8 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
   SavedDraft? _result;
   late EditorFormScope _scope;
   bool get _disabled => _loading || _saving || _updating || _form == null;
-  AddNamedAttributeOperation get _source =>
-      _draft.content.operations[widget.index] as AddNamedAttributeOperation;
+  DomainOperation get _source => _draft.content.operations[widget.index];
+  AttributeEvidence get _evidence => attributeEvidence(_source);
   @override
   void initState() {
     super.initState();
@@ -58,7 +58,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
       universe: scope.universe,
       continuity: scope.continuity,
       representedContext: _draft.content.representedContext,
-      attributeClientRef: _source.clientRef,
+      attributeClientRef: attributeClientRef(_source),
     );
     _load();
   }
@@ -149,7 +149,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
         temporalValidity: validityChoice == null
             ? temporal ?? old.temporalValidity
             : validityChoice == 'temporal'
-            ? temporalValidityInput(_source.evidence.validity)
+            ? temporalValidityInput(_evidence.validity)
             : null,
       ),
     );
@@ -158,8 +158,8 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
   List<QualifierInput> get _alternatives =>
       _form!.evidenceInput?.alternatives ??
       [
-        for (var i = 0; i < _source.evidence.alternatives.length; i++)
-          qualifierInput(i.toString(), _source.evidence.alternatives[i]),
+        for (var i = 0; i < _evidence.alternatives.length; i++)
+          qualifierInput(i.toString(), _evidence.alternatives[i]),
       ];
   void _moveAlternative(int index, int destination) {
     final rows = [..._alternatives];
@@ -169,9 +169,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
 
   Widget _alternativeFields() {
     final rows = _alternatives;
-    final original = qualifierChildren(
-      SequenceValue(_source.evidence.alternatives),
-    );
+    final original = qualifierChildren(SequenceValue(_evidence.alternatives));
     return ExpansionTile(
       key: const ValueKey('attribute alternatives'),
       title: const Text('Alternative values'),
@@ -255,7 +253,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
   );
   Widget _evidenceFields() {
     final input = _form!.evidenceInput;
-    final original = _source.evidence;
+    final original = _evidence;
     final choice = input?.temporalValidity != null
         ? 'temporal'
         : switch (input?.validity) {
@@ -427,10 +425,11 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  '${_source.namespace}: ${_source.key}',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
+                Text(switch (_source) {
+                  AddNamedAttributeOperation(:final namespace, :final key) =>
+                    '$namespace: $key',
+                  _ => 'Factual attribute',
+                }, style: Theme.of(context).textTheme.titleLarge),
                 const Text(
                   'Unfinished edits stay on this device. The property definition remains intact. Assertion details change only when edited. Save into Changes for review before publication.',
                 ),
@@ -449,7 +448,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                   ValueInputFields(
                     key: const ValueKey('attribute value'),
                     input: _form!.value,
-                    original: _source.value,
+                    original: attributeValue(_source),
                     disabled: _disabled,
                     label: 'Attribute value',
                     onChanged: _change,
@@ -465,7 +464,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                         draft: _draft,
                         input:
                             _form!.evidenceInput?.scope ??
-                            scopeInput(_source.evidence.scope),
+                            scopeInput(_evidence.scope),
                         disabled: _disabled,
                         onChanged: (v) => _editEvidence(scope: v),
                       ),
@@ -481,8 +480,8 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                         draft: _draft,
                         input:
                             _form!.evidenceInput?.basis ??
-                            evidenceBasisInput(_source.evidence.basis),
-                        original: _source.evidence.basis,
+                            evidenceBasisInput(_evidence.basis),
+                        original: _evidence.basis,
                         disabled: _disabled,
                         onChanged: (v) => _editEvidence(basis: v),
                       ),

@@ -327,6 +327,125 @@ void main() {
     }
   });
 
+  test('existing-property edits preserve proposition and event identities', () {
+    final universe = UniverseId.generate();
+    RecordRef ref() =>
+        RecordRef(universe: universe, record: RecordId.generate());
+    final context = ref();
+    final proposition = PropositionRecord(
+      predicate: ref(),
+      subject: ref(),
+      context: context,
+      quantification: Quantification.particular,
+      roles: [PropositionRole('witness 記憶 😀', ref())],
+      value: const TextValue('Earlier account'),
+    );
+    final assertion = AssertionRecord(
+      attributeMode: AttributeMode.instance,
+      proposition: ref(),
+      polarity: Polarity.support,
+      scope: Scope(
+        context: context,
+        applicability: const UniverseApplicability(),
+      ),
+      validity: const UnknownValidity(),
+      persistence: PersistenceSemantics.unspecified,
+      precision: Precision.exact,
+      alternatives: [const TextValue('Other account')],
+      basis: const AuthorDecisionBasis('Original note'),
+      establishedBy: EventEffectRef(ref(), 'authored effect'),
+    );
+    final op = AssertPropositionOperation(
+      clientRef: RecordId.generate().value,
+      proposition: proposition,
+      assertion: assertion,
+    );
+    final draft = SavedDraft(
+      version: BigInt.one,
+      content: DraftContent(
+        baseRevision: RevisionId.generate(),
+        representedContext: context.record,
+        operations: [op],
+        rationale: 'Exact rationale',
+      ),
+    );
+    final original = attributeFormFromDraft(draft, 0);
+    expect(isEditableAttribute(op), isTrue);
+    expect(
+      replaceDraftAttribute(
+        draft: draft,
+        index: 0,
+        form: original,
+      ).operations.single.toWire().toText(),
+      op.toWire().toText(),
+    );
+    final changedContext = ref();
+    final edited = replaceDraftAttribute(
+      draft: draft,
+      index: 0,
+      form: UnfinishedAttributeForm(
+        baseRevision: original.baseRevision,
+        representedContext: original.representedContext,
+        clientRef: original.clientRef,
+        draftVersion: original.draftVersion,
+        value: const QualifierInput(kind: 'text', value: '記憶 😀 new account'),
+        evidenceInput: AttributeEvidenceInput(
+          scope: scopeInput(
+            Scope(
+              context: changedContext,
+              applicability: const ConditionalApplicability(),
+            ),
+          ),
+          basis: const EvidenceBasisInput(
+            kind: 'author_decision',
+            note: 'New note',
+          ),
+        ),
+      ),
+    );
+    final changed = edited.operations.single as AssertPropositionOperation;
+    expect(changed.clientRef, op.clientRef);
+    expect(changed.proposition.predicate, proposition.predicate);
+    expect(changed.proposition.subject, proposition.subject);
+    expect(changed.proposition.roles, proposition.roles);
+    expect(changed.proposition.quantification, proposition.quantification);
+    expect(changed.proposition.context, changedContext);
+    expect(changed.proposition.value, const TextValue('記憶 😀 new account'));
+    expect(changed.assertion.proposition, assertion.proposition);
+    expect(changed.assertion.establishedBy, assertion.establishedBy);
+    expect(changed.assertion.alternatives, assertion.alternatives);
+    expect(changed.assertion.validity, assertion.validity);
+    expect(changed.assertion.scope.context, changedContext);
+    expect(changed.assertion.basis, const AuthorDecisionBasis('New note'));
+    expect(edited.rationale, draft.content.rationale);
+    final relation = AssertPropositionOperation(
+      clientRef: op.clientRef,
+      proposition: PropositionRecord(
+        predicate: ref(),
+        subject: ref(),
+        context: context,
+        quantification: Quantification.particular,
+      ),
+      assertion: assertion,
+    );
+    expect(isEditableAttribute(relation), isFalse);
+    expect(
+      () => attributeFormFromDraft(
+        SavedDraft(
+          version: BigInt.one,
+          content: DraftContent(
+            baseRevision: draft.content.baseRevision,
+            representedContext: context.record,
+            operations: [relation],
+            rationale: '',
+          ),
+        ),
+        0,
+      ),
+      throwsFormatException,
+    );
+  });
+
   test('attribute values recover and publish with their exact definition and evidence', () async {
     final root = Directory('/tmp').createTempSync('ub-attribute-workflow-');
     final store = SqliteInstallationStore.create(root.path);
@@ -804,6 +923,110 @@ void main() {
         SequenceValue([const TextValue('記憶 😀 alternative')]),
         SequenceValue([const TextValue('alternative')]),
       ]);
+      final property = result.where((r) => r.payload is PropertyRecord).single;
+      final factId = RecordId.generate();
+      final existingPropertyOp = AssertPropositionOperation(
+        clientRef: factId.value,
+        proposition: PropositionRecord(
+          predicate: RecordRef(
+            universe: scope.universe,
+            record: property.identity.recordId,
+          ),
+          subject: operation.subject,
+          value: fact.value,
+          quantification: Quantification.particular,
+          context: assertion.scope.context,
+        ),
+        assertion: AssertionRecord(
+          proposition: RecordRef(universe: scope.universe, record: factId),
+          attributeMode: assertion.attributeMode,
+          polarity: assertion.polarity,
+          scope: assertion.scope,
+          validity: assertion.validity,
+          persistence: assertion.persistence,
+          precision: assertion.precision,
+          alternatives: assertion.alternatives,
+          basis: assertion.basis,
+        ),
+      );
+      final existingDraft = await changes().saveContent(
+        nextDraft,
+        DraftContent(
+          baseRevision: nextDraft.content.baseRevision,
+          representedContext: nextDraft.content.representedContext,
+          operations: [existingPropertyOp],
+          rationale: 'Another attributed account.',
+        ),
+      );
+      final existingFields = attributeFormFromDraft(existingDraft, 0);
+      final existingScope = EditorFormScope(
+        instance: instance,
+        profile: author,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        attributeClientRef: factId.value,
+      );
+      final revised = UnfinishedAttributeForm(
+        baseRevision: existingFields.baseRevision,
+        representedContext: existingFields.representedContext,
+        clientRef: existingFields.clientRef,
+        draftVersion: existingFields.draftVersion,
+        value: const QualifierInput(
+          kind: 'sequence',
+          children: [
+            QualifierInput(kind: 'text', value: '記憶 😀 another account'),
+          ],
+        ),
+      );
+      await session.saveAttributeForm(existingScope, revised, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredExisting = (await session.loadAttributeForm(
+        existingScope,
+      ))!.form;
+      expect(recoveredExisting.toWire().toText(), revised.toWire().toText());
+      final revisedDraft = await changes().saveContent(
+        existingDraft,
+        replaceDraftAttribute(
+          draft: existingDraft,
+          index: 0,
+          form: recoveredExisting,
+        ),
+      );
+      final existingProposal = await changes().submit(revisedDraft);
+      final existingValidation =
+          await changes().validate(existingProposal) as EvaluatedValidation;
+      await changes().approve(existingProposal, existingValidation);
+      final existingReceipt = await changes().publish(
+        existingProposal,
+        existingValidation.execution.runId,
+      );
+      final existingRecords = await changes().readPublished(
+        existingProposal,
+        existingReceipt,
+      );
+      expect(
+        existingRecords.where((r) => r.payload is PropertyRecord),
+        isEmpty,
+      );
+      final existingFact = existingRecords
+          .map((r) => r.payload)
+          .whereType<PropositionRecord>()
+          .single;
+      expect(existingFact.predicate, existingPropertyOp.proposition.predicate);
+      expect(
+        existingFact.value,
+        SequenceValue([const TextValue('記憶 😀 another account')]),
+      );
+      final existingAssertion = existingRecords
+          .map((r) => r.payload)
+          .whereType<AssertionRecord>()
+          .single;
+      expect(
+        existingAssertion.basis.toWire().toText(),
+        assertion.basis.toWire().toText(),
+      );
     } finally {
       await session?.close();
       await server.close();
