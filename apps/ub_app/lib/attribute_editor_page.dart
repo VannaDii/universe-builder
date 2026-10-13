@@ -48,6 +48,16 @@ class AttributeEditorPage extends StatefulWidget {
 class _AttributeEditorPageState extends State<AttributeEditorPage> {
   late SavedDraft _draft;
   UnfinishedAttributeForm? _form;
+  SavedDraft get _choices => SavedDraft(
+    version: BigInt.zero,
+    content: DraftContent(
+      baseRevision: _form!.baseRevision,
+      representedContext: _form!.representedContext,
+      operations: [],
+      rationale: '',
+    ),
+  );
+
   BigInt _generation = BigInt.zero;
   bool _loading = true,
       _saving = false,
@@ -237,6 +247,8 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
             key: ValueKey(('attribute alternative', i)),
             children: [
               ValueInputFields(
+                changes: widget.changes,
+                draft: _choices,
                 input: rows[i],
                 original: original[rows[i].originalKey],
                 disabled: _disabled,
@@ -364,6 +376,8 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
         }, (v) => _editEvidence(validityChoice: v)),
         if (input?.temporalValidity != null)
           TemporalValidityFields(
+            changes: widget.changes,
+            draft: _choices,
             key: const ValueKey('attribute temporal'),
             input: input!.temporalValidity!,
             originalAmounts: temporalOriginalAmounts(original.validity),
@@ -612,6 +626,8 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                   ),
                 if (_form != null)
                   ValueInputFields(
+                    changes: widget.changes,
+                    draft: _choices,
                     key: const ValueKey('attribute value'),
                     input: _form!.value,
                     original: _value,

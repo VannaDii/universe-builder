@@ -76,8 +76,11 @@ can be retained. Instant validity supports exact, interval, approximate, duratio
 relative and unspecified time expressions. Temporal validity also supports intervals, calendar
 intervals and persistence until changed. Bounds can be exact, unknown, unbounded,
 approximate or uncertain; numeric uncertainty retains integer, decimal, rational
-and optional unit values exactly. Calendar, unit and target record references
-currently use IDs.
+and optional unit values exactly. Calendars use named choices at the unfinished
+form’s saved revision and context, including nested temporal values. Advanced
+references retain editable calendar IDs for incomplete or recovered input. Choosing
+a calendar preserves authored coordinates, bounds and amounts without conversion.
+Unit and relative target record references currently use IDs.
 Relative expressions retain explicit record/universe targets and temporal relations.
 Text and boolean amounts can be edited without converting their types; units
 apply to numeric amounts. Association qualifiers can be added, renamed, edited or removed with text,

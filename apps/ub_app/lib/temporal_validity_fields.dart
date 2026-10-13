@@ -1,19 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:ub_contracts/ub_contracts.dart';
+import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'package:ub_domain/ub_domain.dart';
 
+import 'saved_changes.dart';
+
 import 'value_input_fields.dart';
+import 'draft_record_choice_field.dart';
+import 'draft_record_choices.dart';
 
 class TemporalValidityFields extends StatelessWidget {
   const TemporalValidityFields({
     super.key,
     required this.input,
+    required this.changes,
+    required this.draft,
     required this.disabled,
     required this.onChanged,
     this.expressionOnly = false,
     this.originalAmounts = const {},
   });
   final TemporalValidityInput input;
+  final SavedChanges changes;
+  final SavedDraft draft;
   final bool disabled;
   final bool expressionOnly;
   final Map<String, DomainValue> originalAmounts;
@@ -103,6 +111,8 @@ class TemporalValidityFields extends StatelessWidget {
       if (amount.uncertaintyKind == 'typed')
         ValueInputFields(
           key: ValueKey(('amount', label)),
+          changes: changes,
+          draft: draft,
           input: amount.amount ?? const QualifierInput(),
           original: originalAmounts[label],
           disabled: disabled,
@@ -162,10 +172,12 @@ class TemporalValidityFields extends StatelessWidget {
       if ((input.kind.startsWith('instant') &&
               input.kind != 'instant_unspecified') ||
           input.kind == 'calendar_interval')
-        _text(
-          'Calendar ID',
-          input.calendar,
-          (value) => onChanged(input.copyWith(calendar: value)),
+        _CalendarReferenceField(
+          changes: changes,
+          draft: draft,
+          calendar: input.calendar,
+          disabled: disabled,
+          onChanged: (value) => onChanged(input.copyWith(calendar: value)),
         ),
       const Text(
         'Enter time values in the authored calendar’s notation. Values are retained exactly.',
@@ -224,6 +236,85 @@ class TemporalValidityFields extends StatelessWidget {
             (bound) => onChanged(input.copyWith(end: bound)),
           ),
       ],
+    ],
+  );
+}
+
+/// Keep the raw reference editable when a recovered ID is incomplete.
+class _CalendarReferenceField extends StatefulWidget {
+  const _CalendarReferenceField({
+    required this.changes,
+    required this.draft,
+    required this.calendar,
+    required this.disabled,
+    required this.onChanged,
+  });
+  final SavedChanges changes;
+  final SavedDraft draft;
+  final String calendar;
+  final bool disabled;
+  final ValueChanged<String> onChanged;
+  @override
+  State<_CalendarReferenceField> createState() =>
+      _CalendarReferenceFieldState();
+}
+
+class _CalendarReferenceFieldState extends State<_CalendarReferenceField> {
+  late final TextEditingController _calendar;
+  @override
+  void initState() {
+    super.initState();
+    _calendar = TextEditingController(text: widget.calendar);
+  }
+
+  @override
+  void didUpdateWidget(_CalendarReferenceField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_calendar.text != widget.calendar) _calendar.text = widget.calendar;
+  }
+
+  @override
+  void dispose() {
+    _calendar.dispose();
+    super.dispose();
+  }
+
+  String get _record {
+    try {
+      return calendarChoiceRecord(widget.calendar).value;
+    } on FormatException {
+      return '';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      DraftRecordChoiceField(
+        changes: widget.changes,
+        draft: widget.draft,
+        kind: RecordKind.calendar,
+        label: 'Calendar',
+        record: _record,
+        universe: widget.changes.scope.universe.value,
+        disabled: widget.disabled,
+        onChanged: (ref) {
+          _calendar.text = calendarFromChoice(ref).value;
+          widget.onChanged(_calendar.text);
+        },
+      ),
+      ExpansionTile(
+        title: const Text('Advanced references'),
+        children: [
+          TextField(
+            controller: _calendar,
+            enabled: !widget.disabled,
+            decoration: const InputDecoration(labelText: 'Calendar ID'),
+            onChanged: widget.onChanged,
+          ),
+        ],
+      ),
     ],
   );
 }

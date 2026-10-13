@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'package:ub_domain/ub_domain.dart';
 
+import 'saved_changes.dart';
+
 import 'qualifier_draft.dart';
 import 'temporal_validity_fields.dart';
 import 'temporal_validity_draft.dart';
@@ -12,6 +14,8 @@ class ValueInputFields extends StatefulWidget {
   const ValueInputFields({
     super.key,
     required this.input,
+    required this.changes,
+    required this.draft,
     required this.original,
     required this.disabled,
     required this.onChanged,
@@ -20,6 +24,8 @@ class ValueInputFields extends StatefulWidget {
   });
   final QualifierInput input;
   final DomainValue? original;
+  final SavedChanges changes;
+  final SavedDraft draft;
   final bool disabled, named;
   final String? label;
   final ValueChanged<QualifierInput> onChanged;
@@ -201,6 +207,8 @@ class _ValueInputFieldsState extends State<ValueInputFields> {
               else if (fields.kind == 'temporal')
                 TemporalValidityFields(
                   key: ValueKey(('qualifier temporal', fields)),
+                  changes: widget.changes,
+                  draft: widget.draft,
                   input: fields.temporal!,
                   originalAmounts: temporalOriginalAmounts(
                     retained is TemporalValue

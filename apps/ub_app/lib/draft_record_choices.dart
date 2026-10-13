@@ -98,3 +98,10 @@ RecordId worldChoiceRecord(String world) => RecordId.parse(
 WorldId worldFromChoice(RecordRef record) => WorldId.parse(
   '${WorldId.prefix}${record.record.value.substring(RecordId.prefix.length)}',
 );
+
+RecordId calendarChoiceRecord(String calendar) => RecordId.parse(
+  '${RecordId.prefix}${CalendarId.parse(calendar).value.substring(CalendarId.prefix.length)}',
+);
+CalendarId calendarFromChoice(RecordRef record) => CalendarId.parse(
+  '${CalendarId.prefix}${record.record.value.substring(RecordId.prefix.length)}',
+);

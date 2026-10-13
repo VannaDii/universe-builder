@@ -10,6 +10,7 @@ import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/draft_record_choices.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/saved_changes.dart';
+import 'package:ub_app/temporal_validity_draft.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/editor_forms.dart';
@@ -314,9 +315,60 @@ void main() {
         hit: found.result.hits.single,
         kind: RecordKind.calendar,
       );
-      final target = CalendarId.parse(
-        '${CalendarId.prefix}${chosen.record.value.substring(RecordId.prefix.length)}',
+      final target = calendarFromChoice(chosen);
+      expect(calendarChoiceRecord(target.value), published.identity.recordId);
+      expect(
+        () => calendarChoiceRecord('unfinished calendar'),
+        throwsFormatException,
       );
+      // Selecting a calendar changes only its reference, not authored coordinates,
+      // bounds, exact amounts or relative targets.
+      final oldCalendar = CalendarId.generate();
+      for (final validity in <Validity>[
+        InstantValidity(ExactTime(oldCalendar, 'Year 4 / 記憶 😀')),
+        InstantValidity(
+          IntervalTime(
+            oldCalendar,
+            const UnknownBound(),
+            const ExactBound('Harvest'),
+          ),
+        ),
+        InstantValidity(
+          ApproximateTime(oldCalendar, 'Harvest', RationalValue('3', '2')),
+        ),
+        InstantValidity(DurationTime(oldCalendar, DecimalValue('1.500'))),
+        InstantValidity(
+          RelativeTime(
+            oldCalendar,
+            TemporalRelation.after,
+            RecordRef(record: published.identity.recordId),
+          ),
+        ),
+        CalendarIntervalValidity(
+          oldCalendar,
+          const UnboundedBound(),
+          const ExactBound('Year 5'),
+        ),
+      ]) {
+        final input = temporalValidityInput(validity);
+        final changed = input.copyWith(calendar: target.value);
+        final restored = TemporalValidityInput.fromWire(changed.toWire());
+        expect(restored.start.toWire().toText(), input.start.toWire().toText());
+        expect(restored.end.toWire().toText(), input.end.toWire().toText());
+        expect(restored.targetRecord, input.targetRecord);
+        expect(restored.targetUniverse, input.targetUniverse);
+        expect(restored.relation, input.relation);
+        final built = buildTemporalValidity(restored, validity);
+        expect(temporalValidityInput(built).calendar, target.value);
+        expect(
+          buildTemporalValidity(
+            restored.copyWith(calendar: oldCalendar.value),
+            validity,
+          ).toWire().toText(),
+          validity.toWire().toText(),
+        );
+      }
+
       final derived = UnfinishedCalendarForm(
         baseRevision: next.content.baseRevision,
         representedContext: base.representedContext,

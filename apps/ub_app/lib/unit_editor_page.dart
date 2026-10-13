@@ -422,6 +422,8 @@ class _UnitEditorPageState extends State<UnitEditorPage> {
                   ),
                   if (f.hasScale)
                     ValueInputFields(
+                      changes: widget.changes,
+                      draft: _choices,
                       key: ValueKey((_fields, 'conversion factor')),
                       input: f.scale,
                       original: _original?.scaleToBase,
@@ -465,6 +467,8 @@ class _UnitEditorPageState extends State<UnitEditorPage> {
                   ),
                   if (f.validityChoice == 'temporal')
                     TemporalValidityFields(
+                      changes: widget.changes,
+                      draft: _choices,
                       key: ValueKey((_fields, 'unit validity')),
                       input:
                           f.temporalValidity ??

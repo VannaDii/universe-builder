@@ -72,6 +72,20 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
   SavedDraft? _editingDraft, _savedDraft;
   bool _stale = false;
   late RevisionId _revision;
+  SavedChanges get _calendarChanges => SavedChanges(
+    session: widget.session,
+    universe: Selector(widget.universe.name),
+    scope: widget.scope,
+  );
+  SavedDraft get _calendarChoices => SavedDraft(
+    version: BigInt.zero,
+    content: DraftContent(
+      baseRevision: _base!.baseRevision,
+      representedContext: _base!.representedContext,
+      operations: [],
+      rationale: '',
+    ),
+  );
   bool get _disabled => _loading || _saving || _adding || _base == null;
   bool get _classificationOnly =>
       widget.refineClassification ||
@@ -637,6 +651,8 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
         ),
         if (_nameTemporal != null)
           TemporalValidityFields(
+            changes: _calendarChanges,
+            draft: _calendarChoices,
             key: const ValueKey('name temporal'),
             input: _nameTemporal!,
             originalAmounts: temporalOriginalAmounts(original),
@@ -754,6 +770,8 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
             ),
             if (fields.temporalValidity != null)
               TemporalValidityFields(
+                changes: _calendarChanges,
+                draft: _calendarChoices,
                 key: ValueKey(('temporal', fields)),
                 input: fields.temporalValidity!,
                 originalAmounts: temporalOriginalAmounts(original?.validity),
@@ -788,6 +806,8 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                 key: ValueKey((fields, q)),
                 children: [
                   ValueInputFields(
+                    changes: _calendarChanges,
+                    draft: _calendarChoices,
                     input: fields.qualifiers[q],
                     original:
                         original?.qualifiers[fields.qualifiers[q].originalKey],
