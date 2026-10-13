@@ -428,19 +428,122 @@ void main() {
       ),
       assertion: assertion,
     );
-    expect(isEditableAttribute(relation), isFalse);
+    expect(isEditableAttribute(relation), isTrue);
+    final relationDraft = SavedDraft(
+      version: draft.version,
+      content: DraftContent(
+        baseRevision: draft.content.baseRevision,
+        representedContext: context.record,
+        operations: [op, relation],
+        rationale: 'Relationship rationale',
+      ),
+    );
+    final relationForm = attributeFormFromDraft(relationDraft, 1);
     expect(
-      () => attributeFormFromDraft(
-        SavedDraft(
-          version: BigInt.one,
-          content: DraftContent(
-            baseRevision: draft.content.baseRevision,
-            representedContext: context.record,
-            operations: [relation],
-            rationale: '',
-          ),
+      replaceDraftAttribute(
+        draft: relationDraft,
+        index: 1,
+        form: relationForm,
+      ).toWire().toText(),
+      relationDraft.content.toWire().toText(),
+    );
+    final dedicated = RecordRelationOperation(
+      clientRef: relation.clientRef,
+      proposition: relation.proposition,
+      assertion: relation.assertion,
+    );
+    final dedicatedDraft = SavedDraft(
+      version: relationDraft.version,
+      content: DraftContent(
+        baseRevision: relationDraft.content.baseRevision,
+        representedContext: relationDraft.content.representedContext,
+        operations: [dedicated],
+        rationale: 'Dedicated relationship.',
+      ),
+    );
+    expect(isEditableAttribute(dedicated), isTrue);
+    expect(
+      replaceDraftAttribute(
+        draft: dedicatedDraft,
+        index: 0,
+        form: attributeFormFromDraft(dedicatedDraft, 0),
+      ).toWire().toText(),
+      dedicatedDraft.content.toWire().toText(),
+    );
+    final participant = ref();
+    final roleInputs = [
+      PropositionRoleInput(
+        role: 'listener 記憶 😀',
+        record: participant.record.value,
+        universe: participant.universe!.value,
+      ),
+      PropositionRoleInput(
+        role: 'listener 記憶 😀',
+        record: participant.record.value,
+      ),
+    ];
+    UnfinishedAttributeForm relationEdit({
+      List<PropositionRoleInput>? roles,
+      AttributeEvidenceInput? evidence,
+    }) => UnfinishedAttributeForm(
+      baseRevision: relationForm.baseRevision,
+      representedContext: relationForm.representedContext,
+      clientRef: relationForm.clientRef,
+      draftVersion: relationForm.draftVersion,
+      value: relationForm.value,
+      roles: roles,
+      evidenceInput: evidence,
+    );
+    final result = replaceDraftAttribute(
+      draft: relationDraft,
+      index: 1,
+      form: relationEdit(
+        roles: roleInputs,
+        evidence: const AttributeEvidenceInput(polarity: Polarity.refutation),
+      ),
+    );
+    final editedRelation = result.operations[1] as AssertPropositionOperation;
+    expect(editedRelation.proposition.value, isNull);
+    expect(editedRelation.proposition.roles, [
+      PropositionRole(roleInputs[0].role, participant),
+      PropositionRole(
+        roleInputs[1].role,
+        RecordRef(record: participant.record),
+      ),
+    ]);
+    expect(
+      editedRelation.proposition.predicate,
+      relation.proposition.predicate,
+    );
+    expect(editedRelation.proposition.subject, relation.proposition.subject);
+    expect(
+      editedRelation.proposition.quantification,
+      relation.proposition.quantification,
+    );
+    expect(editedRelation.assertion.proposition, assertion.proposition);
+    expect(editedRelation.assertion.establishedBy, assertion.establishedBy);
+    expect(editedRelation.assertion.polarity, Polarity.refutation);
+    expect(result.operations.first.toWire().toText(), op.toWire().toText());
+    expect(result.rationale, relationDraft.content.rationale);
+    expect(
+      (replaceDraftAttribute(
+                draft: relationDraft,
+                index: 1,
+                form: relationEdit(roles: []),
+              ).operations[1]
+              as AssertPropositionOperation)
+          .proposition
+          .roles,
+      isEmpty,
+    );
+    expect(
+      () => replaceDraftAttribute(
+        draft: SavedDraft(
+          version: draft.version + BigInt.one,
+          content: relationDraft.content,
         ),
-        0,
+        index: 1,
+        form: relationEdit(roles: roleInputs),
       ),
       throwsFormatException,
     );

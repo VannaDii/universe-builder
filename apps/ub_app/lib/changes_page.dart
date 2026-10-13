@@ -1039,7 +1039,11 @@ class _ChangesPageState extends State<ChangesPage> {
                                             ) ??
                                             draft,
                                       ),
-                                child: const Text('Edit attribute'),
+                                child: Text(
+                                  isRelationshipAssertion(operations[index])
+                                      ? 'Edit relationship assertion'
+                                      : 'Edit attribute',
+                                ),
                               ),
                             if (_proposal == null &&
                                 (operations[index]

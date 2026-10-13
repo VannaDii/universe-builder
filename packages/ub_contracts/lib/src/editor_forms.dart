@@ -631,7 +631,31 @@ final class AttributeCreationInput {
   }
 }
 
-/// Pending value edits do not replace the property shape or authored evidence.
+/// Incomplete role binding; an omitted universe remains unfinished input.
+final class PropositionRoleInput {
+  const PropositionRoleInput({
+    this.role = '',
+    this.record = '',
+    this.universe = '',
+  });
+  final String role, record, universe;
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('role', CanonicalString(role)),
+    MapEntry('record', CanonicalString(record)),
+    MapEntry('universe', CanonicalString(universe)),
+  ]);
+  factory PropositionRoleInput.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {'role', 'record', 'universe'});
+    return PropositionRoleInput(
+      role: f.string('role'),
+      record: f.string('record'),
+      universe: f.string('universe'),
+    );
+  }
+  Iterable<String> get exactTexts => [role, record, universe];
+}
+
+/// Pending assertion edits do not replace definitions or unedited evidence.
 final class UnfinishedAttributeForm {
   UnfinishedAttributeForm({
     required this.baseRevision,
@@ -641,7 +665,9 @@ final class UnfinishedAttributeForm {
     required this.value,
     this.evidenceInput,
     this.creationInput,
-  }) : draftVersion = checkedU64(draftVersion);
+    Iterable<PropositionRoleInput>? roles,
+  }) : roles = roles == null ? null : List.unmodifiable(roles),
+       draftVersion = checkedU64(draftVersion);
   final RevisionId baseRevision;
   final RecordId representedContext;
   final String clientRef;
@@ -649,6 +675,9 @@ final class UnfinishedAttributeForm {
   final QualifierInput value;
   final AttributeEvidenceInput? evidenceInput;
   final AttributeCreationInput? creationInput;
+
+  /// Null retains original roles; empty removes all role bindings.
+  final List<PropositionRoleInput>? roles;
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
     MapEntry('represented_context', CanonicalString(representedContext.value)),
@@ -657,6 +686,8 @@ final class UnfinishedAttributeForm {
     MapEntry('value', value.toWire()),
     if (evidenceInput != null)
       MapEntry('evidence_input', evidenceInput!.toWire()),
+    if (roles != null)
+      MapEntry('roles', CanonicalArray(roles!.map((r) => r.toWire()))),
     if (creationInput != null)
       MapEntry('creation_input', creationInput!.toWire()),
   ]);

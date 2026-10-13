@@ -162,6 +162,11 @@ preserves the definition reference, other Changes and rationale. Defining a
 calendar leaves the represented story clock unchanged and does not infer
 arithmetic or synchronization between calendars. Publication uses the normal
 validation and exact approval flow.
+**Edit relationship assertion** in Changes opens role names and named participant
+references with add/remove/reorder controls. Role order, duplicates and omitted
+local universes are retained. Scope, validity and evidence use the same assertion
+controls as factual attributes. The predicate, subject, quantification and event
+provenance stay intact; this edit does not create a relationship transfer.
 **Relation definition** opens recoverable namespace, key, display labels and
 ordered role rows. Each role declares participant types through named choices,
 single/multiple multiplicity and explicit ordering. Roles and participant types

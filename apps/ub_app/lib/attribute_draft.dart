@@ -8,25 +8,31 @@ import 'temporal_validity_draft.dart';
 
 bool isEditableAttribute(DomainOperation op) =>
     op is AddNamedAttributeOperation ||
-    (op is AssertPropositionOperation && op.proposition.value != null);
+    op is AssertPropositionOperation ||
+    op is RecordRelationOperation;
 
 String attributeClientRef(DomainOperation op) => switch (op) {
   AddNamedAttributeOperation(:final clientRef) => clientRef,
-  AssertPropositionOperation(:final clientRef) => clientRef,
+  AssertPropositionOperation(:final clientRef) ||
+  RecordRelationOperation(:final clientRef) => clientRef,
   _ => throw const FormatException('Choose an attribute from Changes.'),
 };
 
-DomainValue attributeValue(DomainOperation op) => switch (op) {
+DomainValue? attributeValue(DomainOperation op) => switch (op) {
   AddNamedAttributeOperation(:final value) => value,
-  AssertPropositionOperation(:final proposition)
-      when proposition.value != null =>
-    proposition.value!,
+  AssertPropositionOperation(:final proposition) ||
+  RecordRelationOperation(:final proposition) => proposition.value,
   _ => throw const FormatException('Choose an attribute from Changes.'),
 };
+
+bool isRelationshipAssertion(DomainOperation op) =>
+    (op is AssertPropositionOperation || op is RecordRelationOperation) &&
+    attributeValue(op) == null;
 
 AttributeEvidence attributeEvidence(DomainOperation op) => switch (op) {
   AddNamedAttributeOperation(:final evidence) => evidence,
-  AssertPropositionOperation(:final assertion) => AttributeEvidence(
+  AssertPropositionOperation(:final assertion) ||
+  RecordRelationOperation(:final assertion) => AttributeEvidence(
     attributeMode: assertion.attributeMode,
     polarity: assertion.polarity,
     scope: assertion.scope,
@@ -46,7 +52,9 @@ UnfinishedAttributeForm attributeFormFromDraft(SavedDraft draft, int index) {
     representedContext: draft.content.representedContext,
     clientRef: attributeClientRef(op),
     draftVersion: draft.version,
-    value: qualifierInput('value', attributeValue(op)),
+    value: attributeValue(op) == null
+        ? const QualifierInput(kind: 'retain')
+        : qualifierInput('value', attributeValue(op)!),
   );
 }
 
@@ -67,10 +75,23 @@ DraftContent replaceDraftAttribute({
   }
   final op = draft.content.operations[index];
   final originalEvidence = attributeEvidence(op);
-  final value = buildQualifierValue(form.value, attributeValue(op));
+  final originalValue = attributeValue(op);
+  if (originalValue == null && form.value.kind != 'retain') {
+    throw const FormatException(
+      'A relationship assertion has no attribute value.',
+    );
+  }
+  final value = originalValue == null
+      ? null
+      : buildQualifierValue(form.value, originalValue);
   final evidence = editAttributeEvidence(form.evidenceInput, originalEvidence);
   final DomainOperation edited;
   if (op is AddNamedAttributeOperation) {
+    if (form.roles != null) {
+      throw const FormatException(
+        'Named attributes do not have role bindings.',
+      );
+    }
     edited = AddNamedAttributeOperation(
       clientRef: op.clientRef,
       subject: op.subject,
@@ -79,36 +100,64 @@ DraftContent replaceDraftAttribute({
       valueShape: op.valueShape,
       subjectTypes: op.subjectTypes,
       multiplicity: op.multiplicity,
-      value: value,
+      value: value!,
       evidence: evidence,
     );
-  } else if (op is AssertPropositionOperation) {
-    final proposition = op.proposition, assertion = op.assertion;
-    edited = AssertPropositionOperation(
-      clientRef: op.clientRef,
-      proposition: PropositionRecord(
-        predicate: proposition.predicate,
-        subject: proposition.subject,
-        roles: proposition.roles,
-        value: value,
-        quantification: proposition.quantification,
-        context: form.evidenceInput?.scope == null
-            ? proposition.context
-            : evidence.scope.context,
-      ),
-      assertion: AssertionRecord(
-        proposition: assertion.proposition,
-        attributeMode: evidence.attributeMode,
-        polarity: evidence.polarity,
-        scope: evidence.scope,
-        validity: evidence.validity,
-        persistence: evidence.persistence,
-        precision: evidence.precision,
-        alternatives: evidence.alternatives,
-        basis: evidence.basis,
-        establishedBy: assertion.establishedBy,
-      ),
+  } else if (op is AssertPropositionOperation ||
+      op is RecordRelationOperation) {
+    final (proposition, assertion) = switch (op) {
+      AssertPropositionOperation(:final proposition, :final assertion) ||
+      RecordRelationOperation(
+        :final proposition,
+        :final assertion,
+      ) => (proposition, assertion),
+      _ => throw const FormatException('Choose an assertion from Changes.'),
+    };
+    final nextProposition = PropositionRecord(
+      predicate: proposition.predicate,
+      subject: proposition.subject,
+      roles: form.roles == null
+          ? proposition.roles
+          : form.roles!.map(
+              (r) => PropositionRole(
+                r.role,
+                RecordRef(
+                  record: RecordId.parse(r.record),
+                  universe: r.universe.isEmpty
+                      ? null
+                      : UniverseId.parse(r.universe),
+                ),
+              ),
+            ),
+      value: value,
+      quantification: proposition.quantification,
+      context: form.evidenceInput?.scope == null
+          ? proposition.context
+          : evidence.scope.context,
     );
+    final nextAssertion = AssertionRecord(
+      proposition: assertion.proposition,
+      attributeMode: evidence.attributeMode,
+      polarity: evidence.polarity,
+      scope: evidence.scope,
+      validity: evidence.validity,
+      persistence: evidence.persistence,
+      precision: evidence.precision,
+      alternatives: evidence.alternatives,
+      basis: evidence.basis,
+      establishedBy: assertion.establishedBy,
+    );
+    edited = op is RecordRelationOperation
+        ? RecordRelationOperation(
+            clientRef: op.clientRef,
+            proposition: nextProposition,
+            assertion: nextAssertion,
+          )
+        : AssertPropositionOperation(
+            clientRef: attributeClientRef(op),
+            proposition: nextProposition,
+            assertion: nextAssertion,
+          );
   } else {
     throw const FormatException('Choose an attribute from Changes.');
   }

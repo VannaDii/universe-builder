@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:ub_app/relation_draft.dart';
+import 'package:ub_app/attribute_draft.dart';
 import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/draft_record_choices.dart';
@@ -345,6 +346,164 @@ void main() {
         relationOperation(edited).toWire().toText(),
         relationOperation(form).toWire().toText(),
       );
+      final peopleDraft = await changes().saveContent(
+        next,
+        DraftContent(
+          baseRevision: next.content.baseRevision,
+          representedContext: next.content.representedContext,
+          operations: [
+            for (final name in ['Mara', 'Nia', 'Orr'])
+              IntroduceInstanceOperation(
+                clientRef: name,
+                name: ContextualName(
+                  text: name,
+                  validity: const UnspecifiedValidity(),
+                ),
+                classification: person,
+                worldAssociations: [],
+              ),
+          ],
+          rationale: 'Introduce participants.',
+        ),
+      );
+      final people = (await publish(peopleDraft))
+          .where((r) => r.payload is EntityRecord)
+          .toList();
+      final claimBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final claimRef = RecordId.generate();
+      final evidence = AttributeEvidence(
+        attributeMode: AttributeMode.instance,
+        polarity: Polarity.support,
+        scope: Scope(
+          context: RecordRef(
+            universe: scope.universe,
+            record: scope.representedContext!,
+          ),
+          applicability: const UniverseApplicability(),
+        ),
+        validity: const UnknownValidity(),
+        persistence: PersistenceSemantics.unspecified,
+        precision: Precision.exact,
+        basis: const AuthorDecisionBasis('Authored conversation.'),
+      );
+      RecordRef participant(int index) => RecordRef(
+        universe: scope.universe,
+        record: people[index].identity.recordId,
+      );
+      final claim = RecordRelationOperation(
+        clientRef: claimRef.value,
+        proposition: PropositionRecord(
+          predicate: chosen,
+          subject: participant(0),
+          roles: [
+            PropositionRole('speaker', participant(0)),
+            PropositionRole('listeners', participant(1)),
+          ],
+          quantification: Quantification.particular,
+          context: evidence.scope.context,
+        ),
+        assertion: AssertionRecord(
+          proposition: RecordRef(universe: scope.universe, record: claimRef),
+          attributeMode: evidence.attributeMode,
+          polarity: evidence.polarity,
+          scope: evidence.scope,
+          validity: evidence.validity,
+          persistence: evidence.persistence,
+          precision: evidence.precision,
+          basis: evidence.basis,
+        ),
+      );
+      final claimDraft = await changes().saveContent(
+        claimBase,
+        DraftContent(
+          baseRevision: claimBase.content.baseRevision,
+          representedContext: claimBase.content.representedContext,
+          operations: [claim],
+          rationale: 'Authored conversation.',
+        ),
+      );
+      final pending = attributeFormFromDraft(claimDraft, 0);
+      final roleEdit = UnfinishedAttributeForm(
+        baseRevision: pending.baseRevision,
+        representedContext: pending.representedContext,
+        clientRef: pending.clientRef,
+        draftVersion: pending.draftVersion,
+        value: pending.value,
+        roles: [
+          PropositionRoleInput(
+            role: 'speaker',
+            record: participant(0).record.value,
+            universe: scope.universe.value,
+          ),
+          PropositionRoleInput(
+            role: 'listeners',
+            record: participant(2).record.value,
+          ),
+          PropositionRoleInput(
+            role: 'listeners',
+            record: participant(1).record.value,
+            universe: scope.universe.value,
+          ),
+        ],
+      );
+      final editScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        attributeClientRef: pending.clientRef,
+      );
+      await session.saveAttributeForm(editScope, roleEdit, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final restored = (await session.loadAttributeForm(editScope))!.form;
+      expect(restored.toWire().toText(), roleEdit.toWire().toText());
+      final changedClaim = await changes().saveContent(
+        claimDraft,
+        replaceDraftAttribute(
+          draft: claimDraft,
+          index: 0,
+          form: UnfinishedAttributeForm(
+            baseRevision: restored.baseRevision,
+            representedContext: restored.representedContext,
+            clientRef: restored.clientRef,
+            draftVersion: restored.draftVersion,
+            value: restored.value,
+            roles: [
+              for (final role in restored.roles!)
+                PropositionRoleInput(
+                  role: role.role,
+                  record: role.record,
+                  universe: scope.universe.value,
+                ),
+            ],
+          ),
+        ),
+      );
+      final claimRecords = await publish(changedClaim);
+      final publishedClaim =
+          claimRecords
+                  .where((r) => r.payload is PropositionRecord)
+                  .single
+                  .payload
+              as PropositionRecord;
+      expect(
+        publishedClaim.toWire().toText(),
+        (changedClaim.content.operations.single as RecordRelationOperation)
+            .proposition
+            .toWire()
+            .toText(),
+      );
+      expect(publishedClaim.value, isNull);
+      expect(publishedClaim.roles.map((r) => r.participant.record), [
+        participant(0).record,
+        participant(2).record,
+        participant(1).record,
+      ]);
     } finally {
       await session?.close();
       await server.close();

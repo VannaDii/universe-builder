@@ -15,6 +15,7 @@ import 'qualifier_draft.dart';
 import 'scope_draft.dart';
 import 'scope_input_fields.dart';
 import 'record_fields.dart';
+import 'record_reference_fields.dart';
 import 'saved_changes.dart';
 import 'value_input_fields.dart';
 import 'temporal_validity_draft.dart';
@@ -133,6 +134,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
       final form = saved?.form ?? _freshForm();
       setState(() {
         _form = form;
+        _roleGeneration++;
         _generation = saved?.generation ?? BigInt.zero;
         _dirty = false;
         _stale =
@@ -161,6 +163,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
     QualifierInput value, {
     AttributeEvidenceInput? evidence,
     AttributeCreationInput? creation,
+    List<PropositionRoleInput>? roles,
   }) {
     final old = _form!;
     setState(() {
@@ -172,6 +175,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
         value: value,
         evidenceInput: evidence ?? old.evidenceInput,
         creationInput: creation ?? old.creationInput,
+        roles: roles ?? old.roles,
       );
       _dirty = true;
       _updated = null;
@@ -179,6 +183,123 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
     _autosave?.cancel();
     _autosave = Timer(const Duration(milliseconds: 500), _save);
   }
+
+  bool get _relationship =>
+      _source != null && isRelationshipAssertion(_source!);
+  List<PropositionRoleInput> get _roles =>
+      _form!.roles ??
+      [
+        if (_source
+            case AssertPropositionOperation(:final proposition) ||
+                RecordRelationOperation(:final proposition))
+          for (final r in proposition.roles)
+            PropositionRoleInput(
+              role: r.role,
+              record: r.participant.record.value,
+              universe: r.participant.universe?.value ?? '',
+            ),
+      ];
+  Widget _roleFields() => ExpansionTile(
+    key: const ValueKey('assertion participants'),
+    initiallyExpanded: _relationship,
+    title: const Text('Relationship participants'),
+    children: [
+      const Text(
+        'Role order and repeated participants remain explicit. Changing a participant does not transfer ownership or create an event.',
+      ),
+      for (var i = 0; i < _roles.length; i++)
+        Card(
+          key: ValueKey((_roleGeneration, i)),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  initialValue: _roles[i].role,
+                  enabled: !_disabled,
+                  decoration: const InputDecoration(labelText: 'Role name'),
+                  onChanged: (v) {
+                    final rows = [..._roles], r = rows[i];
+                    rows[i] = PropositionRoleInput(
+                      role: v,
+                      record: r.record,
+                      universe: r.universe,
+                    );
+                    _change(_form!.value, roles: rows);
+                  },
+                ),
+                RecordReferenceFields(
+                  changes: widget.changes,
+                  draft: _choices,
+                  record: _roles[i].record,
+                  universe: _roles[i].universe,
+                  label: 'Participant',
+                  disabled: _disabled,
+                  onChanged: (record, universe) {
+                    final rows = [..._roles], r = rows[i];
+                    rows[i] = PropositionRoleInput(
+                      role: r.role,
+                      record: record,
+                      universe: universe,
+                    );
+                    _change(_form!.value, roles: rows);
+                  },
+                ),
+                Wrap(
+                  children: [
+                    TextButton(
+                      onPressed: _disabled || i == 0
+                          ? null
+                          : () {
+                              final rows = [..._roles], row = rows.removeAt(i);
+                              rows.insert(i - 1, row);
+                              _roleGeneration++;
+                              _change(_form!.value, roles: rows);
+                            },
+                      child: const Text('Move earlier'),
+                    ),
+                    TextButton(
+                      onPressed: _disabled || i == _roles.length - 1
+                          ? null
+                          : () {
+                              final rows = [..._roles], row = rows.removeAt(i);
+                              rows.insert(i + 1, row);
+                              _roleGeneration++;
+                              _change(_form!.value, roles: rows);
+                            },
+                      child: const Text('Move later'),
+                    ),
+                    TextButton(
+                      onPressed: _disabled
+                          ? null
+                          : () {
+                              _roleGeneration++;
+                              _change(
+                                _form!.value,
+                                roles: [..._roles]..removeAt(i),
+                              );
+                            },
+                      child: const Text('Remove participant'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      TextButton(
+        onPressed: _disabled
+            ? null
+            : () => _change(
+                _form!.value,
+                roles: [..._roles, const PropositionRoleInput()],
+              ),
+        child: const Text('Add participant'),
+      ),
+    ],
+  );
+  int _roleGeneration = 0;
 
   void _editEvidence({
     EvidenceBasisInput? basis,
@@ -435,6 +556,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
       if (!mounted) return;
       setState(() {
         _form = _freshForm();
+        _roleGeneration++;
         _stale = false;
         _dirty = true;
         _updated = null;
@@ -512,6 +634,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
       setState(() {
         _draft = saved;
         _result = saved;
+        _roleGeneration++;
         _form = widget.creating
             ? UnfinishedAttributeForm(
                 baseRevision: _form!.baseRevision,
@@ -525,8 +648,9 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
             : attributeFormFromDraft(saved, widget.index!);
         _dirty = true;
         _stale = false;
-        _updated =
-            'Attribute saved in Changes. Return to Changes to review it.';
+        _updated = _relationship
+            ? 'Relationship assertion saved in Changes. Return to Changes to review it.'
+            : 'Attribute saved in Changes. Return to Changes to review it.';
       });
       await _save();
     } on FormatException catch (error) {
@@ -571,7 +695,11 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
     child: Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.creating ? 'Add factual attribute' : 'Edit attribute',
+          widget.creating
+              ? 'Add factual attribute'
+              : _relationship
+              ? 'Edit relationship assertion'
+              : 'Edit attribute',
         ),
       ),
       body: Align(
@@ -586,10 +714,15 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                 Text(switch (_source) {
                   AddNamedAttributeOperation(:final namespace, :final key) =>
                     '$namespace: $key',
-                  _ => 'Factual attribute',
+                  _ =>
+                    _relationship
+                        ? 'Relationship assertion'
+                        : 'Factual attribute',
                 }, style: Theme.of(context).textTheme.titleLarge),
-                const Text(
-                  'Unfinished edits stay on this device. The property definition remains intact. Assertion details change only when edited. Save into Changes for review before publication.',
+                Text(
+                  _relationship
+                      ? 'Unfinished edits stay on this device. The relation definition and subject remain intact. Save into Changes for review before publication.'
+                      : 'Unfinished edits stay on this device. The property definition remains intact. Assertion details change only when edited. Save into Changes for review before publication.',
                 ),
                 if (_loading || _saving || _updating)
                   const LinearProgressIndicator(),
@@ -624,7 +757,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                       );
                     },
                   ),
-                if (_form != null)
+                if (_form != null && (widget.creating || _value != null))
                   ValueInputFields(
                     changes: widget.changes,
                     draft: _choices,
@@ -636,6 +769,9 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                     onChanged: _change,
                   ),
                 if (_form != null) ...[
+                  if (_source is AssertPropositionOperation ||
+                      _source is RecordRelationOperation)
+                    _roleFields(),
                   _evidenceFields(),
                   ExpansionTile(
                     key: const ValueKey('attribute factual scope'),
@@ -692,6 +828,8 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                   child: Text(
                     widget.creating
                         ? 'Add to Changes'
+                        : _relationship
+                        ? 'Save relationship changes'
                         : 'Save attribute changes',
                   ),
                 ),

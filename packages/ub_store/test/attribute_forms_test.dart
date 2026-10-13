@@ -10,7 +10,7 @@ import 'package:ub_store/editor_forms.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 void main() {
-  for (final schemaVersion in [1, 2]) {
+  for (final schemaVersion in [1, 2, 3]) {
     test(
       'legacy v$schemaVersion attribute recovery retains pending fields with creation input',
       () {
@@ -36,7 +36,8 @@ void main() {
         store.close();
         final db = sqlite3.open(path);
         db.execute(
-          'ALTER TABLE attribute_form DROP COLUMN creation_input; '
+          'ALTER TABLE attribute_form DROP COLUMN roles_input; '
+          '${schemaVersion < 3 ? 'ALTER TABLE attribute_form DROP COLUMN creation_input; ' : ''}'
           '${schemaVersion == 1 ? 'ALTER TABLE attribute_form DROP COLUMN evidence_input; ' : ''}'
           'PRAGMA user_version=$schemaVersion',
         );
@@ -46,12 +47,24 @@ void main() {
           final legacy = store.load(scope)!;
           expect(legacy.form.toWire().toText(), initial.toWire().toText());
           expect(legacy.form.evidenceInput, isNull);
+          expect(legacy.form.roles, isNull);
           final pending = UnfinishedAttributeForm(
             baseRevision: initial.baseRevision,
             representedContext: initial.representedContext,
             clientRef: initial.clientRef,
             draftVersion: initial.draftVersion,
             value: initial.value,
+            roles: const [
+              PropositionRoleInput(
+                role: 'role 記憶 😀',
+                record: 'unfinished record',
+                universe: 'unfinished universe',
+              ),
+              PropositionRoleInput(
+                role: 'role 記憶 😀',
+                record: 'unfinished record',
+              ),
+            ],
             creationInput: AttributeCreationInput(
               subject: VersionRef(
                 universe: scope.universe,
