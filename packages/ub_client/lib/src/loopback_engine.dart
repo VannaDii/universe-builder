@@ -7,9 +7,9 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_store/local_http_endpoint.dart';
+import 'package:ub_store/installation.dart';
 
-import 'local_engine.dart'
-    show LocalEngineClient, LocalEngineException, LocalEngineFailure;
+import 'local_engine.dart' show LocalEngineException, LocalEngineFailure;
 
 /// One correlated call at a time. Interrupted calls require an explicit new
 /// connection and operation recovery; mutations are never replayed implicitly.
@@ -22,9 +22,9 @@ final class LoopbackEngineClient {
   BigInt _next = BigInt.one;
   bool _busy = false, _broken = false, _closed = false;
 
-  /// Reuse the maintained installed-helper startup path during the IPC
-  /// transition, then use HTTP for application calls. Only connection setup is
-  /// retried; this never retries an admitted engine command.
+  /// Start only for missing/refused discovery, under the installation's existing
+  /// bootstrap lock. Authentication/safety failures never launch a helper, and
+  /// readiness retries never replay an application command.
   static Future<LoopbackEngineClient> ensureRunning({
     required String root,
     required ProfileId profile,
@@ -32,21 +32,81 @@ final class LoopbackEngineClient {
     required String clientName,
     Map<String, String>? environment,
   }) async {
-    final bootstrap = await LocalEngineClient.ensureRunning(
-      root: root,
-      profile: profile,
-      helper: helper,
-      clientName: clientName,
-      environment: environment,
-    );
+    Future<LoopbackEngineClient?> attempt(String directory) async {
+      try {
+        return await discover(
+          root: directory,
+          profile: profile,
+          clientName: clientName,
+        );
+      } on LocalEngineException catch (error) {
+        if (error.failure != LocalEngineFailure.unavailable) rethrow;
+        return null;
+      }
+    }
+
+    final existing = await attempt(root);
+    if (existing != null) return existing;
     try {
-      return await discover(
-        root: root,
-        profile: profile,
-        clientName: clientName,
+      ProfileCredentialStore.read(root: root, profile: profile);
+    } on Object {
+      throw const LocalEngineException(
+        LocalEngineFailure.credentialUnavailable,
       );
+    }
+    try {
+      CanonicalString(clientName);
+      if (utf8.encode(clientName).length > 128) {
+        throw const FormatException('Client name too long');
+      }
+    } on Object {
+      throw const LocalEngineException(LocalEngineFailure.handshakeFailed);
+    }
+    final elapsed = Stopwatch()..start();
+    InstallationBootstrapLock? bootstrap;
+    while (bootstrap == null) {
+      try {
+        bootstrap = InstallationBootstrapLock.acquireExisting(root);
+      } on Object {
+        if (elapsed.elapsed >= const Duration(seconds: 10)) {
+          throw const LocalEngineException(LocalEngineFailure.startupTimeout);
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+    }
+    try {
+      final ready = await attempt(bootstrap.root);
+      if (ready != null) return ready;
+      try {
+        final original = File(helper);
+        if (!original.isAbsolute) {
+          throw const FormatException('Absolute helper required');
+        }
+        final executable = File(original.resolveSymbolicLinksSync());
+        if (executable.uri.pathSegments.last != 'universe-engine' ||
+            FileSystemEntity.typeSync(executable.path, followLinks: false) !=
+                FileSystemEntityType.file) {
+          throw const FormatException('Installed engine helper required');
+        }
+        await Process.start(
+          executable.path,
+          ['--installation', bootstrap.root],
+          environment: environment,
+          mode: ProcessStartMode.detached,
+        );
+      } on Object {
+        throw const LocalEngineException(LocalEngineFailure.helperUnavailable);
+      }
+      while (true) {
+        final launched = await attempt(bootstrap.root);
+        if (launched != null) return launched;
+        if (elapsed.elapsed >= const Duration(seconds: 10)) {
+          throw const LocalEngineException(LocalEngineFailure.startupTimeout);
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
     } finally {
-      await bootstrap.close();
+      bootstrap.close();
     }
   }
 
@@ -133,8 +193,12 @@ final class LoopbackEngineClient {
       }
       client.welcome = welcome;
       return client;
-    } on Object {
+    } on Object catch (error) {
       http.close(force: true);
+      if (error is SocketException &&
+          {2, 61, 111}.contains(error.osError?.errorCode)) {
+        throw const LocalEngineException(LocalEngineFailure.unavailable);
+      }
       throw const LocalEngineException(LocalEngineFailure.handshakeFailed);
     }
   }

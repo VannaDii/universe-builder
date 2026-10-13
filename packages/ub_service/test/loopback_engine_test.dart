@@ -30,7 +30,10 @@ void main() {
     );
     final writer = authority.enroll(authority.authenticateHello(hello(author)));
     store.close();
-    final server = await LocalSqliteEngineServer.start(root.path);
+    final server = await LocalSqliteEngineServer.start(
+      root.path,
+      compatibilitySocket: false,
+    );
     final http = HttpClient();
     LoopbackEngineClient? native;
     var next = BigInt.one;
@@ -100,10 +103,18 @@ void main() {
       );
       expect(status, HttpStatus.ok);
       expect(EngineWelcome.decode(bytes).principal, author);
-      native = await LoopbackEngineClient.discover(
+      native = await LoopbackEngineClient.ensureRunning(
         root: root.path,
         profile: author,
+        helper: '${root.path}/missing/universe-engine',
         clientName: 'Native HTTP client',
+      );
+      expect(
+        FileSystemEntity.typeSync(
+          '${root.path}/engine.sock',
+          followLinks: false,
+        ),
+        FileSystemEntityType.notFound,
       );
       expect(native.welcome.principal, author);
       final created = await native.call(

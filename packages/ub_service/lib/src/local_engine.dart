@@ -33,9 +33,9 @@ final class LocalSqliteEngineServer {
   );
   final SqliteInstallationStore _store;
   final NativeSqliteRuntime _runtime;
-  final ServerSocket _listener;
+  final ServerSocket? _listener;
   final LoopbackEngineServer _http;
-  late final StreamSubscription<Socket> _subscription;
+  StreamSubscription<Socket>? _subscription;
   late final Timer _idle;
   final _clients = <Socket, Future<void>>{};
   final _done = Completer<void>();
@@ -46,7 +46,10 @@ final class LocalSqliteEngineServer {
   Future<void> get done => _done.future;
   Uri get httpEndpoint => _http.endpoint;
 
-  static Future<LocalSqliteEngineServer> start(String root) async {
+  static Future<LocalSqliteEngineServer> start(
+    String root, {
+    bool compatibilitySocket = true,
+  }) async {
     SqliteInstallationStore? store;
     ServerSocket? listener;
     NativeSqliteRuntime? runtime;
@@ -54,24 +57,26 @@ final class LocalSqliteEngineServer {
     var publishedHttp = false;
     try {
       store = SqliteInstallationStore.openExisting(root);
-      final endpoint = '${store.root}/engine.sock';
-      if (FileSystemEntity.typeSync(endpoint, followLinks: false) !=
-          FileSystemEntityType.notFound) {
-        // openExisting owns service.lock before any stale endpoint is removed.
-        removeLocalSocketEndpoint(endpoint);
+      if (compatibilitySocket) {
+        final endpoint = '${store.root}/engine.sock';
+        if (FileSystemEntity.typeSync(endpoint, followLinks: false) !=
+            FileSystemEntityType.notFound) {
+          // openExisting owns service.lock before any stale endpoint is removed.
+          removeLocalSocketEndpoint(endpoint);
+        }
+        listener = await ServerSocket.bind(
+          InternetAddress(endpoint, type: InternetAddressType.unix),
+          0,
+        );
+        protectLocalSocketEndpoint(endpoint);
       }
-      listener = await ServerSocket.bind(
-        InternetAddress(endpoint, type: InternetAddressType.unix),
-        0,
-      );
-      protectLocalSocketEndpoint(endpoint);
       runtime = NativeSqliteRuntime(authority: InstallationAuthority(store));
       http = await LoopbackEngineServer.sqlite(runtime);
       final server = LocalSqliteEngineServer._(store, runtime, listener, http);
       writeLocalHttpEndpoint(store.root, http.endpoint);
       publishedHttp = true;
       http.done.then((_) => server.close().ignore());
-      server._subscription = listener.listen(
+      server._subscription = listener?.listen(
         server._accept,
         onError: (Object _) => server.close().ignore(),
       );
@@ -203,8 +208,8 @@ final class LocalSqliteEngineServer {
     _idle.cancel();
     try {
       try {
-        await _subscription.cancel();
-        await _listener.close();
+        await _subscription?.cancel();
+        await _listener?.close();
       } finally {
         for (final socket in _clients.keys.toList()) {
           socket.destroy();

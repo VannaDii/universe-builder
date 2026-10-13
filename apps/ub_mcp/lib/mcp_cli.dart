@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:ub_client/local_engine.dart';
+import 'package:ub_client/loopback_engine.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 import 'local_backend.dart';
@@ -57,7 +58,7 @@ Future<int> runMcp(
     }
     final profile = ProfileId.parse(profileText);
     final helper = await (engineHelper ?? LocalEngineClient.siblingEngine)();
-    final ready = await LocalEngineClient.ensureRunning(
+    final ready = await LoopbackEngineClient.ensureRunning(
       root: root,
       profile: profile,
       helper: helper,

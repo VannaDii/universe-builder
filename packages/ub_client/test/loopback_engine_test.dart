@@ -8,8 +8,48 @@ import 'package:test/test.dart';
 import 'package:ub_client/loopback_engine.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
+import 'package:ub_store/profile_credentials.dart';
+import 'package:ub_store/local_http_endpoint.dart';
+import 'package:ub_store/installation.dart';
 
 void main() {
+  test('HTTP startup refuses unsafe discovery and releases bootstrap after an invalid helper', () async {
+    final root = Directory('/tmp').createTempSync('ub-http-start-');
+    final profile = ProfileId.generate();
+    ProfileCredentialStore.write(
+      root: root.path,
+      profile: profile,
+      credential: 'Disposable startup credential',
+    );
+    Future<LoopbackEngineClient> start() => LoopbackEngineClient.ensureRunning(
+      root: root.path,
+      profile: profile,
+      helper: 'universe-engine',
+      clientName: 'Startup client',
+    );
+    Matcher failure(LocalEngineFailure expected) => throwsA(
+      isA<LocalEngineException>().having(
+        (error) => error.failure,
+        'failure',
+        expected,
+      ),
+    );
+    try {
+      writeLocalHttpEndpoint(root.path, Uri.parse('http://foreign.example'));
+      await expectLater(start(), failure(LocalEngineFailure.unsafeEndpoint));
+      removeLocalHttpEndpoint(root.path);
+      await expectLater(start(), failure(LocalEngineFailure.helperUnavailable));
+      final lock = InstallationBootstrapLock.acquireExisting(root.path);
+      lock.close();
+      File('${root.path}/profiles/${profile.value}.sqlite').deleteSync();
+      await expectLater(
+        start(),
+        failure(LocalEngineFailure.credentialUnavailable),
+      );
+    } finally {
+      root.deleteSync(recursive: true);
+    }
+  });
   test(
     'HTTP interruption requires explicit reconnect and never replays a call',
     () async {
