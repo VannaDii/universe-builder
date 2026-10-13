@@ -3,6 +3,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:postgres/postgres.dart';
@@ -10,7 +11,10 @@ import 'package:test/test.dart' hide Description;
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/postgres_runtime.dart';
+import 'package:ub_service/local_engine.dart';
+import 'package:ub_service/ub_service.dart' show PostgresConfiguration;
 import 'package:ub_store/installation.dart';
+import 'package:ub_store/local_http_endpoint.dart';
 import 'package:ub_store/ub_store.dart';
 import 'package:ub_store/postgres_installation.dart';
 import 'package:ub_store/sqlite.dart' as local;
@@ -98,7 +102,109 @@ void main() {
           await observer.close();
         }
       });
-      test('PostgreSQL logical export streams multiple pages and preserves filtered typed dependencies without workflow authority', () async {
+      test('local PostgreSQL server owns discovery and drains on author shutdown without SQLite fallback', () async {
+      await runtime.close();
+      await store.close();
+      final root = Directory('/tmp').createTempSync('ub-pg-http-');
+      final configuration = PostgresConfiguration(
+        Credential(
+          'postgresql://postgres@127.0.0.1:$port/ub_disposable?sslmode=disable',
+        ),
+        allowLoopbackDevelopment: true,
+      );
+      LocalPostgresEngineServer? server;
+      final http = HttpClient();
+      var next = BigInt.one;
+      Future<EngineResult> call(
+        ProfileId profile,
+        EngineRequest command,
+      ) async {
+        final id = next;
+        next += BigInt.one;
+        final request = await http.postUrl(
+          server!.httpEndpoint.resolve('/engine/call'),
+        );
+        request.headers.set(
+          HttpHeaders.authorizationHeader,
+          'UB ${base64Encode(hello(profile).toWire().toBytes())}',
+        );
+        request.add(EngineCall(id: id, request: command).toWire().toBytes());
+        final response = await request.close();
+        expect(response.statusCode, HttpStatus.ok);
+        final bytes = BytesBuilder(copy: false);
+        await for (final chunk in response) {
+          bytes.add(chunk);
+        }
+        final reply = EngineReply.decode(bytes.takeBytes());
+        expect(reply.id, id);
+        return reply.result;
+      }
+
+      try {
+        server = await LocalPostgresEngineServer.start(
+          root.path,
+          configuration,
+        );
+        expect(readLocalHttpEndpoint(root.path), server.httpEndpoint);
+        await expectLater(
+          LocalPostgresEngineServer.start(root.path, configuration),
+          throwsA(isA<LocalEngineServerException>()),
+        );
+        expect(readLocalHttpEndpoint(root.path), server.httpEndpoint);
+        final status = (await call(
+          authorId,
+          const StatusEngineRequest(),
+        ) as EngineSuccess).value;
+        expect(
+          WireFields(status, {
+            'instance_id',
+            'service_instance',
+            'universes',
+            'canonical_commit',
+            'max_requests_per_principal',
+            'universe_queue_capacity',
+          }).string('instance_id'),
+          store.instanceId.value,
+        );
+        final created = WireFields(
+          (await call(
+            authorId,
+            const CreateUniverseEngineRequest(
+              name: 'PostgreSQL local server universe',
+              start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
+            ),
+          ) as EngineSuccess).value,
+          {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
+        );
+        universes.add(UniverseId.parse(created.string('universe_id')));
+        expect(
+          await call(writerId, const ShutdownEngineRequest()),
+          isA<EngineFailure>(),
+        );
+        expect(readLocalHttpEndpoint(root.path), server.httpEndpoint);
+        expect(
+          await call(authorId, const ShutdownEngineRequest()),
+          isA<EngineSuccess>(),
+        );
+        await server.done.timeout(const Duration(seconds: 10));
+        expect(File('${root.path}/engine-http.json').existsSync(), isFalse);
+        expect(File('${root.path}/installation.sqlite').existsSync(), isFalse);
+        server = await LocalPostgresEngineServer.start(
+          root.path,
+          configuration,
+        );
+        final reopened = (await call(
+          authorId,
+          const StatusEngineRequest(),
+        ) as EngineSuccess).value;
+        expect(reopened.toText(), contains(created.string('universe_id')));
+      } finally {
+        http.close(force: true);
+        await server?.close();
+        root.deleteSync(recursive: true);
+      }
+    });
+    test('PostgreSQL logical export streams multiple pages and preserves filtered typed dependencies without workflow authority', () async {
         final author = await runtime.connect(hello(authorId));
         final created = WireFields(
           await author.execute(
