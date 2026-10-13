@@ -11,6 +11,7 @@ import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/saved_changes.dart';
 import 'package:ub_app/scope_draft.dart';
+import 'package:ub_app/dossier_sources.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_engine.dart';
@@ -813,6 +814,36 @@ void main() {
         query: 'sourced',
       );
       expect(anchors.result.hits.single.label, sourceText);
+      final sourceMaterial = Envelope<Records>.fromWire(
+        await session.call(
+          ToolEngineRequest(
+            request: GetRequest(
+              universe: const Selector('Attributes'),
+              universeId: scope.universe,
+              contextId: choiceContext.contextId,
+              recordIds: [anchors.result.hits.single.recordId],
+              fieldGroups: [FieldGroup.payload, FieldGroup.evidence],
+            ),
+          ),
+        ),
+        Records.fromWire,
+      );
+      final sourceRows = dossierSourceRecords(
+        sourceMaterial.result,
+        scope.universe,
+      );
+      final sourceAnchor =
+          sourceRows.singleWhere((row) => row.payload is AnchorRecord).payload
+              as AnchorRecord;
+      expect(sourceAnchor.excerpt, sourceText);
+      expect(
+        dossierAnchorSource(
+          sourceRows,
+          scope.universe,
+          sourceAnchor,
+        )?.recordVersionId,
+        sourceVersion.recordVersionId,
+      );
       final anchor = await selectDraftChoice(
         changes: changes(),
         context: choiceContext,

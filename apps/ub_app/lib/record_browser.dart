@@ -70,6 +70,7 @@ String dossierReferenceLabel(
       if (names.isNotEmpty) return names.first.text;
     }
     if (row.payload case AppearanceRecord(:final label)) return label;
+    if (row.payload case SourceRecord(:final label)) return label;
     if (row.payload case ImageAssetRecord(:final originalName)) {
       return originalName;
     }

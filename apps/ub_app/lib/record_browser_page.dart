@@ -17,6 +17,7 @@ import 'package:ub_contracts/ub_contracts.dart' as data show State;
 import 'relationship_diagram.dart';
 import 'dossier_appearance_view.dart';
 import 'image_preview_view.dart';
+import 'dossier_sources_view.dart';
 
 enum _DossierView {
   fields,
@@ -26,6 +27,7 @@ enum _DossierView {
   timeline,
   facts,
   appearance,
+  sources,
 }
 
 class _RelationshipList extends StatelessWidget {
@@ -407,7 +409,8 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
         context: widget.context,
         record: widget.hit.recordId,
         group: _group,
-        includePayload: _view == _DossierView.appearance,
+        includePayload:
+            _view == _DossierView.appearance || _view == _DossierView.sources,
       );
       if (_group == FieldGroup.payload &&
           (material.result.records.length != 1 ||
@@ -505,6 +508,7 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                   _DossierView.evidence: 'Supporting records',
                   _DossierView.history: 'History',
                   _DossierView.appearance: 'Appearance',
+                  _DossierView.sources: 'Sources',
                   if (widget.hit.kind == RecordKind.entity) ...{
                     _DossierView.facts: 'Facts',
                     _DossierView.relationships: 'Relationships',
@@ -650,10 +654,16 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                   entry: widget.hit.recordId,
                   material: _material!.result,
                 ),
+              if (_view == _DossierView.sources)
+                DossierSources(
+                  material: _material!.result,
+                  universe: widget.universe.id,
+                ),
               if (_group == FieldGroup.evidence &&
                   !_relationships &&
                   !_timeline &&
-                  _view != _DossierView.appearance) ...[
+                  _view != _DossierView.appearance &&
+                  _view != _DossierView.sources) ...[
                 const Text(
                   'Sources, assertions and related declarations accessible in this context.',
                 ),

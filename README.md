@@ -193,6 +193,13 @@ visible. Image-asset records also offer this preview from Published fields.
 Previews follow the existing service access restrictions and use memory rather
 than saved preview files. The displayed preview is cleared when its record,
 context or connection changes.
+**Sources** in a record dossier displays accessible source attribution, import
+metadata and anchored excerpts at the opened revision. Excerpts retain exact
+Unicode text and UTF-8 byte ranges. Source names are resolved only from the exact
+record version referenced by an anchor; unavailable versions remain explicit.
+External identifiers are descriptive and never fetched automatically. Exact
+source details remain expandable. Full retained source text is not yet exposed
+by this view.
 **Timeline** in an entity dossier lists events with explicit participation.
 Exact numeric points are ordered separately in each named calendar, using the
 shared rule engine's integer bounds. Equal coordinates do not imply sequence.
