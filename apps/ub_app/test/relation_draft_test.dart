@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:ub_app/relation_draft.dart';
 import 'package:ub_app/attribute_draft.dart';
+import 'package:ub_app/scope_draft.dart';
 import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/draft_record_choices.dart';
@@ -369,11 +370,19 @@ void main() {
       final people = (await publish(peopleDraft))
           .where((r) => r.payload is EntityRecord)
           .toList();
-      final claimBase = await changes().rebase(
+      var claimBase = await changes().rebase(
         (await changes().load())!,
         startNew: true,
       );
-      final claimRef = RecordId.generate();
+      claimBase = await changes().saveContent(
+        claimBase,
+        DraftContent(
+          baseRevision: claimBase.content.baseRevision,
+          representedContext: claimBase.content.representedContext,
+          operations: [],
+          rationale: 'Authored conversation.',
+        ),
+      );
       final evidence = AttributeEvidence(
         attributeMode: AttributeMode.instance,
         polarity: Polarity.support,
@@ -393,37 +402,82 @@ void main() {
         universe: scope.universe,
         record: people[index].identity.recordId,
       );
-      final claim = RecordRelationOperation(
-        clientRef: claimRef.value,
-        proposition: PropositionRecord(
-          predicate: chosen,
-          subject: participant(0),
-          roles: [
-            PropositionRole('speaker', participant(0)),
-            PropositionRole('listeners', participant(1)),
-          ],
-          quantification: Quantification.particular,
-          context: evidence.scope.context,
+      final blank = newAttributeForm(
+        draft: claimBase,
+        entity: people[0],
+        relationship: true,
+      );
+      expect(
+        blank.clientRef,
+        'new-relationship:${people[0].identity.recordId.value}',
+      );
+      final creationForm = UnfinishedAttributeForm(
+        baseRevision: blank.baseRevision,
+        representedContext: blank.representedContext,
+        clientRef: blank.clientRef,
+        draftVersion: blank.draftVersion,
+        value: blank.value,
+        roles: [
+          PropositionRoleInput(
+            role: 'speaker',
+            record: participant(0).record.value,
+            universe: scope.universe.value,
+          ),
+          PropositionRoleInput(
+            role: 'listeners',
+            record: participant(1).record.value,
+            universe: scope.universe.value,
+          ),
+        ],
+        creationInput: AttributeCreationInput(
+          subject: blank.creationInput!.subject,
+          operationRef: blank.creationInput!.operationRef,
+          relationship: true,
+          propertyRecord: chosen.record.value,
+          propertyUniverse: scope.universe.value,
         ),
-        assertion: AssertionRecord(
-          proposition: RecordRef(universe: scope.universe, record: claimRef),
-          attributeMode: evidence.attributeMode,
-          polarity: evidence.polarity,
-          scope: evidence.scope,
-          validity: evidence.validity,
-          persistence: evidence.persistence,
-          precision: evidence.precision,
-          basis: evidence.basis,
+        evidenceInput: AttributeEvidenceInput(
+          scope: scopeInput(evidence.scope),
+          precision: Precision.exact,
+          basis: const EvidenceBasisInput(
+            kind: 'author_decision',
+            note: 'Authored conversation.',
+          ),
         ),
       );
-      final claimDraft = await changes().saveContent(
-        claimBase,
-        DraftContent(
-          baseRevision: claimBase.content.baseRevision,
-          representedContext: claimBase.content.representedContext,
-          operations: [claim],
-          rationale: 'Authored conversation.',
+      expect(
+        AttributeCreationInput.fromWire(creationForm.creationInput!.toWire())
+            .relationship,
+        isTrue,
+      );
+      final content = appendDraftAttribute(
+        draft: claimBase,
+        form: creationForm,
+        entity: people[0],
+        property: published,
+      );
+      expect(content.operations.single, isA<RecordRelationOperation>());
+      final claimDraft = await changes().saveContent(claimBase, content);
+      expect(
+        appendDraftAttribute(
+          draft: claimDraft,
+          form: creationForm,
+          entity: people[0],
+          property: published,
+        ).toWire().toText(),
+        claimDraft.content.toWire().toText(),
+      );
+      expect(
+        () => appendDraftAttribute(
+          draft: SavedDraft(
+            version: claimBase.version + BigInt.one,
+            content: claimBase.content,
+          ),
+          form: creationForm,
+          entity: people[0],
+          property: published,
         ),
+        throwsFormatException,
       );
       final pending = attributeFormFromDraft(claimDraft, 0);
       final roleEdit = UnfinishedAttributeForm(

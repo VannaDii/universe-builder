@@ -28,14 +28,17 @@ class AttributeEditorPage extends StatefulWidget {
     required this.draft,
     required this.index,
   }) : publishedEntity = null,
-       openedRevision = null;
+       openedRevision = null,
+       relationship = false;
   const AttributeEditorPage.create({
     super.key,
     required this.changes,
     required this.draft,
     required this.publishedEntity,
     required this.openedRevision,
+    this.relationship = false,
   }) : index = null;
+  final bool relationship;
   final SavedChanges changes;
   final SavedDraft draft;
   final int? index;
@@ -75,8 +78,9 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
       _form?.creationInput != null &&
       _draft.content.operations.any(
         (op) =>
-            op is AssertPropositionOperation &&
-            op.clientRef == _form!.creationInput!.operationRef,
+            (op is AssertPropositionOperation ||
+                op is RecordRelationOperation) &&
+            attributeClientRef(op) == _form!.creationInput!.operationRef,
       );
   bool get _disabled =>
       _loading || _saving || _updating || _form == null || _added;
@@ -93,6 +97,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
       ? newAttributeForm(
           draft: _draft,
           entity: widget.publishedEntity!,
+          relationship: widget.relationship,
           baseRevision: widget.openedRevision,
           representedContext: widget.changes.scope.representedContext,
         )
@@ -111,7 +116,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
           ? scope.representedContext
           : _draft.content.representedContext,
       attributeClientRef: widget.creating
-          ? 'new-attribute:${widget.publishedEntity!.identity.recordId.value}'
+          ? '${widget.relationship ? 'new-relationship' : 'new-attribute'}:${widget.publishedEntity!.identity.recordId.value}'
           : attributeClientRef(_source!),
     );
     _load();
@@ -184,8 +189,71 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
     _autosave = Timer(const Duration(milliseconds: 500), _save);
   }
 
+  String? _declaredRoles;
+  Future<void> _selectDefinition(RecordRef ref) async {
+    final creation = _form!.creationInput!;
+    _change(
+      _form!.value,
+      creation: AttributeCreationInput(
+        subject: creation.subject,
+        operationRef: creation.operationRef,
+        relationship: creation.relationship,
+        propertyRecord: ref.record.value,
+        propertyUniverse: ref.universe?.value ?? '',
+      ),
+    );
+    if (!widget.relationship) return;
+    setState(() {
+      _updating = true;
+      _declaredRoles = null;
+    });
+    try {
+      final context = await openDraftChoiceContext(widget.changes, _choices);
+      final record = await readContextRecord(
+        session: widget.changes.session,
+        universe: LibraryEntry(
+          widget.changes.scope.universe,
+          widget.changes.universe.value,
+        ),
+        context: context,
+        record: ref.record,
+      );
+      final relation = record.payload;
+      if (relation is! RelationRecord) {
+        throw const FormatException('Choose a published relation definition.');
+      }
+      if (!mounted) return;
+      setState(
+        () => _declaredRoles = relation.roles
+            .map(
+              (r) =>
+                  '${r.name}: ${r.multiplicity == Multiplicity.single ? 'single participant' : 'multiple participants'}${r.ordered ? ', ordered' : ''}',
+            )
+            .join('; '),
+      );
+      if (_roles.isEmpty) {
+        _change(
+          _form!.value,
+          roles: [
+            for (final role in relation.roles)
+              PropositionRoleInput(role: role.name),
+          ],
+        );
+      }
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _error = 'Could not read the relation roles. Your selected definition and input remain saved; retry when connected.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _updating = false);
+    }
+  }
+
   bool get _relationship =>
-      _source != null && isRelationshipAssertion(_source!);
+      widget.relationship ||
+      (_source != null && isRelationshipAssertion(_source!));
   List<PropositionRoleInput> get _roles =>
       _form!.roles ??
       [
@@ -592,7 +660,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
         final context = await openDraftChoiceContext(widget.changes, current);
         if (creation.propertyUniverse != widget.changes.scope.universe.value) {
           throw const FormatException(
-            'Choose an existing property in this universe.',
+            'Choose an existing definition in this universe.',
           );
         }
         final property = await readContextRecord(
@@ -644,6 +712,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                 value: _form!.value,
                 evidenceInput: _form!.evidenceInput,
                 creationInput: _form!.creationInput,
+                roles: _form!.roles,
               )
             : attributeFormFromDraft(saved, widget.index!);
         _dirty = true;
@@ -696,7 +765,9 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
       appBar: AppBar(
         title: Text(
           widget.creating
-              ? 'Add factual attribute'
+              ? widget.relationship
+                    ? 'Add relationship'
+                    : 'Add factual attribute'
               : _relationship
               ? 'Edit relationship assertion'
               : 'Edit attribute',
@@ -739,25 +810,41 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                   DraftRecordChoiceField(
                     changes: widget.changes,
                     draft: _draft,
-                    kind: RecordKind.property,
-                    label: 'Property',
+                    kind: widget.relationship
+                        ? RecordKind.relation
+                        : RecordKind.property,
+                    label: widget.relationship
+                        ? 'Relation definition'
+                        : 'Property',
                     record: _form!.creationInput!.propertyRecord,
                     universe: _form!.creationInput!.propertyUniverse,
                     disabled: _disabled,
-                    onChanged: (ref) {
-                      final creation = _form!.creationInput!;
-                      _change(
-                        _form!.value,
-                        creation: AttributeCreationInput(
-                          subject: creation.subject,
-                          operationRef: creation.operationRef,
-                          propertyRecord: ref.record.value,
-                          propertyUniverse: ref.universe!.value,
-                        ),
-                      );
-                    },
+                    onChanged: _selectDefinition,
                   ),
-                if (_form != null && (widget.creating || _value != null))
+                if (widget.relationship &&
+                    _form?.creationInput != null &&
+                    _form!.creationInput!.propertyRecord.isNotEmpty) ...[
+                  if (_declaredRoles != null)
+                    Text('Declared roles: $_declaredRoles'),
+                  TextButton(
+                    onPressed: _disabled
+                        ? null
+                        : () => _selectDefinition(
+                            RecordRef(
+                              record: RecordId.parse(
+                                _form!.creationInput!.propertyRecord,
+                              ),
+                              universe: UniverseId.parse(
+                                _form!.creationInput!.propertyUniverse,
+                              ),
+                            ),
+                          ),
+                    child: const Text('Show relation roles'),
+                  ),
+                ],
+                if (_form != null &&
+                    !_relationship &&
+                    (widget.creating || _value != null))
                   ValueInputFields(
                     changes: widget.changes,
                     draft: _choices,
@@ -769,7 +856,8 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                     onChanged: _change,
                   ),
                 if (_form != null) ...[
-                  if (_source is AssertPropositionOperation ||
+                  if (widget.relationship ||
+                      _source is AssertPropositionOperation ||
                       _source is RecordRelationOperation)
                     _roleFields(),
                   _evidenceFields(),
@@ -841,7 +929,11 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                     onPressed: _loading || _saving || _updating
                         ? null
                         : _useCurrent,
-                    child: const Text('Start another attribute'),
+                    child: Text(
+                      widget.relationship
+                          ? 'Start another relationship'
+                          : 'Start another attribute',
+                    ),
                   ),
                 ],
                 TextButton(

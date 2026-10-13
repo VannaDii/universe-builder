@@ -606,10 +606,13 @@ final class AttributeCreationInput {
     required this.operationRef,
     this.propertyRecord = '',
     this.propertyUniverse = '',
+    this.relationship = false,
   });
   final VersionRef subject;
+  final bool relationship;
   final String operationRef, propertyRecord, propertyUniverse;
   CanonicalObject toWire() => CanonicalObject([
+    if (relationship) MapEntry('relationship', CanonicalBool(true)),
     MapEntry('subject', subject.toCanonical()),
     MapEntry('operation_ref', CanonicalString(operationRef)),
     MapEntry('property_record', CanonicalString(propertyRecord)),
@@ -617,12 +620,16 @@ final class AttributeCreationInput {
   ]);
   factory AttributeCreationInput.fromWire(CanonicalValue value) {
     final f = WireFields(value, {
+      'relationship',
       'subject',
       'operation_ref',
       'property_record',
       'property_universe',
     });
     return AttributeCreationInput(
+      relationship:
+          f.optional('relationship', (v) => (v as CanonicalBool).value) ??
+          false,
       subject: VersionRef.fromCanonical(f.require('subject')),
       operationRef: f.string('operation_ref'),
       propertyRecord: f.string('property_record'),

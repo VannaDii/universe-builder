@@ -162,6 +162,11 @@ preserves the definition reference, other Changes and rationale. Defining a
 calendar leaves the represented story clock unchanged and does not infer
 arithmetic or synchronization between calendars. Publication uses the normal
 validation and exact approval flow.
+**Add relationship** from an entity dossier opens a published relation picker and
+recoverable role/participant fields. Selecting a definition supplies its role names
+and shows its multiplicity/ordering declarations; the author chooses participants.
+The subject stays bound to the opened entity version. Creation and edit recovery
+use separate slots and add no new definitions.
 **Edit relationship assertion** in Changes opens role names and named participant
 references with add/remove/reorder controls. Role order, duplicates and omitted
 local universes are retained. Scope, validity and evidence use the same assertion

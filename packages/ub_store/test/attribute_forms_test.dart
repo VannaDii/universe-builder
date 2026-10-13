@@ -66,6 +66,7 @@ void main() {
               ),
             ],
             creationInput: AttributeCreationInput(
+              relationship: true,
               subject: VersionRef(
                 universe: scope.universe,
                 record: RecordId.generate(),

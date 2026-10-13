@@ -223,6 +223,7 @@ AttributeEvidence newAttributeEvidence(UniverseId universe, RecordId context) =>
 UnfinishedAttributeForm newAttributeForm({
   required SavedDraft draft,
   required RecordVersion entity,
+  bool relationship = false,
   RevisionId? baseRevision,
   RecordId? representedContext,
 }) {
@@ -232,10 +233,13 @@ UnfinishedAttributeForm newAttributeForm({
   return UnfinishedAttributeForm(
     baseRevision: baseRevision ?? draft.content.baseRevision,
     representedContext: representedContext ?? draft.content.representedContext,
-    clientRef: 'new-attribute:${entity.identity.recordId.value}',
+    clientRef:
+        '${relationship ? 'new-relationship' : 'new-attribute'}:${entity.identity.recordId.value}',
     draftVersion: draft.version,
-    value: const QualifierInput(kind: 'text'),
+    value: QualifierInput(kind: relationship ? 'retain' : 'text'),
+    roles: relationship ? [] : null,
     creationInput: AttributeCreationInput(
+      relationship: relationship,
       subject: VersionRef(
         universe: entity.identity.universeId,
         record: entity.identity.recordId,
@@ -255,16 +259,19 @@ DraftContent appendDraftAttribute({
   final creation = form.creationInput;
   if (creation == null ||
       entity.payload is! EntityRecord ||
-      property.payload is! PropertyRecord ||
+      (creation.relationship
+          ? property.payload is! RelationRecord
+          : property.payload is! PropertyRecord) ||
       creation.subject.record != entity.identity.recordId ||
       creation.subject.universe != entity.identity.universeId ||
       creation.subject.version != entity.recordVersionId ||
       creation.propertyRecord != property.identity.recordId.value ||
       creation.propertyUniverse != property.identity.universeId.value ||
       entity.identity.universeId != property.identity.universeId ||
-      form.clientRef != 'new-attribute:${entity.identity.recordId.value}') {
+      form.clientRef !=
+          '${creation.relationship ? 'new-relationship' : 'new-attribute'}:${entity.identity.recordId.value}') {
     throw const FormatException(
-      'Reopen the entity and choose an existing property.',
+      'Reopen the entity and choose an existing definition.',
     );
   }
   if (draft.content.proposal != null ||
@@ -274,40 +281,68 @@ DraftContent appendDraftAttribute({
       'Reopen the dossier at the current draft revision.',
     );
   }
+  if (creation.relationship
+      ? form.value.kind != 'retain'
+      : form.roles != null) {
+    throw const FormatException(
+      'Reopen the matching fact or relationship form.',
+    );
+  }
   final evidence = editAttributeEvidence(
     form.evidenceInput,
     newAttributeEvidence(entity.identity.universeId, form.representedContext),
   );
-  final op = AssertPropositionOperation(
-    clientRef: creation.operationRef,
-    proposition: PropositionRecord(
-      predicate: RecordRef(
-        universe: property.identity.universeId,
-        record: property.identity.recordId,
-      ),
-      subject: RecordRef(
-        universe: entity.identity.universeId,
-        record: entity.identity.recordId,
-      ),
-      value: buildQualifierValue(form.value, null),
-      quantification: Quantification.particular,
-      context: evidence.scope.context,
+  final proposition = PropositionRecord(
+    predicate: RecordRef(
+      universe: property.identity.universeId,
+      record: property.identity.recordId,
     ),
-    assertion: AssertionRecord(
-      proposition: RecordRef(
-        universe: entity.identity.universeId,
-        record: RecordId.parse(creation.operationRef),
-      ),
-      attributeMode: evidence.attributeMode,
-      polarity: evidence.polarity,
-      scope: evidence.scope,
-      validity: evidence.validity,
-      persistence: evidence.persistence,
-      precision: evidence.precision,
-      alternatives: evidence.alternatives,
-      basis: evidence.basis,
+    subject: RecordRef(
+      universe: entity.identity.universeId,
+      record: entity.identity.recordId,
     ),
+    value: creation.relationship ? null : buildQualifierValue(form.value, null),
+    roles: creation.relationship
+        ? (form.roles ?? []).map(
+            (r) => PropositionRole(
+              r.role,
+              RecordRef(
+                record: RecordId.parse(r.record),
+                universe: r.universe.isEmpty
+                    ? null
+                    : UniverseId.parse(r.universe),
+              ),
+            ),
+          )
+        : [],
+    quantification: Quantification.particular,
+    context: evidence.scope.context,
   );
+  final assertion = AssertionRecord(
+    proposition: RecordRef(
+      universe: entity.identity.universeId,
+      record: RecordId.parse(creation.operationRef),
+    ),
+    attributeMode: evidence.attributeMode,
+    polarity: evidence.polarity,
+    scope: evidence.scope,
+    validity: evidence.validity,
+    persistence: evidence.persistence,
+    precision: evidence.precision,
+    alternatives: evidence.alternatives,
+    basis: evidence.basis,
+  );
+  final DomainOperation op = creation.relationship
+      ? RecordRelationOperation(
+          clientRef: creation.operationRef,
+          proposition: proposition,
+          assertion: assertion,
+        )
+      : AssertPropositionOperation(
+          clientRef: creation.operationRef,
+          proposition: proposition,
+          assertion: assertion,
+        );
   final existing = draft.content.operations
       .where(
         (other) => other.toWire().fields.any(

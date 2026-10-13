@@ -255,7 +255,10 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
     }
   }
 
-  Future<void> _addAttribute(RecordVersion entity) async {
+  Future<void> _addAttribute(
+    RecordVersion entity, {
+    bool relationship = false,
+  }) async {
     setState(() {
       _busy = true;
       _error = null;
@@ -290,6 +293,7 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
             changes: changes,
             draft: draft,
             publishedEntity: entity,
+            relationship: relationship,
             openedRevision: widget.context.frame.revision,
           ),
         ),
@@ -297,7 +301,7 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
     } on Object {
       if (mounted) {
         setState(
-          () => _error = 'Could not open attribute fields. Check the connection and retry.',
+          () => _error = 'Could not open fact or relationship fields. Check the connection and retry.',
         );
       }
     } finally {
@@ -361,6 +365,15 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                         TextButton(
                           onPressed: _busy ? null : () => _addAttribute(record),
                           child: const Text('Add factual attribute'),
+                        ),
+                      if (widget.session.author &&
+                          _material!.delivery.complete &&
+                          record.payload is EntityRecord)
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => _addAttribute(record, relationship: true),
+                          child: const Text('Add relationship'),
                         ),
                       if (widget.session.author &&
                           _material!.delivery.complete &&
