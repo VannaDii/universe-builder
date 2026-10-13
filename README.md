@@ -92,6 +92,9 @@ qualifiers support explicit contained/adjacent/connected targets, ordered typed
 coordinates, distance amounts with units, and unspecified space. Structured
 temporal amounts use these same nested typed controls for durations and uncertainties.
 Older saved inputs retaining an exact amount remain readable. Review, approval and publication remain separate steps.
+**Name details** edits optional language, community, naming role and validity.
+Clear removes a metadata field; an explicitly entered empty string remains empty.
+Edits retain the entity identity and recover separately from canon.
 **Type definition** opens a recoverable typed form for namespace, key, display
 name, parent, applicability, executable classification and rationale. Parent,
 applicability and classification require explicit choices. Unspecified and

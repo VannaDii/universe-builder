@@ -18,10 +18,7 @@ SaveDraftEngineRequest entityDraftRequest({
   }
   final operation = IntroduceInstanceOperation(
     clientRef: form.clientRef,
-    name: ContextualName(
-      text: form.name,
-      validity: const UnspecifiedValidity(),
-    ),
+    name: _name(form, null),
     classification: form.classification.isEmpty
         ? null
         : RecordId.parse(form.classification),
@@ -89,6 +86,11 @@ UnfinishedEntityForm entityFormFromDraft(SavedDraft draft, int index) {
     representedContext: draft.content.representedContext,
     clientRef: operation.clientRef,
     name: operation.name.text,
+    nameDetails: EntityNameForm(
+      language: operation.name.language,
+      community: operation.name.community,
+      role: operation.name.role,
+    ),
     classification: operation.classification?.value ?? '',
     worldRole: '',
     rationale: '',
@@ -130,13 +132,7 @@ DraftContent replaceDraftEntity({
       draft.content.operations[index] as IntroduceInstanceOperation;
   final edited = IntroduceInstanceOperation(
     clientRef: operation.clientRef,
-    name: ContextualName(
-      text: form.name,
-      language: operation.name.language,
-      community: operation.name.community,
-      role: operation.name.role,
-      validity: operation.name.validity,
-    ),
+    name: _name(form, operation.name),
     classification: form.classification.isEmpty
         ? null
         : RecordId.parse(form.classification),
@@ -184,5 +180,18 @@ DraftContent replaceDraftEntity({
         i == index ? edited : draft.content.operations[i],
     ],
     rationale: draft.content.rationale,
+  );
+}
+
+ContextualName _name(UnfinishedEntityForm form, ContextualName? original) {
+  final fields = form.nameDetails;
+  return ContextualName(
+    text: form.name,
+    language: fields == null ? original?.language : fields.language,
+    community: fields == null ? original?.community : fields.community,
+    role: fields == null ? original?.role : fields.role,
+    validity: fields?.temporalValidity != null
+        ? buildTemporalValidity(fields!.temporalValidity!, original?.validity)
+        : fields?.validity ?? original?.validity ?? const UnspecifiedValidity(),
   );
 }

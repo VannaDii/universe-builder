@@ -180,6 +180,7 @@ final class UnfinishedEntityForm {
     Iterable<WorldId> worlds = const [],
     BigInt? draftVersion,
     Iterable<EntityAssociationForm>? associations,
+    this.nameDetails,
   }) : associations = associations == null
            ? null
            : List.unmodifiable(associations),
@@ -193,7 +194,9 @@ final class UnfinishedEntityForm {
 
   /// Null retains the draft associations (older recovery forms). Empty explicitly removes them.
   final List<EntityAssociationForm>? associations;
+  final EntityNameForm? nameDetails;
   CanonicalObject toWire() => CanonicalObject([
+    if (nameDetails != null) MapEntry('name_details', nameDetails!.toWire()),
     if (associations != null)
       MapEntry(
         'associations',
@@ -515,5 +518,64 @@ final class QualifierInput {
           .map((c) => QualifierInput.fromWire(c, depth: depth + 1))
           .toList(),
     );
+  }
+}
+
+/// Null metadata is absent; an empty string remains an explicitly entered value.
+final class EntityNameForm {
+  const EntityNameForm({
+    this.language,
+    this.community,
+    this.role,
+    this.validity,
+    this.temporalValidity,
+  });
+  final String? language, community, role;
+  final Validity? validity;
+  final TemporalValidityInput? temporalValidity;
+  CanonicalObject toWire() => CanonicalObject([
+    if (language != null) MapEntry('language', CanonicalString(language!)),
+    if (community != null) MapEntry('community', CanonicalString(community!)),
+    if (role != null) MapEntry('role', CanonicalString(role!)),
+    if (validity != null) MapEntry('validity', validity!.toWire()),
+    if (temporalValidity != null)
+      MapEntry('temporal_validity', temporalValidity!.toWire()),
+  ]);
+  factory EntityNameForm.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {
+      'language',
+      'community',
+      'role',
+      'validity',
+      'temporal_validity',
+    });
+    return EntityNameForm(
+      language: f.optional('language', wireString),
+      community: f.optional('community', wireString),
+      role: f.optional('role', wireString),
+      validity: f.optional('validity', Validity.fromWire),
+      temporalValidity: f.optional(
+        'temporal_validity',
+        TemporalValidityInput.fromWire,
+      ),
+    );
+  }
+  Iterable<String> get exactTexts sync* {
+    yield* [?language, ?community, ?role];
+    if (temporalValidity case final t?) {
+      yield* [t.kind, t.calendar, t.relation, t.targetUniverse, t.targetRecord];
+      for (final b in [t.start, t.end]) {
+        yield* [
+          b.kind,
+          b.value,
+          b.upper,
+          b.uncertaintyKind,
+          b.uncertainty,
+          b.denominator,
+          b.unit,
+        ];
+        if (b.amount != null) yield* b.amount!.exactTexts;
+      }
+    }
   }
 }

@@ -11,23 +11,21 @@ import 'package:ub_store/editor_forms.dart';
 import 'package:ub_store/src/ownership.dart';
 
 void main() {
-  test(
-    'version-two drafts retain pending input when association editing is added',
-    () {
-      final root = Directory('/tmp').createTempSync('ub-entity-v2-');
-      final path = '${root.path}/entities.sqlite';
-      final scope = EditorFormScope(
-        instance: OperationId.generate(),
-        profile: ProfileId.generate(),
-        universe: UniverseId.generate(),
-        continuity: ContinuityId.generate(),
-        representedContext: RecordId.generate(),
-        entityClientRef: 'draft-person',
-      );
-      final revision = RevisionId.generate();
-      protectedFile(path, create: true);
-      final db = sqlite3.open(path);
-      db.execute("""
+  test('version-two drafts retain pending input when association editing is added', () {
+    final root = Directory('/tmp').createTempSync('ub-entity-v2-');
+    final path = '${root.path}/entities.sqlite';
+    final scope = EditorFormScope(
+      instance: OperationId.generate(),
+      profile: ProfileId.generate(),
+      universe: UniverseId.generate(),
+      continuity: ContinuityId.generate(),
+      representedContext: RecordId.generate(),
+      entityClientRef: 'draft-person',
+    );
+    final revision = RevisionId.generate();
+    protectedFile(path, create: true);
+    final db = sqlite3.open(path);
+    db.execute("""
       CREATE TABLE entity_form (
         instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
         continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL, generation TEXT NOT NULL,
@@ -43,218 +41,245 @@ void main() {
       ) STRICT;
       PRAGMA user_version=2;
     """);
-      db.execute(
-        'INSERT INTO entity_form VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        [
-          scope.instance.value,
-          scope.profile.value,
-          scope.universe.value,
-          scope.continuity.value,
-          scope.representedContext!.value,
-          'draft-person',
-          '7',
-          revision.value,
-          'draft-person',
-          '人物',
-          '',
-          '',
-          '',
-          '12',
-        ],
-      );
-      db.close();
-      var store = EntityFormRecoveryStore.open(path);
-      try {
-        final original = store.load(scope)!;
-        expect(original.generation, BigInt.from(7));
-        expect(original.form.name, '人物');
-        expect(original.form.draftVersion, BigInt.from(12));
-        expect(original.form.associations, isNull);
-        UnfinishedEntityForm form(List<EntityAssociationForm> rows) =>
-            UnfinishedEntityForm(
-              baseRevision: revision,
-              representedContext: scope.representedContext!,
-              clientRef: 'draft-person',
-              name: '人物',
-              classification: '',
-              worldRole: '',
-              rationale: '',
-              draftVersion: BigInt.from(12),
-              associations: rows,
-            );
-        final pending = form([
-          const EntityAssociationForm(
-            world: '',
-            role: 'Unfinished',
-            qualifiers: [
-              QualifierInput(key: '', kind: 'text', value: '記憶 😀\nunfinished'),
-              QualifierInput(
-                key: 'target',
-                kind: 'entity_ref',
-                universe: 'unfinished universe 😀',
-                value: 'unfinished record',
+    db.execute('INSERT INTO entity_form VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [
+      scope.instance.value,
+      scope.profile.value,
+      scope.universe.value,
+      scope.continuity.value,
+      scope.representedContext!.value,
+      'draft-person',
+      '7',
+      revision.value,
+      'draft-person',
+      '人物',
+      '',
+      '',
+      '',
+      '12',
+    ]);
+    db.close();
+    var store = EntityFormRecoveryStore.open(path);
+    try {
+      final original = store.load(scope)!;
+      expect(original.generation, BigInt.from(7));
+      expect(original.form.name, '人物');
+      expect(original.form.draftVersion, BigInt.from(12));
+      expect(original.form.associations, isNull);
+      UnfinishedEntityForm form(List<EntityAssociationForm> rows) =>
+          UnfinishedEntityForm(
+            baseRevision: revision,
+            representedContext: scope.representedContext!,
+            clientRef: 'draft-person',
+            name: '人物',
+            nameDetails: const EntityNameForm(
+              language: 'en',
+              community: '記憶 😀',
+              role: '',
+              temporalValidity: TemporalValidityInput(
+                calendar: 'unfinished 😀',
+                kind: 'instant',
+                start: TemporalBoundInput(value: 'unfinished time'),
               ),
-              QualifierInput(
-                key: 'entry',
-                kind: 'enum',
-                definition: 'unfinished definition 😀',
-                value: '記憶',
-              ),
-              QualifierInput(
-                key: 'list',
-                kind: 'sequence',
-                children: [
-                  QualifierInput(
-                    kind: 'structured',
-                    definition: 'unfinished 😀',
-                    children: [
-                      QualifierInput(
-                        key: '',
-                        kind: 'text',
-                        value: 'nested 記憶 😀',
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              QualifierInput(
-                key: 'range',
-                kind: 'range',
-                lower: QualifierInput(kind: 'decimal', value: 'unfinished 😀'),
-                upperInclusive: 'false',
-              ),
-              QualifierInput(
-                key: 'time',
-                kind: 'temporal',
-                temporal: TemporalValidityInput(
-                  kind: 'instant_relative',
-                  calendar: 'unfinished 😀',
-                  relation: 'after',
-                  targetRecord: 'unfinished record',
-                  start: TemporalBoundInput(uncertainty: '記憶 😀'),
-                ),
-              ),
-              QualifierInput(
-                key: 'space',
-                kind: 'spatial_distance',
-                value: 'unfinished target',
-                universe: 'unfinished universe',
-                unit: 'unfinished unit',
-                lower: QualifierInput(kind: 'decimal', value: 'unfinished 😀'),
-              ),
-              QualifierInput(
-                key: 'amount',
-                kind: 'rational',
-                value: '1',
-                denominator: '',
-              ),
-            ],
-            validity: UnknownValidity(),
-            temporalValidity: TemporalValidityInput(
-              calendar: 'unfinished',
-              kind: 'instant_relative',
-              relation: 'after',
-              targetUniverse: 'unfinished universe',
-              targetRecord: 'unfinished record',
-              start: TemporalBoundInput(
-                value: 'unknown text',
-                uncertaintyKind: 'typed',
-                amount: QualifierInput(
-                  kind: 'sequence',
+            ),
+            classification: '',
+            worldRole: '',
+            rationale: '',
+            draftVersion: BigInt.from(12),
+            associations: rows,
+          );
+      final pending = form([
+        const EntityAssociationForm(
+          world: '',
+          role: 'Unfinished',
+          qualifiers: [
+            QualifierInput(key: '', kind: 'text', value: '記憶 😀\nunfinished'),
+            QualifierInput(
+              key: 'target',
+              kind: 'entity_ref',
+              universe: 'unfinished universe 😀',
+              value: 'unfinished record',
+            ),
+            QualifierInput(
+              key: 'entry',
+              kind: 'enum',
+              definition: 'unfinished definition 😀',
+              value: '記憶',
+            ),
+            QualifierInput(
+              key: 'list',
+              kind: 'sequence',
+              children: [
+                QualifierInput(
+                  kind: 'structured',
+                  definition: 'unfinished 😀',
                   children: [
-                    QualifierInput(kind: 'decimal', value: 'unfinished 記憶 😀'),
+                    QualifierInput(
+                      key: '',
+                      kind: 'text',
+                      value: 'nested 記憶 😀',
+                    ),
                   ],
                 ),
+              ],
+            ),
+            QualifierInput(
+              key: 'range',
+              kind: 'range',
+              lower: QualifierInput(kind: 'decimal', value: 'unfinished 😀'),
+              upperInclusive: 'false',
+            ),
+            QualifierInput(
+              key: 'time',
+              kind: 'temporal',
+              temporal: TemporalValidityInput(
+                kind: 'instant_relative',
+                calendar: 'unfinished 😀',
+                relation: 'after',
+                targetRecord: 'unfinished record',
+                start: TemporalBoundInput(uncertainty: '記憶 😀'),
               ),
             ),
-            originalOrdinal: 1,
-          ),
-          const EntityAssociationForm(
-            world: '',
-            role: '',
-            temporalValidity: TemporalValidityInput(
-              kind: 'instant_duration',
-              start: TemporalBoundInput(
-                uncertaintyKind: 'text',
-                uncertainty: '記憶 😀\nunfinished amount',
+            QualifierInput(
+              key: 'space',
+              kind: 'spatial_distance',
+              value: 'unfinished target',
+              universe: 'unfinished universe',
+              unit: 'unfinished unit',
+              lower: QualifierInput(kind: 'decimal', value: 'unfinished 😀'),
+            ),
+            QualifierInput(
+              key: 'amount',
+              kind: 'rational',
+              value: '1',
+              denominator: '',
+            ),
+          ],
+          validity: UnknownValidity(),
+          temporalValidity: TemporalValidityInput(
+            calendar: 'unfinished',
+            kind: 'instant_relative',
+            relation: 'after',
+            targetUniverse: 'unfinished universe',
+            targetRecord: 'unfinished record',
+            start: TemporalBoundInput(
+              value: 'unknown text',
+              uncertaintyKind: 'typed',
+              amount: QualifierInput(
+                kind: 'sequence',
+                children: [
+                  QualifierInput(kind: 'decimal', value: 'unfinished 記憶 😀'),
+                ],
               ),
             ),
           ),
-        ]);
-        store.save(scope, pending, BigInt.from(7));
-        store.close();
-        store = EntityFormRecoveryStore.open(path);
-        expect(
-          store.load(scope)!.form.toWire().toText(),
-          pending.toWire().toText(),
-        );
-        store.save(scope, form([]), BigInt.from(8));
-        expect(store.load(scope)!.form.associations, isEmpty);
-        store.save(scope, pending, BigInt.from(9));
-        store.close();
-        final legacy = sqlite3.open(path);
-        legacy.execute(
-          'ALTER TABLE entity_form_association DROP COLUMN validity; ALTER TABLE entity_form_association DROP COLUMN temporal_input; ALTER TABLE entity_form_association DROP COLUMN qualifier_input; PRAGMA user_version=3',
-        );
-        legacy.close();
-        store = EntityFormRecoveryStore.open(path);
-        final upgraded = store.load(scope)!;
-        expect(upgraded.form.associations!.first.temporalValidity, isNull);
-        expect(upgraded.generation, BigInt.from(10));
-        expect(upgraded.form.associations!.first.world, '');
-        expect(upgraded.form.associations!.first.role, 'Unfinished');
-        expect(upgraded.form.associations!.first.originalOrdinal, 1);
-        expect(upgraded.form.associations!.first.validity, isNull);
-        store.save(scope, pending, upgraded.generation);
-        store.close();
-        store = EntityFormRecoveryStore.open(path);
-        expect(
-          store.load(scope)!.form.toWire().toText(),
-          pending.toWire().toText(),
-        );
-        store.close();
-        final v4 = sqlite3.open(path);
-        v4.execute(
-          'ALTER TABLE entity_form_association DROP COLUMN temporal_input; ALTER TABLE entity_form_association DROP COLUMN qualifier_input; PRAGMA user_version=4',
-        );
-        v4.close();
-        store = EntityFormRecoveryStore.open(path);
-        final priorValidity = store.load(scope)!;
-        expect(
-          priorValidity.form.associations!.first.validity,
-          const UnknownValidity(),
-        );
-        expect(priorValidity.form.associations!.first.temporalValidity, isNull);
-        store.save(scope, pending, priorValidity.generation);
-        store.close();
-        store = EntityFormRecoveryStore.open(path);
-        expect(
-          store.load(scope)!.form.toWire().toText(),
-          pending.toWire().toText(),
-        );
-        store.close();
-        final v5 = sqlite3.open(path);
-        v5.execute(
-          'ALTER TABLE entity_form_association DROP COLUMN qualifier_input; PRAGMA user_version=5',
-        );
-        v5.close();
-        store = EntityFormRecoveryStore.open(path);
-        final oldRows = store.load(scope)!;
-        expect(oldRows.form.associations!.first.qualifiers, isNull);
-        expect(oldRows.form.associations!.first.temporalValidity, isNotNull);
-        store.save(scope, pending, oldRows.generation);
-        store.close();
-        store = EntityFormRecoveryStore.open(path);
-        expect(
-          store.load(scope)!.form.toWire().toText(),
-          pending.toWire().toText(),
-        );
-      } finally {
-        store.close();
-        root.deleteSync(recursive: true);
-      }
-    },
-  );
+          originalOrdinal: 1,
+        ),
+        const EntityAssociationForm(
+          world: '',
+          role: '',
+          temporalValidity: TemporalValidityInput(
+            kind: 'instant_duration',
+            start: TemporalBoundInput(
+              uncertaintyKind: 'text',
+              uncertainty: '記憶 😀\nunfinished amount',
+            ),
+          ),
+        ),
+      ]);
+      store.save(scope, pending, BigInt.from(7));
+      store.close();
+      store = EntityFormRecoveryStore.open(path);
+      expect(
+        store.load(scope)!.form.toWire().toText(),
+        pending.toWire().toText(),
+      );
+      store.save(scope, form([]), BigInt.from(8));
+      expect(store.load(scope)!.form.associations, isEmpty);
+      store.save(scope, pending, BigInt.from(9));
+      store.close();
+      final legacy = sqlite3.open(path);
+      legacy.execute(
+        'ALTER TABLE entity_form DROP COLUMN name_input; ALTER TABLE entity_form_association DROP COLUMN validity; ALTER TABLE entity_form_association DROP COLUMN temporal_input; ALTER TABLE entity_form_association DROP COLUMN qualifier_input; PRAGMA user_version=3',
+      );
+      legacy.close();
+      store = EntityFormRecoveryStore.open(path);
+      final upgraded = store.load(scope)!;
+      expect(upgraded.form.associations!.first.temporalValidity, isNull);
+      expect(upgraded.generation, BigInt.from(10));
+      expect(upgraded.form.associations!.first.world, '');
+      expect(upgraded.form.associations!.first.role, 'Unfinished');
+      expect(upgraded.form.associations!.first.originalOrdinal, 1);
+      expect(upgraded.form.associations!.first.validity, isNull);
+      store.save(scope, pending, upgraded.generation);
+      store.close();
+      store = EntityFormRecoveryStore.open(path);
+      expect(
+        store.load(scope)!.form.toWire().toText(),
+        pending.toWire().toText(),
+      );
+      store.close();
+      final v4 = sqlite3.open(path);
+      v4.execute(
+        'ALTER TABLE entity_form DROP COLUMN name_input; ALTER TABLE entity_form_association DROP COLUMN temporal_input; ALTER TABLE entity_form_association DROP COLUMN qualifier_input; PRAGMA user_version=4',
+      );
+      v4.close();
+      store = EntityFormRecoveryStore.open(path);
+      final priorValidity = store.load(scope)!;
+      expect(
+        priorValidity.form.associations!.first.validity,
+        const UnknownValidity(),
+      );
+      expect(priorValidity.form.associations!.first.temporalValidity, isNull);
+      store.save(scope, pending, priorValidity.generation);
+      store.close();
+      store = EntityFormRecoveryStore.open(path);
+      expect(
+        store.load(scope)!.form.toWire().toText(),
+        pending.toWire().toText(),
+      );
+      store.close();
+      final v5 = sqlite3.open(path);
+      v5.execute(
+        'ALTER TABLE entity_form DROP COLUMN name_input; ALTER TABLE entity_form_association DROP COLUMN qualifier_input; PRAGMA user_version=5',
+      );
+      v5.close();
+      store = EntityFormRecoveryStore.open(path);
+      final oldRows = store.load(scope)!;
+      expect(oldRows.form.associations!.first.qualifiers, isNull);
+      expect(oldRows.form.nameDetails, isNull);
+      expect(oldRows.form.associations!.first.temporalValidity, isNotNull);
+      store.save(scope, pending, oldRows.generation);
+      store.close();
+      store = EntityFormRecoveryStore.open(path);
+      expect(
+        store.load(scope)!.form.toWire().toText(),
+        pending.toWire().toText(),
+      );
+      store.close();
+      final v6 = sqlite3.open(path);
+      v6.execute(
+        'ALTER TABLE entity_form DROP COLUMN name_input; PRAGMA user_version=6',
+      );
+      v6.close();
+      store = EntityFormRecoveryStore.open(path);
+      final oldNames = store.load(scope)!;
+      expect(oldNames.form.nameDetails, isNull);
+      expect(
+        oldNames.form.associations!.first.toWire().toText(),
+        pending.associations!.first.toWire().toText(),
+      );
+      store.save(scope, pending, oldNames.generation);
+      store.close();
+      store = EntityFormRecoveryStore.open(path);
+      expect(
+        store.load(scope)!.form.toWire().toText(),
+        pending.toWire().toText(),
+      );
+    } finally {
+      store.close();
+      root.deleteSync(recursive: true);
+    }
+  });
 
   test(
     'legacy entity input survives upgrade while edits recover separately',
@@ -432,7 +457,7 @@ void main() {
       final store = EntityFormRecoveryStore.open(path);
       store.close();
       final db = sqlite3.open(path);
-      db.execute('PRAGMA user_version=7');
+      db.execute('PRAGMA user_version=8');
       db.close();
       final before = File(path).readAsBytesSync();
       try {

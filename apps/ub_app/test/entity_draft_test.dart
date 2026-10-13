@@ -750,6 +750,62 @@ void main() {
       isTrue,
     );
   });
+  test('name details explicitly clear metadata and preserve identity and temporal values', () {
+    final calendar = CalendarId.generate();
+    final operation = IntroduceInstanceOperation(
+      clientRef: 'person',
+      name: const ContextualName(
+        text: 'Mara',
+        language: 'en',
+        community: 'River',
+        role: 'pseudonym',
+        validity: UnknownValidity(),
+      ),
+      worldAssociations: [],
+    );
+    final draft = SavedDraft(
+      version: BigInt.one,
+      content: DraftContent(
+        baseRevision: RevisionId.generate(),
+        representedContext: RecordId.generate(),
+        operations: [operation],
+        rationale: 'Name details',
+      ),
+    );
+    final initial = entityFormFromDraft(draft, 0);
+    final details = EntityNameForm(
+      language: '',
+      community: null,
+      role: '記憶 😀',
+      temporalValidity: TemporalValidityInput(
+        kind: 'instant',
+        calendar: calendar.value,
+        start: const TemporalBoundInput(value: 'Day 42.000000000000000001'),
+      ),
+    );
+    final form = UnfinishedEntityForm(
+      baseRevision: initial.baseRevision,
+      representedContext: initial.representedContext,
+      clientRef: initial.clientRef,
+      name: initial.name,
+      classification: '',
+      worldRole: '',
+      rationale: '',
+      draftVersion: initial.draftVersion,
+      nameDetails: EntityNameForm.fromWire(details.toWire()),
+    );
+    final changed =
+        replaceDraftEntity(draft: draft, index: 0, form: form).operations.single
+            as IntroduceInstanceOperation;
+    expect(changed.clientRef, operation.clientRef);
+    expect(changed.name.language, '');
+    expect(changed.name.community, isNull);
+    expect(changed.name.role, '記憶 😀');
+    expect(
+      changed.name.validity,
+      InstantValidity(ExactTime(calendar, 'Day 42.000000000000000001')),
+    );
+  });
   test('entity name/classification edits retain authored metadata and associations', () {
     final original = IntroduceInstanceOperation(
       clientRef: 'writer-person',
@@ -1001,6 +1057,12 @@ void main() {
         representedContext: scope.representedContext!,
         clientRef: 'writer-person',
         name: '人物 😀',
+        nameDetails: const EntityNameForm(
+          language: 'en',
+          community: '記憶 😀',
+          role: '',
+          validity: UnknownValidity(),
+        ),
         classification: '',
         worldRole: '',
         rationale: 'Introduce a person.',
@@ -1104,6 +1166,10 @@ void main() {
           .whereType<EntityRecord>()
           .single;
       expect(entity.names.single.text, edit.name);
+      expect(entity.names.single.language, 'en');
+      expect(entity.names.single.community, '記憶 😀');
+      expect(entity.names.single.role, '');
+      expect(entity.names.single.validity, const UnknownValidity());
       expect(
         entity.classificationResolution,
         ClassificationResolution.unclassified,

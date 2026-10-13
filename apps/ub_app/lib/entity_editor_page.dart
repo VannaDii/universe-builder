@@ -41,7 +41,13 @@ class EntityEditorPage extends StatefulWidget {
 class _EntityEditorPageState extends State<EntityEditorPage> {
   final _name = TextEditingController(),
       _role = TextEditingController(),
-      _rationale = TextEditingController();
+      _rationale = TextEditingController(),
+      _language = TextEditingController(),
+      _community = TextEditingController(),
+      _nameRole = TextEditingController();
+  String? _languageValue, _communityValue, _nameRoleValue;
+  Validity? _nameValidity;
+  TemporalValidityInput? _nameTemporal;
   UnfinishedEntityForm? _base;
   BigInt _generation = BigInt.zero;
   String _classification = '';
@@ -77,6 +83,9 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     _name.dispose();
     _role.dispose();
     _rationale.dispose();
+    _language.dispose();
+    _community.dispose();
+    _nameRole.dispose();
     for (final a in _associations) {
       a.dispose();
     }
@@ -97,6 +106,22 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
   void _enter(UnfinishedEntityForm form) {
     _base = form;
     _name.text = form.name;
+    final details =
+        form.nameDetails ??
+        (_editingDraft == null
+            ? null
+            : entityFormFromDraft(
+                _editingDraft!,
+                widget.operationIndex!,
+              ).nameDetails);
+    _languageValue = details?.language;
+    _communityValue = details?.community;
+    _nameRoleValue = details?.role;
+    _language.text = _languageValue ?? '';
+    _community.text = _communityValue ?? '';
+    _nameRole.text = _nameRoleValue ?? '';
+    _nameValidity = details?.validity;
+    _nameTemporal = details?.temporalValidity;
     _role.text = form.worldRole;
     _rationale.text = form.rationale;
     _classification = form.classification;
@@ -140,6 +165,13 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     representedContext: _base!.representedContext,
     clientRef: _base!.clientRef,
     name: _name.text,
+    nameDetails: EntityNameForm(
+      language: _languageValue,
+      community: _communityValue,
+      role: _nameRoleValue,
+      validity: _nameValidity,
+      temporalValidity: _nameTemporal,
+    ),
     classification: _classification,
     worldRole: _role.text,
     rationale: _rationale.text,
@@ -451,6 +483,122 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
       onChanged: (_) => _changed(),
     ),
   );
+  Widget _nameMetadata(
+    TextEditingController controller,
+    String label,
+    String? value,
+    ValueChanged<String?> change,
+  ) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      TextField(
+        controller: controller,
+        enabled: !_disabled,
+        decoration: InputDecoration(
+          labelText: label,
+          helperText: value == null ? 'Not set' : null,
+        ),
+        onChanged: (value) {
+          change(value);
+          _changed();
+        },
+      ),
+      TextButton(
+        onPressed: _disabled || value == null
+            ? null
+            : () {
+                controller.clear();
+                setState(() => change(null));
+                _changed();
+              },
+        child: Text('Clear $label'),
+      ),
+    ],
+  );
+  Widget _nameDetailsFields() {
+    final original = _editingDraft == null
+        ? null
+        : (_editingDraft!.content.operations[widget.operationIndex!]
+                  as IntroduceInstanceOperation)
+              .name
+              .validity;
+    final choice = _nameTemporal != null
+        ? 'temporal'
+        : switch (_nameValidity) {
+            UnspecifiedValidity() => 'unspecified',
+            UnknownValidity() => 'unknown',
+            ConditionalValidity() => 'conditional',
+            _ => 'retain',
+          };
+    return ExpansionTile(
+      title: const Text('Name details (optional)'),
+      children: [
+        _nameMetadata(
+          _language,
+          'Language',
+          _languageValue,
+          (v) => _languageValue = v,
+        ),
+        _nameMetadata(
+          _community,
+          'Community',
+          _communityValue,
+          (v) => _communityValue = v,
+        ),
+        _nameMetadata(
+          _nameRole,
+          'Naming role',
+          _nameRoleValue,
+          (v) => _nameRoleValue = v,
+        ),
+        DropdownButtonFormField<String>(
+          key: ValueKey(('name validity', choice)),
+          initialValue: choice,
+          decoration: const InputDecoration(labelText: 'Name validity'),
+          items: [
+            for (final entry in {
+              'retain': original == null
+                  ? 'Unspecified by default'
+                  : 'Keep current validity',
+              'unspecified': 'Unspecified',
+              'unknown': 'Unknown',
+              'conditional': 'Conditional',
+              'temporal': 'Temporal validity',
+            }.entries)
+              DropdownMenuItem(value: entry.key, child: Text(entry.value)),
+          ],
+          onChanged: _disabled
+              ? null
+              : (v) {
+                  setState(() {
+                    _nameTemporal = v == 'temporal'
+                        ? temporalValidityInput(original)
+                        : null;
+                    _nameValidity = switch (v) {
+                      'unspecified' => const UnspecifiedValidity(),
+                      'unknown' => const UnknownValidity(),
+                      'conditional' => const ConditionalValidity(),
+                      _ => null,
+                    };
+                  });
+                  _changed();
+                },
+        ),
+        if (_nameTemporal != null)
+          TemporalValidityFields(
+            key: const ValueKey('name temporal'),
+            input: _nameTemporal!,
+            originalAmounts: temporalOriginalAmounts(original),
+            disabled: _disabled,
+            onChanged: (v) {
+              setState(() => _nameTemporal = v);
+              _changed();
+            },
+          ),
+      ],
+    );
+  }
+
   Widget _associationRow(int index) {
     final fields = _associations[index];
     final originalOrdinal = fields.originalOrdinal;
@@ -687,6 +835,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                 ),
               ],
               _field(_name, 'Name'),
+              _nameDetailsFields(),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 key: ValueKey(_classification),
@@ -729,9 +878,9 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                 ),
               const SizedBox(height: 12),
               if (_editingDraft != null) ...[
-                const Text('Retained name details'),
+                const Text('Original name details'),
                 const Text(
-                  'Name metadata is retained. World and role edits retain validity and qualifiers unless those fields are explicitly changed.',
+                  'Name identity is retained. World and role edits retain validity and qualifiers unless those fields are explicitly changed.',
                 ),
                 ExactFields(
                   value:
