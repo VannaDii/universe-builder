@@ -29,17 +29,26 @@ final class LibraryEntry {
   final String name;
 }
 
+enum ConnectedBackend { sqlite, postgres }
+
 final class InstanceLibrary {
   InstanceLibrary({
     required this.instance,
+    required this.backend,
     required Iterable<LibraryEntry> universes,
   }) : universes = List.unmodifiable(universes);
   final OperationId instance;
+  final ConnectedBackend backend;
   final List<LibraryEntry> universes;
   factory InstanceLibrary.fromWire(CanonicalValue value) {
     final fields = Map.fromEntries((value as CanonicalObject).fields);
     return InstanceLibrary(
       instance: OperationId.parse(wireString(fields['instance_id']!)),
+      backend: switch (wireString(fields['backend']!)) {
+        'sqlite' => ConnectedBackend.sqlite,
+        'postgres' => ConnectedBackend.postgres,
+        _ => throw const FormatException('Unsupported connected backend'),
+      },
       universes: (fields['universes']! as CanonicalArray).items.map((entry) {
         final row = WireFields(entry, {'id', 'name'});
         return LibraryEntry(

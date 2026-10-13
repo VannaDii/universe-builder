@@ -665,6 +665,7 @@ final class NativeSqliteRuntime {
             'canonical_commit',
             CanonicalString('exact_approval_or_explicit_delegation'),
           ),
+          MapEntry('backend', CanonicalString('sqlite')),
           MapEntry('max_requests_per_principal', CanonicalNumber('8')),
           // Global request admission is tighter than this legacy queue bound.
           MapEntry('universe_queue_capacity', CanonicalNumber('16')),

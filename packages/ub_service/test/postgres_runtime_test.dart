@@ -156,11 +156,19 @@ void main() {
           const StatusEngineRequest(),
         ) as EngineSuccess).value;
         expect(
+          wireString(
+            (status as CanonicalObject).fields
+                .singleWhere((entry) => entry.key == 'backend').value,
+          ),
+          'postgres',
+        );
+        expect(
           WireFields(status, {
             'instance_id',
             'service_instance',
             'universes',
             'canonical_commit',
+            'backend',
             'max_requests_per_principal',
             'universe_queue_capacity',
           }).string('instance_id'),
@@ -2832,9 +2840,11 @@ void main() {
         final hidden = WireFields(
           await writer.execute(const StatusEngineRequest()),
           {
+            'instance_id',
             'service_instance',
             'universes',
             'canonical_commit',
+            'backend',
             'max_requests_per_principal',
             'universe_queue_capacity',
           },
@@ -4030,9 +4040,11 @@ void main() {
         final status = WireFields(
           await writer.execute(const StatusEngineRequest()),
           {
+            'instance_id',
             'service_instance',
             'universes',
             'canonical_commit',
+            'backend',
             'max_requests_per_principal',
             'universe_queue_capacity',
           },

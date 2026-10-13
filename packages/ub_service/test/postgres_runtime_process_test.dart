@@ -158,9 +158,11 @@ void main() {
         final child = await peer(writerId);
         const status = StatusEngineRequest();
         int visible(CanonicalValue result) => WireFields(result, {
+          'instance_id',
           'service_instance',
           'universes',
           'canonical_commit',
+          'backend',
           'max_requests_per_principal',
           'universe_queue_capacity',
         }).array('universes').length;

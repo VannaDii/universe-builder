@@ -2120,11 +2120,13 @@ void main() {
           const StatusEngineRequest(),
         ),
         {
+          'instance_id',
           'service_instance',
           'principal',
           'author',
           'universes',
           'canonical_commit',
+          'backend',
           'max_requests_per_principal',
           'universe_queue_capacity',
         },
@@ -2294,11 +2296,13 @@ void main() {
     final blocker = OwnedSqliteDatabase.openExisting(path);
     try {
       WireFields status(CanonicalValue value) => WireFields(value, {
+        'instance_id',
         'service_instance',
         'principal',
         'author',
         'universes',
         'canonical_commit',
+        'backend',
         'max_requests_per_principal',
         'universe_queue_capacity',
       });
@@ -2597,11 +2601,13 @@ void main() {
     final reopened = runtime.connect(hello(author.id));
     expect(
       WireFields(await engine(reopened, const StatusEngineRequest()), {
+        'instance_id',
         'service_instance',
         'principal',
         'author',
         'universes',
         'canonical_commit',
+        'backend',
         'max_requests_per_principal',
         'universe_queue_capacity',
       }).array('universes'),

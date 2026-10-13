@@ -69,6 +69,7 @@ void main() {
       final catalog = InstanceLibrary.fromWire(
         await owner.call(const StatusEngineRequest()),
       );
+      expect(catalog.backend, ConnectedBackend.sqlite);
       expect(catalog.universes.single.name, 'A shared history');
       final description = Envelope<Description>.fromWire(
         await owner.call(

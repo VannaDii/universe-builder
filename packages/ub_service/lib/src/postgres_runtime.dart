@@ -282,6 +282,7 @@ final class NativePostgresRuntime {
                     ),
                   ),
                 ),
+                MapEntry('backend', CanonicalString('postgres')),
                 MapEntry(
                   'canonical_commit',
                   CanonicalString('exact_approval_or_explicit_delegation'),

@@ -656,6 +656,15 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       const Text('Connection', style: TextStyle(fontSize: 20)),
       const SizedBox(height: 12),
       Text(_session == null ? 'Not connected' : 'This computer'),
+      if (_library case final library?) ...[
+        const SizedBox(height: 12),
+        Text(switch (library.backend) {
+          ConnectedBackend.sqlite => 'Database: SQLite',
+          ConnectedBackend.postgres => 'Database: PostgreSQL',
+        }),
+        const SizedBox(height: 8),
+        SelectableText('Instance: ${library.instance.value}'),
+      ],
     ],
   );
   Widget _help() => ListView(

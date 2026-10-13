@@ -1606,6 +1606,10 @@ redacted errors and preserve settings. The loader never regenerates keys,
 creates settings, transfers data or starts a backend. Empty/invalid environment
 values keep the shared resolver's existing failure behavior.
 The Dart engine uses this resolver for backend startup and explicit setup.
+Authenticated `status` reports `backend` as `sqlite` or `postgres` alongside the
+stable installation ID. The Flutter Settings connection summary uses these
+running-service values; it does not infer the connected backend from saved
+settings or environment overrides and does not expose the database endpoint.
 The Dart author CLI provides `universe --installation /absolute/path configure
 postgres` to test an existing PostgreSQL installation and save its endpoint
 encrypted with an OS-stored key. Supply the exact connection URI on standard
