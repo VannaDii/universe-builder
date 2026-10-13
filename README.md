@@ -88,8 +88,11 @@ Relative expressions retain explicit record/universe targets and temporal relati
 Text and boolean amounts can be edited without converting their types; units
 apply to numeric amounts. Association qualifiers can be added, renamed, edited or removed with text,
 boolean, integer, decimal, rational, numeric quantity, record/entity/proposition
-reference and enumeration values. Reference targets and enumeration definitions
-currently use explicit IDs; an omitted target universe remains omitted. Sequences,
+reference and enumeration values. Enumeration and structure definitions use named
+choices at the unfinished form’s saved revision and context, including nested
+values. Advanced definition IDs remain editable. Choosing a definition preserves
+authored entry keys and field values. Reference targets currently use explicit IDs;
+an omitted target universe remains omitted. Sequences,
 sets and structured fields support nested typed values, item addition/removal,
 item reordering and field renaming. Ranges support typed bounds, explicit inclusion
 choices and an optional unit. Temporal qualifiers use the same exact, interval,

@@ -112,3 +112,12 @@ RecordId unitChoiceRecord(String unit) => RecordId.parse(
 UnitId unitFromChoice(RecordRef record) => UnitId.parse(
   '${UnitId.prefix}${record.record.value.substring(RecordId.prefix.length)}',
 );
+
+RecordId valueDefinitionChoiceRecord(String definition) => RecordId.parse(
+  '${RecordId.prefix}${ValueDefinitionId.parse(definition).value.substring(ValueDefinitionId.prefix.length)}',
+);
+ValueDefinitionId valueDefinitionFromChoice(
+  RecordRef record,
+) => ValueDefinitionId.parse(
+  '${ValueDefinitionId.prefix}${record.record.value.substring(RecordId.prefix.length)}',
+);

@@ -3,6 +3,8 @@ import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'package:ub_domain/ub_domain.dart';
 
 import 'saved_changes.dart';
+import 'draft_record_choice_field.dart';
+import 'draft_record_choices.dart';
 import 'unit_reference_field.dart';
 
 import 'qualifier_draft.dart';
@@ -251,7 +253,7 @@ class _ValueInputFieldsState extends State<ValueInputFields> {
                 if (fields.kind == 'spatial_coordinates')
                   _field(fields.value, 'Coordinate reference'),
                 if (fields.kind == 'structured')
-                  _field(fields.definition, 'Structure definition ID'),
+                  _definitionChoice(fields, 'Structure definition'),
                 for (var c = 0; c < fields.children.length; c++)
                   _qualifierRow(
                     fields.children,
@@ -318,7 +320,7 @@ class _ValueInputFieldsState extends State<ValueInputFields> {
                 _field(fields.universe, 'Target universe ID (optional)'),
                 _field(fields.value, 'Target record ID'),
               ] else if (fields.kind == 'enum') ...[
-                _field(fields.definition, 'Enumeration definition ID'),
+                _definitionChoice(fields, 'Enumeration definition'),
                 _field(fields.value, 'Enumeration entry key'),
               ] else
                 _field(
@@ -400,6 +402,40 @@ class _ValueInputFieldsState extends State<ValueInputFields> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _definitionChoice(_QualifierFields fields, String label) {
+    String record;
+    try {
+      record = valueDefinitionChoiceRecord(fields.definition.text).value;
+    } on FormatException {
+      record = '';
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DraftRecordChoiceField(
+          changes: widget.changes,
+          draft: widget.draft,
+          kind: RecordKind.valueDefinition,
+          label: label,
+          record: record,
+          universe: widget.changes.scope.universe.value,
+          disabled: _disabled,
+          onChanged: (ref) {
+            setState(
+              () =>
+                  fields.definition.text = valueDefinitionFromChoice(ref).value,
+            );
+            _changed();
+          },
+        ),
+        ExpansionTile(
+          title: const Text('Advanced references'),
+          children: [_field(fields.definition, '$label ID')],
+        ),
+      ],
     );
   }
 

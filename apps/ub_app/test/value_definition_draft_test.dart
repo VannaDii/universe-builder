@@ -10,6 +10,7 @@ import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/draft_record_choices.dart';
 import 'package:ub_app/saved_changes.dart';
+import 'package:ub_app/qualifier_draft.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/editor_forms.dart';
@@ -313,9 +314,44 @@ void main() {
         hit: found.result.hits.single,
         kind: RecordKind.valueDefinition,
       );
-      final id = ValueDefinitionId.parse(
-        '${ValueDefinitionId.prefix}${chosen.record.value.substring(RecordId.prefix.length)}',
+      final id = valueDefinitionFromChoice(chosen);
+      expect(
+        valueDefinitionChoiceRecord(id.value),
+        published.identity.recordId,
       );
+      final enumInput = QualifierInput(
+        kind: 'enum',
+        definition: id.value,
+        value: 'entry 記憶 😀',
+      );
+      final structuredInput = QualifierInput(
+        kind: 'structured',
+        definition: id.value,
+        children: [
+          const QualifierInput(
+            key: 'note',
+            kind: 'text',
+            value: 'Authored note 記憶 😀',
+          ),
+        ],
+      );
+      final sequence = QualifierInput(
+        kind: 'sequence',
+        children: [enumInput, structuredInput],
+      );
+      final recoveredValues = QualifierInput.fromWire(sequence.toWire());
+      expect(
+        buildQualifierValue(recoveredValues, null).toWire().toText(),
+        SequenceValue([
+          EnumValue(id, 'entry 記憶 😀'),
+          StructuredValue(id, {'note': const TextValue('Authored note 記憶 😀')}),
+        ]).toWire().toText(),
+      );
+      expect(
+        () => valueDefinitionChoiceRecord('unfinished definition'),
+        throwsFormatException,
+      );
+
       for (final kind in ['structured', 'enum']) {
         final property = UnfinishedPropertyForm(
           baseRevision: next.content.baseRevision,
