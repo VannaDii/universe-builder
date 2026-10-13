@@ -15,8 +15,18 @@ import 'dossier_facts_view.dart';
 import 'package:ub_contracts/ub_contracts.dart' as data show State;
 
 import 'relationship_diagram.dart';
+import 'dossier_appearance_view.dart';
+import 'image_preview_view.dart';
 
-enum _DossierView { fields, evidence, history, relationships, timeline, facts }
+enum _DossierView {
+  fields,
+  evidence,
+  history,
+  relationships,
+  timeline,
+  facts,
+  appearance,
+}
 
 class _RelationshipList extends StatelessWidget {
   const _RelationshipList({
@@ -397,6 +407,7 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
         context: widget.context,
         record: widget.hit.recordId,
         group: _group,
+        includePayload: _view == _DossierView.appearance,
       );
       if (_group == FieldGroup.payload &&
           (material.result.records.length != 1 ||
@@ -493,6 +504,7 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                   _DossierView.fields: 'Published fields',
                   _DossierView.evidence: 'Supporting records',
                   _DossierView.history: 'History',
+                  _DossierView.appearance: 'Appearance',
                   if (widget.hit.kind == RecordKind.entity) ...{
                     _DossierView.facts: 'Facts',
                     _DossierView.relationships: 'Relationships',
@@ -530,6 +542,16 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       ExactFields(value: record.payload.toWire()),
+                      if (record.payload is ImageAssetRecord)
+                        ImagePreviewView(
+                          session: widget.session,
+                          universe: widget.universe,
+                          context: widget.context,
+                          reference: RecordRef(
+                            universe: widget.universe.id,
+                            record: record.identity.recordId,
+                          ),
+                        ),
                       if (widget.session.author &&
                           _material!.delivery.complete &&
                           record.payload is EntityRecord)
@@ -620,9 +642,18 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                   name: widget.hit.label,
                   representedContext: widget.representedContext.id,
                 ),
+              if (_view == _DossierView.appearance)
+                DossierAppearance(
+                  session: widget.session,
+                  universe: widget.universe,
+                  context: widget.context,
+                  entry: widget.hit.recordId,
+                  material: _material!.result,
+                ),
               if (_group == FieldGroup.evidence &&
                   !_relationships &&
-                  !_timeline) ...[
+                  !_timeline &&
+                  _view != _DossierView.appearance) ...[
                 const Text(
                   'Sources, assertions and related declarations accessible in this context.',
                 ),

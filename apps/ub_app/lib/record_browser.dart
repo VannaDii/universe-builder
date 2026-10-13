@@ -69,6 +69,10 @@ String dossierReferenceLabel(
     if (row.payload case EntityRecord(:final names)) {
       if (names.isNotEmpty) return names.first.text;
     }
+    if (row.payload case AppearanceRecord(:final label)) return label;
+    if (row.payload case ImageAssetRecord(:final originalName)) {
+      return originalName;
+    }
   }
   return 'Unavailable name (${ref.record.value})';
 }
@@ -124,6 +128,7 @@ Future<Envelope<Records>> readContextRecordMaterial({
   required OpenedContext context,
   required RecordId record,
   required FieldGroup group,
+  bool includePayload = false,
 }) async {
   final result = Envelope<Records>.fromWire(
     await session.call(
@@ -133,7 +138,11 @@ Future<Envelope<Records>> readContextRecordMaterial({
           universeId: universe.id,
           contextId: context.contextId,
           recordIds: [record],
-          fieldGroups: [group],
+          fieldGroups: [
+            if (includePayload && group != FieldGroup.payload)
+              FieldGroup.payload,
+            group,
+          ],
         ),
       ),
     ),

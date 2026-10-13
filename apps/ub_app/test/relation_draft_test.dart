@@ -2,11 +2,14 @@
 library;
 
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:test/test.dart';
 import 'package:ub_app/relation_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
+import 'package:ub_app/dossier_appearance.dart';
+import 'package:ub_app/image_preview.dart';
 import 'package:ub_app/attribute_draft.dart';
 import 'package:ub_app/scope_draft.dart';
 import 'package:ub_app/connection.dart';
@@ -903,6 +906,151 @@ void main() {
           fact.predicate,
         ),
         'Hometown',
+      );
+      final png = base64.decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR4nGP4z8DwHwQBEPgD/U6VwW8AAAAASUVORK5CYII=',
+      );
+      final source = File('${root.path}/Portrait é.png')..writeAsBytesSync(png);
+      final staged = WireFields(
+        await session.call(
+          StageImageEngineRequest(
+            universe: Selector('Relations'),
+            source: source.path,
+          ),
+        ),
+        {'canonical', 'asset_id', 'preview', 'metadata', 'operations'},
+      );
+      final assetId = RecordId.parse(staged.string('asset_id'));
+      final assetRef = RecordRef(universe: scope.universe, record: assetId);
+      expect(staged.boolean('canonical'), isFalse);
+      await expectLater(
+        readImagePreview(
+          session: session,
+          universe: LibraryEntry(scope.universe, 'Relations'),
+          context: factsContext,
+          reference: assetRef,
+        ),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      final appearanceDraft = await changes().saveContent(
+        factsBase,
+        DraftContent(
+          baseRevision: factsBase.content.baseRevision,
+          representedContext: factsBase.content.representedContext,
+          rationale: 'Authored travel appearance.',
+          operations: [
+            DomainOperation.fromWire(staged.array('operations').single),
+            CreateAppearanceOperation(
+              clientRef: 'travel-appearance',
+              record: AppearanceRecord(
+                target: EntryAppearance(participant(0)),
+                label: 'Travel appearance 記憶 😀',
+                physicalDescription: 'A weathered coat.',
+                atmosphere: 'Quiet determination.',
+                images: [
+                  AppearanceImage(
+                    asset: assetRef,
+                    caption: 'Front portrait',
+                    purpose: ImagePurpose.appearance,
+                  ),
+                  AppearanceImage(
+                    asset: assetRef,
+                    caption: 'Coat detail',
+                    purpose: ImagePurpose.detail,
+                  ),
+                ],
+                links: [
+                  AppearanceLink(
+                    entry: participant(1),
+                    relationship: AppearanceRelationship.complements,
+                    note: 'Matching travel palette.',
+                  ),
+                ],
+                validity: CalendarIntervalValidity(
+                  calendar,
+                  const ExactBound('2208992000'),
+                  const ExactBound('2208993000'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+      try {
+        await publish(appearanceDraft);
+      } on InvalidArgumentError catch (error) {
+        fail(error.message);
+      }
+      final appearanceBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final appearanceContext = await openDraftChoiceContext(
+        changes(),
+        appearanceBase,
+      );
+      final appearanceMaterial = await readContextRecordMaterial(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Relations'),
+        context: appearanceContext,
+        record: participant(0).record,
+        group: FieldGroup.evidence,
+        includePayload: true,
+      );
+      final appearances = dossierAppearances(
+        appearanceMaterial.result,
+        scope.universe,
+        participant(0).record,
+      );
+      expect(appearances, hasLength(1));
+      final appearance = appearances.single.payload as AppearanceRecord;
+      expect(appearance.physicalDescription, 'A weathered coat.');
+      expect(appearance.images.map((i) => i.caption), [
+        'Front portrait',
+        'Coat detail',
+      ]);
+      expect(
+        appearance.links.single.relationship,
+        AppearanceRelationship.complements,
+      );
+      expect(
+        dossierAppearances(
+          appearanceMaterial.result,
+          scope.universe,
+          participant(1).record,
+        ),
+        isEmpty,
+      );
+      expect(
+        dossierAppearances(
+          appearanceMaterial.result,
+          UniverseId.generate(),
+          participant(0).record,
+        ),
+        isEmpty,
+      );
+      final preview = await readImagePreview(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Relations'),
+        context: appearanceContext,
+        reference: assetRef,
+      );
+      expect(preview.asset.originalName, 'Portrait é.png');
+      expect(preview.asset.width, 2);
+      expect(preview.asset.height, 1);
+      expect(preview.bytes.take(2), [255, 216]);
+      expect(source.readAsBytesSync(), png);
+      await expectLater(
+        readImagePreview(
+          session: session,
+          universe: LibraryEntry(scope.universe, 'Relations'),
+          context: appearanceContext,
+          reference: RecordRef(
+            universe: UniverseId.generate(),
+            record: assetId,
+          ),
+        ),
+        throwsFormatException,
       );
     } finally {
       await session?.close();

@@ -185,6 +185,14 @@ Exact values, scope, validity and evidence remain available; derived results,
 knowledge, completeness declarations and initialization history retain their
 provenance. Dossier reads span all authored times and do not establish what holds
 at a chosen date or infer instance state from role participation.
+**Appearance** in a record dossier shows authored descriptions, atmosphere,
+validity, image captions/purposes and appearance links. **Load image preview**
+reads the asset through the same opened context and displays the service's bounded
+JPEG preview with zoom/pan; original name, dimensions and media type remain
+visible. Image-asset records also offer this preview from Published fields.
+Previews follow the existing service access restrictions and use memory rather
+than saved preview files. The displayed preview is cleared when its record,
+context or connection changes.
 **Timeline** in an entity dossier lists events with explicit participation.
 Exact numeric points are ordered separately in each named calendar, using the
 shared rule engine's integer bounds. Equal coordinates do not imply sequence.
