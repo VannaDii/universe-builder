@@ -11,6 +11,8 @@ final class AppSession {
     required this.saveWorldForm,
     required this.loadTypeForm,
     required this.saveTypeForm,
+    required this.loadPropertyForm,
+    required this.savePropertyForm,
     required this.loadEntityForm,
     required this.saveEntityForm,
     required this.loadAttributeForm,
@@ -34,6 +36,13 @@ final class AppSession {
     BigInt,
   )
   saveTypeForm;
+  final Future<SavedPropertyForm?> Function(EditorFormScope) loadPropertyForm;
+  final Future<SavedPropertyForm> Function(
+    EditorFormScope,
+    UnfinishedPropertyForm,
+    BigInt,
+  )
+  savePropertyForm;
   final Future<SavedEntityForm?> Function(EditorFormScope) loadEntityForm;
   final Future<SavedEntityForm> Function(
     EditorFormScope,

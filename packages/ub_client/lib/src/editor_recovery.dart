@@ -205,3 +205,42 @@ final class LocalAttributeFormRecovery {
     });
   }
 }
+
+final class LocalPropertyFormRecovery {
+  LocalPropertyFormRecovery({required String root, required this.client})
+    : _path = '$root/client-recovery/property-forms.sqlite';
+  final String _path;
+  final LoopbackEngineClient client;
+
+  Future<SavedPropertyForm?> load(EditorFormScope scope) async {
+    await _checkEditorScope(client, scope);
+    final path = _path;
+    return Isolate.run(() {
+      final store = PropertyFormRecoveryStore.open(path);
+      try {
+        return store.load(scope);
+      } finally {
+        store.close();
+      }
+    });
+  }
+
+  Future<SavedPropertyForm> save(
+    EditorFormScope scope,
+    UnfinishedPropertyForm form,
+    BigInt expectedGeneration,
+  ) async {
+    if (scope.profile != client.welcome.principal) {
+      throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
+    }
+    final path = _path;
+    return Isolate.run(() {
+      final store = PropertyFormRecoveryStore.open(path);
+      try {
+        return store.save(scope, form, expectedGeneration);
+      } finally {
+        store.close();
+      }
+    });
+  }
+}

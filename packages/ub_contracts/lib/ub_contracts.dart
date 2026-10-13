@@ -21,3 +21,4 @@ export 'src/installation.dart';
 export 'src/author_writing_action.dart';
 export 'src/engine_request.dart';
 export 'src/editor_forms.dart';
+export 'src/property_forms.dart';

@@ -141,6 +141,15 @@ retain the exact existing basis, including
 provenance owned by an event, evaluator or initialization workflow. Pending source
 references recover before they are complete. A content-match flag does not establish
 truth or entailment; the existing source validation and approval flow still apply.
+**Property definition** opens a recoverable typed form for namespace, key,
+multilingual labels, subject types, value shape, multiplicity, persistence,
+unit dimension and inverse/exclusive/symmetric/transitive metadata. Value shapes
+include scalar, quantity, range, entity reference, enumeration, structured and
+nested sequence forms. Referenced types, units and value definitions use named
+choices at the form’s revision. Incomplete labels and choices stay recoverable;
+a completed form uses the existing property-definition operation and Changes
+approval flow. **Edit property fields** preserves its identity, other draft
+operations and rationale. **Start another property** uses a fresh reference.
 **Type definition** opens a recoverable typed form for namespace, key, display
 name, parent, applicability, executable classification and rationale. Parent,
 applicability and classification require explicit choices. Unspecified and

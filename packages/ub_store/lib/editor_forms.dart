@@ -7,3 +7,5 @@ export 'src/type_forms.dart';
 export 'src/entity_forms.dart';
 
 export 'src/attribute_forms.dart';
+
+export 'src/property_forms.dart';
