@@ -40,6 +40,17 @@ void main() {
         InstantValidity(
           ApproximateTime(calendar, 'Day 42', const TextValue('about a week')),
         ),
+        InstantValidity(DurationTime(calendar, const BooleanValue(false))),
+        InstantValidity(
+          ApproximateTime(calendar, 'Day 43', const BooleanValue(true)),
+        ),
+        const PersistentValidity(
+          ApproximateBound('Day 2', TextValue('記憶 😀\nabout a week')),
+        ),
+        const IntervalValidity(
+          ApproximateBound('Day 1', BooleanValue(false)),
+          UnboundedBound(),
+        ),
         const InstantValidity(UnspecifiedTime()),
         for (final relation in TemporalRelation.values)
           InstantValidity(
@@ -143,6 +154,58 @@ void main() {
       );
     },
   );
+  test('amount edits preserve text and require an explicit boolean value', () {
+    final calendar = CalendarId.generate();
+    final input = TemporalValidityInput(
+      kind: 'instant_duration',
+      calendar: calendar.value,
+      start: const TemporalBoundInput(
+        uncertaintyKind: 'text',
+        uncertainty: '記憶 😀\nabout a week',
+      ),
+    );
+    expect(
+      buildTemporalValidity(input, null),
+      InstantValidity(
+        DurationTime(calendar, const TextValue('記憶 😀\nabout a week')),
+      ),
+    );
+    final falseInput = input.copyWith(
+      start: input.start.copyWith(
+        uncertaintyKind: 'boolean',
+        uncertainty: 'false',
+      ),
+    );
+    expect(
+      buildTemporalValidity(falseInput, null),
+      InstantValidity(DurationTime(calendar, const BooleanValue(false))),
+    );
+    expect(
+      () => buildTemporalValidity(
+        falseInput.copyWith(start: falseInput.start.copyWith(uncertainty: '')),
+        null,
+      ),
+      throwsFormatException,
+    );
+    expect(
+      () => buildTemporalValidity(
+        input.copyWith(
+          start: input.start.copyWith(unit: UnitId.generate().value),
+        ),
+        null,
+      ),
+      throwsFormatException,
+    );
+    final changed = input.copyWith(
+      start: input.start.copyWith(uncertainty: 'another authored amount'),
+    );
+    expect(
+      buildTemporalValidity(changed, buildTemporalValidity(input, null)),
+      InstantValidity(
+        DurationTime(calendar, const TextValue('another authored amount')),
+      ),
+    );
+  });
   test('a name alone is enough; world associations need an explicit role', () {
     final base = RevisionId.generate(), context = RecordId.generate();
     final worlds = [WorldId.generate(), WorldId.generate()];
@@ -622,7 +685,12 @@ void main() {
                 world: world.value,
                 role: 'home',
                 temporalValidity: const TemporalValidityInput(
-                  start: TemporalBoundInput(value: '2040-01-01'),
+                  start: TemporalBoundInput(
+                    kind: 'approximate',
+                    value: '2040-01-01',
+                    uncertaintyKind: 'text',
+                    uncertainty: 'about a week',
+                  ),
                   end: TemporalBoundInput(kind: 'unbounded'),
                 ),
               ),
@@ -661,7 +729,10 @@ void main() {
       expect(published.worldAssociations.single.role, 'home');
       expect(
         published.worldAssociations.single.validity,
-        const IntervalValidity(ExactBound('2040-01-01'), UnboundedBound()),
+        const IntervalValidity(
+          ApproximateBound('2040-01-01', TextValue('about a week')),
+          UnboundedBound(),
+        ),
       );
     } finally {
       try {

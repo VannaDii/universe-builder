@@ -79,8 +79,9 @@ approximate or uncertain; numeric uncertainty retains integer, decimal, rational
 and optional unit values exactly. Calendar, unit and target record references
 currently use IDs.
 Relative expressions retain explicit record/universe targets and temporal relations.
-Nonnumeric amount and qualifier editing still need controls; existing exact
-amounts can be retained. Review, approval and publication remain separate steps.
+Text and boolean amounts can be edited without converting their types; units
+apply to numeric amounts. Structured amount and qualifier editing still need
+controls; existing exact structured amounts can be retained. Review, approval and publication remain separate steps.
 **Type definition** opens a recoverable typed form for namespace, key, display
 name, parent, applicability, executable classification and rationale. Parent,
 applicability and classification require explicit choices. Unspecified and

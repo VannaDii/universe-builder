@@ -80,6 +80,20 @@ TemporalBoundInput _approximate(String value, DomainValue uncertainty) {
   final unit = uncertainty is QuantityValue ? uncertainty.unit.value : '';
   final amount = uncertainty is QuantityValue ? uncertainty.value : uncertainty;
   return switch (amount) {
+    TextValue(:final text) => TemporalBoundInput(
+      kind: 'approximate',
+      value: value,
+      uncertaintyKind: 'text',
+      uncertainty: text,
+      unit: unit,
+    ),
+    BooleanValue(value: final flag) => TemporalBoundInput(
+      kind: 'approximate',
+      value: value,
+      uncertaintyKind: 'boolean',
+      uncertainty: flag.toString(),
+      unit: unit,
+    ),
     IntegerValue(:final digits) => TemporalBoundInput(
       kind: 'approximate',
       value: value,
@@ -218,13 +232,20 @@ DomainValue _uncertainty(TemporalBoundInput input, [DomainValue? original]) {
         (throw const FormatException('No original amount to retain.'));
   }
   final amount = switch (input.uncertaintyKind) {
+    'text' => TextValue(input.uncertainty),
+    'boolean' => BooleanValue(switch (input.uncertainty) {
+      'true' => true,
+      'false' => false,
+      _ => throw const FormatException('Choose true or false for the amount.'),
+    }),
     'integer' => IntegerValue(input.uncertainty),
     'decimal' => DecimalValue(input.uncertainty),
     'rational' => RationalValue(input.uncertainty, input.denominator),
-    _ => throw const FormatException('Choose an uncertainty number type.'),
+    _ => throw const FormatException('Choose an amount type.'),
   };
-  amount.validate();
-  return input.unit.isEmpty
+  final result = input.unit.isEmpty
       ? amount
       : QuantityValue(amount, UnitId.parse(input.unit));
+  result.validate();
+  return result;
 }

@@ -12,17 +12,22 @@ class TemporalValidityFields extends StatelessWidget {
   final bool disabled;
   final ValueChanged<TemporalValidityInput> onChanged;
 
-  Widget _text(String label, String value, ValueChanged<String> change) =>
-      Padding(
-        padding: const EdgeInsets.only(top: 8),
-        child: TextFormField(
-          key: ValueKey(label),
-          initialValue: value,
-          enabled: !disabled,
-          decoration: InputDecoration(labelText: label),
-          onChanged: change,
-        ),
-      );
+  Widget _text(
+    String label,
+    String value,
+    ValueChanged<String> change, {
+    int maxLines = 1,
+  }) => Padding(
+    padding: const EdgeInsets.only(top: 8),
+    child: TextFormField(
+      key: ValueKey(label),
+      initialValue: value,
+      maxLines: maxLines,
+      enabled: !disabled,
+      decoration: InputDecoration(labelText: label),
+      onChanged: change,
+    ),
+  );
   Widget _choice(
     String label,
     String selected,
@@ -81,16 +86,28 @@ class TemporalValidityFields extends StatelessWidget {
       _choice('$label type', amount.uncertaintyKind, {
         if (amount.uncertaintyKind == 'retain')
           'retain': 'Keep original exact amount',
+        'text': 'Text',
+        'boolean': 'Boolean',
         'integer': 'Integer',
         'decimal': 'Decimal',
         'rational': 'Rational',
       }, (kind) => change(amount.copyWith(uncertaintyKind: kind))),
       if (amount.uncertaintyKind != 'retain') ...[
-        _text(
-          '$label ${amount.uncertaintyKind == 'rational' ? 'numerator' : 'amount'}',
-          amount.uncertainty,
-          (value) => change(amount.copyWith(uncertainty: value)),
-        ),
+        if (amount.uncertaintyKind == 'boolean')
+          _choice('$label boolean value', amount.uncertainty, {
+            '': 'Choose true or false',
+            'true': 'True',
+            'false': 'False',
+            if (!['', 'true', 'false'].contains(amount.uncertainty))
+              amount.uncertainty: 'Pending input: ${amount.uncertainty}',
+          }, (value) => change(amount.copyWith(uncertainty: value)))
+        else
+          _text(
+            '$label ${amount.uncertaintyKind == 'rational' ? 'numerator' : 'amount'}',
+            amount.uncertainty,
+            (value) => change(amount.copyWith(uncertainty: value)),
+            maxLines: amount.uncertaintyKind == 'text' ? 4 : 1,
+          ),
         if (amount.uncertaintyKind == 'rational')
           _text(
             '$label denominator',
@@ -98,7 +115,7 @@ class TemporalValidityFields extends StatelessWidget {
             (value) => change(amount.copyWith(denominator: value)),
           ),
         _text(
-          '$label unit ID (optional)',
+          '$label unit ID (numeric amounts only, optional)',
           amount.unit,
           (value) => change(amount.copyWith(unit: value)),
         ),

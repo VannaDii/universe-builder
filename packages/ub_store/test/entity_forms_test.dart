@@ -97,7 +97,17 @@ void main() {
             ),
             originalOrdinal: 1,
           ),
-          const EntityAssociationForm(world: '', role: ''),
+          const EntityAssociationForm(
+            world: '',
+            role: '',
+            temporalValidity: TemporalValidityInput(
+              kind: 'instant_duration',
+              start: TemporalBoundInput(
+                uncertaintyKind: 'text',
+                uncertainty: '記憶 😀\nunfinished amount',
+              ),
+            ),
+          ),
         ]);
         store.save(scope, pending, BigInt.from(7));
         store.close();
