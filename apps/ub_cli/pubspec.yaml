@@ -5,6 +5,7 @@ resolution: workspace
 environment:
   sdk: 3.13.4
 dependencies:
+  ub_service: any
   ub_client: any
   ub_contracts: any
   ub_domain: any
@@ -12,4 +13,3 @@ dependencies:
 dev_dependencies:
   crypto: 3.0.7
   test: 1.33.0
-  ub_service: any

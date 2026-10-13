@@ -1606,6 +1606,23 @@ redacted errors and preserve settings. The loader never regenerates keys,
 creates settings, transfers data or starts a backend. Empty/invalid environment
 values keep the shared resolver's existing failure behavior.
 The Dart engine uses this resolver for backend startup and explicit setup.
+The Dart author CLI provides `universe --installation /absolute/path configure
+postgres` to test an existing PostgreSQL installation and save its endpoint
+encrypted with an OS-stored key. Supply the exact connection URI on standard
+input, with at most one final line ending; it is never a command argument or
+printed output. This explicit setup does not read environment overrides, create
+database authority, transfer data, or launch/restart an engine. Stop the local
+engine first. Saved configuration takes effect at its next startup, and supplied
+environment values still take precedence. The command reports only the chosen
+backend and stable instance ID. `configure sqlite` selects an existing local
+SQLite installation and preserves the encrypted PostgreSQL endpoint without
+unlocking it. Connection, ownership, key or decryption failures preserve prior
+saved settings. An existing missing key is not regenerated. This saved-secret
+setup currently uses the macOS credential-store adapter; other platforms retain
+their explicit unsupported behavior. Local development can pass
+`configure postgres --allow-loopback-postgres-development`; that permission is
+not saved, and the engine still needs its explicit development option for such
+an endpoint.
 `UB_USE_POSTGRES=true` selects PostgreSQL and `UB_POSTGRES_ENDPOINT` supplies its
 connection URI. `--initialize` creates installation authority and an owner in an
 empty configured database, or enrolls the owner in existing empty authority;

@@ -6,6 +6,9 @@ import 'package:ub_client/loopback_engine.dart';
 import 'package:ub_client/archive_transfer.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
+import 'package:ub_service/local_configuration.dart';
+import 'package:ub_service/ub_service.dart'
+    show BackendConfiguration, ConfigurationException;
 
 import 'operator_cli.dart';
 
@@ -17,6 +20,7 @@ const _offline = {
 const _usage = '''Usage: universe --installation <path> [--profile <id>] <command> [arguments]
 
 init | status | doctor | enroll | shutdown
+configure sqlite | configure postgres [--allow-loopback-postgres-development]
 create <name> --first-time <value> [--calendar <name>] [--tick-label <label>] [--ticks-per-month <u32>]
 register <path> <name> | rename <universe-id> <name> | revoke <profile-id>
 grant <profile-id> <universe-id> [--world <id>]... [--propose] [--edit] [--protected]
@@ -34,7 +38,10 @@ prepare-move <universe-id> <operation-id> <upload-id> <name> --target-installati
 accept-move <operation-id> <preview-id> <digest> --target-installation <path> --target-profile <id>
 convert-package | convert-installation | convert-credential <source> <destination>
 
-Every service command requires --profile except init. Offline conversions do not
+configure tests an existing backend and saves protected local settings while the
+engine is stopped. PostgreSQL reads its connection URI from stdin, never arguments.
+It neither transfers data nor restarts the engine; environment overrides still win.
+Every service command requires --profile except init and configure. Offline conversions do not
 authenticate, resolve backend settings, launch an engine or register packages.
 Review and approval use exact proposal versions; publication remains separate.''';
 
@@ -90,6 +97,53 @@ Future<int> runUniverseCli(
       return 0;
     }
     if (root == null) throw const _UsageError();
+    if (command == 'configure') {
+      final args = _Arguments(
+        tail,
+        values: {},
+        flags: {'allow-loopback-postgres-development'},
+        repeated: {},
+      );
+      args.count(1);
+      final backend = args.positional.single;
+      if (!{'sqlite', 'postgres'}.contains(backend) ||
+          backend == 'sqlite' &&
+              args.has('allow-loopback-postgres-development')) {
+        throw const _UsageError();
+      }
+      final String? endpoint;
+      if (backend == 'postgres') {
+        final bytes = await (readInput ?? () => _readBounded(stdin, 16384))();
+        if (bytes.length > 16384) throw const FormatException('Input limit');
+        var value = decodeExactUtf8(bytes);
+        if (value.endsWith('\n')) {
+          value = value.substring(0, value.length - 1);
+          if (value.endsWith('\r')) {
+            value = value.substring(0, value.length - 1);
+          }
+        }
+        endpoint = value;
+      } else {
+        endpoint = null;
+      }
+      final configuration = await BackendConfiguration.resolve(
+        environment: {
+          'UB_USE_POSTGRES': backend == 'postgres' ? 'true' : 'false',
+          'UB_POSTGRES_ENDPOINT': ?endpoint,
+        },
+        allowLoopbackDevelopment: args.has(
+          'allow-loopback-postgres-development',
+        ),
+      );
+      final instance = await saveLocalBackendConfiguration(
+        root: root,
+        configuration: configuration,
+      );
+      output(
+        'Saved $backend configuration for instance ${instance.value}. Start the engine to use it.',
+      );
+      return 0;
+    }
     if (command == 'init') {
       if (tail.isNotEmpty) throw const _UsageError();
       final helper = await (engineHelper ?? LocalEngineClient.siblingEngine)();
@@ -221,6 +275,9 @@ Future<int> runUniverseCli(
     );
     output((await client.call(request)).toText());
     return 0;
+  } on ConfigurationException catch (failure) {
+    error(failure.message);
+    return 1;
   } on _UsageError {
     error(_usage);
     return 2;

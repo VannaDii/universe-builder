@@ -5,6 +5,7 @@ import 'postgres_endpoint.dart';
 /// Safe errors contain neither endpoint text nor underlying key-store errors.
 enum ConfigurationFailure {
   invalidBackendFlag,
+  backendSetupFailed,
   missingPostgresEndpoint,
   savedEndpointUnavailable,
   savedEndpointEncryptionFailed,
@@ -18,6 +19,8 @@ final class ConfigurationException implements Exception {
   const ConfigurationException(this.failure);
   final ConfigurationFailure failure;
   String get message => switch (failure) {
+    ConfigurationFailure.backendSetupFailed =>
+      'Configuration setup failed. Stop the local engine and verify the selected installation, saved settings and credential-store access before retrying.',
     ConfigurationFailure.invalidBackendFlag =>
       'UB_USE_POSTGRES must be true or false.',
     ConfigurationFailure.missingPostgresEndpoint =>
