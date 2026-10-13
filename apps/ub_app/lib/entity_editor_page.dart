@@ -494,6 +494,12 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                   'record_ref': 'Record reference',
                   'proposition_ref': 'Proposition reference',
                   'enum': 'Enumeration',
+                  'spatial_coordinates': 'Spatial coordinates',
+                  'spatial_distance': 'Spatial distance',
+                  'spatial_contained_in': 'Contained in',
+                  'spatial_adjacent_to': 'Adjacent to',
+                  'spatial_connected_to': 'Connected to',
+                  'spatial_unspecified': 'Unspecified space',
                   'temporal': 'Temporal expression',
                   'range': 'Range',
                   'sequence': 'Sequence',
@@ -515,6 +521,11 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                             kind: 'instant',
                           );
                         }
+                        if (value == 'spatial_distance') {
+                          fields.lower ??= _QualifierFields(
+                            const QualifierInput(),
+                          );
+                        }
                         if (value == 'range') {
                           fields.lower ??= _QualifierFields(
                             const QualifierInput(),
@@ -534,7 +545,30 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                     )
                   : ExactFields(value: retained.toWire())
             else ...[
-              if (fields.kind == 'temporal')
+              if (fields.kind == 'spatial_distance') ...[
+                _field(fields.universe, 'From universe ID (optional)'),
+                _field(fields.value, 'From record ID'),
+                _qualifierRow(
+                  [fields.lower!],
+                  0,
+                  retained is SpatialValue &&
+                          retained.spatial is SpatialDistance
+                      ? {'amount': (retained.spatial as SpatialDistance).value}
+                      : {},
+                  named: false,
+                  fixed: true,
+                  label: 'Distance amount',
+                ),
+              ] else if ([
+                'spatial_contained_in',
+                'spatial_adjacent_to',
+                'spatial_connected_to',
+              ].contains(fields.kind)) ...[
+                _field(fields.universe, 'Target universe ID (optional)'),
+                _field(fields.value, 'Target record ID'),
+              ] else if (fields.kind == 'spatial_unspecified')
+                const Text('The spatial expression is explicitly unspecified.')
+              else if (fields.kind == 'temporal')
                 TemporalValidityFields(
                   key: ValueKey(('qualifier temporal', fields)),
                   input: fields.temporal!,
@@ -568,7 +602,10 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                 'sequence',
                 'set',
                 'structured',
+                'spatial_coordinates',
               ].contains(fields.kind)) ...[
+                if (fields.kind == 'spatial_coordinates')
+                  _field(fields.value, 'Coordinate reference'),
                 if (fields.kind == 'structured')
                   _field(fields.definition, 'Structure definition ID'),
                 for (var c = 0; c < fields.children.length; c++)
@@ -649,7 +686,9 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                 _field(fields.denominator, 'Denominator'),
               _field(
                 fields.unit,
-                fields.kind == 'range'
+                fields.kind == 'spatial_distance'
+                    ? 'Distance unit ID'
+                    : fields.kind == 'range'
                     ? 'Range unit ID (optional)'
                     : 'Unit ID (numeric values only, optional)',
               ),
@@ -1167,7 +1206,7 @@ final class _QualifierFields {
               ? const TemporalValidityInput(kind: 'instant')
               : null),
       lower = form.lower == null
-          ? (form.kind == 'range'
+          ? (['range', 'spatial_distance'].contains(form.kind)
                 ? _QualifierFields(const QualifierInput())
                 : null)
           : _QualifierFields(form.lower!),

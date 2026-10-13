@@ -135,6 +135,14 @@ void main() {
                 ),
               ),
               QualifierInput(
+                key: 'space',
+                kind: 'spatial_distance',
+                value: 'unfinished target',
+                universe: 'unfinished universe',
+                unit: 'unfinished unit',
+                lower: QualifierInput(kind: 'decimal', value: 'unfinished 😀'),
+              ),
+              QualifierInput(
                 key: 'amount',
                 kind: 'rational',
                 value: '1',

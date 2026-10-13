@@ -4,6 +4,41 @@ import 'package:ub_domain/ub_domain.dart';
 import 'temporal_validity_draft.dart';
 
 QualifierInput qualifierInput(String key, DomainValue value) {
+  if (value is SpatialValue) {
+    return switch (value.spatial) {
+      SpatialLink(:final relation, :final target) => QualifierInput(
+        key: key,
+        kind: 'spatial_${relation.wireName}',
+        value: target.record.value,
+        universe: target.universe?.value ?? '',
+        originalKey: key,
+      ),
+      SpatialCoordinates(:final reference, :final values) => QualifierInput(
+        key: key,
+        kind: 'spatial_coordinates',
+        value: reference,
+        children: [
+          for (var i = 0; i < values.length; i++)
+            qualifierInput(i.toString(), values[i]),
+        ],
+        originalKey: key,
+      ),
+      SpatialDistance(:final from, :final value, :final unit) => QualifierInput(
+        key: key,
+        kind: 'spatial_distance',
+        value: from.record.value,
+        universe: from.universe?.value ?? '',
+        unit: unit.value,
+        lower: qualifierInput('amount', value),
+        originalKey: key,
+      ),
+      UnspecifiedSpace() => QualifierInput(
+        key: key,
+        kind: 'spatial_unspecified',
+        originalKey: key,
+      ),
+    };
+  }
   if (value is TemporalValue) {
     return QualifierInput(
       key: key,
@@ -105,6 +140,9 @@ Map<String, DomainValue> qualifierChildren(DomainValue? value) =>
         for (var i = 0; i < items.length; i++) i.toString(): items[i],
       },
       StructuredValue(:final fields) => fields,
+      SpatialValue(spatial: SpatialCoordinates(:final values)) => {
+        for (var i = 0; i < values.length; i++) i.toString(): values[i],
+      },
       _ => {},
     };
 
@@ -120,6 +158,29 @@ DomainValue buildQualifierValue(QualifierInput row, DomainValue? original) {
   }
   final sources = qualifierChildren(original);
   final amount = switch (row.kind) {
+    'spatial_coordinates' => SpatialValue(
+      SpatialCoordinates(
+        row.value,
+        row.children.map((c) => buildQualifierValue(c, sources[c.originalKey])),
+      ),
+    ),
+    'spatial_distance' => _buildDistance(row, original),
+    'spatial_contained_in' ||
+    'spatial_adjacent_to' ||
+    'spatial_connected_to' => SpatialValue(
+      SpatialLink(
+        SpatialRelation.values.singleWhere(
+          (r) => 'spatial_${r.wireName}' == row.kind,
+        ),
+        RecordRef(
+          universe: row.universe.isEmpty
+              ? null
+              : UniverseId.parse(row.universe),
+          record: RecordId.parse(row.value),
+        ),
+      ),
+    ),
+    'spatial_unspecified' => const SpatialValue(UnspecifiedSpace()),
     'temporal' => _buildTemporal(
       row,
       original is TemporalValue ? original : null,
@@ -156,7 +217,8 @@ DomainValue buildQualifierValue(QualifierInput row, DomainValue? original) {
     'rational' => RationalValue(row.value, row.denominator),
     _ => throw const FormatException('Choose a qualifier value type.'),
   };
-  final value = row.unit.isEmpty || row.kind == 'range'
+  final value =
+      row.unit.isEmpty || row.kind == 'range' || row.kind == 'spatial_distance'
       ? amount
       : QuantityValue(amount, UnitId.parse(row.unit));
   value.validate();
@@ -193,4 +255,23 @@ TemporalValue _buildTemporal(QualifierInput row, TemporalValue? original) {
     original == null ? null : InstantValidity(original.temporal),
   );
   return TemporalValue((validity as InstantValidity).at);
+}
+
+SpatialValue _buildDistance(QualifierInput row, DomainValue? original) {
+  if (row.lower == null) {
+    throw const FormatException('Enter a distance amount.');
+  }
+  final source = original is SpatialValue && original.spatial is SpatialDistance
+      ? (original.spatial as SpatialDistance).value
+      : null;
+  return SpatialValue(
+    SpatialDistance(
+      RecordRef(
+        universe: row.universe.isEmpty ? null : UniverseId.parse(row.universe),
+        record: RecordId.parse(row.value),
+      ),
+      buildQualifierValue(row.lower!, source),
+      UnitId.parse(row.unit),
+    ),
+  );
 }

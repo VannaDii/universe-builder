@@ -38,6 +38,30 @@ void main() {
         RecordRef(record: RecordId.generate()),
       ),
       'enum': EnumValue(ValueDefinitionId.generate(), '記憶 😀'),
+      for (final relation in SpatialRelation.values)
+        relation.wireName: SpatialValue(
+          SpatialLink(
+            relation,
+            RecordRef(
+              universe: UniverseId.generate(),
+              record: RecordId.generate(),
+            ),
+          ),
+        ),
+      'coordinates': SpatialValue(
+        SpatialCoordinates('authored grid', [
+          const DecimalValue('1.000000000000000001'),
+          const RationalValue('001', '03'),
+        ]),
+      ),
+      'distance': SpatialValue(
+        SpatialDistance(
+          RecordRef(record: RecordId.generate()),
+          const TextValue('one lifetime'),
+          UnitId.generate(),
+        ),
+      ),
+      'space': const SpatialValue(UnspecifiedSpace()),
       'range': RangeValue(
         lower: const RationalValue('001', '03'),
         upper: const DecimalValue('2.000000000000000001'),
@@ -123,6 +147,75 @@ void main() {
       throwsFormatException,
     );
   });
+  test(
+    'spatial edits preserve exact coordinates, targets and distance units',
+    () {
+      final target = RecordId.generate(),
+          universe = UniverseId.generate(),
+          unit = UnitId.generate();
+      final coordinates = QualifierInput(
+        key: 'coordinates',
+        kind: 'spatial_coordinates',
+        value: '記憶 😀 grid',
+        children: [
+          const QualifierInput(kind: 'decimal', value: '1.000000000000000001'),
+          const QualifierInput(
+            kind: 'rational',
+            value: '001',
+            denominator: '03',
+          ),
+        ],
+      );
+      expect(
+        buildQualifiers([coordinates], {})['coordinates'],
+        SpatialValue(
+          SpatialCoordinates('記憶 😀 grid', [
+            const DecimalValue('1.000000000000000001'),
+            const RationalValue('001', '03'),
+          ]),
+        ),
+      );
+      final distance = QualifierInput(
+        key: 'distance',
+        kind: 'spatial_distance',
+        value: target.value,
+        universe: universe.value,
+        unit: unit.value,
+        lower: const QualifierInput(
+          kind: 'decimal',
+          value: '2.000000000000000001',
+        ),
+      );
+      expect(
+        buildQualifiers([
+          QualifierInput.fromWire(distance.toWire()),
+        ], {})['distance'],
+        SpatialValue(
+          SpatialDistance(
+            RecordRef(universe: universe, record: target),
+            const DecimalValue('2.000000000000000001'),
+            unit,
+          ),
+        ),
+      );
+      for (final row in [
+        const QualifierInput(key: 'distance', kind: 'spatial_distance'),
+        QualifierInput(
+          key: 'distance',
+          kind: 'spatial_distance',
+          value: target.value,
+          lower: distance.lower,
+        ),
+        const QualifierInput(
+          key: 'target',
+          kind: 'spatial_contained_in',
+          value: 'unfinished',
+        ),
+      ]) {
+        expect(() => buildQualifiers([row], {}), throwsFormatException);
+      }
+    },
+  );
   test('temporal qualifier edits require expression fields and retain exact amounts', () {
     final calendar = CalendarId.generate(), target = RecordId.generate();
     final row = QualifierInput(
@@ -1036,6 +1129,17 @@ void main() {
                 qualifiers: [
                   QualifierInput(key: 'account', value: '記憶 😀'),
                   QualifierInput(
+                    key: 'space',
+                    kind: 'spatial_coordinates',
+                    value: 'authored grid',
+                    children: [
+                      QualifierInput(
+                        kind: 'decimal',
+                        value: '1.000000000000000001',
+                      ),
+                    ],
+                  ),
+                  QualifierInput(
                     key: 'time',
                     kind: 'temporal',
                     temporal: TemporalValidityInput(
@@ -1158,6 +1262,14 @@ void main() {
       expect(
         published.worldAssociations.single.qualifiers['time'],
         const TemporalValue(UnspecifiedTime()),
+      );
+      expect(
+        published.worldAssociations.single.qualifiers['space'],
+        SpatialValue(
+          SpatialCoordinates('authored grid', [
+            const DecimalValue('1.000000000000000001'),
+          ]),
+        ),
       );
       expect(
         published.worldAssociations.single.qualifiers['confirmed'],
