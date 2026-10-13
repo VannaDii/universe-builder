@@ -5,6 +5,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'saved_changes.dart';
 import 'connection.dart';
 import 'type_editor_page.dart';
+import 'entity_editor_page.dart';
 import 'record_fields.dart';
 import 'world_editor_page.dart';
 
@@ -403,6 +404,54 @@ class _ChangesPageState extends State<ChangesPage> {
         draft;
   }
 
+  Future<SavedDraft> _editEntity(SavedDraft draft, int index) async {
+    final summary = Envelope<Description>.fromWire(
+      await widget.changes.session.call(
+        ToolEngineRequest(
+          request: DescribeSummaryRequest(
+            universe: widget.changes.universe,
+            universeId: widget.changes.scope.universe,
+          ),
+        ),
+      ),
+      Description.fromWire,
+    ).result;
+    final continuity = summary.continuities.singleWhere(
+      (item) => item.id == widget.changes.scope.continuity,
+    );
+    final representedContext = continuity.representedContexts.singleWhere(
+      (item) => item.id == draft.content.representedContext,
+    );
+    if (!mounted) return draft;
+    return await Navigator.of(context).push<SavedDraft>(
+          MaterialPageRoute(
+            builder: (_) => EntityEditorPage(
+              session: widget.changes.session,
+              universe: LibraryEntry(
+                widget.changes.scope.universe,
+                widget.changes.universe.value,
+              ),
+              continuity: continuity,
+              representedContext: representedContext,
+              scope: EditorFormScope(
+                instance: widget.changes.scope.instance,
+                profile: widget.changes.scope.profile,
+                universe: widget.changes.scope.universe,
+                continuity: widget.changes.scope.continuity,
+                representedContext: draft.content.representedContext,
+                entityClientRef:
+                    (draft.content.operations[index]
+                            as IntroduceInstanceOperation)
+                        .clientRef,
+              ),
+              editingDraft: draft,
+              operationIndex: index,
+            ),
+          ),
+        ) ??
+        draft;
+  }
+
   Future<bool> _changeDraft(
     Future<SavedDraft> Function(SavedDraft) change, {
     bool keepUndo = true,
@@ -666,6 +715,18 @@ class _ChangesPageState extends State<ChangesPage> {
                               ),
                             ] else
                               ExactFields(value: operations[index].toWire()),
+                            if (_proposal == null &&
+                                operations[index] is IntroduceInstanceOperation)
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _changeDraft(
+                                        (draft) => _editEntity(draft, index),
+                                      ),
+                                child: const Text(
+                                  'Edit entity name and classification',
+                                ),
+                              ),
                             if (_proposal == null &&
                                 operations[index]
                                     is IntroduceDefinitionOperation)

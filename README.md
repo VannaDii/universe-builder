@@ -63,7 +63,13 @@ one shared entity identity; associations do not establish location. Adding a
 completed form appends an instance operation to compatible Changes, preserves
 other draft work and avoids duplicating an exact retry. **Start another entity**
 uses a fresh reference at the current revision. Leaving saves unfinished input
-before returning. Review, approval and publication remain separate steps.
+before returning. **Edit entity name and classification** in Changes reopens
+those fields while retaining the exact entity reference, name metadata, world
+associations, other operations and draft rationale. Pending edits recover
+separately from new-entity input. Earlier-draft edits stay visible but require
+**Use current draft fields** before saving to a newer draft. World associations
+are displayed for review and retained by this edit; association editing remains
+unfinished. Review, approval and publication remain separate steps.
 **Type definition** opens a recoverable typed form for namespace, key, display
 name, parent, applicability, executable classification and rationale. Parent,
 applicability and classification require explicit choices. Unspecified and

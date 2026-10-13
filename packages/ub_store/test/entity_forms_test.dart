@@ -8,8 +8,111 @@ import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/editor_forms.dart';
+import 'package:ub_store/src/ownership.dart';
 
 void main() {
+  test(
+    'legacy entity input survives upgrade while edits recover separately',
+    () {
+      final root = Directory('/tmp').createTempSync('ub-entity-upgrade-');
+      final path = '${root.path}/entities.sqlite';
+      final scope = EditorFormScope(
+        instance: OperationId.generate(),
+        profile: ProfileId.generate(),
+        universe: UniverseId.generate(),
+        continuity: ContinuityId.generate(),
+        representedContext: RecordId.generate(),
+      );
+      final revision = RevisionId.generate(), world = WorldId.generate();
+      protectedFile(path, create: true);
+      final db = sqlite3.open(path);
+      db.execute("""
+      CREATE TABLE entity_form (
+        instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
+        continuity TEXT NOT NULL, context TEXT NOT NULL, generation TEXT NOT NULL,
+        base_revision TEXT NOT NULL, client_ref TEXT NOT NULL, name TEXT NOT NULL,
+        classification TEXT NOT NULL, world_role TEXT NOT NULL, rationale TEXT NOT NULL,
+        PRIMARY KEY(instance,profile,universe,continuity,context)
+      ) STRICT;
+      CREATE TABLE entity_form_world (
+        instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
+        continuity TEXT NOT NULL, context TEXT NOT NULL, ordinal INTEGER NOT NULL CHECK(ordinal>=0), world TEXT NOT NULL,
+        PRIMARY KEY(instance,profile,universe,continuity,context,ordinal),
+        FOREIGN KEY(instance,profile,universe,continuity,context) REFERENCES entity_form(instance,profile,universe,continuity,context) ON DELETE CASCADE
+      ) STRICT;
+      PRAGMA user_version=1;
+    """);
+      final binding = [
+        scope.instance.value,
+        scope.profile.value,
+        scope.universe.value,
+        scope.continuity.value,
+        scope.representedContext!.value,
+      ];
+      db.execute('INSERT INTO entity_form VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', [
+        ...binding,
+        '7',
+        revision.value,
+        'new-person',
+        '人物',
+        '',
+        'home',
+        'Pending',
+      ]);
+      db.execute('INSERT INTO entity_form_world VALUES(?,?,?,?,?,?,?)', [
+        ...binding,
+        0,
+        world.value,
+      ]);
+      db.close();
+      var store = EntityFormRecoveryStore.open(path);
+      try {
+        final original = store.load(scope)!;
+        expect(original.generation, BigInt.from(7));
+        expect(original.form.name, '人物');
+        expect(original.form.worlds, [world]);
+        expect(original.form.worldRole, 'home');
+        expect(original.form.draftVersion, isNull);
+        final editScope = EditorFormScope(
+          instance: scope.instance,
+          profile: scope.profile,
+          universe: scope.universe,
+          continuity: scope.continuity,
+          representedContext: scope.representedContext,
+          entityClientRef: 'draft-person',
+        );
+        final edit = UnfinishedEntityForm(
+          baseRevision: revision,
+          representedContext: scope.representedContext!,
+          clientRef: 'draft-person',
+          name: 'Edited',
+          classification: '',
+          worldRole: '',
+          rationale: '',
+          draftVersion: BigInt.from(12),
+        );
+        store.save(editScope, edit, BigInt.zero);
+        store.close();
+        store = EntityFormRecoveryStore.open(path);
+        expect(
+          store.load(editScope)!.form.toWire().toText(),
+          edit.toWire().toText(),
+        );
+        expect(
+          store.load(scope)!.form.toWire().toText(),
+          original.form.toWire().toText(),
+        );
+        expect(
+          () => store.save(editScope, original.form, BigInt.one),
+          throwsFormatException,
+        );
+      } finally {
+        store.close();
+        root.deleteSync(recursive: true);
+      }
+    },
+  );
+
   test('entity input keeps exact fields and world order across reopen and competing saves', () {
     final root = Directory('/tmp').createTempSync('ub-entity-forms-');
     final path = '${root.path}/entities.sqlite';
@@ -84,7 +187,7 @@ void main() {
       final store = EntityFormRecoveryStore.open(path);
       store.close();
       final db = sqlite3.open(path);
-      db.execute('PRAGMA user_version=2');
+      db.execute('PRAGMA user_version=3');
       db.close();
       final before = File(path).readAsBytesSync();
       try {

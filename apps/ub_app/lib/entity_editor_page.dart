@@ -7,6 +7,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'connection.dart';
 import 'entity_draft.dart';
 import 'record_browser.dart';
+import 'record_fields.dart';
 import 'world_browser.dart';
 import 'changes_page.dart';
 import 'saved_changes.dart';
@@ -19,7 +20,11 @@ class EntityEditorPage extends StatefulWidget {
     required this.scope,
     required this.continuity,
     required this.representedContext,
+    this.editingDraft,
+    this.operationIndex,
   });
+  final SavedDraft? editingDraft;
+  final int? operationIndex;
   final AppSession session;
   final LibraryEntry universe;
   final EditorFormScope scope;
@@ -49,12 +54,15 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
       _leaving = false;
   String? _error, _added;
   Timer? _autosave;
+  SavedDraft? _editingDraft, _savedDraft;
+  bool _stale = false;
   late RevisionId _revision;
   bool get _disabled => _loading || _saving || _adding || _base == null;
   @override
   void initState() {
     super.initState();
     _revision = widget.continuity.revisionId;
+    _editingDraft = widget.editingDraft;
     _load();
   }
 
@@ -67,15 +75,17 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     super.dispose();
   }
 
-  UnfinishedEntityForm _fresh() => UnfinishedEntityForm(
-    baseRevision: _revision,
-    representedContext: widget.representedContext.id,
-    clientRef: RecordId.generate().value,
-    name: '',
-    classification: '',
-    worldRole: '',
-    rationale: '',
-  );
+  UnfinishedEntityForm _fresh() => _editingDraft != null
+      ? entityFormFromDraft(_editingDraft!, widget.operationIndex!)
+      : UnfinishedEntityForm(
+          baseRevision: _revision,
+          representedContext: widget.representedContext.id,
+          clientRef: RecordId.generate().value,
+          name: '',
+          classification: '',
+          worldRole: '',
+          rationale: '',
+        );
   void _enter(UnfinishedEntityForm form) {
     _base = form;
     _name.text = form.name;
@@ -94,6 +104,7 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     worldRole: _role.text,
     rationale: _rationale.text,
     worlds: _selected,
+    draftVersion: _base!.draftVersion,
   );
   Future<void> _load() async {
     setState(() {
@@ -104,6 +115,12 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
       final saved = await widget.session.loadEntityForm(widget.scope);
       if (!mounted) return;
       _enter(saved?.form ?? _fresh());
+      _stale =
+          _editingDraft != null &&
+          (_base!.draftVersion != _editingDraft!.version ||
+              _base!.baseRevision != _editingDraft!.content.baseRevision ||
+              _base!.representedContext !=
+                  _editingDraft!.content.representedContext);
       _generation = saved?.generation ?? BigInt.zero;
       _dirty = false;
       await _choices();
@@ -223,7 +240,32 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     if (!mounted || _dirty || _saving) return;
     setState(() => _leaving = true);
     await WidgetsBinding.instance.endOfFrame;
-    if (mounted && !_dirty && !_saving && !_adding) Navigator.of(context).pop();
+    if (mounted && !_dirty && !_saving && !_adding) {
+      Navigator.of(context).pop(_savedDraft);
+    }
+  }
+
+  Future<void> _useCurrentFields() async {
+    setState(() {
+      _enter(_fresh());
+      _stale = false;
+      _dirty = true;
+      _added = null;
+      _loading = true;
+    });
+    try {
+      await _save();
+      await _choices();
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _error =
+              'Could not reload the current choices. Retry opening this form.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   Future<void> _add() async {
@@ -235,6 +277,33 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
       _error = null;
     });
     try {
+      if (_editingDraft != null) {
+        if (_stale) {
+          throw const FormatException(
+            'These unfinished edits use an earlier draft. Use current draft fields before saving.',
+          );
+        }
+        final content = replaceDraftEntity(
+          draft: _editingDraft!,
+          index: widget.operationIndex!,
+          form: _form,
+        );
+        final saved = await SavedChanges(
+          session: widget.session,
+          universe: Selector(widget.universe.name),
+          scope: widget.scope,
+        ).saveContent(_editingDraft!, content);
+        if (!mounted) return;
+        setState(() {
+          _editingDraft = saved;
+          _savedDraft = saved;
+          _base = entityFormFromDraft(saved, widget.operationIndex!);
+          _dirty = true;
+          _added = 'Entity updated in saved changes. Return to Changes to review it.';
+        });
+        await _save();
+        return;
+      }
       final loaded = await widget.session.call(
         LoadDraftEngineRequest(
           universe: Selector(widget.universe.name),
@@ -327,13 +396,21 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
     ),
   );
   @override
-  Widget build(BuildContext context) => PopScope<void>(
-    canPop: _leaving || (!_dirty && !_saving && !_adding),
+  Widget build(BuildContext context) => PopScope<SavedDraft>(
+    canPop:
+        _leaving ||
+        (widget.editingDraft == null && !_dirty && !_saving && !_adding),
     onPopInvokedWithResult: (didPop, _) {
       if (!didPop) _leave();
     },
     child: Scaffold(
-      appBar: AppBar(title: const Text('Person, place or other entity')),
+      appBar: AppBar(
+        title: Text(
+          widget.editingDraft == null
+              ? 'Person, place or other entity'
+              : 'Edit entity name and classification',
+        ),
+      ),
       body: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
@@ -357,6 +434,15 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                 const Text(
                   'Recovered fields use an earlier revision. Changes retain it until you explicitly rebase the draft.',
                 ),
+              if (_stale) ...[
+                const Text(
+                  'Recovered edits belong to an earlier draft. Your fields remain visible; use current draft fields before saving changes.',
+                ),
+                TextButton(
+                  onPressed: _disabled ? null : _useCurrentFields,
+                  child: const Text('Use current draft fields'),
+                ),
+              ],
               _field(_name, 'Name'),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
@@ -399,37 +485,58 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                   child: const Text('Load more classifications'),
                 ),
               const SizedBox(height: 12),
-              const Text('World associations'),
-              const Text(
-                'Selecting several worlds preserves one shared identity. No selection declares no association. Associations do not establish location.',
-              ),
-              for (final world in _worlds)
-                CheckboxListTile(
-                  title: Text(world.name.value),
-                  value: _selected.contains(world.id),
-                  onChanged: _disabled
-                      ? null
-                      : (selected) {
-                          setState(() {
-                            if (selected!) {
-                              _selected.add(world.id);
-                            } else {
-                              _selected.remove(world.id);
-                            }
-                          });
-                          _changed();
-                        },
-                ),
-              if (!_worldsComplete)
-                const Text('Only part of the world list was returned.'),
-              if (_selected.any(
-                (id) => !_worlds.any((world) => world.id == id),
-              ))
+              if (_editingDraft != null) ...[
+                const Text('Retained name details and world associations'),
                 const Text(
-                  'Saved world selections outside this list are retained.',
+                  'This form edits the name and classification. Name metadata and world associations are retained.',
                 ),
-              if (_selected.isNotEmpty) _field(_role, 'World association role'),
-              _field(_rationale, 'Notes and rationale'),
+                ExactFields(
+                  value:
+                      (_editingDraft!.content.operations[widget.operationIndex!]
+                              as IntroduceInstanceOperation)
+                          .name
+                          .toWire(),
+                ),
+                for (final association
+                    in (_editingDraft!.content.operations[widget
+                                .operationIndex!]
+                            as IntroduceInstanceOperation)
+                        .worldAssociations)
+                  ExactFields(value: association.toWire()),
+              ] else ...[
+                const Text('World associations'),
+                const Text(
+                  'Selecting several worlds preserves one shared identity. No selection declares no association. Associations do not establish location.',
+                ),
+                for (final world in _worlds)
+                  CheckboxListTile(
+                    title: Text(world.name.value),
+                    value: _selected.contains(world.id),
+                    onChanged: _disabled
+                        ? null
+                        : (selected) {
+                            setState(() {
+                              if (selected!) {
+                                _selected.add(world.id);
+                              } else {
+                                _selected.remove(world.id);
+                              }
+                            });
+                            _changed();
+                          },
+                  ),
+                if (!_worldsComplete)
+                  const Text('Only part of the world list was returned.'),
+                if (_selected.any(
+                  (id) => !_worlds.any((world) => world.id == id),
+                ))
+                  const Text(
+                    'Saved world selections outside this list are retained.',
+                  ),
+                if (_selected.isNotEmpty)
+                  _field(_role, 'World association role'),
+                _field(_rationale, 'Notes and rationale'),
+              ],
               const SizedBox(height: 16),
               Text(
                 _dirty
@@ -442,35 +549,41 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                 Semantics(liveRegion: true, child: Text(_error!)),
               if (_added != null) ...[
                 Semantics(liveRegion: true, child: Text(_added!)),
-                TextButton(
-                  onPressed: _disabled ? null : _startAnother,
-                  child: const Text('Start another entity'),
-                ),
+                if (widget.editingDraft == null)
+                  TextButton(
+                    onPressed: _disabled ? null : _startAnother,
+                    child: const Text('Start another entity'),
+                  ),
               ],
               FilledButton(
-                onPressed: _disabled ? null : _add,
-                child: const Text('Add entity to changes'),
+                onPressed: _disabled || _stale ? null : _add,
+                child: Text(
+                  widget.editingDraft == null
+                      ? 'Add entity to changes'
+                      : 'Save entity changes',
+                ),
               ),
               TextButton(
                 onPressed: _disabled || !_dirty ? null : _save,
                 child: const Text('Save unfinished work'),
               ),
-              TextButton(
-                onPressed: _disabled
-                    ? null
-                    : () => Navigator.of(context).push<void>(
-                        MaterialPageRoute(
-                          builder: (_) => ChangesPage(
-                            changes: SavedChanges(
-                              session: widget.session,
-                              universe: Selector(widget.universe.name),
-                              scope: widget.scope,
+              if (widget.editingDraft == null)
+                TextButton(
+                  onPressed: _disabled
+                      ? null
+                      : () => Navigator.of(context).push<void>(
+                          MaterialPageRoute(
+                            builder: (_) => ChangesPage(
+                              changes: SavedChanges(
+                                session: widget.session,
+                                universe: Selector(widget.universe.name),
+                                scope: widget.scope,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                child: const Text('Review saved changes'),
-              ),
+                  child: const Text('Review saved changes'),
+                ),
               if (_error != null && !_disabled)
                 TextButton(
                   onPressed: _load,

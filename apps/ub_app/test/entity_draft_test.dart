@@ -61,6 +61,88 @@ void main() {
       isTrue,
     );
   });
+  test('entity name/classification edits retain authored metadata and associations', () {
+    final original = IntroduceInstanceOperation(
+      clientRef: 'writer-person',
+      name: const ContextualName(
+        text: 'Mara',
+        language: 'en',
+        community: 'River',
+        role: 'pseudonym',
+        validity: ConditionalValidity(),
+      ),
+      classification: RecordId.generate(),
+      worldAssociations: [
+        WorldAssociation(
+          world: WorldId.generate(),
+          role: 'home',
+          validity: const UnknownValidity(),
+          qualifiers: {'account': const TextValue('Firsthand')},
+        ),
+        WorldAssociation(
+          world: WorldId.generate(),
+          role: 'shared setting',
+          validity: const UnspecifiedValidity(),
+          qualifiers: {},
+        ),
+      ],
+    );
+    final draft = SavedDraft(
+      version: BigInt.two,
+      content: DraftContent(
+        baseRevision: RevisionId.generate(),
+        representedContext: RecordId.generate(),
+        operations: [
+          CreateWorldOperation(
+            clientRef: 'setting',
+            record: WorldRecord(selector: 'River'),
+          ),
+          original,
+        ],
+        rationale: 'Authored details',
+      ),
+    );
+    final initial = entityFormFromDraft(draft, 1);
+    final form = UnfinishedEntityForm(
+      baseRevision: initial.baseRevision,
+      representedContext: initial.representedContext,
+      clientRef: initial.clientRef,
+      name: 'Mara revised',
+      classification: '',
+      worldRole: '',
+      rationale: '',
+      draftVersion: initial.draftVersion,
+    );
+    final edited = replaceDraftEntity(draft: draft, index: 1, form: form);
+    final operation = edited.operations[1] as IntroduceInstanceOperation;
+    expect(operation.name.text, form.name);
+    expect(operation.classification, isNull);
+    expect(operation.clientRef, original.clientRef);
+    expect(operation.name.language, original.name.language);
+    expect(operation.name.community, original.name.community);
+    expect(operation.name.role, original.name.role);
+    expect(
+      operation.name.validity.toWire().toText(),
+      original.name.validity.toWire().toText(),
+    );
+    expect(
+      operation.worldAssociations.map((a) => a.toWire().toText()),
+      original.worldAssociations.map((a) => a.toWire().toText()),
+    );
+    expect(
+      edited.operations.first.toWire().toText(),
+      draft.content.operations.first.toWire().toText(),
+    );
+    expect(edited.rationale, draft.content.rationale);
+    expect(
+      () => replaceDraftEntity(
+        draft: SavedDraft(version: BigInt.from(3), content: draft.content),
+        index: 1,
+        form: form,
+      ),
+      throwsFormatException,
+    );
+  });
   test('entity input recovers after disconnect and publishes once with other Changes intact', () async {
     final root = Directory('/tmp').createTempSync('ub-entity-workflow-');
     final store = SqliteInstallationStore.create(root.path);
@@ -159,17 +241,52 @@ void main() {
         ).content.toWire().toText(),
         saved.content.toWire().toText(),
       );
-      final changes = SavedChanges(
+      final editScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        entityClientRef: 'writer-person',
+      );
+      final initial = entityFormFromDraft(saved, 1);
+      final edit = UnfinishedEntityForm(
+        baseRevision: initial.baseRevision,
+        representedContext: initial.representedContext,
+        clientRef: initial.clientRef,
+        name: '人物 revised',
+        classification: '',
+        worldRole: '',
+        rationale: '',
+        draftVersion: initial.draftVersion,
+      );
+      await session.close();
+      await session.saveEntityForm(editScope, edit, BigInt.zero);
+      session = await device.connect();
+      expect(
+        (await session.loadEntityForm(scope))!.form.toWire().toText(),
+        recovered.toWire().toText(),
+      );
+      final pending = (await session.loadEntityForm(editScope))!.form;
+      final currentChanges = SavedChanges(
         session: session,
         universe: Selector('Entity history'),
         scope: scope,
       );
-      final proposal = await changes.submit(saved);
+      final updated = await currentChanges.saveContent(
+        saved,
+        replaceDraftEntity(draft: saved, index: 1, form: pending),
+      );
+      expect(
+        (updated.content.operations[1] as IntroduceInstanceOperation).clientRef,
+        'writer-person',
+      );
+      final proposal = await currentChanges.submit(updated);
       final entity = proposal.compiledChanges
           .map((c) => c.next?.payload)
           .whereType<EntityRecord>()
           .single;
-      expect(entity.names.single.text, form.name);
+      expect(entity.names.single.text, edit.name);
       expect(
         entity.classificationResolution,
         ClassificationResolution.unclassified,
@@ -177,24 +294,27 @@ void main() {
       expect(entity.classification, isNull);
       expect(entity.worldAssociations, isEmpty);
       final validation =
-          await changes.validate(proposal) as EvaluatedValidation;
-      await changes.approve(proposal, validation);
-      final receipt = await changes.publish(
+          await currentChanges.validate(proposal) as EvaluatedValidation;
+      await currentChanges.approve(proposal, validation);
+      final receipt = await currentChanges.publish(
         proposal,
         validation.execution.runId,
       );
       expect(
-        (await changes.readPublished(proposal, receipt))
+        (await currentChanges.readPublished(proposal, receipt))
             .map((r) => r.payload)
             .whereType<EntityRecord>()
             .single
             .names
             .single
             .text,
-        form.name,
+        edit.name,
       );
       expect(
-        (await changes.publish(proposal, validation.execution.runId)).revision,
+        (await currentChanges.publish(
+          proposal,
+          validation.execution.runId,
+        )).revision,
         receipt.revision,
       );
     } finally {

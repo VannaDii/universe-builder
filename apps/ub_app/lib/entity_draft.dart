@@ -75,3 +75,65 @@ SaveDraftEngineRequest entityDraftRequest({
     ),
   );
 }
+
+UnfinishedEntityForm entityFormFromDraft(SavedDraft draft, int index) {
+  final operation = draft.content.operations[index];
+  if (operation is! IntroduceInstanceOperation) {
+    throw const FormatException('Choose a new entity from Changes.');
+  }
+  return UnfinishedEntityForm(
+    baseRevision: draft.content.baseRevision,
+    representedContext: draft.content.representedContext,
+    clientRef: operation.clientRef,
+    name: operation.name.text,
+    classification: operation.classification?.value ?? '',
+    worldRole: '',
+    rationale: '',
+    draftVersion: draft.version,
+  );
+}
+
+/// A name/classification edit keeps all independently authored name metadata
+/// and associations. It does not turn a world association into a location.
+DraftContent replaceDraftEntity({
+  required SavedDraft draft,
+  required int index,
+  required UnfinishedEntityForm form,
+}) {
+  final old = entityFormFromDraft(draft, index);
+  if (draft.content.proposal != null ||
+      form.draftVersion != draft.version ||
+      form.clientRef != old.clientRef ||
+      form.baseRevision != old.baseRevision ||
+      form.representedContext != old.representedContext) {
+    throw const FormatException(
+      'The draft changed. Reopen its current entity fields before saving.',
+    );
+  }
+  if (form.name.trim().isEmpty) throw const FormatException('Enter a name.');
+  final operation =
+      draft.content.operations[index] as IntroduceInstanceOperation;
+  final edited = IntroduceInstanceOperation(
+    clientRef: operation.clientRef,
+    name: ContextualName(
+      text: form.name,
+      language: operation.name.language,
+      community: operation.name.community,
+      role: operation.name.role,
+      validity: operation.name.validity,
+    ),
+    classification: form.classification.isEmpty
+        ? null
+        : RecordId.parse(form.classification),
+    worldAssociations: operation.worldAssociations,
+  );
+  return DraftContent(
+    baseRevision: draft.content.baseRevision,
+    representedContext: draft.content.representedContext,
+    operations: [
+      for (var i = 0; i < draft.content.operations.length; i++)
+        i == index ? edited : draft.content.operations[i],
+    ],
+    rationale: draft.content.rationale,
+  );
+}
