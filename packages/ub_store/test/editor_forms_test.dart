@@ -11,6 +11,43 @@ import 'package:ub_store/editor_forms.dart';
 import 'package:ub_store/src/ownership.dart';
 
 void main() {
+  test('version-two recovery upgrades without losing pending fields', () {
+    final root = Directory('/tmp').createTempSync('ub-forms-v2-');
+    final path = '${root.path}/forms.sqlite';
+    final scope = EditorFormScope(
+      instance: OperationId.generate(),
+      profile: ProfileId.generate(),
+      universe: UniverseId.generate(),
+      continuity: ContinuityId.generate(),
+    );
+    final form = UnfinishedWorldForm(
+      baseRevision: RevisionId.generate(),
+      representedContext: RecordId.generate(),
+      record: RecordId.generate(),
+      selector: '',
+      settingType: 'Pending',
+      rationale: 'Retain notes',
+      labels: {'fr': 'Monde'},
+    );
+    var store = WorldFormRecoveryStore.open(path);
+    store.save(scope, form, BigInt.zero);
+    store.close();
+    final db = sqlite3.open(path);
+    db.execute(
+      'ALTER TABLE world_form DROP COLUMN expected_record_version; PRAGMA user_version=2;',
+    );
+    db.close();
+    store = WorldFormRecoveryStore.open(path);
+    try {
+      expect(store.load(scope)!.form.toWire().toText(), form.toWire().toText());
+      expect(store.load(scope)!.generation, BigInt.one);
+      expect(store.save(scope, form, BigInt.one).generation, BigInt.two);
+    } finally {
+      store.close();
+      root.deleteSync(recursive: true);
+    }
+  });
+
   test('unfinished fields survive reopening, exact retries and competing-window conflicts', () {
     final root = Directory('/tmp').createTempSync('ub-forms-');
     final path = '${root.path}/forms.sqlite';
@@ -74,6 +111,7 @@ void main() {
         settingType: 'Pending edit',
         rationale: '',
         draftVersion: (BigInt.one << 64) - BigInt.one,
+        expectedRecordVersion: RecordVersionId.generate(),
       );
       expect(store.load(editScope), isNull);
       store.save(editScope, edit, BigInt.zero);

@@ -7,6 +7,7 @@ import 'create_universe_page.dart';
 import 'universe_creation.dart';
 import 'world_editor_page.dart';
 import 'world_browser.dart';
+import 'world_detail_page.dart';
 import 'changes_page.dart';
 import 'saved_changes.dart';
 import 'connection_stub.dart' if (dart.library.io) 'connection_native.dart';
@@ -582,6 +583,33 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
             ListTile(
               title: Text(world.name.value),
               leading: const Icon(Icons.public_outlined),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _busy
+                  ? null
+                  : () => Navigator.of(context)
+                        .push<void>(
+                          MaterialPageRoute(
+                            builder: (_) => WorldDetailPage(
+                              session: _session!,
+                              universe: _selected!,
+                              continuity: continuity,
+                              representedContext: selectedRepresentedContext(
+                                continuity,
+                                _contexts[continuity.id],
+                              )!,
+                              world: world,
+                              scope: EditorFormScope(
+                                instance: _library!.instance,
+                                profile: _session!.principal,
+                                universe: _selected!.id,
+                                continuity: continuity.id,
+                              ),
+                            ),
+                          ),
+                        )
+                        .then((_) {
+                          if (mounted && _selected != null) _open(_selected!);
+                        }),
             ),
           if (_worlds[continuity.id]?.delivery.complete == false)
             const Text('Only part of this world list was delivered.'),

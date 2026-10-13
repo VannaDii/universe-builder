@@ -45,6 +45,16 @@ Overview offers a **Represented context** selector for each continuity. A sole
 context is selected automatically; multiple contexts require an explicit choice.
 World reads use that context at the continuity's exact revision, and returning
 from an editor retains an accessible selection while refreshing the revision.
+Opening a listed world displays its complete published record in that frame,
+including aliases, multilingual labels and metadata. **Rename world** opens a
+recoverable name-and-rationale form pinned to the record's version. **Add rename
+to changes** appends an expected-version rename to the compatible author draft;
+it preserves other work and does not change canon. Repeating the same addition
+does not duplicate the rename. A different existing rename, another base or
+context, or a submitted draft requires review in Changes. Recovered fields from
+an older record or revision remain visible until the author explicitly replaces
+them with the current published world. Publication retains the earlier name as
+an alias. Returning to the detail view refreshes the accessible current record.
 **World draft** opens the first unfinished record editor in the chosen context.
 World name, English display label, setting type and
 rationale autosave on this device, including blank or incomplete input. Ordered

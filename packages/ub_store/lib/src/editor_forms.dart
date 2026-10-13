@@ -13,7 +13,7 @@ CREATE TABLE world_form (
  continuity TEXT NOT NULL, editor_key TEXT NOT NULL, generation TEXT NOT NULL,
  base_revision TEXT NOT NULL, represented_context TEXT NOT NULL,
  record_id TEXT NOT NULL, selector TEXT NOT NULL, setting_type TEXT NOT NULL,
- rationale TEXT NOT NULL, draft_version TEXT,
+ rationale TEXT NOT NULL, draft_version TEXT, expected_record_version TEXT,
  PRIMARY KEY(instance,profile,universe,continuity,editor_key)
 ) STRICT;
 CREATE TABLE world_form_alias (
@@ -28,7 +28,7 @@ CREATE TABLE world_form_label (
  PRIMARY KEY(instance,profile,universe,continuity,editor_key,language),
  FOREIGN KEY(instance,profile,universe,continuity,editor_key) REFERENCES world_form(instance,profile,universe,continuity,editor_key) ON DELETE CASCADE
 ) STRICT;
-PRAGMA user_version=2;
+PRAGMA user_version=3;
 ''';
 const _where =
     'instance=? AND profile=? AND universe=? AND continuity=? AND editor_key=?';
@@ -75,7 +75,7 @@ final class WorldFormRecoveryStore {
           }
           db.execute(_schema);
           db.execute(
-            "INSERT INTO world_form SELECT instance,profile,universe,continuity,'',generation,base_revision,represented_context,record_id,selector,setting_type,rationale,NULL FROM legacy_world_form",
+            "INSERT INTO world_form SELECT instance,profile,universe,continuity,'',generation,base_revision,represented_context,record_id,selector,setting_type,rationale,NULL,NULL FROM legacy_world_form",
           );
           db.execute(
             "INSERT INTO world_form_alias SELECT instance,profile,universe,continuity,'',ordinal,value FROM legacy_world_form_alias",
@@ -90,6 +90,11 @@ final class WorldFormRecoveryStore {
           ]) {
             db.execute('DROP TABLE legacy_$table');
           }
+        } else if (db.select('PRAGMA user_version').single.values.single == 2) {
+          db.execute(
+            'ALTER TABLE world_form ADD COLUMN expected_record_version TEXT',
+          );
+          db.execute('PRAGMA user_version=3');
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -126,16 +131,25 @@ final class WorldFormRecoveryStore {
       'world_form_alias': 'instance,profile,universe,continuity,ordinal,value',
       'world_form_label': 'instance,profile,universe,continuity,language,value',
     };
-    const currentColumns = {
+    const versionTwoColumns = {
       'world_form': 'instance,profile,universe,continuity,editor_key,generation,base_revision,represented_context,record_id,selector,setting_type,rationale,draft_version',
       'world_form_alias':
           'instance,profile,universe,continuity,editor_key,ordinal,value',
       'world_form_label':
           'instance,profile,universe,continuity,editor_key,language,value',
     };
-    final columns = version == 1 ? legacyColumns : currentColumns;
+    final currentColumns = {
+      ...versionTwoColumns,
+      'world_form':
+          '${versionTwoColumns['world_form']},expected_record_version',
+    };
+    final columns = version == 1
+        ? legacyColumns
+        : version == 2
+        ? versionTwoColumns
+        : currentColumns;
     if (count != columns.length ||
-        (version != 1 && version != 2) ||
+        (version != 1 && version != 2 && version != 3) ||
         columns.entries.any(
           (entry) =>
               db
@@ -160,6 +174,7 @@ final class WorldFormRecoveryStore {
       if (scope.representedContext != null)
         'context:${scope.representedContext!.value}',
       if (scope.worldClientRef != null) 'edit:${scope.worldClientRef}',
+      if (scope.worldRecord != null) 'record:${scope.worldRecord!.value}',
     ].join(':'),
   ];
 
@@ -182,6 +197,9 @@ final class WorldFormRecoveryStore {
         draftVersion: row['draft_version'] == null
             ? null
             : BigInt.parse(row['draft_version'] as String),
+        expectedRecordVersion: row['expected_record_version'] == null
+            ? null
+            : RecordVersionId.parse(row['expected_record_version'] as String),
         aliases: _db
             .select(
               'SELECT value FROM world_form_alias WHERE $_where ORDER BY ordinal',
@@ -204,6 +222,7 @@ final class WorldFormRecoveryStore {
       _db.execute('BEGIN');
       var result = _read(scope);
       if (result == null &&
+          scope.worldRecord == null &&
           scope.representedContext != null &&
           scope.worldClientRef == null) {
         final prior = _read(
@@ -273,7 +292,7 @@ final class WorldFormRecoveryStore {
       );
       final binding = _binding(scope);
       _db.execute(
-        'INSERT INTO world_form VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(instance,profile,universe,continuity,editor_key) DO UPDATE SET generation=excluded.generation,base_revision=excluded.base_revision,represented_context=excluded.represented_context,record_id=excluded.record_id,selector=excluded.selector,setting_type=excluded.setting_type,rationale=excluded.rationale,draft_version=excluded.draft_version',
+        'INSERT INTO world_form VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(instance,profile,universe,continuity,editor_key) DO UPDATE SET generation=excluded.generation,base_revision=excluded.base_revision,represented_context=excluded.represented_context,record_id=excluded.record_id,selector=excluded.selector,setting_type=excluded.setting_type,rationale=excluded.rationale,draft_version=excluded.draft_version,expected_record_version=excluded.expected_record_version',
         [
           ...binding,
           saved.generation.toString(),
@@ -284,6 +303,7 @@ final class WorldFormRecoveryStore {
           form.settingType,
           form.rationale,
           form.draftVersion?.toString(),
+          form.expectedRecordVersion?.value,
         ],
       );
       _db.execute('DELETE FROM world_form_alias WHERE $_where', binding);

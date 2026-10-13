@@ -31,6 +31,32 @@ Future<Envelope<Description>> readContextWorlds({
   required ContinuitySummary continuity,
   required RepresentedContextSummary representedContext,
 }) async {
+  final opened = await _openWorldContext(
+    session,
+    universe,
+    continuity,
+    representedContext,
+  );
+  return Envelope<Description>.fromWire(
+    await session.call(
+      ToolEngineRequest(
+        request: DescribeWorldsRequest(
+          universe: Selector(universe.name),
+          universeId: universe.id,
+          contextId: opened.contextId,
+        ),
+      ),
+    ),
+    Description.fromWire,
+  );
+}
+
+Future<OpenedContext> _openWorldContext(
+  AppSession session,
+  LibraryEntry universe,
+  ContinuitySummary continuity,
+  RepresentedContextSummary representedContext,
+) async {
   if (!continuity.representedContexts.any(
     (item) => item.id == representedContext.id,
   )) {
@@ -38,7 +64,7 @@ Future<Envelope<Description>> readContextWorlds({
       'Choose a represented context in this continuity.',
     );
   }
-  final opened = Envelope<OpenedContext>.fromWire(
+  return Envelope<OpenedContext>.fromWire(
     await session.call(
       ToolEngineRequest(
         request: OpenContextRequest(
@@ -55,16 +81,45 @@ Future<Envelope<Description>> readContextWorlds({
     ),
     OpenedContext.fromWire,
   ).result;
-  return Envelope<Description>.fromWire(
+}
+
+Future<RecordVersion> readPublishedWorld({
+  required AppSession session,
+  required LibraryEntry universe,
+  required ContinuitySummary continuity,
+  required RepresentedContextSummary representedContext,
+  required WorldSummary world,
+}) async {
+  final opened = await _openWorldContext(
+    session,
+    universe,
+    continuity,
+    representedContext,
+  );
+  final recordId = RecordId.parse(
+    '${RecordId.prefix}${world.id.value.substring(WorldId.prefix.length)}',
+  );
+  final read = Envelope<Records>.fromWire(
     await session.call(
       ToolEngineRequest(
-        request: DescribeWorldsRequest(
+        request: GetRequest(
           universe: Selector(universe.name),
           universeId: universe.id,
           contextId: opened.contextId,
+          recordIds: [recordId],
+          fieldGroups: [FieldGroup.payload],
         ),
       ),
     ),
-    Description.fromWire,
+    Records.fromWire,
   );
+  if (!read.delivery.complete ||
+      read.result.records.length != 1 ||
+      read.result.records.single.identity.recordId != recordId ||
+      read.result.records.single.payload is! WorldRecord) {
+    throw const FormatException(
+      'This world is not available as a complete record in the selected context.',
+    );
+  }
+  return read.result.records.single;
 }

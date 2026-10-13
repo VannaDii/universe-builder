@@ -27,6 +27,7 @@ final class EditorFormScope {
     required this.continuity,
     this.worldClientRef,
     this.representedContext,
+    this.worldRecord,
   });
   final OperationId instance;
   final ProfileId profile;
@@ -37,6 +38,7 @@ final class EditorFormScope {
   /// other pending worlds and references supplied by external writers.
   final String? worldClientRef;
   final RecordId? representedContext;
+  final RecordId? worldRecord;
 }
 
 /// Entered fields can be incomplete or invalid. Completing an editor must build
@@ -52,6 +54,7 @@ final class UnfinishedWorldForm {
     Iterable<String> aliases = const [],
     Map<String, String> labels = const {},
     BigInt? draftVersion,
+    this.expectedRecordVersion,
   }) : aliases = List.unmodifiable(aliases),
        labels = Map.unmodifiable(labels),
        draftVersion = draftVersion == null ? null : checkedU64(draftVersion);
@@ -61,6 +64,7 @@ final class UnfinishedWorldForm {
   final List<String> aliases;
   final Map<String, String> labels;
   final BigInt? draftVersion;
+  final RecordVersionId? expectedRecordVersion;
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
     MapEntry('represented_context', CanonicalString(representedContext.value)),
@@ -70,6 +74,11 @@ final class UnfinishedWorldForm {
     MapEntry('rationale', CanonicalString(rationale)),
     if (draftVersion != null)
       MapEntry('draft_version', CanonicalString(draftVersion.toString())),
+    if (expectedRecordVersion != null)
+      MapEntry(
+        'expected_record_version',
+        CanonicalString(expectedRecordVersion!.value),
+      ),
     MapEntry('aliases', CanonicalArray(aliases.map(CanonicalString.new))),
     MapEntry(
       'labels',

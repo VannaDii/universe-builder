@@ -361,29 +361,74 @@ void main() {
         contains('A river world'),
       );
       final original = recoveredProposal.compiledChanges.first.next!;
-      final changedDraft = SavedDraft.fromWire(
-        await owner.call(
-          SaveDraftEngineRequest(
-            universe: Selector('A shared history'),
-            continuityId: continuity.id,
-            expectedVersion: linked.version,
-            content: DraftContent(
-              baseRevision: receipt.revision,
-              representedContext: completed.representedContext,
-              operations: [
-                RenameWorldSelectorOperation(
-                  record: RecordRef(
-                    universe: scope.universe,
-                    record: original.identity.recordId,
-                  ),
-                  expectedVersion: original.recordVersionId,
-                  newSelector: 'Renamed world',
-                ),
-              ],
-              rationale: 'Explicit name change',
-            ),
+      final publishedContinuity = ContinuitySummary(
+        id: continuity.id,
+        revisionId: receipt.revision,
+        name: continuity.name,
+        representedContexts: continuity.representedContexts,
+      );
+      final detail = await readPublishedWorld(
+        session: owner,
+        universe: LibraryEntry(scope.universe, 'A shared history'),
+        continuity: publishedContinuity,
+        representedContext: continuity.representedContexts.single,
+        world: WorldSummary(
+          id: WorldId.parse(
+            'wld_${original.identity.recordId.value.substring(RecordId.prefix.length)}',
           ),
+          name: Selector((original.payload as WorldRecord).selector),
         ),
+      );
+      expect(detail.recordVersionId, original.recordVersionId);
+      final renameScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: completed.representedContext,
+        worldRecord: original.identity.recordId,
+      );
+      final renameForm = UnfinishedWorldForm(
+        baseRevision: receipt.revision,
+        representedContext: completed.representedContext,
+        record: original.identity.recordId,
+        expectedRecordVersion: original.recordVersionId,
+        selector: 'Renamed world',
+        settingType: '',
+        rationale: 'Explicit name change',
+      );
+      expect(await owner.loadWorldForm(renameScope), isNull);
+      await owner.saveWorldForm(renameScope, renameForm, BigInt.zero);
+      expect(
+        (await owner.loadWorldForm(renameScope))!.form.toWire().toText(),
+        renameForm.toWire().toText(),
+      );
+      final emptyRenameDraft = await resumedChanges.saveContent(
+        linked,
+        DraftContent(
+          baseRevision: receipt.revision,
+          representedContext: completed.representedContext,
+          operations: [],
+          rationale: '',
+        ),
+      );
+      final renameRequest = renameWorldDraftRequest(
+        universe: Selector('A shared history'),
+        universeId: scope.universe,
+        continuity: continuity.id,
+        form: renameForm,
+        previous: emptyRenameDraft,
+      );
+      final changedDraft = SavedDraft.fromWire(await owner.call(renameRequest));
+      expect(
+        renameWorldDraftRequest(
+          universe: Selector('A shared history'),
+          universeId: scope.universe,
+          continuity: continuity.id,
+          form: renameForm,
+          previous: changedDraft,
+        ).content.toWire().toText(),
+        changedDraft.content.toWire().toText(),
       );
       final renamed = await resumedChanges.submit(changedDraft);
       final oldRecords = await resumedChanges.before(renamed);
@@ -398,6 +443,10 @@ void main() {
       expect(
         (renamed.compiledChanges.single.next!.payload as WorldRecord).selector,
         'Renamed world',
+      );
+      expect(
+        (renamed.compiledChanges.single.next!.payload as WorldRecord).aliases,
+        contains((original.payload as WorldRecord).selector),
       );
       final linkedRename = (await resumedChanges.load())!;
       final renameValidation =

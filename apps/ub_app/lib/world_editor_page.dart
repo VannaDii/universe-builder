@@ -3,7 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'package:ub_domain/ub_domain.dart'
-    show RecordId, CanonicalNull, CreateWorldOperation;
+    show
+        RecordId,
+        RecordVersion,
+        WorldRecord,
+        CanonicalNull,
+        CreateWorldOperation;
 
 import 'connection.dart';
 import 'world_draft.dart';
@@ -19,7 +24,8 @@ class WorldEditorPage extends StatefulWidget {
     required this.continuity,
     required this.universe,
     this.representedContext,
-  }) : editingDraft = null,
+  }) : publishedWorld = null,
+       editingDraft = null,
        operationIndex = null;
   WorldEditorPage.edit({
     super.key,
@@ -30,6 +36,7 @@ class WorldEditorPage extends StatefulWidget {
        universe = changes.universe,
        continuity = null,
        representedContext = null,
+       publishedWorld = null,
        editingDraft = draft,
        operationIndex = index,
        scope = EditorFormScope(
@@ -41,6 +48,18 @@ class WorldEditorPage extends StatefulWidget {
              (draft.content.operations[index] as CreateWorldOperation)
                  .clientRef,
        );
+  const WorldEditorPage.rename({
+    super.key,
+    required this.session,
+    required this.scope,
+    required this.continuity,
+    required this.universe,
+    required this.representedContext,
+    required RecordVersion world,
+  }) : publishedWorld = world,
+       editingDraft = null,
+       operationIndex = null;
+  final RecordVersion? publishedWorld;
   final SavedDraft? editingDraft;
   final int? operationIndex;
   final AppSession session;
@@ -99,6 +118,13 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
                 form.baseRevision != _editingDraft!.content.baseRevision ||
                 form.representedContext !=
                     _editingDraft!.content.representedContext);
+        if (widget.publishedWorld != null) {
+          _stale =
+              form.expectedRecordVersion !=
+                  widget.publishedWorld!.recordVersionId ||
+              form.baseRevision != widget.continuity!.revisionId ||
+              form.representedContext != widget.representedContext!.id;
+        }
         _generation = saved?.generation ?? BigInt.zero;
         _name.text = form.selector;
         _label.text = form.labels['en'] ?? '';
@@ -136,6 +162,20 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
         draftVersion: draft.version,
       );
     }
+    if (widget.publishedWorld case final world?) {
+      final record = world.payload as WorldRecord;
+      return UnfinishedWorldForm(
+        baseRevision: widget.continuity!.revisionId,
+        representedContext: widget.representedContext!.id,
+        record: world.identity.recordId,
+        expectedRecordVersion: world.recordVersionId,
+        selector: record.selector,
+        settingType: record.settingType ?? '',
+        rationale: '',
+        aliases: record.aliases,
+        labels: record.labels,
+      );
+    }
     return UnfinishedWorldForm(
       baseRevision: widget.continuity!.revisionId,
       representedContext:
@@ -158,7 +198,8 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
         _adding ||
         _dirty ||
         _added == null ||
-        _editingDraft != null) {
+        _editingDraft != null ||
+        widget.publishedWorld != null) {
       return;
     }
     final previous = _base!;
@@ -194,6 +235,7 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
     representedContext: _base!.representedContext,
     record: _base!.record,
     draftVersion: _base!.draftVersion,
+    expectedRecordVersion: _base!.expectedRecordVersion,
     selector: _name.text,
     settingType: _setting.text,
     rationale: _rationale.text,
@@ -328,19 +370,34 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
       final previous = loaded is CanonicalNull
           ? null
           : SavedDraft.fromWire(loaded);
-      final request = worldDraftRequest(
-        universe: widget.universe,
-        continuity: widget.scope.continuity,
-        form: entered,
-        previous: previous,
-      );
+      if (_stale) {
+        throw const FormatException(
+          'Review the current published world before replacing your recovered rename fields.',
+        );
+      }
+      final request = widget.publishedWorld == null
+          ? worldDraftRequest(
+              universe: widget.universe,
+              continuity: widget.scope.continuity,
+              form: entered,
+              previous: previous,
+            )
+          : renameWorldDraftRequest(
+              universe: widget.universe,
+              universeId: widget.scope.universe,
+              continuity: widget.scope.continuity,
+              form: entered,
+              previous: previous,
+            );
       if (previous?.content.toWire().toText() !=
           request.content.toWire().toText()) {
         SavedDraft.fromWire(await widget.session.call(request));
       }
       if (mounted) {
         setState(() {
-          _added = 'World added to saved changes. Open Changes to review its current proposal and publication status.';
+          _added = widget.publishedWorld == null
+              ? 'World added to saved changes. Open Changes to review its current proposal and publication status.'
+              : 'World rename added to saved changes. Open Changes to review and publish it.';
         });
       }
     } on FormatException catch (error) {
@@ -393,7 +450,11 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
     child: Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.editingDraft == null ? 'World draft' : 'Edit world in changes',
+          widget.publishedWorld != null
+              ? 'Rename world'
+              : widget.editingDraft == null
+              ? 'World draft'
+              : 'Edit world in changes',
         ),
       ),
       body: Align(
@@ -419,8 +480,10 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
               if (_loading || _saving || _adding)
                 const LinearProgressIndicator(),
               _field(_name, 'World name'),
-              _field(_label, 'Display label (English, optional)'),
-              _field(_setting, 'Setting type (optional)'),
+              if (widget.publishedWorld == null) ...[
+                _field(_label, 'Display label (English, optional)'),
+                _field(_setting, 'Setting type (optional)'),
+              ],
               if (widget.editingDraft == null)
                 _field(_rationale, 'Notes and rationale', lines: 4),
               if (_base != null &&
@@ -430,13 +493,17 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
                   'Saved work uses an earlier revision. Review it before adding it to a proposal.',
                 ),
               if (_stale) ...[
-                const Text(
-                  'Your recovered fields belong to an earlier draft. They have not replaced the current saved world.',
+                Text(
+                  widget.publishedWorld == null
+                      ? 'Your recovered fields belong to an earlier draft. They have not replaced the current saved world.'
+                      : 'Your recovered rename uses an earlier record or revision. The published world has not changed.',
                 ),
                 TextButton(
                   onPressed: _saving || _adding ? null : _replacePendingFields,
-                  child: const Text(
-                    'Replace unfinished fields with current saved world',
+                  child: Text(
+                    widget.publishedWorld == null
+                        ? 'Replace unfinished fields with current saved world'
+                        : 'Replace unfinished fields with current published world',
                   ),
                 ),
               ],
@@ -465,7 +532,9 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
               const SizedBox(height: 20),
               if (_added != null)
                 Semantics(liveRegion: true, child: Text(_added!)),
-              if (_added != null && widget.editingDraft == null)
+              if (_added != null &&
+                  widget.editingDraft == null &&
+                  widget.publishedWorld == null)
                 TextButton(
                   onPressed: _saving || _adding || _dirty
                       ? null
@@ -501,7 +570,9 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
                     child: FilledButton(
                       onPressed: _saving || _adding || _stale ? null : _add,
                       child: Text(
-                        widget.editingDraft == null
+                        widget.publishedWorld != null
+                            ? 'Add rename to changes'
+                            : widget.editingDraft == null
                             ? 'Add to changes'
                             : 'Save world changes',
                       ),

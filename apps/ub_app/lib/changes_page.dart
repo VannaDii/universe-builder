@@ -3,6 +3,7 @@ import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'package:ub_domain/ub_domain.dart';
 
 import 'saved_changes.dart';
+import 'record_fields.dart';
 import 'world_editor_page.dart';
 
 class ChangesPage extends StatefulWidget {
@@ -493,7 +494,7 @@ class _ChangesPageState extends State<ChangesPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text('Published record'),
-                          _ExactFields(value: record.payload.toWire()),
+                          ExactFields(value: record.payload.toWire()),
                         ],
                       ),
                     ),
@@ -551,9 +552,18 @@ class _ChangesPageState extends State<ChangesPage> {
                             )) ...[
                               const Text('Before: no world'),
                               const Text('After'),
-                              _ExactFields(value: record.toWire()),
+                              ExactFields(value: record.toWire()),
+                            ] else if (operations[index]
+                                case RenameWorldSelectorOperation(
+                                  :final newSelector,
+                                )) ...[
+                              const Text('New world name'),
+                              SelectableText(newSelector),
+                              const Text(
+                                'The earlier name is retained as an alias when published.',
+                              ),
                             ] else
-                              _ExactFields(value: operations[index].toWire()),
+                              ExactFields(value: operations[index].toWire()),
                             if (_proposal == null)
                               if (operations[index] is CreateWorldOperation)
                                 TextButton(
@@ -608,7 +618,7 @@ class _ChangesPageState extends State<ChangesPage> {
                               if (change.expected == null)
                                 const Text('No record')
                               else
-                                _ExactFields(
+                                ExactFields(
                                   value: _before[change.recordId]!.payload
                                       .toWire(),
                                 ),
@@ -616,7 +626,7 @@ class _ChangesPageState extends State<ChangesPage> {
                               if (change.next == null)
                                 const Text('After: removed')
                               else
-                                _ExactFields(
+                                ExactFields(
                                   value: change.next!.payload.toWire(),
                                 ),
                             ],
@@ -671,7 +681,7 @@ class _ChangesPageState extends State<ChangesPage> {
                               ExpansionTile(
                                 title: const Text('Rule, records and evidence'),
                                 children: [
-                                  _ExactFields(value: finding.toWire()),
+                                  ExactFields(value: finding.toWire()),
                                 ],
                               ),
                             ],
@@ -690,13 +700,13 @@ class _ChangesPageState extends State<ChangesPage> {
                     for (final evidence in report.execution.opposingEvidence)
                       ExpansionTile(
                         title: const Text('Opposing evidence'),
-                        children: [_ExactFields(value: evidence.toWire())],
+                        children: [ExactFields(value: evidence.toWire())],
                       ),
                     ExpansionTile(
                       title: const Text('Submitted evidence and assessment'),
                       children: [
-                        _ExactFields(value: report.submittedInput.toWire()),
-                        _ExactFields(value: report.assessment.toWire()),
+                        ExactFields(value: report.submittedInput.toWire()),
+                        ExactFields(value: report.assessment.toWire()),
                       ],
                     ),
                   ],
@@ -822,64 +832,4 @@ class _ChangesPageState extends State<ChangesPage> {
       ),
     );
   }
-}
-
-/// Read-only field layout retains all nested values without a raw JSON editor.
-class _ExactFields extends StatelessWidget {
-  const _ExactFields({required this.value});
-  final CanonicalValue value;
-  @override
-  Widget build(BuildContext context) => switch (value) {
-    CanonicalObject(:final fields) => Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (fields.isEmpty) const Text('None'),
-        for (final field in fields)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(switch (field.key) {
-                  'selector' => 'World name',
-                  'settingType' => 'Setting type',
-                  'labels' => 'Display labels',
-                  'aliases' => 'Other names',
-                  'metadata' => 'Additional details',
-                  'kind' || 'record_kind' => 'Record type',
-                  _ => field.key.replaceAll('_', ' '),
-                }, style: Theme.of(context).textTheme.labelLarge),
-                Padding(
-                  padding: const EdgeInsets.only(left: 12),
-                  child: _ExactFields(value: field.value),
-                ),
-              ],
-            ),
-          ),
-      ],
-    ),
-    CanonicalArray(:final items) => Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (items.isEmpty) const Text('None'),
-        for (var index = 0; index < items.length; index++)
-          Padding(
-            padding: const EdgeInsets.only(top: 4, left: 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${index + 1}. '),
-                Expanded(child: _ExactFields(value: items[index])),
-              ],
-            ),
-          ),
-      ],
-    ),
-    CanonicalString(:final value) => SelectableText(
-      value.isEmpty ? '(empty)' : value,
-    ),
-    CanonicalNumber(:final digits) => SelectableText(digits),
-    CanonicalBool(:final value) => Text(value ? 'Yes' : 'No'),
-    CanonicalNull() => const Text('Not set'),
-  };
 }
