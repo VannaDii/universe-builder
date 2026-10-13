@@ -41,13 +41,19 @@ interrupted response requires an explicit library check rather than resubmitting
 creation automatically. Unfinished creation fields are not yet recovered after
 app termination; typed durable form recovery remains in progress.
 
-In a continuity with one represented context, **World draft** opens the first
-unfinished record editor. World name, English display label, setting type and
+Overview offers a **Represented context** selector for each continuity. A sole
+context is selected automatically; multiple contexts require an explicit choice.
+World reads use that context at the continuity's exact revision, and returning
+from an editor retains an accessible selection while refreshing the revision.
+**World draft** opens the first unfinished record editor in the chosen context.
+World name, English display label, setting type and
 rationale autosave on this device, including blank or incomplete input. Ordered
 aliases, multilingual labels, the intended record ID, original revision and
 represented context are retained in typed rows. Pending input can still save
 after the service connection closes; opening saved work checks current service
-access and the exact instance/profile/universe/continuity binding. Concurrent
+access and the exact instance/profile/universe/continuity/context binding. New
+world forms in different contexts have separate recovery slots. Older
+single-context fields remain available in their original context. Concurrent
 windows use expected generations, and conflicting saves retain the current text.
 **Saved on this device** means the local transaction completed. Fields changed
 just before termination may still be pending. This recovery file lives under
@@ -95,8 +101,8 @@ original proposal and approvals. **Rebase draft to current revision** explicitly
 updates the draft's base while preserving exact operations and expected record
 versions; conflicting record edits must still be resolved. After publication,
 **Start new changes** opens an empty draft at the current revision. Operation
-field editing for other operations, other record forms, creation-form recovery and multi-context
-editor selection remain in progress. Existing owner-only service draft
+field editing for other operations, other record forms and creation-form recovery
+remain in progress. Existing owner-only service draft
 permissions remain unchanged.
 
 The approved [conversion plan](docs/dart-conversion-plan.md) is being implemented

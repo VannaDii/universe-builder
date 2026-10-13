@@ -156,7 +156,11 @@ final class WorldFormRecoveryStore {
     scope.profile.value,
     scope.universe.value,
     scope.continuity.value,
-    scope.worldClientRef == null ? '' : 'edit:${scope.worldClientRef}',
+    [
+      if (scope.representedContext != null)
+        'context:${scope.representedContext!.value}',
+      if (scope.worldClientRef != null) 'edit:${scope.worldClientRef}',
+    ].join(':'),
   ];
 
   SavedWorldForm? _read(EditorFormScope scope) {
@@ -198,7 +202,24 @@ final class WorldFormRecoveryStore {
   SavedWorldForm? load(EditorFormScope scope) {
     try {
       _db.execute('BEGIN');
-      final result = _read(scope);
+      var result = _read(scope);
+      if (result == null &&
+          scope.representedContext != null &&
+          scope.worldClientRef == null) {
+        final prior = _read(
+          EditorFormScope(
+            instance: scope.instance,
+            profile: scope.profile,
+            universe: scope.universe,
+            continuity: scope.continuity,
+          ),
+        );
+        // Old single-context recovery remains available in that same context.
+        // This new slot starts at generation zero; the original is preserved.
+        if (prior?.form.representedContext == scope.representedContext) {
+          result = SavedWorldForm(generation: BigInt.zero, form: prior!.form);
+        }
+      }
       _db.execute('COMMIT');
       return result;
     } on Object {

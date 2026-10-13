@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:ub_contracts/ub_contracts.dart' hide State;
-import 'package:ub_domain/ub_domain.dart'
-    show ContinuityId, TimelessFrameTime, AuthorPerspective;
+import 'package:ub_domain/ub_domain.dart' show ContinuityId, RecordId;
 
 import 'connection.dart';
 import 'create_universe_page.dart';
 import 'universe_creation.dart';
 import 'world_editor_page.dart';
+import 'world_browser.dart';
 import 'changes_page.dart';
 import 'saved_changes.dart';
 import 'connection_stub.dart' if (dart.library.io) 'connection_native.dart';
@@ -28,6 +28,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
   LibraryEntry? _selected;
   Envelope<Description>? _description;
   Map<ContinuityId, Envelope<Description>> _worlds = {};
+  Map<ContinuityId, RecordId> _contexts = {};
   String? _error;
   bool _busy = false;
   var _page = 0;
@@ -50,6 +51,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       _selected = null;
       _description = null;
       _worlds = {};
+      _contexts = {};
     });
     AppSession? session;
     try {
@@ -86,6 +88,10 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
   }
 
   Future<void> _open(LibraryEntry entry) async {
+    final previousContexts = _selected?.id == entry.id
+        ? _contexts
+        : <ContinuityId, RecordId>{};
+    final session = _session!;
     setState(() {
       _busy = true;
       _error = null;
@@ -94,7 +100,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       _worlds = {};
     });
     try {
-      final value = await _session!.call(
+      final value = await session.call(
         ToolEngineRequest(
           request: DescribeSummaryRequest(universe: Selector(entry.name)),
         ),
@@ -104,45 +110,24 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
         Description.fromWire,
       );
       final worlds = <ContinuityId, Envelope<Description>>{};
-      for (final continuity in description.result.continuities.where(
-        (item) => item.representedContexts.length == 1,
-      )) {
-        final opened = Envelope<OpenedContext>.fromWire(
-          await _session!.call(
-            ToolEngineRequest(
-              request: OpenContextRequest(
-                universe: Selector(entry.name),
-                universeId: entry.id,
-                continuityId: continuity.id,
-                revision: ExactRevisionSelector(
-                  revisionId: continuity.revisionId,
-                ),
-                representedContext: ContextIdSelector(
-                  continuity.representedContexts.single.id,
-                ),
-                temporalQuery: const TimelessFrameTime(),
-                temporalSystems: [],
-                perspective: const AuthorPerspective(),
-              ),
-            ),
-          ),
-          OpenedContext.fromWire,
-        ).result;
-        worlds[continuity.id] = Envelope<Description>.fromWire(
-          await _session!.call(
-            ToolEngineRequest(
-              request: DescribeWorldsRequest(
-                universe: Selector(entry.name),
-                universeId: entry.id,
-                contextId: opened.contextId,
-              ),
-            ),
-          ),
-          Description.fromWire,
+      final contexts = <ContinuityId, RecordId>{};
+      for (final continuity in description.result.continuities) {
+        final chosen = selectedRepresentedContext(
+          continuity,
+          previousContexts[continuity.id],
+        );
+        if (chosen == null) continue;
+        contexts[continuity.id] = chosen.id;
+        worlds[continuity.id] = await readContextWorlds(
+          session: session,
+          universe: entry,
+          continuity: continuity,
+          representedContext: chosen,
         );
       }
-      if (mounted) {
+      if (mounted && _selected?.id == entry.id && _session == session) {
         setState(() {
+          _contexts = contexts;
           _description = description;
           _worlds = worlds;
         });
@@ -151,6 +136,43 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       if (mounted) {
         setState(() {
           _error = 'This universe is unavailable with your current access. Refresh your connection to continue.';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _chooseContext(ContinuitySummary continuity, RecordId id) async {
+    final entry = _selected!, session = _session!;
+    final chosen = selectedRepresentedContext(continuity, id);
+    if (chosen == null) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+      _contexts[continuity.id] = chosen.id;
+      _worlds.remove(continuity.id);
+    });
+    try {
+      final worlds = await readContextWorlds(
+        session: session,
+        universe: entry,
+        continuity: continuity,
+        representedContext: chosen,
+      );
+      if (mounted && _selected?.id == entry.id && _session == session) {
+        setState(() {
+          _worlds[continuity.id] = worlds;
+        });
+      }
+    } on Object {
+      if (mounted && _selected?.id == entry.id && _session == session) {
+        setState(() {
+          _error = 'Could not read worlds in this context. Check your access and choose the context again.';
         });
       }
     } finally {
@@ -446,10 +468,34 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                 Text(
                   '${continuity.representedContexts.length} represented contexts',
                 ),
+                if (continuity.representedContexts.isNotEmpty)
+                  DropdownButtonFormField<RecordId>(
+                    key: ValueKey(
+                      '${continuity.id.value}:${_contexts[continuity.id]?.value}',
+                    ),
+                    initialValue: _contexts[continuity.id],
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Represented context',
+                    ),
+                    hint: const Text('Choose a context'),
+                    items: [
+                      for (final represented in continuity.representedContexts)
+                        DropdownMenuItem(
+                          value: represented.id,
+                          child: Text(representedContextName(represented)),
+                        ),
+                    ],
+                    onChanged: _busy
+                        ? null
+                        : (id) {
+                            if (id != null) _chooseContext(continuity, id);
+                          },
+                  ),
                 if (_session!.author)
                   Wrap(
                     children: [
-                      if (continuity.representedContexts.length == 1)
+                      if (_contexts.containsKey(continuity.id))
                         TextButton(
                           onPressed: _busy
                               ? null
@@ -459,12 +505,19 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                                         builder: (_) => WorldEditorPage(
                                           session: _session!,
                                           continuity: continuity,
+                                          representedContext:
+                                              selectedRepresentedContext(
+                                                continuity,
+                                                _contexts[continuity.id],
+                                              ),
                                           universe: Selector(_selected!.name),
                                           scope: EditorFormScope(
                                             instance: _library!.instance,
                                             profile: _session!.principal,
                                             universe: _selected!.id,
                                             continuity: continuity.id,
+                                            representedContext:
+                                                _contexts[continuity.id],
                                           ),
                                         ),
                                       ),
@@ -516,8 +569,12 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
         const SizedBox(height: 12),
         for (final continuity in _description!.result.continuities) ...[
           Text(continuity.name, style: Theme.of(context).textTheme.titleMedium),
+          if (_contexts.containsKey(continuity.id))
+            Text(
+              'Context: ${representedContextName(selectedRepresentedContext(continuity, _contexts[continuity.id])!)}',
+            ),
           if (!_worlds.containsKey(continuity.id))
-            const Text('World browsing requires a represented context.'),
+            const Text('Choose a represented context to read its worlds.'),
           if (_worlds[continuity.id]?.result.worlds.isEmpty ?? false)
             const Text('No worlds are visible in this context.'),
           for (final world

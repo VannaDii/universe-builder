@@ -26,6 +26,7 @@ final class EditorFormScope {
     required this.universe,
     required this.continuity,
     this.worldClientRef,
+    this.representedContext,
   });
   final OperationId instance;
   final ProfileId profile;
@@ -35,6 +36,7 @@ final class EditorFormScope {
   /// Null is the new-world form. An edit has its own recovery slot, preserving
   /// other pending worlds and references supplied by external writers.
   final String? worldClientRef;
+  final RecordId? representedContext;
 }
 
 /// Entered fields can be incomplete or invalid. Completing an editor must build

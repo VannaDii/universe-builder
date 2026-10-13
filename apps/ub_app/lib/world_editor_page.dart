@@ -9,6 +9,7 @@ import 'connection.dart';
 import 'world_draft.dart';
 import 'changes_page.dart';
 import 'saved_changes.dart';
+import 'world_browser.dart';
 
 class WorldEditorPage extends StatefulWidget {
   const WorldEditorPage({
@@ -17,6 +18,7 @@ class WorldEditorPage extends StatefulWidget {
     required this.scope,
     required this.continuity,
     required this.universe,
+    this.representedContext,
   }) : editingDraft = null,
        operationIndex = null;
   WorldEditorPage.edit({
@@ -27,6 +29,7 @@ class WorldEditorPage extends StatefulWidget {
   }) : session = changes.session,
        universe = changes.universe,
        continuity = null,
+       representedContext = null,
        editingDraft = draft,
        operationIndex = index,
        scope = EditorFormScope(
@@ -43,6 +46,7 @@ class WorldEditorPage extends StatefulWidget {
   final AppSession session;
   final EditorFormScope scope;
   final ContinuitySummary? continuity;
+  final RepresentedContextSummary? representedContext;
   final Selector universe;
   @override
   State<WorldEditorPage> createState() => _WorldEditorPageState();
@@ -134,7 +138,9 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
     }
     return UnfinishedWorldForm(
       baseRevision: widget.continuity!.revisionId,
-      representedContext: widget.continuity!.representedContexts.single.id,
+      representedContext:
+          widget.representedContext?.id ??
+          widget.continuity!.representedContexts.single.id,
       record: RecordId.generate(),
       selector: '',
       settingType: '',
@@ -376,6 +382,10 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
                 widget.continuity?.name ?? 'Saved changes',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
+              if (widget.representedContext != null)
+                Text(
+                  'Context: ${representedContextName(widget.representedContext!)}',
+                ),
               const SizedBox(height: 12),
               const Text(
                 'Unfinished work stays on this device. Saving here does not change canon.',

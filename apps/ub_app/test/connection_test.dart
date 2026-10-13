@@ -16,6 +16,7 @@ import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/universe_creation.dart';
 import 'package:ub_app/world_draft.dart';
 import 'package:ub_app/saved_changes.dart';
+import 'package:ub_app/world_browser.dart';
 
 void main() {
   test('app connects to the existing engine and reads only its accessible library', () async {
@@ -81,6 +82,10 @@ void main() {
       );
       expect(description.result.continuities, isNotEmpty);
       final continuity = description.result.continuities.single;
+      expect(
+        selectedRepresentedContext(continuity, null)!.id,
+        continuity.representedContexts.single.id,
+      );
       final scope = EditorFormScope(
         instance: catalog.instance,
         profile: owner.principal,
@@ -559,6 +564,129 @@ void main() {
         unchangedHead.result.continuities.single.revisionId,
         secondReceipt.revision,
       );
+      final contextDraft = await resumedChanges.saveContent(
+        editedWorld,
+        DraftContent(
+          baseRevision: secondReceipt.revision,
+          representedContext: scopeContext(continuity),
+          operations: [
+            RecordNarrativeReferenceOperation(
+              clientRef: RecordId.generate().value,
+              record: RecordKind.representedContext,
+              payload: RepresentedContextRecord(
+                universe: scope.universe,
+                kind: const AuthoredContext('Dream'),
+                parent: RecordRef(
+                  universe: scope.universe,
+                  record: scopeContext(continuity),
+                ),
+                labels: {'en': 'Dream'},
+              ),
+            ),
+          ],
+          rationale: 'Keep the dream separate from objective history.',
+        ),
+      );
+      final contextProposal = await resumedChanges.submit(contextDraft);
+      final contextChecks =
+          await resumedChanges.validate(contextProposal) as EvaluatedValidation;
+      await resumedChanges.approve(contextProposal, contextChecks);
+      final contextReceipt = await resumedChanges.publish(
+        contextProposal,
+        contextChecks.execution.runId,
+      );
+      final contextSummary = Envelope<Description>.fromWire(
+        await owner.call(
+          ToolEngineRequest(
+            request: DescribeSummaryRequest(
+              universe: Selector('A shared history'),
+              universeId: scope.universe,
+            ),
+          ),
+        ),
+        Description.fromWire,
+      ).result.continuities.single;
+      expect(contextSummary.representedContexts, hasLength(2));
+      expect(selectedRepresentedContext(contextSummary, null), isNull);
+      expect(
+        selectedRepresentedContext(contextSummary, RecordId.generate()),
+        isNull,
+      );
+      for (final represented in contextSummary.representedContexts) {
+        expect(
+          selectedRepresentedContext(contextSummary, represented.id)!.id,
+          represented.id,
+        );
+        final view = await readContextWorlds(
+          session: owner,
+          universe: LibraryEntry(scope.universe, 'A shared history'),
+          continuity: contextSummary,
+          representedContext: represented,
+        );
+        expect(view.frame!.context.record, represented.id);
+        expect(view.frame!.revision, contextReceipt.revision);
+        final contextScope = EditorFormScope(
+          instance: scope.instance,
+          profile: scope.profile,
+          universe: scope.universe,
+          continuity: scope.continuity,
+          representedContext: represented.id,
+        );
+        final pending = await owner.loadWorldForm(contextScope);
+        if (represented.id == scopeContext(continuity)) {
+          expect(
+            pending!.form.toWire().toText(),
+            (await owner.loadWorldForm(scope))!.form.toWire().toText(),
+          );
+          expect(pending.generation, BigInt.zero);
+        } else {
+          expect(pending, isNull);
+        }
+        final entered = UnfinishedWorldForm(
+          baseRevision: contextReceipt.revision,
+          representedContext: represented.id,
+          record: RecordId.generate(),
+          selector: 'Pending in ${representedContextName(represented)}',
+          settingType: '',
+          rationale: '',
+        );
+        await owner.saveWorldForm(contextScope, entered, BigInt.zero);
+        expect(
+          (await owner.loadWorldForm(contextScope))!.form.toWire().toText(),
+          entered.toWire().toText(),
+        );
+      }
+      expect(
+        (await owner.loadWorldForm(scope))!.form.representedContext,
+        scopeContext(continuity),
+      );
+      for (final represented in contextSummary.representedContexts) {
+        final stored = await owner.loadWorldForm(
+          EditorFormScope(
+            instance: scope.instance,
+            profile: scope.profile,
+            universe: scope.universe,
+            continuity: scope.continuity,
+            representedContext: represented.id,
+          ),
+        );
+        expect(
+          stored!.form.selector,
+          'Pending in ${representedContextName(represented)}',
+        );
+      }
+      await expectLater(
+        owner.loadWorldForm(
+          EditorFormScope(
+            instance: scope.instance,
+            profile: scope.profile,
+            universe: scope.universe,
+            continuity: scope.continuity,
+            representedContext: RecordId.generate(),
+          ),
+        ),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
       final fictional = createdUniverse(
         await owner.call(
           const UniverseCreationForm(
@@ -631,3 +759,6 @@ void main() {
     }
   });
 }
+
+RecordId scopeContext(ContinuitySummary continuity) =>
+    continuity.representedContexts.single.id;

@@ -40,7 +40,12 @@ final class LocalWorldFormRecovery {
       Description.fromWire,
     );
     if (!description.result.continuities.any(
-      (entry) => entry.id == scope.continuity,
+      (entry) =>
+          entry.id == scope.continuity &&
+          (scope.representedContext == null ||
+              entry.representedContexts.any(
+                (context) => context.id == scope.representedContext,
+              )),
     )) {
       throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
     }
