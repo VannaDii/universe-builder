@@ -173,6 +173,14 @@ authored role order and separate supporting/opposing assertions remain visible;
 expand an assertion for its exact scope, validity and evidence. This is an authored
 declaration view, not a determination of which assertions hold at a chosen time.
 An empty or partial view does not establish the absence of relationships.
+**Timeline** in an entity dossier lists events with explicit participation.
+Exact numeric points are ordered separately in each named calendar, using the
+shared rule engine's integer bounds. Equal coordinates do not imply sequence.
+Intervals, approximate/relative times, durations and unspecified or unsupported
+coordinates retain their authored form in a separate list, with exact uncertainty
+and event details available. Occurrence labels distinguish plans/reports from
+occurred events. A matching authored clock formats coordinates for display;
+unplaced records stay unplaced and participation never establishes a lifespan.
 **Edit relationship assertion** in Changes opens role names and named participant
 references with add/remove/reorder controls. Role order, duplicates and omitted
 local universes are retained. Scope, validity and evidence use the same assertion

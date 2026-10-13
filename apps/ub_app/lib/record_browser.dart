@@ -50,7 +50,11 @@ String dossierReferenceLabel(
       continue;
     }
     final labels = switch (row.payload) {
-      EntityRecord(:final labels) || RelationRecord(:final labels) => labels,
+      EntityRecord(:final labels) ||
+      RelationRecord(:final labels) ||
+      EventRecord(:final labels) ||
+      CalendarRecord(:final labels) ||
+      RepresentedContextRecord(:final labels) => labels,
       _ => const <String, String>{},
     };
     if (labels['en'] case final String label when label.isNotEmpty) {

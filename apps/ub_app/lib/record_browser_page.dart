@@ -9,6 +9,7 @@ import 'world_browser.dart';
 import 'entity_editor_page.dart';
 import 'attribute_editor_page.dart';
 import 'saved_changes.dart';
+import 'dossier_timeline_view.dart';
 
 class _RelationshipList extends StatelessWidget {
   const _RelationshipList({
@@ -315,6 +316,7 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
   Envelope<Records>? _material;
   FieldGroup _group = FieldGroup.payload;
   bool _relationships = false;
+  bool _timeline = false;
   bool _busy = true;
   String? _error;
   @override
@@ -435,13 +437,19 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                 }.entries)
                   ChoiceChip(
                     label: Text(option.value),
-                    selected: !_relationships && _group == option.key,
+                    selected:
+                        !_relationships && !_timeline && _group == option.key,
                     onSelected: _busy
                         ? null
                         : (_) {
-                            if (!_relationships && _group == option.key) return;
+                            if (!_relationships &&
+                                !_timeline &&
+                                _group == option.key) {
+                              return;
+                            }
                             setState(() {
                               _relationships = false;
+                              _timeline = false;
                               _group = option.key;
                             });
                             _read();
@@ -457,6 +465,23 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                             if (_relationships) return;
                             setState(() {
                               _relationships = true;
+                              _timeline = false;
+                              _group = FieldGroup.evidence;
+                            });
+                            _read();
+                          },
+                  ),
+                if (widget.hit.kind == RecordKind.entity)
+                  ChoiceChip(
+                    label: const Text('Timeline'),
+                    selected: _timeline,
+                    onSelected: _busy
+                        ? null
+                        : (_) {
+                            if (_timeline) return;
+                            setState(() {
+                              _timeline = true;
+                              _relationships = false;
                               _group = FieldGroup.evidence;
                             });
                             _read();
@@ -556,7 +581,17 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                   entity: widget.hit.recordId,
                   name: widget.hit.label,
                 ),
-              if (_group == FieldGroup.evidence && !_relationships) ...[
+              if (_timeline)
+                DossierTimeline(
+                  material: _material!.result,
+                  universe: widget.universe.id,
+                  entity: widget.hit.recordId,
+                  name: widget.hit.label,
+                  representedContext: widget.representedContext.id,
+                ),
+              if (_group == FieldGroup.evidence &&
+                  !_relationships &&
+                  !_timeline) ...[
                 const Text(
                   'Sources, assertions and related declarations accessible in this context.',
                 ),

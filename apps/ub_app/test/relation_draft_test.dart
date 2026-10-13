@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:ub_app/relation_draft.dart';
 import 'package:ub_app/record_browser.dart';
+import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/attribute_draft.dart';
 import 'package:ub_app/scope_draft.dart';
 import 'package:ub_app/connection.dart';
@@ -667,6 +668,126 @@ void main() {
             person.identity.recordId,
           ),
           isEmpty,
+        );
+      }
+      final calendarChoice = await searchDraftChoices(
+        changes: changes(),
+        context: readContext,
+        kind: RecordKind.calendar,
+        query: 'Gregorian',
+      );
+      final calendar = CalendarId.fromRecordId(
+        calendarChoice.result.hits.single.recordId,
+      );
+      final times = <TemporalExpression>[
+        ExactTime(calendar, '2208992400'),
+        ExactTime(calendar, '2208992300'),
+        IntervalTime(
+          calendar,
+          const ExactBound('2208992000'),
+          const UnknownBound(),
+        ),
+        ApproximateTime(calendar, '2208992200', const TextValue('a few days')),
+        RelativeTime(calendar, TemporalRelation.after, participant(0)),
+        const UnspecifiedTime(),
+      ];
+      final actionId = RecordId.generate();
+      final eventsDraft = await changes().saveContent(
+        afterPublication,
+        DraftContent(
+          baseRevision: afterPublication.content.baseRevision,
+          representedContext: afterPublication.content.representedContext,
+          rationale: 'Authored event times.',
+          operations: [
+            DefineActionOperation(
+              clientRef: actionId.value,
+              record: ActionDefinitionRecord(
+                namespace: 'authored',
+                key: 'journey',
+                labels: {'en': 'Journey'},
+                requirements: [],
+                scope: evidence.scope,
+                validity: const UnspecifiedValidity(),
+                consequenceContract: ConsequenceContract([]),
+              ),
+            ),
+            for (var i = 0; i < times.length; i++)
+              RecordEventOperation(
+                clientRef: 'event-$i',
+                record: EventRecord(
+                  action: RecordRef(universe: scope.universe, record: actionId),
+                  occurrence: const SimpleOccurrence(OccurrenceKind.planned),
+                  time: times[i],
+                  participants: [EventParticipant(participant(1), 'traveler')],
+                  labels: {'en': 'Journey $i 記憶 😀'},
+                ),
+              ),
+          ],
+        ),
+      );
+      try {
+        await publish(eventsDraft);
+      } on InvalidArgumentError catch (error) {
+        fail(error.message);
+      }
+      final eventsBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final eventsContext = await openDraftChoiceContext(changes(), eventsBase);
+      final eventMaterial = Envelope<Records>.fromWire(
+        await session.call(
+          ToolEngineRequest(
+            request: GetRequest(
+              universe: Selector('Relations'),
+              universeId: scope.universe,
+              contextId: eventsContext.contextId,
+              recordIds: [participant(1).record],
+              fieldGroups: [FieldGroup.evidence],
+            ),
+          ),
+        ),
+        Records.fromWire,
+      );
+      expect(eventMaterial.delivery.complete, isTrue);
+      final events = dossierEvents(
+        eventMaterial.result,
+        scope.universe,
+        participant(1).record,
+      );
+      expect(events, hasLength(6));
+      final order = dossierEventOrder(events);
+      expect(
+        order.points[calendar]!
+            .map((r) => (r.payload as EventRecord).time)
+            .map((t) => (t as ExactTime).value),
+        ['2208992300', '2208992400'],
+      );
+      expect(order.other, hasLength(4));
+      expect(
+        dossierEvents(
+          eventMaterial.result,
+          scope.universe,
+          participant(0).record,
+        ),
+        isEmpty,
+      );
+      expect(
+        dossierEvents(
+          eventMaterial.result,
+          UniverseId.generate(),
+          participant(1).record,
+        ),
+        isEmpty,
+      );
+      for (final event in events) {
+        expect(
+          (event.payload as EventRecord).occurrence,
+          isA<SimpleOccurrence>(),
+        );
+        expect(
+          (event.payload as EventRecord).time.encode(canonical: true).toText(),
+          isIn(times.map((t) => t.encode(canonical: true).toText())),
         );
       }
     } finally {
