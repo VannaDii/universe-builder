@@ -4,6 +4,19 @@ Two modes are available: the disposable read/propose fixture and a persistent au
 
 ## Dart conversion development
 
+The initial Flutter shell is in `apps/ub_app`, with desktop and compact navigation,
+the approved branding, and System/Light/Dark appearance controls in Settings.
+Its native connection adapter accepts `--installation`, `--profile` and optional
+`--engine` arguments and reads the accessible library and universe summaries
+through authenticated loopback HTTP. A disposable service regression covers
+owner access and the empty library of a contributor without universe grants.
+Appearance currently lasts for the app session. Ordinary device setup, native
+access to installations outside the macOS sandbox, editing/recovery and remote
+connections remain in progress. Web explains its instance connection requirement;
+it does not offer local database authority. Generated mobile/Windows/Linux runners
+are not yet qualified. Build the shell from `apps/ub_app` with `flutter build web`
+or, on macOS, `flutter build macos --debug`.
+
 The approved [conversion plan](docs/dart-conversion-plan.md) is being implemented
 alongside the current runtime. The Dart workspace currently contains the shared
 canonical encoding, digests, typed identities, values, temporal/spatial expressions
@@ -646,7 +659,7 @@ only when discovery is missing or refused. Invalid discovery, unavailable
 credentials and failed authentication do not launch a helper. Readiness retries
 never replay application calls. The server also supports an HTTP-only mode
 (`compatibilitySocket: false`); the compatibility socket remains enabled by
-default during migration. Browser sessions, Flutter clients, Windows ownership
+default during migration. Browser sessions, complete Flutter authoring, Windows ownership
 integration and hosted HTTPS remain pending. This is not a browser cookie
 session or a public hosted endpoint.
 

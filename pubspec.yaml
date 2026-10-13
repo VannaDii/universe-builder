@@ -12,6 +12,7 @@ workspace:
   - apps/ub_cli
   - apps/ub_engine
   - apps/ub_mcp
+  - apps/ub_app
 dev_dependencies:
   lints: 6.1.0
   ub_domain: any
