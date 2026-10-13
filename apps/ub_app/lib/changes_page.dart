@@ -604,6 +604,26 @@ class _ChangesPageState extends State<ChangesPage> {
                               const Text('After'),
                               ExactFields(value: record.toWire()),
                             ] else if (operations[index]
+                                case IntroduceInstanceOperation(
+                                  :final name,
+                                  :final classification,
+                                  :final worldAssociations,
+                                )) ...[
+                              const Text('New entity'),
+                              SelectableText(name.text),
+                              Text(
+                                classification == null
+                                    ? 'Unclassified'
+                                    : 'Classification selected',
+                              ),
+                              if (classification != null)
+                                SelectableText(classification.value),
+                              const Text('World associations (not location)'),
+                              for (final association in worldAssociations)
+                                ExactFields(value: association.toWire()),
+                              if (worldAssociations.isEmpty)
+                                const Text('No world associations'),
+                            ] else if (operations[index]
                                 case IntroduceDefinitionOperation(
                                   :final name,
                                   :final namespace,

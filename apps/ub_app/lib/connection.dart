@@ -11,6 +11,8 @@ final class AppSession {
     required this.saveWorldForm,
     required this.loadTypeForm,
     required this.saveTypeForm,
+    required this.loadEntityForm,
+    required this.saveEntityForm,
   });
   final Future<CanonicalValue> Function(EngineRequest) call;
   final Future<void> Function() close;
@@ -30,6 +32,13 @@ final class AppSession {
     BigInt,
   )
   saveTypeForm;
+  final Future<SavedEntityForm?> Function(EditorFormScope) loadEntityForm;
+  final Future<SavedEntityForm> Function(
+    EditorFormScope,
+    UnfinishedEntityForm,
+    BigInt,
+  )
+  saveEntityForm;
 }
 
 final class LibraryEntry {

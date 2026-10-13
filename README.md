@@ -56,6 +56,14 @@ accessible research closure. History shows retained versions, publication
 reasons and expandable publication details, with the service's complete or
 restricted coverage shown explicitly. A failed read retains the selected view
 for retry; it does not switch to a newer revision.
+**Person, place or entity** opens a recoverable instance form. A name is enough;
+classification is optional. Classification choices and worlds are read at the
+form's revision. Selected worlds require an explicit association role and retain
+one shared entity identity; associations do not establish location. Adding a
+completed form appends an instance operation to compatible Changes, preserves
+other draft work and avoids duplicating an exact retry. **Start another entity**
+uses a fresh reference at the current revision. Leaving saves unfinished input
+before returning. Review, approval and publication remain separate steps.
 **Type definition** opens a recoverable typed form for namespace, key, display
 name, parent, applicability, executable classification and rationale. Parent,
 applicability and classification require explicit choices. Unspecified and

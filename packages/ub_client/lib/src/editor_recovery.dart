@@ -127,3 +127,42 @@ final class LocalTypeFormRecovery {
     });
   }
 }
+
+final class LocalEntityFormRecovery {
+  LocalEntityFormRecovery({required String root, required this.client})
+    : _path = '$root/client-recovery/entity-forms.sqlite';
+  final String _path;
+  final LoopbackEngineClient client;
+
+  Future<SavedEntityForm?> load(EditorFormScope scope) async {
+    await _checkEditorScope(client, scope);
+    final path = _path;
+    return Isolate.run(() {
+      final store = EntityFormRecoveryStore.open(path);
+      try {
+        return store.load(scope);
+      } finally {
+        store.close();
+      }
+    });
+  }
+
+  Future<SavedEntityForm> save(
+    EditorFormScope scope,
+    UnfinishedEntityForm form,
+    BigInt expectedGeneration,
+  ) async {
+    if (scope.profile != client.welcome.principal) {
+      throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
+    }
+    final path = _path;
+    return Isolate.run(() {
+      final store = EntityFormRecoveryStore.open(path);
+      try {
+        return store.save(scope, form, expectedGeneration);
+      } finally {
+        store.close();
+      }
+    });
+  }
+}

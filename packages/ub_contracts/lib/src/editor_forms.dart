@@ -164,3 +164,41 @@ final class SavedTypeForm {
   final BigInt generation;
   final UnfinishedTypeForm form;
 }
+
+/// Incomplete instance input; associations do not establish physical location.
+final class UnfinishedEntityForm {
+  UnfinishedEntityForm({
+    required this.baseRevision,
+    required this.representedContext,
+    required this.clientRef,
+    required this.name,
+    required this.classification,
+    required this.worldRole,
+    required this.rationale,
+    Iterable<WorldId> worlds = const [],
+  }) : worlds = List.unmodifiable(worlds);
+  final RevisionId baseRevision;
+  final RecordId representedContext;
+  final String clientRef, name, classification, worldRole, rationale;
+  final List<WorldId> worlds;
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('base_revision', CanonicalString(baseRevision.value)),
+    MapEntry('represented_context', CanonicalString(representedContext.value)),
+    MapEntry('client_ref', CanonicalString(clientRef)),
+    MapEntry('name', CanonicalString(name)),
+    MapEntry('classification', CanonicalString(classification)),
+    MapEntry('world_role', CanonicalString(worldRole)),
+    MapEntry('rationale', CanonicalString(rationale)),
+    MapEntry(
+      'worlds',
+      CanonicalArray(worlds.map((w) => CanonicalString(w.value))),
+    ),
+  ]);
+}
+
+final class SavedEntityForm {
+  SavedEntityForm({required BigInt generation, required this.form})
+    : generation = checkedU64(generation);
+  final BigInt generation;
+  final UnfinishedEntityForm form;
+}
