@@ -5,6 +5,7 @@ import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'package:ub_domain/ub_domain.dart';
 
 import 'attribute_draft.dart';
+import 'qualifier_draft.dart';
 import 'record_fields.dart';
 import 'saved_changes.dart';
 import 'value_input_fields.dart';
@@ -117,11 +118,13 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
     PersistenceSemantics? persistence,
     String? validityChoice,
     TemporalValidityInput? temporal,
+    List<QualifierInput>? alternatives,
   }) {
     final old = _form!.evidenceInput ?? const AttributeEvidenceInput();
     _change(
       _form!.value,
       evidence: AttributeEvidenceInput(
+        alternatives: alternatives ?? old.alternatives,
         polarity: polarity ?? old.polarity,
         precision: precision ?? old.precision,
         persistence: persistence ?? old.persistence,
@@ -139,6 +142,85 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
             ? temporalValidityInput(_source.evidence.validity)
             : null,
       ),
+    );
+  }
+
+  List<QualifierInput> get _alternatives =>
+      _form!.evidenceInput?.alternatives ??
+      [
+        for (var i = 0; i < _source.evidence.alternatives.length; i++)
+          qualifierInput(i.toString(), _source.evidence.alternatives[i]),
+      ];
+  void _moveAlternative(int index, int destination) {
+    final rows = [..._alternatives];
+    rows.insert(destination, rows.removeAt(index));
+    _editEvidence(alternatives: rows);
+  }
+
+  Widget _alternativeFields() {
+    final rows = _alternatives;
+    final original = qualifierChildren(
+      SequenceValue(_source.evidence.alternatives),
+    );
+    return ExpansionTile(
+      key: const ValueKey('attribute alternatives'),
+      title: const Text('Alternative values'),
+      children: [
+        const Text(
+          'These are authored alternatives, not additional established facts. Precision is selected separately.',
+        ),
+        if (rows.isEmpty) const Text('No alternatives'),
+        for (var i = 0; i < rows.length; i++)
+          Column(
+            key: ValueKey(('attribute alternative', i)),
+            children: [
+              ValueInputFields(
+                input: rows[i],
+                original: original[rows[i].originalKey],
+                disabled: _disabled,
+                label: 'Alternative ${i + 1}',
+                onChanged: (value) {
+                  final changed = [..._alternatives];
+                  changed[i] = value;
+                  _editEvidence(alternatives: changed);
+                },
+              ),
+              Wrap(
+                children: [
+                  TextButton(
+                    onPressed: _disabled || i == 0
+                        ? null
+                        : () => _moveAlternative(i, i - 1),
+                    child: const Text('Move earlier'),
+                  ),
+                  TextButton(
+                    onPressed: _disabled || i == rows.length - 1
+                        ? null
+                        : () => _moveAlternative(i, i + 1),
+                    child: const Text('Move later'),
+                  ),
+                  TextButton(
+                    onPressed: _disabled
+                        ? null
+                        : () {
+                            final changed = [..._alternatives]..removeAt(i);
+                            _editEvidence(alternatives: changed);
+                          },
+                    child: const Text('Remove alternative'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        TextButton(
+          onPressed: _disabled
+              ? null
+              : () => _editEvidence(
+                  alternatives: [..._alternatives, const QualifierInput()],
+                ),
+          child: const Text('Add alternative'),
+        ),
+      ],
     );
   }
 
@@ -217,7 +299,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
             onChanged: (v) => _editEvidence(temporal: v),
           ),
         const Text(
-          'Attribute mode, scope, alternatives and source basis retain their authored values.',
+          'Attribute mode, scope and source basis retain their authored values.',
         ),
       ],
     );
@@ -323,67 +405,70 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 760),
-          child: ListView(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
-            children: [
-              Text(
-                '${_source.namespace}: ${_source.key}',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const Text(
-                'Unfinished edits stay on this device. The property definition remains intact. Assertion details change only when edited. Save into Changes for review before publication.',
-              ),
-              if (_loading || _saving || _updating)
-                const LinearProgressIndicator(),
-              if (_stale) ...[
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  '${_source.namespace}: ${_source.key}',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 const Text(
-                  'Recovered edits belong to an earlier draft. Use current draft fields before saving changes.',
+                  'Unfinished edits stay on this device. The property definition remains intact. Assertion details change only when edited. Save into Changes for review before publication.',
+                ),
+                if (_loading || _saving || _updating)
+                  const LinearProgressIndicator(),
+                if (_stale) ...[
+                  const Text(
+                    'Recovered edits belong to an earlier draft. Use current draft fields before saving changes.',
+                  ),
+                  TextButton(
+                    onPressed: _disabled ? null : _useCurrent,
+                    child: const Text('Use current draft fields'),
+                  ),
+                ],
+                if (_form != null)
+                  ValueInputFields(
+                    key: const ValueKey('attribute value'),
+                    input: _form!.value,
+                    original: _source.value,
+                    disabled: _disabled,
+                    label: 'Attribute value',
+                    onChanged: _change,
+                  ),
+                if (_form != null) ...[_evidenceFields(), _alternativeFields()],
+                ExpansionTile(
+                  key: const ValueKey('original attribute'),
+                  title: const Text('Original attribute and evidence'),
+                  children: [ExactFields(value: _source.toWire())],
+                ),
+                Text(
+                  _dirty
+                      ? 'Unsaved fields'
+                      : _generation == BigInt.zero
+                      ? 'No saved fields yet'
+                      : 'Saved on this device',
+                ),
+                if (_error != null)
+                  Semantics(liveRegion: true, child: Text(_error!)),
+                if (_updated != null)
+                  Semantics(liveRegion: true, child: Text(_updated!)),
+                FilledButton(
+                  onPressed: _disabled || _stale ? null : _update,
+                  child: const Text('Save attribute changes'),
                 ),
                 TextButton(
-                  onPressed: _disabled ? null : _useCurrent,
-                  child: const Text('Use current draft fields'),
+                  onPressed: _disabled || !_dirty ? null : _save,
+                  child: const Text('Save unfinished work'),
                 ),
+                if (_error != null)
+                  TextButton(
+                    onPressed: _loading || _saving || _updating ? null : _load,
+                    child: const Text('Reload saved fields'),
+                  ),
               ],
-              if (_form != null)
-                ValueInputFields(
-                  key: const ValueKey('attribute value'),
-                  input: _form!.value,
-                  original: _source.value,
-                  disabled: _disabled,
-                  label: 'Attribute value',
-                  onChanged: _change,
-                ),
-              if (_form != null) _evidenceFields(),
-              ExpansionTile(
-                key: const ValueKey('original attribute'),
-                title: const Text('Original attribute and evidence'),
-                children: [ExactFields(value: _source.toWire())],
-              ),
-              Text(
-                _dirty
-                    ? 'Unsaved fields'
-                    : _generation == BigInt.zero
-                    ? 'No saved fields yet'
-                    : 'Saved on this device',
-              ),
-              if (_error != null)
-                Semantics(liveRegion: true, child: Text(_error!)),
-              if (_updated != null)
-                Semantics(liveRegion: true, child: Text(_updated!)),
-              FilledButton(
-                onPressed: _disabled || _stale ? null : _update,
-                child: const Text('Save attribute changes'),
-              ),
-              TextButton(
-                onPressed: _disabled || !_dirty ? null : _save,
-                child: const Text('Save unfinished work'),
-              ),
-              if (_error != null)
-                TextButton(
-                  onPressed: _loading || _saving || _updating ? null : _load,
-                  child: const Text('Reload saved fields'),
-                ),
-            ],
+            ),
           ),
         ),
       ),

@@ -110,12 +110,15 @@ changes still require an explicit authored correction.
 **Edit attribute** in Changes opens the existing typed value controls for
 a named factual attribute, including nested and exact values. Unfinished input
 recovers on this device. Saving retains the subject, property definition,
-source basis, alternatives, other operations and rationale; stale draft edits require
+source basis, other operations and rationale; stale draft edits require
 using current fields. Validation checks the value against the retained shape.
 **Assertion details** edits polarity, precision, persistence and validity.
 Untouched fields retain their exact authored values. Temporal validity uses the
-shared fictional-time controls, including nested amounts. Attribute mode, scope,
-alternatives and source basis remain intact.
+shared fictional-time controls, including nested amounts. Attribute mode, scope
+and source basis remain intact.
+**Alternative values** adds, edits, removes and reorders typed alternatives, including
+nested values. Unfinished alternatives recover on this device. Precision remains
+an explicit author choice; alternatives do not become additional established facts.
 **Type definition** opens a recoverable typed form for namespace, key, display
 name, parent, applicability, executable classification and rationale. Parent,
 applicability and classification require explicit choices. Unspecified and

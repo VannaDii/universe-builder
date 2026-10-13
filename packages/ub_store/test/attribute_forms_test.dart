@@ -48,6 +48,15 @@ void main() {
         draftVersion: initial.draftVersion,
         value: initial.value,
         evidenceInput: const AttributeEvidenceInput(
+          alternatives: [
+            QualifierInput(kind: 'retain', originalKey: '1'),
+            QualifierInput(
+              kind: 'sequence',
+              children: [
+                QualifierInput(kind: 'decimal', value: 'unfinished 記憶 😀'),
+              ],
+            ),
+          ],
           polarity: Polarity.refutation,
           precision: Precision.unresolved,
           persistence: PersistenceSemantics.conditionDependent,

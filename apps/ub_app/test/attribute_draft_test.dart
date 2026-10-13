@@ -29,7 +29,10 @@ void main() {
       ),
       persistence: PersistenceSemantics.persistentUntilChanged,
       precision: Precision.oneOf,
-      alternatives: [const TextValue('alternative')],
+      alternatives: [
+        const TextValue('alternative'),
+        SequenceValue([const TextValue('original second')]),
+      ],
       basis: const AuthorDecisionBasis('Authored source.'),
     );
     final op = AddNamedAttributeOperation(
@@ -106,6 +109,62 @@ void main() {
     expect(edited.scope, evidence.scope);
     expect(edited.alternatives, evidence.alternatives);
     expect(edited.basis.toWire().toText(), evidence.basis.toWire().toText());
+    final changedAlternatives = AttributeEvidenceInput(
+      alternatives: [
+        const QualifierInput(
+          kind: 'sequence',
+          children: [
+            QualifierInput(kind: 'text', value: '記憶 😀\nsecond account'),
+          ],
+        ),
+        const QualifierInput(kind: 'retain', originalKey: '1'),
+        const QualifierInput(kind: 'retain', originalKey: '0'),
+      ],
+    );
+    final changed =
+        (replaceDraftAttribute(
+                  draft: draft,
+                  index: 0,
+                  form: form(
+                    AttributeEvidenceInput.fromWire(
+                      changedAlternatives.toWire(),
+                    ),
+                  ),
+                ).operations.single
+                as AddNamedAttributeOperation)
+            .evidence;
+    expect(changed.alternatives, [
+      SequenceValue([const TextValue('記憶 😀\nsecond account')]),
+      SequenceValue([const TextValue('original second')]),
+      const TextValue('alternative'),
+    ]);
+    expect(changed.precision, evidence.precision);
+    expect(changed.basis.toWire().toText(), evidence.basis.toWire().toText());
+    expect(
+      (replaceDraftAttribute(
+                draft: draft,
+                index: 0,
+                form: form(const AttributeEvidenceInput(alternatives: [])),
+              ).operations.single
+              as AddNamedAttributeOperation)
+          .evidence
+          .alternatives,
+      isEmpty,
+    );
+    expect(
+      () => replaceDraftAttribute(
+        draft: draft,
+        index: 0,
+        form: form(
+          const AttributeEvidenceInput(
+            alternatives: [
+              QualifierInput(kind: 'retain', originalKey: 'missing'),
+            ],
+          ),
+        ),
+      ),
+      throwsFormatException,
+    );
     for (final marker in [
       const UnspecifiedValidity(),
       const UnknownValidity(),
@@ -318,6 +377,15 @@ void main() {
         evidenceInput: const AttributeEvidenceInput(
           polarity: Polarity.refutation,
           validity: UnspecifiedValidity(),
+          alternatives: [
+            QualifierInput(
+              kind: 'sequence',
+              children: [
+                QualifierInput(kind: 'text', value: '記憶 😀 alternative'),
+              ],
+            ),
+            QualifierInput(kind: 'retain', originalKey: '0'),
+          ],
         ),
       );
       await session.saveAttributeForm(
@@ -369,6 +437,10 @@ void main() {
       );
       expect(assertion.validity, const UnspecifiedValidity());
       expect(assertion.polarity, Polarity.refutation);
+      expect(assertion.alternatives, [
+        SequenceValue([const TextValue('記憶 😀 alternative')]),
+        SequenceValue([const TextValue('alternative')]),
+      ]);
     } finally {
       await session?.close();
       await server.close();

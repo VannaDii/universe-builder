@@ -55,7 +55,16 @@ DraftContent replaceDraftAttribute({
           : form.evidenceInput?.validity ?? op.evidence.validity,
       persistence: form.evidenceInput?.persistence ?? op.evidence.persistence,
       precision: form.evidenceInput?.precision ?? op.evidence.precision,
-      alternatives: op.evidence.alternatives,
+      alternatives: form.evidenceInput?.alternatives == null
+          ? op.evidence.alternatives
+          : form.evidenceInput!.alternatives!.map(
+              (input) => buildQualifierValue(
+                input,
+                qualifierChildren(
+                  SequenceValue(op.evidence.alternatives),
+                )[input.originalKey],
+              ),
+            ),
       basis: op.evidence.basis,
     ),
   );

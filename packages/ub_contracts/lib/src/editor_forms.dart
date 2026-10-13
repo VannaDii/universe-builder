@@ -641,13 +641,22 @@ final class AttributeEvidenceInput {
     this.persistence,
     this.validity,
     this.temporalValidity,
+    this.alternatives,
   });
   final Polarity? polarity;
   final Precision? precision;
   final PersistenceSemantics? persistence;
   final Validity? validity;
   final TemporalValidityInput? temporalValidity;
+
+  /// Null retains alternatives; empty explicitly removes them.
+  final List<QualifierInput>? alternatives;
   CanonicalObject toWire() => CanonicalObject([
+    if (alternatives != null)
+      MapEntry(
+        'alternatives',
+        CanonicalArray(alternatives!.map((v) => v.toWire())),
+      ),
     if (polarity != null) MapEntry('polarity', polarity!.toWire()),
     if (precision != null) MapEntry('precision', precision!.toWire()),
     if (persistence != null) MapEntry('persistence', persistence!.toWire()),
@@ -662,8 +671,15 @@ final class AttributeEvidenceInput {
       'persistence',
       'validity',
       'temporal_validity',
+      'alternatives',
     });
     return AttributeEvidenceInput(
+      alternatives: f.optional('alternatives', (v) {
+        if (v is! CanonicalArray) {
+          throw const FormatException('Expected alternative inputs');
+        }
+        return v.items.map(QualifierInput.fromWire).toList();
+      }),
       polarity: f.optional('polarity', Polarity.fromWire),
       precision: f.optional('precision', Precision.fromWire),
       persistence: f.optional('persistence', PersistenceSemantics.fromWire),
@@ -675,6 +691,9 @@ final class AttributeEvidenceInput {
     );
   }
   Iterable<String> get exactTexts sync* {
+    for (final alternative in alternatives ?? <QualifierInput>[]) {
+      yield* alternative.exactTexts;
+    }
     if (temporalValidity != null) {
       yield* QualifierInput(
         kind: 'temporal',
