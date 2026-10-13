@@ -12,6 +12,7 @@ import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/saved_changes.dart';
 import 'package:ub_app/scope_draft.dart';
 import 'package:ub_app/dossier_sources.dart';
+import 'package:ub_app/source_draft.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_engine.dart';
@@ -611,6 +612,58 @@ void main() {
           .map((op) => op.payload)
           .whereType<SourceVersionRecord>()
           .single;
+      final sourceForm = UnfinishedSourceForm(
+        baseRevision: RevisionId.parse(created.string('revision')),
+        representedContext: scope.representedContext!,
+        clientRef: RecordId.generate().value,
+        label: 'Diary source',
+        text: sourceText,
+        rationale: 'Retain the submitted diary.',
+        staged: sourceOperations,
+      );
+      final savedSourceForm = await session.saveSourceForm(
+        scope,
+        sourceForm,
+        BigInt.zero,
+      );
+      final recoveredSourceForm = (await session.loadSourceForm(scope))!;
+      expect(recoveredSourceForm.generation, savedSourceForm.generation);
+      expect(
+        recoveredSourceForm.form.toWire().toText(),
+        sourceForm.toWire().toText(),
+      );
+      final emptySourceDraft = SavedDraft(
+        version: BigInt.zero,
+        content: DraftContent(
+          baseRevision: sourceForm.baseRevision,
+          representedContext: sourceForm.representedContext,
+          operations: [],
+          rationale: '',
+        ),
+      );
+      final sourceRequest = sourceDraftRequest(
+        draft: emptySourceDraft,
+        form: recoveredSourceForm.form,
+        universe: const Selector('Attributes'),
+        continuity: scope.continuity,
+      );
+      expect(
+        sourceRequest.content.operations.map((op) => op.toWire().toText()),
+        sourceOperations.map((op) => op.toWire().toText()),
+      );
+      final alreadyAdded = SavedDraft(
+        version: BigInt.one,
+        content: sourceRequest.content,
+      );
+      expect(
+        sourceDraftRequest(
+          draft: alreadyAdded,
+          form: recoveredSourceForm.form,
+          universe: const Selector('Attributes'),
+          continuity: scope.continuity,
+        ).content.toWire().toText(),
+        alreadyAdded.content.toWire().toText(),
+      );
       final initial = SavedDraft.fromWire(
         await session.call(
           SaveDraftEngineRequest(

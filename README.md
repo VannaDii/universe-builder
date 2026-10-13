@@ -202,6 +202,11 @@ source details remain expandable. **Read source text** loads the exact retained
 version in UTF-8-safe sections; **Next text section** continues through large
 sources. Each read rechecks the opened context and current access. No external
 identifier is fetched, and source text is not saved as a preview file.
+**Import source** in an opened continuity accepts a label and exact submitted
+text. Unfinished input and returned import operations recover on this device;
+**Add to Changes** reuses those operations on retry. Importing retains content
+and proposes source records, while the existing Changes review controls canonical
+publication. Importing does not create an assertion or an evidence anchor.
 **Timeline** in an entity dossier lists events with explicit participation.
 Exact numeric points are ordered separately in each named calendar, using the
 shared rule engine's integer bounds. Equal coordinates do not imply sequence.

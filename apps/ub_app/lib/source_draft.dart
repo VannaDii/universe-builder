@@ -1,0 +1,61 @@
+import 'package:ub_contracts/ub_contracts.dart';
+import 'package:ub_domain/ub_domain.dart';
+
+SaveDraftEngineRequest sourceDraftRequest({
+  required SavedDraft draft,
+  required UnfinishedSourceForm form,
+  required Selector universe,
+  required ContinuityId continuity,
+}) {
+  if (draft.content.proposal != null ||
+      draft.content.baseRevision != form.baseRevision ||
+      draft.content.representedContext != form.representedContext) {
+    throw const FormatException('Review Changes before adding this source.');
+  }
+  if (form.staged.length != 2 ||
+      form.staged.any(
+        (op) =>
+            op is! RecordNarrativeReferenceOperation ||
+            (op.payload is! SourceRecord && op.payload is! SourceVersionRecord),
+      )) {
+    throw const FormatException(
+      'Retain the source before adding it to Changes.',
+    );
+  }
+  final operations = [...draft.content.operations];
+  for (final op in form.staged) {
+    final ref = (op as RecordNarrativeReferenceOperation).clientRef;
+    final matching = operations.where(
+      (existing) =>
+          existing is RecordNarrativeReferenceOperation &&
+          existing.clientRef == ref,
+    );
+    if (matching.isNotEmpty) {
+      if (matching.length != 1 ||
+          matching.single.toWire().toText() != op.toWire().toText()) {
+        throw const FormatException(
+          'This source differs from Changes. Review it there.',
+        );
+      }
+    } else {
+      operations.add(op);
+    }
+  }
+  final unchanged = operations.length == draft.content.operations.length;
+  return SaveDraftEngineRequest(
+    universe: universe,
+    continuityId: continuity,
+    expectedVersion: draft.version,
+    content: unchanged
+        ? draft.content
+        : DraftContent(
+            baseRevision: draft.content.baseRevision,
+            representedContext: draft.content.representedContext,
+            operations: operations,
+            rationale: [
+              if (draft.content.rationale.isNotEmpty) draft.content.rationale,
+              if (form.rationale.isNotEmpty) form.rationale,
+            ].join('\n\n'),
+          ),
+  );
+}
