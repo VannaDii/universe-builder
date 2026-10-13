@@ -2,6 +2,7 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 import 'qualifier_draft.dart';
+import 'scope_draft.dart';
 import 'temporal_validity_draft.dart';
 
 UnfinishedAttributeForm attributeFormFromDraft(SavedDraft draft, int index) {
@@ -44,9 +45,12 @@ DraftContent replaceDraftAttribute({
     multiplicity: op.multiplicity,
     value: buildQualifierValue(form.value, op.value),
     evidence: AttributeEvidence(
-      attributeMode: op.evidence.attributeMode,
+      attributeMode:
+          form.evidenceInput?.attributeMode ?? op.evidence.attributeMode,
       polarity: form.evidenceInput?.polarity ?? op.evidence.polarity,
-      scope: op.evidence.scope,
+      scope: form.evidenceInput?.scope == null
+          ? op.evidence.scope
+          : buildScope(form.evidenceInput!.scope!),
       validity: form.evidenceInput?.temporalValidity != null
           ? buildTemporalValidity(
               form.evidenceInput!.temporalValidity!,

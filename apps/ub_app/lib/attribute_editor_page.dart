@@ -6,6 +6,8 @@ import 'package:ub_domain/ub_domain.dart';
 
 import 'attribute_draft.dart';
 import 'qualifier_draft.dart';
+import 'scope_draft.dart';
+import 'scope_input_fields.dart';
 import 'record_fields.dart';
 import 'saved_changes.dart';
 import 'value_input_fields.dart';
@@ -113,6 +115,8 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
   }
 
   void _editEvidence({
+    AttributeMode? attributeMode,
+    ScopeInput? scope,
     Polarity? polarity,
     Precision? precision,
     PersistenceSemantics? persistence,
@@ -124,6 +128,8 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
     _change(
       _form!.value,
       evidence: AttributeEvidenceInput(
+        attributeMode: attributeMode ?? old.attributeMode,
+        scope: scope ?? old.scope,
         alternatives: alternatives ?? old.alternatives,
         polarity: polarity ?? old.polarity,
         precision: precision ?? old.precision,
@@ -258,6 +264,16 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
       key: const ValueKey('attribute assertion details'),
       title: const Text('Assertion details'),
       children: [
+        _choice(
+          'Attribute mode',
+          input?.attributeMode ?? original.attributeMode,
+          const {
+            AttributeMode.instance: 'Instance fact',
+            AttributeMode.shared: 'Shared attribute',
+            AttributeMode.initialValue: 'Initial value',
+          },
+          (v) => _editEvidence(attributeMode: v),
+        ),
         _choice('Polarity', input?.polarity ?? original.polarity, const {
           Polarity.support: 'Supports this fact',
           Polarity.refutation: 'Refutes this fact',
@@ -298,9 +314,7 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
             disabled: _disabled,
             onChanged: (v) => _editEvidence(temporal: v),
           ),
-        const Text(
-          'Attribute mode, scope and source basis retain their authored values.',
-        ),
+        const Text('Source basis retains its authored value.'),
       ],
     );
   }
@@ -437,7 +451,23 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                     label: 'Attribute value',
                     onChanged: _change,
                   ),
-                if (_form != null) ...[_evidenceFields(), _alternativeFields()],
+                if (_form != null) ...[
+                  _evidenceFields(),
+                  ExpansionTile(
+                    key: const ValueKey('attribute factual scope'),
+                    title: const Text('Factual scope'),
+                    children: [
+                      ScopeInputFields(
+                        input:
+                            _form!.evidenceInput?.scope ??
+                            scopeInput(_source.evidence.scope),
+                        disabled: _disabled,
+                        onChanged: (v) => _editEvidence(scope: v),
+                      ),
+                    ],
+                  ),
+                  _alternativeFields(),
+                ],
                 ExpansionTile(
                   key: const ValueKey('original attribute'),
                   title: const Text('Original attribute and evidence'),

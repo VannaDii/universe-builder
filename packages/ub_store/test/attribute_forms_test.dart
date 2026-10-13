@@ -48,6 +48,16 @@ void main() {
         draftVersion: initial.draftVersion,
         value: initial.value,
         evidenceInput: const AttributeEvidenceInput(
+          attributeMode: AttributeMode.initialValue,
+          scope: ScopeInput(
+            applicability: 'worlds',
+            worlds: ['unfinished world 記憶 😀', '', 'unfinished world 記憶 😀'],
+            contextRecord: 'unfinished context',
+            contextUniverse: 'unfinished universe',
+            hasRealm: true,
+            realmRecord: 'unfinished realm',
+            realmUniverse: 'unfinished realm universe',
+          ),
           alternatives: [
             QualifierInput(kind: 'retain', originalKey: '1'),
             QualifierInput(

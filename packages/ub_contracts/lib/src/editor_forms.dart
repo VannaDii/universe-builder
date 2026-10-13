@@ -636,6 +636,8 @@ final class SavedAttributeForm {
 /// Null fields retain the authored assertion details; explicit input replaces them.
 final class AttributeEvidenceInput {
   const AttributeEvidenceInput({
+    this.attributeMode,
+    this.scope,
     this.polarity,
     this.precision,
     this.persistence,
@@ -643,6 +645,8 @@ final class AttributeEvidenceInput {
     this.temporalValidity,
     this.alternatives,
   });
+  final AttributeMode? attributeMode;
+  final ScopeInput? scope;
   final Polarity? polarity;
   final Precision? precision;
   final PersistenceSemantics? persistence;
@@ -652,6 +656,9 @@ final class AttributeEvidenceInput {
   /// Null retains alternatives; empty explicitly removes them.
   final List<QualifierInput>? alternatives;
   CanonicalObject toWire() => CanonicalObject([
+    if (attributeMode != null)
+      MapEntry('attribute_mode', CanonicalString(attributeMode!.wireName)),
+    if (scope != null) MapEntry('scope', scope!.toWire()),
     if (alternatives != null)
       MapEntry(
         'alternatives',
@@ -666,6 +673,8 @@ final class AttributeEvidenceInput {
   ]);
   factory AttributeEvidenceInput.fromWire(CanonicalValue value) {
     final f = WireFields(value, {
+      'attribute_mode',
+      'scope',
       'polarity',
       'precision',
       'persistence',
@@ -674,6 +683,8 @@ final class AttributeEvidenceInput {
       'alternatives',
     });
     return AttributeEvidenceInput(
+      attributeMode: f.optional('attribute_mode', AttributeMode.fromWire),
+      scope: f.optional('scope', ScopeInput.fromWire),
       alternatives: f.optional('alternatives', (v) {
         if (v is! CanonicalArray) {
           throw const FormatException('Expected alternative inputs');
@@ -691,6 +702,7 @@ final class AttributeEvidenceInput {
     );
   }
   Iterable<String> get exactTexts sync* {
+    if (scope != null) yield* scope!.exactTexts;
     for (final alternative in alternatives ?? <QualifierInput>[]) {
       yield* alternative.exactTexts;
     }
@@ -701,4 +713,70 @@ final class AttributeEvidenceInput {
       ).exactTexts;
     }
   }
+}
+
+/// Unfinished factual scope fields, separate from the authenticated editor scope.
+final class ScopeInput {
+  const ScopeInput({
+    this.applicability = 'unspecified',
+    this.worlds = const [],
+    this.contextRecord = '',
+    this.contextUniverse = '',
+    this.hasRealm = false,
+    this.realmRecord = '',
+    this.realmUniverse = '',
+  });
+  final String applicability,
+      contextRecord,
+      contextUniverse,
+      realmRecord,
+      realmUniverse;
+  final List<String> worlds;
+  final bool hasRealm;
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('applicability', CanonicalString(applicability)),
+    MapEntry('worlds', CanonicalArray(worlds.map(CanonicalString.new))),
+    MapEntry('context_record', CanonicalString(contextRecord)),
+    MapEntry('context_universe', CanonicalString(contextUniverse)),
+    MapEntry('has_realm', CanonicalBool(hasRealm)),
+    MapEntry('realm_record', CanonicalString(realmRecord)),
+    MapEntry('realm_universe', CanonicalString(realmUniverse)),
+  ]);
+  factory ScopeInput.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {
+      'applicability',
+      'worlds',
+      'context_record',
+      'context_universe',
+      'has_realm',
+      'realm_record',
+      'realm_universe',
+    });
+    final worlds = f.require('worlds');
+    if (worlds is! CanonicalArray) {
+      throw const FormatException('Expected world inputs');
+    }
+    return ScopeInput(
+      applicability: f.string('applicability'),
+      worlds: worlds.items.map((v) {
+        if (v is! CanonicalString) {
+          throw const FormatException('Expected world input');
+        }
+        return v.value;
+      }).toList(),
+      contextRecord: f.string('context_record'),
+      contextUniverse: f.string('context_universe'),
+      hasRealm: f.boolean('has_realm'),
+      realmRecord: f.string('realm_record'),
+      realmUniverse: f.string('realm_universe'),
+    );
+  }
+  Iterable<String> get exactTexts => [
+    applicability,
+    ...worlds,
+    contextRecord,
+    contextUniverse,
+    realmRecord,
+    realmUniverse,
+  ];
 }

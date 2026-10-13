@@ -8,6 +8,7 @@ import 'package:ub_app/attribute_draft.dart';
 import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/saved_changes.dart';
+import 'package:ub_app/scope_draft.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_engine.dart';
@@ -109,6 +110,61 @@ void main() {
     expect(edited.scope, evidence.scope);
     expect(edited.alternatives, evidence.alternatives);
     expect(edited.basis.toWire().toText(), evidence.basis.toWire().toText());
+    final worldA = WorldId.generate(), worldB = WorldId.generate();
+    final context = RecordId.generate(), realm = RecordId.generate();
+    final otherUniverse = UniverseId.generate();
+    final changedScope = Scope(
+      context: RecordRef(record: context),
+      realm: RecordRef(universe: otherUniverse, record: realm),
+      applicability: WorldsApplicability([worldB, worldA, worldB]),
+    );
+    for (final mode in AttributeMode.values) {
+      final changedEvidence =
+          (replaceDraftAttribute(
+                    draft: draft,
+                    index: 0,
+                    form: form(
+                      AttributeEvidenceInput.fromWire(
+                        AttributeEvidenceInput(
+                          attributeMode: mode,
+                          scope: scopeInput(changedScope),
+                        ).toWire(),
+                      ),
+                    ),
+                  ).operations.single
+                  as AddNamedAttributeOperation)
+              .evidence;
+      expect(changedEvidence.attributeMode, mode);
+      expect(changedEvidence.scope, changedScope);
+      expect(changedEvidence.scope.context.universe, isNull);
+      expect(changedEvidence.scope.realm!.universe, otherUniverse);
+      expect(changedEvidence.basis, evidence.basis);
+      expect(changedEvidence.alternatives, evidence.alternatives);
+    }
+    for (final applicability in <Applicability>[
+      const UniverseApplicability(),
+      const ConditionalApplicability(),
+      const UnspecifiedApplicability(),
+      WorldsApplicability([]),
+    ]) {
+      final scope = Scope(
+        context: changedScope.context,
+        applicability: applicability,
+      );
+      expect(buildScope(scopeInput(scope)), scope);
+      expect(buildScope(scopeInput(scope)).realm, isNull);
+    }
+    expect(
+      () => buildScope(const ScopeInput(contextRecord: 'unfinished 記憶 😀')),
+      throwsFormatException,
+    );
+    final hidden = ScopeInput(
+      contextRecord: context.value,
+      realmRecord: 'unfinished realm',
+      worlds: ['unfinished world'],
+    );
+    expect(buildScope(hidden).realm, isNull);
+    expect(buildScope(hidden).applicability, const UnspecifiedApplicability());
     final changedAlternatives = AttributeEvidenceInput(
       alternatives: [
         const QualifierInput(
@@ -374,9 +430,15 @@ void main() {
         clientRef: recovered.form.clientRef,
         draftVersion: recovered.form.draftVersion,
         value: recovered.form.value,
-        evidenceInput: const AttributeEvidenceInput(
+        evidenceInput: AttributeEvidenceInput(
+          attributeMode: AttributeMode.instance,
+          scope: ScopeInput(
+            applicability: 'worlds',
+            contextRecord: scope.representedContext!.value,
+            contextUniverse: scope.universe.value,
+          ),
           polarity: Polarity.refutation,
-          validity: UnspecifiedValidity(),
+          validity: const UnspecifiedValidity(),
           alternatives: [
             QualifierInput(
               kind: 'sequence',
@@ -437,6 +499,17 @@ void main() {
       );
       expect(assertion.validity, const UnspecifiedValidity());
       expect(assertion.polarity, Polarity.refutation);
+      expect(assertion.attributeMode, AttributeMode.instance);
+      expect(
+        assertion.scope,
+        Scope(
+          context: RecordRef(
+            universe: scope.universe,
+            record: scope.representedContext!,
+          ),
+          applicability: WorldsApplicability([]),
+        ),
+      );
       expect(assertion.alternatives, [
         SequenceValue([const TextValue('記憶 😀 alternative')]),
         SequenceValue([const TextValue('alternative')]),
