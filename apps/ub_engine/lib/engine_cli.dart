@@ -1,12 +1,19 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:ub_contracts/ub_contracts.dart' show Credential;
+
 import 'package:ub_service/local_configuration.dart';
 import 'package:ub_service/local_engine.dart';
 import 'package:ub_service/local_profiles.dart';
 import 'package:ub_service/ub_service.dart'
-    show ConfigurationException, ConfigurationFailure;
+    show
+        BackendConfiguration,
+        PostgresConfiguration,
+        ConfigurationException,
+        ConfigurationFailure;
 import 'package:ub_store/installation.dart';
+import 'package:ub_store/postgres_installation.dart';
 import 'package:ub_store/local_settings.dart';
 import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_domain/ub_domain.dart';
@@ -19,7 +26,12 @@ Otherwise, serve an existing installation until author shutdown or a signal.
 --http-only omits the transitional Unix socket for HTTP clients.
 --device-profile explicitly sets up the local device workspace if needed and
 prints its retained owner profile ID. It never prints credentials.
-SQLite is currently available; selecting PostgreSQL fails without fallback.
+UB_USE_POSTGRES selects SQLite (false/default) or PostgreSQL (true).
+UB_POSTGRES_ENDPOINT supplies the PostgreSQL connection URI; saved encrypted
+settings are used when the corresponding environment value is absent.
+--allow-loopback-postgres-development explicitly allows unverified TLS for a
+loopback development database. Other hosts still require verified TLS.
+PostgreSQL serves HTTP; the transitional Unix socket is SQLite-only.
 Fixture options are not part of this persistent Dart engine.''';
 
 Future<int> runEngine(
@@ -34,13 +46,17 @@ Future<int> runEngine(
     var initialize = false;
     var deviceProfile = false;
     var httpOnly = false;
+    var allowLoopbackDevelopment = false;
     for (var index = 0; index < arguments.length; index++) {
       final option = arguments[index];
       if (option == '--help' || option == '-h') {
         output(_usage);
         return 0;
       }
-      if (option == '--http-only') {
+      if (option == '--allow-loopback-postgres-development') {
+        if (allowLoopbackDevelopment) throw const _UsageError();
+        allowLoopbackDevelopment = true;
+      } else if (option == '--http-only') {
         if (httpOnly) throw const _UsageError();
         httpOnly = true;
       } else if (option == '--initialize' || option == '--device-profile') {
@@ -64,6 +80,7 @@ Future<int> runEngine(
       }
     }
     if (root == null) throw const _UsageError();
+    late BackendConfiguration configuration;
     LocalSettingsStore? settings;
     try {
       final selection = environment['UB_USE_POSTGRES'];
@@ -84,18 +101,35 @@ Future<int> runEngine(
           }
         }
       }
-      final configuration = await LocalBackendConfiguration.resolve(
+      configuration = await LocalBackendConfiguration.resolve(
         environment: environment,
         settings: settings,
+        allowLoopbackDevelopment: allowLoopbackDevelopment,
       );
-      if (configuration.usePostgres) {
-        error(
-          'PostgreSQL runtime is not yet available in this Dart engine. No alternative backend was opened.',
-        );
-        return 1;
-      }
     } finally {
       settings?.close();
+    }
+    if (configuration case final PostgresConfiguration postgres) {
+      if (initialize || deviceProfile) {
+        final profile = await _setupPostgres(
+          root,
+          postgres,
+          deviceProfile: deviceProfile,
+        );
+        output(profile.value);
+        return 0;
+      }
+      final server = await LocalPostgresEngineServer.start(root, postgres);
+      try {
+        if (stop == null) {
+          await server.done;
+        } else {
+          await Future.any([server.done, stop]);
+        }
+      } finally {
+        await server.close();
+      }
+      return 0;
     }
     if (deviceProfile) {
       final profile =
@@ -147,6 +181,71 @@ Future<int> runEngine(
       'Engine operation failed; verify installation ownership, schema, current profiles and selected backend. Retained installation data was not replaced.',
     );
     return 1;
+  }
+}
+
+Future<ProfileId> _setupPostgres(
+  String root,
+  PostgresConfiguration configuration, {
+  required bool deviceProfile,
+}) async {
+  PostgresInstallationStore? store;
+  InstallationBootstrapLock? bootstrap;
+  OwnedFileLock? ownership;
+  try {
+    var create = false;
+    try {
+      store = await openPostgresInstallation(configuration);
+    } on InstallationException catch (failure) {
+      if (failure.failure != InstallationFailure.identityNotInitialized) {
+        rethrow;
+      }
+      create = true;
+    }
+    if (deviceProfile && store != null) {
+      final retained = DeviceProfileStore.read(root);
+      if (retained != null) {
+        final credential = ProfileCredentialStore.read(
+          root: root,
+          profile: retained,
+        );
+        await store.transaction((session) async {
+          final authority = PostgresServiceAuthority(session.authority);
+          final principal = await authority.authenticate(
+            profile: retained,
+            credential: Credential(credential),
+          );
+          await authority.requireAuthor(principal);
+        });
+        return retained;
+      }
+    }
+    final directory = privateDirectory(root);
+    bootstrap = InstallationBootstrapLock.acquireExisting(directory);
+    ownership = OwnedFileLock.acquire('$directory/service.lock');
+    if (create) {
+      store = await openPostgresInstallation(configuration, create: true);
+    }
+    final profile = await store!.transaction((session) async {
+      if (deviceProfile && await session.authority.hasProfiles) {
+        return session.authority.currentAuthor();
+      }
+      return PostgresServiceAuthority(session.authority)
+          .initializeAuthor(profileRoot: directory);
+    });
+    ProfileCredentialStore.read(root: directory, profile: profile);
+    if (deviceProfile) DeviceProfileStore.write(directory, profile);
+    return profile;
+  } finally {
+    try {
+      await store?.close();
+    } finally {
+      try {
+        ownership?.close();
+      } finally {
+        bootstrap?.close();
+      }
+    }
   }
 }
 

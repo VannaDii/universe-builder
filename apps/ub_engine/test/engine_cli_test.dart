@@ -173,7 +173,7 @@ void main() {
       1,
     );
     expect(File('$path/installation.sqlite').existsSync(), isFalse);
-    expect(errors.single, contains('PostgreSQL runtime'));
+    expect(errors.single, contains('Engine operation failed'));
     File('$path/settings.sqlite')
         .writeAsStringSync('Disposable corrupted settings');
     errors.clear();

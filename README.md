@@ -767,9 +767,10 @@ session or a public hosted endpoint.
 
 Coordinated backend cutover and hosted server backup operation remain pending.
 Socket/launcher integration, cross-process worker qualification and
-backend parity qualification are pending. Coordinated transfer and live
-verified-TLS qualification also remain pending; runtime PostgreSQL selection
-is still explicitly unavailable.
+backend parity checks are pending. Coordinated transfer and live
+verified-TLS checks also remain pending. The Dart engine can now select
+PostgreSQL for local HTTP service startup and explicit installation/device setup.
+This does not complete backend parity, hosted operation or platform delivery.
 Run `test/postgres_foundation_test.dart`, `test/postgres_relational_test.dart`,
 `test/postgres_journal_test.dart`, `test/postgres_workflow_test.dart` and
 `test/postgres_authority_test.dart`, `test/postgres_candidate_test.dart` and
@@ -1595,10 +1596,19 @@ identity; missing/unavailable keys or failed decryption stop resolution with
 redacted errors and preserve settings. The loader never regenerates keys,
 creates settings, transfers data or starts a backend. Empty/invalid environment
 values keep the shared resolver's existing failure behavior.
-Driver integration/connection verification, setup orchestration and backend
-startup remain pending; these components do not make PostgreSQL available in the
-Dart engine yet. Native ownership remains qualified on macOS; the other platform
-ports still need their required checks.
+The Dart engine uses this resolver for backend startup and explicit setup.
+`UB_USE_POSTGRES=true` selects PostgreSQL and `UB_POSTGRES_ENDPOINT` supplies its
+connection URI. `--initialize` creates installation authority and an owner in an
+empty configured database, or enrolls the owner in existing empty authority;
+`--device-profile` retains that authenticated owner for device reconnection.
+Neither command replaces enrolled profiles or synthesizes missing credentials.
+Ordinary startup only opens existing authority. Failures never open SQLite as a
+fallback. PostgreSQL uses the local authenticated HTTP adapter and protected
+endpoint discovery; its installation directory retains local profiles/settings,
+with no SQLite installation canon. Verified TLS remains the default. The explicit
+`--allow-loopback-postgres-development` engine option permits unverified TLS only
+for loopback development endpoints. Native ownership has been checked on macOS;
+the other platform ports still need their required checks.
 `ub_store/profile_credentials.dart` now ports the existing create-only
 `profiles/{profile}.sqlite` credential format. Exact UTF-8 secrets remain in
 separate private installation files, with file and directory synchronization
