@@ -6,6 +6,7 @@ import 'saved_changes.dart';
 import 'connection.dart';
 import 'type_editor_page.dart';
 import 'entity_editor_page.dart';
+import 'attribute_editor_page.dart';
 import 'record_fields.dart';
 import 'world_editor_page.dart';
 
@@ -724,6 +725,29 @@ class _ChangesPageState extends State<ChangesPage> {
                               ),
                             ] else
                               ExactFields(value: operations[index].toWire()),
+                            if (_proposal == null &&
+                                operations[index] is AddNamedAttributeOperation)
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _changeDraft(
+                                        (draft) async =>
+                                            await Navigator.of(
+                                              context,
+                                            ).push<SavedDraft>(
+                                              MaterialPageRoute(
+                                                builder: (_) =>
+                                                    AttributeEditorPage(
+                                                      changes: widget.changes,
+                                                      draft: draft,
+                                                      index: index,
+                                                    ),
+                                              ),
+                                            ) ??
+                                            draft,
+                                      ),
+                                child: const Text('Edit attribute value'),
+                              ),
                             if (_proposal == null &&
                                 (operations[index]
                                         is IntroduceInstanceOperation ||

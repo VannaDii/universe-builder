@@ -173,6 +173,10 @@ final class DeviceConnection {
     final recovery = LocalWorldFormRecovery(root: root!, client: client);
     final typeRecovery = LocalTypeFormRecovery(root: root!, client: client);
     final entityRecovery = LocalEntityFormRecovery(root: root!, client: client);
+    final attributeRecovery = LocalAttributeFormRecovery(
+      root: root!,
+      client: client,
+    );
     return AppSession(
       call: client.call,
       close: client.close,
@@ -184,6 +188,8 @@ final class DeviceConnection {
       saveTypeForm: typeRecovery.save,
       loadEntityForm: entityRecovery.load,
       saveEntityForm: entityRecovery.save,
+      loadAttributeForm: attributeRecovery.load,
+      saveAttributeForm: attributeRecovery.save,
     );
   }
 }

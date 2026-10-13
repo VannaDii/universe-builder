@@ -249,6 +249,8 @@ void main() {
         saveTypeForm: active.saveTypeForm,
         loadEntityForm: active.loadEntityForm,
         saveEntityForm: active.saveEntityForm,
+        loadAttributeForm: active.loadAttributeForm,
+        saveAttributeForm: active.saveAttributeForm,
       );
       await expectLater(
         SavedChanges(
@@ -329,6 +331,8 @@ void main() {
         saveTypeForm: publishingSession.saveTypeForm,
         loadEntityForm: publishingSession.loadEntityForm,
         saveEntityForm: publishingSession.saveEntityForm,
+        loadAttributeForm: publishingSession.loadAttributeForm,
+        saveAttributeForm: publishingSession.saveAttributeForm,
       );
       await expectLater(
         SavedChanges(

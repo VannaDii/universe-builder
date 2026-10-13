@@ -103,8 +103,10 @@ class _ValueInputFieldsState extends State<ValueInputFields> {
             DropdownButtonFormField<String>(
               key: ValueKey((fields, fields.kind)),
               initialValue: fields.kind,
-              decoration: const InputDecoration(
-                labelText: 'Qualifier value type',
+              decoration: InputDecoration(
+                labelText: label == null
+                    ? 'Qualifier value type'
+                    : '$label type',
               ),
               items: [
                 if (retained != null || fields.kind == 'retain')
@@ -312,7 +314,9 @@ class _ValueInputFieldsState extends State<ValueInputFields> {
               ] else
                 _field(
                   fields.value,
-                  fields.kind == 'rational' ? 'Numerator' : 'Qualifier value',
+                  fields.kind == 'rational'
+                      ? 'Numerator'
+                      : label ?? 'Qualifier value',
                   maxLines: fields.kind == 'text' ? 4 : 1,
                 ),
               if (fields.kind == 'rational')

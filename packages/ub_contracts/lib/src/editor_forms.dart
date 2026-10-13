@@ -33,6 +33,7 @@ final class EditorFormScope {
     this.entityNameRecord,
     this.entityClassificationRecord,
     this.entityOperationIndex,
+    this.attributeClientRef,
   });
   final OperationId instance;
   final ProfileId profile;
@@ -55,6 +56,7 @@ final class EditorFormScope {
 
   /// Null opens a published-record form; an index selects its edits in Changes.
   final int? entityOperationIndex;
+  final String? attributeClientRef;
 }
 
 /// Entered fields can be incomplete or invalid. Completing an editor must build
@@ -595,4 +597,34 @@ final class EntityNameForm {
       }
     }
   }
+}
+
+/// Pending value edits do not replace the property shape or authored evidence.
+final class UnfinishedAttributeForm {
+  UnfinishedAttributeForm({
+    required this.baseRevision,
+    required this.representedContext,
+    required this.clientRef,
+    required BigInt draftVersion,
+    required this.value,
+  }) : draftVersion = checkedU64(draftVersion);
+  final RevisionId baseRevision;
+  final RecordId representedContext;
+  final String clientRef;
+  final BigInt draftVersion;
+  final QualifierInput value;
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('base_revision', CanonicalString(baseRevision.value)),
+    MapEntry('represented_context', CanonicalString(representedContext.value)),
+    MapEntry('client_ref', CanonicalString(clientRef)),
+    MapEntry('draft_version', CanonicalString(draftVersion.toString())),
+    MapEntry('value', value.toWire()),
+  ]);
+}
+
+final class SavedAttributeForm {
+  SavedAttributeForm({required BigInt generation, required this.form})
+    : generation = checkedU64(generation);
+  final BigInt generation;
+  final UnfinishedAttributeForm form;
 }

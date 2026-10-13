@@ -107,6 +107,11 @@ selection. It classifies an unclassified entity or refines its current type to a
 descendant. **Edit classification fields** in Changes revises the pending choice.
 The entity’s names, associations and other facts remain intact; unrelated type
 changes still require an explicit authored correction.
+**Edit attribute value** in Changes opens the existing typed value controls for
+a named factual attribute, including nested and exact values. Unfinished input
+recovers on this device. Saving retains the subject, property definition,
+authored evidence, other operations and rationale; stale draft edits require
+using current fields. Validation checks the value against the retained shape.
 **Type definition** opens a recoverable typed form for namespace, key, display
 name, parent, applicability, executable classification and rationale. Parent,
 applicability and classification require explicit choices. Unspecified and

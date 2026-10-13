@@ -166,3 +166,42 @@ final class LocalEntityFormRecovery {
     });
   }
 }
+
+final class LocalAttributeFormRecovery {
+  LocalAttributeFormRecovery({required String root, required this.client})
+    : _path = '$root/client-recovery/attribute-forms.sqlite';
+  final String _path;
+  final LoopbackEngineClient client;
+
+  Future<SavedAttributeForm?> load(EditorFormScope scope) async {
+    await _checkEditorScope(client, scope);
+    final path = _path;
+    return Isolate.run(() {
+      final store = AttributeFormRecoveryStore.open(path);
+      try {
+        return store.load(scope);
+      } finally {
+        store.close();
+      }
+    });
+  }
+
+  Future<SavedAttributeForm> save(
+    EditorFormScope scope,
+    UnfinishedAttributeForm form,
+    BigInt expectedGeneration,
+  ) async {
+    if (scope.profile != client.welcome.principal) {
+      throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
+    }
+    final path = _path;
+    return Isolate.run(() {
+      final store = AttributeFormRecoveryStore.open(path);
+      try {
+        return store.save(scope, form, expectedGeneration);
+      } finally {
+        store.close();
+      }
+    });
+  }
+}
