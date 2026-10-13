@@ -3,6 +3,7 @@ import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'package:ub_domain/ub_domain.dart';
 
 import 'saved_changes.dart';
+import 'unit_reference_field.dart';
 
 import 'qualifier_draft.dart';
 import 'temporal_validity_fields.dart';
@@ -329,14 +330,30 @@ class _ValueInputFieldsState extends State<ValueInputFields> {
                 ),
               if (fields.kind == 'rational')
                 _field(fields.denominator, 'Denominator'),
-              _field(
-                fields.unit,
-                fields.kind == 'spatial_distance'
-                    ? 'Distance unit ID'
-                    : fields.kind == 'range'
-                    ? 'Range unit ID (optional)'
-                    : 'Unit ID (numeric values only, optional)',
-              ),
+              if ([
+                    'integer',
+                    'decimal',
+                    'rational',
+                    'range',
+                    'spatial_distance',
+                  ].contains(fields.kind) ||
+                  fields.unit.text.isNotEmpty)
+                UnitReferenceField(
+                  changes: widget.changes,
+                  draft: widget.draft,
+                  unit: fields.unit.text,
+                  disabled: _disabled,
+                  label: fields.kind == 'spatial_distance'
+                      ? 'Distance unit'
+                      : fields.kind == 'range'
+                      ? 'Range unit'
+                      : 'Unit',
+                  optional: fields.kind != 'spatial_distance',
+                  onChanged: (unit) {
+                    setState(() => fields.unit.text = unit);
+                    _changed();
+                  },
+                ),
             ],
             if (!named && !fixed)
               Wrap(

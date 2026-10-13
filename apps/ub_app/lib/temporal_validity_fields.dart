@@ -3,6 +3,7 @@ import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'package:ub_domain/ub_domain.dart';
 
 import 'saved_changes.dart';
+import 'unit_reference_field.dart';
 
 import 'value_input_fields.dart';
 import 'draft_record_choice_field.dart';
@@ -141,11 +142,20 @@ class TemporalValidityFields extends StatelessWidget {
             amount.denominator,
             (value) => change(amount.copyWith(denominator: value)),
           ),
-        _text(
-          '$label unit ID (numeric amounts only, optional)',
-          amount.unit,
-          (value) => change(amount.copyWith(unit: value)),
-        ),
+        if ([
+              'integer',
+              'decimal',
+              'rational',
+            ].contains(amount.uncertaintyKind) ||
+            amount.unit.isNotEmpty)
+          UnitReferenceField(
+            changes: changes,
+            draft: draft,
+            unit: amount.unit,
+            disabled: disabled,
+            label: '$label unit',
+            onChanged: (value) => change(amount.copyWith(unit: value)),
+          ),
       ],
     ],
   );

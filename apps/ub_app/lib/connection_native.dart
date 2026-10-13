@@ -190,26 +190,40 @@ final class DeviceConnection {
       root: root!,
       client: client,
     );
+    // Several visible reference controls may read their labels together. The
+    // native client admits one call at a time; sequence app work without retrying
+    // an interrupted request or hiding its error from the caller.
+    Future<void> pending = Future<void>.value();
+    Future<T> sequenced<T>(Future<T> Function() action) {
+      final result = pending.then((_) => action());
+      pending = result.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+      return result;
+    }
+
     return AppSession(
-      call: client.call,
-      close: client.close,
+      call: (request) => sequenced(() => client.call(request)),
+      close: () => sequenced(client.close),
       author: client.welcome.author,
       principal: client.welcome.principal,
-      loadWorldForm: recovery.load,
+      loadWorldForm: (scope) => sequenced(() => recovery.load(scope)),
       saveWorldForm: recovery.save,
-      loadTypeForm: typeRecovery.load,
+      loadTypeForm: (scope) => sequenced(() => typeRecovery.load(scope)),
       saveTypeForm: typeRecovery.save,
-      loadPropertyForm: propertyRecovery.load,
+      loadPropertyForm: (scope) =>
+          sequenced(() => propertyRecovery.load(scope)),
       savePropertyForm: propertyRecovery.save,
-      loadUnitForm: unitRecovery.load,
+      loadUnitForm: (scope) => sequenced(() => unitRecovery.load(scope)),
       saveUnitForm: unitRecovery.save,
-      loadValueDefinitionForm: valueDefinitionRecovery.load,
+      loadValueDefinitionForm: (scope) =>
+          sequenced(() => valueDefinitionRecovery.load(scope)),
       saveValueDefinitionForm: valueDefinitionRecovery.save,
-      loadCalendarForm: calendarRecovery.load,
+      loadCalendarForm: (scope) =>
+          sequenced(() => calendarRecovery.load(scope)),
       saveCalendarForm: calendarRecovery.save,
-      loadEntityForm: entityRecovery.load,
+      loadEntityForm: (scope) => sequenced(() => entityRecovery.load(scope)),
       saveEntityForm: entityRecovery.save,
-      loadAttributeForm: attributeRecovery.load,
+      loadAttributeForm: (scope) =>
+          sequenced(() => attributeRecovery.load(scope)),
       saveAttributeForm: attributeRecovery.save,
     );
   }

@@ -105,3 +105,10 @@ RecordId calendarChoiceRecord(String calendar) => RecordId.parse(
 CalendarId calendarFromChoice(RecordRef record) => CalendarId.parse(
   '${CalendarId.prefix}${record.record.value.substring(RecordId.prefix.length)}',
 );
+
+RecordId unitChoiceRecord(String unit) => RecordId.parse(
+  '${RecordId.prefix}${UnitId.parse(unit).value.substring(UnitId.prefix.length)}',
+);
+UnitId unitFromChoice(RecordRef record) => UnitId.parse(
+  '${UnitId.prefix}${record.record.value.substring(RecordId.prefix.length)}',
+);

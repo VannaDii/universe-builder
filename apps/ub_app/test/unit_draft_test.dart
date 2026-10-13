@@ -6,6 +6,8 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:ub_app/unit_draft.dart';
 import 'package:ub_app/property_draft.dart';
+import 'package:ub_app/qualifier_draft.dart';
+import 'package:ub_app/temporal_validity_draft.dart';
 import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/draft_record_choices.dart';
@@ -287,15 +289,100 @@ void main() {
         query: 'Pace',
       );
       expect(found.result.hits.single.label, 'Pace 記憶 😀');
+      // Visible controls resolve names concurrently and recovery may run while
+      // those reads are outstanding. The app sequences these on one connection.
+      await Future.wait([
+        for (var i = 0; i < 3; i++)
+          () async {
+            final opened = await openDraftChoiceContext(changes(), next);
+            final summary = await readDraftChoiceSummary(
+              changes: changes(),
+              context: opened,
+              record: found.result.hits.single.recordId,
+              kind: RecordKind.unit,
+            );
+            expect(summary.label, 'Pace 記憶 😀');
+          }(),
+        session.loadUnitForm(scope).then((saved) {
+          expect(saved!.form.toWire().toText(), base.toWire().toText());
+        }),
+      ]);
       final chosen = await selectDraftChoice(
         changes: changes(),
         context: context,
         hit: found.result.hits.single,
         kind: RecordKind.unit,
       );
-      final baseId = UnitId.parse(
-        '${UnitId.prefix}${chosen.record.value.substring(RecordId.prefix.length)}',
+      final baseId = unitFromChoice(chosen);
+      expect(unitChoiceRecord(baseId.value), publishedBase.identity.recordId);
+      final quantity = QualifierInput(
+        kind: 'rational',
+        value: '0003',
+        denominator: '0002',
+        unit: baseId.value,
       );
+      final recoveredQuantity = QualifierInput.fromWire(quantity.toWire());
+      expect(
+        buildQualifierValue(recoveredQuantity, null).toWire().toText(),
+        QuantityValue(
+          const RationalValue('0003', '0002'),
+          baseId,
+        ).toWire().toText(),
+      );
+      expect(
+        buildQualifierValue(
+          QualifierInput(
+            kind: recoveredQuantity.kind,
+            value: recoveredQuantity.value,
+            denominator: recoveredQuantity.denominator,
+          ),
+          null,
+        ),
+        const RationalValue('0003', '0002'),
+      );
+      final range = QualifierInput(
+        kind: 'range',
+        unit: baseId.value,
+        lower: const QualifierInput(kind: 'decimal', value: '0.12500'),
+        upper: const QualifierInput(kind: 'decimal', value: '1.50000'),
+        lowerInclusive: 'true',
+        upperInclusive: 'false',
+      );
+      expect(
+        buildQualifierValue(
+          QualifierInput.fromWire(range.toWire()),
+          null,
+        ).toWire().toText(),
+        RangeValue(
+          lower: const DecimalValue('0.12500'),
+          upper: const DecimalValue('1.50000'),
+          lowerInclusive: true,
+          upperInclusive: false,
+          unit: baseId,
+        ).toWire().toText(),
+      );
+      final time = TemporalValidityInput(
+        kind: 'instant_duration',
+        calendar: CalendarId.generate().value,
+        start: TemporalBoundInput(
+          uncertaintyKind: 'rational',
+          uncertainty: '0003',
+          denominator: '0002',
+          unit: baseId.value,
+        ),
+      );
+      final duration = buildTemporalValidity(
+        TemporalValidityInput.fromWire(time.toWire()),
+        null,
+      ) as InstantValidity;
+      expect(
+        (duration.at as DurationTime).amount.toWire().toText(),
+        QuantityValue(
+          const RationalValue('0003', '0002'),
+          baseId,
+        ).toWire().toText(),
+      );
+
       final derived = UnfinishedUnitForm(
         baseRevision: next.content.baseRevision,
         representedContext: base.representedContext,
