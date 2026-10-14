@@ -342,12 +342,8 @@ class _RepresentedContextEditorPageState
                             _autosave?.cancel();
                             await _save();
                             if (!context.mounted || _dirty) return;
-                            await Navigator.of(context).push<void>(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    ChangesPage(changes: widget.changes),
-                              ),
-                            );
+                            await Navigator.of(context)
+                                .push<void>(changesRoute(widget.changes));
                           },
                     child: const Text('Review Changes'),
                   ),

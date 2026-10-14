@@ -15,6 +15,8 @@ final class LibraryLocation {
     this.record,
     this.revision,
     this.recordAction,
+    this.draftVersion,
+    this.operationIndex,
   });
   final LibrarySection section;
   final UniverseId? universe;
@@ -24,6 +26,8 @@ final class LibraryLocation {
   final RecordId? record;
   final RevisionId? revision;
   final RecordEditAction? recordAction;
+  final BigInt? draftVersion;
+  final int? operationIndex;
   static const editors = {
     'records',
     'entity',
@@ -62,7 +66,9 @@ final class LibraryLocation {
   Uri get uri => universe == null
       ? Uri(path: '/${section.name}')
       : Uri(
-          path: record != null
+          path: operationIndex != null
+              ? '/universe/${universe!.value}/continuity/${continuity!.value}/context/${context!.value}/draft/$draftVersion/operation/$operationIndex'
+              : record != null
               ? '/universe/${universe!.value}/continuity/${continuity!.value}/context/${context!.value}/revision/${revision!.value}/record/${record!.value}${recordAction == null ? '' : '/edit/${recordAction!.name}'}'
               : editor == null
               ? '/universe/${universe!.value}'
@@ -118,6 +124,32 @@ final class LibraryLocation {
         recordAction: parts.length == 12
             ? RecordEditAction.values.byName(parts[11])
             : null,
+      );
+    }
+    if (parts.length == 10 &&
+        parts[0] == 'universe' &&
+        parts[2] == 'continuity' &&
+        parts[4] == 'context' &&
+        parts[6] == 'draft' &&
+        parts[8] == 'operation') {
+      final version = BigInt.tryParse(parts[7]);
+      final index = BigInt.tryParse(parts[9]);
+      if (version == null ||
+          index == null ||
+          version < BigInt.zero ||
+          version >= (BigInt.one << 64) ||
+          index < BigInt.zero ||
+          index > BigInt.from(0xffffffff) ||
+          version.toString() != parts[7] ||
+          index.toString() != parts[9]) {
+        throw const FormatException('Invalid draft operation link');
+      }
+      return LibraryLocation(
+        universe: UniverseId.parse(parts[1]),
+        continuity: ContinuityId.parse(parts[3]),
+        context: RecordId.parse(parts[5]),
+        draftVersion: version,
+        operationIndex: index.toInt(),
       );
     }
     throw const FormatException('Unsupported application link');

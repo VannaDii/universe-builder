@@ -314,12 +314,8 @@ class _ContinuityPageState extends State<ContinuityPage> {
                 onPressed: _busy
                     ? null
                     : () async {
-                        await Navigator.of(context).push<void>(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                ChangesPage(changes: widget.changes),
-                          ),
-                        );
+                        await Navigator.of(context)
+                            .push<void>(changesRoute(widget.changes));
                         if (mounted) await _run(_refresh);
                       },
                 child: const Text('Review target Changes'),

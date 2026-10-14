@@ -97,7 +97,13 @@ record browser when opened there; Forward and refresh reopen the pinned record.
 Record-edit links append `/edit/<action>` to that pinned record link. They reopen
 the same recoverable form used by the record dossier; an action incompatible with
 the retrieved record is refused. Links do not stage, approve or publish a change.
-Other nested detail screens and editors opened from Changes remain in progress.
+Review opened from an editor uses the same scoped Changes link. Its field editors
+use `#/universe/<id>/continuity/<id>/context/<id>/draft/<version>/operation/<index>`.
+They resolve the current private draft after connection and require the exact
+saved version, context and operation position. Unfinished fields remain recoverable
+across Back, Forward and refresh. Saving changes to the draft advances its version;
+an earlier operation link then directs the author to Changes to choose the current
+operation. Other nested detail screens remain in progress.
 
 Connected approval owners can create a universe from Library. Gregorian creation
 uses an explicitly entered date, whole-second time and fixed UTC offset, with an

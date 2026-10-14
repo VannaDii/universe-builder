@@ -15,6 +15,8 @@ import 'world_detail_page.dart';
 import 'record_browser_page.dart';
 import 'record_browser.dart';
 import 'record_editor_page.dart';
+import 'draft_operation_editor.dart';
+import 'draft_navigation.dart';
 import 'type_editor_page.dart';
 import 'property_editor_page.dart';
 import 'unit_editor_page.dart';
@@ -123,8 +125,11 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       }
       setState(() => _page = 0);
       await _open(entries.single, announce: false);
-      if (location.editor != null || location.record != null) {
-        if ((location.recordAction != null ||
+      if (location.editor != null ||
+          location.record != null ||
+          location.operationIndex != null) {
+        if ((location.operationIndex != null ||
+                location.recordAction != null ||
                 (location.record == null && location.editor != 'records')) &&
             !_session!.author) {
           return LibraryLocation(universe: location.universe);
@@ -153,7 +158,35 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
           )!,
         );
         Widget page;
-        if (location.record != null) {
+        if (location.operationIndex != null) {
+          try {
+            final changes = SavedChanges(
+              session: _session!,
+              universe: Selector(_selected!.name),
+              scope: EditorFormScope(
+                instance: _library!.instance,
+                profile: _session!.principal,
+                universe: _selected!.id,
+                continuity: continuity.id,
+                representedContext: location.context,
+              ),
+            );
+            final draft = draftForLocation(await changes.load(), location);
+            page = await draftOperationEditor(
+              changes,
+              draft,
+              location.operationIndex!,
+            );
+          } on FormatException catch (error) {
+            setState(() => _error = error.message);
+            return LibraryLocation(universe: location.universe);
+          } on Object {
+            setState(
+              () => _error = 'This draft operation is unavailable. Open Changes to choose a current operation.',
+            );
+            return LibraryLocation(universe: location.universe);
+          }
+        } else if (location.record != null) {
           final represented = selectedRepresentedContext(
             continuity,
             location.context,

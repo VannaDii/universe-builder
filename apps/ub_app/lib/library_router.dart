@@ -50,7 +50,11 @@ final class LibraryRouter extends RouterDelegate<LibraryLocation>
   LibraryLocation get currentConfiguration => _location;
   void setLocation(LibraryLocation location) {
     if (_disposed || _external) return;
-    if (location.editor == null && location.record == null) _base = location;
+    if (location.editor == null &&
+        location.record == null &&
+        location.operationIndex == null) {
+      _base = location;
+    }
     if (_location.uri == location.uri) return;
     _location = location;
     notifyListeners();

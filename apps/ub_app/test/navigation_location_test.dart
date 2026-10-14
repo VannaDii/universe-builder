@@ -66,6 +66,33 @@ void main() {
       throwsFormatException,
     );
   });
+  test('draft links preserve unsigned 64-bit versions exactly', () {
+    final location = LibraryLocation(
+      universe: UniverseId.generate(),
+      continuity: ContinuityId.generate(),
+      context: RecordId.generate(),
+      draftVersion: BigInt.parse('18446744073709551615'),
+      operationIndex: 3,
+    );
+    final parsed = LibraryLocation.parse(location.uri);
+    expect(parsed.uri, location.uri);
+    expect(parsed.draftVersion, location.draftVersion);
+    expect(parsed.operationIndex, 3);
+    final prefix = location.uri.toString().split('/draft/').first;
+    for (final suffix in [
+      '-1/operation/0',
+      '18446744073709551616/operation/0',
+      '01/operation/0',
+      '1/operation/-1',
+      '1/operation/01',
+      '1/operation/4294967296',
+    ]) {
+      expect(
+        () => LibraryLocation.parse(Uri.parse('$prefix/draft/$suffix')),
+        throwsFormatException,
+      );
+    }
+  });
   test('record action links retain the revision and reject unrecognized operations', () {
     final universe = UniverseId.generate(),
         continuity = ContinuityId.generate(),

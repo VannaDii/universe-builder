@@ -1101,13 +1101,11 @@ class _EntityEditorPageState extends State<EntityEditorPage> {
                     onPressed: _disabled
                         ? null
                         : () => Navigator.of(context).push<void>(
-                            MaterialPageRoute(
-                              builder: (_) => ChangesPage(
-                                changes: SavedChanges(
-                                  session: widget.session,
-                                  universe: Selector(widget.universe.name),
-                                  scope: widget.scope,
-                                ),
+                            changesRoute(
+                              SavedChanges(
+                                session: widget.session,
+                                universe: Selector(widget.universe.name),
+                                scope: widget.scope,
                               ),
                             ),
                           ),

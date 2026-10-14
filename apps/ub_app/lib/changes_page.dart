@@ -1,53 +1,32 @@
 import 'guarded_pop_scope.dart';
-import 'event_editor_page.dart';
-import 'action_editor_page.dart';
-import 'rule_editor_page.dart';
-import 'completeness_editor_page.dart';
-import 'proposition_editor_page.dart';
-import 'attitude_editor_page.dart';
-import 'interpretation_editor_page.dart';
-import 'assertion_retraction_editor_page.dart';
-import 'event_withdrawal_editor_page.dart';
-import 'record_removal_editor_page.dart';
-import 'assertion_correction_editor_page.dart';
-import 'assertion_end_editor_page.dart';
-import 'observation_editor_page.dart';
-import 'memory_editor_page.dart';
-import 'work_editor_page.dart';
-import 'saga_editor_page.dart';
-import 'work_version_editor_page.dart';
-import 'scene_editor_page.dart';
-import 'passage_editor_page.dart';
-import 'boundary_editor_page.dart';
-import 'exception_editor_page.dart';
-import 'issue_decision_editor_page.dart';
-import 'represented_context_editor_page.dart';
-import 'item_power_editor_page.dart';
-import 'plan_editor_page.dart';
-import 'commitment_editor_page.dart';
-import 'communication_editor_page.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'package:ub_domain/ub_domain.dart';
 
 import 'saved_changes.dart';
-import 'connection.dart';
-import 'type_editor_page.dart';
-import 'property_editor_page.dart';
-import 'unit_editor_page.dart';
-import 'value_definition_editor_page.dart';
-import 'relation_editor_page.dart';
-import 'source_editor_page.dart';
-import 'source_draft.dart';
-import 'draft_record_choices.dart';
-import 'calendar_editor_page.dart';
-import 'pack_editor_page.dart';
-import 'entity_editor_page.dart';
-import 'attribute_editor_page.dart';
 import 'attribute_draft.dart';
 import 'record_fields.dart';
-import 'world_editor_page.dart';
+import 'navigation_location.dart';
+import 'draft_operation_editor.dart';
+
+MaterialPageRoute<void> changesRoute(SavedChanges changes) {
+  final scope = changes.scope;
+  return MaterialPageRoute<void>(
+    settings: kIsWeb && scope.representedContext != null
+        ? RouteSettings(
+            name: LibraryLocation(
+              universe: scope.universe,
+              continuity: scope.continuity,
+              context: scope.representedContext,
+              editor: 'changes',
+            ).uri.toString(),
+          )
+        : null,
+    builder: (_) => ChangesPage(changes: changes),
+  );
+}
 
 class ChangesPage extends StatefulWidget {
   const ChangesPage({super.key, required this.changes});
@@ -396,108 +375,23 @@ class _ChangesPageState extends State<ChangesPage> {
     }
   }
 
-  Future<SavedDraft> _editType(SavedDraft draft, int index) async {
-    final summary = Envelope<Description>.fromWire(
-      await widget.changes.session.call(
-        ToolEngineRequest(
-          request: DescribeSummaryRequest(
-            universe: widget.changes.universe,
-            universeId: widget.changes.scope.universe,
-          ),
-        ),
-      ),
-      Description.fromWire,
-    ).result;
-    final continuity = summary.continuities.singleWhere(
-      (item) => item.id == widget.changes.scope.continuity,
-    );
-    final representedContext = continuity.representedContexts.singleWhere(
-      (item) => item.id == draft.content.representedContext,
-    );
+  Future<SavedDraft> _editOperation(SavedDraft draft, int index) async {
+    final page = await draftOperationEditor(widget.changes, draft, index);
     if (!mounted) return draft;
     return await Navigator.of(context).push<SavedDraft>(
-          MaterialPageRoute(
-            builder: (_) => TypeEditorPage(
-              session: widget.changes.session,
-              universe: LibraryEntry(
-                widget.changes.scope.universe,
-                widget.changes.universe.value,
-              ),
-              continuity: continuity,
-              representedContext: representedContext,
-              scope: EditorFormScope(
-                instance: widget.changes.scope.instance,
-                profile: widget.changes.scope.profile,
-                universe: widget.changes.scope.universe,
-                continuity: widget.changes.scope.continuity,
-                representedContext: draft.content.representedContext,
-                typeClientRef: switch (draft.content.operations[index]) {
-                  IntroduceDefinitionOperation(:final clientRef) => clientRef,
-                  ReviseDefinitionOperation(:final record) =>
-                    record.record.value,
-                  _ => throw const FormatException('Choose a type definition.'),
-                },
-              ),
-              editingDraft: draft,
-              operationIndex: index,
-            ),
-          ),
-        ) ??
-        draft;
-  }
-
-  Future<SavedDraft> _editEntity(SavedDraft draft, int index) async {
-    final operation = draft.content.operations[index];
-    final name = operation is AddNameOperation ? operation : null;
-    final classification = operation is RefineClassificationOperation
-        ? operation
-        : null;
-    final summary = Envelope<Description>.fromWire(
-      await widget.changes.session.call(
-        ToolEngineRequest(
-          request: DescribeSummaryRequest(
-            universe: widget.changes.universe,
-            universeId: widget.changes.scope.universe,
-          ),
-        ),
-      ),
-      Description.fromWire,
-    ).result;
-    final continuity = summary.continuities.singleWhere(
-      (item) => item.id == widget.changes.scope.continuity,
-    );
-    final representedContext = continuity.representedContexts.singleWhere(
-      (item) => item.id == draft.content.representedContext,
-    );
-    if (!mounted) return draft;
-    return await Navigator.of(context).push<SavedDraft>(
-          MaterialPageRoute(
-            builder: (_) => EntityEditorPage(
-              session: widget.changes.session,
-              universe: LibraryEntry(
-                widget.changes.scope.universe,
-                widget.changes.universe.value,
-              ),
-              continuity: continuity,
-              representedContext: representedContext,
-              scope: EditorFormScope(
-                instance: widget.changes.scope.instance,
-                profile: widget.changes.scope.profile,
-                universe: widget.changes.scope.universe,
-                continuity: widget.changes.scope.continuity,
-                representedContext: draft.content.representedContext,
-                entityClientRef: name == null && classification == null
-                    ? (operation as IntroduceInstanceOperation).clientRef
-                    : null,
-                entityNameRecord: name?.record.record,
-                entityClassificationRecord: classification?.record.record,
-                entityOperationIndex: name == null && classification == null
-                    ? null
-                    : index,
-              ),
-              editingDraft: draft,
-              operationIndex: index,
-            ),
+          MaterialPageRoute<SavedDraft>(
+            settings: kIsWeb
+                ? RouteSettings(
+                    name: LibraryLocation(
+                      universe: widget.changes.scope.universe,
+                      continuity: widget.changes.scope.continuity,
+                      context: draft.content.representedContext,
+                      draftVersion: draft.version,
+                      operationIndex: index,
+                    ).uri.toString(),
+                  )
+                : null,
+            builder: (_) => page,
           ),
         ) ??
         draft;
@@ -773,54 +667,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => PropertyEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as DefinePropertyOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit property fields'),
                               ),
@@ -830,54 +677,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => UnitEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as DefineUnitOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit unit fields'),
                               ),
@@ -887,54 +687,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => ValueDefinitionEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as DefineValueOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text(
                                   'Edit value-definition fields',
@@ -945,63 +698,9 @@ class _ChangesPageState extends State<ChangesPage> {
                               TextButton(
                                 onPressed: _busy
                                     ? null
-                                    : () => _changeDraft((draft) async {
-                                        final form = sourceAnchorFormFromDraft(
-                                          draft,
-                                          index,
-                                        );
-                                        final opened =
-                                            await openDraftChoiceContext(
-                                              widget.changes,
-                                              draft,
-                                            );
-                                        if (!context.mounted) return draft;
-                                        return await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => SourceEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  source: form.anchorSource,
-                                                  context: opened.contextId,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          form.clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft;
-                                      }),
+                                    : () => _changeDraft(
+                                        (draft) => _editOperation(draft, index),
+                                      ),
                                 child: const Text('Edit source anchor'),
                               ),
                             if (_proposal == null &&
@@ -1010,54 +709,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => RelationEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as DefineRelationOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit relation fields'),
                               ),
@@ -1067,54 +719,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => EventEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as RecordEventOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit event fields'),
                               ),
@@ -1124,54 +729,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => ActionEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as DefineActionOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit action fields'),
                               ),
@@ -1181,54 +739,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => RuleEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as DefineRuleOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit rule fields'),
                               ),
@@ -1239,54 +750,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => CommunicationEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as RecordCommunicationOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit communication fields'),
                               ),
@@ -1296,54 +760,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => CommitmentEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as RecordCommitmentOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit commitment fields'),
                               ),
@@ -1353,54 +770,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => PlanEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as RecordPlanOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit plan fields'),
                               ),
@@ -1410,54 +780,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => ItemPowerEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as DefineItemPowerOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit item power fields'),
                               ),
@@ -1472,54 +795,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => RepresentedContextEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as RecordNarrativeReferenceOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text(
                                   'Edit represented context fields',
@@ -1533,54 +809,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => IssueDecisionEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as RecordIssueDecisionOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit issue decision fields'),
                               ),
@@ -1590,54 +819,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => ExceptionEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as AddExceptionOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit exception fields'),
                               ),
@@ -1648,54 +830,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => BoundaryEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as SetCreativeBoundaryOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text(
                                   'Edit creative boundary fields',
@@ -1707,54 +842,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => WorkEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as CreateWorkOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit work fields'),
                               ),
@@ -1765,56 +853,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => WorkEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as AssociateWorkWorldOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text(
                                   'Edit work world association fields',
@@ -1831,54 +870,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => WorkVersionEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as RecordNarrativeReferenceOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit work edition fields'),
                               ),
@@ -1893,54 +885,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => SceneEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as RecordNarrativeReferenceOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text(
                                   'Edit scene reference fields',
@@ -1957,54 +902,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => PassageEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as RecordNarrativeReferenceOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text(
                                   'Edit passage reference fields',
@@ -2016,56 +914,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => SceneEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as ReviseSceneOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text(
                                   'Edit scene correction fields',
@@ -2077,56 +926,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => ItemPowerEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as ReviseItemPowerOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text(
                                   'Edit item power correction fields',
@@ -2139,56 +939,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => CommunicationEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as ReviseCommunicationOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text(
                                   'Edit communication correction fields',
@@ -2200,56 +951,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => AttitudeEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as ReviseAttitudeOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text(
                                   'Edit attitude correction fields',
@@ -2265,56 +967,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => PropertyEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as ReviseDefinitionOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text(
                                   'Edit property revision fields',
@@ -2330,56 +983,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => RelationEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as ReviseDefinitionOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text(
                                   'Edit relation revision fields',
@@ -2395,56 +999,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => UnitEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as ReviseDefinitionOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit unit revision fields'),
                               ),
@@ -2458,56 +1013,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => CalendarEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as ReviseDefinitionOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text(
                                   'Edit calendar revision fields',
@@ -2519,56 +1025,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => PackEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as UpgradePackOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit pack upgrade fields'),
                               ),
@@ -2582,56 +1039,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => ActionEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as ReviseDefinitionOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text(
                                   'Edit action revision fields',
@@ -2647,56 +1055,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => ValueDefinitionEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as ReviseDefinitionOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text(
                                   'Edit value definition revision fields',
@@ -2712,56 +1071,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => RuleEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as ReviseDefinitionOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit rule revision fields'),
                               ),
@@ -2772,56 +1082,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => InterpretationEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as ReviseInterpretationOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text(
                                   'Edit interpretation correction fields',
@@ -2833,56 +1094,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => AssertionRetractionEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as RetractAssertionOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit assertion retraction'),
                               ),
@@ -2892,56 +1104,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => EventWithdrawalEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as WithdrawEventOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit occurrence withdrawal'),
                               ),
@@ -2951,56 +1114,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => RecordRemovalEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as TombstoneRecordOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit record removal'),
                               ),
@@ -3010,56 +1124,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => EventEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as ReviseEventOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit event revision fields'),
                               ),
@@ -3070,56 +1135,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => AssertionCorrectionEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as SupersedeAssertionOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit assertion correction'),
                               ),
@@ -3129,56 +1145,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => AssertionEndEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as EndAssertionAtOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit assertion ending'),
                               ),
@@ -3188,56 +1155,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => WorkVersionEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as SetWorkBindingOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text(
                                   'Edit edition binding fields',
@@ -3249,54 +1167,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => SagaEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as CreateSagaOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit saga fields'),
                               ),
@@ -3306,56 +1177,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => SagaEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as SetSagaMembershipOperation)
-                                                              .record
-                                                              .record
-                                                              .value,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text(
                                   'Edit saga membership fields',
@@ -3367,54 +1189,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => MemoryEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as RecordMemoryOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit memory fields'),
                               ),
@@ -3424,54 +1199,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => ObservationEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as RecordObservationOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit observation fields'),
                               ),
@@ -3481,54 +1209,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => AttitudeEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as AddBeliefOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text(
                                   'Edit belief or knowledge fields',
@@ -3540,54 +1221,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => PropositionEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as DefinePropositionOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit proposition fields'),
                               ),
@@ -3597,54 +1231,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => CompletenessEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as SetCompletenessOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit completeness fields'),
                               ),
@@ -3654,54 +1241,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => CalendarEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as DefineCalendarOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit calendar fields'),
                               ),
@@ -3711,54 +1251,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) => PackEditorPage(
-                                                  revision: draft
-                                                      .content
-                                                      .baseRevision,
-                                                  editingDraft: draft,
-                                                  index: index,
-                                                  changes: SavedChanges(
-                                                    session:
-                                                        widget.changes.session,
-                                                    universe:
-                                                        widget.changes.universe,
-                                                    scope: EditorFormScope(
-                                                      instance: widget
-                                                          .changes
-                                                          .scope
-                                                          .instance,
-                                                      profile: widget
-                                                          .changes
-                                                          .scope
-                                                          .profile,
-                                                      universe: widget
-                                                          .changes
-                                                          .scope
-                                                          .universe,
-                                                      continuity: widget
-                                                          .changes
-                                                          .scope
-                                                          .continuity,
-                                                      representedContext: draft
-                                                          .content
-                                                          .representedContext,
-                                                      typeClientRef:
-                                                          (draft
-                                                                      .content
-                                                                      .operations[index]
-                                                                  as InstallPackOperation)
-                                                              .clientRef,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit pack fields'),
                               ),
@@ -3768,20 +1261,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) async =>
-                                            await Navigator.of(
-                                              context,
-                                            ).push<SavedDraft>(
-                                              MaterialPageRoute(
-                                                builder: (_) =>
-                                                    AttributeEditorPage(
-                                                      changes: widget.changes,
-                                                      draft: draft,
-                                                      index: index,
-                                                    ),
-                                              ),
-                                            ) ??
-                                            draft,
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: Text(
                                   isRelationshipAssertion(operations[index])
@@ -3799,7 +1279,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) => _editEntity(draft, index),
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: Text(
                                   operations[index]
@@ -3820,7 +1300,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) => _editType(draft, index),
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit type revision fields'),
                               ),
@@ -3831,7 +1311,7 @@ class _ChangesPageState extends State<ChangesPage> {
                                 onPressed: _busy
                                     ? null
                                     : () => _changeDraft(
-                                        (draft) => _editType(draft, index),
+                                        (draft) => _editOperation(draft, index),
                                       ),
                                 child: const Text('Edit type fields'),
                               ),
@@ -3841,20 +1321,8 @@ class _ChangesPageState extends State<ChangesPage> {
                                   onPressed: _busy
                                       ? null
                                       : () => _changeDraft(
-                                          (draft) async =>
-                                              await Navigator.of(
-                                                context,
-                                              ).push<SavedDraft>(
-                                                MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      WorldEditorPage.edit(
-                                                        changes: widget.changes,
-                                                        draft: draft,
-                                                        index: index,
-                                                      ),
-                                                ),
-                                              ) ??
-                                              draft,
+                                          (draft) =>
+                                              _editOperation(draft, index),
                                         ),
                                   child: const Text('Edit world fields'),
                                 ),

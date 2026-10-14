@@ -560,13 +560,11 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
                           if (_dirty) await _save();
                           if (!mounted || _dirty || _saving) return;
                           await Navigator.of(context).push<void>(
-                            MaterialPageRoute(
-                              builder: (_) => ChangesPage(
-                                changes: SavedChanges(
-                                  session: widget.session,
-                                  universe: widget.universe,
-                                  scope: widget.scope,
-                                ),
+                            changesRoute(
+                              SavedChanges(
+                                session: widget.session,
+                                universe: widget.universe,
+                                scope: widget.scope,
                               ),
                             ),
                           );
