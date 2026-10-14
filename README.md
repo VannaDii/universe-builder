@@ -281,6 +281,11 @@ In author perspective, proposition choices show their subject, predicate,
 quantification, context, ordered participants and simple values using accessible
 names. Search matches these descriptions. Hidden dependencies retain the
 existing fallback; labels do not assert that a proposition is true.
+**Item power** records a named item, holder and power properties, exact typed
+value, explicit universe/world scope and validity. The holder property must be
+a single-valued entity reference. Location and ownership do not establish
+possession. Unfinished fields recover on this device; pending powers offer
+**Edit item power fields** in Changes before reviewed publication.
 **Commitment** records named parties and authored roles, an obligated record,
 condition expressions, optional exact deadline and explicit status. Party order
 and repeated entries remain intact. Fulfillment and breach do not trigger

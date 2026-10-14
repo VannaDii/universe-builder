@@ -11,6 +11,7 @@ class ScopeInputFields extends StatefulWidget {
   const ScopeInputFields({
     super.key,
     this.applicabilityOnly = false,
+    this.explicitWorldScope = false,
     required this.input,
     required this.disabled,
     required this.onChanged,
@@ -18,7 +19,7 @@ class ScopeInputFields extends StatefulWidget {
     required this.draft,
   });
   final ScopeInput input;
-  final bool disabled, applicabilityOnly;
+  final bool disabled, applicabilityOnly, explicitWorldScope;
   final ValueChanged<ScopeInput> onChanged;
   final SavedChanges changes;
   final SavedDraft draft;
@@ -136,17 +137,32 @@ class _ScopeInputFieldsState extends State<ScopeInputFields> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       DropdownButtonFormField<String>(
-        key: ValueKey(_applicability),
-        initialValue: _applicability,
+        key: ValueKey((_applicability, widget.explicitWorldScope)),
+        initialValue:
+            widget.explicitWorldScope &&
+                !{'universe_wide', 'worlds'}.contains(_applicability)
+            ? null
+            : _applicability,
         decoration: const InputDecoration(labelText: 'Applies in'),
-        items: const [
-          DropdownMenuItem(
+        items: [
+          const DropdownMenuItem(
             value: 'universe_wide',
             child: Text('Whole universe'),
           ),
-          DropdownMenuItem(value: 'worlds', child: Text('Selected worlds')),
-          DropdownMenuItem(value: 'conditional', child: Text('Conditional')),
-          DropdownMenuItem(value: 'unspecified', child: Text('Unspecified')),
+          const DropdownMenuItem(
+            value: 'worlds',
+            child: Text('Selected worlds'),
+          ),
+          if (!widget.explicitWorldScope)
+            const DropdownMenuItem(
+              value: 'conditional',
+              child: Text('Conditional'),
+            ),
+          if (!widget.explicitWorldScope)
+            const DropdownMenuItem(
+              value: 'unspecified',
+              child: Text('Unspecified'),
+            ),
         ],
         onChanged: widget.disabled
             ? null

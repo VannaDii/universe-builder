@@ -18,6 +18,7 @@ import 'package:ub_app/communication_draft.dart';
 import 'package:ub_app/memory_draft.dart';
 import 'package:ub_app/plan_draft.dart';
 import 'package:ub_app/commitment_draft.dart';
+import 'package:ub_app/item_power_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -1988,6 +1989,112 @@ void main() {
       expect(
         commitmentSummary.label,
         'Unfulfilled commitment: promisor: Mara; beneficiary: Nia; witness: Nia — Mara.Account 記憶 😀',
+      );
+      final powerDefinitionBase = await changes().load();
+      final itemId = RecordId.generate(),
+          holderPropertyId = RecordId.generate(),
+          powerPropertyId = RecordId.generate();
+      PropertyRecord powerProperty(
+        String key,
+        String label,
+        ValueShape shape,
+      ) => PropertyRecord(
+        namespace: 'authored',
+        key: key,
+        labels: {'en': label},
+        subjectTypes: [],
+        value: shape,
+        multiplicity: Multiplicity.single,
+        persistence: PersistenceSemantics.unspecified,
+        exclusive: false,
+        symmetric: false,
+        transitive: false,
+      );
+      final powerDefinitions = await changes().saveContent(
+        powerDefinitionBase!,
+        DraftContent(
+          baseRevision: powerDefinitionBase.content.baseRevision,
+          representedContext: scope.representedContext!,
+          operations: [
+            CreateEntityOperation(
+              clientRef: itemId.value,
+              record: EntityRecord(
+                names: [],
+                classificationResolution: ClassificationResolution.unclassified,
+                worldAssociations: [],
+                labels: {'en': 'Cedar brooch'},
+                metadata: {},
+              ),
+            ),
+            DefinePropertyOperation(
+              clientRef: holderPropertyId.value,
+              record: powerProperty('held-by', 'Held by', EntityRefShape([])),
+            ),
+            DefinePropertyOperation(
+              clientRef: powerPropertyId.value,
+              record: powerProperty(
+                'ward-strength',
+                'Ward strength',
+                const SimpleValueShape(SimpleShapeKind.integer),
+              ),
+            ),
+          ],
+          rationale: 'Declare the item and its single-valued holder and power properties.',
+        ),
+      );
+      await publish(powerDefinitions);
+      final itemPowerBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final itemPowerForm = UnfinishedItemPowerForm(
+        baseRevision: itemPowerBase.content.baseRevision,
+        representedContext: scope.representedContext!,
+        clientRef: 'brooch-power',
+        item: ExpressionReferenceInput(
+          record: itemId.value,
+          universe: scope.universe.value,
+        ),
+        holderPredicate: ExpressionReferenceInput(
+          record: holderPropertyId.value,
+          universe: scope.universe.value,
+        ),
+        powerPredicate: ExpressionReferenceInput(
+          record: powerPropertyId.value,
+          universe: scope.universe.value,
+        ),
+        value: const QualifierInput(kind: 'integer', value: '9007199254740997'),
+        scope: ScopeInput(
+          applicability: 'universe_wide',
+          contextRecord: scope.representedContext!.value,
+          contextUniverse: scope.universe.value,
+        ),
+        rationale:
+            'Declare a possession-dependent power without asserting a holder.',
+      );
+      await session.saveItemPowerForm(scope, itemPowerForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredItemPower = (await session.loadItemPowerForm(scope))!.form;
+      expect(
+        recoveredItemPower.toWire().toText(),
+        itemPowerForm.toWire().toText(),
+      );
+      final itemPowerDraft = SavedDraft.fromWire(
+        await session.call(
+          itemPowerDraftRequest(
+            draft: itemPowerBase,
+            form: recoveredItemPower,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final itemPowerPublished = await publish(itemPowerDraft);
+      expect(itemPowerPublished.length, 1);
+      expect(
+        itemPowerPublished.single.payload.toWire().toText(),
+        itemPowerOperation(itemPowerForm).record.toWire().toText(),
       );
     } finally {
       await session?.close();

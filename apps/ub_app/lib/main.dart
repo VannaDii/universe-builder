@@ -24,6 +24,7 @@ import 'proposition_editor_page.dart';
 import 'attitude_editor_page.dart';
 import 'observation_editor_page.dart';
 import 'memory_editor_page.dart';
+import 'item_power_editor_page.dart';
 import 'plan_editor_page.dart';
 import 'commitment_editor_page.dart';
 import 'communication_editor_page.dart';
@@ -1021,6 +1022,37 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                                       }
                                     }),
                           child: const Text('Plan'),
+                        ),
+                      if (_contexts.containsKey(continuity.id))
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context)
+                                    .push<void>(
+                                      MaterialPageRoute(
+                                        builder: (_) => ItemPowerEditorPage(
+                                          revision: continuity.revisionId,
+                                          changes: SavedChanges(
+                                            session: _session!,
+                                            universe: Selector(_selected!.name),
+                                            scope: EditorFormScope(
+                                              instance: _library!.instance,
+                                              profile: _session!.principal,
+                                              universe: _selected!.id,
+                                              continuity: continuity.id,
+                                              representedContext:
+                                                  _contexts[continuity.id],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                    .then((_) {
+                                      if (mounted && _selected != null) {
+                                        _open(_selected!);
+                                      }
+                                    }),
+                          child: const Text('Item power'),
                         ),
                       if (_contexts.containsKey(continuity.id))
                         TextButton(

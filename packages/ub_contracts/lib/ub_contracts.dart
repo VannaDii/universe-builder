@@ -54,3 +54,5 @@ export 'src/memory_forms.dart';
 export 'src/plan_forms.dart';
 
 export 'src/commitment_forms.dart';
+
+export 'src/item_power_forms.dart';
