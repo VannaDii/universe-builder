@@ -303,6 +303,14 @@ persistence, dimensions, inverse and relation flags. Pending revisions can be
 edited in Changes; existing checks assess their effects, and reviewed publication
 preserves prior history.
 
+A published relation definition’s dossier offers **Revise relation definition**.
+Its recoverable form retains identity, expected version, namespace and key and
+submits the complete definition through `revise_definition`. Labels and ordered
+role declarations remain editable, including each role’s name, participant
+types, multiplicity and ordering flag. Pending revisions can be edited in Changes;
+existing checks assess current uses and rules, and reviewed publication retains
+prior history.
+
 **Item power** records a named item, holder and power properties, exact typed
 value, explicit universe/world scope and validity. The holder property must be
 a single-valued entity reference. Location and ownership do not establish

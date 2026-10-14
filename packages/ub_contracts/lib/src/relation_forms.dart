@@ -1,6 +1,7 @@
 import 'package:ub_domain/ub_domain.dart';
 
 import 'wire.dart';
+import 'expression_forms.dart';
 import 'property_forms.dart';
 
 final class RelationRoleInput {
@@ -49,6 +50,9 @@ final class UnfinishedRelationForm {
     Iterable<PropertyLabelInput> labels = const [],
     Iterable<RelationRoleInput> roles = const [],
     this.rationale = '',
+    this.revisionTarget,
+    this.expectedRecordVersion,
+    this.original,
     BigInt? draftVersion,
   }) : labels = List.unmodifiable(labels),
        roles = List.unmodifiable(roles),
@@ -58,6 +62,9 @@ final class UnfinishedRelationForm {
   final String clientRef, namespace, key, rationale;
   final List<PropertyLabelInput> labels;
   final List<RelationRoleInput> roles;
+  final ExpressionReferenceInput? revisionTarget;
+  final RecordVersionId? expectedRecordVersion;
+  final RelationRecord? original;
   final BigInt? draftVersion;
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
@@ -68,6 +75,14 @@ final class UnfinishedRelationForm {
     MapEntry('labels', CanonicalArray(labels.map((l) => l.toWire()))),
     MapEntry('roles', CanonicalArray(roles.map((f) => f.toWire()))),
     MapEntry('rationale', CanonicalString(rationale)),
+    if (revisionTarget != null)
+      MapEntry('revision_target', revisionTarget!.toWire()),
+    if (expectedRecordVersion != null)
+      MapEntry(
+        'expected_record_version',
+        CanonicalString(expectedRecordVersion!.value),
+      ),
+    if (original != null) MapEntry('original', original!.toWire()),
     if (draftVersion != null)
       MapEntry('draft_version', CanonicalString(draftVersion.toString())),
   ]);
@@ -82,6 +97,9 @@ final class UnfinishedRelationForm {
       'roles',
       'rationale',
       'draft_version',
+      'revision_target',
+      'expected_record_version',
+      'original',
     });
     return UnfinishedRelationForm(
       baseRevision: RevisionId.parse(f.string('base_revision')),
@@ -92,6 +110,15 @@ final class UnfinishedRelationForm {
       labels: f.array('labels').map(PropertyLabelInput.fromWire),
       roles: f.array('roles').map(RelationRoleInput.fromWire),
       rationale: f.string('rationale'),
+      revisionTarget: f.optional(
+        'revision_target',
+        ExpressionReferenceInput.fromWire,
+      ),
+      expectedRecordVersion: f.optional(
+        'expected_record_version',
+        (v) => RecordVersionId.parse(wireString(v)),
+      ),
+      original: f.optional('original', RelationRecord.fromWire),
       draftVersion: f.optional(
         'draft_version',
         (v) => BigInt.parse(wireString(v)),

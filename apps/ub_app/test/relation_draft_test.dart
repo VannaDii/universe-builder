@@ -3667,6 +3667,86 @@ void main() {
         historicalKnowledge.toWire().toText(),
         receiptKnowledge.toWire().toText(),
       );
+      final relationRevisionBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final relationRevisionScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: published.identity.recordId.value,
+      );
+      final relationRevisionForm = UnfinishedRelationForm.fromWire(
+        CanonicalObject(
+          relationRevisionFormFromRecord(
+            record: published,
+            baseRevision: relationRevisionBase.content.baseRevision,
+            representedContext: scope.representedContext!,
+          ).toWire().fields.map(
+            (e) => e.key == 'labels'
+                ? MapEntry(
+                    'labels',
+                    CanonicalArray([
+                      const PropertyLabelInput(
+                        language: 'en',
+                        text: 'Reviewed account 記憶 😀',
+                      ).toWire(),
+                    ]),
+                  )
+                : e.key == 'rationale'
+                ? MapEntry(
+                    'rationale',
+                    CanonicalString('Clarify the account relation label.'),
+                  )
+                : e,
+          ),
+        ),
+      );
+      await session.saveRelationForm(
+        relationRevisionScope,
+        relationRevisionForm,
+        BigInt.zero,
+      );
+      await session.close();
+      session = await device.connect();
+      final recoveredRelationRevision = (await session.loadRelationForm(
+        relationRevisionScope,
+      ))!.form;
+      expect(
+        recoveredRelationRevision.toWire().toText(),
+        relationRevisionForm.toWire().toText(),
+      );
+      final relationRevisionDraft = SavedDraft.fromWire(
+        await session.call(
+          relationDraftRequest(
+            draft: relationRevisionBase,
+            form: recoveredRelationRevision,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final revisedRelation = await publish(relationRevisionDraft);
+      expect(
+        revisedRelation.single.identity.recordId,
+        published.identity.recordId,
+      );
+      expect(
+        revisedRelation.single.payload.toWire().toText(),
+        relationRevisionOperation(relationRevisionForm).replacement
+            .toWire()
+            .toText(),
+      );
+      final retainedRelation = await readContextRecord(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Relations'),
+        context: await openDraftChoiceContext(changes(), relationRevisionBase),
+        record: published.identity.recordId,
+      );
+      expect(retainedRelation.toWire().toText(), published.toWire().toText());
     } finally {
       await session?.close();
       await server.close();
