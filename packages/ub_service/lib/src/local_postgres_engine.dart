@@ -21,27 +21,34 @@ final class LocalPostgresEngineServer {
     this._store,
     this._runtime,
     this._http,
+    this._https,
   );
   final String root;
   final OwnedFileLock _lock;
   final PostgresInstallationStore _store;
   final NativePostgresRuntime _runtime;
   final LoopbackEngineServer _http;
+  final LoopbackEngineServer? _https;
   late final Timer _idle;
   final _done = Completer<void>();
   Future<void>? _shutdown;
   Future<void> get done => _done.future;
   Uri get httpEndpoint => _http.endpoint;
+  Uri? get httpsEndpoint => _https?.endpoint;
 
   static Future<LocalPostgresEngineServer> start(
     String root,
     PostgresConfiguration configuration, {
     String? webAssets,
+    Uri? httpsOrigin,
+    SecurityContext? tlsContext,
+    InternetAddress? bindAddress,
   }) async {
     OwnedFileLock? lock;
     PostgresInstallationStore? store;
     NativePostgresRuntime? runtime;
     LoopbackEngineServer? http;
+    LoopbackEngineServer? https;
     var published = false;
     String? directory;
     try {
@@ -53,18 +60,30 @@ final class LocalPostgresEngineServer {
       store = await openPostgresInstallation(configuration);
       runtime = NativePostgresRuntime(store: store, profileRoot: directory);
       http = await LoopbackEngineServer.postgres(runtime, webAssets: webAssets);
+      if (httpsOrigin != null || tlsContext != null || bindAddress != null) {
+        https = await LoopbackEngineServer.postgres(
+          runtime,
+          webAssets: webAssets,
+          httpsOrigin: httpsOrigin,
+          tlsContext: tlsContext,
+          bindAddress: bindAddress,
+        );
+      }
       final server = LocalPostgresEngineServer._(
         directory,
         lock,
         store,
         runtime,
         http,
+        https,
       );
       writeLocalHttpEndpoint(directory, http.endpoint);
       published = true;
       http.done.then((_) => server.close().ignore());
+      https?.done.then((_) => server.close().ignore());
       server._idle = Timer.periodic(const Duration(seconds: 60), (_) {
-        if (server._http.isIdle &&
+        if (server._https == null &&
+            server._http.isIdle &&
             DateTime.now().difference(server._http.lastActive) >=
                 const Duration(minutes: 15)) {
           server.close().ignore();
@@ -74,7 +93,11 @@ final class LocalPostgresEngineServer {
     } on Object {
       try {
         try {
-          await http?.close();
+          try {
+            await https?.close();
+          } finally {
+            await http?.close();
+          }
         } finally {
           try {
             await runtime?.close();
@@ -108,7 +131,11 @@ final class LocalPostgresEngineServer {
     _idle.cancel();
     try {
       try {
-        await _http.close();
+        try {
+          await _https?.close();
+        } finally {
+          await _http.close();
+        }
       } finally {
         try {
           await _runtime.close();

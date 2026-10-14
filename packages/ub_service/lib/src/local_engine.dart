@@ -30,11 +30,13 @@ final class LocalSqliteEngineServer {
     this._runtime,
     this._listener,
     this._http,
+    this._https,
   );
   final SqliteInstallationStore _store;
   final NativeSqliteRuntime _runtime;
   final ServerSocket? _listener;
   final LoopbackEngineServer _http;
+  final LoopbackEngineServer? _https;
   StreamSubscription<Socket>? _subscription;
   late final Timer _idle;
   final _clients = <Socket, Future<void>>{};
@@ -45,17 +47,22 @@ final class LocalSqliteEngineServer {
 
   Future<void> get done => _done.future;
   Uri get httpEndpoint => _http.endpoint;
+  Uri? get httpsEndpoint => _https?.endpoint;
 
   static Future<LocalSqliteEngineServer> start(
     String root, {
     bool compatibilitySocket = true,
     DateTime Function()? httpNow,
     String? webAssets,
+    Uri? httpsOrigin,
+    SecurityContext? tlsContext,
+    InternetAddress? bindAddress,
   }) async {
     SqliteInstallationStore? store;
     ServerSocket? listener;
     NativeSqliteRuntime? runtime;
     LoopbackEngineServer? http;
+    LoopbackEngineServer? https;
     var publishedHttp = false;
     try {
       store = SqliteInstallationStore.openExisting(root);
@@ -78,16 +85,34 @@ final class LocalSqliteEngineServer {
         now: httpNow,
         webAssets: webAssets,
       );
-      final server = LocalSqliteEngineServer._(store, runtime, listener, http);
+      if (httpsOrigin != null || tlsContext != null || bindAddress != null) {
+        https = await LoopbackEngineServer.sqlite(
+          runtime,
+          now: httpNow,
+          webAssets: webAssets,
+          httpsOrigin: httpsOrigin,
+          tlsContext: tlsContext,
+          bindAddress: bindAddress,
+        );
+      }
+      final server = LocalSqliteEngineServer._(
+        store,
+        runtime,
+        listener,
+        http,
+        https,
+      );
       writeLocalHttpEndpoint(store.root, http.endpoint);
       publishedHttp = true;
       http.done.then((_) => server.close().ignore());
+      https?.done.then((_) => server.close().ignore());
       server._subscription = listener?.listen(
         server._accept,
         onError: (Object _) => server.close().ignore(),
       );
       server._idle = Timer.periodic(const Duration(seconds: 60), (_) {
-        if (server._clients.isEmpty &&
+        if (server._https == null &&
+            server._clients.isEmpty &&
             server._http.isIdle &&
             DateTime.now().difference(server._http.lastActive) >=
                 const Duration(minutes: 15) &&
@@ -99,9 +124,19 @@ final class LocalSqliteEngineServer {
       return server;
     } on Object {
       try {
-        await listener?.close();
-        await http?.close();
-        await runtime?.close();
+        try {
+          await listener?.close();
+        } finally {
+          try {
+            await https?.close();
+          } finally {
+            try {
+              await http?.close();
+            } finally {
+              await runtime?.close();
+            }
+          }
+        }
       } on Object {
         // Startup diagnostics remain redacted even if cleanup also fails.
       } finally {
@@ -225,7 +260,11 @@ final class LocalSqliteEngineServer {
         } finally {
           try {
             try {
-              await _http.close();
+              try {
+                await _https?.close();
+              } finally {
+                await _http.close();
+              }
             } finally {
               await _runtime.close();
             }

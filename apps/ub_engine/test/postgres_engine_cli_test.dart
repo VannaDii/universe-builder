@@ -13,6 +13,8 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/profile_credentials.dart';
 
+import '../../../packages/ub_service/test/fixtures/tls_fixture.dart';
+
 void main() {
   final port = int.tryParse(
     Platform.environment['UB_TEST_POSTGRES_PORT'] ?? '',
@@ -123,6 +125,16 @@ void main() {
         expect(repeated.exitCode, 1);
         expect(repeated.stdout, isEmpty);
         expect(repeated.stderr, isNot(contains(credential)));
+        final tls = await generateTlsFixture(root);
+        final serveOptions = [
+          ...options,
+          '--https-origin=https://localhost:0',
+          '--https-bind=127.0.0.1',
+          '--tls-certificate',
+          tls.certificate,
+          '--tls-private-key',
+          tls.privateKey,
+        ];
         for (final stopping in ['author', 'terminate']) {
           final device = await run([...options, '--device-profile']);
           expect(device.exitCode, 0);
@@ -130,11 +142,24 @@ void main() {
           expect(device.stderr, isEmpty);
           final process = await Process.start(
             binary,
-            options,
+            serveOptions,
             workingDirectory: root.path,
             environment: env,
           );
-          final stdout = process.stdout.transform(utf8.decoder).join();
+          final ready = Completer<Uri>();
+          final stdout = process.stdout
+              .transform(utf8.decoder)
+              .transform(const LineSplitter())
+              .map((line) {
+                final fields = jsonDecode(line) as Map<String, Object?>;
+                if (!ready.isCompleted) {
+                  ready.complete(
+                    Uri.parse(fields['https_endpoint']! as String),
+                  );
+                }
+                return '$line\n';
+              })
+              .join();
           final stderr = process.stderr.transform(utf8.decoder).join();
           int? ended;
           final exit = process.exitCode.then((value) {
@@ -142,6 +167,7 @@ void main() {
             return value;
           });
           LoopbackEngineClient? client;
+          LoopbackEngineClient? hosted;
           try {
             final deadline = DateTime.now().add(const Duration(seconds: 15));
             while (client == null &&
@@ -164,6 +190,25 @@ void main() {
               reason: 'PostgreSQL engine did not become available',
             );
             await client!.call(const StatusEngineRequest());
+            final publicEndpoint = await ready.future.timeout(
+              const Duration(seconds: 15),
+            );
+            hosted = await LoopbackEngineClient.connectHttps(
+              endpoint: publicEndpoint,
+              hello: EngineHello(
+                protocolVersion: protocolVersion,
+                profileId: profile,
+                credential: Credential(credential),
+                clientName: 'Disposable hosted PostgreSQL client',
+              ),
+              context: SecurityContext()..setTrustedCertificates(tls.ca),
+            );
+            final hostedStatus = Map.fromEntries(
+              (await hosted.call(
+                const StatusEngineRequest(),
+              ) as CanonicalObject).fields,
+            );
+            expect(wireString(hostedStatus['backend']!), 'postgres');
             if (rootCertificate != null) {
               final connections = await observer.execute(
                 Sql.named(
@@ -182,12 +227,15 @@ void main() {
             expect(competing.exitCode, 1);
             await client.call(const StatusEngineRequest());
             if (stopping == 'author') {
-              await client.call(const ShutdownEngineRequest());
+              await hosted.call(const ShutdownEngineRequest());
             } else {
               expect(process.kill(ProcessSignal.sigterm), isTrue);
             }
             expect(await exit.timeout(const Duration(seconds: 10)), 0);
-            expect(await stdout, isEmpty);
+            expect(
+              jsonDecode(await stdout)['https_endpoint'],
+              publicEndpoint.toString(),
+            );
             expect(await stderr, isEmpty);
             expect(
               File('$installation/engine-http.json').existsSync(),
@@ -198,6 +246,7 @@ void main() {
               isFalse,
             );
           } finally {
+            await hosted?.close();
             await client?.close();
             if (ended == null) {
               process.kill(ProcessSignal.sigkill);

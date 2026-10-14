@@ -77,8 +77,23 @@ The shared transport library also accepts an explicit HTTPS origin, TLS server
 context and bind address for either service runtime. Native clients can connect
 with scoped profile credentials over verified HTTPS using `connectHttps`; redirects
 and plaintext fallback are refused. HTTPS browser sessions use Secure cookies.
-These are transport APIs; hosted engine command-line configuration and native
-hosted connection screens remain unfinished.
+The engine command accepts the same HTTPS binding explicitly, alongside its
+local administration listener:
+
+```sh
+universe-engine --installation /absolute/installation --http-only \
+  --https-origin https://ub.example.com:8443 --https-bind 0.0.0.0 \
+  --tls-certificate /absolute/fullchain.pem --tls-private-key /absolute/key.pem
+```
+
+Supply all four HTTPS options together and use an existing installation. The
+certificate must cover the origin hostname; keep the private key protected.
+The command prints the public HTTPS endpoint and stays running until author
+shutdown or a signal. Certificate/key/binding failure stops startup rather than
+leaving a local-only service running. Restart the engine after certificate changes.
+Backend selection continues to use `UB_USE_POSTGRES` and `UB_POSTGRES_ENDPOINT`
+or the saved encrypted configuration. Native hosted connection screens and paid
+hosting setup remain unfinished.
 
 The local HTTP transport supports the browser-session prerequisite. The explicit
 `universe --installation <path> --profile <id> browser-session` command returns the

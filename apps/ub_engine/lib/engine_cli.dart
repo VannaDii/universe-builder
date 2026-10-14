@@ -25,6 +25,12 @@ or initializes an existing empty installation. It prints the profile ID only.
 Otherwise, serve an existing installation until author shutdown or a signal.
 --http-only omits the transitional Unix socket for HTTP clients.
 --web-assets <path> serves a local Flutter web build from the engine origin.
+--https-origin <https://host:port> --https-bind <IP address>
+--tls-certificate <absolute chain path> --tls-private-key <absolute key path>
+explicitly add a TLS listener to the same instance. Supply all four options;
+initialization/device setup cannot expose a listener. Port 0 selects a free port.
+The local administration endpoint stays available. HTTPS mode stays running
+until author shutdown or a signal. Certificate/key errors never fall back to HTTP.
 Installed bundles use their adjacent web assets when present.
 --device-profile explicitly sets up the local device workspace if needed and
 prints its retained owner profile ID. It never prints credentials.
@@ -45,6 +51,7 @@ Future<int> runEngine(
 }) async {
   try {
     String? root, webAssets;
+    final httpsOptions = <String, String>{};
     var initialize = false;
     var deviceProfile = false;
     var httpOnly = false;
@@ -65,6 +72,28 @@ Future<int> runEngine(
         if (initialize || deviceProfile) throw const _UsageError();
         initialize = option == '--initialize';
         deviceProfile = option == '--device-profile';
+      } else if ({
+        '--https-origin',
+        '--https-bind',
+        '--tls-certificate',
+        '--tls-private-key',
+      }.contains(option.split('=').first)) {
+        final equal = option.indexOf('=');
+        final key = equal < 0 ? option : option.substring(0, equal);
+        if (httpsOptions.containsKey(key)) throw const _UsageError();
+        final String value;
+        if (equal < 0) {
+          if (++index == arguments.length || arguments[index].startsWith('-')) {
+            throw const _UsageError();
+          }
+          value = arguments[index];
+        } else {
+          value = option.substring(equal + 1);
+        }
+        if (value.isEmpty || value.contains('\u0000')) {
+          throw const _UsageError();
+        }
+        httpsOptions[key] = value;
       } else if (option == '--web-assets' ||
           option.startsWith('--web-assets=')) {
         if (webAssets != null) throw const _UsageError();
@@ -98,6 +127,33 @@ Future<int> runEngine(
       }
     }
     if (root == null) throw const _UsageError();
+    Uri? httpsOrigin;
+    InternetAddress? bindAddress;
+    SecurityContext? tlsContext;
+    if (httpsOptions.isNotEmpty) {
+      if (httpsOptions.length != 4 || initialize || deviceProfile) {
+        throw const _UsageError();
+      }
+      httpsOrigin = Uri.tryParse(httpsOptions['--https-origin']!);
+      bindAddress = InternetAddress.tryParse(httpsOptions['--https-bind']!);
+      if (httpsOrigin == null ||
+          bindAddress == null ||
+          httpsOrigin.scheme != 'https' ||
+          httpsOrigin.host.isEmpty ||
+          httpsOrigin.userInfo.isNotEmpty ||
+          httpsOrigin.hasQuery ||
+          httpsOrigin.hasFragment ||
+          !{'', '/'}.contains(httpsOrigin.path) ||
+          httpsOrigin.port < 0 ||
+          httpsOrigin.port > 65535 ||
+          !File(httpsOptions['--tls-certificate']!).isAbsolute ||
+          !File(httpsOptions['--tls-private-key']!).isAbsolute) {
+        throw const _UsageError();
+      }
+      tlsContext = SecurityContext()
+        ..useCertificateChain(httpsOptions['--tls-certificate']!)
+        ..usePrivateKey(httpsOptions['--tls-private-key']!);
+    }
     if (webAssets == null) {
       final executable = File(Platform.resolvedExecutable);
       final adjacent = Platform.isMacOS
@@ -148,8 +204,21 @@ Future<int> runEngine(
         root,
         postgres,
         webAssets: webAssets,
+        httpsOrigin: httpsOrigin,
+        tlsContext: tlsContext,
+        bindAddress: bindAddress,
       );
       try {
+        if (server.httpsEndpoint != null) {
+          output(
+            CanonicalObject([
+              MapEntry(
+                'https_endpoint',
+                CanonicalString(server.httpsEndpoint.toString()),
+              ),
+            ]).toText(),
+          );
+        }
         if (stop == null) {
           await server.done;
         } else {
@@ -189,8 +258,21 @@ Future<int> runEngine(
       root,
       compatibilitySocket: !httpOnly,
       webAssets: webAssets,
+      httpsOrigin: httpsOrigin,
+      tlsContext: tlsContext,
+      bindAddress: bindAddress,
     );
     try {
+      if (server.httpsEndpoint != null) {
+        output(
+          CanonicalObject([
+            MapEntry(
+              'https_endpoint',
+              CanonicalString(server.httpsEndpoint.toString()),
+            ),
+          ]).toText(),
+        );
+      }
       if (stop == null) {
         await server.done;
       } else {

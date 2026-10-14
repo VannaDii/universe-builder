@@ -13,75 +13,13 @@ import 'package:ub_service/sqlite_runtime.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
 
+import 'fixtures/tls_fixture.dart';
+
 void main() {
   test('HTTPS uses verified TLS and existing profile rights, with secure origin-bound browser exchange', () async {
     final temporary = Directory.systemTemp.createTempSync('ub-https-test-');
-    final cert = '${temporary.path}/certificate.pem';
-    final key = '${temporary.path}/key.pem';
-    final ca = '${temporary.path}/ca.pem';
-    final caKey = '${temporary.path}/ca-key.pem';
-    final csr = '${temporary.path}/request.pem';
-    final extensions = '${temporary.path}/extensions.cnf';
-    File(extensions).writeAsStringSync(
-      'basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\nsubjectAltName=DNS:localhost\n',
-    );
-    for (final arguments in [
-      [
-        'req',
-        '-x509',
-        '-newkey',
-        'rsa:2048',
-        '-nodes',
-        '-days',
-        '1',
-        '-subj',
-        '/CN=Disposable UB test CA',
-        '-addext',
-        'basicConstraints=critical,CA:TRUE',
-        '-addext',
-        'keyUsage=critical,keyCertSign,cRLSign',
-        '-keyout',
-        caKey,
-        '-out',
-        ca,
-      ],
-      [
-        'req',
-        '-new',
-        '-newkey',
-        'rsa:2048',
-        '-nodes',
-        '-subj',
-        '/CN=localhost',
-        '-keyout',
-        key,
-        '-out',
-        csr,
-      ],
-      [
-        'x509',
-        '-req',
-        '-in',
-        csr,
-        '-CA',
-        ca,
-        '-CAkey',
-        caKey,
-        '-CAcreateserial',
-        '-days',
-        '1',
-        '-extfile',
-        extensions,
-        '-out',
-        cert,
-      ],
-    ]) {
-      final generated = await Process.run('openssl', arguments);
-      if (generated.exitCode != 0) {
-        temporary.deleteSync(recursive: true);
-        fail('Could not generate disposable TLS certificates');
-      }
-    }
+    final fixture = await generateTlsFixture(temporary);
+    final cert = fixture.certificate, key = fixture.privateKey, ca = fixture.ca;
     final root = '${temporary.path}/installation';
     final store = SqliteInstallationStore.create(root);
     final authority = InstallationAuthority(store);

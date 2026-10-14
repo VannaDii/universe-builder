@@ -8,6 +8,7 @@ import 'dart:isolate';
 
 import 'package:test/test.dart';
 import 'package:ub_client/local_engine.dart';
+import 'package:ub_client/loopback_engine.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_engine/engine_cli.dart';
@@ -15,6 +16,8 @@ import 'package:ub_store/installation.dart';
 import 'package:ub_store/local_settings.dart';
 import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_store/local_http_endpoint.dart';
+
+import '../../../packages/ub_service/test/fixtures/tls_fixture.dart';
 
 void main() {
   late Directory root;
@@ -47,6 +50,160 @@ void main() {
         .resolve('bin/universe-engine.dart')
         .toFilePath();
   }
+
+  test(
+    'HTTPS options are explicit, complete and cannot expose initialization',
+    () async {
+      final path = '${root.path}/installation';
+      for (final options in [
+        ['--https-origin=https://localhost:0'],
+        ['--https-bind=127.0.0.1'],
+        [
+          '--https-origin=https://localhost:0',
+          '--https-origin=https://other:0',
+        ],
+        [
+          '--https-origin=http://localhost:0',
+          '--https-bind=127.0.0.1',
+          '--tls-certificate=/missing',
+          '--tls-private-key=/missing',
+        ],
+        [
+          '--https-origin=https://localhost:0',
+          '--https-bind=127.0.0.1',
+          '--tls-certificate=/missing',
+          '--tls-private-key=/missing',
+          '--initialize',
+        ],
+      ]) {
+        expect(await run(['--installation', path, ...options]), 2);
+        expect(Directory(path).existsSync(), isFalse);
+      }
+      expect(await run(initialize(path)), 0);
+      errors.clear();
+      expect(
+        await run([
+          '--installation',
+          path,
+          '--https-origin=https://localhost:0',
+          '--https-bind=127.0.0.1',
+          '--tls-certificate=/missing-disposable-certificate',
+          '--tls-private-key=/missing-disposable-key',
+        ]),
+        1,
+      );
+      expect(errors.single, isNot(contains('missing-disposable-key')));
+      expect(File('$path/engine-http.json').existsSync(), isFalse);
+      final fixture = await generateTlsFixture(root);
+      final occupied = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      try {
+        expect(
+          await run([
+            '--installation',
+            path,
+            '--http-only',
+            '--https-origin=https://localhost:${occupied.port}',
+            '--https-bind=127.0.0.1',
+            '--tls-certificate',
+            fixture.certificate,
+            '--tls-private-key',
+            fixture.privateKey,
+          ]),
+          1,
+        );
+        expect(File('$path/engine-http.json').existsSync(), isFalse);
+      } finally {
+        await occupied.close();
+      }
+      final store = SqliteInstallationStore.openExisting(path);
+      store.close();
+    },
+  );
+
+  test('HTTPS CLI shares local canon and remote owner shutdown closes both listeners', () async {
+    final path = '${root.path}/installation';
+    expect(await run(initialize(path)), 0);
+    final owner = ProfileId.parse(output.single);
+    final fixture = await generateTlsFixture(root);
+    final ready = Completer<Uri>(), stop = Completer<void>();
+    final running = runEngine(
+      [
+        '--installation',
+        path,
+        '--http-only',
+        '--https-origin=https://localhost:0',
+        '--https-bind=127.0.0.1',
+        '--tls-certificate',
+        fixture.certificate,
+        '--tls-private-key',
+        fixture.privateKey,
+      ],
+      environment: const {},
+      output: (line) {
+        output.add(line);
+        final fields = Map.fromEntries(
+          (CanonicalValue.parseWireJson(line) as CanonicalObject).fields,
+        );
+        if (!ready.isCompleted) {
+          ready.complete(Uri.parse(wireString(fields['https_endpoint']!)));
+        }
+      },
+      error: errors.add,
+      stop: stop.future,
+    );
+    running.then((code) {
+      if (!ready.isCompleted) {
+        ready.completeError(
+          StateError('Engine stopped before HTTPS readiness: $code'),
+        );
+      }
+    });
+    LoopbackEngineClient? remote, local;
+    try {
+      final endpoint = await ready.future.timeout(const Duration(seconds: 20));
+      final secret = ProfileCredentialStore.read(root: path, profile: owner);
+      remote = await LoopbackEngineClient.connectHttps(
+        endpoint: endpoint,
+        hello: EngineHello(
+          protocolVersion: protocolVersion,
+          profileId: owner,
+          credential: Credential(secret),
+          clientName: 'HTTPS command test',
+        ),
+        context: SecurityContext()..setTrustedCertificates(fixture.ca),
+      );
+      local = await LoopbackEngineClient.discover(
+        root: path,
+        profile: owner,
+        clientName: 'Local command test',
+      );
+      await remote.call(
+        const CreateUniverseEngineRequest(
+          name: 'Shared hosted universe',
+          start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
+        ),
+      );
+      final status = Map.fromEntries(
+        (await local.call(
+          const StatusEngineRequest(),
+        ) as CanonicalObject).fields,
+      );
+      expect((status['universes'] as CanonicalArray).items, hasLength(1));
+      expect(output.join(), isNot(contains(secret)));
+      await remote.call(const ShutdownEngineRequest());
+      expect(await running.timeout(const Duration(seconds: 10)), 0);
+      expect(errors, isEmpty);
+      expect(File('$path/engine-http.json').existsSync(), isFalse);
+      final store = SqliteInstallationStore.openExisting(path);
+      expect(store.currentAuthor(), owner);
+      store.close();
+    } finally {
+      await remote?.close();
+      await local?.close();
+      if (!stop.isCompleted) stop.complete();
+      await running;
+    }
+  });
 
   test('initialization prints only profile identity; repeat preserves authority and credential', () async {
     final path = '${root.path}/installation';
