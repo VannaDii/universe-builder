@@ -48,7 +48,9 @@ import 'changes_page.dart';
 import 'saved_changes.dart';
 import 'postgres_settings.dart';
 import 'sqlite_settings.dart';
-import 'connection_stub.dart' if (dart.library.io) 'connection_native.dart';
+import 'connection_stub.dart'
+    if (dart.library.io) 'connection_native.dart'
+    if (dart.library.js_interop) 'connection_browser.dart';
 
 void main(List<String> arguments) => runApp(
   UniverseBuilderApp(
@@ -68,6 +70,7 @@ class UniverseBuilderApp extends StatefulWidget {
 }
 
 class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
+  final _browserToken = TextEditingController();
   ThemeMode _theme = ThemeMode.system;
   AppSession? _session;
   InstanceLibrary? _library;
@@ -82,6 +85,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
   @override
   void dispose() {
     _session?.close();
+    _browserToken.dispose();
     super.dispose();
   }
 
@@ -102,6 +106,11 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
     AppSession? session;
     try {
       await previous?.close();
+      if (widget.device.supportsBrowser &&
+          _browserToken.text.trim().isNotEmpty) {
+        widget.device.browserEnrollmentToken = _browserToken.text.trim();
+        _browserToken.clear();
+      }
       session = await widget.device.connect();
       final library = InstanceLibrary.fromWire(
         await session.call(const StatusEngineRequest()),
@@ -121,12 +130,45 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       await session?.close();
       if (mounted) {
         setState(() {
-          _error = 'Could not connect. Check that your local instance is available, then try again.';
+          _error = widget.device.supportsBrowser
+              ? 'Could not connect. Check that the instance is running. Use a fresh connection code if your session has expired.'
+              : 'Could not connect. Check that your local instance is available, then try again.';
         });
       }
     } finally {
       if (mounted) {
         setState(() {
+          _busy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _logoutBrowser() async {
+    final session = _session;
+    if (session?.logout == null) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await session!.logout!();
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _error = 'The instance could not confirm sign-out. This tab is disconnected.';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _session = null;
+          _library = null;
+          _selected = null;
+          _description = null;
+          _worlds = {};
+          _contexts = {};
+          _page = 0;
           _busy = false;
         });
       }
@@ -430,6 +472,12 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                 ],
               ),
               actions: [
+                if (_session?.logout != null)
+                  IconButton(
+                    onPressed: _busy ? null : _logoutBrowser,
+                    icon: const Icon(Icons.logout),
+                    tooltip: 'Sign out',
+                  ),
                 if (_session != null)
                   IconButton(
                     onPressed: _busy ? null : _connect,
@@ -534,6 +582,33 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                 icon: const Icon(Icons.computer_outlined),
                 label: const Text('Use this computer'),
               ),
+            if (widget.device.supportsBrowser) ...[
+              const Text(
+                'Connect to the instance serving this page. Paste a connection code from that instance, or resume this tab’s session.',
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _browserToken,
+                enabled: !_busy,
+                obscureText: true,
+                autocorrect: false,
+                enableSuggestions: false,
+                decoration: const InputDecoration(
+                  labelText: 'Connection code',
+                  helperText:
+                      'A code can be used once and expires after one minute.',
+                ),
+                onSubmitted: (_) {
+                  if (!_busy) _connect();
+                },
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: _busy ? null : _connect,
+                icon: const Icon(Icons.link),
+                label: const Text('Connect or resume'),
+              ),
+            ],
             if (!widget.device.available)
               Padding(
                 padding: const EdgeInsets.only(top: 16),
@@ -554,7 +629,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       ),
       const SizedBox(height: 8),
       Text(
-        'This computer · ${_session!.author ? 'Approval owner' : 'Contributor'}',
+        '${widget.device.supportsBrowser ? 'Connected instance' : 'This computer'} · ${_session!.author ? 'Approval owner' : 'Contributor'}',
       ),
       const SizedBox(height: 24),
       if (_session!.author) ...[
@@ -1873,7 +1948,13 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       const SizedBox(height: 32),
       const Text('Connection', style: TextStyle(fontSize: 20)),
       const SizedBox(height: 12),
-      Text(_session == null ? 'Not connected' : 'This computer'),
+      Text(
+        _session == null
+            ? 'Not connected'
+            : widget.device.supportsBrowser
+            ? 'Connected instance'
+            : 'This computer',
+      ),
       if (_library case final library?) ...[
         const SizedBox(height: 12),
         Text(switch (library.backend) {

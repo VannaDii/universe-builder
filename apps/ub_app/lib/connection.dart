@@ -3,6 +3,7 @@ import 'package:ub_domain/ub_domain.dart';
 
 final class AppSession {
   const AppSession({
+    this.logout,
     this.backupFile,
     this.restoreBackupFile,
     required this.call,
@@ -90,6 +91,7 @@ final class AppSession {
   final Future<LibraryEntry?> Function(String name)? restoreBackupFile;
   final Future<CanonicalValue> Function(EngineRequest) call;
   final Future<void> Function() close;
+  final Future<void> Function()? logout;
   final bool author;
   final ProfileId principal;
   final Future<SavedWorldForm?> Function(EditorFormScope) loadWorldForm;

@@ -1,6 +1,8 @@
 import 'connection.dart';
 
 final class DeviceConnection {
+  bool get supportsBrowser => false;
+  String? browserEnrollmentToken;
   bool get supportsLocal => false;
   DeviceConnection(
     List<String> arguments, {

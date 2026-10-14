@@ -46,6 +46,8 @@ final class DeviceConnection {
   final Future<String?> Function(String)? saveBackupFile;
   final Future<bool> Function(String)? openBackupFile;
   String? root, profile, helper;
+  bool get supportsBrowser => false;
+  String? browserEnrollmentToken;
   bool get supportsLocal => true;
   bool get available => root?.isNotEmpty == true;
   String get unavailableMessage =>

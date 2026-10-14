@@ -26,7 +26,7 @@ XDG data storage (or `~/.local/share`) once its helper is installed; that platfo
 journey remains unqualified.
 Appearance currently lasts for the app session. Native access to installations
 outside the macOS sandbox, editing/recovery and remote connections remain in
-progress. Web explains its instance connection requirement;
+progress. Web connects to the instance serving its page;
 it does not offer local database authority. Generated mobile/Windows/Linux runners
 are not yet qualified. Build the shell from `apps/ub_app` with `flutter build web`
 or, on macOS, `flutter build macos --debug`.
@@ -41,9 +41,19 @@ and engine restart invalidate access. Cookie names distinguish local listener
 ports. The packaged macOS engine serves its bundled Flutter web pages at that
 endpoint. For a standalone development engine, use `--web-assets <absolute path>`
 to serve a Flutter web build. Only that asset directory is served, without directory
-listings or symbolic links; installation files remain private. Connecting the
-browser app remains pending; this command does not launch a working browser author
-interface yet.
+listings or symbolic links; installation files remain private. Open the returned
+endpoint in a browser, paste `enrollment_token` into Connection code, and choose
+Connect or resume. After refresh, leave the code blank to resume the same tab's
+unexpired session. Sign out revokes that session. The command prints the connection
+information; it does not launch a browser.
+
+The web app uses the shared typed editor workflows. Named unfinished fields are
+retained in origin-private IndexedDB, scoped to the instance, profile, universe,
+continuity and editor. Ordered fields, exact values and original domain records
+survive refresh; this input is not canon and browser storage can be cleared by the
+browser or user. Only the short-lived CSRF token is kept in session storage; profile
+and database credentials never enter the browser. Web file upload/download,
+backup/restore and URL navigation work remain in progress.
 
 Connected approval owners can create a universe from Library. Gregorian creation
 uses an explicitly entered date, whole-second time and fixed UTC offset, with an
