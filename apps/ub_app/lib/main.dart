@@ -71,6 +71,7 @@ void main(List<String> arguments) => runApp(
       saveBackupFile: saveBackupFile,
       openBackupFile: openBackupFile,
       pickImagePath: pickImagePath,
+      releaseImagePath: releasePickedImage,
       installationRoot: mobileInstallationRoot,
     ),
   ),

@@ -59,6 +59,7 @@ final class DeviceConnection {
     Future<String?> Function(String)? saveBackupFile,
     Future<bool> Function(String)? openBackupFile,
     Future<String?> Function()? pickImagePath,
+    Future<void> Function(String)? releaseImagePath,
     Future<String?> Function()? installationRoot,
   });
   static const _csrfKey = 'ub-browser-session-csrf';

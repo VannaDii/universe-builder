@@ -10,3 +10,6 @@ Future<bool> openBackupFile(String destination) async =>
       'destination': destination,
     }) ??
     false;
+
+Future<void> releasePickedImage(String source) =>
+    _channel.invokeMethod<void>('releasePickedImage', {'source': source});

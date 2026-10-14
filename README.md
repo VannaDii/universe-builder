@@ -40,7 +40,11 @@ connection selects this worker on iOS/Android, initializes or retains the protec
 device profile, and closes the worker with its session. The iOS runner supplies an app-private, backup-excluded installation directory;
 Android uses its no-backup app directory and permits the local authenticated
 network transport. Desktop backend-switching controls are omitted on mobile.
-Full mobile lifecycle, file/share flows and hosted connections remain unfinished.
+Mobile appearance images use the system document picker. Selected PNG/JPEG/WebP
+files are copied into app-private temporary storage with the existing 10 MiB
+limit, staged by the service, then released from the picker cache. Cancelling
+retains the existing form. Full mobile lifecycle, other file/share flows and
+hosted connections remain unfinished.
 
 The local HTTP transport supports the browser-session prerequisite. The explicit
 `universe --installation <path> --profile <id> browser-session` command returns the
@@ -294,8 +298,8 @@ operation. Fictional months require an authored month length; Gregorian dates
 retain the fixed offset and reject a day absent from the target month.
 The **Appearance** authoring form describes a universe or a named entry, with an
 exact label, physical description, atmosphere, ordered images and depiction
-links. Choose an existing image asset or a PNG/JPEG/WebP file through the macOS
-or browser picker; retaining the original does not publish it. Captions and image
+links. Choose an existing image asset or a PNG/JPEG/WebP file through the macOS,
+iOS, Android or browser picker; retaining the original does not publish it. Captions and image
 purposes remain explicit. Time scope is unspecified or an authored calendar
 interval with exact increasing or explicitly unbounded endpoints; it never
 advances the story clock. Native and browser unfinished recovery retain named

@@ -2,6 +2,7 @@
 library;
 
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:test/test.dart';
 import 'package:ub_app/connection.dart';
@@ -14,9 +15,16 @@ void main() {
     final temporary = Directory.systemTemp.createTempSync('ub-embedded-app-');
     final root = '${temporary.path}/installation';
     var pathRequests = 0;
+    String? selectedImage;
+    final released = <String>[];
     final device = DeviceConnection(
       ['--engine=/nonexistent/helper'],
       embeddedLocal: true,
+      pickImagePath: () async => selectedImage,
+      releaseImagePath: (source) async {
+        released.add(source);
+        File(source).deleteSync();
+      },
       installationRoot: () async {
         pathRequests++;
         return root;
@@ -43,6 +51,29 @@ void main() {
         ),
         {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'},
       );
+      expect(await session.pickImage!(const Selector('On device')), isNull);
+      expect(released, isEmpty);
+      final image = File('${temporary.path}/portrait.png')
+        ..writeAsBytesSync(
+          base64.decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR4nGP4z8DwHwQBEPgD/U6VwW8AAAAASUVORK5CYII=',
+          ),
+        );
+      selectedImage = image.path;
+      final staged = (await session.pickImage!(const Selector('On device')))!;
+      expect(staged.asset.originalName, 'portrait.png');
+      expect(staged.asset.width, 2);
+      expect(image.existsSync(), isFalse);
+      expect(released, [image.path]);
+      final invalid = File('${temporary.path}/invalid.png')
+        ..writeAsStringSync('not an image');
+      selectedImage = invalid.path;
+      await expectLater(
+        session.pickImage!(const Selector('On device')),
+        throwsA(isA<ProtocolError>()),
+      );
+      expect(invalid.existsSync(), isFalse);
+      expect(released, [image.path, invalid.path]);
       final scope = EditorFormScope(
         instance: initial.instance,
         profile: principal,

@@ -25,6 +25,7 @@ final class DeviceConnection {
     this.saveBackupFile,
     this.openBackupFile,
     this.pickImagePath,
+    this.releaseImagePath,
     this.installationRoot,
     bool? embeddedLocal,
   }) : _embeddedLocal = embeddedLocal ?? (Platform.isIOS || Platform.isAndroid) {
@@ -53,6 +54,7 @@ final class DeviceConnection {
   final Future<String?> Function(String)? saveBackupFile;
   final Future<bool> Function(String)? openBackupFile;
   final Future<String?> Function()? pickImagePath;
+  final Future<void> Function(String)? releaseImagePath;
   final Future<String?> Function()? installationRoot;
   final bool _embeddedLocal;
   String? root, profile, helper;
@@ -395,9 +397,26 @@ final class DeviceConnection {
           ? (universe) async {
               final source = await pickImagePath!();
               if (source == null) return null;
-              return StagedImage.fromWire(await sequenced(
-                () => client.call(StageImageEngineRequest(universe: universe, source: source)),
-              ));
+              try {
+                return StagedImage.fromWire(
+                  await sequenced(
+                    () => client.call(
+                      StageImageEngineRequest(
+                        universe: universe,
+                        source: source,
+                      ),
+                    ),
+                  ),
+                );
+              } finally {
+                if (_embeddedLocal) {
+                  try {
+                    await releaseImagePath?.call(source);
+                  } on Object {
+                    // A cache cleanup failure cannot undo confirmed service retention.
+                  }
+                }
+              }
             }
           : null,
       call: (request) => sequenced(() => client.call(request)),
