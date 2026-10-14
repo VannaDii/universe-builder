@@ -179,7 +179,35 @@ final class LoopbackEngineClient {
         !{'', '/'}.contains(endpoint.path)) {
       throw const LocalEngineException(LocalEngineFailure.unsafeEndpoint);
     }
-    final http = HttpClient()..findProxy = (_) => 'DIRECT';
+    return _connect(endpoint, hello, HttpClient()..findProxy = (_) => 'DIRECT');
+  }
+
+  /// A hosted instance receives scoped profile identity over verified TLS.
+  /// No local discovery, helper launch or plaintext fallback occurs. An explicit
+  /// context can trust a private deployment's CA; certificate checks remain on.
+  static Future<LoopbackEngineClient> connectHttps({
+    required Uri endpoint,
+    required EngineHello hello,
+    SecurityContext? context,
+  }) {
+    if (endpoint.scheme != 'https' ||
+        endpoint.host.isEmpty ||
+        endpoint.port < 1 ||
+        endpoint.port > 65535 ||
+        endpoint.userInfo.isNotEmpty ||
+        endpoint.hasQuery ||
+        endpoint.hasFragment ||
+        !{'', '/'}.contains(endpoint.path)) {
+      throw const LocalEngineException(LocalEngineFailure.unsafeEndpoint);
+    }
+    return _connect(endpoint, hello, HttpClient(context: context));
+  }
+
+  static Future<LoopbackEngineClient> _connect(
+    Uri endpoint,
+    EngineHello hello,
+    HttpClient http,
+  ) async {
     final client = LoopbackEngineClient._(
       endpoint,
       'UB ${base64Encode(hello.toWire().toBytes())}',

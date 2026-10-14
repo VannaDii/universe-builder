@@ -1,4 +1,4 @@
-/// Native authenticated HTTP client for a selected loopback engine.
+/// Native authenticated client for loopback HTTP or explicit verified HTTPS.
 library;
 
 export 'src/loopback_engine.dart';

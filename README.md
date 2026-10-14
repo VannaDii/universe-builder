@@ -73,6 +73,13 @@ rationale and package-import choices use their existing save paths. A save must
 finish before input is durable; failures retain input in the form. Full mobile
 lifecycle, other file/share flows and hosted connections remain unfinished.
 
+The shared transport library also accepts an explicit HTTPS origin, TLS server
+context and bind address for either service runtime. Native clients can connect
+with scoped profile credentials over verified HTTPS using `connectHttps`; redirects
+and plaintext fallback are refused. HTTPS browser sessions use Secure cookies.
+These are transport APIs; hosted engine command-line configuration and native
+hosted connection screens remain unfinished.
+
 The local HTTP transport supports the browser-session prerequisite. The explicit
 `universe --installation <path> --profile <id> browser-session` command returns the
 loopback endpoint and a one-use enrollment token valid for one minute; it never

@@ -31,6 +31,7 @@ final class LoopbackEngineServer {
     this._connect,
     this._now,
     this._webFiles,
+    this.endpoint,
   );
   final HttpServer _server;
   final Map<String, File> _webFiles;
@@ -85,7 +86,7 @@ final class LoopbackEngineServer {
   bool _stopping = false;
   Future<void>? _shutdown;
   DateTime _lastActive = DateTime.now();
-  Uri get endpoint => Uri.parse('http://127.0.0.1:${_server.port}');
+  final Uri endpoint;
   Future<void> get done => _done.future;
   bool get isIdle => _active.isEmpty;
   DateTime get lastActive => _lastActive;
@@ -94,6 +95,9 @@ final class LoopbackEngineServer {
     NativeSqliteRuntime runtime, {
     DateTime Function()? now,
     String? webAssets,
+    Uri? httpsOrigin,
+    SecurityContext? tlsContext,
+    InternetAddress? bindAddress,
   }) => _bind(
     (hello) async {
       final connection = runtime.connect(hello);
@@ -105,12 +109,18 @@ final class LoopbackEngineServer {
     },
     now: now,
     webAssets: webAssets,
+    httpsOrigin: httpsOrigin,
+    tlsContext: tlsContext,
+    bindAddress: bindAddress,
   );
 
   static Future<LoopbackEngineServer> postgres(
     NativePostgresRuntime runtime, {
     DateTime Function()? now,
     String? webAssets,
+    Uri? httpsOrigin,
+    SecurityContext? tlsContext,
+    InternetAddress? bindAddress,
   }) => _bind(
     (hello) async {
       final connection = await runtime.connect(hello);
@@ -122,13 +132,39 @@ final class LoopbackEngineServer {
     },
     now: now,
     webAssets: webAssets,
+    httpsOrigin: httpsOrigin,
+    tlsContext: tlsContext,
+    bindAddress: bindAddress,
   );
 
   static Future<LoopbackEngineServer> _bind(
     Future<_HttpConnection> Function(EngineHello) connect, {
     DateTime Function()? now,
     String? webAssets,
+    Uri? httpsOrigin,
+    SecurityContext? tlsContext,
+    InternetAddress? bindAddress,
   }) async {
+    if (httpsOrigin == null) {
+      if (tlsContext != null || bindAddress != null) {
+        throw const FormatException(
+          'HTTPS origin required for an explicit binding',
+        );
+      }
+    } else if (tlsContext == null ||
+        bindAddress == null ||
+        httpsOrigin.scheme != 'https' ||
+        httpsOrigin.host.isEmpty ||
+        httpsOrigin.userInfo.isNotEmpty ||
+        httpsOrigin.hasQuery ||
+        httpsOrigin.hasFragment ||
+        !{'', '/'}.contains(httpsOrigin.path) ||
+        httpsOrigin.port < 0 ||
+        httpsOrigin.port > 65535) {
+      throw const FormatException(
+        'Explicit HTTPS origin, TLS context and binding required',
+      );
+    }
     final files = <String, File>{};
     if (webAssets != null) {
       final directory = Directory(webAssets);
@@ -149,13 +185,21 @@ final class LoopbackEngineServer {
       }
       files['/'] = files['/index.html']!;
     }
-    final listener = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final listener = httpsOrigin == null
+        ? await HttpServer.bind(InternetAddress.loopbackIPv4, 0)
+        : await HttpServer.bindSecure(
+            bindAddress!,
+            httpsOrigin.port,
+            tlsContext!,
+          );
     listener.idleTimeout = const Duration(seconds: 60);
     final server = LoopbackEngineServer._(
       listener,
       connect,
       now ?? DateTime.now,
       files,
+      httpsOrigin?.replace(port: listener.port) ??
+          Uri.parse('http://127.0.0.1:${listener.port}'),
     );
     server._subscription = listener.listen(server._accept);
     return server;
@@ -530,6 +574,7 @@ final class LoopbackEngineServer {
             response.cookies.add(
               Cookie(_cookieName, '')
                 ..httpOnly = true
+                ..secure = endpoint.scheme == 'https'
                 ..sameSite = SameSite.strict
                 ..path = '/engine/browser'
                 ..maxAge = 0,
@@ -655,6 +700,7 @@ final class LoopbackEngineServer {
         response.cookies.add(
           Cookie(_cookieName, id)
             ..httpOnly = true
+            ..secure = endpoint.scheme == 'https'
             ..sameSite = SameSite.strict
             ..path = '/engine/browser'
             ..maxAge = 900,
