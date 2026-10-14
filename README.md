@@ -35,8 +35,10 @@ The shared service also exposes `EmbeddedSqliteEngine` for app-owned local
 workers. It opens an existing SQLite installation in a separate Dart isolate
 and uses the same authenticated loopback commands, authority locks, durable
 drafts and graceful shutdown as the desktop engine. Worker exit is a lifecycle
-notification; uncertain operations still require normal service recovery. Mobile
-app setup, connection wiring and device lifecycle qualification remain unfinished.
+notification; uncertain operations still require normal service recovery. The native
+connection selects this worker on iOS/Android, initializes or retains the protected
+device profile, and closes the worker with its session. Mobile app-private path
+discovery, runner integration and device lifecycle qualification remain unfinished.
 
 The local HTTP transport supports the browser-session prerequisite. The explicit
 `universe --installation <path> --profile <id> browser-session` command returns the

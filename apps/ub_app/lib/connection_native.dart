@@ -1,4 +1,8 @@
 import 'dart:io';
+import 'dart:isolate';
+
+import 'package:ub_service/embedded_engine.dart';
+import 'package:ub_store/local_settings.dart';
 
 import 'package:ub_client/local_engine.dart';
 import 'package:ub_client/loopback_engine.dart';
@@ -21,7 +25,8 @@ final class DeviceConnection {
     this.saveBackupFile,
     this.openBackupFile,
     this.pickImagePath,
-  }) {
+    bool? embeddedLocal,
+  }) : _embeddedLocal = embeddedLocal ?? (Platform.isIOS || Platform.isAndroid) {
     for (var i = 0; i < arguments.length; i++) {
       final argument = arguments[i];
       final equal = argument.indexOf('=');
@@ -47,6 +52,7 @@ final class DeviceConnection {
   final Future<String?> Function(String)? saveBackupFile;
   final Future<bool> Function(String)? openBackupFile;
   final Future<String?> Function()? pickImagePath;
+  final bool _embeddedLocal;
   String? root, profile, helper;
   bool get supportsBrowser => false;
   String? browserEnrollmentToken;
@@ -162,25 +168,84 @@ final class DeviceConnection {
 
   Future<AppSession> connect() async {
     if (!available) throw StateError('Local connection not configured');
-    final engine = helper ?? await LocalEngineClient.siblingEngine();
-    if (profile == null) {
-      final initialized = await Process.run(engine, [
-        '--installation',
-        root!,
-        '--device-profile',
-      ]);
-      if (initialized.exitCode != 0) {
-        throw StateError('Device setup unavailable');
+    EmbeddedSqliteEngine? embedded;
+    late final LoopbackEngineClient client;
+    if (_embeddedLocal) {
+      final localRoot = root!, selectedProfile = profile;
+      final selected = await Isolate.run(() async {
+        LocalSettingsStore? settings;
+        try {
+          final path = '$localRoot/settings.sqlite';
+          if (FileSystemEntity.typeSync(path, followLinks: false) !=
+              FileSystemEntityType.notFound) {
+            settings = LocalSettingsStore.openExisting(path);
+          }
+          final configuration = await LocalBackendConfiguration.resolve(
+            environment: Platform.environment,
+            settings: settings,
+          );
+          if (configuration.usePostgres) {
+            throw StateError(
+              'Local mobile storage uses SQLite. Connect to PostgreSQL through a service.',
+            );
+          }
+        } finally {
+          settings?.close();
+        }
+        final ProfileId id;
+        if (selectedProfile != null) {
+          id = ProfileId.parse(selectedProfile);
+        } else {
+          id = SqliteInstallationStore.withBootstrap<ProfileId>(localRoot, (
+            store,
+          ) {
+            final retained = DeviceProfileStore.read(store.root);
+            if (retained != null) return retained;
+            final id = store.hasProfiles
+                ? store.currentAuthor()
+                : InstallationAuthority(store).initializeAuthor();
+            ProfileCredentialStore.read(root: store.root, profile: id);
+            DeviceProfileStore.write(store.root, id);
+            return id;
+          });
+        }
+        ProfileCredentialStore.read(root: localRoot, profile: id);
+        return id;
+      });
+      profile = selected.value;
+      embedded = await EmbeddedSqliteEngine.start(localRoot);
+      try {
+        client = await LoopbackEngineClient.connectLocal(
+          endpoint: embedded.endpoint,
+          root: localRoot,
+          profile: selected,
+          clientName: 'universe-builder-app',
+        );
+      } on Object {
+        await embedded.close();
+        rethrow;
       }
-      profile = ProfileId.parse((initialized.stdout as String).trim()).value;
+    } else {
+      final engine = helper ?? await LocalEngineClient.siblingEngine();
+      if (profile == null) {
+        final initialized = await Process.run(engine, [
+          '--installation',
+          root!,
+          '--device-profile',
+        ]);
+        if (initialized.exitCode != 0) {
+          throw StateError('Device setup unavailable');
+        }
+        profile = ProfileId.parse((initialized.stdout as String).trim()).value;
+      }
+      client = await LoopbackEngineClient.ensureRunning(
+        root: root!,
+        profile: ProfileId.parse(profile!),
+        helper: engine,
+        clientName: 'universe-builder-app',
+        compatibilitySocket: false,
+      );
     }
-    final client = await LoopbackEngineClient.ensureRunning(
-      root: root!,
-      profile: ProfileId.parse(profile!),
-      helper: engine,
-      clientName: 'universe-builder-app',
-      compatibilitySocket: false,
-    );
     final recovery = LocalWorldFormRecovery(root: root!, client: client);
     final typeRecovery = LocalTypeFormRecovery(root: root!, client: client);
     final propertyRecovery = LocalPropertyFormRecovery(
@@ -332,7 +397,13 @@ final class DeviceConnection {
             }
           : null,
       call: (request) => sequenced(() => client.call(request)),
-      close: () => sequenced(client.close),
+      close: () => sequenced(() async {
+        try {
+          await client.close();
+        } finally {
+          await embedded?.close();
+        }
+      }),
       author: client.welcome.author,
       principal: client.welcome.principal,
       loadWorldForm: (scope) => sequenced(() => recovery.load(scope)),
