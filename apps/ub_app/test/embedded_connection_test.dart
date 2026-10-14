@@ -17,9 +17,18 @@ void main() {
     var pathRequests = 0;
     String? selectedImage, selectedSource;
     final released = <String>[];
+    final savedBackup = '${temporary.path}/mobile-backup.sqlite';
     final device = DeviceConnection(
       ['--engine=/nonexistent/helper'],
       embeddedLocal: true,
+      saveBackupFile: (source) async {
+        await File(source).copy(savedBackup);
+        return 'mobile-backup.sqlite';
+      },
+      openBackupFile: (destination) async {
+        await File(savedBackup).copy(destination);
+        return true;
+      },
       pickImagePath: () async => selectedImage,
       pickSourcePath: () async => selectedSource,
       releasePickedPath: (source) async {
@@ -117,6 +126,12 @@ void main() {
         hasConcealment: true,
       );
       await session.saveSecretForm(scope, input, BigInt.zero);
+      expect(session.backupFile, isNotNull);
+      expect(
+        await session.backupFile!(LibraryEntry(scope.universe, 'On device')),
+        'mobile-backup.sqlite',
+      );
+
       await session.close();
       session = null;
       expect(File('$root/engine-http.json').existsSync(), isFalse);
@@ -127,6 +142,33 @@ void main() {
       ], embeddedLocal: true);
       session = await restarted.connect();
       expect(session.principal, principal);
+      final otherDevice = DeviceConnection(
+        ['--installation', '${temporary.path}/restored'],
+        embeddedLocal: true,
+        saveBackupFile: (_) async => null,
+        openBackupFile: (destination) async {
+          await File(savedBackup).copy(destination);
+          return true;
+        },
+      );
+      final destinationSession = await otherDevice.connect();
+      try {
+        final restored = await destinationSession.restoreBackupFile!(
+          'Restored mobile universe',
+        );
+        expect(restored!.id, scope.universe);
+        final destinationLibrary = InstanceLibrary.fromWire(
+          await destinationSession.call(const StatusEngineRequest()),
+        );
+        expect(
+          destinationLibrary.universes.single.name,
+          'Restored mobile universe',
+        );
+        expect(destinationLibrary.instance, isNot(initial.instance));
+      } finally {
+        await destinationSession.close();
+      }
+
       expect(
         (await session.loadSourceForm(scope))!.form.toWire().toText(),
         sourceForm.toWire().toText(),

@@ -113,6 +113,23 @@ void main() {
       );
       expect(await cancelled.restore('Cancelled'), isNull);
       expect(await cancelled.backup(restored), isNull);
+      final failedPicker = LocalBackupFiles(
+        root: '${temporary.path}/target',
+        call: target.call,
+        saveFile: (_) async => null,
+        openFile: (destination) async {
+          File(destination).writeAsStringSync('partial provider copy');
+          throw const FileSystemException('Provider read failed');
+        },
+      );
+      await expectLater(
+        failedPicker.restore('Unreadable'),
+        throwsA(isA<FileSystemException>()),
+      );
+      expect(
+        Directory('${temporary.path}/target/client-files').listSync(),
+        isEmpty,
+      );
     } finally {
       for (final session in sessions) {
         await session.close();

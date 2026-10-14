@@ -385,7 +385,7 @@ final class DeviceConnection {
     }
 
     final files =
-        Platform.isMacOS && saveBackupFile != null && openBackupFile != null
+        (Platform.isMacOS || _embeddedLocal) && saveBackupFile != null && openBackupFile != null
         ? LocalBackupFiles(
             root: root!,
             call: (request) => sequenced(() => client.call(request)),

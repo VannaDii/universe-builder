@@ -27,7 +27,7 @@ final class LocalBackupFiles {
 
   Future<String?> backup(LibraryEntry universe) async {
     final directory = _directory();
-    final path = '${directory.path}/package.sqlite';
+    final path = '${directory.path}/Universe Builder backup.sqlite';
     final f = WireFields(
       await call(
         BackupEngineRequest(
@@ -56,7 +56,14 @@ final class LocalBackupFiles {
     }
     final directory = _directory();
     final source = '${directory.path}/package.sqlite';
-    if (!await openFile(source)) {
+    final bool picked;
+    try {
+      picked = await openFile(source);
+    } on Object {
+      directory.deleteSync(recursive: true);
+      rethrow;
+    }
+    if (!picked) {
       directory.deleteSync(recursive: true);
       return null;
     }

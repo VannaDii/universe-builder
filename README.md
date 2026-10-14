@@ -40,6 +40,11 @@ connection selects this worker on iOS/Android, initializes or retains the protec
 device profile, and closes the worker with its session. The iOS runner supplies an app-private, backup-excluded installation directory;
 Android uses its no-backup app directory and permits the local authenticated
 network transport. Desktop backend-switching controls are omitted on mobile.
+Mobile **Save complete backup file** and **Restore a backup** use system file
+providers. The service finishes and validates its snapshot before export; restore
+copies into a fresh private staging file before validation and registration.
+Copies retain the existing 8 GiB package bound and do not carry installation
+credentials. Cancelling a picker leaves canon unchanged.
 The macOS and mobile **Choose text file** controls read bounded UTF-8
 files, preserving BOMs, Unicode and line endings in the existing unfinished
 source form. Mobile temporary copies are released after decoding, including

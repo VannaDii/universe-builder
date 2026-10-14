@@ -149,7 +149,7 @@ class _StorageMaintenancePageState extends State<StorageMaintenancePage> {
                 if (widget.session.backupFile == null &&
                     widget.session.downloadArchive == null)
                   const Text(
-                    'Native backup file selection is currently available on macOS. Other file flows remain in the operator interface.',
+                    'Native backup file selection is available on macOS, iOS and Android. Other file flows remain in the operator interface.',
                   ),
                 const Divider(),
               ],
