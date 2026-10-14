@@ -30,6 +30,7 @@ import 'property_editor_page.dart';
 import 'relation_editor_page.dart';
 import 'unit_editor_page.dart';
 import 'calendar_editor_page.dart';
+import 'pack_editor_page.dart';
 import 'action_editor_page.dart';
 import 'rule_editor_page.dart';
 import 'value_definition_editor_page.dart';
@@ -898,6 +899,36 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                                   ),
                                 ),
                           child: const Text('Revise calendar definition'),
+                        ),
+                      if (record.payload is DomainPackRecord)
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context).push<SavedDraft>(
+                                  MaterialPageRoute(
+                                    builder: (_) => PackEditorPage(
+                                      revision: widget.context.frame.revision,
+                                      revisionRecord: record,
+                                      changes: SavedChanges(
+                                        session: widget.session,
+                                        universe: Selector(
+                                          widget.universe.name,
+                                        ),
+                                        scope: EditorFormScope(
+                                          instance: widget.scope.instance,
+                                          profile: widget.scope.profile,
+                                          universe: widget.universe.id,
+                                          continuity: widget.continuity.id,
+                                          representedContext:
+                                              widget.representedContext.id,
+                                          typeClientRef:
+                                              record.identity.recordId.value,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                          child: const Text('Upgrade domain pack'),
                         ),
                       if (record.payload is ActionDefinitionRecord)
                         TextButton(

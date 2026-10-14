@@ -236,6 +236,7 @@ final class DeviceConnection {
       root: root!,
       client: client,
     );
+    final packRecovery = LocalPackFormRecovery(root: root!, client: client);
     final boundaryRecovery = LocalBoundaryFormRecovery(
       root: root!,
       client: client,
@@ -361,6 +362,8 @@ final class DeviceConnection {
       loadEventWithdrawalForm: (scope) =>
           sequenced(() => eventWithdrawalRecovery.load(scope)),
       saveEventWithdrawalForm: eventWithdrawalRecovery.save,
+      loadPackForm: (scope) => sequenced(() => packRecovery.load(scope)),
+      savePackForm: packRecovery.save,
       loadBoundaryForm: (scope) =>
           sequenced(() => boundaryRecovery.load(scope)),
       saveBoundaryForm: boundaryRecovery.save,

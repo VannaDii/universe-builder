@@ -42,6 +42,7 @@ import 'universe_access_page.dart';
 import 'backup_file_dialogs.dart';
 import 'storage_maintenance_page.dart';
 import 'calendar_editor_page.dart';
+import 'pack_editor_page.dart';
 import 'entity_editor_page.dart';
 import 'changes_page.dart';
 import 'saved_changes.dart';
@@ -1681,6 +1682,37 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                                       }
                                     }),
                           child: const Text('Calendar definition'),
+                        ),
+                      if (_contexts.containsKey(continuity.id))
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context)
+                                    .push<void>(
+                                      MaterialPageRoute(
+                                        builder: (_) => PackEditorPage(
+                                          revision: continuity.revisionId,
+                                          changes: SavedChanges(
+                                            session: _session!,
+                                            universe: Selector(_selected!.name),
+                                            scope: EditorFormScope(
+                                              instance: _library!.instance,
+                                              profile: _session!.principal,
+                                              universe: _selected!.id,
+                                              continuity: continuity.id,
+                                              representedContext:
+                                                  _contexts[continuity.id],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                    .then((_) {
+                                      if (mounted && _selected != null) {
+                                        _open(_selected!);
+                                      }
+                                    }),
+                          child: const Text('Domain pack'),
                         ),
                       if (_contexts.containsKey(continuity.id))
                         TextButton(

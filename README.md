@@ -281,6 +281,14 @@ In author perspective, proposition choices show their subject, predicate,
 quantification, context, ordered participants and simple values using accessible
 names. Search matches these descriptions. Hidden dependencies retain the
 existing fallback; labels do not assert that a proposition is true.
+**Domain pack** declares a data pack key, exact version, exact dependency versions,
+capabilities and ordered named member records. Declaring a pack does not download
+content or change its members. Unfinished fields recover on this device, and
+pending declarations offer **Edit pack fields** in Changes. Published packs offer
+**Upgrade domain pack**; the key stays fixed and the exact version must change.
+**Edit pack upgrade fields** reopens pending upgrades with the original target and
+version. Reviewed publication checks dependency versions, cycles and supported
+capabilities and preserves prior pack versions.
 Published events offer **Revise event** in their record details. Authors can edit
 occurrence, time, declared action, location, participants, preconditions and effect
 declarations. Other language labels remain intact. Unfinished revisions recover

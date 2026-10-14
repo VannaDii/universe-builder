@@ -45,6 +45,8 @@ final class AppSession {
     required this.saveAssertionCorrectionForm,
     required this.loadEventWithdrawalForm,
     required this.saveEventWithdrawalForm,
+    required this.loadPackForm,
+    required this.savePackForm,
     required this.savePassageForm,
     required this.saveSceneForm,
     required this.loadBoundaryForm,
@@ -237,6 +239,13 @@ final class AppSession {
     BigInt,
   )
   saveEventWithdrawalForm;
+  final Future<SavedPackForm?> Function(EditorFormScope) loadPackForm;
+  final Future<SavedPackForm> Function(
+    EditorFormScope,
+    UnfinishedPackForm,
+    BigInt,
+  )
+  savePackForm;
   final Future<SavedBoundaryForm?> Function(EditorFormScope) loadBoundaryForm;
   final Future<SavedBoundaryForm> Function(
     EditorFormScope,
