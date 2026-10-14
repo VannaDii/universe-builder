@@ -928,6 +928,7 @@ void main() {
             (v) => WireFields(v, {
               'record_id',
               'kind',
+              'label',
               'target_version',
               'source_version',
             }).string('record_id'),
@@ -1278,6 +1279,7 @@ void main() {
               (v) => WireFields(v, {
                 'record_id',
                 'kind',
+                'label',
                 'target_version',
                 'source_version',
               }).string('record_id'),

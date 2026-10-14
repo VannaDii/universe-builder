@@ -2510,6 +2510,7 @@ final class PostgresValidationWorkflow {
             entries.add(
               CanonicalObject([
                 MapEntry('record_id', CanonicalString(id.value)),
+                MapEntry('label', CanonicalString(recordReadLabel((b ?? a)!))),
                 MapEntry(
                   'kind',
                   CanonicalString((b ?? a)!.identity.recordKind.wireName),

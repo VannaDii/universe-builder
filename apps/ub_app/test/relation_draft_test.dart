@@ -4,10 +4,11 @@ library;
 import 'dart:io';
 import 'dart:convert';
 
-import 'package:test/test.dart';
+import 'package:test/test.dart' hide Description;
 import 'package:ub_app/relation_draft.dart';
 import 'package:ub_app/event_draft.dart';
 import 'package:ub_app/action_draft.dart';
+import 'package:ub_app/continuity_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -1121,6 +1122,77 @@ void main() {
         ),
         throwsFormatException,
       );
+      final branch = ContinuityId.generate();
+      await session.call(
+        ForkContinuityEngineRequest(
+          universe: const Selector('Relations'),
+          name: 'Alternate campaign',
+          continuityId: branch,
+          source: scope.continuity,
+          revision: eventsBase.content.baseRevision,
+        ),
+      );
+      final summary = Envelope<Description>.fromWire(
+        await session.call(
+          ToolEngineRequest(
+            request: DescribeSummaryRequest(
+              universe: const Selector('Relations'),
+            ),
+          ),
+        ),
+        Description.fromWire,
+      ).result;
+      final target = summary.continuities.singleWhere((c) => c.id == branch);
+      final sourceContinuity = summary.continuities.singleWhere(
+        (c) => c.id == scope.continuity,
+      );
+      final branchChanges = SavedChanges(
+        session: session,
+        universe: const Selector('Relations'),
+        scope: EditorFormScope(
+          instance: scope.instance,
+          profile: scope.profile,
+          universe: scope.universe,
+          continuity: branch,
+          representedContext: scope.representedContext,
+        ),
+      );
+      final differences = await compareContinuities(
+        branchChanges,
+        target,
+        sourceContinuity,
+      );
+      final propertyDifference = differences.singleWhere(
+        (d) => d.kind == RecordKind.property && d.label == 'Hometown',
+      );
+      expect(propertyDifference.targetVersion, isNull);
+      expect(propertyDifference.sourceVersion, isNotNull);
+      final adoption = await stageContinuityAdoption(
+        changes: branchChanges,
+        target: target,
+        source: sourceContinuity,
+        selected: [propertyDifference.record],
+        rationale: 'Bring the property into this campaign.',
+      );
+      expect(adoption.content.operations, hasLength(1));
+      final retried = await stageContinuityAdoption(
+        changes: branchChanges,
+        target: target,
+        source: sourceContinuity,
+        selected: [propertyDifference.record],
+        rationale: 'Bring the property into this campaign.',
+      );
+      expect(retried.version, adoption.version);
+      expect(retried.content.rationale, adoption.content.rationale);
+      final proposal = await branchChanges.submit(retried);
+      final validation = await branchChanges.validate(proposal);
+      expect(validation, isA<EvaluatedValidation>());
+      await branchChanges.approve(proposal, validation as EvaluatedValidation);
+      final adopted = await branchChanges.publish(
+        proposal,
+        validation.execution.runId,
+      );
+      expect(adopted.revision, isNot(target.revisionId));
     } finally {
       await session?.close();
       await server.close();

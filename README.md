@@ -236,6 +236,14 @@ Moving slots preserves their declared execution order. Unfinished fields recover
 on this device; **Edit action fields** in Changes preserves the pending identity
 and review rationale. An absent contract remains distinct from an empty one.
 Authoring a definition does not execute an action or change event state.
+**Continuities** creates an alternate continuity from the selected edition and
+compares named record differences between source and target editions. Authors
+select up to 100 changes explicitly; a source absence is shown as a proposed
+removal. **Add selected changes to target Changes** retains selection order and
+uses the existing reviewed adoption operations. Publication still requires the
+separate check, proposal and exact approval flow. Refreshing editions clears the
+comparison and selection; an older target draft must be reviewed or rebased.
+Creation retries retain the same continuity identity while this screen is open.
 **Timeline** in an entity dossier lists events with explicit participation.
 Exact numeric points are ordered separately in each named calendar, using the
 shared rule engine's integer bounds. Equal coordinates do not imply sequence.
