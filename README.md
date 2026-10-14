@@ -80,7 +80,12 @@ after streaming, expiry cleanup or normal shutdown. Import choices, operation ID
 as named IndexedDB fields, scoped to the target instance and profile. Refresh does
 not upload or admit automatically. An interrupted upload requires explicit file
 reselection; an unknown admission outcome is recovered by retrying the same exact
-admission. Browser URL navigation work remains in progress.
+admission. Browser root links use `#/library`, `#/settings`, `#/help` and
+`#/universe/<universe-id>`. Back/Forward follows those pages; refresh retains a
+universe bookmark but opens it only after an explicit authenticated connection.
+Unavailable universe IDs return to Library. An open editor uses its existing
+guarded Back action before a requested root navigation is applied. Editor-specific
+links and full editor history remain in progress.
 
 Connected approval owners can create a universe from Library. Gregorian creation
 uses an explicitly entered date, whole-second time and fixed UTC offset, with an

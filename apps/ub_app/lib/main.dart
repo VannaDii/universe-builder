@@ -42,6 +42,8 @@ import 'universe_access_page.dart';
 import 'backup_file_dialogs.dart';
 import 'storage_maintenance_page.dart';
 import 'package_import_page.dart';
+import 'navigation_location.dart';
+import 'library_router.dart';
 import 'calendar_editor_page.dart';
 import 'pack_editor_page.dart';
 import 'entity_editor_page.dart';
@@ -71,6 +73,11 @@ class UniverseBuilderApp extends StatefulWidget {
 }
 
 class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
+  late final LibraryRouter _router = LibraryRouter(
+    home: (_) => _home(),
+    navigate: _navigateLibrary,
+  );
+  LibraryLocation? _resumeLocation;
   final _browserToken = TextEditingController();
   ThemeMode _theme = ThemeMode.system;
   AppSession? _session;
@@ -86,8 +93,56 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
   @override
   void dispose() {
     _session?.close();
+    _router.dispose();
     _browserToken.dispose();
     super.dispose();
+  }
+
+  Future<LibraryLocation> _navigateLibrary(LibraryLocation location) async {
+    if (!mounted) return const LibraryLocation();
+    if (location.universe != null) {
+      if (_library == null) {
+        _resumeLocation = location;
+        setState(() => _page = 0);
+        return location;
+      }
+      final entries = _library!.universes.where(
+        (entry) => entry.id == location.universe,
+      );
+      if (entries.isEmpty) {
+        setState(() {
+          _selected = null;
+          _description = null;
+          _page = 0;
+          _error = 'This universe is unavailable with your current access.';
+        });
+        return const LibraryLocation();
+      }
+      setState(() => _page = 0);
+      await _open(entries.single, announce: false);
+      return location;
+    }
+    setState(() {
+      _page = location.section.index;
+      if (_page == 0) {
+        _selected = null;
+        _description = null;
+        _worlds = {};
+        _contexts = {};
+      }
+    });
+    return location;
+  }
+
+  void _selectSection(int index) {
+    setState(() => _page = index);
+    if (widget.device.supportsBrowser) {
+      _router.setLocation(
+        index == 0 && _selected != null
+            ? LibraryLocation(universe: _selected!.id)
+            : LibraryLocation(section: LibrarySection.values[index]),
+      );
+    }
   }
 
   Future<void> _connect() async {
@@ -127,6 +182,11 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
         _description = null;
         _page = 0;
       });
+      if (widget.device.supportsBrowser) {
+        final target = _resumeLocation ?? _router.currentConfiguration;
+        _resumeLocation = null;
+        _router.setLocation(await _navigateLibrary(target));
+      }
     } on Object {
       await session?.close();
       if (mounted) {
@@ -277,7 +337,10 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
     }
   }
 
-  Future<void> _open(LibraryEntry entry) async {
+  Future<void> _open(LibraryEntry entry, {bool announce = true}) async {
+    if (announce && widget.device.supportsBrowser) {
+      _router.setLocation(LibraryLocation(universe: entry.id));
+    }
     final previousContexts = _selected?.id == entry.id
         ? _contexts
         : <ContinuityId, RecordId>{};
@@ -439,125 +502,133 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
   }
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'Universe Builder',
-    debugShowCheckedModeBanner: false,
-    theme: _colors(Brightness.light),
-    darkTheme: _colors(Brightness.dark),
-    themeMode: _theme,
-    home: Builder(
-      builder: (context) => LayoutBuilder(
-        builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 800;
-          final content = _page == 1
-              ? _settings()
-              : _page == 2
-              ? _help()
-              : _library == null
-              ? _entry()
-              : _selected == null
-              ? _universes(context)
-              : _overview(context);
-          return Scaffold(
-            appBar: AppBar(
-              title: Row(
-                children: [
-                  Image.asset(
-                    'assets/universe-builder.png',
-                    width: 36,
-                    height: 36,
-                    semanticLabel: 'Universe Builder',
-                  ),
-                  const SizedBox(width: 12),
-                  const Text('Universe Builder'),
-                ],
-              ),
-              actions: [
-                if (_session?.logout != null)
-                  IconButton(
-                    onPressed: _busy ? null : _logoutBrowser,
-                    icon: const Icon(Icons.logout),
-                    tooltip: 'Sign out',
-                  ),
-                if (_session != null)
-                  IconButton(
-                    onPressed: _busy ? null : _connect,
-                    icon: const Icon(Icons.refresh),
-                    tooltip: 'Refresh connection',
-                  ),
-              ],
-            ),
-            body: Row(
+  Widget build(BuildContext context) => widget.device.supportsBrowser
+      ? MaterialApp.router(
+          title: 'Universe Builder',
+          debugShowCheckedModeBanner: false,
+          theme: _colors(Brightness.light),
+          darkTheme: _colors(Brightness.dark),
+          themeMode: _theme,
+          routerDelegate: _router,
+          routeInformationParser: const LibraryRouteParser(),
+        )
+      : MaterialApp(
+          title: 'Universe Builder',
+          debugShowCheckedModeBanner: false,
+          theme: _colors(Brightness.light),
+          darkTheme: _colors(Brightness.dark),
+          themeMode: _theme,
+          home: _home(),
+        );
+
+  Widget _home() => Builder(
+    builder: (context) => LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 800;
+        final content = _page == 1
+            ? _settings()
+            : _page == 2
+            ? _help()
+            : _library == null
+            ? _entry()
+            : _selected == null
+            ? _universes(context)
+            : _overview(context);
+        return Scaffold(
+          appBar: AppBar(
+            title: Row(
               children: [
-                if (wide)
-                  NavigationRail(
-                    selectedIndex: _page,
-                    extended: constraints.maxWidth >= 1100,
-                    onDestinationSelected: (index) => setState(() {
-                      _page = index;
-                    }),
-                    destinations: const [
-                      NavigationRailDestination(
-                        icon: Icon(Icons.auto_stories_outlined),
-                        selectedIcon: Icon(Icons.auto_stories),
-                        label: Text('Library'),
-                      ),
-                      NavigationRailDestination(
-                        icon: Icon(Icons.settings_outlined),
-                        label: Text('Settings'),
-                      ),
-                      NavigationRailDestination(
-                        icon: Icon(Icons.help_outline),
-                        label: Text('Help'),
-                      ),
-                    ],
-                  ),
-                if (wide) const VerticalDivider(width: 1),
-                Expanded(
-                  child: Column(
-                    children: [
-                      if (_busy) const LinearProgressIndicator(),
-                      if (_error != null)
-                        MaterialBanner(
-                          content: Text(_error!),
-                          actions: [
-                            TextButton(
-                              onPressed: _busy ? null : _connect,
-                              child: const Text('Reconnect'),
-                            ),
-                          ],
-                        ),
-                      Expanded(child: FocusTraversalGroup(child: content)),
-                    ],
-                  ),
+                Image.asset(
+                  'assets/universe-builder.png',
+                  width: 36,
+                  height: 36,
+                  semanticLabel: 'Universe Builder',
                 ),
+                const SizedBox(width: 12),
+                const Text('Universe Builder'),
               ],
             ),
-            bottomNavigationBar: wide
-                ? null
-                : NavigationBar(
-                    selectedIndex: _page,
-                    onDestinationSelected: (index) => setState(() {
-                      _page = index;
-                    }),
-                    destinations: const [
-                      NavigationDestination(
-                        icon: Icon(Icons.auto_stories_outlined),
-                        label: 'Library',
+            actions: [
+              if (_session?.logout != null)
+                IconButton(
+                  onPressed: _busy ? null : _logoutBrowser,
+                  icon: const Icon(Icons.logout),
+                  tooltip: 'Sign out',
+                ),
+              if (_session != null)
+                IconButton(
+                  onPressed: _busy ? null : _connect,
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Refresh connection',
+                ),
+            ],
+          ),
+          body: Row(
+            children: [
+              if (wide)
+                NavigationRail(
+                  selectedIndex: _page,
+                  extended: constraints.maxWidth >= 1100,
+                  onDestinationSelected: _selectSection,
+                  destinations: const [
+                    NavigationRailDestination(
+                      icon: Icon(Icons.auto_stories_outlined),
+                      selectedIcon: Icon(Icons.auto_stories),
+                      label: Text('Library'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.settings_outlined),
+                      label: Text('Settings'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.help_outline),
+                      label: Text('Help'),
+                    ),
+                  ],
+                ),
+              if (wide) const VerticalDivider(width: 1),
+              Expanded(
+                child: Column(
+                  children: [
+                    if (_busy) const LinearProgressIndicator(),
+                    if (_error != null)
+                      MaterialBanner(
+                        content: Text(_error!),
+                        actions: [
+                          TextButton(
+                            onPressed: _busy ? null : _connect,
+                            child: const Text('Reconnect'),
+                          ),
+                        ],
                       ),
-                      NavigationDestination(
-                        icon: Icon(Icons.settings_outlined),
-                        label: 'Settings',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.help_outline),
-                        label: 'Help',
-                      ),
-                    ],
-                  ),
-          );
-        },
-      ),
+                    Expanded(child: FocusTraversalGroup(child: content)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          bottomNavigationBar: wide
+              ? null
+              : NavigationBar(
+                  selectedIndex: _page,
+                  onDestinationSelected: _selectSection,
+                  destinations: const [
+                    NavigationDestination(
+                      icon: Icon(Icons.auto_stories_outlined),
+                      label: 'Library',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.settings_outlined),
+                      label: 'Settings',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.help_outline),
+                      label: 'Help',
+                    ),
+                  ],
+                ),
+        );
+      },
     ),
   );
 
@@ -698,6 +769,9 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
           onPressed: () => setState(() {
             _selected = null;
             _description = null;
+            if (widget.device.supportsBrowser) {
+              _router.setLocation(const LibraryLocation());
+            }
           }),
           icon: const Icon(Icons.arrow_back),
           label: const Text('Library'),
