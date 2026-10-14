@@ -3,6 +3,20 @@ import 'package:ub_domain/ub_domain.dart';
 
 import 'package_import.dart';
 
+/// Session-only service identity. Private recovery never stores the access key.
+final class HostedConnectionChoice {
+  const HostedConnectionChoice({
+    required this.endpoint,
+    required this.profile,
+    required this.credential,
+  });
+  final Uri endpoint;
+  final ProfileId profile;
+  final Credential credential;
+  @override
+  String toString() => 'HostedConnectionChoice([redacted])';
+}
+
 final class AppSession {
   const AppSession({
     this.cancelArchiveUpload,

@@ -54,6 +54,9 @@ import 'browser_package_import_recovery.dart';
 /// The service owns canon and credentials; this tab holds only its short-lived
 /// CSRF token and origin-private unfinished editor input.
 final class DeviceConnection {
+  bool get supportsHosted => false;
+  bool get isHosted => true;
+  HostedConnectionChoice? hosted;
   DeviceConnection(
     List<String> arguments, {
     Future<String?> Function(String)? saveBackupFile,

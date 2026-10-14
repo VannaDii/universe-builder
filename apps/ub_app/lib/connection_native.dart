@@ -56,6 +56,7 @@ final class DeviceConnection {
     this.pickSourcePath,
     this.releasePickedPath,
     this.installationRoot,
+    this.hostedSecurityContext,
     bool? embeddedLocal,
   }) : _embeddedLocal = embeddedLocal ?? (Platform.isIOS || Platform.isAndroid) {
     for (var i = 0; i < arguments.length; i++) {
@@ -87,11 +88,15 @@ final class DeviceConnection {
   final Future<void> Function(String)? releasePickedPath;
   final Future<String?> Function()? installationRoot;
   final bool _embeddedLocal;
+  final SecurityContext? hostedSecurityContext;
+  HostedConnectionChoice? hosted;
+  bool get supportsHosted => true;
+  bool get isHosted => hosted != null;
   String? root, profile, helper;
   bool get supportsBrowser => false;
   String? browserEnrollmentToken;
   bool get supportsLocal => true;
-  bool get supportsLocalSettings => !_embeddedLocal;
+  bool get supportsLocalSettings => !_embeddedLocal && !isHosted;
   bool get available => root?.isNotEmpty == true || (_embeddedLocal && installationRoot != null);
   String get unavailableMessage =>
       'Open Universe Builder from a configured local installation.';
@@ -202,11 +207,24 @@ final class DeviceConnection {
   }
 
   Future<AppSession> connect() async {
+    final hostedChoice = hosted;
     if (_embeddedLocal && root == null) root = await installationRoot?.call();
     if (root?.isNotEmpty != true) throw StateError('Local connection not configured');
     EmbeddedSqliteEngine? embedded;
     late final LoopbackEngineClient client;
-    if (_embeddedLocal) {
+    if (hostedChoice != null) {
+      privateDirectory(root!);
+      client = await LoopbackEngineClient.connectHttps(
+        endpoint: hostedChoice.endpoint,
+        hello: EngineHello(
+          protocolVersion: protocolVersion,
+          profileId: hostedChoice.profile,
+          credential: hostedChoice.credential,
+          clientName: 'universe-builder-app',
+        ),
+        context: hostedSecurityContext,
+      );
+    } else if (_embeddedLocal) {
       final localRoot = root!, selectedProfile = profile;
       final selected = await Isolate.run(() async {
         LocalSettingsStore? settings;
@@ -412,7 +430,7 @@ final class DeviceConnection {
     }
 
     final files =
-        (Platform.isMacOS || _embeddedLocal) && saveBackupFile != null && openBackupFile != null
+        hostedChoice == null && (Platform.isMacOS || _embeddedLocal) && saveBackupFile != null && openBackupFile != null
         ? LocalBackupFiles(
             root: root!,
             call: (request) => sequenced(() => client.call(request)),
@@ -420,12 +438,23 @@ final class DeviceConnection {
             openFile: openBackupFile!,
           )
         : null;
-    final importStatus = InstanceLibrary.fromWire(
-      await sequenced(() => client.call(const StatusEngineRequest())),
-    );
+    final InstanceLibrary importStatus;
+    try {
+      importStatus = InstanceLibrary.fromWire(
+        await sequenced(() => client.call(const StatusEngineRequest())),
+      );
+    } on Object {
+      await client.close();
+      await embedded?.close();
+      rethrow;
+    }
     final importScope = (importStatus.instance, client.welcome.principal);
     final importPath = '$root/client-recovery/package-import-forms.sqlite';
     return AppSession(
+      logout: hostedChoice == null ? null : () async {
+        if (identical(hosted, hostedChoice)) hosted = null;
+        await client.close();
+      },
       loadPackageImport: client.welcome.author && files != null
           ? () => _loadImportForm(importPath, importScope)
           : null,
@@ -459,7 +488,7 @@ final class DeviceConnection {
       saveArchiveFile: client.welcome.author ? files?.archive : null,
       restoreBackupFile: files?.restore,
       pickImage:
-          client.welcome.author &&
+          hostedChoice == null && client.welcome.author &&
               (Platform.isMacOS || _embeddedLocal) &&
               pickImagePath != null
           ? (universe) async {

@@ -71,7 +71,7 @@ saves immediately when the
 app loses focus or enters the background, including forms behind a popup. Changes
 rationale and package-import choices use their existing save paths. A save must
 finish before input is durable; failures retain input in the form. Full mobile
-lifecycle, other file/share flows and hosted connections remain unfinished.
+lifecycle and hosted file/share transfers remain unfinished.
 
 The shared transport library also accepts an explicit HTTPS origin, TLS server
 context and bind address for either service runtime. Native clients can connect
@@ -92,8 +92,15 @@ The command prints the public HTTPS endpoint and stays running until author
 shutdown or a signal. Certificate/key/binding failure stops startup rather than
 leaving a local-only service running. Restart the engine after certificate changes.
 Backend selection continues to use `UB_USE_POSTGRES` and `UB_POSTGRES_ENDPOINT`
-or the saved encrypted configuration. Native hosted connection screens and paid
-hosting setup remain unfinished.
+or the saved encrypted configuration.
+
+Native apps offer **Connect to a service** with an HTTPS address, profile ID and
+access key supplied by the instance owner. The key stays in memory for the session
+and is forgotten on sign-out; it is not written into local recovery. Ordinary
+authoring uses the same service operations and exact review/publication flow.
+Unfinished input stays in app-private storage scoped to the verified service
+instance and profile, and can be reopened after reconnecting. Hosted image/package
+file transfers and paid-hosting setup remain unfinished.
 
 The local HTTP transport supports the browser-session prerequisite. The explicit
 `universe --installation <path> --profile <id> browser-session` command returns the

@@ -49,6 +49,7 @@ import 'continuity_page.dart';
 import 'universe_access_page.dart';
 import 'backup_file_dialogs.dart';
 import 'device_storage.dart';
+import 'hosted_connection_page.dart';
 import 'storage_maintenance_page.dart';
 import 'package_import_page.dart';
 import 'navigation_location.dart';
@@ -867,6 +868,8 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
         setState(() {
           _error = widget.device.supportsBrowser
               ? 'Could not connect. Check that the instance is running. Use a fresh connection code if your session has expired.'
+              : widget.device.isHosted
+              ? 'Could not connect. Check the service address and profile access, then try again.'
               : 'Could not connect. Check that your local instance is available, then try again.';
         });
       }
@@ -908,6 +911,17 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
         });
       }
     }
+  }
+
+  Future<void> _openHosted(BuildContext context) async {
+    await Navigator.of(context).push<void>(MaterialPageRoute(
+      builder: (_) => HostedConnectionPage(connect: (choice) async {
+        widget.device.hosted = choice;
+        await _connect();
+        if (_session == null) throw StateError('Service connection unavailable');
+      }),
+    ));
+    if (_session == null) widget.device.hosted = null;
   }
 
   Future<void> _applyPostgres(TestedPostgresConnection target) async {
@@ -1324,10 +1338,19 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
             const SizedBox(height: 28),
             if (widget.device.supportsLocal)
               FilledButton.icon(
-                onPressed: _busy || !widget.device.available ? null : _connect,
+                onPressed: _busy || !widget.device.available ? null : () {
+                  widget.device.hosted = null;
+                  _connect();
+                },
                 icon: const Icon(Icons.computer_outlined),
                 label: const Text('Use this device'),
               ),
+            if (widget.device.supportsHosted)
+              Builder(builder: (context) => TextButton.icon(
+                onPressed: _busy ? null : () => _openHosted(context),
+                icon: const Icon(Icons.cloud_outlined),
+                label: const Text('Connect to a service'),
+              )),
             if (widget.device.supportsBrowser) ...[
               const Text(
                 'Connect to the instance serving this page. Paste a connection code from that instance, or resume this tab’s session.',
@@ -1375,8 +1398,10 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       ),
       const SizedBox(height: 8),
       Text(
-        '${widget.device.supportsBrowser ? 'Connected instance' : 'This device'} · ${_session!.author ? 'Approval owner' : 'Contributor'}',
+        '${widget.device.supportsBrowser || widget.device.isHosted ? 'Connected instance' : 'This device'} · ${_session!.author ? 'Approval owner' : 'Contributor'}',
       ),
+      if (widget.device.supportsHosted && widget.device.hosted != null)
+        SelectableText(widget.device.hosted!.endpoint.origin),
       const SizedBox(height: 24),
       if (_session!.author) ...[
         Align(
