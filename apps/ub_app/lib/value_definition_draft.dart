@@ -34,35 +34,119 @@ DefineValueOperation valueDefinitionOperation(
   );
 }
 
+ReviseDefinitionOperation valueDefinitionRevisionOperation(
+  UnfinishedValueDefinitionForm form,
+) {
+  if (form.revisionTarget == null ||
+      form.expectedRecordVersion == null ||
+      form.original == null) {
+    throw const FormatException(
+      'Open a published value definition to revise it.',
+    );
+  }
+  final next = valueDefinitionOperation(form).record;
+  if (next.namespace != form.original!.namespace ||
+      next.key != form.original!.key) {
+    throw const FormatException(
+      'Value-definition revisions retain namespace and key.',
+    );
+  }
+  final target = form.revisionTarget!;
+  return ReviseDefinitionOperation(
+    record: RecordRef(
+      record: RecordId.parse(target.record),
+      universe: target.universe.isEmpty
+          ? null
+          : UniverseId.parse(target.universe),
+    ),
+    expectedVersion: form.expectedRecordVersion!,
+    replacement: next,
+  );
+}
+
+UnfinishedValueDefinitionForm valueDefinitionRevisionFormFromRecord({
+  required RecordVersion record,
+  required RevisionId baseRevision,
+  required RecordId representedContext,
+}) {
+  if (record.payload is! ValueDefinitionRecord) {
+    throw const FormatException('Choose a published value definition.');
+  }
+  return _valueDefinitionForm(
+    v: record.payload as ValueDefinitionRecord,
+    baseRevision: baseRevision,
+    representedContext: representedContext,
+    clientRef: record.identity.recordId.value,
+    revisionTarget: ExpressionReferenceInput(
+      record: record.identity.recordId.value,
+      universe: record.identity.universeId.value,
+    ),
+    expectedRecordVersion: record.recordVersionId,
+  );
+}
+
 UnfinishedValueDefinitionForm valueDefinitionFormFromDraft(
   SavedDraft draft,
   int index,
 ) {
   final op = draft.content.operations[index];
+  if (op is ReviseDefinitionOperation &&
+      op.replacement is ValueDefinitionRecord) {
+    return _valueDefinitionForm(
+      v: op.replacement as ValueDefinitionRecord,
+      baseRevision: draft.content.baseRevision,
+      representedContext: draft.content.representedContext,
+      clientRef: op.record.record.value,
+      revisionTarget: ExpressionReferenceInput(
+        record: op.record.record.value,
+        universe: op.record.universe?.value ?? '',
+      ),
+      expectedRecordVersion: op.expectedVersion,
+      draftVersion: draft.version,
+    );
+  }
   if (op is! DefineValueOperation) {
     throw const FormatException('Choose a value definition from Changes.');
   }
-  final v = op.record;
-  return UnfinishedValueDefinitionForm(
+  return _valueDefinitionForm(
+    v: op.record,
     baseRevision: draft.content.baseRevision,
     representedContext: draft.content.representedContext,
     clientRef: op.clientRef,
-    namespace: v.namespace,
-    key: v.key,
-    labels: v.labels.entries.map(
-      (e) => PropertyLabelInput(language: e.key, text: e.value),
-    ),
-    fields: v.fields.map(
-      (f) => ValueDefinitionFieldInput(
-        name: f.name,
-        shape: valueShapeInput(f.shape),
-        required: f.required,
-        allowsUnknown: f.allowsUnknown,
-      ),
-    ),
     draftVersion: draft.version,
   );
 }
+
+UnfinishedValueDefinitionForm _valueDefinitionForm({
+  required ValueDefinitionRecord v,
+  required RevisionId baseRevision,
+  required RecordId representedContext,
+  required String clientRef,
+  ExpressionReferenceInput? revisionTarget,
+  RecordVersionId? expectedRecordVersion,
+  BigInt? draftVersion,
+}) => UnfinishedValueDefinitionForm(
+  baseRevision: baseRevision,
+  representedContext: representedContext,
+  clientRef: clientRef,
+  revisionTarget: revisionTarget,
+  expectedRecordVersion: expectedRecordVersion,
+  original: revisionTarget == null ? null : v,
+  namespace: v.namespace,
+  key: v.key,
+  labels: v.labels.entries.map(
+    (e) => PropertyLabelInput(language: e.key, text: e.value),
+  ),
+  fields: v.fields.map(
+    (f) => ValueDefinitionFieldInput(
+      name: f.name,
+      shape: valueShapeInput(f.shape),
+      required: f.required,
+      allowsUnknown: f.allowsUnknown,
+    ),
+  ),
+  draftVersion: draftVersion,
+);
 
 SaveDraftEngineRequest valueDefinitionDraftRequest({
   required SavedDraft draft,
@@ -78,12 +162,17 @@ SaveDraftEngineRequest valueDefinitionDraftRequest({
       'Review Changes before adding this value definition.',
     );
   }
-  final operation = valueDefinitionOperation(form);
+  final operation = form.revisionTarget == null
+      ? valueDefinitionOperation(form)
+      : valueDefinitionRevisionOperation(form);
   final operations = [...draft.content.operations];
   if (index != null) {
     final before = valueDefinitionFormFromDraft(draft, index);
     if (form.draftVersion != draft.version ||
-        form.clientRef != before.clientRef) {
+        form.clientRef != before.clientRef ||
+        form.revisionTarget?.toWire().toText() !=
+            before.revisionTarget?.toWire().toText() ||
+        form.expectedRecordVersion != before.expectedRecordVersion) {
       throw const FormatException(
         'The draft changed. Reopen its current value-definition fields.',
       );
@@ -91,6 +180,22 @@ SaveDraftEngineRequest valueDefinitionDraftRequest({
     operations[index] = operation;
   } else {
     for (final existing in operations) {
+      if (operation is ReviseDefinitionOperation &&
+          existing is ReviseDefinitionOperation &&
+          existing.record == operation.record) {
+        if (existing.toWire().toText() != operation.toWire().toText()) {
+          throw const FormatException(
+            'This value definition already has a revision. Edit it in Changes.',
+          );
+        }
+        return SaveDraftEngineRequest(
+          universe: universe,
+          continuityId: continuity,
+          expectedVersion: draft.version,
+          content: draft.content,
+        );
+      }
+
       final ref = Map.fromEntries(existing.toWire().fields)['client_ref'];
       if (ref is CanonicalString && ref.value == form.clientRef) {
         if (existing.toWire().toText() != operation.toWire().toText()) {

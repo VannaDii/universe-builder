@@ -1,6 +1,7 @@
 import 'package:ub_domain/ub_domain.dart';
 
 import 'wire.dart';
+import 'expression_forms.dart';
 import 'property_forms.dart';
 
 final class ValueDefinitionFieldInput {
@@ -49,6 +50,9 @@ final class UnfinishedValueDefinitionForm {
     Iterable<PropertyLabelInput> labels = const [],
     Iterable<ValueDefinitionFieldInput> fields = const [],
     this.rationale = '',
+    this.revisionTarget,
+    this.expectedRecordVersion,
+    this.original,
     BigInt? draftVersion,
   }) : labels = List.unmodifiable(labels),
        fields = List.unmodifiable(fields),
@@ -58,6 +62,9 @@ final class UnfinishedValueDefinitionForm {
   final String clientRef, namespace, key, rationale;
   final List<PropertyLabelInput> labels;
   final List<ValueDefinitionFieldInput> fields;
+  final ExpressionReferenceInput? revisionTarget;
+  final RecordVersionId? expectedRecordVersion;
+  final ValueDefinitionRecord? original;
   final BigInt? draftVersion;
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
@@ -68,6 +75,14 @@ final class UnfinishedValueDefinitionForm {
     MapEntry('labels', CanonicalArray(labels.map((l) => l.toWire()))),
     MapEntry('fields', CanonicalArray(fields.map((f) => f.toWire()))),
     MapEntry('rationale', CanonicalString(rationale)),
+    if (revisionTarget != null)
+      MapEntry('revision_target', revisionTarget!.toWire()),
+    if (expectedRecordVersion != null)
+      MapEntry(
+        'expected_record_version',
+        CanonicalString(expectedRecordVersion!.value),
+      ),
+    if (original != null) MapEntry('original', original!.toWire()),
     if (draftVersion != null)
       MapEntry('draft_version', CanonicalString(draftVersion.toString())),
   ]);
@@ -82,6 +97,9 @@ final class UnfinishedValueDefinitionForm {
       'fields',
       'rationale',
       'draft_version',
+      'revision_target',
+      'expected_record_version',
+      'original',
     });
     return UnfinishedValueDefinitionForm(
       baseRevision: RevisionId.parse(f.string('base_revision')),
@@ -92,6 +110,15 @@ final class UnfinishedValueDefinitionForm {
       labels: f.array('labels').map(PropertyLabelInput.fromWire),
       fields: f.array('fields').map(ValueDefinitionFieldInput.fromWire),
       rationale: f.string('rationale'),
+      revisionTarget: f.optional(
+        'revision_target',
+        ExpressionReferenceInput.fromWire,
+      ),
+      expectedRecordVersion: f.optional(
+        'expected_record_version',
+        (v) => RecordVersionId.parse(wireString(v)),
+      ),
+      original: f.optional('original', ValueDefinitionRecord.fromWire),
       draftVersion: f.optional(
         'draft_version',
         (v) => BigInt.parse(wireString(v)),

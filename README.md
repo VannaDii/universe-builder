@@ -281,6 +281,11 @@ In author perspective, proposition choices show their subject, predicate,
 quantification, context, ordered participants and simple values using accessible
 names. Search matches these descriptions. Hidden dependencies retain the
 existing fallback; labels do not assert that a proposition is true.
+Published value definitions offer **Revise value definition** in their record
+details. Authors can edit labels, nested field shapes, field order and
+required/unknown flags while retaining the namespace and key. Unfinished revisions
+recover on this device; **Edit value definition revision fields** in Changes keeps
+the original record and version, and reviewed publication preserves history.
 Published calendars offer **Revise calendar definition** in their record details.
 Epoch, labels, unit structure and ordered conversion declarations remain explicit;
 namespace and key stay fixed. Unfinished revisions recover on this device, and

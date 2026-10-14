@@ -10,6 +10,7 @@ import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/draft_record_choices.dart';
 import 'package:ub_app/saved_changes.dart';
+import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/qualifier_draft.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
@@ -384,6 +385,86 @@ void main() {
           startNew: true,
         );
       }
+      final revisionBase = next;
+      final revisionScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: published.identity.recordId.value,
+      );
+      final sourceForm = valueDefinitionRevisionFormFromRecord(
+        record: published,
+        baseRevision: next.content.baseRevision,
+        representedContext: scope.representedContext!,
+      );
+      final revisedFields = [...sourceForm.fields.reversed];
+      final detail = revisedFields.last;
+      revisedFields[revisedFields.length - 1] = ValueDefinitionFieldInput(
+        name: detail.name,
+        shape: detail.shape,
+        required: false,
+        allowsUnknown: detail.allowsUnknown,
+      );
+      final revisionForm = UnfinishedValueDefinitionForm.fromWire(
+        CanonicalObject(
+          sourceForm.toWire().fields.map(
+            (e) => e.key == 'fields'
+                ? MapEntry(
+                    'fields',
+                    CanonicalArray(revisedFields.map((f) => f.toWire())),
+                  )
+                : e.key == 'rationale'
+                ? MapEntry(
+                    'rationale',
+                    CanonicalString(
+                      'Reorder fields and make the detail optional.',
+                    ),
+                  )
+                : e,
+          ),
+        ),
+      );
+      await session.saveValueDefinitionForm(
+        revisionScope,
+        revisionForm,
+        BigInt.zero,
+      );
+      await session.close();
+      session = await device.connect();
+      final recoveredRevision = (await session.loadValueDefinitionForm(
+        revisionScope,
+      ))!.form;
+      expect(
+        recoveredRevision.toWire().toText(),
+        revisionForm.toWire().toText(),
+      );
+      final revisionDraft = SavedDraft.fromWire(
+        await session.call(
+          valueDefinitionDraftRequest(
+            draft: revisionBase,
+            form: recoveredRevision,
+            universe: const Selector('Value definitions'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final revisedValue = (await publish(revisionDraft)).single;
+      expect(revisedValue.identity.recordId, published.identity.recordId);
+      expect(
+        revisedValue.payload.toWire().toText(),
+        valueDefinitionRevisionOperation(revisionForm).replacement
+            .toWire()
+            .toText(),
+      );
+      final retainedValue = await readContextRecord(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Value definitions'),
+        context: await openDraftChoiceContext(changes(), revisionBase),
+        record: published.identity.recordId,
+      );
+      expect(retainedValue.toWire().toText(), published.toWire().toText());
     } finally {
       await session?.close();
       await server.close();
