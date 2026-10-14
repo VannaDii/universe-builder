@@ -1,52 +1,19 @@
 import 'dart:isolate';
 
 import 'package:ub_contracts/ub_contracts.dart';
-import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/editor_forms.dart';
 
 import 'loopback_engine.dart';
+import 'editor_scope.dart';
 
 Future<void> _checkEditorScope(
   LoopbackEngineClient client,
   EditorFormScope scope,
-) async {
-  if (scope.profile != client.welcome.principal) {
-    throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
-  }
-  final status = await client.call(const StatusEngineRequest());
-  final fields = Map.fromEntries((status as CanonicalObject).fields);
-  if (wireString(fields['instance_id']!) != scope.instance.value) {
-    throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
-  }
-  String? name;
-  for (final row in (fields['universes']! as CanonicalArray).items) {
-    final entry = WireFields(row, {'id', 'name'});
-    if (entry.string('id') == scope.universe.value) {
-      name = entry.string('name');
-    }
-  }
-  if (name == null) {
-    throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
-  }
-  final description = Envelope<Description>.fromWire(
-    await client.call(
-      ToolEngineRequest(
-        request: DescribeSummaryRequest(universe: Selector(name)),
-      ),
-    ),
-    Description.fromWire,
-  );
-  if (!description.result.continuities.any(
-    (entry) =>
-        entry.id == scope.continuity &&
-        (scope.representedContext == null ||
-            entry.representedContexts.any(
-              (context) => context.id == scope.representedContext,
-            )),
-  )) {
-    throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
-  }
-}
+) => checkEditorRecoveryScope(
+  principal: client.welcome.principal,
+  call: client.call,
+  scope: scope,
+);
 
 final class LocalWorldFormRecovery {
   LocalWorldFormRecovery({required String root, required this.client})
