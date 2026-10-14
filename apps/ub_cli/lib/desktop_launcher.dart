@@ -13,6 +13,9 @@ final class DesktopOptions {
     List<String> arguments, {
     required bool shortcut,
   }) {
+    if (!shortcut && arguments.length == 1 && arguments.single == '--fixture') {
+      return DesktopOptions._(const ['--fixture'], null, null);
+    }
     final values = <String, String>{};
     final allowed = {
       '--installation',

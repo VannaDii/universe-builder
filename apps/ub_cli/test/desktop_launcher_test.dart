@@ -50,6 +50,29 @@ void main() {
     ]);
   });
 
+  test(
+    'fixture launch is explicit and cannot inherit a persistent connection',
+    () {
+      expect(DesktopOptions.parse(['--fixture'], shortcut: false).arguments, [
+        '--fixture',
+      ]);
+      for (final args in [
+        ['--fixture', '--installation', '/tmp/installation'],
+        ['--fixture', '--profile', ProfileId.generate().value],
+        ['--fixture', '--fixture'],
+      ]) {
+        expect(
+          () => DesktopOptions.parse(args, shortcut: false),
+          throwsFormatException,
+        );
+      }
+      expect(
+        () => DesktopOptions.parse(['--fixture'], shortcut: true),
+        throwsFormatException,
+      );
+    },
+  );
+
   test('unbundled desktop receives literal connection args and returns its exit status', () async {
     final root = Directory.systemTemp.createTempSync('ub-desktop-launch-');
     try {

@@ -1,3 +1,7 @@
+import 'app_theme.dart';
+import 'fixture_page.dart';
+import 'fixture_connection_stub.dart'
+    if (dart.library.io) 'fixture_connection_native.dart';
 import 'event_editor_page.dart';
 import 'source_editor_page.dart';
 
@@ -64,20 +68,40 @@ import 'connection_stub.dart'
     if (dart.library.io) 'connection_native.dart'
     if (dart.library.js_interop) 'connection_browser.dart';
 
-void main(List<String> arguments) => runApp(
-  UniverseBuilderApp(
-    device: DeviceConnection(
-      arguments,
-      saveBackupFile: saveBackupFile,
-      openBackupFile: openBackupFile,
-      pickImagePath: pickImagePath,
-      pickSourcePath: pickSourcePath,
-      pickSharedSourcePath: mobileSharedSources.pendingPath,
-      releasePickedPath: releasePickedFile,
-      installationRoot: mobileInstallationRoot,
+Future<void> _openAuthorWorkspace() async {
+  var arguments = const <String>[];
+  try {
+    final root = await mobileInstallationRoot();
+    if (root != null) arguments = ['--installation', root];
+  } on Object {
+    // Other desktop runners resolve their ordinary connection themselves.
+  }
+  main(arguments);
+}
+
+void main(List<String> arguments) {
+  if (arguments.contains('--fixture')) {
+    final device = FixtureDevice(arguments);
+    runApp(
+      FixtureApp(connect: device.start, openPersistent: _openAuthorWorkspace),
+    );
+    return;
+  }
+  runApp(
+    UniverseBuilderApp(
+      device: DeviceConnection(
+        arguments,
+        saveBackupFile: saveBackupFile,
+        openBackupFile: openBackupFile,
+        pickImagePath: pickImagePath,
+        pickSourcePath: pickSourcePath,
+        pickSharedSourcePath: mobileSharedSources.pendingPath,
+        releasePickedPath: releasePickedFile,
+        installationRoot: mobileInstallationRoot,
+      ),
     ),
-  ),
-);
+  );
+}
 
 class UniverseBuilderApp extends StatefulWidget {
   const UniverseBuilderApp({super.key, required this.device});
@@ -1198,29 +1222,13 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
     }
   }
 
-  ThemeData _colors(Brightness brightness) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xff516b80),
-      brightness: brightness,
-    );
-    return ThemeData(
-      colorScheme: scheme,
-      useMaterial3: true,
-      scaffoldBackgroundColor: scheme.surface,
-      inputDecorationTheme: const InputDecorationTheme(
-        border: OutlineInputBorder(),
-      ),
-      visualDensity: VisualDensity.standard,
-    );
-  }
-
   @override
   Widget build(BuildContext context) => widget.device.supportsBrowser
       ? MaterialApp.router(
           title: 'Universe Builder',
           debugShowCheckedModeBanner: false,
-          theme: _colors(Brightness.light),
-          darkTheme: _colors(Brightness.dark),
+          theme: universeBuilderTheme(Brightness.light),
+          darkTheme: universeBuilderTheme(Brightness.dark),
           themeMode: _theme,
           routerDelegate: _router,
           routeInformationParser: const LibraryRouteParser(),
@@ -1228,8 +1236,8 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       : MaterialApp(
           title: 'Universe Builder',
           debugShowCheckedModeBanner: false,
-          theme: _colors(Brightness.light),
-          darkTheme: _colors(Brightness.dark),
+          theme: universeBuilderTheme(Brightness.light),
+          darkTheme: universeBuilderTheme(Brightness.dark),
           themeMode: _theme,
           home: _home(),
         );

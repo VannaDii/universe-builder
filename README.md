@@ -2653,8 +2653,20 @@ All contexts, proposals and retry results disappear when the engine exits;
 `--exit-on-stdin-close` ties its lifetime to a parent process. Use a private
 existing socket directory. Startup refuses an occupied endpoint, and shutdown
 removes only the endpoint created by this server. Stop the engine and remove the
-empty temporary directory when finished. The Flutter author application still
-opens persistent workspaces; its disposable fixture UI has not been ported.
+empty temporary directory when finished.
+
+The Flutter desktop also opens a private disposable child engine with
+`multiverse-mcp ux --fixture` from the Dart development bundle. It supports
+universe/world selection, record filtering, explicit draft value states, review
+and noncanonical proposal saving. World focus remains a reading filter; fixture
+entity drafts have no world association. An uncertain save retains the exact
+reviewed input and retry key while its review stays open. Source selection alone
+does not import a file, and clipboard copying uses the native Flutter adapter.
+**Open author workspace** leaves fixture mode and stops its child. Closing the
+fixture process also ends its child through standard-input EOF. The desktop
+fixture is implemented for macOS/Linux; native checks currently cover macOS.
+Fixture mode cannot be combined with installation/profile arguments and is not
+the mobile or browser connection mode.
 
 The retained Rust fixture commands during migration are:
 

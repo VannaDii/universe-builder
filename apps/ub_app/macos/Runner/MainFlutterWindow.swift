@@ -3,14 +3,14 @@ import FlutterMacOS
 import UniformTypeIdentifiers
 
 class MainFlutterWindow: NSWindow {
+  private var deviceChannel: FlutterMethodChannel?
   private var backupChannel: FlutterMethodChannel?
   override func awakeFromNib() {
     let project = FlutterDartProject()
+    let defaultRoot = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("Universe Builder/Installation").path
     var arguments = Array(ProcessInfo.processInfo.arguments.dropFirst())
-    if !arguments.contains(where: { $0 == "--installation" || $0.hasPrefix("--installation=") || $0 == "--profile" || $0.hasPrefix("--profile=") }) {
-      if let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
-        arguments += ["--installation", support.appendingPathComponent("Universe Builder/Installation").path]
-      }
+    if !arguments.contains(where: { $0 == "--fixture" || $0 == "--installation" || $0.hasPrefix("--installation=") || $0 == "--profile" || $0.hasPrefix("--profile=") }) {
+      if let root = defaultRoot { arguments += ["--installation", root] }
     }
     project.dartEntrypointArguments = arguments
     let flutterViewController = FlutterViewController(project: project)
@@ -19,6 +19,12 @@ class MainFlutterWindow: NSWindow {
     self.setFrame(windowFrame, display: true)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
+    let device = FlutterMethodChannel(name: "universe_builder/device", binaryMessenger: flutterViewController.engine.binaryMessenger)
+    deviceChannel = device
+    device.setMethodCallHandler { call, result in
+      if call.method == "installationRoot" { result(defaultRoot) }
+      else { result(FlutterMethodNotImplemented) }
+    }
     let channel = FlutterMethodChannel(name: "universe_builder/backup_files", binaryMessenger: flutterViewController.engine.binaryMessenger)
     backupChannel = channel
     channel.setMethodCallHandler { [weak self] call, result in
