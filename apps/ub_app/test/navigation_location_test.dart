@@ -1,5 +1,6 @@
 import 'package:test/test.dart';
 import 'package:ub_app/navigation_location.dart';
+import 'package:ub_app/record_edit_action.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 void main() {
@@ -61,6 +62,49 @@ void main() {
     expect(
       () => LibraryLocation.parse(
         Uri.parse(location.uri.toString().replaceFirst('/revision/', '/head/')),
+      ),
+      throwsFormatException,
+    );
+  });
+  test('record action links retain the revision and reject unrecognized operations', () {
+    final universe = UniverseId.generate(),
+        continuity = ContinuityId.generate(),
+        context = RecordId.generate(),
+        record = RecordId.generate(),
+        revision = RevisionId.generate();
+    for (final action in RecordEditAction.values) {
+      final location = LibraryLocation(
+        universe: universe,
+        continuity: continuity,
+        context: context,
+        record: record,
+        revision: revision,
+        recordAction: action,
+      );
+      final parsed = LibraryLocation.parse(location.uri);
+      expect(parsed.uri, location.uri);
+      expect(parsed.recordAction, action);
+      expect(parsed.record, record);
+      expect(parsed.revision, revision);
+      expect(
+        () => LibraryLocation.parse(Uri.parse('${location.uri}/extra')),
+        throwsFormatException,
+      );
+    }
+    final path = LibraryLocation(
+      universe: universe,
+      continuity: continuity,
+      context: context,
+      record: record,
+      revision: revision,
+    ).uri;
+    expect(
+      () => LibraryLocation.parse(Uri.parse('$path/edit/publish')),
+      throwsFormatException,
+    );
+    expect(
+      () => LibraryLocation.parse(
+        Uri.parse('$path/edit/recordRemoval?approve=true'),
       ),
       throwsFormatException,
     );

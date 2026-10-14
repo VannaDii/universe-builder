@@ -94,7 +94,10 @@ reopens its scoped bookmark. Record dossier links use
 They retain the opened revision, including after later publication, and read the
 record through current service permissions after connection. Back returns to the
 record browser when opened there; Forward and refresh reopen the pinned record.
-Links for record-edit actions and other nested detail screens remain in progress.
+Record-edit links append `/edit/<action>` to that pinned record link. They reopen
+the same recoverable form used by the record dossier; an action incompatible with
+the retrieved record is refused. Links do not stage, approve or publish a change.
+Other nested detail screens and editors opened from Changes remain in progress.
 
 Connected approval owners can create a universe from Library. Gregorian creation
 uses an explicitly entered date, whole-second time and fixed UTC offset, with an

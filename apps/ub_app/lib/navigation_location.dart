@@ -1,5 +1,7 @@
 import 'package:ub_domain/ub_domain.dart';
 
+import 'record_edit_action.dart';
+
 enum LibrarySection { library, settings, help }
 
 /// Links carry identifiers and page choices, never profile or database secrets.
@@ -12,6 +14,7 @@ final class LibraryLocation {
     this.editor,
     this.record,
     this.revision,
+    this.recordAction,
   });
   final LibrarySection section;
   final UniverseId? universe;
@@ -20,6 +23,7 @@ final class LibraryLocation {
   final String? editor;
   final RecordId? record;
   final RevisionId? revision;
+  final RecordEditAction? recordAction;
   static const editors = {
     'records',
     'entity',
@@ -59,7 +63,7 @@ final class LibraryLocation {
       ? Uri(path: '/${section.name}')
       : Uri(
           path: record != null
-              ? '/universe/${universe!.value}/continuity/${continuity!.value}/context/${context!.value}/revision/${revision!.value}/record/${record!.value}'
+              ? '/universe/${universe!.value}/continuity/${continuity!.value}/context/${context!.value}/revision/${revision!.value}/record/${record!.value}${recordAction == null ? '' : '/edit/${recordAction!.name}'}'
               : editor == null
               ? '/universe/${universe!.value}'
               : '/universe/${universe!.value}/continuity/${continuity!.value}/context/${context!.value}/editor/$editor',
@@ -94,7 +98,12 @@ final class LibraryLocation {
         editor: parts[7],
       );
     }
-    if (parts.length == 10 &&
+    if ((parts.length == 10 ||
+            (parts.length == 12 &&
+                parts[10] == 'edit' &&
+                RecordEditAction.values.any(
+                  (action) => action.name == parts[11],
+                ))) &&
         parts[0] == 'universe' &&
         parts[2] == 'continuity' &&
         parts[4] == 'context' &&
@@ -106,6 +115,9 @@ final class LibraryLocation {
         context: RecordId.parse(parts[5]),
         revision: RevisionId.parse(parts[7]),
         record: RecordId.parse(parts[9]),
+        recordAction: parts.length == 12
+            ? RecordEditAction.values.byName(parts[11])
+            : null,
       );
     }
     throw const FormatException('Unsupported application link');

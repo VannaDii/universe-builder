@@ -14,6 +14,7 @@ import 'world_browser.dart';
 import 'world_detail_page.dart';
 import 'record_browser_page.dart';
 import 'record_browser.dart';
+import 'record_editor_page.dart';
 import 'type_editor_page.dart';
 import 'property_editor_page.dart';
 import 'unit_editor_page.dart';
@@ -123,8 +124,8 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       setState(() => _page = 0);
       await _open(entries.single, announce: false);
       if (location.editor != null || location.record != null) {
-        if (location.record == null &&
-            location.editor != 'records' &&
+        if ((location.recordAction != null ||
+                (location.record == null && location.editor != 'records')) &&
             !_session!.author) {
           return LibraryLocation(universe: location.universe);
         }
@@ -179,27 +180,41 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
               throw const FormatException('Record unavailable');
             }
             final record = material.result.records.single;
-            page = RecordDetailPage(
-              session: _session!,
-              universe: _selected!,
-              context: opened,
-              record: location.record!,
-              kind: record.identity.recordKind,
-              label: dossierReferenceLabel(
-                material.result,
-                _selected!.id,
-                RecordRef(record: location.record!),
-              ),
-              scope: EditorFormScope(
-                instance: _library!.instance,
-                profile: _session!.principal,
-                universe: _selected!.id,
-                continuity: continuity.id,
-                representedContext: represented.id,
-              ),
-              continuity: continuity,
-              representedContext: represented,
+            final scope = EditorFormScope(
+              instance: _library!.instance,
+              profile: _session!.principal,
+              universe: _selected!.id,
+              continuity: continuity.id,
+              representedContext: represented.id,
             );
+            if (location.recordAction != null) {
+              page = await recordEditorPage(
+                session: _session!,
+                universe: _selected!,
+                continuity: continuity,
+                representedContext: represented,
+                opened: opened,
+                scope: scope,
+                record: record,
+                action: location.recordAction!,
+              );
+            } else {
+              page = RecordDetailPage(
+                session: _session!,
+                universe: _selected!,
+                context: opened,
+                record: location.record!,
+                kind: record.identity.recordKind,
+                label: dossierReferenceLabel(
+                  material.result,
+                  _selected!.id,
+                  RecordRef(record: location.record!),
+                ),
+                scope: scope,
+                continuity: continuity,
+                representedContext: represented,
+              );
+            }
           } on Object {
             setState(
               () => _error = 'This record or revision is unavailable with your current access.',

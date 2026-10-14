@@ -10,9 +10,8 @@ import 'connection.dart';
 import 'record_browser.dart';
 import 'record_fields.dart';
 import 'world_browser.dart';
-import 'entity_editor_page.dart';
-import 'attribute_editor_page.dart';
-import 'saved_changes.dart';
+import 'record_editor_page.dart';
+import 'record_edit_action.dart';
 import 'dossier_timeline_view.dart';
 import 'dossier_facts_view.dart';
 
@@ -22,31 +21,7 @@ import 'relationship_diagram.dart';
 import 'dossier_appearance_view.dart';
 import 'image_preview_view.dart';
 import 'dossier_sources_view.dart';
-import 'source_editor_page.dart';
-import 'work_version_editor_page.dart';
-import 'saga_editor_page.dart';
-import 'work_editor_page.dart';
-import 'scene_editor_page.dart';
-import 'item_power_editor_page.dart';
-import 'communication_editor_page.dart';
-import 'attitude_editor_page.dart';
-import 'property_editor_page.dart';
-import 'relation_editor_page.dart';
-import 'unit_editor_page.dart';
-import 'calendar_editor_page.dart';
-import 'pack_editor_page.dart';
-import 'action_editor_page.dart';
-import 'rule_editor_page.dart';
-import 'value_definition_editor_page.dart';
-import 'type_editor_page.dart';
-import 'interpretation_editor_page.dart';
-import 'assertion_retraction_editor_page.dart';
-import 'event_withdrawal_editor_page.dart';
-import 'record_removal_editor_page.dart';
-import 'event_editor_page.dart';
 import 'event_withdrawal_draft.dart';
-import 'assertion_correction_editor_page.dart';
-import 'assertion_end_editor_page.dart';
 
 enum _DossierView {
   fields,
@@ -476,53 +451,44 @@ class RecordDetailPageState extends State<RecordDetailPage> {
     }
   }
 
-  Future<void> _addAttribute(
-    RecordVersion entity, {
-    bool relationship = false,
-  }) async {
+  Future<void> _edit(RecordVersion record, RecordEditAction action) async {
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      final changes = SavedChanges(
+      final page = await recordEditorPage(
         session: widget.session,
-        universe: Selector(widget.universe.name),
-        scope: EditorFormScope(
-          instance: widget.scope.instance,
-          profile: widget.scope.profile,
-          universe: widget.universe.id,
-          continuity: widget.continuity.id,
-          representedContext: widget.representedContext.id,
-        ),
+        universe: widget.universe,
+        continuity: widget.continuity,
+        representedContext: widget.representedContext,
+        opened: widget.context,
+        scope: widget.scope,
+        record: record,
+        action: action,
       );
-      final draft =
-          await changes.load() ??
-          SavedDraft(
-            version: BigInt.zero,
-            content: DraftContent(
-              baseRevision: widget.context.frame.revision,
-              representedContext: widget.representedContext.id,
-              operations: [],
-              rationale: '',
-            ),
-          );
       if (!mounted) return;
-      await Navigator.of(context).push<SavedDraft>(
+      await Navigator.of(context).push<void>(
         MaterialPageRoute(
-          builder: (_) => AttributeEditorPage.create(
-            changes: changes,
-            draft: draft,
-            publishedEntity: entity,
-            relationship: relationship,
-            openedRevision: widget.context.frame.revision,
-          ),
+          settings: kIsWeb
+              ? RouteSettings(
+                  name: LibraryLocation(
+                    universe: widget.universe.id,
+                    continuity: widget.continuity.id,
+                    context: widget.representedContext.id,
+                    revision: widget.context.frame.revision,
+                    record: record.identity.recordId,
+                    recordAction: action,
+                  ).uri.toString(),
+                )
+              : null,
+          builder: (_) => page,
         ),
       );
     } on Object {
       if (mounted) {
         setState(
-          () => _error = 'Could not open fact or relationship fields. Check the connection and retry.',
+          () => _error = 'Could not open these fields. Check the connection and access, then retry.',
         );
       }
     } finally {
@@ -594,29 +560,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => WorkEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      associationRecord: record,
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.identity.recordId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.workAssociation,
                                 ),
                           child: const Text('Add world association'),
                         ),
@@ -624,29 +570,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => SagaEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      membershipRecord: record,
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.identity.recordId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.sagaMembership,
                                 ),
                           child: const Text('Set work membership'),
                         ),
@@ -654,29 +580,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => WorkVersionEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      bindingRecord: record,
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.identity.recordId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.canonBinding,
                                 ),
                           child: const Text('Change canon binding'),
                         ),
@@ -684,29 +590,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => SceneEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      correctionRecord: record,
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.identity.recordId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.sceneCorrection,
                                 ),
                           child: const Text('Correct scene reference'),
                         ),
@@ -714,29 +600,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => ItemPowerEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      correctionRecord: record,
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.identity.recordId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.itemPowerCorrection,
                                 ),
                           child: const Text('Correct item power'),
                         ),
@@ -744,29 +610,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => CommunicationEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      correctionRecord: record,
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.identity.recordId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.communicationCorrection,
                                 ),
                           child: const Text('Correct communication'),
                         ),
@@ -774,29 +620,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => AttitudeEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      correctionRecord: record,
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.identity.recordId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.attitudeCorrection,
                                 ),
                           child: const Text('Correct belief or knowledge'),
                         ),
@@ -804,29 +630,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => PropertyEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      revisionRecord: record,
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.identity.recordId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.propertyRevision,
                                 ),
                           child: const Text('Revise property definition'),
                         ),
@@ -834,29 +640,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => RelationEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      revisionRecord: record,
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.identity.recordId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.relationRevision,
                                 ),
                           child: const Text('Revise relation definition'),
                         ),
@@ -864,29 +650,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => UnitEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      revisionRecord: record,
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.identity.recordId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.unitRevision,
                                 ),
                           child: const Text('Revise unit definition'),
                         ),
@@ -894,29 +660,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => CalendarEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      revisionRecord: record,
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.identity.recordId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.calendarRevision,
                                 ),
                           child: const Text('Revise calendar definition'),
                         ),
@@ -924,59 +670,17 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => PackEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      revisionRecord: record,
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.identity.recordId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                              : () =>
+                                    _edit(record, RecordEditAction.packUpgrade),
                           child: const Text('Upgrade domain pack'),
                         ),
                       if (record.payload is ActionDefinitionRecord)
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => ActionEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      revisionRecord: record,
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.identity.recordId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.actionRevision,
                                 ),
                           child: const Text('Revise action definition'),
                         ),
@@ -984,29 +688,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => RuleEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      revisionRecord: record,
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.identity.recordId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.ruleRevision,
                                 ),
                           child: const Text('Revise rule definition'),
                         ),
@@ -1014,33 +698,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        AssertionRetractionEditorPage(
-                                          revision:
-                                              widget.context.frame.revision,
-                                          sourceRecord: record,
-                                          changes: SavedChanges(
-                                            session: widget.session,
-                                            universe: Selector(
-                                              widget.universe.name,
-                                            ),
-                                            scope: EditorFormScope(
-                                              instance: widget.scope.instance,
-                                              profile: widget.scope.profile,
-                                              universe: widget.universe.id,
-                                              continuity: widget.continuity.id,
-                                              representedContext:
-                                                  widget.representedContext.id,
-                                              typeClientRef: record
-                                                  .identity
-                                                  .recordId
-                                                  .value,
-                                            ),
-                                          ),
-                                        ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.assertionRetraction,
                                 ),
                           child: const Text('Retract assertion'),
                         ),
@@ -1048,86 +708,26 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => EventWithdrawalEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      sourceRecord: record,
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.identity.recordId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.eventWithdrawal,
                                 ),
                           child: const Text('Withdraw occurrence'),
                         ),
                       TextButton(
                         onPressed: _busy
                             ? null
-                            : () => Navigator.of(context).push<SavedDraft>(
-                                MaterialPageRoute(
-                                  builder: (_) => RecordRemovalEditorPage(
-                                    revision: widget.context.frame.revision,
-                                    sourceRecord: record,
-                                    changes: SavedChanges(
-                                      session: widget.session,
-                                      universe: Selector(widget.universe.name),
-                                      scope: EditorFormScope(
-                                        instance: widget.scope.instance,
-                                        profile: widget.scope.profile,
-                                        universe: widget.universe.id,
-                                        continuity: widget.continuity.id,
-                                        representedContext:
-                                            widget.representedContext.id,
-                                        typeClientRef:
-                                            record.identity.recordId.value,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
+                            : () =>
+                                  _edit(record, RecordEditAction.recordRemoval),
                         child: const Text('Remove from canon'),
                       ),
                       if (record.payload is EventRecord)
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => EventEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      revisionRecord: record,
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.identity.recordId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.eventRevision,
                                 ),
                           child: const Text('Revise event'),
                         ),
@@ -1135,33 +735,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        AssertionCorrectionEditorPage(
-                                          revision:
-                                              widget.context.frame.revision,
-                                          sourceRecord: record,
-                                          changes: SavedChanges(
-                                            session: widget.session,
-                                            universe: Selector(
-                                              widget.universe.name,
-                                            ),
-                                            scope: EditorFormScope(
-                                              instance: widget.scope.instance,
-                                              profile: widget.scope.profile,
-                                              universe: widget.universe.id,
-                                              continuity: widget.continuity.id,
-                                              representedContext:
-                                                  widget.representedContext.id,
-                                              typeClientRef: record
-                                                  .identity
-                                                  .recordId
-                                                  .value,
-                                            ),
-                                          ),
-                                        ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.assertionCorrection,
                                 ),
                           child: const Text('Correct assertion'),
                         ),
@@ -1171,29 +747,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => AssertionEndEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      sourceRecord: record,
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.identity.recordId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.assertionEnd,
                                 ),
                           child: const Text('End assertion at a time'),
                         ),
@@ -1201,29 +757,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => ValueDefinitionEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      revisionRecord: record,
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.identity.recordId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.valueRevision,
                                 ),
                           child: const Text('Revise value definition'),
                         ),
@@ -1231,35 +767,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => TypeEditorPage(
-                                      session: widget.session,
-                                      universe: widget.universe,
-                                      representedContext:
-                                          widget.representedContext,
-                                      continuity: ContinuitySummary(
-                                        id: widget.continuity.id,
-                                        revisionId:
-                                            widget.context.frame.revision,
-                                        name: widget.continuity.name,
-                                        representedContexts: widget
-                                            .continuity
-                                            .representedContexts,
-                                      ),
-                                      revisionRecord: record,
-                                      scope: EditorFormScope(
-                                        instance: widget.scope.instance,
-                                        profile: widget.scope.profile,
-                                        universe: widget.universe.id,
-                                        continuity: widget.continuity.id,
-                                        representedContext:
-                                            widget.representedContext.id,
-                                        typeClientRef:
-                                            record.identity.recordId.value,
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.typeRevision,
                                 ),
                           child: const Text('Revise type definition'),
                         ),
@@ -1274,29 +784,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => InterpretationEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      sourceRecord: record,
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.identity.recordId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.interpretationCorrection,
                                 ),
                           child: const Text('Correct receipt interpretation'),
                         ),
@@ -1305,34 +795,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => Navigator.of(context).push<SavedDraft>(
-                                  MaterialPageRoute(
-                                    builder: (_) => SourceEditorPage(
-                                      revision: widget.context.frame.revision,
-                                      context: widget.context.contextId,
-                                      source: VersionRef(
-                                        universe: widget.universe.id,
-                                        record: record.identity.recordId,
-                                        version: record.recordVersionId,
-                                      ),
-                                      changes: SavedChanges(
-                                        session: widget.session,
-                                        universe: Selector(
-                                          widget.universe.name,
-                                        ),
-                                        scope: EditorFormScope(
-                                          instance: widget.scope.instance,
-                                          profile: widget.scope.profile,
-                                          universe: widget.universe.id,
-                                          continuity: widget.continuity.id,
-                                          representedContext:
-                                              widget.representedContext.id,
-                                          typeClientRef:
-                                              record.recordVersionId.value,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.sourceExcerpt,
                                 ),
                           child: const Text('Anchor an excerpt'),
                         ),
@@ -1350,7 +815,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                           _material!.delivery.complete &&
                           record.payload is EntityRecord)
                         TextButton(
-                          onPressed: _busy ? null : () => _addAttribute(record),
+                          onPressed: _busy
+                              ? null
+                              : () => _edit(record, RecordEditAction.attribute),
                           child: const Text('Add factual attribute'),
                         ),
                       if (widget.session.author &&
@@ -1359,60 +826,27 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => _addAttribute(record, relationship: true),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.relationship,
+                                ),
                           child: const Text('Add relationship'),
                         ),
                       if (widget.session.author &&
                           _material!.delivery.complete &&
                           record.payload is EntityRecord)
                         TextButton(
-                          onPressed: () => Navigator.of(context).push<void>(
-                            MaterialPageRoute(
-                              builder: (_) => EntityEditorPage(
-                                session: widget.session,
-                                universe: widget.universe,
-                                continuity: widget.continuity,
-                                representedContext: widget.representedContext,
-                                publishedEntity: record,
-                                scope: EditorFormScope(
-                                  instance: widget.scope.instance,
-                                  profile: widget.scope.profile,
-                                  universe: widget.universe.id,
-                                  continuity: widget.continuity.id,
-                                  representedContext:
-                                      widget.representedContext.id,
-                                  entityNameRecord: record.identity.recordId,
-                                ),
-                              ),
-                            ),
-                          ),
+                          onPressed: () =>
+                              _edit(record, RecordEditAction.entityName),
                           child: const Text('Add contextual name'),
                         ),
                       if (widget.session.author &&
                           _material!.delivery.complete &&
                           record.payload is EntityRecord)
                         TextButton(
-                          onPressed: () => Navigator.of(context).push<void>(
-                            MaterialPageRoute(
-                              builder: (_) => EntityEditorPage(
-                                session: widget.session,
-                                universe: widget.universe,
-                                continuity: widget.continuity,
-                                representedContext: widget.representedContext,
-                                publishedEntity: record,
-                                refineClassification: true,
-                                scope: EditorFormScope(
-                                  instance: widget.scope.instance,
-                                  profile: widget.scope.profile,
-                                  universe: widget.universe.id,
-                                  continuity: widget.continuity.id,
-                                  representedContext:
-                                      widget.representedContext.id,
-                                  entityClassificationRecord:
-                                      record.identity.recordId,
-                                ),
-                              ),
-                            ),
+                          onPressed: () => _edit(
+                            record,
+                            RecordEditAction.entityClassification,
                           ),
                           child: const Text('Refine classification'),
                         ),
