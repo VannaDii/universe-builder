@@ -335,6 +335,13 @@ typed qualifiers. Manuscript prose remains external. Device-private unfinished
 recovery and Changes editing preserve the complete metadata before reviewed
 publication.
 
+A published work’s dossier offers **Add world association**. Its recoverable
+form retains the opened work identity and expected version and appends one world,
+role, validity and qualifier set through `associate_work_world`. Existing work
+metadata and associations remain intact. Pending fields are editable in Changes,
+and reviewed publication retains historical versions. Association does not
+establish physical location.
+
 **Exception** selects a named rule or creative boundary and pins its version
 at the saved draft revision. Choose an authorizing issue decision, scope,
 validity and rationale separately. Named decision choices include their visible

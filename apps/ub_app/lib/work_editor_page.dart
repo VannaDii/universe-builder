@@ -16,11 +16,13 @@ class WorkEditorPage extends StatefulWidget {
     required this.revision,
     this.editingDraft,
     this.index,
+    this.associationRecord,
   });
   final SavedChanges changes;
   final RevisionId revision;
   final SavedDraft? editingDraft;
   final int? index;
+  final RecordVersion? associationRecord;
   @override
   State<WorkEditorPage> createState() => _WorkEditorPageState();
 }
@@ -67,6 +69,12 @@ class _WorkEditorPageState extends State<WorkEditorPage> {
 
   UnfinishedWorkForm _fresh() => widget.index != null
       ? workFormFromDraft(_draft!, widget.index!)
+      : widget.associationRecord != null
+      ? workAssociationFormFromRecord(
+          record: widget.associationRecord!,
+          baseRevision: widget.revision,
+          representedContext: _scope.representedContext!,
+        )
       : UnfinishedWorkForm(
           baseRevision: widget.revision,
           representedContext: _scope.representedContext!,
@@ -91,16 +99,27 @@ class _WorkEditorPageState extends State<WorkEditorPage> {
                   _form!.baseRevision != _draft!.content.baseRevision ||
                   _form!.representedContext !=
                       _draft!.content.representedContext
-            : _form!.baseRevision != widget.revision;
+            : _form!.baseRevision != widget.revision ||
+                  (widget.associationRecord != null &&
+                      _form!.expectedRecordVersion !=
+                          widget.associationRecord!.recordVersionId);
         _added =
             widget.index == null &&
                 (_draft?.content.operations.any(
-                      (op) =>
-                          op is CreateWorkOperation &&
-                          op.clientRef == _form!.clientRef,
+                      (op) => switch (op) {
+                        CreateWorkOperation(:final clientRef) =>
+                          _form!.associationTarget == null &&
+                              clientRef == _form!.clientRef,
+                        AssociateWorkWorldOperation(:final record) =>
+                          _form!.associationTarget?.record ==
+                                  record.record.value &&
+                              _form!.associationTarget?.universe ==
+                                  (record.universe?.value ?? ''),
+                        _ => false,
+                      },
                     ) ??
                     false)
-            ? 'This definition is in Changes. Review or edit it there.'
+            ? 'This work change is in Changes. Review or edit it there.'
             : null;
       });
     } on Object {
@@ -198,12 +217,21 @@ class _WorkEditorPageState extends State<WorkEditorPage> {
       setState(() {
         _draft = saved;
         _result = saved;
-        if (widget.index != null) {
-          _form = workFormFromDraft(saved, widget.index!);
+        if (widget.index != null || _form!.associationTarget != null) {
+          final index =
+              widget.index ??
+              saved.content.operations.indexWhere(
+                (op) =>
+                    op is AssociateWorkWorldOperation &&
+                    op.record == workAssociationOperation(_form!).record,
+              );
+          _form = workFormFromDraft(saved, index);
           _fields++;
           _dirty = true;
-        } else {
-          _added = 'Work added to Changes. Review it before publication.';
+        }
+        if (widget.index == null) {
+          _added =
+              'Work change added to Changes. Review it before publication.';
         }
       });
       await _save();
@@ -254,7 +282,15 @@ class _WorkEditorPageState extends State<WorkEditorPage> {
       if (!didPop) _leave();
     },
     child: Scaffold(
-      appBar: AppBar(title: Text(widget.index == null ? 'Work' : 'Edit work')),
+      appBar: AppBar(
+        title: Text(
+          widget.associationRecord != null || _form?.associationTarget != null
+              ? 'Add work world association'
+              : widget.index == null
+              ? 'Work'
+              : 'Edit work',
+        ),
+      ),
       body: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
@@ -275,7 +311,11 @@ class _WorkEditorPageState extends State<WorkEditorPage> {
                   ),
                   TextButton(
                     onPressed: _disabled ? null : _reset,
-                    child: const Text('Use current draft fields'),
+                    child: Text(
+                      widget.associationRecord != null
+                          ? 'Use opened work fields'
+                          : 'Use current draft fields',
+                    ),
                   ),
                 ],
                 if (_form case final f?) ...[
@@ -316,7 +356,7 @@ class _WorkEditorPageState extends State<WorkEditorPage> {
                         : _save,
                     child: const Text('Save unfinished work'),
                   ),
-                  if (_added != null)
+                  if (_added != null && _form?.associationTarget == null)
                     TextButton(
                       onPressed: _loading || _saving || _adding ? null : _reset,
                       child: const Text('Start another work'),

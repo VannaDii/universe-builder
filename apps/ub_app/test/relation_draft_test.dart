@@ -2816,6 +2816,99 @@ void main() {
         afterMembership.memberships.map((m) => m.toWire().toText()),
       );
       expect(newRolePayload.memberships.last.role, 'reference');
+      final associationBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final associationScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: workPublished.single.identity.recordId.value,
+      );
+      final associationForm =
+          workAssociationFormFromRecord(
+            record: workPublished.single,
+            baseRevision: associationBase.content.baseRevision,
+            representedContext: scope.representedContext!,
+          ).copyWith(
+            associations: [
+              WorkAssociationInput(
+                world: workForm.associations.single.world,
+                role: 'Referenced',
+                qualifiers: [
+                  const QualifierInput(
+                    key: 'count',
+                    kind: 'integer',
+                    value: '9007199254740997',
+                  ),
+                ],
+              ),
+            ],
+            rationale: 'Add a referenced world role without replacing the setting association.',
+          );
+      await session.saveWorkForm(
+        associationScope,
+        associationForm,
+        BigInt.zero,
+      );
+      await session.close();
+      session = await device.connect();
+      final recoveredAssociation = (await session.loadWorkForm(
+        associationScope,
+      ))!.form;
+      expect(
+        recoveredAssociation.toWire().toText(),
+        associationForm.toWire().toText(),
+      );
+      final associationDraft = SavedDraft.fromWire(
+        await session.call(
+          workDraftRequest(
+            draft: associationBase,
+            form: recoveredAssociation,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final associationPublished = await publish(associationDraft);
+      final beforeAssociation = workPublished.single.payload as WorkRecord;
+      final afterAssociation =
+          associationPublished.single.payload as WorkRecord;
+      expect(
+        associationPublished.single.identity.recordId,
+        workPublished.single.identity.recordId,
+      );
+      expect(afterAssociation.kind, beforeAssociation.kind);
+      expect(afterAssociation.title, beforeAssociation.title);
+      expect(afterAssociation.labels, beforeAssociation.labels);
+      expect(afterAssociation.sourceRefs, beforeAssociation.sourceRefs);
+      expect(afterAssociation.versions, beforeAssociation.versions);
+      expect(afterAssociation.worldAssociations.length, 2);
+      expect(
+        afterAssociation.worldAssociations.first.toWire().toText(),
+        beforeAssociation.worldAssociations.single.toWire().toText(),
+      );
+      expect(
+        afterAssociation.worldAssociations.last.toWire().toText(),
+        workAssociationOperation(associationForm).association.toWire().toText(),
+      );
+      final associationHistoryContext = await openDraftChoiceContext(
+        changes(),
+        associationBase,
+      );
+      final retainedWork = await readContextRecord(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Relations'),
+        context: associationHistoryContext,
+        record: workPublished.single.identity.recordId,
+      );
+      expect(
+        retainedWork.toWire().toText(),
+        workPublished.single.toWire().toText(),
+      );
     } finally {
       await session?.close();
       await server.close();

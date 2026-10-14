@@ -71,6 +71,9 @@ final class UnfinishedWorkForm {
     Iterable<WorkAssociationInput> associations = const [],
     this.rationale = '',
     this.original,
+    this.associationTarget,
+    this.expectedRecordVersion,
+    this.associationOriginal,
     BigInt? draftVersion,
   }) : labels = List.unmodifiable(labels),
        sources = List.unmodifiable(sources),
@@ -85,6 +88,9 @@ final class UnfinishedWorkForm {
   final List<String> versions;
   final List<WorkAssociationInput> associations;
   final WorkRecord? original;
+  final ExpressionReferenceInput? associationTarget;
+  final RecordVersionId? expectedRecordVersion;
+  final WorldAssociation? associationOriginal;
   final BigInt? draftVersion;
   UnfinishedWorkForm copyWith({
     String? kind,
@@ -107,6 +113,9 @@ final class UnfinishedWorkForm {
     rationale: rationale ?? this.rationale,
     original: original,
     draftVersion: draftVersion,
+    associationTarget: associationTarget,
+    expectedRecordVersion: expectedRecordVersion,
+    associationOriginal: associationOriginal,
   );
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
@@ -122,6 +131,15 @@ final class UnfinishedWorkForm {
       CanonicalArray(associations.map((e) => e.toWire())),
     ),
     MapEntry('rationale', CanonicalString(rationale)),
+    if (associationTarget != null)
+      MapEntry('association_target', associationTarget!.toWire()),
+    if (expectedRecordVersion != null)
+      MapEntry(
+        'expected_record_version',
+        CanonicalString(expectedRecordVersion!.value),
+      ),
+    if (associationOriginal != null)
+      MapEntry('association_original', associationOriginal!.toWire()),
     if (original != null) MapEntry('original', original!.toWire()),
     if (draftVersion != null)
       MapEntry('draft_version', CanonicalString(draftVersion.toString())),
@@ -139,6 +157,9 @@ final class UnfinishedWorkForm {
       'associations',
       'rationale',
       'original',
+      'association_target',
+      'expected_record_version',
+      'association_original',
       'draft_version',
     });
     return UnfinishedWorkForm(
@@ -153,6 +174,18 @@ final class UnfinishedWorkForm {
       associations: f.array('associations').map(WorkAssociationInput.fromWire),
       rationale: f.string('rationale'),
       original: f.optional('original', WorkRecord.fromWire),
+      associationTarget: f.optional(
+        'association_target',
+        ExpressionReferenceInput.fromWire,
+      ),
+      expectedRecordVersion: f.optional(
+        'expected_record_version',
+        (v) => RecordVersionId.parse(wireString(v)),
+      ),
+      associationOriginal: f.optional(
+        'association_original',
+        WorldAssociation.fromWire,
+      ),
       draftVersion: f.optional(
         'draft_version',
         (v) => BigInt.parse(wireString(v)),

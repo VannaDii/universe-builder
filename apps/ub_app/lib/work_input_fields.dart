@@ -99,127 +99,153 @@ class _WorkInputFieldsState extends State<WorkInputFields> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        text('Work title', f.title, (v) => change(f.copyWith(title: v))),
-        DropdownButtonFormField<String>(
-          key: ValueKey(('kind', f.kind)),
-          initialValue: f.kind.isEmpty ? null : f.kind,
-          decoration: const InputDecoration(labelText: 'Work kind'),
-          items: const [
-            DropdownMenuItem(value: 'novel', child: Text('Novel')),
-            DropdownMenuItem(value: 'story', child: Text('Story')),
-            DropdownMenuItem(
-              value: 'series_chapter',
-              child: Text('Series chapter'),
-            ),
-            DropdownMenuItem(value: 'play', child: Text('Play')),
-            DropdownMenuItem(value: 'film', child: Text('Film')),
-            DropdownMenuItem(value: 'other', child: Text('Other')),
-          ],
-          onChanged: disabled
-              ? null
-              : (v) {
-                  if (v != null) change(f.copyWith(kind: v));
-                },
-        ),
-        const Text('Work labels'),
-        for (var i = 0; i < f.labels.length; i++)
-          Card(
-            semanticContainer: false,
-            key: ValueKey((_layout, 'label', i)),
-            child: Column(
-              children: [
-                text('Label language', f.labels[i].language, (v) {
-                  final rows = [...f.labels];
-                  rows[i] = PropertyLabelInput(language: v, text: rows[i].text);
-                  change(f.copyWith(labels: rows));
-                }),
-                text('Label text', f.labels[i].text, (v) {
-                  final rows = [...f.labels];
-                  rows[i] = PropertyLabelInput(
-                    language: rows[i].language,
-                    text: v,
-                  );
-                  change(f.copyWith(labels: rows));
-                }),
-                controls(i, f.labels, (v) => change(f.copyWith(labels: v))),
-              ],
-            ),
-          ),
-        TextButton(
-          onPressed: disabled
-              ? null
-              : () {
-                  _layout++;
-                  change(
-                    f.copyWith(
-                      labels: [...f.labels, const PropertyLabelInput()],
-                    ),
-                  );
-                },
-          child: const Text('Add label'),
-        ),
-        const Text('Source references'),
-        for (var i = 0; i < f.sources.length; i++)
-          Card(
-            semanticContainer: false,
-            key: ValueKey((_layout, 'source', i)),
-            child: Column(
-              children: [
-                _reference('Source reference ${i + 1}', f.sources[i], (v) {
-                  final rows = [...f.sources];
-                  rows[i] = v;
-                  change(f.copyWith(sources: rows));
-                }),
-                controls(i, f.sources, (v) => change(f.copyWith(sources: v))),
-              ],
-            ),
-          ),
-        TextButton(
-          onPressed: disabled
-              ? null
-              : () {
-                  _layout++;
-                  change(
-                    f.copyWith(
-                      sources: [...f.sources, const ExpressionReferenceInput()],
-                    ),
-                  );
-                },
-          child: const Text('Add source reference'),
-        ),
-        const Text('Edition references'),
-        for (var i = 0; i < f.versions.length; i++)
-          Card(
-            semanticContainer: false,
-            key: ValueKey((_layout, 'version', i)),
-            child: Column(
-              children: [
-                _reference(
-                  'Edition ${i + 1}',
-                  ExpressionReferenceInput(
-                    record: f.versions[i],
-                    universe: widget.changes.scope.universe.value,
-                  ),
-                  (v) {
-                    final rows = [...f.versions];
-                    rows[i] = v.record;
-                    change(f.copyWith(versions: rows));
+        if (f.associationTarget == null) ...[
+          text('Work title', f.title, (v) => change(f.copyWith(title: v))),
+          DropdownButtonFormField<String>(
+            key: ValueKey(('kind', f.kind)),
+            initialValue: f.kind.isEmpty ? null : f.kind,
+            decoration: const InputDecoration(labelText: 'Work kind'),
+            items: const [
+              DropdownMenuItem(value: 'novel', child: Text('Novel')),
+              DropdownMenuItem(value: 'story', child: Text('Story')),
+              DropdownMenuItem(
+                value: 'series_chapter',
+                child: Text('Series chapter'),
+              ),
+              DropdownMenuItem(value: 'play', child: Text('Play')),
+              DropdownMenuItem(value: 'film', child: Text('Film')),
+              DropdownMenuItem(value: 'other', child: Text('Other')),
+            ],
+            onChanged: disabled
+                ? null
+                : (v) {
+                    if (v != null) change(f.copyWith(kind: v));
                   },
-                  kind: RecordKind.workVersion,
-                ),
-                controls(i, f.versions, (v) => change(f.copyWith(versions: v))),
-              ],
-            ),
           ),
-        TextButton(
-          onPressed: disabled
-              ? null
-              : () {
-                  _layout++;
-                  change(f.copyWith(versions: [...f.versions, '']));
-                },
-          child: const Text('Add edition reference'),
-        ),
+          const Text('Work labels'),
+          for (var i = 0; i < f.labels.length; i++)
+            Card(
+              semanticContainer: false,
+              key: ValueKey((_layout, 'label', i)),
+              child: Column(
+                children: [
+                  text('Label language', f.labels[i].language, (v) {
+                    final rows = [...f.labels];
+                    rows[i] = PropertyLabelInput(
+                      language: v,
+                      text: rows[i].text,
+                    );
+                    change(f.copyWith(labels: rows));
+                  }),
+                  text('Label text', f.labels[i].text, (v) {
+                    final rows = [...f.labels];
+                    rows[i] = PropertyLabelInput(
+                      language: rows[i].language,
+                      text: v,
+                    );
+                    change(f.copyWith(labels: rows));
+                  }),
+                  controls(i, f.labels, (v) => change(f.copyWith(labels: v))),
+                ],
+              ),
+            ),
+          TextButton(
+            onPressed: disabled
+                ? null
+                : () {
+                    _layout++;
+                    change(
+                      f.copyWith(
+                        labels: [...f.labels, const PropertyLabelInput()],
+                      ),
+                    );
+                  },
+            child: const Text('Add label'),
+          ),
+          const Text('Source references'),
+          for (var i = 0; i < f.sources.length; i++)
+            Card(
+              semanticContainer: false,
+              key: ValueKey((_layout, 'source', i)),
+              child: Column(
+                children: [
+                  _reference('Source reference ${i + 1}', f.sources[i], (v) {
+                    final rows = [...f.sources];
+                    rows[i] = v;
+                    change(f.copyWith(sources: rows));
+                  }),
+                  controls(i, f.sources, (v) => change(f.copyWith(sources: v))),
+                ],
+              ),
+            ),
+          TextButton(
+            onPressed: disabled
+                ? null
+                : () {
+                    _layout++;
+                    change(
+                      f.copyWith(
+                        sources: [
+                          ...f.sources,
+                          const ExpressionReferenceInput(),
+                        ],
+                      ),
+                    );
+                  },
+            child: const Text('Add source reference'),
+          ),
+          const Text('Edition references'),
+          for (var i = 0; i < f.versions.length; i++)
+            Card(
+              semanticContainer: false,
+              key: ValueKey((_layout, 'version', i)),
+              child: Column(
+                children: [
+                  _reference(
+                    'Edition ${i + 1}',
+                    ExpressionReferenceInput(
+                      record: f.versions[i],
+                      universe: widget.changes.scope.universe.value,
+                    ),
+                    (v) {
+                      final rows = [...f.versions];
+                      rows[i] = v.record;
+                      change(f.copyWith(versions: rows));
+                    },
+                    kind: RecordKind.workVersion,
+                  ),
+                  controls(
+                    i,
+                    f.versions,
+                    (v) => change(f.copyWith(versions: v)),
+                  ),
+                ],
+              ),
+            ),
+          TextButton(
+            onPressed: disabled
+                ? null
+                : () {
+                    _layout++;
+                    change(f.copyWith(versions: [...f.versions, '']));
+                  },
+            child: const Text('Add edition reference'),
+          ),
+        ] else ...[
+          DraftRecordChoiceField(
+            changes: widget.changes,
+            draft: widget.draft,
+            kind: RecordKind.work,
+            label: 'Published work',
+            record: f.associationTarget!.record,
+            universe: f.associationTarget!.universe,
+            disabled: true,
+            onChanged: (_) {},
+          ),
+          const Text(
+            'Add one world association. Existing associations and work metadata are retained. A world role does not establish physical location.',
+          ),
+        ],
         const Text('World associations'),
         for (var i = 0; i < f.associations.length; i++)
           Card(
@@ -231,7 +257,9 @@ class _WorkInputFieldsState extends State<WorkInputFields> {
                 Builder(
                   builder: (context) {
                     final a = f.associations[i];
-                    final original = a.originalOrdinal == null
+                    final original = f.associationTarget != null
+                        ? f.associationOriginal
+                        : a.originalOrdinal == null
                         ? null
                         : f.original?.worldAssociations.elementAtOrNull(
                             a.originalOrdinal!,
@@ -380,27 +408,32 @@ class _WorkInputFieldsState extends State<WorkInputFields> {
                     );
                   },
                 ),
-                controls(
-                  i,
-                  f.associations,
-                  (v) => change(f.copyWith(associations: v)),
-                ),
+                if (f.associationTarget == null)
+                  controls(
+                    i,
+                    f.associations,
+                    (v) => change(f.copyWith(associations: v)),
+                  ),
               ],
             ),
           ),
-        TextButton(
-          onPressed: disabled
-              ? null
-              : () {
-                  _layout++;
-                  change(
-                    f.copyWith(
-                      associations: [...f.associations, WorkAssociationInput()],
-                    ),
-                  );
-                },
-          child: const Text('Add world association'),
-        ),
+        if (f.associationTarget == null)
+          TextButton(
+            onPressed: disabled
+                ? null
+                : () {
+                    _layout++;
+                    change(
+                      f.copyWith(
+                        associations: [
+                          ...f.associations,
+                          WorkAssociationInput(),
+                        ],
+                      ),
+                    );
+                  },
+            child: const Text('Add world association'),
+          ),
       ],
     );
   }
