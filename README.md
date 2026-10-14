@@ -281,6 +281,11 @@ In author perspective, proposition choices show their subject, predicate,
 quantification, context, ordered participants and simple values using accessible
 names. Search matches these descriptions. Hidden dependencies retain the
 existing fallback; labels do not assert that a proposition is true.
+**Observation** records a named observer and observed record, an explicit
+sensory-access choice, exact authored time, optional interpretation and source
+basis. Presence and observation do not infer understanding or knowledge.
+Unfinished fields recover on this device; pending observations offer
+**Edit observation fields** in Changes before reviewed publication.
 **Belief or knowledge** records a holder’s explicit attitude, optional certainty,
 validity and source basis. Knowledge acquisition includes its truth context,
 time, optional world and either author establishment or a communication receipt

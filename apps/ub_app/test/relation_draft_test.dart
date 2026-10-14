@@ -13,6 +13,7 @@ import 'package:ub_app/rule_draft.dart';
 import 'package:ub_app/completeness_draft.dart';
 import 'package:ub_app/proposition_draft.dart';
 import 'package:ub_app/attitude_draft.dart';
+import 'package:ub_app/observation_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -1664,6 +1665,81 @@ void main() {
       expect(
         savedAttitude.toWire().toText(),
         attitudeOperation(attitudeForm).record.toWire().toText(),
+      );
+      final observationBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final observationForm = UnfinishedObservationForm(
+        baseRevision: observationBase.content.baseRevision,
+        representedContext: scope.representedContext!,
+        clientRef: 'account-observation',
+        observer: ExpressionReferenceInput(
+          record: participant(1).record.value,
+          universe: scope.universe.value,
+        ),
+        observed: ExpressionReferenceInput(
+          record: claimPublished.single.identity.recordId.value,
+          universe: scope.universe.value,
+        ),
+        sensoryAccess: false,
+        time: TemporalValidityInput(
+          kind: 'instant',
+          calendar: calendar.value,
+          start: const TemporalBoundInput(value: '15'),
+        ),
+        interpretationEnabled: true,
+        interpretation: ExpressionReferenceInput(
+          record: claimPublished.single.identity.recordId.value,
+          universe: scope.universe.value,
+        ),
+        basis: const EvidenceBasisInput(
+          kind: 'author_decision',
+          note: 'Keep Nia’s observation distinct from sensory access.',
+        ),
+        rationale: 'Record the observation as authored.',
+      );
+      await session.saveObservationForm(scope, observationForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredObservation = (await session.loadObservationForm(scope))!
+          .form;
+      expect(
+        recoveredObservation.toWire().toText(),
+        observationForm.toWire().toText(),
+      );
+      final observationDraft = SavedDraft.fromWire(
+        await session.call(
+          observationDraftRequest(
+            draft: observationBase,
+            form: recoveredObservation,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final observationPublished = await publish(observationDraft);
+      expect(
+        observationPublished.single.payload.toWire().toText(),
+        observationOperation(observationForm).record.toWire().toText(),
+      );
+      final observationChoices = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final observationContext = await openDraftChoiceContext(
+        changes(),
+        observationChoices,
+      );
+      final observationSummary = await readDraftChoiceSummary(
+        changes: changes(),
+        context: observationContext,
+        record: observationPublished.single.identity.recordId,
+        kind: RecordKind.observation,
+      );
+      expect(
+        observationSummary.label,
+        'Nia — observation of Mara.Account 記憶 😀',
       );
     } finally {
       await session?.close();

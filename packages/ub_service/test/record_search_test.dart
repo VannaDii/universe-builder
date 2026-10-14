@@ -56,6 +56,16 @@ void main() {
           validity: const UnspecifiedValidity(),
         ),
       ),
+      f.row(
+        8,
+        ObservationRecord(
+          observer: f.ref(1),
+          observed: f.ref(4),
+          sensoryAccess: false,
+          time: const UnspecifiedTime(),
+          basis: const ImportedClaimBasis(),
+        ),
+      ),
     ];
     final visible = {for (final row in rows) row.identity.recordId: row};
     expect(
@@ -67,6 +77,15 @@ void main() {
       'Alice — message Alice.open',
     );
     expect(recordSearchLabel(rows[5], visible, author: true), 'Alice — open');
+    expect(
+      recordSearchLabel(rows[6], visible, author: true),
+      'Alice — observation of Alice.open',
+    );
+    expect(
+      recordSearchLabel(rows[6], {f.id(8): rows[6]}, author: true),
+      f.id(8).value,
+    );
+
     expect(recordSearchLabel(rows[3], visible, author: false), f.id(5).value);
     expect(
       recordSearchLabel(rows[5], {f.id(7): rows[5]}, author: true),

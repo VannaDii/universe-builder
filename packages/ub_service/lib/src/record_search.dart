@@ -92,6 +92,12 @@ String recordSearchLabel(
       return '$quantifier: $subjectLabel.$predicateLabel'
           '${value == null ? '' : ' = $amount'}'
           '${roleLabels.isEmpty ? '' : ' — ${roleLabels.join('; ')}'} [$contextLabel]';
+    case ObservationRecord(:final observer, :final observed):
+      final observerLabel = label(observer),
+          observedLabel = propositionLabel(observed) ?? label(observed);
+      if (observerLabel != null && observedLabel != null) {
+        return '$observerLabel — observation of $observedLabel';
+      }
     case ItemPowerRecord(:final item, :final powerPredicate):
       final itemLabel = label(item), powerLabel = label(powerPredicate);
       if (itemLabel != null && powerLabel != null) {

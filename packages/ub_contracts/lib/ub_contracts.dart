@@ -44,3 +44,5 @@ export 'src/completeness_forms.dart';
 export 'src/proposition_forms.dart';
 
 export 'src/attitude_forms.dart';
+
+export 'src/observation_forms.dart';
