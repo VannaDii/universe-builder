@@ -303,6 +303,12 @@ expressions, ordered steps, explicit status and validity. Repeated steps remain
 intact. A plan neither executes its steps nor reserves resources; recording an
 achieved status does not invent occurred events. Unfinished fields recover on
 this device, and pending plans offer **Edit plan fields** in Changes.
+**Saga** groups named external works with explicit membership roles and optional
+unsigned 64-bit order values. A work can appear in separate roles. Reordering rows
+does not renumber authored order values or merge continuity bindings. Title,
+labels and unfinished membership fields recover privately; Changes editing and
+reviewed publication retain the existing service checks.
+
 **Work** describes an external novel, story, series chapter, play, film or other
 work with its title, multilingual labels, ordered source and edition references,
 and world associations. Each association retains its role, validity and exact

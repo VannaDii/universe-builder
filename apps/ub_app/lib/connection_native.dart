@@ -205,6 +205,7 @@ final class DeviceConnection {
       root: root!,
       client: client,
     );
+    final sagaRecovery = LocalSagaFormRecovery(root: root!, client: client);
     final workRecovery = LocalWorkFormRecovery(root: root!, client: client);
     final boundaryRecovery = LocalBoundaryFormRecovery(
       root: root!,
@@ -305,6 +306,8 @@ final class DeviceConnection {
       loadExceptionForm: (scope) =>
           sequenced(() => exceptionRecovery.load(scope)),
       saveExceptionForm: exceptionRecovery.save,
+      loadSagaForm: (scope) => sequenced(() => sagaRecovery.load(scope)),
+      saveSagaForm: sagaRecovery.save,
       loadWorkForm: (scope) => sequenced(() => workRecovery.load(scope)),
       saveWorkForm: workRecovery.save,
       loadBoundaryForm: (scope) =>

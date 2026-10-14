@@ -24,6 +24,7 @@ import 'package:ub_app/boundary_draft.dart';
 import 'package:ub_app/issue_decision_draft.dart';
 import 'package:ub_app/exception_draft.dart';
 import 'package:ub_app/work_draft.dart';
+import 'package:ub_app/saga_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -2513,6 +2514,50 @@ void main() {
       expect(
         editionChoices.result.hits.single.recordId,
         workEditionPublished.single.identity.recordId,
+      );
+      final sagaBase = (await changes().load())!;
+      final memberWork = ExpressionReferenceInput(
+        record: workPublished.single.identity.recordId.value,
+        universe: scope.universe.value,
+      );
+      final sagaForm = UnfinishedSagaForm(
+        baseRevision: sagaBase.content.baseRevision,
+        representedContext: scope.representedContext!,
+        clientRef: 'collected-campaign',
+        title: 'Collected campaign 記憶 😀',
+        labels: [
+          const PropertyLabelInput(language: 'en', text: 'Collected campaign'),
+        ],
+        memberships: [
+          SagaMembershipInput(
+            work: memberWork,
+            role: 'chapter',
+            orderEnabled: true,
+            order: '9007199254740997',
+          ),
+          SagaMembershipInput(work: memberWork, role: 'appendix'),
+        ],
+        rationale: 'Group chapter and appendix roles without merging their continuity bindings.',
+      );
+      await session.saveSagaForm(scope, sagaForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredSaga = (await session.loadSagaForm(scope))!.form;
+      expect(recoveredSaga.toWire().toText(), sagaForm.toWire().toText());
+      final sagaDraft = SavedDraft.fromWire(
+        await session.call(
+          sagaDraftRequest(
+            draft: sagaBase,
+            form: recoveredSaga,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final sagaPublished = await publish(sagaDraft);
+      expect(
+        sagaPublished.single.payload.toWire().toText(),
+        sagaOperation(sagaForm).record.toWire().toText(),
       );
     } finally {
       await session?.close();
