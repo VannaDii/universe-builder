@@ -42,3 +42,5 @@ export 'src/rule_constraint_forms.dart';
 export 'src/completeness_forms.dart';
 
 export 'src/proposition_forms.dart';
+
+export 'src/attitude_forms.dart';

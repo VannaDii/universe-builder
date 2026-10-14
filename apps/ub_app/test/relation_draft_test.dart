@@ -12,6 +12,7 @@ import 'package:ub_app/continuity_draft.dart';
 import 'package:ub_app/rule_draft.dart';
 import 'package:ub_app/completeness_draft.dart';
 import 'package:ub_app/proposition_draft.dart';
+import 'package:ub_app/attitude_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -1589,6 +1590,56 @@ void main() {
       expect(
         afterAssertions.result.hits.map((h) => h.recordId).toSet(),
         beforeAssertions.result.hits.map((h) => h.recordId).toSet(),
+      );
+      final attitudeBase = await changes().load();
+      final attitudeForm = UnfinishedAttitudeForm(
+        baseRevision: attitudeBase!.content.baseRevision,
+        representedContext: scope.representedContext!,
+        clientRef: 'suspected-account',
+        holder: ExpressionReferenceInput(
+          record: participant(1).record.value,
+          universe: scope.universe.value,
+        ),
+        proposition: ExpressionReferenceInput(
+          record: claimPublished.single.identity.recordId.value,
+          universe: scope.universe.value,
+        ),
+        attitude: 'suspects',
+        certaintyEnabled: true,
+        certainty: 'Unconfirmed 記憶 😀',
+        basis: const EvidenceBasisInput(
+          kind: 'author_decision',
+          note: 'Nia suspects the account.',
+        ),
+        rationale: 'Record suspicion without asserting objective truth.',
+      );
+      await session.saveAttitudeForm(scope, attitudeForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredAttitude = (await session.loadAttitudeForm(scope))!.form;
+      expect(
+        recoveredAttitude.toWire().toText(),
+        attitudeForm.toWire().toText(),
+      );
+      final attitudeDraft = SavedDraft.fromWire(
+        await session.call(
+          attitudeDraftRequest(
+            draft: attitudeBase,
+            form: recoveredAttitude,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final attitudePublished = await publish(attitudeDraft);
+      final savedAttitude =
+          attitudePublished.single.payload as EpistemicAttitudeRecord;
+      expect(savedAttitude.attitude, EpistemicAttitudeKind.suspects);
+      expect(savedAttitude.acquisition, isNull);
+      expect(savedAttitude.certainty, 'Unconfirmed 記憶 😀');
+      expect(
+        savedAttitude.toWire().toText(),
+        attitudeOperation(attitudeForm).record.toWire().toText(),
       );
     } finally {
       await session?.close();

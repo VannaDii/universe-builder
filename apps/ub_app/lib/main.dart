@@ -21,6 +21,7 @@ import 'action_editor_page.dart';
 import 'rule_editor_page.dart';
 import 'completeness_editor_page.dart';
 import 'proposition_editor_page.dart';
+import 'attitude_editor_page.dart';
 import 'continuity_page.dart';
 import 'universe_access_page.dart';
 import 'backup_file_dialogs.dart';
@@ -922,6 +923,37 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                                       }
                                     }),
                           child: const Text('Rule definition'),
+                        ),
+                      if (_contexts.containsKey(continuity.id))
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context)
+                                    .push<void>(
+                                      MaterialPageRoute(
+                                        builder: (_) => AttitudeEditorPage(
+                                          revision: continuity.revisionId,
+                                          changes: SavedChanges(
+                                            session: _session!,
+                                            universe: Selector(_selected!.name),
+                                            scope: EditorFormScope(
+                                              instance: _library!.instance,
+                                              profile: _session!.principal,
+                                              universe: _selected!.id,
+                                              continuity: continuity.id,
+                                              representedContext:
+                                                  _contexts[continuity.id],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                    .then((_) {
+                                      if (mounted && _selected != null) {
+                                        _open(_selected!);
+                                      }
+                                    }),
+                          child: const Text('Belief or knowledge'),
                         ),
                       if (_contexts.containsKey(continuity.id))
                         TextButton(

@@ -277,6 +277,13 @@ Disabling a contract removes it explicitly; older saved forms retain their
 original contracts. Delay bounds remain in the same clock, without inferred
 conversion, and local relation-role multiplicity remains separate from an
 authored cross-instance maximum.
+**Belief or knowledge** records a holder’s explicit attitude, optional certainty,
+validity and source basis. Knowledge acquisition includes its truth context,
+time, optional world and either author establishment or a communication receipt
+with optional interpretation. Existing knowledge checks still apply; omitting
+acquisition does not fabricate a receipt. Unfinished fields recover on this
+device, and **Edit belief or knowledge fields** retains pending identity and
+review rationale.
 The **Proposition** editor defines claims without asserting their truth. Choose a
 predicate, subject, represented context and quantification; retain ordered,
 repeated participants and an optional exact typed value. Unfinished fields
