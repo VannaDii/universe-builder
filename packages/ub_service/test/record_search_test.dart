@@ -66,6 +66,16 @@ void main() {
           basis: const ImportedClaimBasis(),
         ),
       ),
+      f.row(
+        9,
+        MemoryRecord(
+          holder: f.ref(1),
+          content: f.ref(4),
+          accessibility: 'Uncertain',
+          altered: true,
+          validity: const UnspecifiedValidity(),
+        ),
+      ),
     ];
     final visible = {for (final row in rows) row.identity.recordId: row};
     expect(
@@ -90,6 +100,14 @@ void main() {
     expect(
       recordSearchLabel(rows[5], {f.id(7): rows[5]}, author: true),
       f.id(7).value,
+    );
+    expect(
+      recordSearchLabel(rows[7], visible, author: true),
+      'Alice — memory of Alice.open',
+    );
+    expect(
+      recordSearchLabel(rows[7], {f.id(9): rows[7]}, author: true),
+      f.id(9).value,
     );
   });
   test('proposition choices distinguish quantification exact values context and ordered participants', () {

@@ -15,6 +15,7 @@ import 'package:ub_app/proposition_draft.dart';
 import 'package:ub_app/attitude_draft.dart';
 import 'package:ub_app/observation_draft.dart';
 import 'package:ub_app/communication_draft.dart';
+import 'package:ub_app/memory_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -1806,6 +1807,62 @@ void main() {
         communicationPublished.single.payload.toWire().toText(),
         communicationOperation(communicationForm).record.toWire().toText(),
       );
+      final memoryBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final memoryForm = UnfinishedMemoryForm(
+        baseRevision: memoryBase.content.baseRevision,
+        representedContext: scope.representedContext!,
+        clientRef: 'account-memory',
+        holder: messageParticipant(1),
+        content: messageContent,
+        allegedEnabled: true,
+        alleged: ExpressionReferenceInput(
+          record: communicationPublished.single.identity.recordId.value,
+          universe: scope.universe.value,
+        ),
+        accessibility: 'Fragmented 記憶 😀',
+        altered: true,
+        rationale:
+            'Record a recollection independently from its alleged message.',
+      );
+      await session.saveMemoryForm(scope, memoryForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredMemory = (await session.loadMemoryForm(scope))!.form;
+      expect(recoveredMemory.toWire().toText(), memoryForm.toWire().toText());
+      final memoryDraft = SavedDraft.fromWire(
+        await session.call(
+          memoryDraftRequest(
+            draft: memoryBase,
+            form: recoveredMemory,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final memoryPublished = await publish(memoryDraft);
+      expect(memoryPublished.length, 1);
+      expect(
+        memoryPublished.single.payload.toWire().toText(),
+        memoryOperation(memoryForm).record.toWire().toText(),
+      );
+      final memoryChoices = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final memoryContext = await openDraftChoiceContext(
+        changes(),
+        memoryChoices,
+      );
+      final memorySummary = await readDraftChoiceSummary(
+        changes: changes(),
+        context: memoryContext,
+        record: memoryPublished.single.identity.recordId,
+        kind: RecordKind.memory,
+      );
+      expect(memorySummary.label, 'Nia — memory of Mara.Account 記憶 😀');
     } finally {
       await session?.close();
       await server.close();

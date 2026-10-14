@@ -98,6 +98,12 @@ String recordSearchLabel(
       if (observerLabel != null && observedLabel != null) {
         return '$observerLabel — observation of $observedLabel';
       }
+    case MemoryRecord(:final holder, :final content):
+      final holderLabel = label(holder),
+          contentLabel = propositionLabel(content) ?? label(content);
+      if (holderLabel != null && contentLabel != null) {
+        return '$holderLabel — memory of $contentLabel';
+      }
     case ItemPowerRecord(:final item, :final powerPredicate):
       final itemLabel = label(item), powerLabel = label(powerPredicate);
       if (itemLabel != null && powerLabel != null) {

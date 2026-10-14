@@ -281,6 +281,11 @@ In author perspective, proposition choices show their subject, predicate,
 quantification, context, ordered participants and simple values using accessible
 names. Search matches these descriptions. Hidden dependencies retain the
 existing fallback; labels do not assert that a proposition is true.
+**Memory** records a named holder, remembered content, optional alleged record,
+authored accessibility, explicit alteration and validity. A recollection does
+not assert that its content is true or that an alleged event occurred.
+Unfinished input recovers on this device; pending recollections offer
+**Edit memory fields** in Changes before reviewed publication.
 **Communication** records a named sender, separate ordered lists of intended
 and actual recipients, ordered content, optional channel, exact send/receipt
 times and explicit distortion. Repeated entries remain intact; actual recipients
