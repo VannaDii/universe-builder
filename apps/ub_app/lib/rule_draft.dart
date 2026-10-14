@@ -2,6 +2,7 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 import 'expression_draft.dart';
+import 'scope_draft.dart';
 import 'action_draft.dart' show actionValidityInput, buildActionValidity;
 
 DefineRuleOperation ruleOperation(UnfinishedRuleForm form) {
@@ -43,11 +44,18 @@ DefineRuleOperation ruleOperation(UnfinishedRuleForm form) {
       knowledgeBoundary: form.knowledge == null
           ? original?.knowledgeBoundary
           : buildRuleKnowledgeBoundary(form.knowledge!),
-      relationCardinality: original?.relationCardinality,
+      relationCardinality: form.constraints == null
+          ? original?.relationCardinality
+          : buildRuleCardinality(
+              form.constraints!,
+              original?.relationCardinality,
+            ),
       knowledgePolicy: form.knowledge == null
           ? original?.knowledgePolicy
           : buildRuleKnowledgePolicy(form.knowledge!),
-      channelChronology: original?.channelChronology,
+      channelChronology: form.constraints == null
+          ? original?.channelChronology
+          : buildRuleChronology(form.constraints!),
     ),
   );
 }
@@ -91,6 +99,7 @@ UnfinishedRuleForm ruleFormFromDraft(SavedDraft draft, int index) {
     validity: actionValidityInput(record.validity),
     original: record,
     knowledge: ruleKnowledgeInput(record),
+    constraints: ruleConstraintInput(record),
     draftVersion: draft.version,
   );
 }
@@ -194,3 +203,66 @@ KnowledgeBoundary? buildRuleKnowledgeBoundary(RuleKnowledgeInput input) =>
         context: _buildKnowledgeRef(input.boundaryContext),
       )
     : null;
+
+RuleConstraintInput ruleConstraintInput(RuleRecord rule) {
+  final cardinality = rule.relationCardinality,
+      chronology = rule.channelChronology;
+  return RuleConstraintInput(
+    cardinalityEnabled: cardinality != null,
+    chronologyEnabled: chronology != null,
+    relation: _knowledgeRef(cardinality?.relation),
+    grouping: cardinality?.grouping is SubjectCardinalityKey
+        ? 'subject'
+        : cardinality?.grouping is RoleCardinalityKey
+        ? 'role'
+        : '',
+    groupingRole: cardinality?.grouping is RoleCardinalityKey
+        ? (cardinality!.grouping as RoleCardinalityKey).role
+        : '',
+    countedRole: cardinality?.countedRole ?? '',
+    maximum: cardinality?.maximum.toString() ?? '',
+    scope: cardinality == null
+        ? const ScopeInput()
+        : scopeInput(cardinality.scope),
+    validity: cardinality == null
+        ? const TemporalValidityInput(kind: 'unspecified')
+        : actionValidityInput(cardinality.validity),
+    channel: chronology?.channel ?? '',
+    forwardOnly: chronology?.forwardOnly,
+    minimumEnabled: chronology?.minimumDelay != null,
+    maximumEnabled: chronology?.maximumDelay != null,
+    minimumDelay: chronology?.minimumDelay ?? '',
+    maximumDelay: chronology?.maximumDelay ?? '',
+  );
+}
+
+RelationCardinality? buildRuleCardinality(
+  RuleConstraintInput input,
+  RelationCardinality? original,
+) => !input.cardinalityEnabled
+    ? null
+    : RelationCardinality(
+        relation: _buildKnowledgeRef(input.relation),
+        grouping: switch (input.grouping) {
+          'subject' => const SubjectCardinalityKey(),
+          'role' => RoleCardinalityKey(input.groupingRole),
+          _ => throw const FormatException('Choose cardinality grouping.'),
+        },
+        countedRole: input.countedRole,
+        maximum: int.parse(input.maximum),
+        scope: buildScope(input.scope),
+        validity: buildActionValidity(input.validity, original?.validity),
+      );
+ChannelChronology? buildRuleChronology(RuleConstraintInput input) =>
+    !input.chronologyEnabled
+    ? null
+    : ChannelChronology(
+        channel: input.channel,
+        forwardOnly:
+            input.forwardOnly ??
+            (throw const FormatException(
+              'Choose whether the channel is forward-only.',
+            )),
+        minimumDelay: input.minimumEnabled ? input.minimumDelay : null,
+        maximumDelay: input.maximumEnabled ? input.maximumDelay : null,
+      );

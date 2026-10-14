@@ -1290,6 +1290,144 @@ void main() {
         (knowledgePublished.single.payload as RuleRecord).knowledgePolicy!.mode,
         KnowledgeMode.authorEstablished,
       );
+      final chronologyBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final chronologyForm = UnfinishedRuleForm(
+        baseRevision: chronologyBase.content.baseRevision,
+        representedContext: chronologyBase.content.representedContext,
+        clientRef: 'chronology-rule',
+        namespace: 'authored',
+        key: 'mail-chronology',
+        labels: [
+          const PropertyLabelInput(language: 'en', text: 'Mail chronology'),
+        ],
+        kind: 'physical_constraint',
+        commitPolicy: 'always_block',
+        scope: const ScopeInput(applicability: 'universe_wide'),
+        expression: ExpressionInput(kind: 'lit', flags: {'value': true}),
+        capabilities: ['communications.chronology.v1'],
+        executable: true,
+        constraints: const RuleConstraintInput(
+          chronologyEnabled: true,
+          channel: 'mail',
+          forwardOnly: false,
+          minimumEnabled: true,
+          minimumDelay: '9007199254740993',
+          maximumEnabled: true,
+          maximumDelay: '9007199254740995',
+        ),
+        rationale: 'Declare exact mail delay bounds.',
+      );
+      final chronologyDraft = SavedDraft.fromWire(
+        await session.call(
+          ruleDraftRequest(
+            draft: chronologyBase,
+            form: chronologyForm,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final chronologyPublished = await publish(chronologyDraft);
+      expect(
+        (chronologyPublished.single.payload as RuleRecord)
+            .channelChronology!
+            .maximumDelay,
+        '9007199254740995',
+      );
+      final limitedBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final limitedRelation = RelationRecord.fromWire(
+        CanonicalObject([
+          for (final field in relationOperation(form).record.toWire().fields)
+            field.key == 'key'
+                ? MapEntry('key', CanonicalString('limited-account'))
+                : field,
+        ]),
+      );
+      final limitedDraft = await changes().saveContent(
+        limitedBase,
+        DraftContent(
+          baseRevision: limitedBase.content.baseRevision,
+          representedContext: limitedBase.content.representedContext,
+          operations: [
+            DefineRelationOperation(
+              clientRef: 'limited-account',
+              record: limitedRelation,
+            ),
+          ],
+          rationale: 'Declare a dedicated bounded relation.',
+        ),
+      );
+      final limitedPublished = (await publish(limitedDraft)).single;
+      final cardinalityBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final cardinalityForm = UnfinishedRuleForm(
+        baseRevision: cardinalityBase.content.baseRevision,
+        representedContext: cardinalityBase.content.representedContext,
+        clientRef: 'cardinality-rule',
+        namespace: 'authored',
+        key: 'limited-account-count',
+        labels: [
+          const PropertyLabelInput(language: 'en', text: 'Account cardinality'),
+        ],
+        kind: 'physical_constraint',
+        commitPolicy: 'always_block',
+        scope: const ScopeInput(applicability: 'universe_wide'),
+        expression: ExpressionInput(kind: 'lit', flags: {'value': true}),
+        capabilities: ['relations.cardinality.v1'],
+        executable: true,
+        constraints: RuleConstraintInput(
+          cardinalityEnabled: true,
+          relation: ExpressionReferenceInput(
+            record: limitedPublished.identity.recordId.value,
+            universe: scope.universe.value,
+          ),
+          grouping: 'subject',
+          countedRole: 'listeners',
+          maximum: '5',
+          scope: ScopeInput(
+            applicability: 'universe_wide',
+            contextRecord: scope.representedContext!.value,
+            contextUniverse: scope.universe.value,
+          ),
+          validity: TemporalValidityInput(
+            kind: 'calendar_interval',
+            calendar: calendar.value,
+            start: const TemporalBoundInput(value: '0'),
+            end: const TemporalBoundInput(value: '20'),
+          ),
+        ),
+        rationale: 'Declare a scoped cross-instance maximum.',
+      );
+      final cardinalityDraft = SavedDraft.fromWire(
+        await session.call(
+          ruleDraftRequest(
+            draft: cardinalityBase,
+            form: cardinalityForm,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final List<RecordVersion> cardinalityPublished;
+      try {
+        cardinalityPublished = await publish(cardinalityDraft);
+      } on InvalidArgumentError catch (error) {
+        fail('${error.field}: ${error.message}');
+      }
+      expect(
+        (cardinalityPublished.single.payload as RuleRecord)
+            .relationCardinality!
+            .maximum,
+        5,
+      );
     } finally {
       await session?.close();
       await server.close();

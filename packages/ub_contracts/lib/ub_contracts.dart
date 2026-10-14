@@ -38,3 +38,4 @@ export 'src/expression_forms.dart';
 export 'src/action_forms.dart';
 export 'src/rule_forms.dart';
 export 'src/rule_knowledge_forms.dart';
+export 'src/rule_constraint_forms.dart';

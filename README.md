@@ -269,8 +269,14 @@ execute an unsupported capability. Knowledge acquisition controls offer explicit
 author-established/justified modes and a named policy context. Scoped knowledge
 boundaries name the holder, proposition and context; disabling either extension
 explicitly removes it while retaining unfinished fields on this device. Older
-saved forms retain their original knowledge settings. Cardinality and chronology
-data is retained; controls for editing those extensions remain pending.
+saved forms retain their original knowledge settings. Relation cardinality
+controls select the relation, grouping, counted role, exact maximum and the
+contract's own scope/validity. Channel chronology controls retain the authored
+channel, explicit temporal direction and optional exact signed tick-delay bounds.
+Disabling a contract removes it explicitly; older saved forms retain their
+original contracts. Delay bounds remain in the same clock, without inferred
+conversion, and local relation-role multiplicity remains separate from an
+authored cross-instance maximum.
 **Timeline** in an entity dossier lists events with explicit participation.
 Exact numeric points are ordered separately in each named calendar, using the
 shared rule engine's integer bounds. Equal coordinates do not imply sequence.

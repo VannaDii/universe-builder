@@ -126,6 +126,53 @@ void main() {
       );
       expect(ruleOperation(removed).record.knowledgePolicy, isNull);
       expect(ruleOperation(removed).record.knowledgeBoundary, isNull);
+      final oldConstraintForm = UnfinishedRuleForm.fromWire(
+        CanonicalObject(
+          form.toWire().fields.where((f) => f.key != 'constraints'),
+        ),
+      );
+      expect(
+        ruleOperation(oldConstraintForm).record.toWire().toText(),
+        record.toWire().toText(),
+      );
+      final changedConstraints = form.constraints!.copyWith(
+        maximum: '0',
+        minimumEnabled: false,
+        maximumEnabled: true,
+        maximumDelay: '9007199254740995',
+        forwardOnly: false,
+      );
+      final changedConstraintForm = UnfinishedRuleForm.fromWire(
+        CanonicalObject([
+          ...form.toWire().fields.where((f) => f.key != 'constraints'),
+          MapEntry('constraints', changedConstraints.toWire()),
+        ]),
+      );
+      final changedConstraintRecord = ruleOperation(changedConstraintForm)
+          .record;
+      expect(changedConstraintRecord.relationCardinality!.maximum, 0);
+      expect(
+        changedConstraintRecord.relationCardinality!.scope.toWire().toText(),
+        record.relationCardinality!.scope.toWire().toText(),
+      );
+      expect(changedConstraintRecord.channelChronology!.minimumDelay, isNull);
+      expect(
+        changedConstraintRecord.channelChronology!.maximumDelay,
+        '9007199254740995',
+      );
+      expect(changedConstraintRecord.channelChronology!.forwardOnly, isFalse);
+      expect(
+        changedConstraintRecord.knowledgePolicy!.toWire().toText(),
+        record.knowledgePolicy!.toWire().toText(),
+      );
+      final noConstraints = UnfinishedRuleForm.fromWire(
+        CanonicalObject([
+          ...form.toWire().fields.where((f) => f.key != 'constraints'),
+          MapEntry('constraints', const RuleConstraintInput().toWire()),
+        ]),
+      );
+      expect(ruleOperation(noConstraints).record.relationCardinality, isNull);
+      expect(ruleOperation(noConstraints).record.channelChronology, isNull);
       final request = ruleDraftRequest(
         draft: draft,
         form: form,
@@ -162,6 +209,13 @@ void main() {
       namespace: 'authored',
       key: 'incomplete',
       targetPredicates: ['incomplete predicate 記憶 😀'],
+      constraints: const RuleConstraintInput(
+        cardinalityEnabled: true,
+        chronologyEnabled: true,
+        maximum: 'unfinished',
+        minimumEnabled: true,
+        minimumDelay: '9007199254740993',
+      ),
       knowledge: const RuleKnowledgeInput(
         policyEnabled: true,
         mode: 'still deciding',
@@ -183,6 +237,16 @@ void main() {
       store = RuleFormRecoveryStore.open('${root.path}/forms.sqlite');
       final recovered = store.load(scope)!;
       expect(recovered.form.executable, isNull);
+      expect(recovered.form.constraints!.forwardOnly, isNull);
+      expect(recovered.form.constraints!.minimumDelay, '9007199254740993');
+      expect(
+        () => buildRuleChronology(recovered.form.constraints!),
+        throwsFormatException,
+      );
+      expect(
+        () => buildRuleCardinality(recovered.form.constraints!, null),
+        throwsFormatException,
+      );
       expect(
         recovered.form.knowledge!.policyContext.record,
         'unfinished context 記憶 😀',

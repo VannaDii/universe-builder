@@ -5,6 +5,7 @@ import 'expression_forms.dart';
 import 'property_forms.dart';
 import 'wire.dart';
 import 'rule_knowledge_forms.dart';
+import 'rule_constraint_forms.dart';
 
 final class UnfinishedRuleForm {
   UnfinishedRuleForm({
@@ -26,6 +27,7 @@ final class UnfinishedRuleForm {
     this.rationale = '',
     this.original,
     this.knowledge,
+    this.constraints,
     BigInt? draftVersion,
   }) : labels = List.unmodifiable(labels),
        subjectTypes = List.unmodifiable(subjectTypes),
@@ -44,6 +46,7 @@ final class UnfinishedRuleForm {
   final TemporalValidityInput validity;
   final RuleRecord? original;
   final RuleKnowledgeInput? knowledge;
+  final RuleConstraintInput? constraints;
   final BigInt? draftVersion;
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
@@ -73,6 +76,7 @@ final class UnfinishedRuleForm {
     MapEntry('validity', validity.toWire()),
     if (original != null) MapEntry('original', original!.toWire()),
     if (knowledge != null) MapEntry('knowledge', knowledge!.toWire()),
+    if (constraints != null) MapEntry('constraints', constraints!.toWire()),
     if (draftVersion != null)
       MapEntry('draft_version', CanonicalString(draftVersion.toString())),
   ]);
@@ -96,6 +100,7 @@ final class UnfinishedRuleForm {
       'validity',
       'original',
       'knowledge',
+      'constraints',
       'draft_version',
     });
     return UnfinishedRuleForm(
@@ -119,6 +124,7 @@ final class UnfinishedRuleForm {
       validity: TemporalValidityInput.fromWire(f.require('validity')),
       original: f.optional('original', RuleRecord.fromWire),
       knowledge: f.optional('knowledge', RuleKnowledgeInput.fromWire),
+      constraints: f.optional('constraints', RuleConstraintInput.fromWire),
       draftVersion: f.optional(
         'draft_version',
         (v) => BigInt.parse(wireString(v)),
