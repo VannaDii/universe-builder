@@ -12,6 +12,7 @@ import 'temporal_validity_fields.dart';
 import 'temporal_validity_draft.dart';
 import 'record_fields.dart';
 import 'draft_record_choices.dart';
+import 'scope_input_fields.dart';
 
 class EventEditorPage extends StatefulWidget {
   const EventEditorPage({
@@ -140,6 +141,10 @@ class _EventEditorPageState extends State<EventEditorPage> {
     }
   }
 
+  List<EventEffectInput> get _effects =>
+      _form?.effects ??
+      _form?.original?.effects.map(eventEffectInput).toList() ??
+      const [];
   bool get _inputDisabled =>
       _loading || _adding || _form == null || _added != null;
   void _change({
@@ -150,6 +155,7 @@ class _EventEditorPageState extends State<EventEditorPage> {
     String? actionUniverse,
     TemporalValidityInput? time,
     List<EventParticipantInput>? participants,
+    List<EventEffectInput>? effects,
     String? rationale,
     List<String>? worlds,
     String? regionRecord,
@@ -170,6 +176,7 @@ class _EventEditorPageState extends State<EventEditorPage> {
         actionUniverse: actionUniverse ?? f.actionUniverse,
         time: time ?? f.time,
         participants: participants ?? f.participants,
+        effects: effects ?? f.effects,
         rationale: rationale ?? f.rationale,
         original: f.original,
         worlds: worlds ?? f.worlds,
@@ -202,6 +209,38 @@ class _EventEditorPageState extends State<EventEditorPage> {
     rows.insert(destination, row);
     _fields++;
     _change(participants: rows);
+  }
+
+  void _effect(
+    int index, {
+    String? slot,
+    RecordRef? proposition,
+    String? polarity,
+    String? order,
+    ScopeInput? scope,
+    TemporalValidityInput? validity,
+  }) {
+    final rows = [..._effects], old = rows[index];
+    rows[index] = EventEffectInput(
+      slot: slot ?? old.slot,
+      propositionRecord: proposition?.record.value ?? old.propositionRecord,
+      propositionUniverse: proposition == null
+          ? old.propositionUniverse
+          : proposition.universe?.value ?? '',
+      polarity: polarity ?? old.polarity,
+      order: order ?? old.order,
+      scope: scope ?? old.scope,
+      validity: validity ?? old.validity,
+      original: old.original,
+    );
+    _change(effects: rows);
+  }
+
+  void _moveEffect(int index, int destination) {
+    final rows = [..._effects], row = rows.removeAt(index);
+    rows.insert(destination, row);
+    _fields++;
+    _change(effects: rows);
   }
 
   Future<void> _save() async {
@@ -555,6 +594,198 @@ class _EventEditorPageState extends State<EventEditorPage> {
                             ],
                           ),
                     child: const Text('Add participant'),
+                  ),
+                  const Text('Declared effects'),
+                  const Text(
+                    'Effect slots and execution order must match the declared action contract. List position does not replace execution order.',
+                  ),
+                  for (var i = 0; i < _effects.length; i++)
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          children: [
+                            _text(
+                              'effect-slot-$i',
+                              'Contract slot',
+                              _effects[i].slot,
+                              (v) => _effect(i, slot: v),
+                            ),
+                            DraftRecordChoiceField(
+                              key: ValueKey((_fields, 'effect', i)),
+                              changes: widget.changes,
+                              draft: _choices,
+                              kind: RecordKind.proposition,
+                              label: 'Effect proposition',
+                              record: _effects[i].propositionRecord,
+                              universe: _effects[i].propositionUniverse,
+                              disabled: _inputDisabled,
+                              onChanged: (ref) => _effect(i, proposition: ref),
+                            ),
+                            DropdownButtonFormField<String>(
+                              key: ValueKey((_fields, 'effect-polarity', i)),
+                              initialValue: _effects[i].polarity.isEmpty
+                                  ? null
+                                  : _effects[i].polarity,
+                              decoration: const InputDecoration(
+                                labelText: 'Effect polarity',
+                              ),
+                              items: [
+                                for (final polarity in Polarity.values)
+                                  DropdownMenuItem(
+                                    value: polarity.wireName,
+                                    child: Text(polarity.wireName),
+                                  ),
+                              ],
+                              onChanged: _inputDisabled
+                                  ? null
+                                  : (v) {
+                                      if (v != null) _effect(i, polarity: v);
+                                    },
+                            ),
+                            _text(
+                              'effect-order-$i',
+                              'Execution order',
+                              _effects[i].order,
+                              (v) => _effect(i, order: v),
+                            ),
+                            ExpansionTile(
+                              title: const Text('Effect scope'),
+                              children: [
+                                ScopeInputFields(
+                                  key: ValueKey((_fields, 'effect-scope', i)),
+                                  input: _effects[i].scope,
+                                  changes: widget.changes,
+                                  draft: _choices,
+                                  disabled: _inputDisabled,
+                                  onChanged: (scope) =>
+                                      _effect(i, scope: scope),
+                                ),
+                              ],
+                            ),
+                            DropdownButtonFormField<String>(
+                              key: ValueKey((
+                                _fields,
+                                'effect-validity-kind',
+                                i,
+                              )),
+                              initialValue:
+                                  {
+                                    'unknown',
+                                    'unspecified',
+                                    'retain',
+                                  }.contains(_effects[i].validity.kind)
+                                  ? _effects[i].validity.kind
+                                  : 'temporal',
+                              decoration: const InputDecoration(
+                                labelText: 'Validity',
+                              ),
+                              items: [
+                                const DropdownMenuItem(
+                                  value: 'unspecified',
+                                  child: Text('Unspecified'),
+                                ),
+                                const DropdownMenuItem(
+                                  value: 'unknown',
+                                  child: Text('Unknown'),
+                                ),
+                                const DropdownMenuItem(
+                                  value: 'temporal',
+                                  child: Text('Temporal validity'),
+                                ),
+                                if (_effects[i].original != null)
+                                  const DropdownMenuItem(
+                                    value: 'retain',
+                                    child: Text('Keep current validity'),
+                                  ),
+                              ],
+                              onChanged: _inputDisabled
+                                  ? null
+                                  : (v) {
+                                      if (v != null) {
+                                        _fields++;
+                                        _effect(
+                                          i,
+                                          validity: v == 'temporal'
+                                              ? const TemporalValidityInput()
+                                              : TemporalValidityInput(kind: v),
+                                        );
+                                      }
+                                    },
+                            ),
+                            if (!{
+                              'unknown',
+                              'unspecified',
+                              'retain',
+                            }.contains(_effects[i].validity.kind))
+                              ExpansionTile(
+                                title: const Text('Effect validity'),
+                                children: [
+                                  TemporalValidityFields(
+                                    key: ValueKey((
+                                      _fields,
+                                      'effect-validity',
+                                      i,
+                                    )),
+                                    input: _effects[i].validity,
+                                    originalAmounts: temporalOriginalAmounts(
+                                      _effects[i].original?.validity,
+                                    ),
+                                    changes: widget.changes,
+                                    draft: _choices,
+                                    disabled: _inputDisabled,
+                                    onChanged: (validity) =>
+                                        _effect(i, validity: validity),
+                                  ),
+                                ],
+                              ),
+                            Wrap(
+                              children: [
+                                TextButton(
+                                  onPressed: _inputDisabled || i == 0
+                                      ? null
+                                      : () => _moveEffect(i, i - 1),
+                                  child: const Text('Move earlier'),
+                                ),
+                                TextButton(
+                                  onPressed:
+                                      _inputDisabled || i == _effects.length - 1
+                                      ? null
+                                      : () => _moveEffect(i, i + 1),
+                                  child: const Text('Move later'),
+                                ),
+                                TextButton(
+                                  onPressed: _inputDisabled
+                                      ? null
+                                      : () {
+                                          _fields++;
+                                          _change(
+                                            effects: [..._effects]..removeAt(i),
+                                          );
+                                        },
+                                  child: const Text('Remove effect'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  TextButton(
+                    onPressed: _inputDisabled
+                        ? null
+                        : () => _change(
+                            effects: [
+                              ..._effects,
+                              EventEffectInput(
+                                scope: ScopeInput(
+                                  contextRecord: f.representedContext.value,
+                                  contextUniverse: _scope.universe.value,
+                                ),
+                              ),
+                            ],
+                          ),
+                    child: const Text('Add declared effect'),
                   ),
                   if (f.original != null)
                     ExpansionTile(

@@ -1,6 +1,7 @@
 import 'package:ub_domain/ub_domain.dart';
 
 import 'editor_forms.dart';
+import 'event_effect_forms.dart';
 import 'wire.dart';
 
 final class EventParticipantInput {
@@ -46,7 +47,9 @@ final class UnfinishedEventForm {
     String? sequence,
     String? occurrenceId,
     BigInt? draftVersion,
+    Iterable<EventEffectInput>? effects,
   }) : participants = List.unmodifiable(participants),
+       effects = effects == null ? null : List.unmodifiable(effects),
        worlds = List.unmodifiable(
          worlds ?? original?.worlds.map((w) => w.value) ?? const [],
        ),
@@ -69,6 +72,7 @@ final class UnfinishedEventForm {
   final String regionRecord, regionUniverse, sequence, occurrenceId;
   final TemporalValidityInput time;
   final List<EventParticipantInput> participants;
+  final List<EventEffectInput>? effects;
   final EventRecord? original;
   final BigInt? draftVersion;
   CanonicalObject toWire() => CanonicalObject([
@@ -86,6 +90,8 @@ final class UnfinishedEventForm {
       CanonicalArray(participants.map((p) => p.toWire())),
     ),
     MapEntry('rationale', CanonicalString(rationale)),
+    if (effects != null)
+      MapEntry('effects', CanonicalArray(effects!.map((e) => e.toWire()))),
     MapEntry('worlds', CanonicalArray(worlds.map(CanonicalString.new))),
     MapEntry('region_record', CanonicalString(regionRecord)),
     MapEntry('region_universe', CanonicalString(regionUniverse)),
@@ -109,6 +115,7 @@ final class UnfinishedEventForm {
       'participants',
       'rationale',
       'original',
+      'effects',
       'draft_version',
       'worlds',
       'region_record',
@@ -121,6 +128,10 @@ final class UnfinishedEventForm {
       representedContext: RecordId.parse(f.string('represented_context')),
       clientRef: f.string('client_ref'),
       label: f.string('label'),
+      effects: f.optional(
+        'effects',
+        (v) => (v as CanonicalArray).items.map(EventEffectInput.fromWire),
+      ),
       worlds: f.optional(
         'worlds',
         (v) => (v as CanonicalArray).items.map(wireString),
@@ -147,6 +158,7 @@ final class UnfinishedEventForm {
     );
   }
   Iterable<String> get exactTexts => [
+    for (final effect in effects ?? <EventEffectInput>[]) ...effect.exactTexts,
     ...worlds,
     regionRecord,
     regionUniverse,

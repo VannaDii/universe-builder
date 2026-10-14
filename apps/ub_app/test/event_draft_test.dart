@@ -103,6 +103,31 @@ void main() {
       clearedEvent.effects.single.toWire().toText(),
       effect.toWire().toText(),
     );
+    final effectFields = form.effects!.single;
+    final effectEdit = EventEffectInput(
+      slot: 'authored slot 記憶 😀',
+      propositionRecord: effectFields.propositionRecord,
+      propositionUniverse: effectFields.propositionUniverse,
+      polarity: 'support',
+      order: '9007199254740994',
+      scope: effectFields.scope,
+      validity: effectFields.validity,
+      original: effectFields.original,
+    );
+    final editedEffect = buildEventEffect(
+      EventEffectInput.fromWire(effectEdit.toWire()),
+    );
+    expect(editedEffect.order, BigInt.from(9007199254740994));
+    expect(editedEffect.slot, 'authored slot 記憶 😀');
+    expect(editedEffect.polarity, Polarity.support);
+    expect(editedEffect.proposition, effect.proposition);
+    expect(editedEffect.validity, isA<UnknownValidity>());
+    final partial = EventEffectInput(slot: 'incomplete', order: 'not a number');
+    expect(
+      EventEffectInput.fromWire(partial.toWire()).toWire().toText(),
+      partial.toWire().toText(),
+    );
+    expect(() => buildEventEffect(partial), throwsFormatException);
     final edited = UnfinishedEventForm(
       baseRevision: form.baseRevision,
       representedContext: context,

@@ -2,6 +2,39 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 import 'temporal_validity_draft.dart';
+import 'scope_draft.dart';
+
+EventEffectInput eventEffectInput(EntityEffect effect) => EventEffectInput(
+  slot: effect.slot,
+  propositionRecord: effect.proposition.record.value,
+  propositionUniverse: effect.proposition.universe?.value ?? '',
+  polarity: effect.polarity.wireName,
+  order: effect.order.toString(),
+  scope: scopeInput(effect.scope),
+  validity: switch (effect.validity) {
+    UnknownValidity() => const TemporalValidityInput(kind: 'unknown'),
+    UnspecifiedValidity() => const TemporalValidityInput(kind: 'unspecified'),
+    ConditionalValidity() => const TemporalValidityInput(kind: 'retain'),
+    _ => temporalValidityInput(effect.validity),
+  },
+  original: effect,
+);
+
+EntityEffect buildEventEffect(EventEffectInput input) => EntityEffect(
+  slot: input.slot,
+  proposition: _reference(input.propositionRecord, input.propositionUniverse),
+  polarity: Polarity.fromWire(CanonicalString(input.polarity)),
+  order: BigInt.parse(input.order),
+  scope: buildScope(input.scope),
+  validity: switch (input.validity.kind) {
+    'retain' =>
+      input.original?.validity ??
+          (throw const FormatException('No original validity to retain.')),
+    'unknown' => const UnknownValidity(),
+    'unspecified' => const UnspecifiedValidity(),
+    _ => buildTemporalValidity(input.validity, input.original?.validity),
+  },
+);
 
 RecordRef _reference(String record, String universe) => RecordRef(
   record: RecordId.parse(record),
@@ -46,7 +79,7 @@ RecordEventOperation eventOperation(UnfinishedEventForm form) {
           ? (old?.occurrenceId == '' ? '' : null)
           : form.occurrenceId,
       preconditions: old?.preconditions ?? [],
-      effects: old?.effects ?? [],
+      effects: form.effects?.map(buildEventEffect) ?? old?.effects ?? [],
       expansionVersion: old?.expansionVersion,
     ),
   );
@@ -81,6 +114,7 @@ UnfinishedEventForm eventFormFromDraft(SavedDraft draft, int index) {
       ),
     ),
     original: record,
+    effects: record.effects.map(eventEffectInput),
     draftVersion: draft.version,
   );
 }

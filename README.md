@@ -218,8 +218,11 @@ its fields can be saved.
 **Event** in an opened continuity offers occurrence status, named declared
 actions, event time, declared worlds/region, sequence/occurrence identity and
 ordered participants. Unfinished fields recover on this device, and unpublished
-events offer **Edit event fields** in Changes. Existing precondition and effect
-declarations remain intact; their editing controls are still pending. World/region
+events offer **Edit event fields** in Changes. Declared effects have named
+proposition choices, polarity, action-contract slots, exact execution order,
+scope and validity. Moving rows retains their declared execution-order numbers.
+Conditional validity can be retained; its expression editing and precondition
+controls remain pending. World/region
 declarations and sequence tokens do not infer location or temporal order. Plans
 and reports remain distinct from occurred events.
 **Timeline** in an entity dossier lists events with explicit participation.
