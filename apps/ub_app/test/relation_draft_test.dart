@@ -17,6 +17,7 @@ import 'package:ub_app/observation_draft.dart';
 import 'package:ub_app/communication_draft.dart';
 import 'package:ub_app/memory_draft.dart';
 import 'package:ub_app/plan_draft.dart';
+import 'package:ub_app/commitment_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -1916,6 +1917,78 @@ void main() {
         kind: RecordKind.goal,
       );
       expect(planSummary.label, 'Mara — Active plan: Mara.Account 記憶 😀');
+      final commitmentBase = await changes().load();
+      CommitmentPartyInput party(int i, String role) => CommitmentPartyInput(
+        record: participant(i).record.value,
+        universe: scope.universe.value,
+        role: role,
+      );
+      final commitmentForm = UnfinishedCommitmentForm(
+        baseRevision: commitmentBase!.content.baseRevision,
+        representedContext: scope.representedContext!,
+        clientRef: 'account-commitment',
+        parties: [
+          party(0, 'promisor'),
+          party(1, 'beneficiary'),
+          party(1, 'witness'),
+        ],
+        obligated: messageContent,
+        conditions: [
+          ExpressionInput(kind: 'lit', flags: {'value': false}),
+        ],
+        deadlineEnabled: true,
+        deadline: TemporalValidityInput(
+          kind: 'instant',
+          calendar: calendar.value,
+          start: const TemporalBoundInput(value: '30'),
+        ),
+        status: 'unfulfilled',
+        rationale:
+            'Record a promise without automatic fulfillment or consequences.',
+      );
+      await session.saveCommitmentForm(scope, commitmentForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredCommitment = (await session.loadCommitmentForm(scope))!
+          .form;
+      expect(
+        recoveredCommitment.toWire().toText(),
+        commitmentForm.toWire().toText(),
+      );
+      final commitmentDraft = SavedDraft.fromWire(
+        await session.call(
+          commitmentDraftRequest(
+            draft: commitmentBase,
+            form: recoveredCommitment,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final commitmentPublished = await publish(commitmentDraft);
+      expect(commitmentPublished.length, 1);
+      expect(
+        commitmentPublished.single.payload.toWire().toText(),
+        commitmentOperation(commitmentForm).record.toWire().toText(),
+      );
+      final commitmentChoices = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final commitmentContext = await openDraftChoiceContext(
+        changes(),
+        commitmentChoices,
+      );
+      final commitmentSummary = await readDraftChoiceSummary(
+        changes: changes(),
+        context: commitmentContext,
+        record: commitmentPublished.single.identity.recordId,
+        kind: RecordKind.commitment,
+      );
+      expect(
+        commitmentSummary.label,
+        'Unfulfilled commitment: promisor: Mara; beneficiary: Nia; witness: Nia — Mara.Account 記憶 😀',
+      );
     } finally {
       await session?.close();
       await server.close();

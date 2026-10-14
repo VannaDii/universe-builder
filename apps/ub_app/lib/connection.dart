@@ -21,6 +21,8 @@ final class AppSession {
     required this.saveRelationForm,
     required this.loadCommunicationForm,
     required this.saveCommunicationForm,
+    required this.loadCommitmentForm,
+    required this.saveCommitmentForm,
     required this.loadPlanForm,
     required this.savePlanForm,
     required this.loadMemoryForm,
@@ -107,6 +109,14 @@ final class AppSession {
     BigInt,
   )
   saveCommunicationForm;
+  final Future<SavedCommitmentForm?> Function(EditorFormScope)
+  loadCommitmentForm;
+  final Future<SavedCommitmentForm> Function(
+    EditorFormScope,
+    UnfinishedCommitmentForm,
+    BigInt,
+  )
+  saveCommitmentForm;
   final Future<SavedPlanForm?> Function(EditorFormScope) loadPlanForm;
   final Future<SavedPlanForm> Function(
     EditorFormScope,

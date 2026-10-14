@@ -281,6 +281,11 @@ In author perspective, proposition choices show their subject, predicate,
 quantification, context, ordered participants and simple values using accessible
 names. Search matches these descriptions. Hidden dependencies retain the
 existing fallback; labels do not assert that a proposition is true.
+**Commitment** records named parties and authored roles, an obligated record,
+condition expressions, optional exact deadline and explicit status. Party order
+and repeated entries remain intact. Fulfillment and breach do not trigger
+consequences automatically. Unfinished input recovers on this device; pending
+promises offer **Edit commitment fields** in Changes.
 **Plan** records a named actor, optional desired record, declared prerequisite
 expressions, ordered steps, explicit status and validity. Repeated steps remain
 intact. A plan neither executes its steps nor reserves resources; recording an

@@ -193,6 +193,10 @@ final class DeviceConnection {
       root: root!,
       client: client,
     );
+    final commitmentRecovery = LocalCommitmentFormRecovery(
+      root: root!,
+      client: client,
+    );
     final planRecovery = LocalPlanFormRecovery(root: root!, client: client);
     final memoryRecovery = LocalMemoryFormRecovery(root: root!, client: client);
     final observationRecovery = LocalObservationFormRecovery(
@@ -271,6 +275,9 @@ final class DeviceConnection {
       loadCommunicationForm: (scope) =>
           sequenced(() => communicationRecovery.load(scope)),
       saveCommunicationForm: communicationRecovery.save,
+      loadCommitmentForm: (scope) =>
+          sequenced(() => commitmentRecovery.load(scope)),
+      saveCommitmentForm: commitmentRecovery.save,
       loadPlanForm: (scope) => sequenced(() => planRecovery.load(scope)),
       savePlanForm: planRecovery.save,
       loadMemoryForm: (scope) => sequenced(() => memoryRecovery.load(scope)),

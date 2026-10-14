@@ -113,6 +113,18 @@ String recordSearchLabel(
         final state = status.name;
         return '$actorLabel — ${state[0].toUpperCase()}${state.substring(1)} plan${desired == null ? '' : ': $desiredLabel'}';
       }
+    case CommitmentRecord(:final parties, :final obligated, :final status):
+      final obligation = propositionLabel(obligated) ?? label(obligated);
+      if (obligation == null) break;
+      final partyLabels = <String>[];
+      for (final party in parties) {
+        final partyLabel = label(party.record);
+        if (partyLabel == null) return recordReadLabel(row);
+        partyLabels.add('${party.role}: $partyLabel');
+      }
+      final state = status.name;
+      return '${state[0].toUpperCase()}${state.substring(1)} commitment'
+          '${partyLabels.isEmpty ? '' : ': ${partyLabels.join('; ')}'} — $obligation';
     case ItemPowerRecord(:final item, :final powerPredicate):
       final itemLabel = label(item), powerLabel = label(powerPredicate);
       if (itemLabel != null && powerLabel != null) {

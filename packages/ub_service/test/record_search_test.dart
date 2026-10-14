@@ -87,6 +87,15 @@ void main() {
           validity: const UnspecifiedValidity(),
         ),
       ),
+      f.row(
+        11,
+        CommitmentRecord(
+          parties: [CommitmentParty(f.ref(1), 'promisor')],
+          obligated: f.ref(4),
+          conditions: [],
+          status: CommitmentStatus.unfulfilled,
+        ),
+      ),
     ];
     final visible = {for (final row in rows) row.identity.recordId: row};
     expect(
@@ -127,6 +136,14 @@ void main() {
     expect(
       recordSearchLabel(rows[8], {f.id(10): rows[8]}, author: true),
       f.id(10).value,
+    );
+    expect(
+      recordSearchLabel(rows[9], visible, author: true),
+      'Unfulfilled commitment: promisor: Alice — Alice.open',
+    );
+    expect(
+      recordSearchLabel(rows[9], {f.id(11): rows[9]}, author: true),
+      f.id(11).value,
     );
   });
   test('proposition choices distinguish quantification exact values context and ordered participants', () {
