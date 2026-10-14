@@ -6,6 +6,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:test/test.dart';
+import 'package:ub_store/sqlite.dart' as local;
 import 'package:ub_cli/universe_cli.dart';
 import 'package:ub_client/loopback_engine.dart';
 import 'package:ub_client/browser_engine.dart';
@@ -226,6 +227,122 @@ void main() {
       );
       final universe = UniverseId.parse(
         wireString(createdFields['universe_id']!),
+      );
+      // Browser sessions use content transfer rather than arbitrary server paths.
+      final deniedPath = '${root.path}/browser-path-output';
+      for (final command in <EngineRequest>[
+        BackupEngineRequest(
+          universe: Selector('Browser universe'),
+          destination: deniedPath,
+        ),
+        RestoreEngineRequest(source: deniedPath, name: 'Restored'),
+        ConvertLegacyEngineRequest(source: deniedPath, destination: deniedPath),
+        ExportLogicalEngineRequest(
+          universe: Selector('Browser universe'),
+          destination: deniedPath,
+          recordIds: [],
+        ),
+        PreviewImportEngineRequest(
+          source: deniedPath,
+          name: 'Imported',
+          mode: ImportMode.restore,
+        ),
+        RegisterUniverseEngineRequest(path: deniedPath, name: 'Registered'),
+        StageImageEngineRequest(
+          universe: Selector('Browser universe'),
+          source: deniedPath,
+        ),
+      ]) {
+        final result = await call(session, command);
+        expect(result, isA<EngineFailure>());
+        expect((result as EngineFailure).error, isA<PolicyDeniedError>());
+      }
+      expect(File(deniedPath).existsSync(), isFalse);
+      expect(Directory(deniedPath).existsSync(), isFalse);
+      // The native owner's existing backup path workflow is unchanged.
+      final nativeBackup = '${root.path}/native-backup.sqlite';
+      await native.call(
+        BackupEngineRequest(
+          universe: Selector('Browser universe'),
+          destination: nativeBackup,
+        ),
+      );
+      expect(File(nativeBackup).existsSync(), isTrue);
+      // Content upload remains available to a browser without filesystem paths.
+      final exported = '${root.path}/browser-upload.sqlite';
+      await native.call(
+        ExportLogicalEngineRequest(
+          universe: Selector('Browser universe'),
+          destination: exported,
+          recordIds: [],
+          completeHistory: true,
+        ),
+      );
+      final archiveBytes = File(exported).readAsBytesSync();
+      final inspectedArchive = local.OwnedSqliteDatabase.stageLogicalArchive(
+        exported,
+        root.path,
+      );
+      final archiveDigest = inspectedArchive.digest;
+      inspectedArchive.close();
+      final uploadId = OperationId.generate();
+      final beginUpload = BeginArchiveUploadEngineRequest(
+        uploadId: uploadId,
+        digest: archiveDigest,
+        bytes: archiveBytes.length,
+      );
+      expect(await call(session, beginUpload), isA<EngineSuccess>());
+      var ordinal = 0;
+      for (
+        var start = 0;
+        start < archiveBytes.length;
+        start += ReadMoveChunkEngineRequest.chunkBytes
+      ) {
+        final end = (start + ReadMoveChunkEngineRequest.chunkBytes).clamp(
+          0,
+          archiveBytes.length,
+        );
+        expect(
+          await call(
+            session,
+            WriteArchiveChunkEngineRequest(
+              uploadId: uploadId,
+              chunk: MoveArchiveChunk(
+                ordinal: ordinal++,
+                content: archiveBytes.sublist(start, end),
+              ),
+            ),
+          ),
+          isA<EngineSuccess>(),
+        );
+      }
+      final review = await call(
+        session,
+        ReviewArchiveUploadEngineRequest(
+          uploadId: uploadId,
+          name: 'Browser clone',
+          mode: ImportMode.clone,
+        ),
+      );
+      expect(
+        review,
+        isA<EngineSuccess>(),
+        reason: review is EngineFailure ? review.error.toWire().toText() : null,
+      );
+      final reviewFields = Map.fromEntries(
+        ((review as EngineSuccess).value as CanonicalObject).fields,
+      );
+      expect(wireString(reviewFields['source_universe']!), universe.value);
+      expect(
+        wireString(reviewFields['target_universe']!),
+        isNot(universe.value),
+      );
+      final catalogAfterUpload = Map.fromEntries(
+        (await native.call(StatusEngineRequest()) as CanonicalObject).fields,
+      );
+      expect(
+        (catalogAfterUpload['universes']! as CanonicalArray).items,
+        hasLength(1),
       );
       String? clientCookie;
       final clientGrant = await native.createBrowserSession();

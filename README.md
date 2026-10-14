@@ -45,7 +45,11 @@ listings or symbolic links; installation files remain private. Open the returned
 endpoint in a browser, paste `enrollment_token` into Connection code, and choose
 Connect or resume. After refresh, leave the code blank to resume the same tab's
 unexpired session. Sign out revokes that session. The command prints the connection
-information; it does not launch a browser.
+information; it does not launch a browser. Browser commands cannot name server
+filesystem paths for backup, restore, legacy conversion, logical export/import,
+package registration or image staging. Those path-based operator commands remain
+available through the native interface. Browser transfers use bounded content
+operations and keep import review separate from admission.
 
 The web app uses the shared typed editor workflows. Named unfinished fields are
 retained in origin-private IndexedDB, scoped to the instance, profile, universe,

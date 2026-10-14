@@ -370,6 +370,18 @@ final class LoopbackEngineServer {
         final call = EngineCall.decode(input.takeBytes());
         EngineResult result;
         try {
+          if (browser &&
+              (call.request is BackupEngineRequest ||
+                  call.request is RestoreEngineRequest ||
+                  call.request is ConvertLegacyEngineRequest ||
+                  call.request is ExportLogicalEngineRequest ||
+                  call.request is PreviewImportEngineRequest ||
+                  call.request is RegisterUniverseEngineRequest ||
+                  call.request is StageImageEngineRequest)) {
+            throw const PolicyDeniedError(
+              message: 'Browser file operations require content transfer; server paths are unavailable',
+            );
+          }
           var body = await authenticated.execute(call.request);
           if (body is CanonicalObject &&
               body.fields.any((field) => field.key == 'contract_version')) {
