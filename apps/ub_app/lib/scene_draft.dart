@@ -49,40 +49,122 @@ RecordNarrativeReferenceOperation sceneOperation(UnfinishedSceneForm form) =>
         }),
       ),
     );
+ReviseSceneOperation sceneCorrectionOperation(UnfinishedSceneForm form) {
+  final original = form.original;
+  if (form.correctionTarget == null ||
+      form.expectedRecordVersion == null ||
+      original == null) {
+    throw const FormatException(
+      'Open a published scene to correct its fields.',
+    );
+  }
+  final replacement = sceneOperation(form).payload as SceneRecord;
+  if (replacement.sceneId != original.sceneId ||
+      replacement.workVersion != original.workVersion ||
+      CanonicalArray(replacement.worldAssociations.map((a) => a.toWire()))
+              .toText() !=
+          CanonicalArray(original.worldAssociations.map((a) => a.toWire()))
+              .toText()) {
+    throw const FormatException(
+      'Scene corrections retain the scene identifier, edition pin and world associations.',
+    );
+  }
+  return ReviseSceneOperation(
+    record: _reference(form.correctionTarget!),
+    expectedVersion: form.expectedRecordVersion!,
+    replacement: replacement,
+    rationale: form.rationale,
+  );
+}
+
+UnfinishedSceneForm sceneCorrectionFormFromRecord({
+  required RecordVersion record,
+  required RevisionId baseRevision,
+  required RecordId representedContext,
+}) {
+  if (record.payload is! SceneRecord) {
+    throw const FormatException('Choose a published scene reference.');
+  }
+  return _sceneForm(
+    record: record.payload as SceneRecord,
+    baseRevision: baseRevision,
+    representedContext: representedContext,
+    clientRef: record.identity.recordId.value,
+    correctionTarget: _input(
+      RecordRef(
+        universe: record.identity.universeId,
+        record: record.identity.recordId,
+      ),
+    ),
+    expectedRecordVersion: record.recordVersionId,
+  );
+}
+
 UnfinishedSceneForm sceneFormFromDraft(SavedDraft draft, int index) {
   final operation = draft.content.operations[index];
+  if (operation is ReviseSceneOperation) {
+    return _sceneForm(
+      record: operation.replacement,
+      baseRevision: draft.content.baseRevision,
+      representedContext: draft.content.representedContext,
+      clientRef: operation.record.record.value,
+      correctionTarget: _input(operation.record),
+      expectedRecordVersion: operation.expectedVersion,
+      rationale: operation.rationale,
+      draftVersion: draft.version,
+    );
+  }
   if (operation is! RecordNarrativeReferenceOperation ||
       operation.record != RecordKind.sceneRef ||
       operation.payload is! SceneRecord) {
     throw const FormatException('Choose a scene reference from Changes.');
   }
-  final record = operation.payload as SceneRecord;
-  return UnfinishedSceneForm(
+  return _sceneForm(
+    record: operation.payload as SceneRecord,
     baseRevision: draft.content.baseRevision,
     representedContext: draft.content.representedContext,
     clientRef: operation.clientRef,
-    sceneId: record.sceneId,
-    edition: ExpressionReferenceInput(
-      record: record.workVersion.record.value,
-      universe: record.workVersion.universe?.value ?? '',
-    ),
-    editionVersion: record.workVersion.version.value,
-    viewpointEnabled: record.viewpoint != null,
-    viewpoint: _input(record.viewpoint),
-    narrationEnabled: record.narrationFrame != null,
-    narration: _input(record.narrationFrame),
-    positionEnabled: record.narrativePosition != null,
-    position: record.narrativePosition?.toString() ?? '',
-    disclosed: record.disclosedRecords.map(_input),
-    depicted: record.depictedEvents.map(_input),
-    associations: [
-      for (var i = 0; i < record.worldAssociations.length; i++)
-        worldAssociationInput(record.worldAssociations[i], originalOrdinal: i),
-    ],
-    original: record,
     draftVersion: draft.version,
   );
 }
+
+UnfinishedSceneForm _sceneForm({
+  required SceneRecord record,
+  required RevisionId baseRevision,
+  required RecordId representedContext,
+  required String clientRef,
+  ExpressionReferenceInput? correctionTarget,
+  RecordVersionId? expectedRecordVersion,
+  String rationale = '',
+  BigInt? draftVersion,
+}) => UnfinishedSceneForm(
+  baseRevision: baseRevision,
+  representedContext: representedContext,
+  clientRef: clientRef,
+  correctionTarget: correctionTarget,
+  expectedRecordVersion: expectedRecordVersion,
+  rationale: rationale,
+  sceneId: record.sceneId,
+  edition: ExpressionReferenceInput(
+    record: record.workVersion.record.value,
+    universe: record.workVersion.universe?.value ?? '',
+  ),
+  editionVersion: record.workVersion.version.value,
+  viewpointEnabled: record.viewpoint != null,
+  viewpoint: _input(record.viewpoint),
+  narrationEnabled: record.narrationFrame != null,
+  narration: _input(record.narrationFrame),
+  positionEnabled: record.narrativePosition != null,
+  position: record.narrativePosition?.toString() ?? '',
+  disclosed: record.disclosedRecords.map(_input),
+  depicted: record.depictedEvents.map(_input),
+  associations: [
+    for (var i = 0; i < record.worldAssociations.length; i++)
+      worldAssociationInput(record.worldAssociations[i], originalOrdinal: i),
+  ],
+  original: record,
+  draftVersion: draftVersion,
+);
 
 SaveDraftEngineRequest sceneDraftRequest({
   required SavedDraft draft,
@@ -98,12 +180,17 @@ SaveDraftEngineRequest sceneDraftRequest({
       'Review Changes before adding this scene declaration.',
     );
   }
-  final operation = sceneOperation(form);
+  final operation = form.correctionTarget == null
+      ? sceneOperation(form)
+      : sceneCorrectionOperation(form);
   final operations = [...draft.content.operations];
   if (index != null) {
     final before = sceneFormFromDraft(draft, index);
     if (form.draftVersion != draft.version ||
-        form.clientRef != before.clientRef) {
+        form.clientRef != before.clientRef ||
+        form.correctionTarget?.toWire().toText() !=
+            before.correctionTarget?.toWire().toText() ||
+        form.expectedRecordVersion != before.expectedRecordVersion) {
       throw const FormatException(
         'The draft changed. Reopen its current scene fields.',
       );
@@ -111,6 +198,21 @@ SaveDraftEngineRequest sceneDraftRequest({
     operations[index] = operation;
   } else {
     for (final existing in operations) {
+      if (operation is ReviseSceneOperation &&
+          existing is ReviseSceneOperation &&
+          existing.record == operation.record) {
+        if (existing.toWire().toText() != operation.toWire().toText()) {
+          throw const FormatException(
+            'This scene already has a correction. Edit it in Changes.',
+          );
+        }
+        return SaveDraftEngineRequest(
+          universe: universe,
+          continuityId: continuity,
+          expectedVersion: draft.version,
+          content: draft.content,
+        );
+      }
       final ref = Map.fromEntries(existing.toWire().fields)['client_ref'];
       if (ref is CanonicalString && ref.value == form.clientRef) {
         if (existing.toWire().toText() != operation.toWire().toText()) {

@@ -197,14 +197,21 @@ class _SceneInputFieldsState extends State<SceneInputFields> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextFormField(
-          initialValue: f.sceneId,
-          enabled: !disabled,
-          decoration: const InputDecoration(
-            labelText: 'Authored scene identifier',
+        if (f.correctionTarget != null) ...[
+          Text('Published scene: ${f.sceneId}'),
+          const Text(
+            'Corrections retain the scene identifier, edition pin and world associations. Explain the correction in the rationale.',
           ),
-          onChanged: (v) => change(f.copyWith(sceneId: v)),
-        ),
+        ],
+        if (f.correctionTarget == null)
+          TextFormField(
+            initialValue: f.sceneId,
+            enabled: !disabled,
+            decoration: const InputDecoration(
+              labelText: 'Authored scene identifier',
+            ),
+            onChanged: (v) => change(f.copyWith(sceneId: v)),
+          ),
         DraftRecordChoiceField(
           changes: widget.changes,
           draft: widget.draft,
@@ -212,20 +219,23 @@ class _SceneInputFieldsState extends State<SceneInputFields> {
           label: 'Pinned work edition',
           record: f.edition.record,
           universe: f.edition.universe,
-          disabled: disabled,
+          disabled: disabled || f.correctionTarget != null,
           onChanged: _chooseEdition,
         ),
         const Text(
           'Choosing an edition pins its version at this draft’s saved revision. Reopening does not advance that pin. Reader disclosures require an edition bound to one canon revision and records matching that canon.',
         ),
-        TextField(
-          controller: _version,
-          enabled: !disabled,
-          decoration: const InputDecoration(
-            labelText: 'Exact edition record version',
+        if (f.correctionTarget != null)
+          Text('Pinned edition: ${f.edition.record} · ${f.editionVersion}'),
+        if (f.correctionTarget == null)
+          TextField(
+            controller: _version,
+            enabled: !disabled,
+            decoration: const InputDecoration(
+              labelText: 'Exact edition record version',
+            ),
+            onChanged: (v) => change(f.copyWith(editionVersion: v)),
           ),
-          onChanged: (v) => change(f.copyWith(editionVersion: v)),
-        ),
         SwitchListTile(
           title: const Text('Include a viewpoint'),
           value: f.viewpointEnabled,
@@ -280,63 +290,70 @@ class _SceneInputFieldsState extends State<SceneInputFields> {
           (v) => change(f.copyWith(depicted: v)),
           kind: RecordKind.event,
         ),
-        const Text('World associations'),
-        for (var i = 0; i < f.associations.length; i++)
-          Card(
-            semanticContainer: false,
-            key: ValueKey((_layout, 'world', i)),
-            child: Column(
-              children: [
-                WorldAssociationInputFields(
-                  input: f.associations[i],
-                  original: f.associations[i].originalOrdinal == null
-                      ? null
-                      : f.original?.worldAssociations.elementAtOrNull(
-                          f.associations[i].originalOrdinal!,
+        if (f.correctionTarget != null)
+          Text('Retained world associations: ${f.associations.length}'),
+        if (f.correctionTarget == null) ...[
+          const Text('World associations'),
+          for (var i = 0; i < f.associations.length; i++)
+            Card(
+              semanticContainer: false,
+              key: ValueKey((_layout, 'world', i)),
+              child: Column(
+                children: [
+                  WorldAssociationInputFields(
+                    input: f.associations[i],
+                    original: f.associations[i].originalOrdinal == null
+                        ? null
+                        : f.original?.worldAssociations.elementAtOrNull(
+                            f.associations[i].originalOrdinal!,
+                          ),
+                    changes: widget.changes,
+                    draft: widget.draft,
+                    disabled: disabled,
+                    onChanged: (v) {
+                      final rows = [...f.associations];
+                      rows[i] = v;
+                      change(f.copyWith(associations: rows));
+                    },
+                  ),
+                  _controls(
+                    i,
+                    f.associations.length,
+                    (offset) {
+                      final rows = [...f.associations], row = rows.removeAt(i);
+                      rows.insert(i + offset, row);
+                      _layout++;
+                      change(f.copyWith(associations: rows));
+                    },
+                    () {
+                      _layout++;
+                      change(
+                        f.copyWith(
+                          associations: [...f.associations]..removeAt(i),
                         ),
-                  changes: widget.changes,
-                  draft: widget.draft,
-                  disabled: disabled,
-                  onChanged: (v) {
-                    final rows = [...f.associations];
-                    rows[i] = v;
-                    change(f.copyWith(associations: rows));
-                  },
-                ),
-                _controls(
-                  i,
-                  f.associations.length,
-                  (offset) {
-                    final rows = [...f.associations], row = rows.removeAt(i);
-                    rows.insert(i + offset, row);
-                    _layout++;
-                    change(f.copyWith(associations: rows));
-                  },
-                  () {
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          TextButton(
+            onPressed: disabled
+                ? null
+                : () {
                     _layout++;
                     change(
                       f.copyWith(
-                        associations: [...f.associations]..removeAt(i),
+                        associations: [
+                          ...f.associations,
+                          WorkAssociationInput(),
+                        ],
                       ),
                     );
                   },
-                ),
-              ],
-            ),
+            child: const Text('Add world association'),
           ),
-        TextButton(
-          onPressed: disabled
-              ? null
-              : () {
-                  _layout++;
-                  change(
-                    f.copyWith(
-                      associations: [...f.associations, WorkAssociationInput()],
-                    ),
-                  );
-                },
-          child: const Text('Add world association'),
-        ),
+        ],
         if (_error != null) Text(_error!),
       ],
     );

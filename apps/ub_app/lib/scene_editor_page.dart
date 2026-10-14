@@ -16,11 +16,13 @@ class SceneEditorPage extends StatefulWidget {
     required this.revision,
     this.editingDraft,
     this.index,
+    this.correctionRecord,
   });
   final SavedChanges changes;
   final RevisionId revision;
   final SavedDraft? editingDraft;
   final int? index;
+  final RecordVersion? correctionRecord;
   @override
   State<SceneEditorPage> createState() => _SceneEditorPageState();
 }
@@ -69,6 +71,12 @@ class _SceneEditorPageState extends State<SceneEditorPage> {
 
   UnfinishedSceneForm _fresh() => widget.index != null
       ? sceneFormFromDraft(_draft!, widget.index!)
+      : widget.correctionRecord != null
+      ? sceneCorrectionFormFromRecord(
+          record: widget.correctionRecord!,
+          baseRevision: widget.revision,
+          representedContext: _scope.representedContext!,
+        )
       : UnfinishedSceneForm(
           baseRevision: widget.revision,
           representedContext: _scope.representedContext!,
@@ -93,14 +101,23 @@ class _SceneEditorPageState extends State<SceneEditorPage> {
                   _form!.baseRevision != _draft!.content.baseRevision ||
                   _form!.representedContext !=
                       _draft!.content.representedContext
-            : _form!.baseRevision != widget.revision;
+            : _form!.baseRevision != widget.revision ||
+                  (widget.correctionRecord != null &&
+                      _form!.expectedRecordVersion !=
+                          widget.correctionRecord!.recordVersionId);
         _added =
             widget.index == null &&
                 (_draft?.content.operations.any(
                       (op) =>
-                          op is RecordNarrativeReferenceOperation &&
-                          op.record == RecordKind.sceneRef &&
-                          op.clientRef == _form!.clientRef,
+                          (op is RecordNarrativeReferenceOperation &&
+                              _form!.correctionTarget == null &&
+                              op.record == RecordKind.sceneRef &&
+                              op.clientRef == _form!.clientRef) ||
+                          (op is ReviseSceneOperation &&
+                              _form!.correctionTarget?.record ==
+                                  op.record.record.value &&
+                              _form!.correctionTarget?.universe ==
+                                  (op.record.universe?.value ?? '')),
                     ) ??
                     false)
             ? 'This definition is in Changes. Review or edit it there.'
@@ -201,8 +218,15 @@ class _SceneEditorPageState extends State<SceneEditorPage> {
       setState(() {
         _draft = saved;
         _result = saved;
-        if (widget.index != null) {
-          _form = sceneFormFromDraft(saved, widget.index!);
+        if (widget.index != null || _form!.correctionTarget != null) {
+          final index =
+              widget.index ??
+              saved.content.operations.indexWhere(
+                (op) =>
+                    op is ReviseSceneOperation &&
+                    op.record == sceneCorrectionOperation(_form!).record,
+              );
+          _form = sceneFormFromDraft(saved, index);
           _fields++;
           _dirty = true;
         } else {
@@ -259,7 +283,11 @@ class _SceneEditorPageState extends State<SceneEditorPage> {
     child: Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.index == null ? 'Scene reference' : 'Edit scene reference',
+          widget.correctionRecord != null
+              ? 'Correct scene reference'
+              : widget.index == null
+              ? 'Scene reference'
+              : 'Edit scene reference',
         ),
       ),
       body: Align(

@@ -353,6 +353,13 @@ Unfinished fields recover privately, and pending references are editable in
 Changes before reviewed publication. Scene metadata does not establish event
 occurrence or character knowledge.
 
+A published scene’s dossier offers **Correct scene reference**. The recoverable
+form retains its identity and expected version and permits changes to viewpoint,
+narration context, reader order, disclosures and depicted events through
+`revise_scene`. Scene identifier, edition pin and world associations remain
+fixed. Supply a correction reason; pending corrections are editable in Changes,
+and reviewed publication retains the earlier scene in history.
+
 **Exception** selects a named rule or creative boundary and pins its version
 at the saved draft revision. Choose an authorizing issue decision, scope,
 validity and rationale separately. Named decision choices include their visible

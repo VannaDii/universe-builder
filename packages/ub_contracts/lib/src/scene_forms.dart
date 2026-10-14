@@ -23,6 +23,8 @@ final class UnfinishedSceneForm {
     Iterable<WorkAssociationInput> associations = const [],
     this.rationale = '',
     this.original,
+    this.correctionTarget,
+    this.expectedRecordVersion,
     BigInt? draftVersion,
   }) : disclosed = List.unmodifiable(disclosed),
        depicted = List.unmodifiable(depicted),
@@ -36,6 +38,8 @@ final class UnfinishedSceneForm {
   final List<ExpressionReferenceInput> disclosed, depicted;
   final List<WorkAssociationInput> associations;
   final SceneRecord? original;
+  final ExpressionReferenceInput? correctionTarget;
+  final RecordVersionId? expectedRecordVersion;
   final BigInt? draftVersion;
   UnfinishedSceneForm copyWith({
     String? sceneId,
@@ -69,6 +73,8 @@ final class UnfinishedSceneForm {
     associations: associations ?? this.associations,
     rationale: rationale ?? this.rationale,
     original: original,
+    correctionTarget: correctionTarget,
+    expectedRecordVersion: expectedRecordVersion,
     draftVersion: draftVersion,
   );
   CanonicalObject toWire() => CanonicalObject([
@@ -91,6 +97,13 @@ final class UnfinishedSceneForm {
       CanonicalArray(associations.map((a) => a.toWire())),
     ),
     MapEntry('rationale', CanonicalString(rationale)),
+    if (correctionTarget != null)
+      MapEntry('correction_target', correctionTarget!.toWire()),
+    if (expectedRecordVersion != null)
+      MapEntry(
+        'expected_record_version',
+        CanonicalString(expectedRecordVersion!.value),
+      ),
     if (original != null) MapEntry('original', original!.toWire()),
     if (draftVersion != null)
       MapEntry('draft_version', CanonicalString(draftVersion.toString())),
@@ -114,6 +127,8 @@ final class UnfinishedSceneForm {
       'associations',
       'rationale',
       'original',
+      'correction_target',
+      'expected_record_version',
       'draft_version',
     });
     return UnfinishedSceneForm(
@@ -133,6 +148,14 @@ final class UnfinishedSceneForm {
       depicted: f.array('depicted').map(ExpressionReferenceInput.fromWire),
       associations: f.array('associations').map(WorkAssociationInput.fromWire),
       rationale: f.string('rationale'),
+      correctionTarget: f.optional(
+        'correction_target',
+        ExpressionReferenceInput.fromWire,
+      ),
+      expectedRecordVersion: f.optional(
+        'expected_record_version',
+        (v) => RecordVersionId.parse(wireString(v)),
+      ),
       original: f.optional('original', SceneRecord.fromWire),
       draftVersion: f.optional(
         'draft_version',

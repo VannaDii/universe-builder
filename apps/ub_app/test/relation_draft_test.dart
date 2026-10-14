@@ -3026,6 +3026,68 @@ void main() {
         record: events.first.identity.recordId,
       );
       expect(unchangedEvent.toWire().toText(), events.first.toWire().toText());
+      final correctionBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final correctionScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: scenePublished.single.identity.recordId.value,
+      );
+      final correctionForm =
+          sceneCorrectionFormFromRecord(
+            record: scenePublished.single,
+            baseRevision: correctionBase.content.baseRevision,
+            representedContext: scope.representedContext!,
+          ).copyWith(
+            position: '9007199254740999',
+            narrationEnabled: false,
+            rationale:
+                'Correct the reader order and remove the narration frame.',
+          );
+      await session.saveSceneForm(correctionScope, correctionForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredCorrection = (await session.loadSceneForm(
+        correctionScope,
+      ))!.form;
+      expect(
+        recoveredCorrection.toWire().toText(),
+        correctionForm.toWire().toText(),
+      );
+      final correctionDraft = SavedDraft.fromWire(
+        await session.call(
+          sceneDraftRequest(
+            draft: correctionBase,
+            form: recoveredCorrection,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final correctedScene = await publish(correctionDraft);
+      expect(
+        correctedScene.single.identity.recordId,
+        scenePublished.single.identity.recordId,
+      );
+      expect(
+        correctedScene.single.payload.toWire().toText(),
+        sceneCorrectionOperation(correctionForm).replacement.toWire().toText(),
+      );
+      final historicalScene = await readContextRecord(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Relations'),
+        context: await openDraftChoiceContext(changes(), correctionBase),
+        record: scenePublished.single.identity.recordId,
+      );
+      expect(
+        historicalScene.toWire().toText(),
+        scenePublished.single.toWire().toText(),
+      );
     } finally {
       await session?.close();
       await server.close();

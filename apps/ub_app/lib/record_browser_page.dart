@@ -22,6 +22,7 @@ import 'source_editor_page.dart';
 import 'work_version_editor_page.dart';
 import 'saga_editor_page.dart';
 import 'work_editor_page.dart';
+import 'scene_editor_page.dart';
 
 enum _DossierView {
   fields,
@@ -639,6 +640,36 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                                   ),
                                 ),
                           child: const Text('Change canon binding'),
+                        ),
+                      if (record.payload is SceneRecord)
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context).push<SavedDraft>(
+                                  MaterialPageRoute(
+                                    builder: (_) => SceneEditorPage(
+                                      revision: widget.context.frame.revision,
+                                      correctionRecord: record,
+                                      changes: SavedChanges(
+                                        session: widget.session,
+                                        universe: Selector(
+                                          widget.universe.name,
+                                        ),
+                                        scope: EditorFormScope(
+                                          instance: widget.scope.instance,
+                                          profile: widget.scope.profile,
+                                          universe: widget.universe.id,
+                                          continuity: widget.continuity.id,
+                                          representedContext:
+                                              widget.representedContext.id,
+                                          typeClientRef:
+                                              record.identity.recordId.value,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                          child: const Text('Correct scene reference'),
                         ),
                       if (widget.session.author &&
                           record.payload is SourceVersionRecord)
