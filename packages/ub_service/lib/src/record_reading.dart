@@ -35,6 +35,7 @@ String recordReadLabel(RecordVersion row) {
       first(labels) ??
           (kind is AuthoredContext ? kind.label : row.identity.recordId.value),
     WorkRecord(:final title) => title,
+    SceneRecord(:final sceneId) => sceneId,
     WorkVersionRecord(:final versionLabel) => versionLabel,
     SagaRecord(:final title) => title,
     AppearanceRecord(:final label) => label,

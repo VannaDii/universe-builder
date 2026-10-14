@@ -24,6 +24,7 @@ import 'package:ub_app/boundary_draft.dart';
 import 'package:ub_app/issue_decision_draft.dart';
 import 'package:ub_app/exception_draft.dart';
 import 'package:ub_app/work_draft.dart';
+import 'package:ub_app/scene_draft.dart';
 import 'package:ub_app/saga_draft.dart';
 import 'package:ub_app/work_version_draft.dart';
 import 'package:ub_app/record_browser.dart';
@@ -2909,6 +2910,122 @@ void main() {
         retainedWork.toWire().toText(),
         workPublished.single.toWire().toText(),
       );
+      final sceneEditionBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final sceneEditionForm = UnfinishedWorkVersionForm(
+        baseRevision: sceneEditionBase.content.baseRevision,
+        representedContext: scope.representedContext!,
+        clientRef: RecordId.generate().value,
+        work: ExpressionReferenceInput(
+          record: associationPublished.single.identity.recordId.value,
+          universe: scope.universe.value,
+        ),
+        versionLabel: 'Scene canon edition',
+        bindingKind: 'bound',
+        continuity: scope.continuity.value,
+        revision: sceneEditionBase.content.baseRevision.value,
+        rationale: 'Bind the scene edition to its disclosed canon.',
+      );
+      final sceneEditionDraft = SavedDraft.fromWire(
+        await session.call(
+          workVersionDraftRequest(
+            draft: sceneEditionBase,
+            form: sceneEditionForm,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final sceneEditionPublished = await publish(sceneEditionDraft);
+      final sceneBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final sceneScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+      );
+      final sceneForm = UnfinishedSceneForm(
+        baseRevision: sceneBase.content.baseRevision,
+        representedContext: scope.representedContext!,
+        clientRef: RecordId.generate().value,
+        sceneId: 'Journey opening 記憶 😀',
+        edition: ExpressionReferenceInput(
+          record: sceneEditionPublished.single.identity.recordId.value,
+          universe: scope.universe.value,
+        ),
+        editionVersion: sceneEditionPublished.single.recordVersionId.value,
+        viewpointEnabled: true,
+        viewpoint: ExpressionReferenceInput(
+          record: participant(1).record.value,
+          universe: scope.universe.value,
+        ),
+        narrationEnabled: true,
+        narration: ExpressionReferenceInput(
+          record: scope.representedContext!.value,
+          universe: scope.universe.value,
+        ),
+        positionEnabled: true,
+        position: '9007199254740997',
+        disclosed: [
+          for (var i = 0; i < 2; i++)
+            ExpressionReferenceInput(
+              record: claimPublished.single.identity.recordId.value,
+              universe: scope.universe.value,
+            ),
+        ],
+        depicted: [
+          for (var i = 0; i < 2; i++)
+            ExpressionReferenceInput(
+              record: events.first.identity.recordId.value,
+              universe: scope.universe.value,
+            ),
+        ],
+        associations: workForm.associations,
+        rationale: 'Declare scene metadata without changing event occurrence or knowledge.',
+      );
+      await session.saveSceneForm(sceneScope, sceneForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredScene = (await session.loadSceneForm(sceneScope))!.form;
+      expect(recoveredScene.toWire().toText(), sceneForm.toWire().toText());
+      final sceneDraft = SavedDraft.fromWire(
+        await session.call(
+          sceneDraftRequest(
+            draft: sceneBase,
+            form: recoveredScene,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final scenePublished = await publish(sceneDraft);
+      expect(
+        scenePublished.single.payload.toWire().toText(),
+        sceneOperation(sceneForm).payload.toWire().toText(),
+      );
+      final sceneContext = await openDraftChoiceContext(
+        changes(),
+        await changes().rebase((await changes().load())!, startNew: true),
+      );
+      final sceneChoices = await searchDraftChoices(
+        changes: changes(),
+        context: sceneContext,
+        kind: RecordKind.sceneRef,
+      );
+      expect(sceneChoices.result.hits.single.label, sceneForm.sceneId);
+      final unchangedEvent = await readContextRecord(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Relations'),
+        context: sceneContext,
+        record: events.first.identity.recordId,
+      );
+      expect(unchangedEvent.toWire().toText(), events.first.toWire().toText());
     } finally {
       await session?.close();
       await server.close();

@@ -36,7 +36,7 @@ CreateWorkOperation workOperation(UnfinishedWorkForm form) {
       sourceRefs: form.sources.map(_reference),
       versions: form.versions.map(RecordId.parse),
       worldAssociations: form.associations.map(
-        (a) => _association(a, _associationOriginal(form, a)),
+        (a) => buildWorldAssociation(a, _associationOriginal(form, a)),
       ),
     ),
   );
@@ -61,7 +61,7 @@ WorldAssociation? _associationOriginal(
   return original;
 }
 
-WorldAssociation _association(
+WorldAssociation buildWorldAssociation(
   WorkAssociationInput a,
   WorldAssociation? original,
 ) => WorldAssociation(
@@ -70,15 +70,16 @@ WorldAssociation _association(
   validity: buildActionValidity(a.validity, original?.validity),
   qualifiers: buildQualifiers(a.qualifiers, original?.qualifiers ?? {}),
 );
-WorkAssociationInput _associationInput(WorldAssociation a) =>
-    WorkAssociationInput(
-      world: a.world.value,
-      role: a.role,
-      validity: actionValidityInput(a.validity),
-      qualifiers: a.qualifiers.entries.map(
-        (e) => qualifierInput(e.key, e.value),
-      ),
-    );
+WorkAssociationInput worldAssociationInput(
+  WorldAssociation a, {
+  int? originalOrdinal,
+}) => WorkAssociationInput(
+  originalOrdinal: originalOrdinal,
+  world: a.world.value,
+  role: a.role,
+  validity: actionValidityInput(a.validity),
+  qualifiers: a.qualifiers.entries.map((e) => qualifierInput(e.key, e.value)),
+);
 AssociateWorkWorldOperation workAssociationOperation(UnfinishedWorkForm form) {
   if (form.associationTarget == null ||
       form.expectedRecordVersion == null ||
@@ -90,7 +91,7 @@ AssociateWorkWorldOperation workAssociationOperation(UnfinishedWorkForm form) {
   return AssociateWorkWorldOperation(
     record: _reference(form.associationTarget!),
     expectedVersion: form.expectedRecordVersion!,
-    association: _association(
+    association: buildWorldAssociation(
       form.associations.single,
       form.associationOriginal,
     ),
@@ -127,7 +128,7 @@ UnfinishedWorkForm workFormFromDraft(SavedDraft draft, int index) {
       clientRef: operation.record.record.value,
       associationTarget: _input(operation.record),
       expectedRecordVersion: operation.expectedVersion,
-      associations: [_associationInput(operation.association)],
+      associations: [worldAssociationInput(operation.association)],
       associationOriginal: operation.association,
       draftVersion: draft.version,
     );

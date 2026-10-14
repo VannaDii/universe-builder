@@ -342,6 +342,17 @@ metadata and associations remain intact. Pending fields are editable in Changes,
 and reviewed publication retains historical versions. Association does not
 establish physical location.
 
+**Scene reference** links an authored scene identifier to an exact work-edition
+version. Optional viewpoint, narration context and unsigned 64-bit reader-order
+position remain explicit. Ordered disclosures, depicted events and world
+associations retain repeated entries, validity and exact qualifiers. Choosing an
+edition pins its version at the saved draft revision; reopening retains that pin.
+Reader disclosures require an edition bound to one canon revision and records
+matching that canon.
+Unfinished fields recover privately, and pending references are editable in
+Changes before reviewed publication. Scene metadata does not establish event
+occurrence or character knowledge.
+
 **Exception** selects a named rule or creative boundary and pins its version
 at the saved draft revision. Choose an authorizing issue decision, scope,
 validity and rationale separately. Named decision choices include their visible
