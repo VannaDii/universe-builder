@@ -229,6 +229,13 @@ condition-dependent validity marker; it carries no separate expression.
 World/region
 declarations and sequence tokens do not infer location or temporal order. Plans
 and reports remain distinct from occurred events.
+**Action definition** offers named property requirements, typed values and an
+optional declared consequence contract. Slots specify participant roles,
+conditions, set/delta changes, exact numeric bounds, units and lifetimes.
+Moving slots preserves their declared execution order. Unfinished fields recover
+on this device; **Edit action fields** in Changes preserves the pending identity
+and review rationale. An absent contract remains distinct from an empty one.
+Authoring a definition does not execute an action or change event state.
 **Timeline** in an entity dossier lists events with explicit participation.
 Exact numeric points are ordered separately in each named calendar, using the
 shared rule engine's integer bounds. Equal coordinates do not imply sequence.

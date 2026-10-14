@@ -113,7 +113,7 @@ class OperandInputFields extends StatelessWidget {
               ? (input.original as ValueOperand).value
               : null,
           disabled: disabled,
-          named: true,
+          named: false,
           label: label,
           onChanged: (value) => onChanged(
             OperandInput(
@@ -643,7 +643,7 @@ class _ExpressionInputFieldsState extends State<ExpressionInputFields> {
               ? (input.original as CardinalityExpr).count
               : null,
           disabled: widget.disabled,
-          named: true,
+          named: false,
           label: 'Count',
           onChanged: (value) => widget.onChanged(input.copyWith(value: value)),
         ),

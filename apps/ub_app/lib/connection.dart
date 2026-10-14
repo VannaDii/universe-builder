@@ -17,6 +17,8 @@ final class AppSession {
     required this.saveUnitForm,
     required this.loadRelationForm,
     required this.saveRelationForm,
+    required this.loadActionForm,
+    required this.saveActionForm,
     required this.loadEventForm,
     required this.saveEventForm,
     required this.loadSourceForm,
@@ -77,6 +79,13 @@ final class AppSession {
     BigInt,
   )
   saveRelationForm;
+  final Future<SavedActionForm?> Function(EditorFormScope) loadActionForm;
+  final Future<SavedActionForm> Function(
+    EditorFormScope,
+    UnfinishedActionForm,
+    BigInt,
+  )
+  saveActionForm;
   final Future<SavedEventForm?> Function(EditorFormScope) loadEventForm;
   final Future<SavedEventForm> Function(
     EditorFormScope,

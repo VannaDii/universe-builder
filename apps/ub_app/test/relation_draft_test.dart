@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:test/test.dart';
 import 'package:ub_app/relation_draft.dart';
 import 'package:ub_app/event_draft.dart';
+import 'package:ub_app/action_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -758,6 +759,27 @@ void main() {
               ),
           ],
         ),
+      );
+      final actionForm = actionFormFromDraft(eventsDraft, 0);
+      final actionScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: actionForm.clientRef,
+      );
+      await session.saveActionForm(actionScope, actionForm, BigInt.zero);
+      final recoveredAction = (await session.loadActionForm(actionScope))!.form;
+      eventsDraft = await changes().saveContent(
+        eventsDraft,
+        actionDraftRequest(
+          draft: eventsDraft,
+          form: recoveredAction,
+          universe: const Selector('Relations'),
+          continuity: scope.continuity,
+          index: 0,
+        ).content,
       );
       final eventForm = eventFormFromDraft(eventsDraft, 1);
       final eventScope = EditorFormScope(
