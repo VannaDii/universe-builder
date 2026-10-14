@@ -221,8 +221,11 @@ ordered participants. Unfinished fields recover on this device, and unpublished
 events offer **Edit event fields** in Changes. Declared effects have named
 proposition choices, polarity, action-contract slots, exact execution order,
 scope and validity. Moving rows retains their declared execution-order numbers.
-Conditional validity can be retained; its expression editing and precondition
-controls remain pending. World/region
+Preconditions offer nested conditions, named property/relation predicates,
+typed operands, participant roles, comparisons, collections and quantifiers.
+Unfinished conditions recover with the event; adding one requires an explicit
+kind and values before it can enter Changes. Conditional effect validity can
+be retained; its expression editing remains pending. World/region
 declarations and sequence tokens do not infer location or temporal order. Plans
 and reports remain distinct from occurred events.
 **Timeline** in an entity dossier lists events with explicit participation.

@@ -106,6 +106,27 @@ final class ExpressionInput {
   final List<ExpressionRoleInput> roles;
   final QualifierInput? value;
   final Expr? original;
+  ExpressionInput copyWith({
+    Map<String, String>? strings,
+    Map<String, bool?>? flags,
+    Map<String, OperandInput>? operands,
+    Map<String, ExpressionReferenceInput>? references,
+    Map<String, ExpressionInput>? children,
+    List<ExpressionInput>? items,
+    List<ExpressionRoleInput>? roles,
+    QualifierInput? value,
+  }) => ExpressionInput(
+    kind: kind,
+    strings: strings ?? this.strings,
+    flags: flags ?? this.flags,
+    operands: operands ?? this.operands,
+    references: references ?? this.references,
+    children: children ?? this.children,
+    items: items ?? this.items,
+    roles: roles ?? this.roles,
+    value: value ?? this.value,
+    original: original,
+  );
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('kind', CanonicalString(kind)),
     MapEntry(

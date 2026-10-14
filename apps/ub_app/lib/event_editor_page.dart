@@ -13,6 +13,8 @@ import 'temporal_validity_draft.dart';
 import 'record_fields.dart';
 import 'draft_record_choices.dart';
 import 'scope_input_fields.dart';
+import 'expression_input_fields.dart';
+import 'expression_draft.dart';
 
 class EventEditorPage extends StatefulWidget {
   const EventEditorPage({
@@ -145,6 +147,10 @@ class _EventEditorPageState extends State<EventEditorPage> {
       _form?.effects ??
       _form?.original?.effects.map(eventEffectInput).toList() ??
       const [];
+  List<ExpressionInput> get _conditions =>
+      _form?.preconditions ??
+      _form?.original?.preconditions.map(expressionInput).toList() ??
+      const [];
   bool get _inputDisabled =>
       _loading || _adding || _form == null || _added != null;
   void _change({
@@ -156,6 +162,7 @@ class _EventEditorPageState extends State<EventEditorPage> {
     TemporalValidityInput? time,
     List<EventParticipantInput>? participants,
     List<EventEffectInput>? effects,
+    List<ExpressionInput>? preconditions,
     String? rationale,
     List<String>? worlds,
     String? regionRecord,
@@ -177,7 +184,7 @@ class _EventEditorPageState extends State<EventEditorPage> {
         time: time ?? f.time,
         participants: participants ?? f.participants,
         effects: effects ?? f.effects,
-        preconditions: f.preconditions,
+        preconditions: preconditions ?? f.preconditions,
         rationale: rationale ?? f.rationale,
         original: f.original,
         worlds: worlds ?? f.worlds,
@@ -595,6 +602,82 @@ class _EventEditorPageState extends State<EventEditorPage> {
                             ],
                           ),
                     child: const Text('Add participant'),
+                  ),
+                  const Text('Declared preconditions'),
+                  const Text(
+                    'The service evaluates these conditions in the reviewed context. Unresolved or unsupported results remain explicit.',
+                  ),
+                  for (var i = 0; i < _conditions.length; i++)
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          children: [
+                            ExpressionInputFields(
+                              key: ValueKey((_fields, 'condition', i)),
+                              input: _conditions[i],
+                              changes: widget.changes,
+                              draft: _choices,
+                              disabled: _inputDisabled,
+                              onChanged: (condition) {
+                                final rows = [..._conditions];
+                                rows[i] = condition;
+                                _change(preconditions: rows);
+                              },
+                            ),
+                            Wrap(
+                              children: [
+                                TextButton(
+                                  onPressed: _inputDisabled || i == 0
+                                      ? null
+                                      : () {
+                                          final rows = [..._conditions],
+                                              item = rows.removeAt(i);
+                                          rows.insert(i - 1, item);
+                                          _fields++;
+                                          _change(preconditions: rows);
+                                        },
+                                  child: const Text('Move earlier'),
+                                ),
+                                TextButton(
+                                  onPressed:
+                                      _inputDisabled ||
+                                          i == _conditions.length - 1
+                                      ? null
+                                      : () {
+                                          final rows = [..._conditions],
+                                              item = rows.removeAt(i);
+                                          rows.insert(i + 1, item);
+                                          _fields++;
+                                          _change(preconditions: rows);
+                                        },
+                                  child: const Text('Move later'),
+                                ),
+                                TextButton(
+                                  onPressed: _inputDisabled
+                                      ? null
+                                      : () {
+                                          _fields++;
+                                          _change(
+                                            preconditions: [..._conditions]
+                                              ..removeAt(i),
+                                          );
+                                        },
+                                  child: const Text('Remove precondition'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  TextButton(
+                    onPressed: _inputDisabled
+                        ? null
+                        : () => _change(
+                            preconditions: [..._conditions, ExpressionInput()],
+                          ),
+                    child: const Text('Add precondition'),
                   ),
                   const Text('Declared effects'),
                   const Text(
