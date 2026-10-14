@@ -31,6 +31,13 @@ it does not offer local database authority. Generated mobile/Windows/Linux runne
 are not yet qualified. Build the shell from `apps/ub_app` with `flutter build web`
 or, on macOS, `flutter build macos --debug`.
 
+The shared service also exposes `EmbeddedSqliteEngine` for app-owned local
+workers. It opens an existing SQLite installation in a separate Dart isolate
+and uses the same authenticated loopback commands, authority locks, durable
+drafts and graceful shutdown as the desktop engine. Worker exit is a lifecycle
+notification; uncertain operations still require normal service recovery. Mobile
+app setup, connection wiring and device lifecycle qualification remain unfinished.
+
 The local HTTP transport supports the browser-session prerequisite. The explicit
 `universe --installation <path> --profile <id> browser-session` command returns the
 loopback endpoint and a one-use enrollment token valid for one minute; it never
