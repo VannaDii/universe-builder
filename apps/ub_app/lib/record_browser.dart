@@ -52,6 +52,7 @@ String dossierReferenceLabel(
     final labels = switch (row.payload) {
       EntityRecord(:final labels) ||
       RelationRecord(:final labels) ||
+      ActionDefinitionRecord(:final labels) ||
       PropertyRecord(:final labels) ||
       EntityTypeRecord(:final labels) ||
       RuleRecord(:final labels) ||

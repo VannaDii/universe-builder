@@ -362,6 +362,45 @@ final class LocalRelationFormRecovery {
   }
 }
 
+final class LocalEventFormRecovery {
+  LocalEventFormRecovery({required String root, required this.client})
+    : _path = '$root/client-recovery/event-forms.sqlite';
+  final String _path;
+  final LoopbackEngineClient client;
+
+  Future<SavedEventForm?> load(EditorFormScope scope) async {
+    await _checkEditorScope(client, scope);
+    final path = _path;
+    return Isolate.run(() {
+      final store = EventFormRecoveryStore.open(path);
+      try {
+        return store.load(scope);
+      } finally {
+        store.close();
+      }
+    });
+  }
+
+  Future<SavedEventForm> save(
+    EditorFormScope scope,
+    UnfinishedEventForm form,
+    BigInt expectedGeneration,
+  ) async {
+    if (scope.profile != client.welcome.principal) {
+      throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
+    }
+    final path = _path;
+    return Isolate.run(() {
+      final store = EventFormRecoveryStore.open(path);
+      try {
+        return store.save(scope, form, expectedGeneration);
+      } finally {
+        store.close();
+      }
+    });
+  }
+}
+
 final class LocalSourceFormRecovery {
   LocalSourceFormRecovery({required String root, required this.client})
     : _path = '$root/client-recovery/source-forms.sqlite';

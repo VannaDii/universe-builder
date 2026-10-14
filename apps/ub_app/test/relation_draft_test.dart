@@ -6,6 +6,7 @@ import 'dart:convert';
 
 import 'package:test/test.dart';
 import 'package:ub_app/relation_draft.dart';
+import 'package:ub_app/event_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -725,7 +726,7 @@ void main() {
         const UnspecifiedTime(),
       ];
       final actionId = RecordId.generate();
-      final eventsDraft = await changes().saveContent(
+      var eventsDraft = await changes().saveContent(
         afterPublication,
         DraftContent(
           baseRevision: afterPublication.content.baseRevision,
@@ -758,6 +759,37 @@ void main() {
           ],
         ),
       );
+      final eventForm = eventFormFromDraft(eventsDraft, 1);
+      final eventScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: eventForm.clientRef,
+      );
+      final cachedEvent = await session.saveEventForm(
+        eventScope,
+        eventForm,
+        BigInt.zero,
+      );
+      final recoveredEvent = (await session.loadEventForm(eventScope))!;
+      expect(recoveredEvent.generation, cachedEvent.generation);
+      expect(
+        recoveredEvent.form.toWire().toText(),
+        eventForm.toWire().toText(),
+      );
+      final eventRequest = eventDraftRequest(
+        draft: eventsDraft,
+        form: recoveredEvent.form,
+        universe: const Selector('Relations'),
+        continuity: scope.continuity,
+        index: 1,
+      );
+      eventsDraft = await changes().saveContent(
+        eventsDraft,
+        eventRequest.content,
+      );
       try {
         await publish(eventsDraft);
       } on InvalidArgumentError catch (error) {
@@ -768,6 +800,21 @@ void main() {
         startNew: true,
       );
       final eventsContext = await openDraftChoiceContext(changes(), eventsBase);
+      final actionChoices = await searchDraftChoices(
+        changes: changes(),
+        context: eventsContext,
+        kind: RecordKind.actionDefinition,
+      );
+      expect(actionChoices.result.hits.single.label, 'Journey');
+      final eventChoices = await searchDraftChoices(
+        changes: changes(),
+        context: eventsContext,
+        kind: RecordKind.event,
+      );
+      expect(
+        eventChoices.result.hits.map((hit) => hit.label),
+        everyElement(startsWith('Journey')),
+      );
       final eventMaterial = Envelope<Records>.fromWire(
         await session.call(
           ToolEngineRequest(

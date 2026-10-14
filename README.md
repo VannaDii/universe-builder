@@ -215,6 +215,12 @@ an anchor does not assert that the source supports a factual claim.
 Unpublished anchors offer **Edit source anchor** in Changes. Editing retains the
 anchor identity and proposal rationale; a changed draft must be reopened before
 its fields can be saved.
+**Event** in an opened continuity offers occurrence status, named declared
+actions, event time and ordered participants. Unfinished fields recover on this
+device, and unpublished events offer **Edit event fields** in Changes. Existing
+world, region, sequence, occurrence identity, precondition and effect declarations
+remain intact when editing these fields. Their additional editing controls are
+still pending. Plans and reports remain distinct from occurred events.
 **Timeline** in an entity dossier lists events with explicit participation.
 Exact numeric points are ordered separately in each named calendar, using the
 shared rule engine's integer bounds. Equal coordinates do not imply sequence.
