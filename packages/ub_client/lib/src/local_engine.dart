@@ -9,27 +9,8 @@ import 'package:ub_store/local_socket.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
 
-enum LocalEngineFailure {
-  unavailable,
-  unsafeEndpoint,
-  credentialUnavailable,
-  handshakeFailed,
-  interrupted,
-  reconnectRequired,
-  busy,
-  closed,
-  invalidRequest,
-  helperUnavailable,
-  startupTimeout,
-}
-
-/// Never retain socket/parser exceptions that could embed credentials or content.
-final class LocalEngineException implements Exception {
-  const LocalEngineException(this.failure);
-  final LocalEngineFailure failure;
-  @override
-  String toString() => 'LocalEngineException(${failure.name})';
-}
+import 'engine_failure.dart';
+export 'engine_failure.dart';
 
 /// One correlated request at a time, matching the maintained local client.
 /// A failed transport poisons the connection; no mutation is replayed implicitly.

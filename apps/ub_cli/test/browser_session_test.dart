@@ -8,6 +8,7 @@ import 'dart:typed_data';
 import 'package:test/test.dart';
 import 'package:ub_cli/universe_cli.dart';
 import 'package:ub_client/loopback_engine.dart';
+import 'package:ub_client/browser_engine.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_engine.dart';
@@ -226,6 +227,94 @@ void main() {
       final universe = UniverseId.parse(
         wireString(createdFields['universe_id']!),
       );
+      String? clientCookie;
+      final clientGrant = await native.createBrowserSession();
+      final browserClient = await BrowserEngineClient.connect(
+        enrollmentToken: field(clientGrant, 'enrollment_token'),
+        abort: () {},
+        post: (path, bytes, csrf) async {
+          final response = await post(
+            path,
+            body: bytes.isEmpty
+                ? null
+                : CanonicalValue.parseWireJson(utf8.decode(bytes)),
+            cookie: clientCookie,
+            csrf: csrf,
+          );
+          if (response.cookies.isNotEmpty) {
+            clientCookie =
+                '${response.cookies.single.name}=${response.cookies.single.value}';
+          }
+          return BrowserEngineResponse(
+            status: response.status,
+            bytes: response.bytes,
+          );
+        },
+      );
+      try {
+        expect(browserClient.welcome.principal, author);
+        final source = await browserClient.call(
+          StageSourceEngineRequest(
+            universe: Selector('Browser universe'),
+            label: 'Mémoire 😀',
+            text: 'é😀\r\n',
+          ),
+        );
+        expect(source, isA<CanonicalObject>());
+        final exact = await browserClient.call(
+          CreateUniverseEngineRequest(
+            name: 'Exact browser time',
+            start: FictionalUniverseStart(
+              calendarName: 'Author calendar',
+              initialTick: '9007199254740993123456789',
+              tickLabel: 'tick',
+            ),
+          ),
+        );
+        final identity = Map.fromEntries((exact as CanonicalObject).fields);
+        final context = RecordId.parse(wireString(identity['context_id']!));
+        final opened = Envelope<OpenedContext>.fromWire(
+          await browserClient.call(
+            ToolEngineRequest(
+              request: OpenContextRequest(
+                universe: Selector('Exact browser time'),
+                continuityId: ContinuityId.parse(
+                  wireString(identity['continuity_id']!),
+                ),
+                revision: HeadRevisionSelector(),
+                representedContext: ContextIdSelector(context),
+                temporalQuery: TimelessFrameTime(),
+                temporalSystems: [],
+                perspective: AuthorPerspective(),
+              ),
+            ),
+          ),
+          OpenedContext.fromWire,
+        );
+        final records = Envelope<Records>.fromWire(
+          await browserClient.call(
+            ToolEngineRequest(
+              request: GetRequest(
+                universe: Selector('Exact browser time'),
+                contextId: opened.result.contextId,
+                recordIds: [context],
+                fieldGroups: [FieldGroup.payload],
+              ),
+            ),
+          ),
+          Records.fromWire,
+        );
+        expect(
+          (records.result.records.single.payload as RepresentedContextRecord)
+              .chronology!
+              .toWire()
+              .toText(),
+          contains('9007199254740993123456789'),
+        );
+        await browserClient.logout();
+      } finally {
+        await browserClient.close();
+      }
       final writerSession = await exchange(
         await contributor.createBrowserSession(),
       );
