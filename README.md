@@ -10,7 +10,7 @@ Its native connection adapter accepts `--installation`, `--profile` and optional
 `--engine` arguments and reads the accessible library and universe summaries
 through authenticated loopback HTTP. A disposable service regression covers
 owner access and the empty library of a contributor without universe grants.
-The packaged macOS app's **Use this computer** action sets up its app-private
+The packaged macOS app's **Use this device** action sets up its app-private
 installation in Application Support, retains the owner profile and reconnects
 through its bundled engine. Build this local bundle with
 `python3 scripts/build_flutter_macos.py`; it includes native Dart assets, the
@@ -37,8 +37,10 @@ and uses the same authenticated loopback commands, authority locks, durable
 drafts and graceful shutdown as the desktop engine. Worker exit is a lifecycle
 notification; uncertain operations still require normal service recovery. The native
 connection selects this worker on iOS/Android, initializes or retains the protected
-device profile, and closes the worker with its session. Mobile app-private path
-discovery, runner integration and device lifecycle qualification remain unfinished.
+device profile, and closes the worker with its session. The iOS runner supplies an app-private, backup-excluded installation directory;
+Android uses its no-backup app directory and permits the local authenticated
+network transport. Desktop backend-switching controls are omitted on mobile.
+Full mobile lifecycle, file/share flows and hosted connections remain unfinished.
 
 The local HTTP transport supports the browser-session prerequisite. The explicit
 `universe --installation <path> --profile <id> browser-session` command returns the

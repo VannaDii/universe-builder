@@ -59,11 +59,13 @@ final class DeviceConnection {
     Future<String?> Function(String)? saveBackupFile,
     Future<bool> Function(String)? openBackupFile,
     Future<String?> Function()? pickImagePath,
+    Future<String?> Function()? installationRoot,
   });
   static const _csrfKey = 'ub-browser-session-csrf';
   String? browserEnrollmentToken;
   String? _csrf;
   bool get supportsLocal => false;
+  bool get supportsLocalSettings => false;
   bool get supportsBrowser => true;
   bool get available => true;
   String get unavailableMessage =>

@@ -25,6 +25,7 @@ final class DeviceConnection {
     this.saveBackupFile,
     this.openBackupFile,
     this.pickImagePath,
+    this.installationRoot,
     bool? embeddedLocal,
   }) : _embeddedLocal = embeddedLocal ?? (Platform.isIOS || Platform.isAndroid) {
     for (var i = 0; i < arguments.length; i++) {
@@ -52,12 +53,14 @@ final class DeviceConnection {
   final Future<String?> Function(String)? saveBackupFile;
   final Future<bool> Function(String)? openBackupFile;
   final Future<String?> Function()? pickImagePath;
+  final Future<String?> Function()? installationRoot;
   final bool _embeddedLocal;
   String? root, profile, helper;
   bool get supportsBrowser => false;
   String? browserEnrollmentToken;
   bool get supportsLocal => true;
-  bool get available => root?.isNotEmpty == true;
+  bool get supportsLocalSettings => !_embeddedLocal;
+  bool get available => root?.isNotEmpty == true || (_embeddedLocal && installationRoot != null);
   String get unavailableMessage =>
       'Open Universe Builder from a configured local installation.';
   Future<TestedPostgresConnection> testPostgres(String endpoint) async {
@@ -167,7 +170,8 @@ final class DeviceConnection {
   }
 
   Future<AppSession> connect() async {
-    if (!available) throw StateError('Local connection not configured');
+    if (_embeddedLocal && root == null) root = await installationRoot?.call();
+    if (root?.isNotEmpty != true) throw StateError('Local connection not configured');
     EmbeddedSqliteEngine? embedded;
     late final LoopbackEngineClient client;
     if (_embeddedLocal) {

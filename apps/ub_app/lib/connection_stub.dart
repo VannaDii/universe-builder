@@ -4,11 +4,13 @@ final class DeviceConnection {
   bool get supportsBrowser => false;
   String? browserEnrollmentToken;
   bool get supportsLocal => false;
+  bool get supportsLocalSettings => false;
   DeviceConnection(
     List<String> arguments, {
     Future<String?> Function(String)? saveBackupFile,
     Future<bool> Function(String)? openBackupFile,
     Future<String?> Function()? pickImagePath,
+    Future<String?> Function()? installationRoot,
   });
   bool get available => false;
   String get unavailableMessage =>

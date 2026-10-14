@@ -13,15 +13,22 @@ void main() {
   test('embedded app connection initializes once and recovers private fields after session restart', () async {
     final temporary = Directory.systemTemp.createTempSync('ub-embedded-app-');
     final root = '${temporary.path}/installation';
-    final device = DeviceConnection([
-      '--installation',
-      root,
-      '--engine=/nonexistent/helper',
-    ], embeddedLocal: true);
+    var pathRequests = 0;
+    final device = DeviceConnection(
+      ['--engine=/nonexistent/helper'],
+      embeddedLocal: true,
+      installationRoot: () async {
+        pathRequests++;
+        return root;
+      },
+    );
+    expect(device.available, isTrue);
+    expect(device.supportsLocalSettings, isFalse);
     AppSession? session;
     try {
       session = await device.connect();
       expect(session.author, isTrue);
+      expect(pathRequests, 1);
       final principal = session.principal;
       final initial = InstanceLibrary.fromWire(
         await session.call(const StatusEngineRequest()),

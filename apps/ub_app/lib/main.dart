@@ -48,6 +48,7 @@ import 'communication_editor_page.dart';
 import 'continuity_page.dart';
 import 'universe_access_page.dart';
 import 'backup_file_dialogs.dart';
+import 'device_storage.dart';
 import 'storage_maintenance_page.dart';
 import 'package_import_page.dart';
 import 'navigation_location.dart';
@@ -70,6 +71,7 @@ void main(List<String> arguments) => runApp(
       saveBackupFile: saveBackupFile,
       openBackupFile: openBackupFile,
       pickImagePath: pickImagePath,
+      installationRoot: mobileInstallationRoot,
     ),
   ),
 );
@@ -1322,7 +1324,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
               FilledButton.icon(
                 onPressed: _busy || !widget.device.available ? null : _connect,
                 icon: const Icon(Icons.computer_outlined),
-                label: const Text('Use this computer'),
+                label: const Text('Use this device'),
               ),
             if (widget.device.supportsBrowser) ...[
               const Text(
@@ -1371,7 +1373,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       ),
       const SizedBox(height: 8),
       Text(
-        '${widget.device.supportsBrowser ? 'Connected instance' : 'This computer'} · ${_session!.author ? 'Approval owner' : 'Contributor'}',
+        '${widget.device.supportsBrowser ? 'Connected instance' : 'This device'} · ${_session!.author ? 'Approval owner' : 'Contributor'}',
       ),
       const SizedBox(height: 24),
       if (_session!.author) ...[
@@ -2975,7 +2977,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
             ? 'Not connected'
             : widget.device.supportsBrowser
             ? 'Connected instance'
-            : 'This computer',
+            : 'This device',
       ),
       if (_library case final library?) ...[
         const SizedBox(height: 12),
@@ -2986,7 +2988,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
         const SizedBox(height: 8),
         SelectableText('Instance: ${library.instance.value}'),
       ],
-      if (widget.device.supportsLocal && widget.device.available) ...[
+      if (widget.device.supportsLocalSettings && widget.device.available) ...[
         const SizedBox(height: 32),
         PostgresSettings(
           key: const ValueKey('postgres-settings'),
