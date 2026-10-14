@@ -49,7 +49,12 @@ information; it does not launch a browser. Browser commands cannot name server
 filesystem paths for backup, restore, legacy conversion, logical export/import,
 package registration or image staging. Those path-based operator commands remain
 available through the native interface. Browser transfers use bounded content
-operations and keep import review separate from admission.
+operations and keep import review separate from admission. The selected-file
+transport streams up to the existing 8 GiB archive budget into private service
+staging. The service prepares the normal import review; it does not admit the
+package. A caller-selected review ID supports an explicit retry with the same
+file, name and restore/clone mode. Browser file selection and review controls for
+this transport are still being connected.
 
 The web app uses the shared typed editor workflows. Named unfinished fields are
 retained in origin-private IndexedDB, scoped to the instance, profile, universe,

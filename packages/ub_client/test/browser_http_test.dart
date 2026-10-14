@@ -8,6 +8,10 @@ import 'package:test/test.dart';
 import 'package:ub_client/browser_engine.dart';
 import 'package:ub_client/browser_http.dart';
 import 'package:ub_contracts/ub_contracts.dart';
+import 'package:ub_domain/ub_domain.dart';
+
+import 'dart:convert';
+
 import 'package:web/web.dart' as web;
 
 @JS('globalThis.fetch')
@@ -97,4 +101,51 @@ void main() {
       transport.close();
     },
   );
+  test('archive file fetch sends an opaque File body with bounded metadata and current CSRF', () async {
+    final file = web.File(
+      [
+        Uint8List.fromList([1, 2, 3]).toJS,
+      ].toJS,
+      'archive.sqlite',
+    );
+    final id = OperationId.generate();
+    browserFetch = ((JSAny input, web.RequestInit init) {
+      expect((input as JSString).toDart, '/engine/browser/import-file');
+      expect(init.body, same(file));
+      expect(init.credentials, 'same-origin');
+      expect(init.mode, 'same-origin');
+      expect(init.redirect, 'error');
+      final headers = init.headers as web.Headers;
+      expect(headers.get('x-ub-csrf'), 'current-csrf');
+      expect(headers.get('content-type'), 'application/octet-stream');
+      final metadata = WireFields(
+        CanonicalValue.parseWireJson(
+          utf8.decode(base64Decode(headers.get('x-ub-import')!)),
+        ),
+        {'preview_id', 'name', 'mode'},
+      );
+      expect(metadata.string('preview_id'), id.value);
+      expect(metadata.string('name'), 'Universe 記憶');
+      expect(metadata.string('mode'), 'clone');
+      expect(headers.has('authorization'), isFalse);
+      return Future.value(
+        web.Response(
+          Uint8List.fromList([1, 2, 3]).toJS,
+          web.ResponseInit(status: 200),
+        ),
+      ).toJS;
+    }).toJS;
+    final transport = SameOriginBrowserTransport();
+    expect(
+      (await transport.postArchive(
+        file: file,
+        previewId: id,
+        name: 'Universe 記憶',
+        mode: ImportMode.clone,
+        csrf: 'current-csrf',
+      )).bytes,
+      [1, 2, 3],
+    );
+    transport.close();
+  });
 }

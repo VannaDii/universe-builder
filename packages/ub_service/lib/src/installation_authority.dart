@@ -248,6 +248,7 @@ final class InstallationAuthority {
       source: request.source,
       name: request.name,
       mode: request.mode,
+      previewId: request.previewId,
     );
   }
 

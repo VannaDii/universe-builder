@@ -260,4 +260,44 @@ void main() {
     expect(prepares, 2);
     await client.close();
   });
+  test('selected-file review returns protocol failures without admission and poisons unknown outcomes', () async {
+    final client = await BrowserEngineClient.connect(
+      enrollmentToken: token,
+      abort: () {},
+      post: (_, _, _) async => enrollment(),
+    );
+    await expectLater(
+      client.reviewArchiveFile(
+        upload: (header) async {
+          expect(header, csrf);
+          return response(const EngineFailure(ApprovalStaleError()).toWire());
+        },
+      ),
+      throwsA(isA<ApprovalStaleError>()),
+    );
+    final value = CanonicalObject([
+      MapEntry('preview_id', CanonicalString(OperationId.generate().value)),
+    ]);
+    expect(
+      (await client.reviewArchiveFile(
+        upload: (_) async => response(EngineSuccess(value).toWire()),
+      )).toText(),
+      value.toText(),
+    );
+    await expectLater(
+      client.reviewArchiveFile(
+        upload: (_) async {
+          throw StateError('Response lost');
+        },
+      ),
+      failure(LocalEngineFailure.interrupted),
+    );
+    await expectLater(
+      client.reviewArchiveFile(
+        upload: (_) async => response(EngineSuccess(value).toWire()),
+      ),
+      failure(LocalEngineFailure.reconnectRequired),
+    );
+    await client.close();
+  });
 }

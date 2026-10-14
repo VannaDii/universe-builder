@@ -12,7 +12,6 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_store/sqlite.dart';
-import 'package:ub_store/src/ownership.dart';
 
 void main() {
   late Directory root;

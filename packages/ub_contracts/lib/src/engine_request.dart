@@ -1277,14 +1277,22 @@ final class PreviewImportEngineRequest extends EngineRequest {
     required this.source,
     required this.name,
     required this.mode,
+    this.previewId,
   });
   final String source;
   final String name;
   final ImportMode mode;
+  final OperationId? previewId;
   @override
   String get method => 'preview_import';
   factory PreviewImportEngineRequest.fromWire(CanonicalValue value) {
-    final f = WireFields(value, {'method', 'source', 'name', 'mode'});
+    final f = WireFields(value, {
+      'method',
+      'source',
+      'name',
+      'mode',
+      'preview_id',
+    });
     if (f.string('method') != 'preview_import') {
       throw const FormatException('Wrong engine method');
     }
@@ -1292,6 +1300,10 @@ final class PreviewImportEngineRequest extends EngineRequest {
       source: f.string('source'),
       name: f.string('name'),
       mode: ImportMode.fromName(f.string('mode')),
+      previewId: f.optional(
+        'preview_id',
+        (v) => OperationId.parse(wireString(v)),
+      ),
     );
   }
   @override
@@ -1300,6 +1312,8 @@ final class PreviewImportEngineRequest extends EngineRequest {
     MapEntry('source', CanonicalString(source)),
     MapEntry('name', CanonicalString(name)),
     MapEntry('mode', CanonicalString(mode.name)),
+    if (previewId != null)
+      MapEntry('preview_id', CanonicalString(previewId!.value)),
   ]);
 }
 

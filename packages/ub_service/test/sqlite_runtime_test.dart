@@ -16,7 +16,6 @@ import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_store/sqlite.dart';
 import 'package:ub_store/ub_store.dart';
-import 'package:ub_store/src/ownership.dart' show protectedFile;
 
 import 'operation_compilation_test.dart' as f;
 import 'proposal_state_test.dart' as proposals;

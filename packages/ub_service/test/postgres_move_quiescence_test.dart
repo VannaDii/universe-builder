@@ -20,7 +20,6 @@ import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_store/sqlite.dart';
 import 'package:ub_store/src/postgres_authority_schema.dart';
 import 'package:ub_store/src/postgres_values.dart';
-import 'package:ub_store/src/ownership.dart';
 
 void main() {
   final port = int.tryParse(

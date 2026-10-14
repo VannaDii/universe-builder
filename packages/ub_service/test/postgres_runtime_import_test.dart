@@ -168,6 +168,35 @@ void main() {
         }
       });
 
+      test('caller-selected file review identity retries the same binding without admission', () async {
+        final author = await runtime.connect(hello(authorId));
+        final path = source();
+        final id = OperationId.generate();
+        final request = PreviewImportEngineRequest(
+          source: path,
+          name: 'Selected file 記憶',
+          mode: ImportMode.clone,
+          previewId: id,
+        );
+        final report = await author.execute(request);
+        targets.add(UniverseId.parse(text(report, 'target_universe')));
+        expect(text(report, 'preview_id'), id.value);
+        expect((await author.execute(request)).toText(), report.toText());
+        await expectLater(
+          author.execute(
+            PreviewImportEngineRequest(
+              source: path,
+              name: 'Changed name',
+              mode: ImportMode.clone,
+              previewId: id,
+            ),
+          ),
+          throwsA(isA<ApprovalStaleError>()),
+        );
+        final status = fields(await author.execute(StatusEngineRequest()));
+        expect((status['universes']! as CanonicalArray).items, isEmpty);
+      });
+
       test('bounded uploaded archive survives restart and exact review and admission retries', () async {
         var author = await runtime.connect(hello(authorId));
         final writer = await runtime.connect(hello(writerId));

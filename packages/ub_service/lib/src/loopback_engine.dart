@@ -6,7 +6,8 @@ import 'dart:typed_data';
 
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
-import 'package:ub_store/installation.dart' show privateDirectory;
+import 'package:ub_store/installation.dart'
+    show privateDirectory, protectedFile;
 import 'package:ub_store/sqlite.dart' show OwnedSqliteDatabase;
 
 import 'postgres_runtime.dart';
@@ -184,6 +185,114 @@ final class LoopbackEngineServer {
       if (request.headers.value(HttpHeaders.hostHeader) != endpoint.authority ||
           origin != null && origin != endpoint.origin) {
         response.statusCode = HttpStatus.forbidden;
+        return;
+      }
+      if (request.method == 'POST' &&
+          request.uri.path == '/engine/browser/import-file') {
+        _expireBrowserAccess();
+        if (request.uri.hasQuery ||
+            origin != endpoint.origin ||
+            request.headers.contentType?.mimeType !=
+                'application/octet-stream') {
+          response.statusCode = HttpStatus.forbidden;
+          return;
+        }
+        final cookies = request.cookies.where(
+          (cookie) => cookie.name == _cookieName,
+        );
+        final session = cookies.length == 1
+            ? _browserSessions[cookies.single.value]
+            : null;
+        if (session == null) {
+          response.statusCode = HttpStatus.unauthorized;
+          return;
+        }
+        if (request.headers.value('x-ub-csrf') != session.csrf) {
+          response.statusCode = HttpStatus.forbidden;
+          return;
+        }
+        try {
+          connection = await _connect(session.hello);
+        } on Object {
+          response.statusCode = HttpStatus.unauthorized;
+          return;
+        }
+        if (!connection.welcome.author) {
+          response.statusCode = HttpStatus.forbidden;
+          return;
+        }
+        final header = request.headers.value('x-ub-import');
+        if (header == null || header.length > 8192) {
+          response.statusCode = HttpStatus.badRequest;
+          return;
+        }
+        final metadata = WireFields(
+          CanonicalValue.parseWireJson(utf8.decode(base64Decode(header))),
+          {'preview_id', 'name', 'mode'},
+        );
+        final id = OperationId.parse(metadata.string('preview_id'));
+        final name = metadata.string('name'),
+            mode = ImportMode.fromName(metadata.string('mode'));
+        const limit =
+            ReadMoveChunkEngineRequest.chunkBytes *
+            ReadMoveChunkEngineRequest.maxChunks;
+        if (request.contentLength > limit || request.contentLength == 0) {
+          response.statusCode = HttpStatus.requestEntityTooLarge;
+          return;
+        }
+        final directory = Directory.systemTemp.createTempSync(
+          'universe-builder-browser-import-',
+        );
+        try {
+          privateDirectory(directory.path);
+          final file = File('${directory.path}/archive.sqlite');
+          protectedFile(file.path, createNew: true);
+          var bytes = 0;
+          final output = file.openWrite();
+          try {
+            await for (final chunk in request.timeout(
+              const Duration(seconds: 30),
+            )) {
+              bytes += chunk.length;
+              if (bytes > limit) {
+                response.statusCode = HttpStatus.requestEntityTooLarge;
+                return;
+              }
+              output.add(chunk);
+              await output.flush();
+            }
+          } finally {
+            await output.close();
+          }
+          if (bytes == 0 ||
+              request.contentLength >= 0 && bytes != request.contentLength) {
+            response.statusCode = HttpStatus.badRequest;
+            return;
+          }
+          EngineResult result;
+          try {
+            result = EngineSuccess(
+              await connection.execute(
+                PreviewImportEngineRequest(
+                  source: file.path,
+                  name: name,
+                  mode: mode,
+                  previewId: id,
+                ),
+              ),
+            );
+          } on ProtocolError catch (error) {
+            result = EngineFailure(error);
+          } on Object {
+            result = const EngineFailure(
+              PolicyDeniedError(message: 'Package import unavailable'),
+            );
+          }
+          response.headers.contentType = ContentType.json;
+          response.add(result.toWire().toBytes());
+        } finally {
+          directory.deleteSync(recursive: true);
+        }
         return;
       }
       if (request.method == 'GET' &&

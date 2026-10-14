@@ -475,6 +475,7 @@ final class NativePostgresRuntime {
                 source: request.source,
                 name: request.name,
                 mode: request.mode,
+                previewId: request.previewId,
               );
               return preview.report(
                 await session.importConflicts(

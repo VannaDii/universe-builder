@@ -55,6 +55,26 @@ extension PostgresInstallationImports on PostgresInstallationSession {
           'includes_history',
           'includes_workflow',
         });
+        if (previewId != null) {
+          final existing = await _tx.execute(
+            'SELECT preview_digest FROM $_control.import_preview WHERE id=\$1 AND owner=\$2',
+            parameters: [previewId.value, actor.value],
+          );
+          if (existing.isNotEmpty) {
+            final retained = await loadImport(
+              actor: actor,
+              id: previewId,
+              digest: existing.single[0] as String,
+            );
+            if (retained.sourceDigest != archive.digest ||
+                retained.name != name ||
+                (retained.source == retained.target) !=
+                    (mode == ImportMode.restore)) {
+              throw const ApprovalStaleError();
+            }
+            return retained;
+          }
+        }
         final sourceId = UniverseId.parse(fields.string('universe'));
         final target = mode == ImportMode.restore
             ? sourceId

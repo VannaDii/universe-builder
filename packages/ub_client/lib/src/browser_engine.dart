@@ -138,6 +138,42 @@ final class BrowserEngineClient {
     };
   }
 
+  /// A file adapter streams selected content; this connection retains the same
+  /// session, single-flight and unknown-outcome rules as ordinary calls.
+  Future<CanonicalValue> reviewArchiveFile({
+    required Future<BrowserEngineResponse> Function(String csrf) upload,
+  }) async {
+    if (_closed) throw const LocalEngineException(LocalEngineFailure.closed);
+    if (_busy) throw const LocalEngineException(LocalEngineFailure.busy);
+    if (_broken) {
+      throw const LocalEngineException(LocalEngineFailure.reconnectRequired);
+    }
+    _busy = true;
+    _broken = true;
+    late EngineResult result;
+    try {
+      final response = await upload(csrf);
+      if (response.status != 200 ||
+          response.bytes.length > maxFrameBytes ||
+          _closed) {
+        throw const FormatException('Upload response unavailable');
+      }
+      result = EngineResult.fromWire(
+        CanonicalValue.parseWireJson(utf8.decode(response.bytes)),
+      );
+    } on Object {
+      _abort();
+      throw const LocalEngineException(LocalEngineFailure.interrupted);
+    } finally {
+      _busy = false;
+    }
+    _broken = false;
+    return switch (result) {
+      EngineSuccess(:final value) => value,
+      EngineFailure(:final error) => throw error,
+    };
+  }
+
   /// Prepare a pinned, complete-history archive for a browser-native download.
   /// The one-use URL contains no filesystem path or durable credential.
   Future<PreparedBrowserArchive> prepareArchiveDownload(

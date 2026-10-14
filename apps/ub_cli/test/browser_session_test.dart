@@ -15,7 +15,6 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_engine.dart';
 import 'package:ub_service/local_profiles.dart';
 import 'package:ub_store/installation.dart';
-import 'package:ub_store/src/ownership.dart' show protectedFile;
 import 'package:ub_store/profile_credentials.dart';
 
 void main() {
@@ -362,6 +361,95 @@ void main() {
       expect(
         (await download(replacement.path, cookie: session.cookie)).status,
         HttpStatus.unauthorized,
+      );
+
+      Future<EngineResult> uploadFile(
+        List<int> bytes,
+        OperationId id, {
+        String name = 'File clone',
+        String? cookie,
+        String? csrf,
+        String? origin,
+        int expectedStatus = HttpStatus.ok,
+      }) async {
+        final request = await http.postUrl(
+          server.httpEndpoint.resolve('/engine/browser/import-file'),
+        );
+        request.headers.set('origin', origin ?? server.httpEndpoint.origin);
+        request.headers.contentType = ContentType.binary;
+        request.headers.set(HttpHeaders.cookieHeader, cookie ?? session.cookie);
+        request.headers.set('x-ub-csrf', csrf ?? session.csrf);
+        request.headers.set(
+          'x-ub-import',
+          base64Encode(
+            CanonicalObject([
+              MapEntry('preview_id', CanonicalString(id.value)),
+              MapEntry('name', CanonicalString(name)),
+              MapEntry('mode', CanonicalString('clone')),
+            ]).toBytes(),
+          ),
+        );
+        request.contentLength = bytes.length;
+        request.add(bytes);
+        final response = await request.close();
+        final body = BytesBuilder(copy: false);
+        await for (final chunk in response) {
+          body.add(chunk);
+        }
+        expect(response.statusCode, expectedStatus);
+        if (response.statusCode != HttpStatus.ok) {
+          expect(body.length, 0);
+          return const EngineFailure(
+            PolicyDeniedError(message: 'Request denied'),
+          );
+        }
+        return EngineResult.fromWire(
+          CanonicalValue.parseWireJson(utf8.decode(body.takeBytes())),
+        );
+      }
+
+      await uploadFile(
+        [1],
+        OperationId.generate(),
+        csrf: 'wrong',
+        expectedStatus: HttpStatus.forbidden,
+      );
+      await uploadFile(
+        [1],
+        OperationId.generate(),
+        origin: 'https://foreign.example',
+        expectedStatus: HttpStatus.forbidden,
+      );
+      final writerFileSession = await exchange(
+        await contributor.createBrowserSession(),
+      );
+      await uploadFile(
+        [1],
+        OperationId.generate(),
+        cookie: writerFileSession.cookie,
+        csrf: writerFileSession.csrf,
+        expectedStatus: HttpStatus.forbidden,
+      );
+      final selectedId = OperationId.generate();
+      final fileReview = await uploadFile(downloaded.bytes, selectedId);
+      expect(fileReview, isA<EngineSuccess>());
+      final fileFields = Map.fromEntries(
+        ((fileReview as EngineSuccess).value as CanonicalObject).fields,
+      );
+      expect(wireString(fileFields['preview_id']!), selectedId.value);
+      expect(wireString(fileFields['source_universe']!), universe.value);
+      final retried = await uploadFile(downloaded.bytes, selectedId);
+      expect(
+        (retried as EngineSuccess).value.toText(),
+        fileReview.value.toText(),
+      );
+      expect(
+        await uploadFile(downloaded.bytes, selectedId, name: 'Changed name'),
+        isA<EngineFailure>(),
+      );
+      expect(
+        await uploadFile([1, 2, 3], OperationId.generate()),
+        isA<EngineFailure>(),
       );
 
       // Content upload remains available to a browser without filesystem paths.

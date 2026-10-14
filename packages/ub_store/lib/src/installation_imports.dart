@@ -132,6 +132,26 @@ extension InstallationImports on SqliteInstallationStore {
         'includes_history',
         'includes_workflow',
       });
+      if (previewId != null) {
+        final existing = _db.select(
+          'SELECT preview_digest FROM import_preview WHERE id=? AND owner=?',
+          [previewId.value, actor.value],
+        );
+        if (existing.isNotEmpty) {
+          final retained = loadImport(
+            actor: actor,
+            id: previewId,
+            digest: existing.single['preview_digest'] as String,
+          );
+          if (retained.sourceDigest != archive.digest ||
+              retained.name != name ||
+              (retained.source == retained.target) !=
+                  (mode == ImportMode.restore)) {
+            throw const ApprovalStaleError();
+          }
+          return retained;
+        }
+      }
       final sourceId = UniverseId.parse(f.string('universe'));
       final target = mode == ImportMode.restore
           ? sourceId
