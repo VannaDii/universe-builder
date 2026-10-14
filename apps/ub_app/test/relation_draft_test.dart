@@ -19,6 +19,7 @@ import 'package:ub_app/memory_draft.dart';
 import 'package:ub_app/plan_draft.dart';
 import 'package:ub_app/commitment_draft.dart';
 import 'package:ub_app/item_power_draft.dart';
+import 'package:ub_app/represented_context_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -2095,6 +2096,77 @@ void main() {
       expect(
         itemPowerPublished.single.payload.toWire().toText(),
         itemPowerOperation(itemPowerForm).record.toWire().toText(),
+      );
+      final representedBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final representedForm = UnfinishedRepresentedContextForm(
+        baseRevision: representedBase.content.baseRevision,
+        representedContext: scope.representedContext!,
+        universe: scope.universe,
+        clientRef: 'dream-context',
+        kind: 'authored',
+        authoredLabel: 'Dream 記憶 😀',
+        labels: [const PropertyLabelInput(language: 'en', text: 'Dream 記憶 😀')],
+        parentEnabled: true,
+        parent: ExpressionReferenceInput(
+          record: scope.representedContext!.value,
+          universe: scope.universe.value,
+        ),
+        rationale: 'Declare a represented account without inferring its event occurrence.',
+      );
+      await session.saveRepresentedContextForm(
+        scope,
+        representedForm,
+        BigInt.zero,
+      );
+      await session.close();
+      session = await device.connect();
+      final recoveredRepresented = (await session.loadRepresentedContextForm(
+        scope,
+      ))!.form;
+      expect(
+        recoveredRepresented.toWire().toText(),
+        representedForm.toWire().toText(),
+      );
+      final representedDraft = SavedDraft.fromWire(
+        await session.call(
+          representedContextDraftRequest(
+            draft: representedBase,
+            form: recoveredRepresented,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final representedPublished = await publish(representedDraft);
+      expect(
+        representedPublished.single.payload.toWire().toText(),
+        representedContextOperation(representedForm).payload.toWire().toText(),
+      );
+      final selectedRepresented = Envelope<OpenedContext>.fromWire(
+        await session.call(
+          ToolEngineRequest(
+            request: OpenContextRequest(
+              universe: const Selector('Relations'),
+              universeId: scope.universe,
+              continuityId: scope.continuity,
+              revision: const HeadRevisionSelector(),
+              representedContext: ContextIdSelector(
+                representedPublished.single.identity.recordId,
+              ),
+              temporalQuery: const TimelessFrameTime(),
+              temporalSystems: [],
+              perspective: const AuthorPerspective(),
+            ),
+          ),
+        ),
+        OpenedContext.fromWire,
+      ).result;
+      expect(
+        selectedRepresented.frame.context.record,
+        representedPublished.single.identity.recordId,
       );
     } finally {
       await session?.close();

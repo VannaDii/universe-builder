@@ -281,6 +281,13 @@ In author perspective, proposition choices show their subject, predicate,
 quantification, context, ordered participants and simple values using accessible
 names. Search matches these descriptions. Hidden dependencies retain the
 existing fallback; labels do not assert that a proposition is true.
+**Context definition** authors objective, character, source, narrator or named
+contexts with optional parent, display labels and an authored clock. Gregorian
+clocks accept explicit timestamps with offsets; fictional clocks retain exact
+ticks and optional month sizes. Parent and clock are never supplied automatically.
+Context names do not determine event occurrence. Unfinished fields recover on
+this device; pending contexts offer **Edit represented context fields** in Changes
+and published contexts are selectable in the continuity.
 **Item power** records a named item, holder and power properties, exact typed
 value, explicit universe/world scope and validity. The holder property must be
 a single-valued entity reference. Location and ownership do not establish

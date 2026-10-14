@@ -264,6 +264,8 @@ void main() {
         saveCommitmentForm: active.saveCommitmentForm,
         loadPlanForm: active.loadPlanForm,
         savePlanForm: active.savePlanForm,
+        loadRepresentedContextForm: active.loadRepresentedContextForm,
+        saveRepresentedContextForm: active.saveRepresentedContextForm,
         loadMemoryForm: active.loadMemoryForm,
         saveMemoryForm: active.saveMemoryForm,
         loadObservationForm: active.loadObservationForm,
@@ -382,6 +384,10 @@ void main() {
         saveCommitmentForm: publishingSession.saveCommitmentForm,
         loadPlanForm: publishingSession.loadPlanForm,
         savePlanForm: publishingSession.savePlanForm,
+        loadRepresentedContextForm:
+            publishingSession.loadRepresentedContextForm,
+        saveRepresentedContextForm:
+            publishingSession.saveRepresentedContextForm,
         loadMemoryForm: publishingSession.loadMemoryForm,
         saveMemoryForm: publishingSession.saveMemoryForm,
         loadObservationForm: publishingSession.loadObservationForm,

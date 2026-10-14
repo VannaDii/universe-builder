@@ -27,6 +27,8 @@ final class AppSession {
     required this.saveCommitmentForm,
     required this.loadPlanForm,
     required this.savePlanForm,
+    required this.loadRepresentedContextForm,
+    required this.saveRepresentedContextForm,
     required this.loadMemoryForm,
     required this.saveMemoryForm,
     required this.loadObservationForm,
@@ -133,6 +135,14 @@ final class AppSession {
     BigInt,
   )
   savePlanForm;
+  final Future<SavedRepresentedContextForm?> Function(EditorFormScope)
+  loadRepresentedContextForm;
+  final Future<SavedRepresentedContextForm> Function(
+    EditorFormScope,
+    UnfinishedRepresentedContextForm,
+    BigInt,
+  )
+  saveRepresentedContextForm;
   final Future<SavedMemoryForm?> Function(EditorFormScope) loadMemoryForm;
   final Future<SavedMemoryForm> Function(
     EditorFormScope,

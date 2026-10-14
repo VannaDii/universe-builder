@@ -56,3 +56,5 @@ export 'src/plan_forms.dart';
 export 'src/commitment_forms.dart';
 
 export 'src/item_power_forms.dart';
+
+export 'src/represented_context_forms.dart';
