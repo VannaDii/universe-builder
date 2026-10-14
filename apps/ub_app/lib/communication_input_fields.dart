@@ -144,6 +144,10 @@ class _CommunicationInputFieldsState extends State<CommunicationInputFields> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (f.correctionTarget != null)
+          const Text(
+            'Correct this historical message with an explicit reason. Existing checks retain authored sent and receipt calendars. Changing a message does not create recipient knowledge.',
+          ),
         _reference(
           'Sender',
           f.sender,

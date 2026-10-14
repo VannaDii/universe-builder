@@ -16,11 +16,13 @@ class CommunicationEditorPage extends StatefulWidget {
     required this.revision,
     this.editingDraft,
     this.index,
+    this.correctionRecord,
   });
   final SavedChanges changes;
   final RevisionId revision;
   final SavedDraft? editingDraft;
   final int? index;
+  final RecordVersion? correctionRecord;
   @override
   State<CommunicationEditorPage> createState() =>
       _CommunicationEditorPageState();
@@ -68,6 +70,12 @@ class _CommunicationEditorPageState extends State<CommunicationEditorPage> {
 
   UnfinishedCommunicationForm _fresh() => widget.index != null
       ? communicationFormFromDraft(_draft!, widget.index!)
+      : widget.correctionRecord != null
+      ? communicationCorrectionFormFromRecord(
+          record: widget.correctionRecord!,
+          baseRevision: widget.revision,
+          representedContext: _scope.representedContext!,
+        )
       : UnfinishedCommunicationForm(
           baseRevision: widget.revision,
           representedContext: _scope.representedContext!,
@@ -92,13 +100,22 @@ class _CommunicationEditorPageState extends State<CommunicationEditorPage> {
                   _form!.baseRevision != _draft!.content.baseRevision ||
                   _form!.representedContext !=
                       _draft!.content.representedContext
-            : _form!.baseRevision != widget.revision;
+            : _form!.baseRevision != widget.revision ||
+                  (widget.correctionRecord != null &&
+                      _form!.expectedRecordVersion !=
+                          widget.correctionRecord!.recordVersionId);
         _added =
             widget.index == null &&
                 (_draft?.content.operations.any(
                       (op) =>
-                          op is RecordCommunicationOperation &&
-                          op.clientRef == _form!.clientRef,
+                          (op is RecordCommunicationOperation &&
+                              _form!.correctionTarget == null &&
+                              op.clientRef == _form!.clientRef) ||
+                          (op is ReviseCommunicationOperation &&
+                              _form!.correctionTarget?.record ==
+                                  op.record.record.value &&
+                              _form!.correctionTarget?.universe ==
+                                  (op.record.universe?.value ?? '')),
                     ) ??
                     false)
             ? 'This definition is in Changes. Review or edit it there.'
@@ -198,8 +215,16 @@ class _CommunicationEditorPageState extends State<CommunicationEditorPage> {
       setState(() {
         _draft = saved;
         _result = saved;
-        if (widget.index != null) {
-          _form = communicationFormFromDraft(saved, widget.index!);
+        if (widget.index != null || _form!.correctionTarget != null) {
+          final index =
+              widget.index ??
+              saved.content.operations.indexWhere(
+                (op) =>
+                    op is ReviseCommunicationOperation &&
+                    op.record ==
+                        communicationCorrectionOperation(_form!).record,
+              );
+          _form = communicationFormFromDraft(saved, index);
           _fields++;
           _dirty = true;
         } else {
@@ -292,7 +317,7 @@ class _CommunicationEditorPageState extends State<CommunicationEditorPage> {
                     disabled: _disabled,
                     onChanged: _change,
                   ),
-                  if (widget.index == null)
+                  if (widget.index == null || f.correctionTarget != null)
                     _text(
                       'rationale',
                       'Rationale',

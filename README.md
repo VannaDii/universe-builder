@@ -288,6 +288,13 @@ ticks and optional month sizes. Parent and clock are never supplied automaticall
 Context names do not determine event occurrence. Unfinished fields recover on
 this device; pending contexts offer **Edit represented context fields** in Changes
 and published contexts are selectable in the continuity.
+A published communication’s dossier offers **Correct communication**. The
+recoverable form retains its identity and expected version and submits changes
+through `revise_communication` with an explicit correction reason. Pending
+corrections remain editable in Changes. Existing checks retain authored sent
+and receipt calendars; reviewed publication preserves earlier message history.
+Correcting a message does not establish recipient knowledge automatically.
+
 **Item power** records a named item, holder and power properties, exact typed
 value, explicit universe/world scope and validity. The holder property must be
 a single-valued entity reference. Location and ownership do not establish

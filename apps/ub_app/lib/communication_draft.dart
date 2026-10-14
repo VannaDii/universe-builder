@@ -55,35 +55,105 @@ RecordCommunicationOperation communicationOperation(
   );
 }
 
+ReviseCommunicationOperation communicationCorrectionOperation(
+  UnfinishedCommunicationForm form,
+) {
+  if (form.correctionTarget == null || form.expectedRecordVersion == null) {
+    throw const FormatException(
+      'Open a published communication to correct it.',
+    );
+  }
+  return ReviseCommunicationOperation(
+    record: _reference(form.correctionTarget!),
+    expectedVersion: form.expectedRecordVersion!,
+    replacement: communicationOperation(form).record,
+    rationale: form.rationale,
+  );
+}
+
+UnfinishedCommunicationForm communicationCorrectionFormFromRecord({
+  required RecordVersion record,
+  required RevisionId baseRevision,
+  required RecordId representedContext,
+}) {
+  if (record.payload is! CommunicationRecord) {
+    throw const FormatException('Choose a published communication.');
+  }
+  return _communicationForm(
+    record: record.payload as CommunicationRecord,
+    baseRevision: baseRevision,
+    representedContext: representedContext,
+    clientRef: record.identity.recordId.value,
+    correctionTarget: _input(
+      RecordRef(
+        universe: record.identity.universeId,
+        record: record.identity.recordId,
+      ),
+    ),
+    expectedRecordVersion: record.recordVersionId,
+  );
+}
+
 UnfinishedCommunicationForm communicationFormFromDraft(
   SavedDraft draft,
   int index,
 ) {
   final operation = draft.content.operations[index];
+  if (operation is ReviseCommunicationOperation) {
+    return _communicationForm(
+      record: operation.replacement,
+      baseRevision: draft.content.baseRevision,
+      representedContext: draft.content.representedContext,
+      clientRef: operation.record.record.value,
+      correctionTarget: _input(operation.record),
+      expectedRecordVersion: operation.expectedVersion,
+      rationale: operation.rationale,
+      draftVersion: draft.version,
+    );
+  }
   if (operation is! RecordCommunicationOperation) {
     throw const FormatException('Choose a communication from Changes.');
   }
-  final record = operation.record;
-  return UnfinishedCommunicationForm(
+  return _communicationForm(
+    record: operation.record,
     baseRevision: draft.content.baseRevision,
     representedContext: draft.content.representedContext,
     clientRef: operation.clientRef,
-    sender: _input(record.sender),
-    intendedRecipients: record.intendedRecipients.map(_input),
-    actualRecipients: record.actualRecipients.map(_input),
-    content: record.content.map(_input),
-    channelEnabled: record.channel != null,
-    channel: record.channel ?? '',
-    distorted: record.distorted,
-    sentAt: temporalValidityInput(InstantValidity(record.sentAt)),
-    receivedEnabled: record.receivedAt != null,
-    receivedAt: record.receivedAt == null
-        ? const TemporalValidityInput(kind: 'instant_unspecified')
-        : temporalValidityInput(InstantValidity(record.receivedAt!)),
-    original: record,
     draftVersion: draft.version,
   );
 }
+
+UnfinishedCommunicationForm _communicationForm({
+  required CommunicationRecord record,
+  required RevisionId baseRevision,
+  required RecordId representedContext,
+  required String clientRef,
+  ExpressionReferenceInput? correctionTarget,
+  RecordVersionId? expectedRecordVersion,
+  String rationale = '',
+  BigInt? draftVersion,
+}) => UnfinishedCommunicationForm(
+  baseRevision: baseRevision,
+  representedContext: representedContext,
+  clientRef: clientRef,
+  correctionTarget: correctionTarget,
+  expectedRecordVersion: expectedRecordVersion,
+  rationale: rationale,
+  sender: _input(record.sender),
+  intendedRecipients: record.intendedRecipients.map(_input),
+  actualRecipients: record.actualRecipients.map(_input),
+  content: record.content.map(_input),
+  channelEnabled: record.channel != null,
+  channel: record.channel ?? '',
+  distorted: record.distorted,
+  sentAt: temporalValidityInput(InstantValidity(record.sentAt)),
+  receivedEnabled: record.receivedAt != null,
+  receivedAt: record.receivedAt == null
+      ? const TemporalValidityInput(kind: 'instant_unspecified')
+      : temporalValidityInput(InstantValidity(record.receivedAt!)),
+  original: record,
+  draftVersion: draftVersion,
+);
 
 SaveDraftEngineRequest communicationDraftRequest({
   required SavedDraft draft,
@@ -99,12 +169,17 @@ SaveDraftEngineRequest communicationDraftRequest({
       'Review Changes before adding this communication declaration.',
     );
   }
-  final operation = communicationOperation(form);
+  final operation = form.correctionTarget == null
+      ? communicationOperation(form)
+      : communicationCorrectionOperation(form);
   final operations = [...draft.content.operations];
   if (index != null) {
     final before = communicationFormFromDraft(draft, index);
     if (form.draftVersion != draft.version ||
-        form.clientRef != before.clientRef) {
+        form.clientRef != before.clientRef ||
+        form.correctionTarget?.toWire().toText() !=
+            before.correctionTarget?.toWire().toText() ||
+        form.expectedRecordVersion != before.expectedRecordVersion) {
       throw const FormatException(
         'The draft changed. Reopen its current communication fields.',
       );
@@ -112,6 +187,21 @@ SaveDraftEngineRequest communicationDraftRequest({
     operations[index] = operation;
   } else {
     for (final existing in operations) {
+      if (operation is ReviseCommunicationOperation &&
+          existing is ReviseCommunicationOperation &&
+          existing.record == operation.record) {
+        if (existing.toWire().toText() != operation.toWire().toText()) {
+          throw const FormatException(
+            'This communication already has a correction. Edit it in Changes.',
+          );
+        }
+        return SaveDraftEngineRequest(
+          universe: universe,
+          continuityId: continuity,
+          expectedVersion: draft.version,
+          content: draft.content,
+        );
+      }
       final ref = Map.fromEntries(existing.toWire().fields)['client_ref'];
       if (ref is CanonicalString && ref.value == form.clientRef) {
         if (existing.toWire().toText() != operation.toWire().toText()) {

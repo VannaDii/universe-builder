@@ -24,6 +24,7 @@ import 'saga_editor_page.dart';
 import 'work_editor_page.dart';
 import 'scene_editor_page.dart';
 import 'item_power_editor_page.dart';
+import 'communication_editor_page.dart';
 
 enum _DossierView {
   fields,
@@ -701,6 +702,36 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                                   ),
                                 ),
                           child: const Text('Correct item power'),
+                        ),
+                      if (record.payload is CommunicationRecord)
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context).push<SavedDraft>(
+                                  MaterialPageRoute(
+                                    builder: (_) => CommunicationEditorPage(
+                                      revision: widget.context.frame.revision,
+                                      correctionRecord: record,
+                                      changes: SavedChanges(
+                                        session: widget.session,
+                                        universe: Selector(
+                                          widget.universe.name,
+                                        ),
+                                        scope: EditorFormScope(
+                                          instance: widget.scope.instance,
+                                          profile: widget.scope.profile,
+                                          universe: widget.universe.id,
+                                          continuity: widget.continuity.id,
+                                          representedContext:
+                                              widget.representedContext.id,
+                                          typeClientRef:
+                                              record.identity.recordId.value,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                          child: const Text('Correct communication'),
                         ),
                       if (widget.session.author &&
                           record.payload is SourceVersionRecord)

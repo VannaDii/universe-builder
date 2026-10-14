@@ -3284,6 +3284,82 @@ void main() {
         retainedPower.toWire().toText(),
         itemPowerPublished.single.toWire().toText(),
       );
+      final communicationCorrectionBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final communicationCorrectionScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: communicationPublished.single.identity.recordId.value,
+      );
+      final communicationCorrectionForm =
+          communicationCorrectionFormFromRecord(
+            record: communicationPublished.single,
+            baseRevision: communicationCorrectionBase.content.baseRevision,
+            representedContext: scope.representedContext!,
+          ).copyWith(
+            receivedAt: TemporalValidityInput(
+              kind: 'instant',
+              calendar: calendar.value,
+              start: const TemporalBoundInput(value: '9007199254741015'),
+            ),
+            rationale: 'Correct the historical message receipt time.',
+          );
+      await session.saveCommunicationForm(
+        communicationCorrectionScope,
+        communicationCorrectionForm,
+        BigInt.zero,
+      );
+      await session.close();
+      session = await device.connect();
+      final recoveredCommunicationCorrection =
+          (await session.loadCommunicationForm(communicationCorrectionScope))!
+              .form;
+      expect(
+        recoveredCommunicationCorrection.toWire().toText(),
+        communicationCorrectionForm.toWire().toText(),
+      );
+      final communicationCorrectionDraft = SavedDraft.fromWire(
+        await session.call(
+          communicationDraftRequest(
+            draft: communicationCorrectionBase,
+            form: recoveredCommunicationCorrection,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final correctedCommunication = await publish(
+        communicationCorrectionDraft,
+      );
+      expect(
+        correctedCommunication.single.identity.recordId,
+        communicationPublished.single.identity.recordId,
+      );
+      expect(
+        correctedCommunication.single.payload.toWire().toText(),
+        communicationCorrectionOperation(communicationCorrectionForm)
+            .replacement
+            .toWire()
+            .toText(),
+      );
+      final retainedCommunication = await readContextRecord(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Relations'),
+        context: await openDraftChoiceContext(
+          changes(),
+          communicationCorrectionBase,
+        ),
+        record: communicationPublished.single.identity.recordId,
+      );
+      expect(
+        retainedCommunication.toWire().toText(),
+        communicationPublished.single.toWire().toText(),
+      );
     } finally {
       await session?.close();
       await server.close();

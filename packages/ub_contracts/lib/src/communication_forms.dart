@@ -21,6 +21,8 @@ final class UnfinishedCommunicationForm {
     this.receivedAt = const TemporalValidityInput(kind: 'instant_unspecified'),
     this.rationale = '',
     this.original,
+    this.correctionTarget,
+    this.expectedRecordVersion,
     BigInt? draftVersion,
   }) : intendedRecipients = List.unmodifiable(intendedRecipients),
        actualRecipients = List.unmodifiable(actualRecipients),
@@ -37,6 +39,8 @@ final class UnfinishedCommunicationForm {
   final bool? distorted;
   final TemporalValidityInput sentAt, receivedAt;
   final CommunicationRecord? original;
+  final ExpressionReferenceInput? correctionTarget;
+  final RecordVersionId? expectedRecordVersion;
   final BigInt? draftVersion;
   UnfinishedCommunicationForm copyWith({
     ExpressionReferenceInput? sender,
@@ -66,6 +70,8 @@ final class UnfinishedCommunicationForm {
     receivedAt: receivedAt ?? this.receivedAt,
     rationale: rationale ?? this.rationale,
     original: original,
+    correctionTarget: correctionTarget,
+    expectedRecordVersion: expectedRecordVersion,
     draftVersion: draftVersion,
   );
   CanonicalObject toWire() => CanonicalObject([
@@ -92,6 +98,13 @@ final class UnfinishedCommunicationForm {
     MapEntry('received_enabled', CanonicalBool(receivedEnabled)),
     MapEntry('received_at', receivedAt.toWire()),
     MapEntry('rationale', CanonicalString(rationale)),
+    if (correctionTarget != null)
+      MapEntry('correction_target', correctionTarget!.toWire()),
+    if (expectedRecordVersion != null)
+      MapEntry(
+        'expected_record_version',
+        CanonicalString(expectedRecordVersion!.value),
+      ),
     if (original != null) MapEntry('original', original!.toWire()),
     if (draftVersion != null)
       MapEntry('draft_version', CanonicalString(draftVersion.toString())),
@@ -113,6 +126,8 @@ final class UnfinishedCommunicationForm {
       'received_at',
       'rationale',
       'original',
+      'correction_target',
+      'expected_record_version',
       'draft_version',
     });
     return UnfinishedCommunicationForm(
@@ -140,6 +155,14 @@ final class UnfinishedCommunicationForm {
       receivedEnabled: f.boolean('received_enabled'),
       receivedAt: TemporalValidityInput.fromWire(f.require('received_at')),
       rationale: f.string('rationale'),
+      correctionTarget: f.optional(
+        'correction_target',
+        ExpressionReferenceInput.fromWire,
+      ),
+      expectedRecordVersion: f.optional(
+        'expected_record_version',
+        (v) => RecordVersionId.parse(wireString(v)),
+      ),
       original: f.optional('original', CommunicationRecord.fromWire),
       draftVersion: f.optional(
         'draft_version',
