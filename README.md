@@ -281,6 +281,12 @@ In author perspective, proposition choices show their subject, predicate,
 quantification, context, ordered participants and simple values using accessible
 names. Search matches these descriptions. Hidden dependencies retain the
 existing fallback; labels do not assert that a proposition is true.
+Published actions offer **Revise action definition** in their record details.
+Requirements, consequence slots, scope and validity remain editable, while the
+namespace and key stay fixed. Unfinished revisions recover on this device;
+**Edit action revision fields** in Changes retains the source version. Moving
+slots retains their declared execution-order numbers. Publication preserves
+history and does not execute the action.
 Published value definitions offer **Revise value definition** in their record
 details. Authors can edit labels, nested field shapes, field order and
 required/unknown flags while retaining the namespace and key. Unfinished revisions

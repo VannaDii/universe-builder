@@ -16,11 +16,13 @@ class ActionEditorPage extends StatefulWidget {
     required this.revision,
     this.editingDraft,
     this.index,
+    this.revisionRecord,
   });
   final SavedChanges changes;
   final RevisionId revision;
   final SavedDraft? editingDraft;
   final int? index;
+  final RecordVersion? revisionRecord;
   @override
   State<ActionEditorPage> createState() => _ActionEditorPageState();
 }
@@ -67,6 +69,12 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
 
   UnfinishedActionForm _fresh() => widget.index != null
       ? actionFormFromDraft(_draft!, widget.index!)
+      : widget.revisionRecord != null
+      ? actionRevisionFormFromRecord(
+          record: widget.revisionRecord!,
+          baseRevision: widget.revision,
+          representedContext: _scope.representedContext!,
+        )
       : UnfinishedActionForm(
           baseRevision: widget.revision,
           representedContext: _scope.representedContext!,
@@ -92,13 +100,22 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                   _form!.baseRevision != _draft!.content.baseRevision ||
                   _form!.representedContext !=
                       _draft!.content.representedContext
-            : _form!.baseRevision != widget.revision;
+            : _form!.baseRevision != widget.revision ||
+                  (widget.revisionRecord != null &&
+                      _form!.expectedRecordVersion !=
+                          widget.revisionRecord!.recordVersionId);
         _added =
             widget.index == null &&
                 (_draft?.content.operations.any(
                       (op) =>
-                          op is DefineActionOperation &&
-                          op.clientRef == _form!.clientRef,
+                          (op is DefineActionOperation &&
+                              _form!.revisionTarget == null &&
+                              op.clientRef == _form!.clientRef) ||
+                          (op is ReviseDefinitionOperation &&
+                              _form!.revisionTarget?.record ==
+                                  op.record.record.value &&
+                              _form!.revisionTarget?.universe ==
+                                  (op.record.universe?.value ?? '')),
                     ) ??
                     false)
             ? 'This definition is in Changes. Review or edit it there.'
@@ -142,6 +159,8 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
         original: f.original,
         rationale: rationale ?? f.rationale,
         draftVersion: f.draftVersion,
+        revisionTarget: f.revisionTarget,
+        expectedRecordVersion: f.expectedRecordVersion,
       );
       _dirty = true;
     });
@@ -223,8 +242,15 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
       setState(() {
         _draft = saved;
         _result = saved;
-        if (widget.index != null) {
-          _form = actionFormFromDraft(saved, widget.index!);
+        if (widget.index != null || _form!.revisionTarget != null) {
+          final index =
+              widget.index ??
+              saved.content.operations.indexWhere(
+                (op) =>
+                    op is ReviseDefinitionOperation &&
+                    op.record == actionRevisionOperation(_form!).record,
+              );
+          _form = actionFormFromDraft(saved, index);
           _fields++;
           _dirty = true;
         } else {
@@ -261,12 +287,13 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
     String value,
     ValueChanged<String> change, {
     int maxLines = 1,
+    bool readOnly = false,
   }) => Padding(
     padding: const EdgeInsets.only(top: 12),
     child: TextFormField(
       key: ValueKey((_fields, key)),
       initialValue: value,
-      enabled: !_disabled,
+      enabled: !_disabled && !readOnly,
       maxLines: maxLines,
       decoration: InputDecoration(labelText: label),
       onChanged: change,
@@ -308,17 +335,23 @@ class _ActionEditorPageState extends State<ActionEditorPage> {
                   ),
                 ],
                 if (_form case final f?) ...[
+                  if (f.revisionTarget != null)
+                    const Text(
+                      'Revisions retain the namespace and key. Edit requirements, consequence declarations, scope and validity explicitly; publication preserves history and does not execute the action.',
+                    ),
                   _text(
                     'namespace',
                     'Namespace',
                     f.namespace,
                     (v) => _change(namespace: v),
+                    readOnly: f.revisionTarget != null,
                   ),
                   _text(
                     'key',
                     'Action definition key',
                     f.key,
                     (v) => _change(key: v),
+                    readOnly: f.revisionTarget != null,
                   ),
                   const SizedBox(height: 16),
                   const Text('Display labels'),

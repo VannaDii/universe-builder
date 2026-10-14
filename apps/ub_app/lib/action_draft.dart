@@ -156,29 +156,108 @@ DefineActionOperation actionOperation(UnfinishedActionForm form) {
   );
 }
 
+ReviseDefinitionOperation actionRevisionOperation(UnfinishedActionForm form) {
+  if (form.revisionTarget == null ||
+      form.expectedRecordVersion == null ||
+      form.original == null) {
+    throw const FormatException(
+      'Open a published action definition to revise it.',
+    );
+  }
+  final next = actionOperation(form).record;
+  if (next.namespace != form.original!.namespace ||
+      next.key != form.original!.key) {
+    throw const FormatException('Action revisions retain namespace and key.');
+  }
+  final target = form.revisionTarget!;
+  return ReviseDefinitionOperation(
+    record: RecordRef(
+      record: RecordId.parse(target.record),
+      universe: target.universe.isEmpty
+          ? null
+          : UniverseId.parse(target.universe),
+    ),
+    expectedVersion: form.expectedRecordVersion!,
+    replacement: next,
+  );
+}
+
+UnfinishedActionForm actionRevisionFormFromRecord({
+  required RecordVersion record,
+  required RevisionId baseRevision,
+  required RecordId representedContext,
+}) {
+  if (record.payload is! ActionDefinitionRecord) {
+    throw const FormatException('Choose a published action definition.');
+  }
+  return _actionForm(
+    record: record.payload as ActionDefinitionRecord,
+    baseRevision: baseRevision,
+    representedContext: representedContext,
+    clientRef: record.identity.recordId.value,
+    revisionTarget: ExpressionReferenceInput(
+      record: record.identity.recordId.value,
+      universe: record.identity.universeId.value,
+    ),
+    expectedRecordVersion: record.recordVersionId,
+  );
+}
+
 UnfinishedActionForm actionFormFromDraft(SavedDraft draft, int index) {
   final operation = draft.content.operations[index];
+  if (operation is ReviseDefinitionOperation &&
+      operation.replacement is ActionDefinitionRecord) {
+    return _actionForm(
+      record: operation.replacement as ActionDefinitionRecord,
+      baseRevision: draft.content.baseRevision,
+      representedContext: draft.content.representedContext,
+      clientRef: operation.record.record.value,
+      revisionTarget: ExpressionReferenceInput(
+        record: operation.record.record.value,
+        universe: operation.record.universe?.value ?? '',
+      ),
+      expectedRecordVersion: operation.expectedVersion,
+      draftVersion: draft.version,
+    );
+  }
   if (operation is! DefineActionOperation) {
     throw const FormatException('Choose an action definition from Changes.');
   }
-  final record = operation.record;
-  return UnfinishedActionForm(
+  return _actionForm(
+    record: operation.record,
     baseRevision: draft.content.baseRevision,
     representedContext: draft.content.representedContext,
     clientRef: operation.clientRef,
-    namespace: record.namespace,
-    key: record.key,
-    labels: record.labels.entries.map(
-      (e) => PropertyLabelInput(language: e.key, text: e.value),
-    ),
-    requirements: record.requirements.map(actionRequirementInput),
-    slots: record.consequenceContract?.slots.map(actionSlotInput),
-    scope: scopeInput(record.scope),
-    validity: actionValidityInput(record.validity),
-    original: record,
     draftVersion: draft.version,
   );
 }
+
+UnfinishedActionForm _actionForm({
+  required ActionDefinitionRecord record,
+  required RevisionId baseRevision,
+  required RecordId representedContext,
+  required String clientRef,
+  ExpressionReferenceInput? revisionTarget,
+  RecordVersionId? expectedRecordVersion,
+  BigInt? draftVersion,
+}) => UnfinishedActionForm(
+  baseRevision: baseRevision,
+  representedContext: representedContext,
+  clientRef: clientRef,
+  revisionTarget: revisionTarget,
+  expectedRecordVersion: expectedRecordVersion,
+  namespace: record.namespace,
+  key: record.key,
+  labels: record.labels.entries.map(
+    (e) => PropertyLabelInput(language: e.key, text: e.value),
+  ),
+  requirements: record.requirements.map(actionRequirementInput),
+  slots: record.consequenceContract?.slots.map(actionSlotInput),
+  scope: scopeInput(record.scope),
+  validity: actionValidityInput(record.validity),
+  original: record,
+  draftVersion: draftVersion,
+);
 
 SaveDraftEngineRequest actionDraftRequest({
   required SavedDraft draft,
@@ -194,12 +273,17 @@ SaveDraftEngineRequest actionDraftRequest({
       'Review Changes before adding this action definition.',
     );
   }
-  final operation = actionOperation(form);
+  final operation = form.revisionTarget == null
+      ? actionOperation(form)
+      : actionRevisionOperation(form);
   final operations = [...draft.content.operations];
   if (index != null) {
     final before = actionFormFromDraft(draft, index);
     if (form.draftVersion != draft.version ||
-        form.clientRef != before.clientRef) {
+        form.clientRef != before.clientRef ||
+        form.revisionTarget?.toWire().toText() !=
+            before.revisionTarget?.toWire().toText() ||
+        form.expectedRecordVersion != before.expectedRecordVersion) {
       throw const FormatException(
         'The draft changed. Reopen its current action-definition fields.',
       );
@@ -207,6 +291,22 @@ SaveDraftEngineRequest actionDraftRequest({
     operations[index] = operation;
   } else {
     for (final existing in operations) {
+      if (operation is ReviseDefinitionOperation &&
+          existing is ReviseDefinitionOperation &&
+          existing.record == operation.record) {
+        if (existing.toWire().toText() != operation.toWire().toText()) {
+          throw const FormatException(
+            'This action already has a revision. Edit it in Changes.',
+          );
+        }
+        return SaveDraftEngineRequest(
+          universe: universe,
+          continuityId: continuity,
+          expectedVersion: draft.version,
+          content: draft.content,
+        );
+      }
+
       final ref = Map.fromEntries(existing.toWire().fields)['client_ref'];
       if (ref is CanonicalString && ref.value == form.clientRef) {
         if (existing.toWire().toText() != operation.toWire().toText()) {

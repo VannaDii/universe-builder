@@ -95,6 +95,8 @@ final class UnfinishedActionForm {
     this.validity = const TemporalValidityInput(kind: 'unspecified'),
     this.rationale = '',
     this.original,
+    this.revisionTarget,
+    this.expectedRecordVersion,
     BigInt? draftVersion,
   }) : labels = List.unmodifiable(labels),
        requirements = List.unmodifiable(requirements),
@@ -111,6 +113,8 @@ final class UnfinishedActionForm {
   final ScopeInput scope;
   final TemporalValidityInput validity;
   final ActionDefinitionRecord? original;
+  final ExpressionReferenceInput? revisionTarget;
+  final RecordVersionId? expectedRecordVersion;
   final BigInt? draftVersion;
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
@@ -129,6 +133,13 @@ final class UnfinishedActionForm {
     MapEntry('scope', scope.toWire()),
     MapEntry('validity', validity.toWire()),
     if (original != null) MapEntry('original', original!.toWire()),
+    if (revisionTarget != null)
+      MapEntry('revision_target', revisionTarget!.toWire()),
+    if (expectedRecordVersion != null)
+      MapEntry(
+        'expected_record_version',
+        CanonicalString(expectedRecordVersion!.value),
+      ),
     if (draftVersion != null)
       MapEntry('draft_version', CanonicalString(draftVersion.toString())),
   ]);
@@ -147,6 +158,8 @@ final class UnfinishedActionForm {
       'validity',
       'original',
       'draft_version',
+      'revision_target',
+      'expected_record_version',
     });
     return UnfinishedActionForm(
       baseRevision: RevisionId.parse(f.string('base_revision')),
@@ -167,6 +180,14 @@ final class UnfinishedActionForm {
       original: f.optional(
         'original',
         (v) => ActionDefinitionRecord.fromWire(v),
+      ),
+      revisionTarget: f.optional(
+        'revision_target',
+        ExpressionReferenceInput.fromWire,
+      ),
+      expectedRecordVersion: f.optional(
+        'expected_record_version',
+        (v) => RecordVersionId.parse(wireString(v)),
       ),
       draftVersion: f.optional(
         'draft_version',
