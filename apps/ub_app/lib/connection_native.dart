@@ -15,10 +15,37 @@ import 'package:ub_service/ub_service.dart'
     show PostgresConfiguration, SqliteConfiguration;
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
+import 'package:ub_store/package_import_forms.dart';
 
 import 'connection.dart';
 import 'local_backup_files.dart';
 import 'native_source_files.dart';
+
+Future<SavedPackageImport?> _loadImportForm(
+  String path,
+  (OperationId, ProfileId) scope,
+) => Isolate.run(() {
+  final store = PackageImportFormRecoveryStore.open(path);
+  try {
+    return store.load(scope);
+  } finally {
+    store.close();
+  }
+});
+
+Future<SavedPackageImport> _saveImportForm(
+  String path,
+  (OperationId, ProfileId) scope,
+  PackageImportDraft form,
+  BigInt generation,
+) => Isolate.run(() {
+  final store = PackageImportFormRecoveryStore.open(path);
+  try {
+    return store.save(scope, form, generation);
+  } finally {
+    store.close();
+  }
+});
 
 final class DeviceConnection {
   DeviceConnection(
@@ -393,7 +420,21 @@ final class DeviceConnection {
             openFile: openBackupFile!,
           )
         : null;
+    final importStatus = InstanceLibrary.fromWire(
+      await sequenced(() => client.call(const StatusEngineRequest())),
+    );
+    final importScope = (importStatus.instance, client.welcome.principal);
+    final importPath = '$root/client-recovery/package-import-forms.sqlite';
     return AppSession(
+      loadPackageImport: client.welcome.author && files != null
+          ? () => _loadImportForm(importPath, importScope)
+          : null,
+      savePackageImport: client.welcome.author && files != null
+          ? (form, generation) =>
+                _saveImportForm(importPath, importScope, form, generation)
+          : null,
+      pickArchiveFile: client.welcome.author ? files?.pickArchive : null,
+      reviewArchiveFile: client.welcome.author ? files?.reviewArchive : null,
       pickSourceText:
           client.welcome.author &&
               (Platform.isMacOS || _embeddedLocal) &&

@@ -15,10 +15,15 @@ void main() {
   test('app copies a complete backup and restores original identity and context into another instance', () async {
     final temporary = Directory('/tmp').createTempSync('ub-app-backup-');
     final sessions = <AppSession>[], servers = <LocalSqliteEngineServer>[];
+    var targetRoot = '${temporary.path}/target';
     Future<AppSession> instance(String name) async {
       final root = '${temporary.path}/$name';
-      final catalog = SqliteInstallationStore.create(root);
-      final profile = InstallationAuthority(catalog).initializeAuthor();
+      final catalog = File('$root/installation.sqlite').existsSync()
+          ? SqliteInstallationStore.openExisting(root)
+          : SqliteInstallationStore.create(root);
+      final profile = catalog.hasProfiles
+          ? catalog.currentAuthor()
+          : InstallationAuthority(catalog).initializeAuthor();
       catalog.close();
       servers.add(
         await LocalSqliteEngineServer.start(root, compatibilitySocket: false),
@@ -35,8 +40,8 @@ void main() {
     }
 
     try {
-      final source = await instance('source'),
-          target = await instance('target');
+      final source = await instance('source');
+      var target = await instance('target');
       final created = WireFields(
         await source.call(
           const CreateUniverseEngineRequest(
@@ -75,13 +80,31 @@ void main() {
       );
       expect(await archiveFiles.archive(universe), archivePath);
       expect(Directory('${temporary.path}/source/client-files').listSync(), isEmpty);
-      final preview = Map.fromEntries((await target.call(
-        PreviewImportEngineRequest(
-          source: archivePath,
-          name: 'Transferred campaign',
-          mode: ImportMode.clone,
-        ),
+      final nativeImport = LocalBackupFiles(
+        root: targetRoot,
+        call: target.call,
+        saveFile: (_) async => null,
+        openFile: (path) async {
+          await File(archivePath).copy(path);
+          return true;
+        },
+      );
+      final selected = (await nativeImport.pickArchive())!;
+      final choices = PackageImportDraft(
+        operation: OperationId.generate(), name: 'Transferred campaign',
+      );
+      final preview = Map.fromEntries((await nativeImport.reviewArchive(
+        selected, choices,
       ) as CanonicalObject).fields);
+      expect(wireString(preview['preview_id']!), choices.operation.value);
+      await selected.release!();
+      expect(File(selected.source as String).existsSync(), isFalse);
+      // Mobile app updates can move the entire private installation container.
+      await target.close();
+      await servers[1].close();
+      Directory(targetRoot).renameSync('${temporary.path}/moved-target');
+      targetRoot = '${temporary.path}/moved-target';
+      target = await instance('moved-target');
       expect((preview['includes_workflow'] as CanonicalBool).value, isTrue);
       final admitted = Map.fromEntries((await target.call(
         AcceptImportEngineRequest(
@@ -99,7 +122,7 @@ void main() {
       expect(maintenance.revisions, greaterThan(BigInt.zero));
       expect(maintenance.sources, BigInt.zero);
       final targetFiles = LocalBackupFiles(
-        root: '${temporary.path}/target',
+        root: targetRoot,
         call: target.call,
         saveFile: (_) async => null,
         openFile: (file) async {
@@ -135,12 +158,13 @@ void main() {
       );
       expect(File(destination).lengthSync(), greaterThan(0));
       final cancelled = LocalBackupFiles(
-        root: '${temporary.path}/target',
+        root: targetRoot,
         call: target.call,
         saveFile: (_) async => null,
         openFile: (_) async => false,
       );
       expect(await cancelled.restore('Cancelled'), isNull);
+      expect(await cancelled.pickArchive(), isNull);
       expect(await cancelled.backup(restored), isNull);
       expect(await cancelled.archive(restored), isNull);
       final failedExport = LocalBackupFiles(
@@ -152,7 +176,7 @@ void main() {
       await expectLater(failedExport.archive(universe), throwsFormatException);
       expect(Directory('${temporary.path}/source/client-files').listSync(), isEmpty);
       final failedPicker = LocalBackupFiles(
-        root: '${temporary.path}/target',
+        root: targetRoot,
         call: target.call,
         saveFile: (_) async => null,
         openFile: (destination) async {
@@ -164,8 +188,9 @@ void main() {
         failedPicker.restore('Unreadable'),
         throwsA(isA<FileSystemException>()),
       );
+      await expectLater(failedPicker.pickArchive(), throwsA(isA<FileSystemException>()));
       expect(
-        Directory('${temporary.path}/target/client-files').listSync(),
+        Directory('$targetRoot/client-files').listSync(),
         isEmpty,
       );
     } finally {

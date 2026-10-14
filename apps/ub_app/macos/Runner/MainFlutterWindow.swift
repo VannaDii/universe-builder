@@ -41,7 +41,7 @@ class MainFlutterWindow: NSWindow {
         }
       } else if call.method == "openBackup", let destination = arguments["destination"] {
         let panel = NSOpenPanel()
-        panel.title = "Choose Universe Builder backup"
+        panel.title = "Choose Universe Builder file"
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
         panel.beginSheetModal(for: window) { response in

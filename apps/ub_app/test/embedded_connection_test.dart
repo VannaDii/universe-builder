@@ -48,6 +48,11 @@ void main() {
       expect(session.author, isTrue);
       expect(pathRequests, 1);
       final principal = session.principal;
+      final importInput = PackageImportDraft(
+        operation: OperationId.generate(), name: 'Recoverable mobile import',
+      );
+      expect(await session.loadPackageImport!(), isNull);
+      await session.savePackageImport!(importInput, BigInt.zero);
       final initial = InstanceLibrary.fromWire(
         await session.call(const StatusEngineRequest()),
       );
@@ -139,7 +144,10 @@ void main() {
       final restarted = DeviceConnection([
         '--installation',
         root,
-      ], embeddedLocal: true);
+      ], embeddedLocal: true,
+        saveBackupFile: (_) async => null,
+        openBackupFile: (_) async => false,
+      );
       session = await restarted.connect();
       expect(session.principal, principal);
       final otherDevice = DeviceConnection(
@@ -177,6 +185,7 @@ void main() {
         await session.call(const StatusEngineRequest()),
       );
       expect(library.instance, initial.instance);
+      expect((await session.loadPackageImport!())!.form.toWire().toText(), importInput.toWire().toText());
       expect(library.universes.single.id, scope.universe);
       expect(
         (await session.loadSecretForm(scope))!.form.toWire().toText(),

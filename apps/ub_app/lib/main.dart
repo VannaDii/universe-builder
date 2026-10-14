@@ -1403,7 +1403,7 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
             icon: const Icon(Icons.upload_file),
             label: const Text('Import a package'),
           ),
-        if (_session!.pickArchiveFile == null)
+        if (_session!.restoreBackupFile != null || _session!.pickArchiveFile == null)
           TextButton.icon(
             onPressed: _busy || _session!.restoreBackupFile == null
                 ? null

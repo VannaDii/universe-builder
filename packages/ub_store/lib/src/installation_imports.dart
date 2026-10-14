@@ -219,7 +219,7 @@ extension InstallationImports on SqliteInstallationStore {
               preview.records,
               preview.includesWorkflow ? 1 : 0,
               preview.digest,
-              path,
+              'imports/${preview.id.value}.sqlite',
             ],
           );
         });
@@ -263,10 +263,17 @@ extension InstallationImports on SqliteInstallationStore {
       includesWorkflow: row['includes_workflow'] == 1,
     );
     selectorKey(preview.name);
+    final relativePath = 'imports/${preview.id.value}.sqlite';
+    final stagedPath = row['staged_path'] as String;
+    // Older installations retained an absolute sandbox path. Never open that
+    // path: the reviewed bytes are always resolved inside the current root and
+    // checked against sourceDigest when admitted. iOS may move the app container.
+    final knownStagingPath = stagedPath == relativePath ||
+        stagedPath.replaceAll('\\', '/').endsWith('/$relativePath');
     if (preview.omittedRecords < 0 ||
         preview.records < 0 ||
         preview.digest != row['preview_digest'] ||
-        preview.archivePath(root) != row['staged_path']) {
+        !knownStagingPath) {
       throw const FormatException('Import preview integrity mismatch');
     }
     if (preview.digest != digest) throw const ApprovalStaleError();

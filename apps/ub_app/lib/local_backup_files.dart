@@ -5,6 +5,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/installation.dart';
 
 import 'connection.dart';
+import 'package_import.dart';
 
 /// File dialogs and copying run in the app; the local service sees only private staging paths.
 final class LocalBackupFiles {
@@ -86,6 +87,39 @@ final class LocalBackupFiles {
       directory.deleteSync(recursive: true);
     }
   }
+
+  Future<SelectedArchiveFile?> pickArchive() async {
+    final directory = _directory();
+    final source = '${directory.path}/package.sqlite';
+    try {
+      if (!await openFile(source)) {
+        directory.deleteSync(recursive: true);
+        return null;
+      }
+      return SelectedArchiveFile(
+        source: source,
+        name: 'Selected archive.sqlite',
+        release: () async {
+          if (directory.existsSync()) directory.deleteSync(recursive: true);
+        },
+      );
+    } on Object {
+      directory.deleteSync(recursive: true);
+      rethrow;
+    }
+  }
+
+  Future<CanonicalValue> reviewArchive(
+    SelectedArchiveFile file,
+    PackageImportDraft form,
+  ) => call(
+    PreviewImportEngineRequest(
+      source: file.source as String,
+      name: form.name,
+      mode: form.mode,
+      previewId: form.operation,
+    ),
+  );
 
   Future<LibraryEntry?> restore(String name) async {
     if (name.trim().isEmpty) {

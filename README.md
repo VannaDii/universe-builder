@@ -49,6 +49,11 @@ Native **Save complete archive file** exports the existing portable relational
 format, including retained history, source content and historical workflow
 evidence, through the same system file providers. It can be reviewed and imported
 into another installation; archived approvals do not authorize new publication.
+On macOS, iOS and Android, **Import a package** copies the selected archive into
+private staging, shows the existing clone/restore review, and admits only on the
+author's explicit action. Import choices and the exact review survive restart;
+recovery never reselects a file or admits a package automatically. The selected
+temporary copy is released after review, including failed reviews.
 The macOS and mobile **Choose text file** controls read bounded UTF-8
 files, preserving BOMs, Unicode and line endings in the existing unfinished
 source form. Mobile temporary copies are released after decoding, including

@@ -105,6 +105,7 @@ class _PackageImportPageState extends State<PackageImportPage> {
   }
 
   Future<void> _review() async {
+    SelectedArchiveFile? selected;
     if (_form!.name.trim().isEmpty) {
       setState(() => _error = 'Enter the imported universe name.');
       return;
@@ -117,7 +118,7 @@ class _PackageImportPageState extends State<PackageImportPage> {
     });
     try {
       // Open the picker directly from the gesture, before any async storage work.
-      final file = await widget.session.pickArchiveFile!();
+      final file = selected = await widget.session.pickArchiveFile!();
       if (!mounted || file == null) return;
       setState(() {
         _form = _form!.copyWith(
@@ -157,6 +158,11 @@ class _PackageImportPageState extends State<PackageImportPage> {
         );
       }
     } finally {
+      try {
+        await selected?.release?.call();
+      } on Object {
+        // A cache cleanup failure does not discard a confirmed review.
+      }
       if (mounted) {
         setState(() => _busy = false);
         if (_dirty && _error == null) {

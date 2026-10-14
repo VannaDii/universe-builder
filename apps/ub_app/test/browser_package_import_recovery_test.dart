@@ -6,7 +6,6 @@ import 'dart:js_interop';
 
 import 'package:test/test.dart';
 import 'package:ub_app/browser_package_import_recovery.dart';
-import 'package:ub_app/package_import.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:web/web.dart' as web;

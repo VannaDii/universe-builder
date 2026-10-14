@@ -6,7 +6,6 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:web/web.dart' as web;
 
-import 'package_import.dart';
 
 @JS()
 extension type _ImportRow._(JSObject _) implements JSObject {
