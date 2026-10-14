@@ -7,12 +7,17 @@ import 'dart:js_interop';
 import 'package:test/test.dart';
 import 'package:ub_client/browser_record_removal_recovery.dart';
 import 'package:ub_client/browser_assertion_retraction_recovery.dart';
+import 'package:ub_client/browser_event_withdrawal_recovery.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:web/web.dart' as web;
 
 void main() {
-  for (final kind in ['record removal', 'assertion retraction']) {
+  for (final kind in [
+    'record removal',
+    'assertion retraction',
+    'event withdrawal',
+  ]) {
     test(
       'browser $kind retains pinned references and incomplete reasons through refresh and conflict',
       () async {
@@ -33,7 +38,7 @@ void main() {
               expected,
             )).generation;
             close = store.close;
-          } else {
+          } else if (kind == 'assertion retraction') {
             final store =
                 await BrowserAssertionRetractionFormRecoveryStore.open(
                   databaseName: name,
@@ -42,6 +47,17 @@ void main() {
             save = (scope, form, expected) async => (await store.save(
               scope,
               UnfinishedAssertionRetractionForm.fromWire(form),
+              expected,
+            )).generation;
+            close = store.close;
+          } else {
+            final store = await BrowserEventWithdrawalFormRecoveryStore.open(
+              databaseName: name,
+            );
+            load = (scope) async => (await store.load(scope))?.form.toWire();
+            save = (scope, form, expected) async => (await store.save(
+              scope,
+              UnfinishedEventWithdrawalForm.fromWire(form),
               expected,
             )).generation;
             close = store.close;
@@ -124,7 +140,7 @@ void main() {
             } finally {
               store.close();
             }
-          } else {
+          } else if (kind == 'assertion retraction') {
             final store =
                 await BrowserAssertionRetractionFormRecoveryStore.open(
                   databaseName: name,
@@ -134,6 +150,29 @@ void main() {
                 store.save(
                   scope,
                   UnfinishedAssertionRetractionForm.fromWire(input)
+                      .copyWith(rationale: '\uD800'),
+                  BigInt.two,
+                ),
+                throwsA(
+                  isA<EditorRecoveryException>().having(
+                    (error) => error.failure,
+                    'failure',
+                    EditorRecoveryFailure.invalidText,
+                  ),
+                ),
+              );
+            } finally {
+              store.close();
+            }
+          } else {
+            final store = await BrowserEventWithdrawalFormRecoveryStore.open(
+              databaseName: name,
+            );
+            try {
+              await expectLater(
+                store.save(
+                  scope,
+                  UnfinishedEventWithdrawalForm.fromWire(input)
                       .copyWith(rationale: '\uD800'),
                   BigInt.two,
                 ),
