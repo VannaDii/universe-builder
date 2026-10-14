@@ -28,9 +28,10 @@ void main() {
     directory.deleteSync(recursive: true);
   });
 
-  ({String path, UniverseId id}) package(String name) {
-    final path = '${directory.path}/packages/$name.sqlite';
+  ({String path, UniverseId id}) package(String name, {bool managed = false}) {
     final id = UniverseId.generate();
+    final path =
+        '${directory.path}/packages/${managed ? id.value : name}.sqlite';
     final package = OwnedSqliteDatabase.create(path);
     try {
       package.database.execute('BEGIN IMMEDIATE');
@@ -45,6 +46,128 @@ void main() {
     }
     return (path: path, id: id);
   }
+
+  test('owned catalog paths follow a moved installation only for the same file identity', () {
+    final fixture = package('managed', managed: true);
+    final external = package('custom-name');
+    store.registerExistingPackage(
+      actor: author,
+      name: 'Managed',
+      path: fixture.path,
+    );
+    store.registerExistingPackage(
+      actor: author,
+      name: 'Custom path',
+      path: external.path,
+    );
+    final externalPath = store
+        .catalog(author)
+        .singleWhere((e) => e.universeId == external.id)
+        .path;
+    final instance = store.instanceId;
+    store.close();
+    directory = directory.renameSync('${directory.path}-moved');
+    store = SqliteInstallationStore.openExisting(directory.path);
+    expect(store.instanceId, instance);
+    final opened = store.resolveUniverseAlias(actor: author, name: 'Managed');
+    expect(opened.universeId, fixture.id);
+    expect(opened.path, '${store.root}/packages/${fixture.id.value}.sqlite');
+    expect(
+      store.catalog(author).singleWhere((e) => e.universeId == fixture.id).path,
+      opened.path,
+    );
+    expect(
+      store
+          .catalog(author)
+          .singleWhere((e) => e.universeId == external.id)
+          .path,
+      externalPath,
+    );
+    expect(
+      () => store.resolveUniverseAlias(actor: author, name: 'Custom path'),
+      throwsA(isA<FileSystemException>()),
+    );
+    store.close();
+    store = SqliteInstallationStore.openExisting(directory.path);
+    expect(
+      store.resolveUniverseAlias(actor: author, name: 'Managed').path,
+      opened.path,
+    );
+  });
+
+  test(
+    'relocation never admits a replacement at the expected owned filename',
+    () {
+      final fixture = package('managed', managed: true);
+      store.registerExistingPackage(
+        actor: author,
+        name: 'Managed',
+        path: fixture.path,
+      );
+      final originalPath = store.catalog(author).single.path;
+      store.close();
+      directory = directory.renameSync('${directory.path}-moved');
+      final candidate = '${directory.path}/packages/${fixture.id.value}.sqlite';
+      File(candidate).renameSync('$candidate.original');
+      File('$candidate.original').copySync(candidate);
+      store = SqliteInstallationStore.openExisting(directory.path);
+      expect(store.catalog(author).single.path, originalPath);
+      expect(
+        () => store.resolveUniverseAlias(actor: author, name: 'Managed'),
+        throwsA(isA<FileSystemException>()),
+      );
+    },
+  );
+
+  test('pending owned purges finish after container relocation, including an already removed main file', () {
+    final retained = package('retained', managed: true);
+    final removed = package('removed', managed: true);
+    for (final fixture in [retained, removed]) {
+      store.registerExistingPackage(
+        actor: author,
+        name: fixture.id.value,
+        path: fixture.path,
+      );
+      store.beginPurge(actor: author, universe: fixture.id);
+    }
+    store.close();
+    File(removed.path).deleteSync();
+    directory = directory.renameSync('${directory.path}-moved');
+    store = SqliteInstallationStore.openExisting(directory.path);
+    expect(store.catalog(author), isEmpty);
+    expect(
+      File('${directory.path}/packages/${retained.id.value}.sqlite')
+          .existsSync(),
+      isFalse,
+    );
+    store.close();
+    store = SqliteInstallationStore.openExisting(directory.path);
+    expect(store.catalog(author), isEmpty);
+  });
+
+  test('relocated pending purge refuses a substituted file and keeps its pending state', () {
+    final fixture = package('pending', managed: true);
+    store.registerExistingPackage(
+      actor: author,
+      name: 'Pending',
+      path: fixture.path,
+    );
+    store.beginPurge(actor: author, universe: fixture.id);
+    store.close();
+    directory = directory.renameSync('${directory.path}-moved');
+    final candidate = '${directory.path}/packages/${fixture.id.value}.sqlite';
+    File(candidate).renameSync('$candidate.original');
+    File('$candidate.original').copySync(candidate);
+    expect(
+      () => SqliteInstallationStore.openExisting(directory.path),
+      throwsA(isA<InstallationException>()),
+    );
+    expect(File(candidate).existsSync(), isTrue);
+    File(candidate).deleteSync();
+    File('$candidate.original').renameSync(candidate);
+    store = SqliteInstallationStore.openExisting(directory.path);
+    expect(File(candidate).existsSync(), isFalse);
+  });
 
   test('failed move audit rolls back source guard and retains access', () {
     final fixture = package('move');

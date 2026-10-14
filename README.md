@@ -54,6 +54,10 @@ private staging, shows the existing clone/restore review, and admits only on the
 author's explicit action. Import choices and the exact review survive restart;
 recovery never reselects a file or admits a package automatically. The selected
 temporary copy is released after review, including failed reviews.
+When an app update relocates its private installation container, owned catalog
+paths follow the same files only if their recorded device/inode still matches
+and the old location is absent. File copies with changed identities and custom
+external registrations are not automatically adopted.
 The macOS and mobile **Choose text file** controls read bounded UTF-8
 files, preserving BOMs, Unicode and line endings in the existing unfinished
 source form. Mobile temporary copies are released after decoding, including

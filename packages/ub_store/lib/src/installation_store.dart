@@ -220,6 +220,7 @@ final class SqliteInstallationStore {
         if (File('$path$suffix').existsSync()) protectedFile('$path$suffix');
       }
       final store = SqliteInstallationStore._(db, lock, directory, instanceId);
+      if (!create) store._rebaseOwnedPackagePaths();
       store._finishPurges();
       return store;
     } on InstallationException {
@@ -231,6 +232,61 @@ final class SqliteInstallationStore {
       lock.close();
       throw const InstallationException(InstallationFailure.unavailable);
     }
+  }
+
+  /// App updates may move the private container without replacing its files.
+  /// Rebase only deterministic installation-owned paths whose original location
+  /// disappeared, preserving the registered device/inode binding. External
+  /// registrations and replacement files retain their existing failure behavior.
+  void _rebaseOwnedPackagePaths() {
+    _transaction(() {
+      for (final (table, key) in [
+        ('catalog', 'id'),
+        ('purge_pending', 'universe'),
+      ]) {
+        for (final row in _db.select(
+          'SELECT $key,path,device,inode FROM $table',
+        )) {
+          final id = UniverseId.parse(row[key] as String);
+          final old = row['path'] as String;
+          final relative = 'packages/${id.value}.sqlite';
+          final current = '$root/$relative';
+          if (old == current ||
+              !old.replaceAll('\\', '/').endsWith('/$relative') ||
+              FileSystemEntity.typeSync(old, followLinks: false) !=
+                  FileSystemEntityType.notFound) {
+            continue;
+          }
+          try {
+            final type = FileSystemEntity.typeSync(current, followLinks: false);
+            if (type == FileSystemEntityType.notFound) {
+              // A pending purge may have removed the main file before the
+              // process stopped; finish its remaining cleanup in this root.
+              if (table != 'purge_pending') continue;
+            } else {
+              final identity = fileIdentity(current);
+              if (identity.device != row['device'] ||
+                  identity.inode != row['inode']) {
+                if (table == 'purge_pending') {
+                  throw const InstallationException(
+                    InstallationFailure.unavailable,
+                  );
+                }
+                continue;
+              }
+            }
+          } on FileSystemException {
+            if (table == 'purge_pending') rethrow;
+            continue;
+          }
+          _db.execute('UPDATE $table SET path=? WHERE $key=? AND path=?', [
+            current,
+            id.value,
+            old,
+          ]);
+        }
+      }
+    });
   }
 
   static void _checkSchema(Database db) {
