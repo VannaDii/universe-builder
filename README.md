@@ -311,6 +311,14 @@ types, multiplicity and ordering flag. Pending revisions can be edited in Change
 existing checks assess current uses and rules, and reviewed publication retains
 prior history.
 
+A published type definition’s dossier offers **Revise type definition**. The
+recoverable form retains identity, expected version, namespace and key. Name,
+multilingual labels, parent selection and explicit root/resolved/ambiguous parent
+resolution, applicability and executable classification remain editable through
+`revise_definition`. Reopening does not infer parent resolution or replace labels.
+Pending revisions can be edited in Changes; reviewed publication retains history.
+Existing unfinished type forms upgrade locally without completing missing choices.
+
 **Item power** records a named item, holder and power properties, exact typed
 value, explicit universe/world scope and validity. The holder property must be
 a single-valued entity reference. Location and ownership do not establish

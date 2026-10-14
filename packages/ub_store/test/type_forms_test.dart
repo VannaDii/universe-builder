@@ -11,6 +11,46 @@ import 'package:ub_store/editor_forms.dart';
 import 'package:ub_store/src/ownership.dart';
 
 void main() {
+  test('version two type input upgrades without inventing revision fields', () {
+    final root = Directory('/tmp').createTempSync('ub-type-v2-'),
+        path = '${root.path}/types.sqlite';
+    final scope = EditorFormScope(
+      instance: OperationId.generate(),
+      profile: ProfileId.generate(),
+      universe: UniverseId.generate(),
+      continuity: ContinuityId.generate(),
+      representedContext: RecordId.generate(),
+    );
+    final form = UnfinishedTypeForm(
+      baseRevision: RevisionId.generate(),
+      representedContext: scope.representedContext!,
+      clientRef: 'unfinished',
+      namespace: '',
+      key: '',
+      name: '人物 😀',
+      parentChoice: '',
+      applicabilityChoice: '',
+      rationale: '',
+    );
+    var store = TypeFormRecoveryStore.open(path);
+    store.save(scope, form, BigInt.zero);
+    store.close();
+    final db = sqlite3.open(path);
+    db.execute(
+      'ALTER TABLE type_form DROP COLUMN revision_input; PRAGMA user_version=2',
+    );
+    db.close();
+    try {
+      store = TypeFormRecoveryStore.open(path);
+      expect(store.load(scope)!.form.toWire().toText(), form.toWire().toText());
+      expect(store.load(scope)!.form.revisionTarget, isNull);
+      expect(store.load(scope)!.generation, BigInt.one);
+    } finally {
+      store.close();
+      root.deleteSync(recursive: true);
+    }
+  });
+
   test('type input preserves unresolved choices and exact fields across reopen and competing saves', () {
     final root = Directory('/tmp').createTempSync('ub-type-forms-');
     final path = '${root.path}/types.sqlite';
@@ -230,7 +270,7 @@ void main() {
     final store = TypeFormRecoveryStore.open(path);
     store.close();
     final db = sqlite3.open(path);
-    db.execute('PRAGMA user_version=3');
+    db.execute('PRAGMA user_version=4');
     db.close();
     final before = File(path).readAsBytesSync();
     try {

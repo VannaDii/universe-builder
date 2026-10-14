@@ -11,6 +11,7 @@ const _legacyColumns =
     'instance,profile,universe,continuity,context,generation,base_revision,client_ref,namespace,key,name,parent_choice,applicability_choice,rationale,classification_executable';
 const _columns =
     'instance,profile,universe,continuity,context,editor_key,generation,base_revision,client_ref,namespace,key,name,parent_choice,applicability_choice,rationale,classification_executable,draft_version';
+const _currentColumns = '$_columns,revision_input';
 const _where =
     'instance=? AND profile=? AND universe=? AND continuity=? AND context=? AND editor_key=?';
 const _schema = '''
@@ -21,7 +22,7 @@ CREATE TABLE type_form (
  key TEXT NOT NULL, name TEXT NOT NULL, parent_choice TEXT NOT NULL,
  applicability_choice TEXT NOT NULL, rationale TEXT NOT NULL,
  classification_executable INTEGER CHECK(classification_executable IN (0,1)),
- draft_version TEXT,
+ draft_version TEXT, revision_input TEXT,
  PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)
 ) STRICT;
 CREATE TABLE type_form_world (
@@ -30,7 +31,7 @@ CREATE TABLE type_form_world (
  PRIMARY KEY(instance,profile,universe,continuity,context,editor_key,ordinal),
  FOREIGN KEY(instance,profile,universe,continuity,context,editor_key) REFERENCES type_form(instance,profile,universe,continuity,context,editor_key) ON DELETE CASCADE
 ) STRICT;
-PRAGMA user_version=2;
+PRAGMA user_version=3;
 ''';
 
 /// Device-private incomplete type input, separate from canon and world forms.
@@ -71,13 +72,18 @@ final class TypeFormRecoveryStore {
           db.execute('ALTER TABLE type_form RENAME TO legacy_type_form');
           db.execute(_schema);
           db.execute(
-            "INSERT INTO type_form SELECT instance,profile,universe,continuity,context,'',generation,base_revision,client_ref,namespace,key,name,parent_choice,applicability_choice,rationale,classification_executable,NULL FROM legacy_type_form",
+            "INSERT INTO type_form SELECT instance,profile,universe,continuity,context,'',generation,base_revision,client_ref,namespace,key,name,parent_choice,applicability_choice,rationale,classification_executable,NULL,NULL FROM legacy_type_form",
           );
           db.execute(
             "INSERT INTO type_form_world SELECT instance,profile,universe,continuity,context,'',ordinal,world FROM legacy_type_form_world",
           );
           db.execute(
             'DROP TABLE legacy_type_form_world; DROP TABLE legacy_type_form',
+          );
+        }
+        if (version == 2) {
+          db.execute(
+            'ALTER TABLE type_form ADD COLUMN revision_input TEXT; PRAGMA user_version=3',
           );
         }
         db.execute('COMMIT');
@@ -107,12 +113,16 @@ final class TypeFormRecoveryStore {
     if (tables.isEmpty) return 0;
     final version = db.select('PRAGMA user_version').single.values.single;
     if (tables.length != 2 ||
-        (version != 1 && version != 2) ||
+        (version != 1 && version != 2 && version != 3) ||
         db
                 .select('PRAGMA table_info(type_form)')
                 .map((row) => row['name'])
                 .join(',') !=
-            (version == 1 ? _legacyColumns : _columns) ||
+            (version == 1
+                ? _legacyColumns
+                : version == 2
+                ? _columns
+                : _currentColumns) ||
         db
                 .select('PRAGMA table_info(type_form_world)')
                 .map((row) => row['name'])
@@ -153,9 +163,32 @@ final class TypeFormRecoveryStore {
     final rows = _db.select('SELECT * FROM type_form WHERE $_where', binding);
     if (rows.isEmpty) return null;
     final row = rows.single;
+    final revision = row['revision_input'] == null
+        ? null
+        : WireFields(
+            CanonicalValue.parseWireJson(row['revision_input'] as String),
+            {
+              'target',
+              'expected_version',
+              'original',
+              'parent_resolution',
+              'labels',
+            },
+          );
+
     return SavedTypeForm(
       generation: BigInt.parse(row['generation'] as String),
       form: UnfinishedTypeForm(
+        revisionTarget: revision?.optional('target', RecordRef.fromCanonical),
+        expectedRecordVersion: revision?.optional(
+          'expected_version',
+          (v) => RecordVersionId.parse(wireString(v)),
+        ),
+        original: revision?.optional('original', EntityTypeRecord.fromWire),
+        parentResolution: revision?.string('parent_resolution') ?? '',
+        labels:
+            revision?.array('labels').map(PropertyLabelInput.fromWire) ??
+            const [],
         baseRevision: RevisionId.parse(row['base_revision'] as String),
         representedContext: RecordId.parse(row['context'] as String),
         clientRef: row['client_ref'] as String,
@@ -216,6 +249,8 @@ final class TypeFormRecoveryStore {
       form.parentChoice,
       form.applicabilityChoice,
       form.rationale,
+      form.parentResolution,
+      for (final l in form.labels) ...[l.language, l.text],
     ]) {
       if (decodeExactUtf8(utf8.encode(text)) != text) {
         throw const EditorRecoveryException(EditorRecoveryFailure.invalidText);
@@ -243,7 +278,7 @@ final class TypeFormRecoveryStore {
         form: form,
       );
       _db.execute(
-        'INSERT INTO type_form VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(instance,profile,universe,continuity,context,editor_key) DO UPDATE SET generation=excluded.generation,base_revision=excluded.base_revision,client_ref=excluded.client_ref,namespace=excluded.namespace,key=excluded.key,name=excluded.name,parent_choice=excluded.parent_choice,applicability_choice=excluded.applicability_choice,rationale=excluded.rationale,classification_executable=excluded.classification_executable,draft_version=excluded.draft_version',
+        'INSERT INTO type_form VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(instance,profile,universe,continuity,context,editor_key) DO UPDATE SET generation=excluded.generation,base_revision=excluded.base_revision,client_ref=excluded.client_ref,namespace=excluded.namespace,key=excluded.key,name=excluded.name,parent_choice=excluded.parent_choice,applicability_choice=excluded.applicability_choice,rationale=excluded.rationale,classification_executable=excluded.classification_executable,draft_version=excluded.draft_version,revision_input=excluded.revision_input',
         [
           ...binding,
           saved.generation.toString(),
@@ -259,6 +294,7 @@ final class TypeFormRecoveryStore {
               ? null
               : (form.classificationExecutable! ? 1 : 0),
           form.draftVersion?.toString(),
+          form.revisionTarget == null ? null : form.revisionFields.toText(),
         ],
       );
       _db.execute('DELETE FROM type_form_world WHERE $_where', binding);

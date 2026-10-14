@@ -21,9 +21,11 @@ class TypeEditorPage extends StatefulWidget {
     required this.representedContext,
     this.editingDraft,
     this.operationIndex,
+    this.revisionRecord,
   });
   final SavedDraft? editingDraft;
   final int? operationIndex;
+  final RecordVersion? revisionRecord;
   final AppSession session;
   final LibraryEntry universe;
   final EditorFormScope scope;
@@ -40,7 +42,9 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
       _rationale = TextEditingController();
   UnfinishedTypeForm? _base;
   late RevisionId _revision;
-  String _parent = '', _applicability = '';
+  String _parent = '', _applicability = '', _parentResolution = '';
+  List<PropertyLabelInput> _labels = [];
+  int _labelLayout = 0;
   bool? _executable;
   List<WorldId> _selectedWorlds = [];
   List<WorldSummary> _worlds = [];
@@ -75,6 +79,12 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
 
   UnfinishedTypeForm _fresh() => _editingDraft != null
       ? typeFormFromDraft(_editingDraft!, widget.operationIndex!)
+      : widget.revisionRecord != null
+      ? typeRevisionFormFromRecord(
+          record: widget.revisionRecord!,
+          baseRevision: _revision,
+          representedContext: widget.representedContext.id,
+        )
       : UnfinishedTypeForm(
           baseRevision: _revision,
           representedContext: widget.representedContext.id,
@@ -94,6 +104,8 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
     _name.text = form.name;
     _rationale.text = form.rationale;
     _parent = form.parentChoice;
+    _parentResolution = form.parentResolution;
+    _labels = [...form.labels];
     _applicability = form.applicabilityChoice;
     _executable = form.classificationExecutable;
     _selectedWorlds = [...form.worlds];
@@ -108,12 +120,15 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
       final saved = await widget.session.loadTypeForm(widget.scope);
       if (!mounted) return;
       _enter(saved?.form ?? _fresh());
-      _stale =
-          _editingDraft != null &&
-          (_base!.draftVersion != _editingDraft!.version ||
-              _base!.baseRevision != _editingDraft!.content.baseRevision ||
-              _base!.representedContext !=
-                  _editingDraft!.content.representedContext);
+      _stale = _editingDraft != null
+          ? (_base!.draftVersion != _editingDraft!.version ||
+                _base!.baseRevision != _editingDraft!.content.baseRevision ||
+                _base!.representedContext !=
+                    _editingDraft!.content.representedContext)
+          : widget.revisionRecord != null &&
+                (_base!.baseRevision != _revision ||
+                    _base!.expectedRecordVersion !=
+                        widget.revisionRecord!.recordVersionId);
       _generation = saved?.generation ?? BigInt.zero;
       _dirty = false;
       await _loadChoices();
@@ -201,6 +216,11 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
     classificationExecutable: _executable,
     worlds: _selectedWorlds,
     draftVersion: _base!.draftVersion,
+    revisionTarget: _base!.revisionTarget,
+    expectedRecordVersion: _base!.expectedRecordVersion,
+    original: _base!.original,
+    labels: _labels,
+    parentResolution: _parentResolution,
   );
 
   void _changed() {
@@ -279,7 +299,7 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
   Future<void> _add() async {
     _autosave?.cancel();
     await _save();
-    if (!mounted || _dirty || _base == null) return;
+    if (!mounted || _dirty || _base == null || _stale) return;
     setState(() {
       _adding = true;
       _error = null;
@@ -328,14 +348,26 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
         form: _entered(),
         previous: previous,
       );
-      if (previous?.content.toWire().toText() !=
-          request.content.toWire().toText()) {
-        await widget.session.call(request);
-      }
+      final saved =
+          previous?.content.toWire().toText() ==
+              request.content.toWire().toText()
+          ? previous!
+          : SavedDraft.fromWire(await widget.session.call(request));
       if (mounted) {
-        setState(
-          () => _added = 'Type definition added to saved changes. Review, approve and publish it in Changes.',
-        );
+        setState(() {
+          _savedDraft = saved;
+          if (_base!.revisionTarget != null) {
+            final index = saved.content.operations.indexWhere(
+              (op) =>
+                  op is ReviseDefinitionOperation &&
+                  op.record == _base!.revisionTarget,
+            );
+            _base = typeFormFromDraft(saved, index);
+            _dirty = true;
+          }
+          _added = 'Type definition added to saved changes. Review, approve and publish it in Changes.';
+        });
+        await _save();
       }
     } on FormatException catch (error) {
       if (mounted) setState(() => _error = error.message);
@@ -401,7 +433,10 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
     padding: const EdgeInsets.only(top: 12),
     child: TextField(
       controller: controller,
-      enabled: !_disabled,
+      enabled:
+          !_disabled &&
+          !(_base?.revisionTarget != null &&
+              (controller == _namespace || controller == _key)),
       decoration: InputDecoration(labelText: label),
       maxLines: controller == _rationale ? 4 : 1,
       onChanged: (_) => _changed(),
@@ -459,6 +494,87 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
               _field(_namespace, 'Namespace'),
               _field(_key, 'Definition key'),
               _field(_name, 'Display name (optional)'),
+              if (_base?.revisionTarget != null) ...[
+                const Text(
+                  'Revisions retain namespace and key. Display labels and parent resolution remain explicit; publication preserves prior history.',
+                ),
+                const Text('Display labels'),
+                for (var i = 0; i < _labels.length; i++)
+                  Row(
+                    key: ValueKey((_labelLayout, i)),
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          initialValue: _labels[i].language,
+                          enabled: !_disabled,
+                          decoration: const InputDecoration(
+                            labelText: 'Language key',
+                          ),
+                          onChanged: (v) {
+                            _labels[i] = PropertyLabelInput(
+                              language: v,
+                              text: _labels[i].text,
+                            );
+                            _changed();
+                          },
+                        ),
+                      ),
+                      Expanded(
+                        child: TextFormField(
+                          initialValue: _labels[i].text,
+                          enabled: !_disabled,
+                          decoration: const InputDecoration(labelText: 'Label'),
+                          onChanged: (v) {
+                            _labels[i] = PropertyLabelInput(
+                              language: _labels[i].language,
+                              text: v,
+                            );
+                            _changed();
+                          },
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _disabled
+                            ? null
+                            : () {
+                                _labels.removeAt(i);
+                                _labelLayout++;
+                                _changed();
+                              },
+                        child: const Text('Remove label'),
+                      ),
+                    ],
+                  ),
+                TextButton(
+                  onPressed: _disabled
+                      ? null
+                      : () {
+                          _labels.add(const PropertyLabelInput());
+                          _labelLayout++;
+                          _changed();
+                        },
+                  child: const Text('Add label'),
+                ),
+                DropdownButtonFormField<String>(
+                  key: ValueKey(('parent-resolution', _parentResolution)),
+                  initialValue: _parentResolution,
+                  decoration: const InputDecoration(
+                    labelText: 'Parent resolution',
+                  ),
+                  items: [
+                    for (final p in ParentResolution.values)
+                      DropdownMenuItem(value: p.name, child: Text(p.name)),
+                  ],
+                  onChanged: _disabled
+                      ? null
+                      : (v) {
+                          if (v != null) {
+                            _parentResolution = v;
+                            _changed();
+                          }
+                        },
+                ),
+              ],
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 key: ValueKey('parent:$_parent'),
@@ -471,9 +587,13 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
                     value: '',
                     child: Text('Choose a parent or no parent'),
                   ),
-                  const DropdownMenuItem(
+                  DropdownMenuItem(
                     value: 'none',
-                    child: Text('No parent (root definition)'),
+                    child: Text(
+                      _base?.revisionTarget == null
+                          ? 'No parent (root definition)'
+                          : 'No parent',
+                    ),
                   ),
                   for (final parent in _parents)
                     DropdownMenuItem(
@@ -609,7 +729,8 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
                 Semantics(liveRegion: true, child: Text(_error!)),
               if (_added != null) ...[
                 Semantics(liveRegion: true, child: Text(_added!)),
-                if (widget.editingDraft == null)
+                if (widget.editingDraft == null &&
+                    widget.revisionRecord == null)
                   TextButton(
                     onPressed: _disabled ? null : _startAnother,
                     child: const Text('Start another type'),

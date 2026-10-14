@@ -8,6 +8,8 @@ import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/saved_changes.dart';
 import 'package:ub_app/type_draft.dart';
+import 'package:ub_app/draft_record_choices.dart';
+import 'package:ub_app/record_browser.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_engine.dart';
@@ -304,6 +306,96 @@ void main() {
         )).revision,
         receipt.revision,
       );
+      final typeSource = (await currentChanges.readPublished(
+        proposal,
+        receipt,
+      )).singleWhere((r) => r.payload is EntityTypeRecord);
+      final revisionBase = await currentChanges.rebase(
+        (await currentChanges.load())!,
+        startNew: true,
+      );
+      final revisionScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: typeSource.identity.recordId.value,
+      );
+      final initialRevision = typeRevisionFormFromRecord(
+        record: typeSource,
+        baseRevision: revisionBase.content.baseRevision,
+        representedContext: scope.representedContext!,
+      );
+      final revisionForm = UnfinishedTypeForm(
+        baseRevision: initialRevision.baseRevision,
+        representedContext: initialRevision.representedContext,
+        clientRef: initialRevision.clientRef,
+        revisionTarget: initialRevision.revisionTarget,
+        expectedRecordVersion: initialRevision.expectedRecordVersion,
+        original: initialRevision.original,
+        namespace: initialRevision.namespace,
+        key: initialRevision.key,
+        name: 'Person clarified',
+        parentChoice: 'none',
+        parentResolution: 'ambiguous',
+        applicabilityChoice: 'universe_wide',
+        classificationExecutable: false,
+        labels: [
+          const PropertyLabelInput(language: 'ja', text: '人物 記憶 😀'),
+          const PropertyLabelInput(language: 'en', text: 'Reviewed person'),
+        ],
+        rationale: 'Clarify unresolved parent and authored labels.',
+      );
+      await session.saveTypeForm(revisionScope, revisionForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredRevision = (await session.loadTypeForm(revisionScope))!
+          .form;
+      expect(
+        recoveredRevision.toWire().toText(),
+        revisionForm.toWire().toText(),
+      );
+      final revisionChanges = SavedChanges(
+        session: session,
+        universe: const Selector('Type history'),
+        scope: scope,
+      );
+      final revisionDraft = SavedDraft.fromWire(
+        await session.call(
+          typeDraftRequest(
+            universe: const Selector('Type history'),
+            continuity: scope.continuity,
+            form: recoveredRevision,
+            previous: revisionBase,
+          ),
+        ),
+      );
+      final revisedProposal = await revisionChanges.submit(revisionDraft);
+      final revisedValidation = await revisionChanges.validate(
+        revisedProposal,
+      ) as EvaluatedValidation;
+      await revisionChanges.approve(revisedProposal, revisedValidation);
+      final revisedReceipt = await revisionChanges.publish(
+        revisedProposal,
+        revisedValidation.execution.runId,
+      );
+      final revisedType = (await revisionChanges.readPublished(
+        revisedProposal,
+        revisedReceipt,
+      )).single;
+      expect(revisedType.identity.recordId, typeSource.identity.recordId);
+      expect(
+        revisedType.payload.toWire().toText(),
+        typeRevisionOperation(revisionForm).replacement.toWire().toText(),
+      );
+      final retainedType = await readContextRecord(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Type history'),
+        context: await openDraftChoiceContext(revisionChanges, revisionBase),
+        record: typeSource.identity.recordId,
+      );
+      expect(retainedType.toWire().toText(), typeSource.toWire().toText());
     } finally {
       try {
         await session?.close();

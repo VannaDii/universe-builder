@@ -1,6 +1,7 @@
 import 'package:ub_domain/ub_domain.dart';
 
 import 'wire.dart';
+import 'property_forms.dart';
 
 enum EditorRecoveryFailure {
   unavailable,
@@ -131,8 +132,14 @@ final class UnfinishedTypeForm {
     required this.rationale,
     this.classificationExecutable,
     Iterable<WorldId> worlds = const [],
+    this.revisionTarget,
+    this.expectedRecordVersion,
+    this.original,
+    this.parentResolution = '',
+    Iterable<PropertyLabelInput> labels = const [],
     BigInt? draftVersion,
-  }) : worlds = List.unmodifiable(worlds),
+  }) : labels = List.unmodifiable(labels),
+       worlds = List.unmodifiable(worlds),
        draftVersion = draftVersion == null ? null : checkedU64(draftVersion);
   final RevisionId baseRevision;
   final RecordId representedContext;
@@ -145,12 +152,30 @@ final class UnfinishedTypeForm {
       rationale;
   final bool? classificationExecutable;
   final List<WorldId> worlds;
+  final RecordRef? revisionTarget;
+  final RecordVersionId? expectedRecordVersion;
+  final EntityTypeRecord? original;
+  final String parentResolution;
+  final List<PropertyLabelInput> labels;
   final BigInt? draftVersion;
+  CanonicalObject get revisionFields => CanonicalObject([
+    MapEntry('target', revisionTarget?.toCanonical() ?? const CanonicalNull()),
+    MapEntry(
+      'expected_version',
+      expectedRecordVersion == null
+          ? const CanonicalNull()
+          : CanonicalString(expectedRecordVersion!.value),
+    ),
+    MapEntry('original', original?.toWire() ?? const CanonicalNull()),
+    MapEntry('parent_resolution', CanonicalString(parentResolution)),
+    MapEntry('labels', CanonicalArray(labels.map((l) => l.toWire()))),
+  ]);
 
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
     MapEntry('represented_context', CanonicalString(representedContext.value)),
     MapEntry('client_ref', CanonicalString(clientRef)),
+    if (revisionTarget != null) MapEntry('revision_fields', revisionFields),
     if (draftVersion != null)
       MapEntry('draft_version', CanonicalString(draftVersion.toString())),
     MapEntry('namespace', CanonicalString(namespace)),

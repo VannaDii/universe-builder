@@ -424,10 +424,12 @@ class _ChangesPageState extends State<ChangesPage> {
                 universe: widget.changes.scope.universe,
                 continuity: widget.changes.scope.continuity,
                 representedContext: draft.content.representedContext,
-                typeClientRef:
-                    (draft.content.operations[index]
-                            as IntroduceDefinitionOperation)
-                        .clientRef,
+                typeClientRef: switch (draft.content.operations[index]) {
+                  IntroduceDefinitionOperation(:final clientRef) => clientRef,
+                  ReviseDefinitionOperation(:final record) =>
+                    record.record.value,
+                  _ => throw const FormatException('Choose a type definition.'),
+                },
               ),
               editingDraft: draft,
               operationIndex: index,
@@ -3007,6 +3009,20 @@ class _ChangesPageState extends State<ChangesPage> {
                                       ? 'Edit name fields'
                                       : 'Edit entity fields',
                                 ),
+                              ),
+                            if (_proposal == null &&
+                                operations[index]
+                                    is ReviseDefinitionOperation &&
+                                (operations[index] as ReviseDefinitionOperation)
+                                        .replacement
+                                    is EntityTypeRecord)
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _changeDraft(
+                                        (draft) => _editType(draft, index),
+                                      ),
+                                child: const Text('Edit type revision fields'),
                               ),
                             if (_proposal == null &&
                                 operations[index]
