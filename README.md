@@ -281,6 +281,11 @@ In author perspective, proposition choices show their subject, predicate,
 quantification, context, ordered participants and simple values using accessible
 names. Search matches these descriptions. Hidden dependencies retain the
 existing fallback; labels do not assert that a proposition is true.
+Published calendars offer **Revise calendar definition** in their record details.
+Epoch, labels, unit structure and ordered conversion declarations remain explicit;
+namespace and key stay fixed. Unfinished revisions recover on this device, and
+**Edit calendar revision fields** in Changes retains the original record and
+version. Reviewed publication preserves history and does not reset story clocks.
 **Context definition** authors objective, character, source, narrator or named
 contexts with optional parent, display labels and an authored clock. Gregorian
 clocks accept explicit timestamps with offsets; fictional clocks retain exact

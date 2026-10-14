@@ -405,8 +405,8 @@ void main() {
           ),
         ),
       );
-      final derivedRecord =
-          (await publish(derivedDraft)).single.payload as CalendarRecord;
+      final derivedPublished = (await publish(derivedDraft)).single;
+      final derivedRecord = derivedPublished.payload as CalendarRecord;
       expect(
         derivedRecord.toWire().toText(),
         calendarOperation(derived).record.toWire().toText(),
@@ -417,6 +417,78 @@ void main() {
       final after = await storyContext(next);
       expect(after.recordVersionId, before.recordVersionId);
       expect(after.payload.toWire().toText(), before.payload.toWire().toText());
+      final revisionBase = next;
+      final revisionScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: derivedPublished.identity.recordId.value,
+      );
+      final revisionForm = UnfinishedCalendarForm.fromWire(
+        CanonicalObject(
+          calendarRevisionFormFromRecord(
+            record: derivedPublished,
+            baseRevision: revisionBase.content.baseRevision,
+            representedContext: scope.representedContext!,
+          ).toWire().fields.map(
+            (e) => e.key == 'epoch'
+                ? MapEntry('epoch', CanonicalString('Founding 記憶 😀'))
+                : e.key == 'rationale'
+                ? MapEntry(
+                    'rationale',
+                    CanonicalString('Correct the authored epoch.'),
+                  )
+                : e,
+          ),
+        ),
+      );
+      await session.saveCalendarForm(revisionScope, revisionForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredRevision = (await session.loadCalendarForm(revisionScope))!
+          .form;
+      expect(
+        recoveredRevision.toWire().toText(),
+        revisionForm.toWire().toText(),
+      );
+      final revisionDraft = SavedDraft.fromWire(
+        await session.call(
+          calendarDraftRequest(
+            draft: revisionBase,
+            form: recoveredRevision,
+            universe: const Selector('Calendars'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final revisedCalendar = (await publish(revisionDraft)).single;
+      expect(
+        revisedCalendar.identity.recordId,
+        derivedPublished.identity.recordId,
+      );
+      expect(
+        revisedCalendar.payload.toWire().toText(),
+        calendarRevisionOperation(revisionForm).replacement.toWire().toText(),
+      );
+      final retainedCalendar = await readContextRecord(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Calendars'),
+        context: await openDraftChoiceContext(changes(), revisionBase),
+        record: derivedPublished.identity.recordId,
+      );
+      expect(
+        retainedCalendar.toWire().toText(),
+        derivedPublished.toWire().toText(),
+      );
+      next = await changes().rebase((await changes().load())!, startNew: true);
+      final afterRevision = await storyContext(next);
+      expect(afterRevision.recordVersionId, before.recordVersionId);
+      expect(
+        afterRevision.payload.toWire().toText(),
+        before.payload.toWire().toText(),
+      );
     } finally {
       await session?.close();
       await server.close();

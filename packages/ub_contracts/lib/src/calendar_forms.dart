@@ -1,6 +1,7 @@
 import 'package:ub_domain/ub_domain.dart';
 
 import 'wire.dart';
+import 'expression_forms.dart';
 import 'property_forms.dart';
 
 final class CalendarUnitInput {
@@ -63,6 +64,9 @@ final class UnfinishedCalendarForm {
     Iterable<CalendarUnitInput> units = const [],
     Iterable<CalendarConversionInput> conversions = const [],
     this.rationale = '',
+    this.revisionTarget,
+    this.expectedRecordVersion,
+    this.original,
     BigInt? draftVersion,
   }) : labels = List.unmodifiable(labels),
        units = List.unmodifiable(units),
@@ -75,6 +79,9 @@ final class UnfinishedCalendarForm {
   final bool hasEpoch;
   final List<CalendarUnitInput> units;
   final List<CalendarConversionInput> conversions;
+  final ExpressionReferenceInput? revisionTarget;
+  final RecordVersionId? expectedRecordVersion;
+  final CalendarRecord? original;
   final BigInt? draftVersion;
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
@@ -88,6 +95,14 @@ final class UnfinishedCalendarForm {
     MapEntry('units', CanonicalArray(units.map((u) => u.toWire()))),
     MapEntry('conversions', CanonicalArray(conversions.map((c) => c.toWire()))),
     MapEntry('rationale', CanonicalString(rationale)),
+    if (revisionTarget != null)
+      MapEntry('revision_target', revisionTarget!.toWire()),
+    if (expectedRecordVersion != null)
+      MapEntry(
+        'expected_record_version',
+        CanonicalString(expectedRecordVersion!.value),
+      ),
+    if (original != null) MapEntry('original', original!.toWire()),
     if (draftVersion != null)
       MapEntry('draft_version', CanonicalString(draftVersion.toString())),
   ]);
@@ -105,6 +120,9 @@ final class UnfinishedCalendarForm {
       'conversions',
       'rationale',
       'draft_version',
+      'revision_target',
+      'expected_record_version',
+      'original',
     });
     return UnfinishedCalendarForm(
       baseRevision: RevisionId.parse(f.string('base_revision')),
@@ -118,6 +136,15 @@ final class UnfinishedCalendarForm {
       units: f.array('units').map(CalendarUnitInput.fromWire),
       conversions: f.array('conversions').map(CalendarConversionInput.fromWire),
       rationale: f.string('rationale'),
+      revisionTarget: f.optional(
+        'revision_target',
+        ExpressionReferenceInput.fromWire,
+      ),
+      expectedRecordVersion: f.optional(
+        'expected_record_version',
+        (v) => RecordVersionId.parse(wireString(v)),
+      ),
+      original: f.optional('original', CalendarRecord.fromWire),
       draftVersion: f.optional(
         'draft_version',
         (v) => BigInt.parse(wireString(v)),
