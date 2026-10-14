@@ -10,6 +10,7 @@ import 'package:ub_app/event_draft.dart';
 import 'package:ub_app/action_draft.dart';
 import 'package:ub_app/continuity_draft.dart';
 import 'package:ub_app/rule_draft.dart';
+import 'package:ub_app/completeness_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -1427,6 +1428,81 @@ void main() {
             .relationCardinality!
             .maximum,
         5,
+      );
+      final completenessBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final memberProperty = PropertyRecord(
+        namespace: 'authored',
+        key: 'party-member',
+        labels: {'en': 'Party member'},
+        subjectTypes: [person],
+        value: EntityRefShape([person]),
+        multiplicity: Multiplicity.multiple,
+        persistence: PersistenceSemantics.unspecified,
+        exclusive: false,
+        symmetric: false,
+        transitive: false,
+      );
+      final memberPropertyDraft = await changes().saveContent(
+        completenessBase,
+        DraftContent(
+          baseRevision: completenessBase.content.baseRevision,
+          representedContext: completenessBase.content.representedContext,
+          operations: [
+            DefinePropertyOperation(
+              clientRef: 'party-member',
+              record: memberProperty,
+            ),
+          ],
+          rationale: 'Declare object-valued party membership.',
+        ),
+      );
+      await publish(memberPropertyDraft);
+      final completeBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final completeForm = UnfinishedCompletenessForm(
+        baseRevision: completeBase.content.baseRevision,
+        representedContext: completeBase.content.representedContext,
+        clientRef: 'complete-party',
+        subject: ExpressionReferenceInput(
+          record: participant(0).record.value,
+          universe: scope.universe.value,
+        ),
+        predicate: 'authored:party-member',
+        kind: 'objective_reality',
+        members: [],
+        scope: ScopeInput(
+          applicability: 'universe_wide',
+          contextRecord: scope.representedContext!.value,
+          contextUniverse: scope.universe.value,
+        ),
+        rationale: 'Declare an explicitly complete empty party.',
+      );
+      await session.saveCompletenessForm(scope, completeForm, BigInt.zero);
+      final recoveredComplete = (await session.loadCompletenessForm(scope))!
+          .form;
+      final completeDraft = SavedDraft.fromWire(
+        await session.call(
+          completenessDraftRequest(
+            draft: completeBase,
+            form: recoveredComplete,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final completePublished = await publish(completeDraft);
+      expect(
+        (completePublished.single.payload as CompletenessRecord).members,
+        isEmpty,
+      );
+      expect(
+        (completePublished.single.payload as CompletenessRecord).completeness,
+        isA<ObjectiveCompleteness>(),
       );
     } finally {
       await session?.close();

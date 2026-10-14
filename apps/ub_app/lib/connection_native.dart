@@ -189,6 +189,10 @@ final class DeviceConnection {
       client: client,
     );
     final sourceRecovery = LocalSourceFormRecovery(root: root!, client: client);
+    final completenessRecovery = LocalCompletenessFormRecovery(
+      root: root!,
+      client: client,
+    );
     final ruleRecovery = LocalRuleFormRecovery(root: root!, client: client);
     final actionRecovery = LocalActionFormRecovery(root: root!, client: client);
     final eventRecovery = LocalEventFormRecovery(root: root!, client: client);
@@ -246,6 +250,9 @@ final class DeviceConnection {
       loadRelationForm: (scope) =>
           sequenced(() => relationRecovery.load(scope)),
       saveRelationForm: relationRecovery.save,
+      loadCompletenessForm: (scope) =>
+          sequenced(() => completenessRecovery.load(scope)),
+      saveCompletenessForm: completenessRecovery.save,
       loadRuleForm: (scope) => sequenced(() => ruleRecovery.load(scope)),
       saveRuleForm: ruleRecovery.save,
       loadActionForm: (scope) => sequenced(() => actionRecovery.load(scope)),

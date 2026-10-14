@@ -277,6 +277,12 @@ Disabling a contract removes it explicitly; older saved forms retain their
 original contracts. Delay bounds remain in the same clock, without inferred
 conversion, and local relation-role multiplicity remains separate from an
 authored cross-instance maximum.
+**Complete collection** authors an explicit scoped completeness declaration with
+a named subject, property, optional observer and ordered member references.
+Objective and observer-known completeness require an explicit choice. An empty
+complete list is authored evidence, and observer knowledge remains distinct from
+objective reality. Unfinished fields recover on this device; **Edit completeness
+fields** in Changes preserves the pending identity and review rationale.
 **Timeline** in an entity dossier lists events with explicit participation.
 Exact numeric points are ordered separately in each named calendar, using the
 shared rule engine's integer bounds. Equal coordinates do not imply sequence.

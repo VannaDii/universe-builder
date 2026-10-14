@@ -556,3 +556,42 @@ final class LocalRuleFormRecovery {
     });
   }
 }
+
+final class LocalCompletenessFormRecovery {
+  LocalCompletenessFormRecovery({required String root, required this.client})
+    : _path = '$root/client-recovery/completeness-forms.sqlite';
+  final String _path;
+  final LoopbackEngineClient client;
+
+  Future<SavedCompletenessForm?> load(EditorFormScope scope) async {
+    await _checkEditorScope(client, scope);
+    final path = _path;
+    return Isolate.run(() {
+      final store = CompletenessFormRecoveryStore.open(path);
+      try {
+        return store.load(scope);
+      } finally {
+        store.close();
+      }
+    });
+  }
+
+  Future<SavedCompletenessForm> save(
+    EditorFormScope scope,
+    UnfinishedCompletenessForm form,
+    BigInt expectedGeneration,
+  ) async {
+    if (scope.profile != client.welcome.principal) {
+      throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
+    }
+    final path = _path;
+    return Isolate.run(() {
+      final store = CompletenessFormRecoveryStore.open(path);
+      try {
+        return store.save(scope, form, expectedGeneration);
+      } finally {
+        store.close();
+      }
+    });
+  }
+}
