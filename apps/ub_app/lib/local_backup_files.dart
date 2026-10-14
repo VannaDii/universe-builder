@@ -50,6 +50,43 @@ final class LocalBackupFiles {
     }
   }
 
+  Future<String?> archive(LibraryEntry universe) async {
+    final directory = _directory();
+    final path = '${directory.path}/Universe Builder archive.sqlite';
+    try {
+      final manifest = WireFields(
+        await call(
+          ExportLogicalEngineRequest(
+            universe: Selector(universe.name),
+            destination: path,
+            recordIds: const [],
+            completeHistory: true,
+          ),
+        ),
+        {
+          'format',
+          'universe',
+          'name',
+          'complete',
+          'omitted_records',
+          'includes_history',
+          'includes_workflow',
+        },
+      );
+      if (manifest.string('format') != 'universe-relational' ||
+          manifest.string('universe') != universe.id.value ||
+          !manifest.boolean('complete') ||
+          manifest.u64('omitted_records') != BigInt.zero ||
+          !manifest.boolean('includes_history') ||
+          !manifest.boolean('includes_workflow')) {
+        throw const FormatException('Complete archive was not confirmed.');
+      }
+      return await saveFile(path);
+    } finally {
+      directory.deleteSync(recursive: true);
+    }
+  }
+
   Future<LibraryEntry?> restore(String name) async {
     if (name.trim().isEmpty) {
       throw const FormatException('Enter the restored universe name.');

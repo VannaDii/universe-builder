@@ -415,6 +415,7 @@ final class DeviceConnection {
             }
           : null,
       backupFile: files?.backup,
+      saveArchiveFile: client.welcome.author ? files?.archive : null,
       restoreBackupFile: files?.restore,
       pickImage:
           client.welcome.author &&

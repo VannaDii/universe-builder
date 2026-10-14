@@ -45,6 +45,10 @@ providers. The service finishes and validates its snapshot before export; restor
 copies into a fresh private staging file before validation and registration.
 Copies retain the existing 8 GiB package bound and do not carry installation
 credentials. Cancelling a picker leaves canon unchanged.
+Native **Save complete archive file** exports the existing portable relational
+format, including retained history, source content and historical workflow
+evidence, through the same system file providers. It can be reviewed and imported
+into another installation; archived approvals do not authorize new publication.
 The macOS and mobile **Choose text file** controls read bounded UTF-8
 files, preserving BOMs, Unicode and line endings in the existing unfinished
 source form. Mobile temporary copies are released after decoding, including

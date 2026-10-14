@@ -96,6 +96,15 @@ class _StorageMaintenancePageState extends State<StorageMaintenancePage> {
     }
   }
 
+  Future<void> _saveArchive() async {
+    final path = await widget.session.saveArchiveFile!(widget.universe!);
+    if (mounted) {
+      setState(() => _message = path == null
+          ? 'Archive file selection cancelled.'
+          : 'Archive saved: $path');
+    }
+  }
+
   Future<void> _restore() async {
     final restored = await widget.session.restoreBackupFile!(_name.text);
     if (mounted) {
@@ -144,6 +153,16 @@ class _StorageMaintenancePageState extends State<StorageMaintenancePage> {
                   ),
                   const Text(
                     'The archive includes retained history, source content and workflow evidence. Your browser manages the download.',
+                  ),
+                ],
+                if (widget.session.saveArchiveFile != null) ...[
+                  FilledButton.icon(
+                    onPressed: _busy ? null : () => _run(_saveArchive),
+                    icon: const Icon(Icons.save_alt),
+                    label: const Text('Save complete archive file'),
+                  ),
+                  const Text(
+                    'Transfer this universe to another installation with retained history, source content and workflow evidence.',
                   ),
                 ],
                 if (widget.session.backupFile == null &&

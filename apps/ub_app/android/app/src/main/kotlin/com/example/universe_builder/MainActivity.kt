@@ -54,7 +54,7 @@ class MainActivity : FlutterActivity() {
                                 val intent = Intent(if (saving) Intent.ACTION_CREATE_DOCUMENT else Intent.ACTION_OPEN_DOCUMENT).apply {
                                     addCategory(Intent.CATEGORY_OPENABLE)
                                     type = "application/octet-stream"
-                                    if (saving) putExtra(Intent.EXTRA_TITLE, "Universe Builder backup.sqlite")
+                                    if (saving) putExtra(Intent.EXTRA_TITLE, File(path).name)
                                     else type = "*/*"
                                 }
                                 startActivityForResult(intent, if (saving) 4102 else 4103)

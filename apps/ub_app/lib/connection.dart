@@ -15,6 +15,7 @@ final class AppSession {
     this.pickImage,
     this.logout,
     this.backupFile,
+    this.saveArchiveFile,
     this.restoreBackupFile,
     required this.call,
     required this.close,
@@ -104,6 +105,7 @@ final class AppSession {
     required this.saveAttributeForm,
   });
   final Future<String?> Function(LibraryEntry)? backupFile;
+  final Future<String?> Function(LibraryEntry)? saveArchiveFile;
   final Future<LibraryEntry?> Function(String name)? restoreBackupFile;
   final Future<CanonicalValue> Function(EngineRequest) call;
   final Future<void> Function() close;

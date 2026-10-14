@@ -62,6 +62,35 @@ void main() {
       );
       expect(await sourceFiles.backup(universe), destination);
       expect(File(destination).lengthSync(), greaterThan(0));
+      final archivePath = '${temporary.path}/archive.sqlite';
+      final archiveFiles = LocalBackupFiles(
+        root: '${temporary.path}/source',
+        call: source.call,
+        saveFile: (file) async {
+          expect(File(file).uri.pathSegments.last, 'Universe Builder archive.sqlite');
+          await File(file).copy(archivePath);
+          return archivePath;
+        },
+        openFile: (_) async => false,
+      );
+      expect(await archiveFiles.archive(universe), archivePath);
+      expect(Directory('${temporary.path}/source/client-files').listSync(), isEmpty);
+      final preview = Map.fromEntries((await target.call(
+        PreviewImportEngineRequest(
+          source: archivePath,
+          name: 'Transferred campaign',
+          mode: ImportMode.clone,
+        ),
+      ) as CanonicalObject).fields);
+      expect((preview['includes_workflow'] as CanonicalBool).value, isTrue);
+      final admitted = Map.fromEntries((await target.call(
+        AcceptImportEngineRequest(
+          previewId: OperationId.parse(wireString(preview['preview_id']!)),
+          digest: wireString(preview['digest']!),
+        ),
+      ) as CanonicalObject).fields);
+      expect((admitted['imported'] as CanonicalBool).value, isTrue);
+      expect(wireString(admitted['universe_id']!), isNot(universe.id.value));
       final maintenance = await maintainStorage(
         source,
         universe,
@@ -113,6 +142,15 @@ void main() {
       );
       expect(await cancelled.restore('Cancelled'), isNull);
       expect(await cancelled.backup(restored), isNull);
+      expect(await cancelled.archive(restored), isNull);
+      final failedExport = LocalBackupFiles(
+        root: '${temporary.path}/source',
+        call: (_) async => throw const FormatException('Export unavailable'),
+        saveFile: (_) async => fail('Do not open a picker for a failed export'),
+        openFile: (_) async => false,
+      );
+      await expectLater(failedExport.archive(universe), throwsFormatException);
+      expect(Directory('${temporary.path}/source/client-files').listSync(), isEmpty);
       final failedPicker = LocalBackupFiles(
         root: '${temporary.path}/target',
         call: target.call,

@@ -27,8 +27,8 @@ class MainFlutterWindow: NSWindow {
       }
       if call.method == "saveBackup", let source = arguments["source"] {
         let panel = NSSavePanel()
-        panel.title = "Save Universe Builder backup"
-        panel.nameFieldStringValue = "Universe Builder backup.sqlite"
+        panel.title = "Save Universe Builder file"
+        panel.nameFieldStringValue = URL(fileURLWithPath: source).lastPathComponent
         panel.canCreateDirectories = true
         panel.beginSheetModal(for: window) { response in
           guard response == .OK, let destination = panel.url else { result(nil); return }
@@ -36,7 +36,7 @@ class MainFlutterWindow: NSWindow {
             try FileManager.default.copyItem(at: URL(fileURLWithPath: source), to: destination)
             result(destination.path)
           } catch {
-            result(FlutterError(code: "copy_failed", message: "Choose an unused filename for the backup.", details: nil))
+            result(FlutterError(code: "copy_failed", message: "Choose an unused filename.", details: nil))
           }
         }
       } else if call.method == "openBackup", let destination = arguments["destination"] {
