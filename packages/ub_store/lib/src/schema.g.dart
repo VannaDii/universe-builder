@@ -3422,6 +3422,8 @@ CREATE TABLE "r_payload_v22" (
   "validity" INTEGER REFERENCES "r_validity"(__row_id),
   "record_kind__state" INTEGER NOT NULL CHECK("record_kind__state" IN (2)),
   "record_kind" TEXT,
+  "requiredEvidence__state" INTEGER NOT NULL CHECK("requiredEvidence__state" IN (0,1,2)),
+  "requiredEvidence" INTEGER REFERENCES "r_payload_v22_required_evidence"(__row_id),
   CHECK(("knowledgeBoundary__state"=2 AND "knowledgeBoundary" IS NOT NULL) OR ("knowledgeBoundary__state" IN (0,1) AND "knowledgeBoundary" IS NULL)),
   CHECK(("relationCardinality__state"=2 AND "relationCardinality" IS NOT NULL) OR ("relationCardinality__state" IN (0,1) AND "relationCardinality" IS NULL)),
   CHECK(("knowledgePolicy__state"=2 AND "knowledgePolicy" IS NOT NULL) OR ("knowledgePolicy__state" IN (0,1) AND "knowledgePolicy" IS NULL)),
@@ -3440,7 +3442,8 @@ CREATE TABLE "r_payload_v22" (
   CHECK("executable" IN (0,1)),
   CHECK(("validity__state"=2 AND "validity" IS NOT NULL) OR ("validity__state" IN (0,1) AND "validity" IS NULL)),
   CHECK(("record_kind__state"=2 AND "record_kind" IS NOT NULL) OR ("record_kind__state" IN (0,1) AND "record_kind" IS NULL)),
-  CHECK("record_kind"='rule')
+  CHECK("record_kind"='rule'),
+  CHECK(("requiredEvidence__state"=2 AND "requiredEvidence" IS NOT NULL) OR ("requiredEvidence__state" IN (0,1) AND "requiredEvidence" IS NULL))
 ) STRICT;
 
 CREATE TABLE "r_payload_v22_knowledge_boundary" (
@@ -3668,6 +3671,38 @@ CREATE TABLE "r_payload_v22_capabilities" (
 ) STRICT;
 
 CREATE TABLE "r_payload_v22_capabilities_items" (owner INTEGER NOT NULL REFERENCES "r_payload_v22_capabilities"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item TEXT, PRIMARY KEY(owner,ordinal)) STRICT;
+
+CREATE TABLE "r_payload_v22_required_evidence" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_required_evidence"(__row_id),
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_required_evidence" (
+  __row_id INTEGER PRIMARY KEY,
+  "sourceCategories__state" INTEGER NOT NULL CHECK("sourceCategories__state" IN (2)),
+  "sourceCategories" INTEGER REFERENCES "r_required_evidence_source_categories"(__row_id),
+  "reviewMethods__state" INTEGER NOT NULL CHECK("reviewMethods__state" IN (0,2)),
+  "reviewMethods" INTEGER REFERENCES "r_required_evidence_review_methods"(__row_id),
+  CHECK(("sourceCategories__state"=2 AND "sourceCategories" IS NOT NULL) OR ("sourceCategories__state" IN (0,1) AND "sourceCategories" IS NULL)),
+  CHECK(("reviewMethods__state"=2 AND "reviewMethods" IS NOT NULL) OR ("reviewMethods__state" IN (0,1) AND "reviewMethods" IS NULL))
+) STRICT;
+
+CREATE TABLE "r_required_evidence_source_categories" (
+  __row_id INTEGER PRIMARY KEY
+) STRICT;
+
+CREATE TABLE "r_required_evidence_source_categories_items" (owner INTEGER NOT NULL REFERENCES "r_required_evidence_source_categories"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item INTEGER REFERENCES "r_version_ref"(__row_id), PRIMARY KEY(owner,ordinal)) STRICT;
+
+CREATE TABLE "r_required_evidence_review_methods" (
+  __row_id INTEGER PRIMARY KEY
+) STRICT;
+
+CREATE TABLE "r_required_evidence_review_methods_items" (owner INTEGER NOT NULL REFERENCES "r_required_evidence_review_methods"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item TEXT, PRIMARY KEY(owner,ordinal)) STRICT;
 
 CREATE TABLE "r_payload_v23" (
   __row_id INTEGER PRIMARY KEY,
@@ -6674,6 +6709,8 @@ CREATE TABLE "r_rule" (
   "executable" INTEGER,
   "validity__state" INTEGER NOT NULL CHECK("validity__state" IN (2)),
   "validity" INTEGER REFERENCES "r_validity"(__row_id),
+  "requiredEvidence__state" INTEGER NOT NULL CHECK("requiredEvidence__state" IN (0,1,2)),
+  "requiredEvidence" INTEGER REFERENCES "r_rule_required_evidence"(__row_id),
   CHECK(("knowledgeBoundary__state"=2 AND "knowledgeBoundary" IS NOT NULL) OR ("knowledgeBoundary__state" IN (0,1) AND "knowledgeBoundary" IS NULL)),
   CHECK(("relationCardinality__state"=2 AND "relationCardinality" IS NOT NULL) OR ("relationCardinality__state" IN (0,1) AND "relationCardinality" IS NULL)),
   CHECK(("knowledgePolicy__state"=2 AND "knowledgePolicy" IS NOT NULL) OR ("knowledgePolicy__state" IN (0,1) AND "knowledgePolicy" IS NULL)),
@@ -6690,7 +6727,8 @@ CREATE TABLE "r_rule" (
   CHECK(("capabilities__state"=2 AND "capabilities" IS NOT NULL) OR ("capabilities__state" IN (0,1) AND "capabilities" IS NULL)),
   CHECK(("executable__state"=2 AND "executable" IS NOT NULL) OR ("executable__state" IN (0,1) AND "executable" IS NULL)),
   CHECK("executable" IN (0,1)),
-  CHECK(("validity__state"=2 AND "validity" IS NOT NULL) OR ("validity__state" IN (0,1) AND "validity" IS NULL))
+  CHECK(("validity__state"=2 AND "validity" IS NOT NULL) OR ("validity__state" IN (0,1) AND "validity" IS NULL)),
+  CHECK(("requiredEvidence__state"=2 AND "requiredEvidence" IS NOT NULL) OR ("requiredEvidence__state" IN (0,1) AND "requiredEvidence" IS NULL))
 ) STRICT;
 
 CREATE TABLE "r_rule_knowledge_boundary" (
@@ -6756,6 +6794,16 @@ CREATE TABLE "r_rule_capabilities" (
 ) STRICT;
 
 CREATE TABLE "r_rule_capabilities_items" (owner INTEGER NOT NULL REFERENCES "r_rule_capabilities"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item TEXT, PRIMARY KEY(owner,ordinal)) STRICT;
+
+CREATE TABLE "r_rule_required_evidence" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 INTEGER REFERENCES "r_required_evidence"(__row_id),
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
 
 CREATE TABLE "r_domain_operation_v38" (
   __row_id INTEGER PRIMARY KEY,
@@ -11155,6 +11203,30 @@ CREATE TRIGGER "r_payload_v22_capabilities_items_no_update" BEFORE UPDATE ON "r_
 
 CREATE TRIGGER "r_payload_v22_capabilities_items_no_delete" BEFORE DELETE ON "r_payload_v22_capabilities_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
+CREATE TRIGGER "r_payload_v22_required_evidence_no_update" BEFORE UPDATE ON "r_payload_v22_required_evidence" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_payload_v22_required_evidence_no_delete" BEFORE DELETE ON "r_payload_v22_required_evidence" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_required_evidence_no_update" BEFORE UPDATE ON "r_required_evidence" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_required_evidence_no_delete" BEFORE DELETE ON "r_required_evidence" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_required_evidence_source_categories_no_update" BEFORE UPDATE ON "r_required_evidence_source_categories" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_required_evidence_source_categories_no_delete" BEFORE DELETE ON "r_required_evidence_source_categories" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_required_evidence_source_categories_items_no_update" BEFORE UPDATE ON "r_required_evidence_source_categories_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_required_evidence_source_categories_items_no_delete" BEFORE DELETE ON "r_required_evidence_source_categories_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_required_evidence_review_methods_no_update" BEFORE UPDATE ON "r_required_evidence_review_methods" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_required_evidence_review_methods_no_delete" BEFORE DELETE ON "r_required_evidence_review_methods" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_required_evidence_review_methods_items_no_update" BEFORE UPDATE ON "r_required_evidence_review_methods_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_required_evidence_review_methods_items_no_delete" BEFORE DELETE ON "r_required_evidence_review_methods_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
 CREATE TRIGGER "r_payload_v23_no_update" BEFORE UPDATE ON "r_payload_v23" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_payload_v23_no_delete" BEFORE DELETE ON "r_payload_v23" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
@@ -12306,6 +12378,10 @@ CREATE TRIGGER "r_rule_capabilities_no_delete" BEFORE DELETE ON "r_rule_capabili
 CREATE TRIGGER "r_rule_capabilities_items_no_update" BEFORE UPDATE ON "r_rule_capabilities_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_rule_capabilities_items_no_delete" BEFORE DELETE ON "r_rule_capabilities_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_rule_required_evidence_no_update" BEFORE UPDATE ON "r_rule_required_evidence" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_rule_required_evidence_no_delete" BEFORE DELETE ON "r_rule_required_evidence" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_domain_operation_v38_no_update" BEFORE UPDATE ON "r_domain_operation_v38" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
@@ -18731,6 +18807,10 @@ const relationalCatalog = r'''{
         "record_kind": {
           "model": "Payload_v22_record_kind",
           "required": true
+        },
+        "requiredEvidence": {
+          "model": "Payload_v22_requiredEvidence",
+          "required": false
         }
       }
     },
@@ -19107,6 +19187,50 @@ const relationalCatalog = r'''{
       "table": "r_payload_v22_record_kind",
       "kind": "string",
       "const": "rule"
+    },
+    "Payload_v22_requiredEvidence": {
+      "table": "r_payload_v22_required_evidence",
+      "kind": "union",
+      "variants": [
+        "RequiredEvidence",
+        "Payload_v22_requiredEvidence_v1"
+      ]
+    },
+    "RequiredEvidence": {
+      "table": "r_required_evidence",
+      "kind": "object",
+      "fields": {
+        "sourceCategories": {
+          "model": "RequiredEvidence_sourceCategories",
+          "required": true
+        },
+        "reviewMethods": {
+          "model": "RequiredEvidence_reviewMethods",
+          "required": false
+        }
+      }
+    },
+    "RequiredEvidence_sourceCategories": {
+      "table": "r_required_evidence_source_categories",
+      "kind": "array",
+      "item": "VersionRef"
+    },
+    "RequiredEvidence_reviewMethods": {
+      "table": "r_required_evidence_review_methods",
+      "kind": "array",
+      "item": "EvidenceReviewMethod"
+    },
+    "EvidenceReviewMethod": {
+      "table": "r_evidence_review_method",
+      "kind": "string",
+      "enum": [
+        "human_review",
+        "external_model_review"
+      ]
+    },
+    "Payload_v22_requiredEvidence_v1": {
+      "table": "r_payload_v22_required_evidence_v1",
+      "kind": "null"
     },
     "Payload_v23": {
       "table": "r_payload_v23",
@@ -23542,6 +23666,10 @@ const relationalCatalog = r'''{
         "validity": {
           "model": "Validity",
           "required": true
+        },
+        "requiredEvidence": {
+          "model": "Rule_requiredEvidence",
+          "required": false
         }
       }
     },
@@ -23636,6 +23764,18 @@ const relationalCatalog = r'''{
     "Rule_executable": {
       "table": "r_rule_executable",
       "kind": "boolean"
+    },
+    "Rule_requiredEvidence": {
+      "table": "r_rule_required_evidence",
+      "kind": "union",
+      "variants": [
+        "RequiredEvidence",
+        "Rule_requiredEvidence_v1"
+      ]
+    },
+    "Rule_requiredEvidence_v1": {
+      "table": "r_rule_required_evidence_v1",
+      "kind": "null"
     },
     "DomainOperation_v37_kind": {
       "table": "r_domain_operation_v37_kind",

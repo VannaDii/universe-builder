@@ -164,8 +164,57 @@ final class KnowledgeBoundary {
   ]);
 }
 
+/// Permitted attribution methods selected by an authored evidence policy.
+enum EvidenceReviewMethod {
+  humanReview('human_review'),
+  externalModelReview('external_model_review');
+
+  const EvidenceReviewMethod(this.wireName);
+  final String wireName;
+  static EvidenceReviewMethod fromName(String name) => values.firstWhere(
+    (v) => v.wireName == name,
+    orElse: () => throw const FormatException('Unknown evidence review method'),
+  );
+}
+
+/// Exact published source-category packs; an empty review list imposes no
+/// interpretation-review duty. This declaration alone does not establish truth.
+final class RequiredEvidence {
+  RequiredEvidence({
+    required Iterable<VersionRef> sourceCategories,
+    Iterable<EvidenceReviewMethod> reviewMethods = const [],
+  }) : sourceCategories = List.unmodifiable(sourceCategories),
+       reviewMethods = List.unmodifiable(reviewMethods);
+  final List<VersionRef> sourceCategories;
+  final List<EvidenceReviewMethod> reviewMethods;
+  factory RequiredEvidence.fromWire(CanonicalValue value) {
+    final f = Fields(value)..allow({'sourceCategories', 'reviewMethods'});
+    return RequiredEvidence(
+      sourceCategories: f
+          .array('sourceCategories')
+          .map(VersionRef.fromCanonical),
+      reviewMethods: _array(
+        f,
+        'reviewMethods',
+      ).map((v) => EvidenceReviewMethod.fromName(_string(v))),
+    );
+  }
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry(
+      'sourceCategories',
+      CanonicalArray(sourceCategories.map((v) => v.toCanonical())),
+    ),
+    if (reviewMethods.isNotEmpty)
+      MapEntry(
+        'reviewMethods',
+        CanonicalArray(reviewMethods.map((v) => CanonicalString(v.wireName))),
+      ),
+  ]);
+}
+
 final class RuleRecord extends RecordPayload {
   RuleRecord({
+    this.requiredEvidence,
     this.knowledgeBoundary,
     this.relationCardinality,
     this.knowledgePolicy,
@@ -186,6 +235,7 @@ final class RuleRecord extends RecordPayload {
        subjectTypes = List.unmodifiable(subjectTypes),
        targetPredicates = List.unmodifiable(targetPredicates),
        capabilities = List.unmodifiable(capabilities);
+  final RequiredEvidence? requiredEvidence;
   final KnowledgeBoundary? knowledgeBoundary;
   final RelationCardinality? relationCardinality;
   final KnowledgePolicy? knowledgePolicy;
@@ -202,6 +252,7 @@ final class RuleRecord extends RecordPayload {
   final Validity validity;
   factory RuleRecord.fromWire(CanonicalValue value) {
     final f = _recordFields(value, RecordKind.rule, {
+      'requiredEvidence',
       'knowledgeBoundary',
       'relationCardinality',
       'knowledgePolicy',
@@ -220,6 +271,11 @@ final class RuleRecord extends RecordPayload {
       'validity',
     });
     return RuleRecord(
+      requiredEvidence: _optionalObject(
+        f,
+        'requiredEvidence',
+        RequiredEvidence.fromWire,
+      ),
       knowledgeBoundary: _optionalObject(
         f,
         'knowledgeBoundary',
@@ -258,6 +314,8 @@ final class RuleRecord extends RecordPayload {
   RecordKind get recordKind => RecordKind.rule;
   @override
   CanonicalObject toWire() => _recordWire(recordKind, [
+    if (requiredEvidence != null)
+      MapEntry('requiredEvidence', requiredEvidence!.toWire()),
     if (knowledgeBoundary != null)
       MapEntry('knowledgeBoundary', knowledgeBoundary!.toWire()),
     if (relationCardinality != null)

@@ -13290,6 +13290,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "requiredEvidence": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RequiredEvidence"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "knowledgeBoundary": {
                   "anyOf": [
                     {
@@ -16186,6 +16196,36 @@
           "enum": [
             "for_all",
             "exists"
+          ]
+        },
+        "RequiredEvidence": {
+          "description": "Exact source-category packs. No listed review method means no review duty.",
+          "type": "object",
+          "properties": {
+            "sourceCategories": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/VersionRef"
+              }
+            },
+            "reviewMethods": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EvidenceReviewMethod"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "sourceCategories"
+          ]
+        },
+        "EvidenceReviewMethod": {
+          "description": "Authored review choices, never a service assertion that evidence is true.",
+          "type": "string",
+          "enum": [
+            "human_review",
+            "external_model_review"
           ]
         },
         "KnowledgeBoundary": {
@@ -19550,6 +19590,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "requiredEvidence": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RequiredEvidence"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "knowledgeBoundary": {
                   "anyOf": [
                     {
@@ -22446,6 +22496,36 @@
           "enum": [
             "for_all",
             "exists"
+          ]
+        },
+        "RequiredEvidence": {
+          "description": "Exact source-category packs. No listed review method means no review duty.",
+          "type": "object",
+          "properties": {
+            "sourceCategories": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/VersionRef"
+              }
+            },
+            "reviewMethods": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EvidenceReviewMethod"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "sourceCategories"
+          ]
+        },
+        "EvidenceReviewMethod": {
+          "description": "Authored review choices, never a service assertion that evidence is true.",
+          "type": "string",
+          "enum": [
+            "human_review",
+            "external_model_review"
           ]
         },
         "KnowledgeBoundary": {
@@ -25718,6 +25798,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "requiredEvidence": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RequiredEvidence"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "knowledgeBoundary": {
                   "anyOf": [
                     {
@@ -28614,6 +28704,36 @@
           "enum": [
             "for_all",
             "exists"
+          ]
+        },
+        "RequiredEvidence": {
+          "description": "Exact source-category packs. No listed review method means no review duty.",
+          "type": "object",
+          "properties": {
+            "sourceCategories": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/VersionRef"
+              }
+            },
+            "reviewMethods": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EvidenceReviewMethod"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "sourceCategories"
+          ]
+        },
+        "EvidenceReviewMethod": {
+          "description": "Authored review choices, never a service assertion that evidence is true.",
+          "type": "string",
+          "enum": [
+            "human_review",
+            "external_model_review"
           ]
         },
         "KnowledgeBoundary": {
@@ -35302,6 +35422,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "requiredEvidence": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RequiredEvidence"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "knowledgeBoundary": {
               "anyOf": [
                 {
@@ -35410,6 +35540,36 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "RequiredEvidence": {
+          "description": "Exact source-category packs. No listed review method means no review duty.",
+          "type": "object",
+          "properties": {
+            "sourceCategories": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/VersionRef"
+              }
+            },
+            "reviewMethods": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EvidenceReviewMethod"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "sourceCategories"
+          ]
+        },
+        "EvidenceReviewMethod": {
+          "description": "Authored review choices, never a service assertion that evidence is true.",
+          "type": "string",
+          "enum": [
+            "human_review",
+            "external_model_review"
           ]
         },
         "KnowledgeBoundary": {
@@ -37086,6 +37246,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "requiredEvidence": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RequiredEvidence"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "knowledgeBoundary": {
                   "anyOf": [
                     {
@@ -47693,6 +47863,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "requiredEvidence": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RequiredEvidence"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "knowledgeBoundary": {
               "anyOf": [
                 {
@@ -47801,6 +47981,36 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "RequiredEvidence": {
+          "description": "Exact source-category packs. No listed review method means no review duty.",
+          "type": "object",
+          "properties": {
+            "sourceCategories": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/VersionRef"
+              }
+            },
+            "reviewMethods": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EvidenceReviewMethod"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "sourceCategories"
+          ]
+        },
+        "EvidenceReviewMethod": {
+          "description": "Authored review choices, never a service assertion that evidence is true.",
+          "type": "string",
+          "enum": [
+            "human_review",
+            "external_model_review"
           ]
         },
         "KnowledgeBoundary": {
@@ -49477,6 +49687,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "requiredEvidence": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RequiredEvidence"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "knowledgeBoundary": {
                   "anyOf": [
                     {
@@ -56861,6 +57081,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "requiredEvidence": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RequiredEvidence"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "knowledgeBoundary": {
               "anyOf": [
                 {
@@ -56969,6 +57199,36 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "RequiredEvidence": {
+          "description": "Exact source-category packs. No listed review method means no review duty.",
+          "type": "object",
+          "properties": {
+            "sourceCategories": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/VersionRef"
+              }
+            },
+            "reviewMethods": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EvidenceReviewMethod"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "sourceCategories"
+          ]
+        },
+        "EvidenceReviewMethod": {
+          "description": "Authored review choices, never a service assertion that evidence is true.",
+          "type": "string",
+          "enum": [
+            "human_review",
+            "external_model_review"
           ]
         },
         "KnowledgeBoundary": {
@@ -58645,6 +58905,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "requiredEvidence": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RequiredEvidence"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "knowledgeBoundary": {
                   "anyOf": [
                     {
@@ -66249,6 +66519,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "requiredEvidence": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RequiredEvidence"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "knowledgeBoundary": {
               "anyOf": [
                 {
@@ -66357,6 +66637,36 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "RequiredEvidence": {
+          "description": "Exact source-category packs. No listed review method means no review duty.",
+          "type": "object",
+          "properties": {
+            "sourceCategories": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/VersionRef"
+              }
+            },
+            "reviewMethods": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EvidenceReviewMethod"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "sourceCategories"
+          ]
+        },
+        "EvidenceReviewMethod": {
+          "description": "Authored review choices, never a service assertion that evidence is true.",
+          "type": "string",
+          "enum": [
+            "human_review",
+            "external_model_review"
           ]
         },
         "KnowledgeBoundary": {
@@ -68033,6 +68343,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "requiredEvidence": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RequiredEvidence"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "knowledgeBoundary": {
                   "anyOf": [
                     {
@@ -79984,6 +80304,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "requiredEvidence": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RequiredEvidence"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "knowledgeBoundary": {
               "anyOf": [
                 {
@@ -80092,6 +80422,36 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "RequiredEvidence": {
+          "description": "Exact source-category packs. No listed review method means no review duty.",
+          "type": "object",
+          "properties": {
+            "sourceCategories": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/VersionRef"
+              }
+            },
+            "reviewMethods": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EvidenceReviewMethod"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "sourceCategories"
+          ]
+        },
+        "EvidenceReviewMethod": {
+          "description": "Authored review choices, never a service assertion that evidence is true.",
+          "type": "string",
+          "enum": [
+            "human_review",
+            "external_model_review"
           ]
         },
         "KnowledgeBoundary": {
@@ -81768,6 +82128,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "requiredEvidence": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RequiredEvidence"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "knowledgeBoundary": {
                   "anyOf": [
                     {
@@ -90164,6 +90534,16 @@
           "description": "A typed, declarative rule (spec §9.3, §27.2).",
           "type": "object",
           "properties": {
+            "requiredEvidence": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RequiredEvidence"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "knowledgeBoundary": {
               "anyOf": [
                 {
@@ -90272,6 +90652,36 @@
             "capabilities",
             "executable",
             "validity"
+          ]
+        },
+        "RequiredEvidence": {
+          "description": "Exact source-category packs. No listed review method means no review duty.",
+          "type": "object",
+          "properties": {
+            "sourceCategories": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/VersionRef"
+              }
+            },
+            "reviewMethods": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EvidenceReviewMethod"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "sourceCategories"
+          ]
+        },
+        "EvidenceReviewMethod": {
+          "description": "Authored review choices, never a service assertion that evidence is true.",
+          "type": "string",
+          "enum": [
+            "human_review",
+            "external_model_review"
           ]
         },
         "KnowledgeBoundary": {
@@ -91948,6 +92358,16 @@
               "description": "A typed, declarative rule (spec §9.3, §27.2).",
               "type": "object",
               "properties": {
+                "requiredEvidence": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/RequiredEvidence"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "knowledgeBoundary": {
                   "anyOf": [
                     {

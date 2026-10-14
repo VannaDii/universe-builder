@@ -20,6 +20,16 @@ void main() {
         applicability: const UniverseApplicability(),
       );
       final record = RuleRecord(
+        requiredEvidence: RequiredEvidence(
+          sourceCategories: [
+            VersionRef(
+              universe: reference.universe,
+              record: reference.record,
+              version: RecordVersionId.generate(),
+            ),
+          ],
+          reviewMethods: EvidenceReviewMethod.values,
+        ),
         namespace: 'authored',
         key: 'continuity',
         labels: {'en': 'Continuity 記憶 😀', 'fr': 'Continuité'},

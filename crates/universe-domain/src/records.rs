@@ -930,10 +930,29 @@ pub struct KnowledgeBoundary {
     pub context: RecordRef,
 }
 
+/// Authored review choices, never a service assertion that evidence is true.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
+pub enum EvidenceReviewMethod {
+    HumanReview,
+    ExternalModelReview,
+}
+
+/// Exact source-category packs. No listed review method means no review duty.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct RequiredEvidence {
+    pub source_categories: Vec<VersionRef>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub review_methods: Vec<EvidenceReviewMethod>,
+}
+
 /// A typed, declarative rule (spec §9.3, §27.2).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Rule {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub required_evidence: Option<RequiredEvidence>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub knowledge_boundary: Option<KnowledgeBoundary>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2571,6 +2590,7 @@ mod tests {
         let rule = DomainOperation::DefineRule {
             client_ref: "r".into(),
             record: Rule {
+                required_evidence: None,
                 relation_cardinality: None,
                 knowledge_boundary: None,
                 knowledge_policy: None,
@@ -2640,6 +2660,7 @@ mod tests {
                 world_associations: vec![],
             }),
             Payload::Rule(Rule {
+                required_evidence: None,
                 relation_cardinality: None,
                 knowledge_boundary: None,
                 knowledge_policy: None,

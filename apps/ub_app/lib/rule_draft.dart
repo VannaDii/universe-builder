@@ -23,6 +23,7 @@ DefineRuleOperation ruleOperation(UnfinishedRuleForm form) {
   return DefineRuleOperation(
     clientRef: form.clientRef,
     record: RuleRecord(
+      requiredEvidence: original?.requiredEvidence,
       namespace: form.namespace,
       key: form.key,
       labels: labels,

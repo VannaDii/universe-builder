@@ -334,6 +334,11 @@ void validateStructuralCandidate(List<RecordVersion> records) {
           );
         }
       case RuleRecord rule:
+        if (rule.requiredEvidence != null) {
+          throw const UnsupportedSemanticsError(
+            message: 'Required Real World evidence admission is not implemented; this policy cannot be published or treated as satisfied.',
+          );
+        }
         validateChannelChronologyRule(rule);
         validateKnowledgeRule(rule);
         validateKnowledgeBoundaryRule(rule, records);

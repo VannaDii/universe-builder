@@ -4,6 +4,16 @@ Two modes are available: the disposable read/propose fixture and a persistent au
 
 ## Dart conversion development
 
+The Real World evidence-policy contract now has an optional Rule
+`requiredEvidence` declaration. It pins published source-category packs and lists
+accepted interpretation-review methods; an empty method list requires no review.
+It does not change historical rule bodies or make ordinary fictional assessments
+mandatory. SQLite/PostgreSQL retain the declaration through the normal typed
+codec. Admission is still being implemented: both engines explicitly reject a
+candidate containing this declaration rather than treating its ordinary rule
+expression as a completed evidence check. Real World creation/review UI is not
+yet available.
+
 The initial Flutter shell is in `apps/ub_app`, with desktop and compact navigation,
 the approved branding, and System/Light/Dark appearance controls in Settings.
 Its native connection adapter accepts `--installation`, `--profile` and optional

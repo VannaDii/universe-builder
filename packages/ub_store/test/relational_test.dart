@@ -1,6 +1,8 @@
 @TestOn('vm')
 library;
 
+import 'required_evidence_fixture.dart';
+
 import 'dart:io';
 
 import 'package:sqlite3/sqlite3.dart';
@@ -66,6 +68,17 @@ void main() {
         'value': item['value']!,
         'canonical': CanonicalString(item['value']!.toText()),
         'digest': item['digest']!,
+      });
+    }
+    for (final review in [false, true]) {
+      final payload = requiredEvidencePayload(
+        UniverseId.parse('unv_${'1'.padLeft(24, '0')}'),
+        review: review,
+      );
+      cases.add({
+        'value': payload,
+        'canonical': CanonicalString(payload.toText()),
+        'digest': CanonicalString(payloadDigest('rule', payload)),
       });
     }
     database.execute('BEGIN IMMEDIATE');

@@ -166,6 +166,39 @@ Use these as requirements for the smallest extension to existing typed rules/ass
 
 Examples to specify as functional tests: conflicting birth dates; a date range too broad to establish age; a technology used before its sourced availability; a witness knowing information before a supported acquisition; a criminal act that remains physically possible; an approximate private memory; a changed source interpretation; a fictional world exception that does not weaken another world's policy.
 
+### 4.6 Evidence review decision and initial typed policy contract
+
+Evidence review is policy-dependent, as directed by Vanna. There is no mandatory
+review of every Real World claim. An empty accepted-review-method list means
+that the scoped policy does not require interpretation review; a nonempty list
+requires an exact attributed assessment using one of those methods. Required
+unresolved facts still block affected publication. Attributed private recollections
+can qualify without public corroboration or a public URL.
+
+Represent a required evidence policy on the existing published Rule record with
+an optional `requiredEvidence` field. Its `sourceCategories` are exact VersionRef
+bindings to published DomainPack records grouping qualifying SourceVersion record
+IDs. Authors name and populate those categories; membership is an authored choice,
+not a service reliability ranking. The existing rule applicability, subject types,
+target predicates and validity delimit its use. The policy and category versions
+are dependencies of the exact candidate and validation result.
+
+`reviewMethods` contains zero or more of `human_review` and
+`external_model_review`. Existing source anchors bind retained content and ranges;
+existing attributed source assessments bind interpretations to exact candidate
+versions. A URL, a caller-supplied verification flag, a digest, or ordinary author
+approval cannot by itself discharge a required evidence or interpretation duty.
+Category/policy changes require new reviewed versions and fresh dependent checks.
+No historical payload receives a default policy or a retroactive pass.
+
+This typed contract precedes its admission implementation. Until supported
+checks are wired into publication, both engines must return an explicit
+unsupported result for a candidate containing `requiredEvidence`; they must not
+treat its ordinary rule expression as evidence-policy completion. Delivery still
+requires scoped admission, creation choices, review findings and the platform UX
+specified above, including opposing evidence, event/effect claims and explicit
+fictional departures.
+
 ## 5. Target application architecture
 
 Use a Dart Pub workspace with one dependency resolution and lockfile. [Dart workspaces](https://dart.dev/tools/pub/workspaces) supports this without an additional monorepo framework.
@@ -577,7 +610,7 @@ Recommended baseline:
 - Typed storage/archives and one canonical/domain implementation.
 - Encrypted local credential fields with an OS-held installation key.
 - Explicit moves/clones between authoritative backends.
-- Real World represented by scoped, published policies and attributed evidence requirements.
+- Real World represented by scoped, published policies and attributed evidence requirements; authors choose source categories and review is required only where the scoped policy requests it.
 
 Choices to settle before their affected implementation:
 
@@ -586,7 +619,7 @@ Choices to settle before their affected implementation:
 | Meaning of native | Flutter-rendered adaptive UI plus OS integrations; actual OS-owned widgets throughout would require a different UI architecture |
 | PostgreSQL tenancy | Schema per universe inside an installation database; simpler preservation/setup, substantial repeated catalog objects |
 | Encrypted configuration | Typed settings with encrypted secret fields; full-file encrypted SQLite is an optional qualified alternative |
-| Real World qualifying evidence | Define source categories/review requirements by claim purpose; no automatic truth ranking or mandatory public corroboration of private memories |
+| Real World claim coverage | Apply the policy-dependent review decision in §4.6 to exact claim/effect bindings; no automatic truth ranking or mandatory public corroboration of private memories |
 | Hosting ownership | One approval owner per installation initially; independent per-universe owners need a separate authority design |
 | Commercial behavior | Decide pricing, quotas, retention/nonpayment and export access before paid rollout |
 | Browser-owned local database | Defer; locally served web can already use the installed engine without treating browser persistence as equivalent to native package durability |

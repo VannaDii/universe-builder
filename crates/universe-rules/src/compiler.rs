@@ -323,6 +323,7 @@ mod tests {
                 RecordKind::Rule,
             ),
             Payload::Rule(universe_domain::records::Rule {
+                required_evidence: None,
                 relation_cardinality: None,
                 knowledge_boundary: None,
                 knowledge_policy: None,
@@ -366,6 +367,7 @@ mod tests {
                 RecordKind::Rule,
             ),
             Payload::Rule(universe_domain::records::Rule {
+                required_evidence: None,
                 relation_cardinality: None,
                 knowledge_boundary: None,
                 knowledge_policy: None,
@@ -416,6 +418,7 @@ mod tests {
                 RecordKind::Rule,
             ),
             Payload::Rule(universe_domain::records::Rule {
+                required_evidence: None,
                 relation_cardinality: None,
                 knowledge_boundary: None,
                 knowledge_policy: None,
@@ -469,6 +472,7 @@ mod tests {
                 RecordKind::Rule,
             ),
             Payload::Rule(universe_domain::records::Rule {
+                required_evidence: None,
                 relation_cardinality: None,
                 knowledge_boundary: None,
                 knowledge_policy: None,
@@ -509,6 +513,7 @@ mod tests {
                 RecordKind::Rule,
             ),
             Payload::Rule(universe_domain::records::Rule {
+                required_evidence: None,
                 relation_cardinality: None,
                 knowledge_boundary: None,
                 knowledge_policy: None,
@@ -550,6 +555,7 @@ mod tests {
                 RecordKind::Rule,
             ),
             Payload::Rule(universe_domain::records::Rule {
+                required_evidence: None,
                 relation_cardinality: None,
                 knowledge_boundary: None,
                 knowledge_policy: None,

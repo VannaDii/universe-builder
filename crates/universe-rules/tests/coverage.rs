@@ -9,6 +9,7 @@ fn rule(expression: Expr, applicability: Applicability, executable: bool) -> Rec
             RecordKind::Rule,
         ),
         Payload::Rule(Rule {
+            required_evidence: None,
             relation_cardinality: None,
             knowledge_boundary: None,
             knowledge_policy: None,

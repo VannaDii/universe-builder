@@ -109,6 +109,9 @@ pub fn structural(records: &[RecordVersion]) -> anyhow::Result<()> {
         .collect();
     let mut action_names = BTreeSet::new();
     for record in records {
+        if matches!(&record.payload, Payload::Rule(r) if r.required_evidence.is_some()) {
+            return Err(ProtocolError::UnsupportedSemantics { message: "Required Real World evidence admission is not implemented; this policy cannot be published or treated as satisfied.".into() }.into());
+        }
         crate::provenance::validate_links(&record.payload, &map)?;
         match &record.payload {
             Payload::ActionDefinition(a) => {
@@ -1346,5 +1349,36 @@ mod opposing_fingerprint_tests {
                 "5e881c46f96a7ac859d3501f3f6cb464c949f2f7778375b44c42326d167071fc",
             ]
         );
+    }
+}
+
+#[cfg(test)]
+mod required_evidence_tests {
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn true_expression_cannot_discharge_unimplemented_evidence_policy() {
+        let u = UniverseId::parse("unv_000000000000000000000001").unwrap();
+        let mut payload = json!({"record_kind":"rule","namespace":"real_world","key":"history","labels":{},"kind":"authorial_restriction","commitPolicy":"always_block","applicability":{"kind":"universe_wide"},"targetPredicates":[],"expression":{"kind":"lit","value":true},"capabilities":[],"executable":true,"validity":{"kind":"unspecified"}});
+        let record = |value| {
+            let p: Payload = serde_json::from_value(value).unwrap();
+            RecordVersion::build(
+                RecordVersionId::parse("ver_000000000000000000000001").unwrap(),
+                RecordIdentity::new(
+                    u.clone(),
+                    RecordId::parse("rec_000000000000000000000001").unwrap(),
+                    p.kind(),
+                ),
+                p,
+            )
+            .unwrap()
+        };
+        structural(&[record(payload.clone())]).unwrap();
+        payload["requiredEvidence"] = json!({"sourceCategories":[]});
+        let failure = structural(&[record(payload)]).unwrap_err();
+        assert!(matches!(
+            failure.downcast_ref::<ProtocolError>(),
+            Some(ProtocolError::UnsupportedSemantics { .. })
+        ));
     }
 }

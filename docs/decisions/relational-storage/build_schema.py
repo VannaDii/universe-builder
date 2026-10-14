@@ -80,10 +80,15 @@ def contracts():
         if {'proposition','polarity','scope','validity','basis'} <= fields.keys():
             fields['attributeMode']={'type':'string','enum':['instance','shared','initial_value']}
             schema['required'] = required + ['attributeMode']
+        if {'commitPolicy', 'targetPredicates', 'expression', 'applicability'} <= fields.keys():
+            fields['requiredEvidence'] = nullable(ref('RequiredEvidence'))
         if 'payload_schema_version' in fields:
             fields.pop('payload_schema_version')
             schema['required'] = [k for k in required if k!='payload_schema_version']
         return schema
+    defs['EvidenceReviewMethod'] = {'type':'string','enum':['human_review','external_model_review']}
+    defs['RequiredEvidence'] = obj(sourceCategories=arr('VersionRef'), reviewMethods=arr('EvidenceReviewMethod'))
+    defs['RequiredEvidence']['required'].remove('reviewMethods')
     defs = replace_model(defs)
     # Remove superseded pre-release suffixes from the normative contract names/tags.
     aliases={'ValidationV3':'ValidationReport','OperationStatusV3':'OperationStatusReport',

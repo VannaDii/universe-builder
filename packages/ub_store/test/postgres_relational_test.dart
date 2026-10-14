@@ -1,6 +1,8 @@
 @TestOn('vm')
 library;
 
+import 'required_evidence_fixture.dart';
+
 import 'dart:io';
 
 import 'package:postgres/postgres.dart';
@@ -94,7 +96,7 @@ void main() {
               'SELECT count(*) FROM pg_tables WHERE schemaname=\$1',
               parameters: [schema.substring(1, schema.length - 1)],
             )).single.single,
-            886,
+            901,
           );
           final interrupted = UniverseId.generate();
           final namespace = postgresUniverseSchema(interrupted);
@@ -142,6 +144,14 @@ void main() {
               'value': item['value']!,
               'canonical': CanonicalString(item['value']!.toText()),
               'digest': item['digest']!,
+            });
+          }
+          for (final review in [false, true]) {
+            final payload = requiredEvidencePayload(universe, review: review);
+            cases.add({
+              'value': payload,
+              'canonical': CanonicalString(payload.toText()),
+              'digest': CanonicalString(payloadDigest('rule', payload)),
             });
           }
           final pointers = await connection.runTx((tx) async {

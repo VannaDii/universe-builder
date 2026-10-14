@@ -5152,6 +5152,10 @@
         "record_kind": {
           "model": "Payload_v22_record_kind",
           "required": true
+        },
+        "requiredEvidence": {
+          "model": "Payload_v22_requiredEvidence",
+          "required": false
         }
       }
     },
@@ -5528,6 +5532,50 @@
       "table": "r_payload_v22_record_kind",
       "kind": "string",
       "const": "rule"
+    },
+    "Payload_v22_requiredEvidence": {
+      "table": "r_payload_v22_required_evidence",
+      "kind": "union",
+      "variants": [
+        "RequiredEvidence",
+        "Payload_v22_requiredEvidence_v1"
+      ]
+    },
+    "RequiredEvidence": {
+      "table": "r_required_evidence",
+      "kind": "object",
+      "fields": {
+        "sourceCategories": {
+          "model": "RequiredEvidence_sourceCategories",
+          "required": true
+        },
+        "reviewMethods": {
+          "model": "RequiredEvidence_reviewMethods",
+          "required": false
+        }
+      }
+    },
+    "RequiredEvidence_sourceCategories": {
+      "table": "r_required_evidence_source_categories",
+      "kind": "array",
+      "item": "VersionRef"
+    },
+    "RequiredEvidence_reviewMethods": {
+      "table": "r_required_evidence_review_methods",
+      "kind": "array",
+      "item": "EvidenceReviewMethod"
+    },
+    "EvidenceReviewMethod": {
+      "table": "r_evidence_review_method",
+      "kind": "string",
+      "enum": [
+        "human_review",
+        "external_model_review"
+      ]
+    },
+    "Payload_v22_requiredEvidence_v1": {
+      "table": "r_payload_v22_required_evidence_v1",
+      "kind": "null"
     },
     "Payload_v23": {
       "table": "r_payload_v23",
@@ -9963,6 +10011,10 @@
         "validity": {
           "model": "Validity",
           "required": true
+        },
+        "requiredEvidence": {
+          "model": "Rule_requiredEvidence",
+          "required": false
         }
       }
     },
@@ -10057,6 +10109,18 @@
     "Rule_executable": {
       "table": "r_rule_executable",
       "kind": "boolean"
+    },
+    "Rule_requiredEvidence": {
+      "table": "r_rule_required_evidence",
+      "kind": "union",
+      "variants": [
+        "RequiredEvidence",
+        "Rule_requiredEvidence_v1"
+      ]
+    },
+    "Rule_requiredEvidence_v1": {
+      "table": "r_rule_required_evidence_v1",
+      "kind": "null"
     },
     "DomainOperation_v37_kind": {
       "table": "r_domain_operation_v37_kind",
