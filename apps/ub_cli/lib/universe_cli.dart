@@ -186,12 +186,14 @@ Future<int> runUniverseCli(
       if (prepare) selectorKey(args.positional[3]);
       final helper = await (engineHelper ?? LocalEngineClient.siblingEngine)();
       client = await LoopbackEngineClient.ensureRunning(
+        compatibilitySocket: false,
         root: root,
         profile: principal,
         helper: helper,
         clientName: 'maintenance-cli',
       );
       targetClient = await LoopbackEngineClient.ensureRunning(
+        compatibilitySocket: false,
         root: targetRoot,
         profile: targetProfile,
         helper: helper,
@@ -260,6 +262,7 @@ Future<int> runUniverseCli(
       if (tail.isNotEmpty) throw const _UsageError();
       final helper = await (engineHelper ?? LocalEngineClient.siblingEngine)();
       client = await LoopbackEngineClient.ensureRunning(
+        compatibilitySocket: false,
         root: root,
         profile: principal,
         helper: helper,
@@ -286,6 +289,7 @@ Future<int> runUniverseCli(
     }
     final helper = await (engineHelper ?? LocalEngineClient.siblingEngine)();
     client = await LoopbackEngineClient.ensureRunning(
+      compatibilitySocket: false,
       root: root,
       profile: principal,
       helper: helper,

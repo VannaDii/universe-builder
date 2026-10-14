@@ -154,7 +154,10 @@ final class LocalEngineClient {
           throw const FormatException('Absolute helper required');
         }
         final executable = File(original.resolveSymbolicLinksSync());
-        if (executable.uri.pathSegments.last != 'universe-engine' ||
+        if (!{
+              'universe-engine',
+              'universe-engine-sandbox',
+            }.contains(executable.uri.pathSegments.last) ||
             FileSystemEntity.typeSync(executable.path, followLinks: false) !=
                 FileSystemEntityType.file) {
           throw const FormatException('Installed engine helper required');
@@ -191,6 +194,7 @@ final class LocalEngineClient {
       final executable = File(Platform.resolvedExecutable)
           .resolveSymbolicLinksSync();
       var directory = File(executable).parent;
+      var sealedBundle = false;
       while (directory.path != directory.parent.path) {
         if (directory.path.endsWith('.app')) {
           final manifest =
@@ -212,11 +216,19 @@ final class LocalEngineClient {
               );
             }
           }
+          sealedBundle = true;
           break;
         }
         directory = directory.parent;
       }
-      return '${File(executable).parent.path}/universe-engine';
+      // The sandboxed Flutter runner must inherit its own rights into a child.
+      // CLI/headless callers use the same engine code with a normal signature;
+      // launching an inheritance-only binary from a shell aborts on macOS.
+      final sandboxChild =
+          Platform.isMacOS &&
+          sealedBundle &&
+          File(executable).uri.pathSegments.last == 'Universe Builder';
+      return '${File(executable).parent.path}/universe-engine${sandboxChild ? '-sandbox' : ''}';
     } on Object {
       throw const LocalEngineException(LocalEngineFailure.helperUnavailable);
     }

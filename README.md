@@ -8,16 +8,25 @@ The initial Flutter shell is in `apps/ub_app`, with desktop and compact navigati
 the approved branding, and System/Light/Dark appearance controls in Settings.
 Its native connection adapter accepts `--installation`, `--profile` and optional
 `--engine` arguments and reads the accessible library and universe summaries
-through authenticated loopback HTTP. A disposable service regression covers
+through authenticated loopback HTTP. CLI and MCP startup also request HTTP-only
+service mode so ordinary long installation paths do not require a Unix socket.
+A disposable service regression covers
 owner access and the empty library of a contributor without universe grants.
 The packaged macOS app's **Use this device** action sets up its app-private
 installation in Application Support, retains the owner profile and reconnects
 through its bundled engine. Build this local bundle with
-`python3 scripts/build_flutter_macos.py`; it includes native Dart assets, the
-approved icns, an inherited helper sandbox and a local ad-hoc code signature.
+`dart run apps/ub_cli/tool/package_macos.dart` (or add `--mode release` for the
+optimized local build). The Dart assembly command enforces the pinned toolchain,
+builds Flutter desktop/web and bundles `universe-engine`, `universe-mcp`,
+`universe` and `multiverse-mcp` with their matching native libraries. It includes
+the approved icns and a local ad-hoc code signature. The sandboxed app uses
+`universe-engine-sandbox`; CLI/headless callers use `universe-engine`. These are
+the same compiled engine with the launch signatures required for their callers.
+The app child follows [Apple’s sandbox-inheritance requirements](https://developer.apple.com/documentation/xcode/embedding-a-helper-tool-in-a-sandboxed-app).
+Both configurations permit the app-owned local service listener.
 This does not publish a release or provide distribution signing/notarization.
-Stop the bundle's engine before rebuilding; the build command refuses to replace
-a running helper.
+Stop this bundle's app and helpers before rebuilding; assembly refuses to replace
+them while running. The former Python assembly script has been retired.
 An explicit installation without a profile uses the same local device setup.
 The engine's `--device-profile` action prints only the retained profile ID;
 `--initialize` keeps its existing create-only behavior. The app starts HTTP-only
@@ -998,7 +1007,8 @@ has been functionally checked on macOS with disposable data, without release sig
 or publication. The compiled author CLI has also exercised sibling initialization,
 on-demand creation and shutdown outside the source tree. Keep the sibling
 `universe-engine` available with its required bundle libraries. Desktop launcher
-UX/shortcut interfaces and complete platform packaging remain pending.
+UX/shortcut interfaces are also included in the local macOS Flutter bundle as
+described below. Complete platform packaging remains pending.
 Focused functional checks currently cover macOS only.
 
 The Dart MCP foundation now embeds the maintained tool schemas, descriptions and
@@ -1056,8 +1066,16 @@ PATH or interpret forwarded arguments through a shell. Build with
 The launcher needs its installed sibling executables and their native libraries.
 Compiled forwarding has been checked on macOS outside the workspace with an empty
 PATH. Explicit launcher help/version and MCP help do not start an engine. Dart
-`ux` and `shortcut` remain unavailable until the Flutter desktop executable and
-packaging are delivered; the maintained Rust launcher continues to provide them.
+`ux` opens its sealed Flutter app; an optional `--installation <path> --profile
+<id>` pair selects an existing connection. `shortcut` creates a Finder app in
+`~/Applications`, or `--destination <directory>`, using the approved icon and a
+literal `ux` invocation. It refuses an existing application or symlink.
+`--launcher <absolute path>` can retain a stable installed command path across
+upgrades. Without it, the shortcut uses the current command path. Optional
+installation/profile options have the same paired meaning. Shortcuts contain no
+credentials and never initialize or publish canon. Desktop command help returns
+before opening the app. These delivered launcher paths currently cover macOS;
+other desktop distributions and Rust runtime retirement remain unfinished.
 
 Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter
 **3.47.5** (recorded in `.flutter-version`). Dependency resolution is locked in

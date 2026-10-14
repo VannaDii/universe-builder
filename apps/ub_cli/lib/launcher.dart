@@ -3,10 +3,14 @@ import 'dart:io';
 
 import 'package:ub_client/local_engine.dart';
 
+import 'desktop_launcher.dart';
+
 const _usage =
-    'Usage: multiverse-mcp <serve|admin> [arguments]\n'
+    'Usage: multiverse-mcp <serve|admin|ux|shortcut> [arguments]\n'
     'serve forwards to the installed universe-mcp; admin forwards to universe.\n'
-    'Dart desktop ux and shortcut commands are not available yet.';
+    'ux [--installation <path> --profile <id>] opens the desktop.\n'
+    'shortcut [--destination <directory>] [--launcher <absolute path>] '
+    '[--installation <path> --profile <id>] creates a Finder app on macOS.';
 
 /// Installed public entry point. Arguments are passed as literal process
 /// arguments, never through a shell or PATH lookup. The shared resolver verifies
@@ -25,9 +29,26 @@ Future<int> runLauncher(
     output('multiverse-mcp 0.1.0');
     return 0;
   }
-  if (arguments.isEmpty || !{'serve', 'admin'}.contains(arguments.first)) {
+  if (arguments.isEmpty ||
+      !{'serve', 'admin', 'ux', 'shortcut'}.contains(arguments.first)) {
     error(_usage);
     return 2;
+  }
+  DesktopOptions? desktop;
+  if ({'ux', 'shortcut'}.contains(arguments.first)) {
+    if (arguments.length == 2 && {'--help', '-h'}.contains(arguments[1])) {
+      output(_usage);
+      return 0;
+    }
+    try {
+      desktop = DesktopOptions.parse(
+        arguments.sublist(1),
+        shortcut: arguments.first == 'shortcut',
+      );
+    } on FormatException {
+      error(_usage);
+      return 2;
+    }
   }
   final signals = <StreamSubscription<ProcessSignal>>[];
   Process? child;
@@ -36,15 +57,30 @@ Future<int> runLauncher(
     if (!File(engine).isAbsolute) {
       throw const FormatException('Absolute installed helper required');
     }
-    final name = arguments.first == 'serve' ? 'universe-mcp' : 'universe';
-    final helper = '${File(engine).parent.path}/$name';
-    if (FileSystemEntity.typeSync(helper, followLinks: true) !=
+    if (arguments.first == 'shortcut') {
+      output(
+        'Created ${await createFinderShortcut(engine: engine, options: desktop!)}',
+      );
+      return 0;
+    }
+    final ({String executable, List<String> arguments}) command;
+    if (arguments.first == 'ux') {
+      command = desktopCommand(engine, desktop!.arguments);
+    } else {
+      final name = arguments.first == 'serve' ? 'universe-mcp' : 'universe';
+      command = (
+        executable:
+            '${File(engine).parent.path}/$name${Platform.isWindows ? '.exe' : ''}',
+        arguments: arguments.sublist(1),
+      );
+    }
+    if (FileSystemEntity.typeSync(command.executable, followLinks: true) !=
         FileSystemEntityType.file) {
       throw const FormatException('Installed helper unavailable');
     }
     child = await Process.start(
-      helper,
-      arguments.sublist(1),
+      command.executable,
+      command.arguments,
       mode: ProcessStartMode.inheritStdio,
     );
     if (!Platform.isWindows) {

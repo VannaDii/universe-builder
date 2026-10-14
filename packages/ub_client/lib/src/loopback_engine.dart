@@ -85,7 +85,10 @@ final class LoopbackEngineClient {
           throw const FormatException('Absolute helper required');
         }
         final executable = File(original.resolveSymbolicLinksSync());
-        if (executable.uri.pathSegments.last != 'universe-engine' ||
+        if (!{
+              'universe-engine',
+              'universe-engine-sandbox',
+            }.contains(executable.uri.pathSegments.last) ||
             FileSystemEntity.typeSync(executable.path, followLinks: false) !=
                 FileSystemEntityType.file) {
           throw const FormatException('Installed engine helper required');

@@ -88,13 +88,17 @@ void main() {
     expect(await run(['--help']), 0);
     expect(output.single, contains('serve'));
     output.clear();
+    expect(await run(['ux', '--help']), 0);
+    expect(await run(['shortcut', '--help']), 0);
+    output.clear();
     expect(await run(['--version']), 0);
     expect(output.single, startsWith('multiverse-mcp '));
     for (final args in <List<String>>[
       [],
       ['unknown'],
-      ['ux'],
-      ['shortcut'],
+      ['ux', '--installation', '/tmp/incomplete'],
+      ['shortcut', '--profile', 'invalid'],
+      ['ux', '--unknown'],
     ]) {
       expect(await run(args), 2);
     }

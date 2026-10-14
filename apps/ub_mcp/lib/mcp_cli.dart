@@ -59,6 +59,7 @@ Future<int> runMcp(
     final profile = ProfileId.parse(profileText);
     final helper = await (engineHelper ?? LocalEngineClient.siblingEngine)();
     final ready = await LoopbackEngineClient.ensureRunning(
+      compatibilitySocket: false,
       root: root,
       profile: profile,
       helper: helper,

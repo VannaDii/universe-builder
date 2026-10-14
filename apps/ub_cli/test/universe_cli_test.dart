@@ -409,7 +409,7 @@ void main() {
     expect(await run(['stage-source', 'World', 'Label', source.path]), 2);
   });
 
-  test('standalone universe command uses its installed sibling for initialization and on-demand authoring', () async {
+  test('standalone universe command initializes and authors on a long path using its installed sibling', () async {
     await server.close();
     final library = await Isolate.resolvePackageUri(
       Uri.parse('package:ub_cli/universe_cli.dart'),
@@ -447,7 +447,9 @@ void main() {
       'UB_USE_POSTGRES': 'false',
       'UB_POSTGRES_ENDPOINT': '',
     };
-    final installation = '${root.path}/new-installation';
+    final installation =
+        '${root.path}/${'long-device-directory-' * 6}/new-installation';
+    expect(installation.length, greaterThan(120));
     Future<ProcessResult> invoke(List<String> command, {String? profile}) =>
         Process.run(
           binary,
