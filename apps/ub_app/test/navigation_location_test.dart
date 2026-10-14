@@ -44,6 +44,27 @@ void main() {
       throwsFormatException,
     );
   });
+  test('record links retain the opened revision and scoped identity', () {
+    final location = LibraryLocation(
+      universe: UniverseId.generate(),
+      continuity: ContinuityId.generate(),
+      context: RecordId.generate(),
+      revision: RevisionId.generate(),
+      record: RecordId.generate(),
+    );
+    final parsed = LibraryLocation.parse(location.uri);
+    expect(parsed.uri, location.uri);
+    expect(parsed.revision, location.revision);
+    expect(parsed.record, location.record);
+    expect(parsed.context, location.context);
+    expect(parsed.editor, isNull);
+    expect(
+      () => LibraryLocation.parse(
+        Uri.parse(location.uri.toString().replaceFirst('/revision/', '/head/')),
+      ),
+      throwsFormatException,
+    );
+  });
   test('unrecognized paths, credentials, queries and invalid identities are rejected', () {
     for (final path in [
       '/universe/not-an-id',

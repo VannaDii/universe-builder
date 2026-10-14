@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+
+import 'navigation_location.dart';
+
 import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'package:ub_domain/ub_domain.dart';
 
@@ -337,11 +341,24 @@ class _RecordBrowserPageState extends State<RecordBrowserPage> {
                     ? null
                     : () => Navigator.of(context).push<void>(
                         MaterialPageRoute(
-                          builder: (_) => _RecordDetailPage(
+                          settings: kIsWeb
+                              ? RouteSettings(
+                                  name: LibraryLocation(
+                                    universe: widget.universe.id,
+                                    continuity: widget.continuity.id,
+                                    context: widget.representedContext.id,
+                                    revision: _context!.frame.revision,
+                                    record: hit.recordId,
+                                  ).uri.toString(),
+                                )
+                              : null,
+                          builder: (_) => RecordDetailPage(
                             session: widget.session,
                             universe: widget.universe,
                             context: _context!,
-                            hit: hit,
+                            record: hit.recordId,
+                            kind: hit.kind,
+                            label: hit.label,
                             scope: widget.scope,
                             continuity: widget.continuity,
                             representedContext: widget.representedContext,
@@ -364,12 +381,14 @@ class _RecordBrowserPageState extends State<RecordBrowserPage> {
   );
 }
 
-class _RecordDetailPage extends StatefulWidget {
-  const _RecordDetailPage({
+class RecordDetailPage extends StatefulWidget {
+  const RecordDetailPage({
     required this.session,
     required this.universe,
     required this.context,
-    required this.hit,
+    required this.record,
+    required this.kind,
+    required this.label,
     required this.scope,
     required this.continuity,
     required this.representedContext,
@@ -380,12 +399,14 @@ class _RecordDetailPage extends StatefulWidget {
   final AppSession session;
   final LibraryEntry universe;
   final OpenedContext context;
-  final SearchHit hit;
+  final RecordId record;
+  final RecordKind kind;
+  final String label;
   @override
-  State<_RecordDetailPage> createState() => _RecordDetailPageState();
+  State<RecordDetailPage> createState() => RecordDetailPageState();
 }
 
-class _RecordDetailPageState extends State<_RecordDetailPage> {
+class RecordDetailPageState extends State<RecordDetailPage> {
   Envelope<Records>? _material;
   Envelope<data.State>? _state;
   _DossierView _view = _DossierView.fields;
@@ -418,11 +439,11 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
           session: widget.session,
           universe: widget.universe,
           context: widget.context,
-          entity: widget.hit.recordId,
+          entity: widget.record,
         );
         if (result.result.objects.length != 1 ||
             result.result.objects.single.identity.identity.recordId !=
-                widget.hit.recordId) {
+                widget.record) {
           throw const FormatException('Entity state unavailable.');
         }
         if (mounted) setState(() => _state = result);
@@ -432,7 +453,7 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
         session: widget.session,
         universe: widget.universe,
         context: widget.context,
-        record: widget.hit.recordId,
+        record: widget.record,
         group: _group,
         includePayload:
             _view == _DossierView.appearance || _view == _DossierView.sources,
@@ -440,7 +461,7 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
       if (_group == FieldGroup.payload &&
           (material.result.records.length != 1 ||
               material.result.records.single.identity.recordId !=
-                  widget.hit.recordId)) {
+                  widget.record)) {
         throw const FormatException('Record unavailable.');
       }
       if (mounted) setState(() => _material = material);
@@ -511,9 +532,7 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(widget.hit.label.isEmpty ? 'Record' : widget.hit.label),
-    ),
+    appBar: AppBar(title: Text(widget.label.isEmpty ? 'Record' : widget.label)),
     body: Align(
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
@@ -534,7 +553,7 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                   _DossierView.history: 'History',
                   _DossierView.appearance: 'Appearance',
                   _DossierView.sources: 'Sources',
-                  if (widget.hit.kind == RecordKind.entity) ...{
+                  if (widget.kind == RecordKind.entity) ...{
                     _DossierView.facts: 'Facts',
                     _DossierView.relationships: 'Relationships',
                     _DossierView.timeline: 'Timeline',
@@ -1403,8 +1422,8 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                 _RelationshipList(
                   material: _material!.result,
                   universe: widget.universe.id,
-                  entity: widget.hit.recordId,
-                  name: widget.hit.label,
+                  entity: widget.record,
+                  name: widget.label,
                   graph: _relationshipGraph,
                   onGraphChanged: (graph) =>
                       setState(() => _relationshipGraph = graph),
@@ -1413,8 +1432,8 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                 DossierTimeline(
                   material: _material!.result,
                   universe: widget.universe.id,
-                  entity: widget.hit.recordId,
-                  name: widget.hit.label,
+                  entity: widget.record,
+                  name: widget.label,
                   representedContext: widget.representedContext.id,
                 ),
               if (_view == _DossierView.appearance)
@@ -1422,7 +1441,7 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                   session: widget.session,
                   universe: widget.universe,
                   context: widget.context,
-                  entry: widget.hit.recordId,
+                  entry: widget.record,
                   material: _material!.result,
                 ),
               if (_view == _DossierView.sources)

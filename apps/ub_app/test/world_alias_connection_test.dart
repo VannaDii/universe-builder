@@ -3,12 +3,13 @@ library;
 
 import 'dart:io';
 
-import 'package:test/test.dart';
+import 'package:test/test.dart' hide Description;
 import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/saved_changes.dart';
 import 'package:ub_app/world_draft.dart';
 import 'package:ub_app/record_browser.dart';
+import 'package:ub_app/world_browser.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_engine.dart';
@@ -247,6 +248,33 @@ void main() {
         validation.execution.runId,
       );
       expect(published.revision, isNot(receipt.revision));
+      final latestDescription = Envelope<Description>.fromWire(
+        await session.call(
+          ToolEngineRequest(
+            request: DescribeSummaryRequest(universe: Selector(entry.name)),
+          ),
+        ),
+        Description.fromWire,
+      ).result;
+      final latestContinuity = latestDescription.continuities.single;
+      expect(latestContinuity.revisionId, published.revision);
+      final reopened = await openAuthorReadContext(
+        session,
+        entry,
+        latestContinuity,
+        latestContinuity.representedContexts.single,
+        revision: receipt.revision,
+      );
+      expect(reopened.frame.revision, receipt.revision);
+      expect(
+        (await readContextRecord(
+          session: session,
+          universe: entry,
+          context: reopened,
+          record: record.identity.recordId,
+        )).payload.toWire().toText(),
+        original.toWire().toText(),
+      );
       final historical = await readContextRecordMaterial(
         session: session,
         universe: entry,

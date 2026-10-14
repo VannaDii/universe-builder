@@ -55,8 +55,9 @@ Future<OpenedContext> openAuthorReadContext(
   AppSession session,
   LibraryEntry universe,
   ContinuitySummary continuity,
-  RepresentedContextSummary representedContext,
-) async {
+  RepresentedContextSummary representedContext, {
+  RevisionId? revision,
+}) async {
   if (!continuity.representedContexts.any(
     (item) => item.id == representedContext.id,
   )) {
@@ -71,7 +72,9 @@ Future<OpenedContext> openAuthorReadContext(
           universe: Selector(universe.name),
           universeId: universe.id,
           continuityId: continuity.id,
-          revision: ExactRevisionSelector(revisionId: continuity.revisionId),
+          revision: ExactRevisionSelector(
+            revisionId: revision ?? continuity.revisionId,
+          ),
           representedContext: ContextIdSelector(representedContext.id),
           temporalQuery: const TimelessFrameTime(),
           temporalSystems: [],

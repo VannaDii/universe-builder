@@ -89,8 +89,12 @@ guarded Back action before a requested root navigation is applied. Creation edit
 fresh authorized continuity/context data after connection; recovery never submits
 or publishes. Back awaits the existing editor leave/save action. A failed save
 keeps the editor and its input open; Forward reconstructs its screen and refresh
-reopens its scoped bookmark. Existing-record revision links and nested detail
-screen history remain in progress.
+reopens its scoped bookmark. Record dossier links use
+`#/universe/<id>/continuity/<id>/context/<id>/revision/<id>/record/<id>`.
+They retain the opened revision, including after later publication, and read the
+record through current service permissions after connection. Back returns to the
+record browser when opened there; Forward and refresh reopen the pinned record.
+Links for record-edit actions and other nested detail screens remain in progress.
 
 Connected approval owners can create a universe from Library. Gregorian creation
 uses an explicitly entered date, whole-second time and fixed UTC offset, with an

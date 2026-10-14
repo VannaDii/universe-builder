@@ -10,12 +10,16 @@ final class LibraryLocation {
     this.continuity,
     this.context,
     this.editor,
+    this.record,
+    this.revision,
   });
   final LibrarySection section;
   final UniverseId? universe;
   final ContinuityId? continuity;
   final RecordId? context;
   final String? editor;
+  final RecordId? record;
+  final RevisionId? revision;
   static const editors = {
     'records',
     'entity',
@@ -54,7 +58,9 @@ final class LibraryLocation {
   Uri get uri => universe == null
       ? Uri(path: '/${section.name}')
       : Uri(
-          path: editor == null
+          path: record != null
+              ? '/universe/${universe!.value}/continuity/${continuity!.value}/context/${context!.value}/revision/${revision!.value}/record/${record!.value}'
+              : editor == null
               ? '/universe/${universe!.value}'
               : '/universe/${universe!.value}/continuity/${continuity!.value}/context/${context!.value}/editor/$editor',
         );
@@ -86,6 +92,20 @@ final class LibraryLocation {
         continuity: ContinuityId.parse(parts[3]),
         context: RecordId.parse(parts[5]),
         editor: parts[7],
+      );
+    }
+    if (parts.length == 10 &&
+        parts[0] == 'universe' &&
+        parts[2] == 'continuity' &&
+        parts[4] == 'context' &&
+        parts[6] == 'revision' &&
+        parts[8] == 'record') {
+      return LibraryLocation(
+        universe: UniverseId.parse(parts[1]),
+        continuity: ContinuityId.parse(parts[3]),
+        context: RecordId.parse(parts[5]),
+        revision: RevisionId.parse(parts[7]),
+        record: RecordId.parse(parts[9]),
       );
     }
     throw const FormatException('Unsupported application link');
