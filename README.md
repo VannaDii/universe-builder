@@ -303,6 +303,13 @@ expressions, ordered steps, explicit status and validity. Repeated steps remain
 intact. A plan neither executes its steps nor reserves resources; recording an
 achieved status does not invent occurred events. Unfinished fields recover on
 this device, and pending plans offer **Edit plan fields** in Changes.
+**Exception** selects a named rule or creative boundary and pins its version
+at the saved draft revision. Choose an authorizing issue decision, scope,
+validity and rationale separately. Named decision choices include their visible
+scope target for authors. Unfinished recovery and Changes editing preserve exact
+version links; existing checks still require an accepting decision and contained
+scope and validity before publication.
+
 **Issue decision** lets the installation author record accept, defer or resolve
 for exact finding fingerprints, with an authored scope and rationale. Identities
 retain their order and repeats. A named record can supply the scope value;

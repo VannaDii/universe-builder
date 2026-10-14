@@ -201,6 +201,10 @@ final class DeviceConnection {
       root: root!,
       client: client,
     );
+    final exceptionRecovery = LocalExceptionFormRecovery(
+      root: root!,
+      client: client,
+    );
     final boundaryRecovery = LocalBoundaryFormRecovery(
       root: root!,
       client: client,
@@ -297,6 +301,9 @@ final class DeviceConnection {
       loadIssueDecisionForm: (scope) =>
           sequenced(() => issueDecisionRecovery.load(scope)),
       saveIssueDecisionForm: issueDecisionRecovery.save,
+      loadExceptionForm: (scope) =>
+          sequenced(() => exceptionRecovery.load(scope)),
+      saveExceptionForm: exceptionRecovery.save,
       loadBoundaryForm: (scope) =>
           sequenced(() => boundaryRecovery.load(scope)),
       saveBoundaryForm: boundaryRecovery.save,

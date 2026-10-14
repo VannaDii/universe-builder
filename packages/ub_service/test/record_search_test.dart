@@ -28,6 +28,41 @@ void main() {
     expect(search('', kinds: [RecordKind.world]).single.recordId, f.id(2));
     expect(search('unavailable'), isEmpty);
   });
+  test('decision labels name only visible local scope targets in author perspective', () {
+    final target = f.row(1, f.type(1, key: 'Origin boundary'));
+    final decision = f.row(
+      2,
+      IssueDecisionRecord(
+        fingerprints: [],
+        mode: IssueDecisionMode.accept,
+        scope: f.id(1).value,
+        rationale: 'Scope acceptance.',
+        principal: PrincipalId.generate(),
+      ),
+    );
+    expect(
+      recordSearchLabel(decision, {f.id(1): target}, author: true),
+      'Accept decision: Origin boundary',
+    );
+    expect(recordSearchLabel(decision, {}, author: true), f.id(2).value);
+    expect(
+      recordSearchLabel(decision, {f.id(1): target}, author: false),
+      f.id(2).value,
+    );
+    final foreign = RecordVersion.build(
+      recordVersionId: target.recordVersionId,
+      identity: RecordIdentity(
+        universeId: UniverseId.generate(),
+        recordId: f.id(1),
+        recordKind: RecordKind.entityType,
+      ),
+      payload: target.payload,
+    );
+    expect(
+      recordSearchLabel(decision, {f.id(1): foreign}, author: true),
+      f.id(2).value,
+    );
+  });
   test('research labels use only visible dependencies and require author perspective', () {
     final rows = [
       f.row(1, permissions.entity(labels: {'en': 'Alice'})),

@@ -25,6 +25,8 @@ final class AppSession {
     required this.saveItemPowerForm,
     required this.loadIssueDecisionForm,
     required this.saveIssueDecisionForm,
+    required this.loadExceptionForm,
+    required this.saveExceptionForm,
     required this.loadBoundaryForm,
     required this.saveBoundaryForm,
     required this.loadCommitmentForm,
@@ -132,6 +134,13 @@ final class AppSession {
     BigInt,
   )
   saveIssueDecisionForm;
+  final Future<SavedExceptionForm?> Function(EditorFormScope) loadExceptionForm;
+  final Future<SavedExceptionForm> Function(
+    EditorFormScope,
+    UnfinishedExceptionForm,
+    BigInt,
+  )
+  saveExceptionForm;
   final Future<SavedBoundaryForm?> Function(EditorFormScope) loadBoundaryForm;
   final Future<SavedBoundaryForm> Function(
     EditorFormScope,

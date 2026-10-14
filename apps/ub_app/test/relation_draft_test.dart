@@ -22,6 +22,7 @@ import 'package:ub_app/item_power_draft.dart';
 import 'package:ub_app/represented_context_draft.dart';
 import 'package:ub_app/boundary_draft.dart';
 import 'package:ub_app/issue_decision_draft.dart';
+import 'package:ub_app/exception_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -2263,6 +2264,94 @@ void main() {
           decisionForm,
           principal: decisionPrincipal,
         ).record.toWire().toText(),
+      );
+      final acceptanceBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final acceptanceForm = UnfinishedIssueDecisionForm(
+        baseRevision: acceptanceBase.content.baseRevision,
+        representedContext: scope.representedContext!,
+        clientRef: 'origin-departure-acceptance',
+        principal: decisionPrincipal,
+        mode: 'accept',
+        fingerprints: [],
+        scope: boundaryPublished.single.identity.recordId.value,
+        rationale: 'Accept the specifically scoped departure from the brooch origin boundary.',
+      );
+      final acceptanceDraft = SavedDraft.fromWire(
+        await session.call(
+          issueDecisionDraftRequest(
+            draft: acceptanceBase,
+            form: acceptanceForm,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+            principal: decisionPrincipal,
+          ),
+        ),
+      );
+      final acceptancePublished = await publish(acceptanceDraft);
+      final exceptionBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final exceptionContext = await openDraftChoiceContext(
+        changes(),
+        exceptionBase,
+      );
+      final decisionChoices = await searchDraftChoices(
+        changes: changes(),
+        context: exceptionContext,
+        kind: RecordKind.issueDecision,
+        query: 'Accept decision: Brooch origin',
+      );
+      expect(
+        decisionChoices.result.hits.single.recordId,
+        acceptancePublished.single.identity.recordId,
+      );
+      final exceptionForm = UnfinishedExceptionForm(
+        baseRevision: exceptionBase.content.baseRevision,
+        representedContext: scope.representedContext!,
+        clientRef: 'origin-exception',
+        rule: ExpressionReferenceInput(
+          record: boundaryPublished.single.identity.recordId.value,
+          universe: scope.universe.value,
+        ),
+        ruleVersionEnabled: true,
+        ruleVersion: boundaryPublished.single.recordVersionId.value,
+        decision: ExpressionReferenceInput(
+          record: acceptancePublished.single.identity.recordId.value,
+          universe: scope.universe.value,
+        ),
+        scope: ScopeInput(
+          applicability: 'universe_wide',
+          contextRecord: scope.representedContext!.value,
+          contextUniverse: scope.universe.value,
+        ),
+        rationale: 'A bounded author-approved departure 記憶 😀.',
+      );
+      await session.saveExceptionForm(scope, exceptionForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredException = (await session.loadExceptionForm(scope))!.form;
+      expect(
+        recoveredException.toWire().toText(),
+        exceptionForm.toWire().toText(),
+      );
+      final exceptionDraft = SavedDraft.fromWire(
+        await session.call(
+          exceptionDraftRequest(
+            draft: exceptionBase,
+            form: recoveredException,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final exceptionPublished = await publish(exceptionDraft);
+      expect(
+        exceptionPublished.single.payload.toWire().toText(),
+        exceptionOperation(exceptionForm).record.toWire().toText(),
       );
     } finally {
       await session?.close();

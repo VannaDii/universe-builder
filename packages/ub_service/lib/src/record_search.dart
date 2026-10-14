@@ -92,6 +92,18 @@ String recordSearchLabel(
       return '$quantifier: $subjectLabel.$predicateLabel'
           '${value == null ? '' : ' = $amount'}'
           '${roleLabels.isEmpty ? '' : ' — ${roleLabels.join('; ')}'} [$contextLabel]';
+    case IssueDecisionRecord(:final mode, :final scope):
+      final target = visible.values
+          .where(
+            (target) =>
+                target.identity.recordId.value == scope &&
+                target.identity.universeId == row.identity.universeId,
+          )
+          .firstOrNull;
+      if (target != null) {
+        final state = mode.name;
+        return '${state[0].toUpperCase()}${state.substring(1)} decision: ${recordReadLabel(target)}';
+      }
     case ObservationRecord(:final observer, :final observed):
       final observerLabel = label(observer),
           observedLabel = propositionLabel(observed) ?? label(observed);
