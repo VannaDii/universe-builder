@@ -9,6 +9,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/installation.dart'
     show privateDirectory, protectedFile;
 import 'package:ub_store/sqlite.dart' show OwnedSqliteDatabase;
+import 'package:ub_store/ub_store.dart' show maxImageBytes;
 
 import 'postgres_runtime.dart';
 import 'sqlite_runtime.dart';
@@ -188,7 +189,11 @@ final class LoopbackEngineServer {
         return;
       }
       if (request.method == 'POST' &&
-          request.uri.path == '/engine/browser/import-file') {
+          {
+            '/engine/browser/import-file',
+            '/engine/browser/image-file',
+          }.contains(request.uri.path)) {
+        final image = request.uri.path == '/engine/browser/image-file';
         _expireBrowserAccess();
         if (request.uri.hasQuery ||
             origin != endpoint.origin ||
@@ -221,31 +226,64 @@ final class LoopbackEngineServer {
           response.statusCode = HttpStatus.forbidden;
           return;
         }
-        final header = request.headers.value('x-ub-import');
+        final header = request.headers.value(
+          image ? 'x-ub-image' : 'x-ub-import',
+        );
         if (header == null || header.length > 8192) {
           response.statusCode = HttpStatus.badRequest;
           return;
         }
         final metadata = WireFields(
           CanonicalValue.parseWireJson(utf8.decode(base64Decode(header))),
-          {'preview_id', 'name', 'mode'},
+          image
+              ? {'universe', 'original_name'}
+              : {'preview_id', 'name', 'mode'},
         );
-        final id = OperationId.parse(metadata.string('preview_id'));
-        final name = metadata.string('name'),
-            mode = ImportMode.fromName(metadata.string('mode'));
-        const limit =
-            ReadMoveChunkEngineRequest.chunkBytes *
-            ReadMoveChunkEngineRequest.maxChunks;
+        final EngineRequest Function(String path) command;
+        final String filename;
+        if (image) {
+          final universe = Selector.fromWire(metadata.require('universe'));
+          filename = metadata.string('original_name');
+          if (filename.isEmpty ||
+              utf8.encode(filename).length > 255 ||
+              filename == '.' ||
+              filename == '..' ||
+              filename.contains('/') ||
+              filename.contains('\\') ||
+              filename.runes.any((r) => r <= 31 || r >= 127 && r <= 159)) {
+            response.statusCode = HttpStatus.badRequest;
+            return;
+          }
+          command = (path) =>
+              StageImageEngineRequest(universe: universe, source: path);
+        } else {
+          final id = OperationId.parse(metadata.string('preview_id'));
+          final name = metadata.string('name'),
+              mode = ImportMode.fromName(metadata.string('mode'));
+          filename = 'archive.sqlite';
+          command = (path) => PreviewImportEngineRequest(
+            source: path,
+            name: name,
+            mode: mode,
+            previewId: id,
+          );
+        }
+        final limit = image
+            ? maxImageBytes
+            : ReadMoveChunkEngineRequest.chunkBytes *
+                  ReadMoveChunkEngineRequest.maxChunks;
         if (request.contentLength > limit || request.contentLength == 0) {
           response.statusCode = HttpStatus.requestEntityTooLarge;
           return;
         }
         final directory = Directory.systemTemp.createTempSync(
-          'universe-builder-browser-import-',
+          image
+              ? 'universe-builder-browser-image-'
+              : 'universe-builder-browser-import-',
         );
         try {
           privateDirectory(directory.path);
-          final file = File('${directory.path}/archive.sqlite');
+          final file = File('${directory.path}/$filename');
           protectedFile(file.path, createNew: true);
           var bytes = 0;
           final output = file.openWrite();
@@ -272,20 +310,17 @@ final class LoopbackEngineServer {
           EngineResult result;
           try {
             result = EngineSuccess(
-              await connection.execute(
-                PreviewImportEngineRequest(
-                  source: file.path,
-                  name: name,
-                  mode: mode,
-                  previewId: id,
-                ),
-              ),
+              await connection.execute(command(file.path)),
             );
           } on ProtocolError catch (error) {
             result = EngineFailure(error);
           } on Object {
-            result = const EngineFailure(
-              PolicyDeniedError(message: 'Package import unavailable'),
+            result = EngineFailure(
+              PolicyDeniedError(
+                message: image
+                    ? 'Image staging unavailable'
+                    : 'Package import unavailable',
+              ),
             );
           }
           response.headers.contentType = ContentType.json;

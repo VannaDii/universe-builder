@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
+import 'package:ub_store/ub_store.dart' show maxImageBytes;
 import 'package:web/web.dart' as web;
 
 import 'browser_engine.dart';
@@ -107,21 +108,52 @@ final class SameOriginBrowserTransport {
     required ImportMode mode,
     required String csrf,
   }) async {
+    return _postFile(
+      file: file,
+      path: '/engine/browser/import-file',
+      header: 'x-ub-import',
+      csrf: csrf,
+      limit:
+          ReadMoveChunkEngineRequest.chunkBytes *
+          ReadMoveChunkEngineRequest.maxChunks,
+      metadata: CanonicalObject([
+        MapEntry('preview_id', CanonicalString(previewId.value)),
+        MapEntry('name', CanonicalString(name)),
+        MapEntry('mode', CanonicalString(mode.name)),
+      ]),
+    );
+  }
+
+  Future<BrowserEngineResponse> postImage({
+    required web.File file,
+    required Selector universe,
+    required String csrf,
+  }) => _postFile(
+    file: file,
+    path: '/engine/browser/image-file',
+    header: 'x-ub-image',
+    csrf: csrf,
+    limit: maxImageBytes,
+    metadata: CanonicalObject([
+      MapEntry('universe', universe.toWire()),
+      MapEntry('original_name', CanonicalString(file.name)),
+    ]),
+  );
+
+  Future<BrowserEngineResponse> _postFile({
+    required web.File file,
+    required String path,
+    required String header,
+    required String csrf,
+    required int limit,
+    required CanonicalObject metadata,
+  }) async {
     if (_closed) throw const LocalEngineException(LocalEngineFailure.closed);
     if (_active != null) {
       throw const LocalEngineException(LocalEngineFailure.busy);
     }
-    const limit =
-        ReadMoveChunkEngineRequest.chunkBytes *
-        ReadMoveChunkEngineRequest.maxChunks;
-    final metadata = base64Encode(
-      CanonicalObject([
-        MapEntry('preview_id', CanonicalString(previewId.value)),
-        MapEntry('name', CanonicalString(name)),
-        MapEntry('mode', CanonicalString(mode.name)),
-      ]).toBytes(),
-    );
-    if (file.size < 1 || file.size > limit || metadata.length > 8192) {
+    final encoded = base64Encode(metadata.toBytes());
+    if (file.size < 1 || file.size > limit || encoded.length > 8192) {
       throw const LocalEngineException(LocalEngineFailure.invalidRequest);
     }
     final controller = web.AbortController();
@@ -131,10 +163,10 @@ final class SameOriginBrowserTransport {
       final headers = web.Headers()
         ..set('content-type', 'application/octet-stream')
         ..set('x-ub-csrf', csrf)
-        ..set('x-ub-import', metadata);
+        ..set(header, encoded);
       final response = await web.window
           .fetch(
-            '/engine/browser/import-file'.toJS,
+            path.toJS,
             web.RequestInit(
               method: 'POST',
               headers: headers,

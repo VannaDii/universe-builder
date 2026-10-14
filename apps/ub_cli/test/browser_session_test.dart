@@ -5,7 +5,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:test/test.dart';
+import 'package:test/test.dart' hide Description;
+import 'package:crypto/crypto.dart';
 import 'package:ub_store/sqlite.dart' as local;
 import 'package:ub_cli/universe_cli.dart';
 import 'package:ub_client/loopback_engine.dart';
@@ -430,6 +431,170 @@ void main() {
         csrf: writerFileSession.csrf,
         expectedStatus: HttpStatus.forbidden,
       );
+      Future<EngineResult?> uploadImage(
+        List<int> bytes, {
+        String name = 'Portrait 記憶.png',
+        String? cookie,
+        String? csrf,
+        String? origin,
+        int expectedStatus = HttpStatus.ok,
+      }) async {
+        final request = await http.postUrl(
+          server.httpEndpoint.resolve('/engine/browser/image-file'),
+        );
+        request.headers.set('origin', origin ?? server.httpEndpoint.origin);
+        request.headers.contentType = ContentType.binary;
+        request.headers.set(HttpHeaders.cookieHeader, cookie ?? session.cookie);
+        request.headers.set('x-ub-csrf', csrf ?? session.csrf);
+        request.headers.set(
+          'x-ub-image',
+          base64Encode(
+            CanonicalObject([
+              MapEntry('universe', Selector('Browser universe').toWire()),
+              MapEntry('original_name', CanonicalString(name)),
+            ]).toBytes(),
+          ),
+        );
+        request.contentLength = bytes.length;
+        request.add(bytes);
+        final response = await request.close();
+        final body = BytesBuilder(copy: false);
+        await for (final chunk in response) {
+          body.add(chunk);
+        }
+        expect(response.statusCode, expectedStatus);
+        if (expectedStatus != HttpStatus.ok) {
+          expect(body.length, 0);
+          return null;
+        }
+        return EngineResult.fromWire(
+          CanonicalValue.parseWireJson(utf8.decode(body.takeBytes())),
+        );
+      }
+
+      final png = base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==',
+      );
+      await uploadImage(
+        png,
+        csrf: 'wrong',
+        expectedStatus: HttpStatus.forbidden,
+      );
+      await uploadImage(
+        png,
+        origin: 'https://foreign.example',
+        expectedStatus: HttpStatus.forbidden,
+      );
+      await uploadImage(
+        png,
+        cookie: 'unknown-session',
+        expectedStatus: HttpStatus.unauthorized,
+      );
+      await uploadImage(
+        png,
+        cookie: writerFileSession.cookie,
+        csrf: writerFileSession.csrf,
+        expectedStatus: HttpStatus.forbidden,
+      );
+      for (final name in [
+        '../portrait.png',
+        '..',
+        'portrait\\file.png',
+        'portrait\n.png',
+      ]) {
+        await uploadImage(
+          png,
+          name: name,
+          expectedStatus: HttpStatus.badRequest,
+        );
+      }
+      expect(await uploadImage([1, 2, 3]), isA<EngineFailure>());
+      final staged = await uploadImage(png);
+      expect(staged, isA<EngineSuccess>());
+      final stagedFields = WireFields((staged as EngineSuccess).value, {
+        'canonical',
+        'asset_id',
+        'metadata',
+        'preview',
+        'operations',
+      });
+      expect(stagedFields.require('canonical'), const CanonicalBool(false));
+      final operations = stagedFields
+          .array('operations')
+          .map(DomainOperation.fromWire)
+          .toList();
+      final image = (operations.single as AddImageAssetOperation).record;
+      expect(image.contentDigest, sha256.convert(png).toString());
+      expect(image.byteSize, BigInt.from(png.length));
+      expect(image.originalName, 'Portrait 記憶.png');
+      expect((image.width, image.height), (1, 1));
+      expect(
+        stagedFields.string('preview'),
+        startsWith('data:image/jpeg;base64,'),
+      );
+      final snapshot = '${root.path}/staged-image.sqlite';
+      await native.call(
+        BackupEngineRequest(
+          universe: Selector('Browser universe'),
+          destination: snapshot,
+        ),
+      );
+      final package = local.OwnedSqliteDatabase.openExisting(snapshot);
+      try {
+        expect(
+          local.SqliteKernel(package.database, universe).imageBytes(image),
+          png,
+        );
+      } finally {
+        package.close();
+      }
+      final summary = Envelope<Description>.fromWire(
+        await native.call(
+          ToolEngineRequest(
+            request: DescribeSummaryRequest(
+              universe: Selector('Browser universe'),
+            ),
+          ),
+        ),
+        Description.fromWire,
+      ).result;
+      expect(
+        summary.continuities.single.revisionId.value,
+        wireString(createdFields['revision']!),
+      );
+      final imageContext = Envelope<OpenedContext>.fromWire(
+        await native.call(
+          ToolEngineRequest(
+            request: OpenContextRequest(
+              universe: Selector('Browser universe'),
+              continuityId: summary.continuities.single.id,
+              revision: HeadRevisionSelector(),
+              representedContext: ContextIdSelector(
+                RecordId.parse(wireString(createdFields['context_id']!)),
+              ),
+              temporalQuery: TimelessFrameTime(),
+              temporalSystems: [],
+              perspective: AuthorPerspective(),
+            ),
+          ),
+        ),
+        OpenedContext.fromWire,
+      ).result;
+      final imagesInCanon = Envelope<SearchResults>.fromWire(
+        await native.call(
+          ToolEngineRequest(
+            request: SearchRequest(
+              universe: Selector('Browser universe'),
+              contextId: imageContext.contextId,
+              query: '',
+              typedFilters: Filters(recordKinds: [RecordKind.imageAsset]),
+              limit: 50,
+            ),
+          ),
+        ),
+        SearchResults.fromWire,
+      ).result;
+      expect(imagesInCanon.hits, isEmpty);
       final selectedId = OperationId.generate();
       final fileReview = await uploadFile(downloaded.bytes, selectedId);
       expect(fileReview, isA<EngineSuccess>());

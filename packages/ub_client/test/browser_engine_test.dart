@@ -300,4 +300,48 @@ void main() {
     );
     await client.close();
   });
+  test(
+    'image staging returns known rejection and never replays an unknown upload',
+    () async {
+      var attempts = 0;
+      final client = await BrowserEngineClient.connect(
+        enrollmentToken: token,
+        abort: () {},
+        post: (_, _, _) async => enrollment(),
+      );
+      await expectLater(
+        client.stageImageFile(
+          upload: (header) async {
+            attempts++;
+            expect(header, csrf);
+            return response(
+              const EngineFailure(PolicyDeniedError(message: 'Invalid image'))
+                  .toWire(),
+            );
+          },
+        ),
+        throwsA(isA<PolicyDeniedError>()),
+      );
+      await expectLater(
+        client.stageImageFile(
+          upload: (_) async {
+            attempts++;
+            throw StateError('Response lost');
+          },
+        ),
+        failure(LocalEngineFailure.interrupted),
+      );
+      await expectLater(
+        client.stageImageFile(
+          upload: (_) async {
+            attempts++;
+            return response(const EngineSuccess(CanonicalNull()).toWire());
+          },
+        ),
+        failure(LocalEngineFailure.reconnectRequired),
+      );
+      expect(attempts, 2);
+      await client.close();
+    },
+  );
 }

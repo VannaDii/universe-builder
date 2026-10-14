@@ -186,4 +186,60 @@ void main() {
       expect(signal!.aborted, isTrue);
     },
   );
+  test(
+    'image content uses an opaque File and never transmits a filesystem path',
+    () async {
+      final file = web.File(
+        [
+          Uint8List.fromList([1, 2, 3]).toJS,
+        ].toJS,
+        'Portrait 記憶.png',
+      );
+      browserFetch = ((JSAny input, web.RequestInit init) {
+        expect((input as JSString).toDart, '/engine/browser/image-file');
+        expect(init.body, same(file));
+        expect(init.credentials, 'same-origin');
+        expect(init.mode, 'same-origin');
+        expect(init.redirect, 'error');
+        final headers = init.headers as web.Headers;
+        expect(headers.get('x-ub-csrf'), 'image-csrf');
+        final metadata = WireFields(
+          CanonicalValue.parseWireJson(
+            utf8.decode(base64Decode(headers.get('x-ub-image')!)),
+          ),
+          {'universe', 'original_name'},
+        );
+        expect(
+          Selector.fromWire(metadata.require('universe')).value,
+          'Campaign 記憶',
+        );
+        expect(metadata.string('original_name'), file.name);
+        expect(headers.has('authorization'), isFalse);
+        return Future.value(
+          web.Response(
+            Uint8List.fromList([9]).toJS,
+            web.ResponseInit(status: 200),
+          ),
+        ).toJS;
+      }).toJS;
+      final transport = SameOriginBrowserTransport();
+      expect(
+        (await transport.postImage(
+          file: file,
+          universe: Selector('Campaign 記憶'),
+          csrf: 'image-csrf',
+        )).bytes,
+        [9],
+      );
+      await expectLater(
+        transport.postImage(
+          file: web.File([Uint8List(10 * 1048576 + 1).toJS].toJS, 'large.png'),
+          universe: Selector('Campaign'),
+          csrf: 'image-csrf',
+        ),
+        failure(LocalEngineFailure.invalidRequest),
+      );
+      transport.close();
+    },
+  );
 }

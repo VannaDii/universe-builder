@@ -142,7 +142,17 @@ final class BrowserEngineClient {
   /// session, single-flight and unknown-outcome rules as ordinary calls.
   Future<CanonicalValue> reviewArchiveFile({
     required Future<BrowserEngineResponse> Function(String csrf) upload,
-  }) async {
+  }) => _uploadFile(upload);
+
+  /// Staging retains an original but does not introduce it into canon or submit
+  /// an appearance. An unknown outcome requires explicit reconnection.
+  Future<CanonicalValue> stageImageFile({
+    required Future<BrowserEngineResponse> Function(String csrf) upload,
+  }) => _uploadFile(upload);
+
+  Future<CanonicalValue> _uploadFile(
+    Future<BrowserEngineResponse> Function(String csrf) upload,
+  ) async {
     if (_closed) throw const LocalEngineException(LocalEngineFailure.closed);
     if (_busy) throw const LocalEngineException(LocalEngineFailure.busy);
     if (_broken) {

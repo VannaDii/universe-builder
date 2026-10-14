@@ -12,6 +12,7 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/postgres_runtime.dart';
 import 'package:ub_service/local_engine.dart';
+import 'package:ub_service/loopback_engine.dart';
 import 'package:ub_service/ub_service.dart' show PostgresConfiguration;
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/local_http_endpoint.dart';
@@ -1521,7 +1522,83 @@ void main() {
           expect(await s.workflows(universe).keys('image-bytes:'), isEmpty);
         });
         final old = await open();
-        final imported = WireFields(await author.execute(stage(source.path)), {
+        final browserServer = await LoopbackEngineServer.postgres(runtime);
+        final browserHttp = HttpClient();
+        late CanonicalValue uploaded;
+        try {
+          final grantRequest = await browserHttp.postUrl(
+            browserServer.endpoint.resolve('/engine/browser-grant'),
+          );
+          grantRequest.headers.set(
+            'authorization',
+            'UB ${base64Encode(hello(authorId).toWire().toBytes())}',
+          );
+          grantRequest.contentLength = 0;
+          final grantResponse = await grantRequest.close();
+          expect(grantResponse.statusCode, HttpStatus.ok);
+          final grant = WireFields(
+            CanonicalValue.parseWireJson(
+              await grantResponse.transform(utf8.decoder).join(),
+            ),
+            {'enrollment_token', 'expires_at'},
+          );
+          final exchange = await browserHttp.postUrl(
+            browserServer.endpoint.resolve('/engine/browser/exchange'),
+          );
+          exchange.headers.set('origin', browserServer.endpoint.origin);
+          exchange.headers.contentType = ContentType.json;
+          exchange.add(
+            CanonicalObject([
+              MapEntry(
+                'token',
+                CanonicalString(grant.string('enrollment_token')),
+              ),
+            ]).toBytes(),
+          );
+          final exchangeResponse = await exchange.close();
+          expect(exchangeResponse.statusCode, HttpStatus.ok);
+          final cookie = exchangeResponse.cookies.single;
+          final session = WireFields(
+            CanonicalValue.parseWireJson(
+              await exchangeResponse.transform(utf8.decoder).join(),
+            ),
+            {'welcome', 'csrf', 'expires_at'},
+          );
+          final imageRequest = await browserHttp.postUrl(
+            browserServer.endpoint.resolve('/engine/browser/image-file'),
+          );
+          imageRequest.headers.set('origin', browserServer.endpoint.origin);
+          imageRequest.headers.contentType = ContentType.binary;
+          imageRequest.headers.set('cookie', '${cookie.name}=${cookie.value}');
+          imageRequest.headers.set('x-ub-csrf', session.string('csrf'));
+          imageRequest.headers.set(
+            'x-ub-image',
+            base64Encode(
+              CanonicalObject([
+                MapEntry('universe', selector.toWire()),
+                MapEntry(
+                  'original_name',
+                  CanonicalString(source.uri.pathSegments.last),
+                ),
+              ]).toBytes(),
+            ),
+          );
+          imageRequest.contentLength = bytes.length;
+          imageRequest.add(bytes);
+          final imageResponse = await imageRequest.close();
+          expect(imageResponse.statusCode, HttpStatus.ok);
+          final result = EngineResult.fromWire(
+            CanonicalValue.parseWireJson(
+              await imageResponse.transform(utf8.decoder).join(),
+            ),
+          );
+          expect(result, isA<EngineSuccess>());
+          uploaded = (result as EngineSuccess).value;
+        } finally {
+          browserHttp.close(force: true);
+          await browserServer.close();
+        }
+        final imported = WireFields(uploaded, {
           'canonical',
           'asset_id',
           'preview',

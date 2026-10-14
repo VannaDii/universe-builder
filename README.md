@@ -50,6 +50,11 @@ filesystem paths for backup, restore, legacy conversion, logical export/import,
 package registration or image staging. Those path-based operator commands remain
 available through the native interface. Browser transfers use bounded content
 operations and keep import review separate from admission. The selected-file
+image transport accepts PNG, JPEG and WebP content within the existing 10 MiB,
+8192-pixel-per-edge and 32-megapixel limits. It preserves the original bytes and
+filename and returns staged metadata, an image operation and a preview. Staging
+does not change canon; reference selection and appearance authoring in Flutter
+remain in progress. The selected-file archive
 transport streams up to the existing 8 GiB archive budget into private service
 staging. The service prepares the normal import review; it does not admit the
 package. A caller-selected review ID supports an explicit retry with the same
