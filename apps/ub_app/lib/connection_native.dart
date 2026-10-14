@@ -18,6 +18,7 @@ import 'package:ub_store/profile_credentials.dart';
 
 import 'connection.dart';
 import 'local_backup_files.dart';
+import 'native_source_files.dart';
 
 final class DeviceConnection {
   DeviceConnection(
@@ -25,7 +26,8 @@ final class DeviceConnection {
     this.saveBackupFile,
     this.openBackupFile,
     this.pickImagePath,
-    this.releaseImagePath,
+    this.pickSourcePath,
+    this.releasePickedPath,
     this.installationRoot,
     bool? embeddedLocal,
   }) : _embeddedLocal = embeddedLocal ?? (Platform.isIOS || Platform.isAndroid) {
@@ -54,7 +56,8 @@ final class DeviceConnection {
   final Future<String?> Function(String)? saveBackupFile;
   final Future<bool> Function(String)? openBackupFile;
   final Future<String?> Function()? pickImagePath;
-  final Future<void> Function(String)? releaseImagePath;
+  final Future<String?> Function()? pickSourcePath;
+  final Future<void> Function(String)? releasePickedPath;
   final Future<String?> Function()? installationRoot;
   final bool _embeddedLocal;
   String? root, profile, helper;
@@ -391,9 +394,32 @@ final class DeviceConnection {
           )
         : null;
     return AppSession(
+      pickSourceText:
+          client.welcome.author &&
+              (Platform.isMacOS || _embeddedLocal) &&
+              pickSourcePath != null
+          ? () async {
+              final source = await pickSourcePath!();
+              if (source == null) return null;
+              try {
+                return await readNativeSourceFile(source);
+              } finally {
+                if (_embeddedLocal) {
+                  try {
+                    await releasePickedPath?.call(source);
+                  } on Object {
+                    // A cache cleanup failure does not discard decoded author input.
+                  }
+                }
+              }
+            }
+          : null,
       backupFile: files?.backup,
       restoreBackupFile: files?.restore,
-      pickImage: client.welcome.author && pickImagePath != null
+      pickImage:
+          client.welcome.author &&
+              (Platform.isMacOS || _embeddedLocal) &&
+              pickImagePath != null
           ? (universe) async {
               final source = await pickImagePath!();
               if (source == null) return null;
@@ -411,7 +437,7 @@ final class DeviceConnection {
               } finally {
                 if (_embeddedLocal) {
                   try {
-                    await releaseImagePath?.call(source);
+                    await releasePickedPath?.call(source);
                   } on Object {
                     // A cache cleanup failure cannot undo confirmed service retention.
                   }

@@ -57,12 +57,13 @@ class MainFlutterWindow: NSWindow {
             result(FlutterError(code: "copy_failed", message: "Could not read the selected backup.", details: nil))
           }
         }
-      } else if call.method == "pickImage" {
+      } else if call.method == "pickImage" || call.method == "pickSourceText" {
         let panel = NSOpenPanel()
-        panel.title = "Choose appearance image"
+        let text = call.method == "pickSourceText"
+        panel.title = text ? "Choose source text" : "Choose appearance image"
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.allowedContentTypes = ["png", "jpg", "jpeg", "webp"].compactMap { UTType(filenameExtension: $0) }
+        panel.allowedContentTypes = (text ? ["txt", "md"] : ["png", "jpg", "jpeg", "webp"]).compactMap { UTType(filenameExtension: $0) }
         panel.beginSheetModal(for: window) { response in
           guard response == .OK, let source = panel.url else { result(nil); return }
           result(source.path)

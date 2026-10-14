@@ -15,13 +15,14 @@ void main() {
     final temporary = Directory.systemTemp.createTempSync('ub-embedded-app-');
     final root = '${temporary.path}/installation';
     var pathRequests = 0;
-    String? selectedImage;
+    String? selectedImage, selectedSource;
     final released = <String>[];
     final device = DeviceConnection(
       ['--engine=/nonexistent/helper'],
       embeddedLocal: true,
       pickImagePath: () async => selectedImage,
-      releaseImagePath: (source) async {
+      pickSourcePath: () async => selectedSource,
+      releasePickedPath: (source) async {
         released.add(source);
         File(source).deleteSync();
       },
@@ -81,6 +82,33 @@ void main() {
         continuity: ContinuityId.parse(created.string('continuity_id')),
         representedContext: RecordId.parse(created.string('context_id')),
       );
+      expect(await session.pickSourceText!(), isNull);
+      const sourceText = '\ufeffFirsthand 記憶 😀\r\nSecond line\r\n';
+      final sourceFile = File('${temporary.path}/témoignage.md')
+        ..writeAsBytesSync(utf8.encode(sourceText));
+      selectedSource = sourceFile.path;
+      final source = (await session.pickSourceText!())!;
+      expect(source.name, 'témoignage.md');
+      expect(source.text, sourceText);
+      expect(sourceFile.existsSync(), isFalse);
+      final sourceForm = UnfinishedSourceForm(
+        baseRevision: RevisionId.parse(created.string('revision')),
+        representedContext: scope.representedContext!,
+        clientRef: 'selected source',
+        label: source.name,
+        text: source.text,
+      );
+      await session.saveSourceForm(scope, sourceForm, BigInt.zero);
+      final badText = File('${temporary.path}/bad.txt')
+        ..writeAsBytesSync([0xc0, 0xaf]);
+      selectedSource = badText.path;
+      await expectLater(session.pickSourceText!(), throwsFormatException);
+      expect(badText.existsSync(), isFalse);
+      final largeText = File('${temporary.path}/large.txt')
+        ..writeAsBytesSync(List.filled(maxFrameBytes + 1, 65));
+      selectedSource = largeText.path;
+      await expectLater(session.pickSourceText!(), throwsFormatException);
+      expect(largeText.existsSync(), isFalse);
       final input = UnfinishedSecretForm(
         baseRevision: RevisionId.parse(created.string('revision')),
         representedContext: scope.representedContext!,
@@ -99,6 +127,10 @@ void main() {
       ], embeddedLocal: true);
       session = await restarted.connect();
       expect(session.principal, principal);
+      expect(
+        (await session.loadSourceForm(scope))!.form.toWire().toText(),
+        sourceForm.toWire().toText(),
+      );
       final library = InstanceLibrary.fromWire(
         await session.call(const StatusEngineRequest()),
       );

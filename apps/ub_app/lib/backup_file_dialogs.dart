@@ -11,5 +11,8 @@ Future<bool> openBackupFile(String destination) async =>
     }) ??
     false;
 
-Future<void> releasePickedImage(String source) =>
-    _channel.invokeMethod<void>('releasePickedImage', {'source': source});
+Future<void> releasePickedFile(String source) =>
+    _channel.invokeMethod<void>('releasePickedFile', {'source': source});
+
+Future<String?> pickSourcePath() =>
+    _channel.invokeMethod<String>('pickSourceText', <String, String>{});

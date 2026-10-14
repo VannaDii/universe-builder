@@ -10,35 +10,39 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private var imageResult: MethodChannel.Result? = null
-    private val pickedImages = mutableSetOf<String>()
+    private var fileResult: MethodChannel.Result? = null
+    private var pickedLimit = 10L * 1024 * 1024
+    private var pickingText = false
+    private val pickedFiles = mutableSetOf<String>()
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "universe_builder/backup_files")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
-                    "pickImage" -> {
-                        if (imageResult != null) {
-                            result.error("busy", "An image picker is already open.", null)
+                    "pickImage", "pickSourceText" -> {
+                        if (fileResult != null) {
+                            result.error("busy", "A file picker is already open.", null)
                         } else {
-                            imageResult = result
+                            fileResult = result
+                            pickingText = call.method == "pickSourceText"
+                            pickedLimit = if (pickingText) 1024L * 1024 else 10L * 1024 * 1024
                             try {
                                 val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                                     addCategory(Intent.CATEGORY_OPENABLE)
-                                    type = "image/*"
-                                    putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/png", "image/jpeg", "image/webp"))
+                                    type = if (pickingText) "text/*" else "image/*"
+                                    if (!pickingText) putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/png", "image/jpeg", "image/webp"))
                                 }
                                 startActivityForResult(intent, 4101)
                             } catch (_: Exception) {
-                                imageResult = null
-                                result.error("unavailable", "Image picker unavailable.", null)
+                                fileResult = null
+                                result.error("unavailable", "File picker unavailable.", null)
                             }
                         }
                     }
-                    "releasePickedImage" -> {
+                    "releasePickedFile" -> {
                         val path = call.argument<String>("source")
-                        if (path != null && pickedImages.remove(path)) {
+                        if (path != null && pickedFiles.remove(path)) {
                             File(path).parentFile?.deleteRecursively()
                         }
                         result.success(null)
@@ -59,18 +63,20 @@ class MainActivity : FlutterActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != 4101) return
-        val result = imageResult ?: return
+        val result = fileResult ?: return
         if (resultCode != Activity.RESULT_OK) {
-            imageResult = null
+            fileResult = null
             result.success(null)
             return
         }
         val uri = data?.data
         if (uri == null) {
-            imageResult = null
-            result.error("unavailable", "Could not read the selected image.", null)
+            fileResult = null
+            result.error("unavailable", "Could not read the selected file.", null)
             return
         }
+        val limit = pickedLimit
+        val isText = pickingText
         Thread {
             var directory: File? = null
             try {
@@ -80,7 +86,7 @@ class MainActivity : FlutterActivity() {
                 if (name.isEmpty() || name == "." || name == ".." || name.contains('/') || name.contains('\\') || name.contains('\u0000')) {
                     throw IllegalArgumentException()
                 }
-                directory = File(cacheDir, "ub-picked-images/${UUID.randomUUID()}")
+                directory = File(cacheDir, "ub-picked-files/${UUID.randomUUID()}")
                 if (!directory.mkdirs()) throw IllegalStateException()
                 val file = File(directory, name)
                 contentResolver.openInputStream(uri)?.use { input ->
@@ -91,16 +97,16 @@ class MainActivity : FlutterActivity() {
                             val count = input.read(buffer)
                             if (count < 0) break
                             total += count
-                            if (total > 10L * 1024 * 1024) throw IllegalArgumentException()
+                            if (total > limit) throw IllegalArgumentException()
                             output.write(buffer, 0, count)
                         }
-                        if (total == 0L) throw IllegalArgumentException()
+                        if (total == 0L && !isText) throw IllegalArgumentException()
                     }
                 } ?: throw IllegalArgumentException()
                 runOnUiThread {
-                    if (imageResult === result) {
-                        pickedImages.add(file.absolutePath)
-                        imageResult = null
+                    if (fileResult === result) {
+                        pickedFiles.add(file.absolutePath)
+                        fileResult = null
                         result.success(file.absolutePath)
                     } else {
                         file.parentFile?.deleteRecursively()
@@ -109,9 +115,9 @@ class MainActivity : FlutterActivity() {
             } catch (_: Exception) {
                 directory?.deleteRecursively()
                 runOnUiThread {
-                    if (imageResult === result) {
-                        imageResult = null
-                        result.error("invalid_file", "Choose a readable PNG, JPEG or WebP image up to 10 MiB.", null)
+                    if (fileResult === result) {
+                        fileResult = null
+                        result.error("invalid_file", if (isText) "Choose a readable UTF-8 text file up to 1 MiB." else "Choose a readable PNG, JPEG or WebP image up to 10 MiB.", null)
                     }
                 }
             }
@@ -119,8 +125,8 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
-        imageResult?.error("unavailable", "Image selection was interrupted.", null)
-        imageResult = null
+        fileResult?.error("unavailable", "File selection was interrupted.", null)
+        fileResult = null
         super.onDestroy()
     }
 }

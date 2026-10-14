@@ -40,6 +40,11 @@ connection selects this worker on iOS/Android, initializes or retains the protec
 device profile, and closes the worker with its session. The iOS runner supplies an app-private, backup-excluded installation directory;
 Android uses its no-backup app directory and permits the local authenticated
 network transport. Desktop backend-switching controls are omitted on mobile.
+The macOS and mobile **Choose text file** controls read bounded UTF-8
+files, preserving BOMs, Unicode and line endings in the existing unfinished
+source form. Mobile temporary copies are released after decoding, including
+rejected files. Reading a file does not stage or publish it.
+
 Mobile appearance images use the system document picker. Selected PNG/JPEG/WebP
 files are copied into app-private temporary storage with the existing 10 MiB
 limit, staged by the service, then released from the picker cache. Cancelling

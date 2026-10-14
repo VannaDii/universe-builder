@@ -10,7 +10,8 @@ final class DeviceConnection {
     Future<String?> Function(String)? saveBackupFile,
     Future<bool> Function(String)? openBackupFile,
     Future<String?> Function()? pickImagePath,
-    Future<void> Function(String)? releaseImagePath,
+    Future<String?> Function()? pickSourcePath,
+    Future<void> Function(String)? releasePickedPath,
     Future<String?> Function()? installationRoot,
   });
   bool get available => false;
