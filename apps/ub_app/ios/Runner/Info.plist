@@ -2,6 +2,24 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>FlutterDeepLinkingEnabled</key><false/>
+	<key>LSSupportsOpeningDocumentsInPlace</key><true/>
+	<key>CFBundleDocumentTypes</key>
+	<array><dict>
+		<key>CFBundleTypeName</key><string>Source text</string>
+		<key>CFBundleTypeRole</key><string>Viewer</string>
+		<key>LSHandlerRank</key><string>Alternate</string>
+		<key>LSItemContentTypes</key><array><string>public.plain-text</string><string>net.daringfireball.markdown</string></array>
+	</dict></array>
+	<key>UTImportedTypeDeclarations</key>
+	<array><dict>
+		<key>UTTypeIdentifier</key><string>net.daringfireball.markdown</string>
+		<key>UTTypeConformsTo</key><array><string>public.plain-text</string></array>
+		<key>UTTypeTagSpecification</key><dict>
+			<key>public.filename-extension</key><array><string>md</string></array>
+			<key>public.mime-type</key><string>text/markdown</string>
+		</dict>
+	</dict></array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

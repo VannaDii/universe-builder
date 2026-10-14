@@ -72,6 +72,7 @@ void main(List<String> arguments) => runApp(
       openBackupFile: openBackupFile,
       pickImagePath: pickImagePath,
       pickSourcePath: pickSourcePath,
+      pickSharedSourcePath: mobileSharedSources.pendingPath,
       releasePickedPath: releasePickedFile,
       installationRoot: mobileInstallationRoot,
     ),
@@ -104,7 +105,20 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
   var _page = 0;
 
   @override
+  void initState() {
+    super.initState();
+    mobileSharedSources.addListener(_sharedSourceChanged);
+    mobileSharedSources.start();
+  }
+
+  void _sharedSourceChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    mobileSharedSources.removeListener(_sharedSourceChanged);
+    mobileSharedSources.stop();
     _session?.close();
     _router.dispose();
     _browserToken.dispose();
@@ -1290,6 +1304,17 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                 child: Column(
                   children: [
                     if (_busy) const LinearProgressIndicator(),
+                    if (mobileSharedSources.error != null || mobileSharedSources.pending)
+                      Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(children: [
+                          Text(mobileSharedSources.error ??
+                              'A shared text file is waiting. Open a universe, then choose Import source and Use shared text file.'),
+                          if (mobileSharedSources.error != null)
+                            TextButton(onPressed: mobileSharedSources.dismissError,
+                                child: const Text('Dismiss message')),
+                        ]),
+                      ),
                     if (_error != null)
                       MaterialBanner(
                         content: Text(_error!),

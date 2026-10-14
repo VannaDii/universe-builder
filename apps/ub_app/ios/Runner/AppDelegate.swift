@@ -15,6 +15,7 @@ import UniformTypeIdentifiers
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     filePicker = MobileFilePicker(messenger: engineBridge.applicationRegistrar.messenger())
+    MobileSharedText.shared.attach(messenger: engineBridge.applicationRegistrar.messenger())
     let channel = FlutterMethodChannel(name: "universe_builder/device",
       binaryMessenger: engineBridge.applicationRegistrar.messenger())
     channel.setMethodCallHandler { call, result in
@@ -69,6 +70,8 @@ private class MobileFilePicker: NSObject, UIDocumentPickerDelegate, UIAdaptivePr
         if let arguments = call.arguments as? [String: String], let path = arguments["source"],
             self.retained.remove(path) != nil {
           try? FileManager.default.removeItem(at: URL(fileURLWithPath: path).deletingLastPathComponent())
+        } else if let arguments = call.arguments as? [String: String], let path = arguments["source"] {
+          MobileSharedText.shared.release(path)
         }
         result(nil)
       } else { result(FlutterMethodNotImplemented) }
@@ -151,9 +154,13 @@ private class MobileFilePicker: NSObject, UIDocumentPickerDelegate, UIAdaptivePr
     result?(value)
   }
 
-  nonisolated private static func copySelectedFile(_ source: URL, limit: Int, allowEmpty: Bool, destinationPath: String? = nil) throws -> String {
+  nonisolated fileprivate static func copySelectedFile(_ source: URL, limit: Int, allowEmpty: Bool, destinationPath: String? = nil, requireExternalAccess: Bool = false) throws -> String {
     let granted = source.startAccessingSecurityScopedResource()
     defer { if granted { source.stopAccessingSecurityScopedResource() } }
+    let inbox = NSHomeDirectory() + "/Documents/Inbox/"
+    if requireExternalAccess && !granted && !source.standardizedFileURL.path.hasPrefix(inbox) {
+      throw CocoaError(.fileReadNoPermission)
+    }
     let values = try source.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
     guard values.isRegularFile == true, values.isSymbolicLink != true else { throw CocoaError(.fileReadUnsupportedScheme) }
     let name = source.lastPathComponent
@@ -185,5 +192,89 @@ private class MobileFilePicker: NSObject, UIDocumentPickerDelegate, UIAdaptivePr
       else if created { try? FileManager.default.removeItem(at: destination) }
       throw error
     }
+  }
+}
+
+
+/// OS document delivery is private staging, never a universe command.
+/// A completed directory move makes the single waiting file discoverable after
+/// a cold launch. Partial copies are never exposed as pending source input.
+final class MobileSharedText {
+  static let shared = MobileSharedText()
+  private var channel: FlutterMethodChannel?
+  private var copying = false
+  private var lastError: String?
+  private var slot: URL {
+    FileManager.default.temporaryDirectory.appendingPathComponent("ub-shared-source", isDirectory: true)
+  }
+
+  func attach(messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: "universe_builder/shared_sources", binaryMessenger: messenger)
+    self.channel = channel
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard let self = self else { result(nil); return }
+      switch call.method {
+      case "status":
+        let error = self.lastError
+        self.lastError = nil
+        result(["pending": self.pendingPath() != nil, "error": error.map { $0 as Any } ?? NSNull()])
+      case "pendingPath": result(self.pendingPath())
+      default: result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  private func changed() { channel?.invokeMethod("changed", arguments: nil) }
+
+  private func pendingPath() -> String? {
+    guard let files = try? FileManager.default.contentsOfDirectory(at: slot,
+      includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey]), files.count == 1,
+      let file = files.first,
+      let values = try? file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey]),
+      values.isRegularFile == true, values.isSymbolicLink != true,
+      let size = values.fileSize, size <= 1024 * 1024 else { return nil }
+    return file.path
+  }
+
+  func receive(_ urls: [URL]) {
+    guard urls.count == 1, let source = urls.first, source.isFileURL,
+      ["txt", "md"].contains(source.pathExtension.lowercased()) else {
+      lastError = "Open one .txt or .md file up to 1 MiB in Universe Builder."
+      changed(); return
+    }
+    guard !copying && !FileManager.default.fileExists(atPath: slot.path) else {
+      lastError = "A shared text file is already waiting. Review it in Import source before opening another."
+      changed(); return
+    }
+    copying = true
+    lastError = nil
+    let destination = slot
+    DispatchQueue.global(qos: .userInitiated).async {
+      var incoming: URL?
+      do {
+        let path = try MobileFilePicker.copySelectedFile(source, limit: 1024 * 1024,
+          allowEmpty: true, requireExternalAccess: true)
+        let directory = URL(fileURLWithPath: path).deletingLastPathComponent()
+        incoming = directory
+        try FileManager.default.moveItem(at: directory, to: destination)
+        DispatchQueue.main.async { self.copying = false; self.changed() }
+      } catch {
+        if let directory = incoming { try? FileManager.default.removeItem(at: directory) }
+        DispatchQueue.main.async {
+          self.copying = false
+          self.lastError = "Could not receive this text file. Open a readable .txt or .md file up to 1 MiB."
+          self.changed()
+        }
+      }
+    }
+  }
+
+  func release(_ path: String) {
+    guard pendingPath() == path else { return }
+    do {
+      try FileManager.default.removeItem(at: slot)
+      lastError = nil
+      changed()
+    } catch { /* Keep the waiting file available if cache cleanup fails. */ }
   }
 }

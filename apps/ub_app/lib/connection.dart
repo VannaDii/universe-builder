@@ -28,6 +28,7 @@ final class AppSession {
     this.reviewArchiveFile,
     this.downloadArchive,
     this.pickSourceText,
+    this.pickSharedSourceText,
     this.pickImage,
     this.logout,
     this.backupFile,
@@ -143,6 +144,7 @@ final class AppSession {
   )?
   reviewArchiveFile;
   final Future<SelectedSourceText?> Function()? pickSourceText;
+  final Future<SelectedSourceText?> Function()? pickSharedSourceText;
   final Future<StagedImage?> Function(Selector universe)? pickImage;
   final bool author;
   final ProfileId principal;

@@ -149,8 +149,9 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
     _autosave = Timer(const Duration(milliseconds: 500), _save);
   }
 
-  Future<void> _pickSource() async {
-    final pick = widget.changes.session.pickSourceText;
+  Future<void> _pickSource({bool shared = false}) async {
+    final pick = shared ? widget.changes.session.pickSharedSourceText
+        : widget.changes.session.pickSourceText;
     if (_disabled || _anchor || pick == null) return;
     _autosave?.cancel();
     setState(() {
@@ -473,9 +474,15 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
                     ),
                   if (!_anchor && widget.changes.session.pickSourceText != null)
                     OutlinedButton.icon(
-                      onPressed: _disabled ? null : _pickSource,
+                      onPressed: _disabled ? null : () => _pickSource(),
                       icon: const Icon(Icons.upload_file),
                       label: const Text('Choose text file'),
+                    ),
+                  if (!_anchor && widget.changes.session.pickSharedSourceText != null)
+                    OutlinedButton.icon(
+                      onPressed: _disabled ? null : () => _pickSource(shared: true),
+                      icon: const Icon(Icons.file_open_outlined),
+                      label: const Text('Use shared text file'),
                     ),
                   if (!_anchor)
                     _text(

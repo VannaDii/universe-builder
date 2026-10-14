@@ -73,6 +73,49 @@ Future<SavedUniverseCreationForm> _saveCreationForm(
   }
 });
 
+// Keep native UI callbacks outside the worker's captured message graph.
+Future<ProfileId> _openEmbeddedProfile(
+  String localRoot,
+  String? selectedProfile,
+) => Isolate.run(() async {
+  LocalSettingsStore? settings;
+  try {
+    final path = '$localRoot/settings.sqlite';
+    if (FileSystemEntity.typeSync(path, followLinks: false) !=
+        FileSystemEntityType.notFound) {
+      settings = LocalSettingsStore.openExisting(path);
+    }
+    final configuration = await LocalBackendConfiguration.resolve(
+      environment: Platform.environment,
+      settings: settings,
+    );
+    if (configuration.usePostgres) {
+      throw StateError(
+        'Local mobile storage uses SQLite. Connect to PostgreSQL through a service.',
+      );
+    }
+  } finally {
+    settings?.close();
+  }
+  final ProfileId id;
+  if (selectedProfile != null) {
+    id = ProfileId.parse(selectedProfile);
+  } else {
+    id = SqliteInstallationStore.withBootstrap<ProfileId>(localRoot, (store) {
+      final retained = DeviceProfileStore.read(store.root);
+      if (retained != null) return retained;
+      final id = store.hasProfiles
+          ? store.currentAuthor()
+          : InstallationAuthority(store).initializeAuthor();
+      ProfileCredentialStore.read(root: store.root, profile: id);
+      DeviceProfileStore.write(store.root, id);
+      return id;
+    });
+  }
+  ProfileCredentialStore.read(root: localRoot, profile: id);
+  return id;
+});
+
 final class DeviceConnection {
   DeviceConnection(
     List<String> arguments, {
@@ -80,6 +123,7 @@ final class DeviceConnection {
     this.openBackupFile,
     this.pickImagePath,
     this.pickSourcePath,
+    this.pickSharedSourcePath,
     this.releasePickedPath,
     this.installationRoot,
     this.hostedSecurityContext,
@@ -111,6 +155,7 @@ final class DeviceConnection {
   final Future<bool> Function(String)? openBackupFile;
   final Future<String?> Function()? pickImagePath;
   final Future<String?> Function()? pickSourcePath;
+  final Future<String?> Function()? pickSharedSourcePath;
   final Future<void> Function(String)? releasePickedPath;
   final Future<String?> Function()? installationRoot;
   final bool _embeddedLocal;
@@ -252,46 +297,7 @@ final class DeviceConnection {
       );
     } else if (_embeddedLocal) {
       final localRoot = root!, selectedProfile = profile;
-      final selected = await Isolate.run(() async {
-        LocalSettingsStore? settings;
-        try {
-          final path = '$localRoot/settings.sqlite';
-          if (FileSystemEntity.typeSync(path, followLinks: false) !=
-              FileSystemEntityType.notFound) {
-            settings = LocalSettingsStore.openExisting(path);
-          }
-          final configuration = await LocalBackendConfiguration.resolve(
-            environment: Platform.environment,
-            settings: settings,
-          );
-          if (configuration.usePostgres) {
-            throw StateError(
-              'Local mobile storage uses SQLite. Connect to PostgreSQL through a service.',
-            );
-          }
-        } finally {
-          settings?.close();
-        }
-        final ProfileId id;
-        if (selectedProfile != null) {
-          id = ProfileId.parse(selectedProfile);
-        } else {
-          id = SqliteInstallationStore.withBootstrap<ProfileId>(localRoot, (
-            store,
-          ) {
-            final retained = DeviceProfileStore.read(store.root);
-            if (retained != null) return retained;
-            final id = store.hasProfiles
-                ? store.currentAuthor()
-                : InstallationAuthority(store).initializeAuthor();
-            ProfileCredentialStore.read(root: store.root, profile: id);
-            DeviceProfileStore.write(store.root, id);
-            return id;
-          });
-        }
-        ProfileCredentialStore.read(root: localRoot, profile: id);
-        return id;
-      });
+      final selected = await _openEmbeddedProfile(localRoot, selectedProfile);
       profile = selected.value;
       embedded = await EmbeddedSqliteEngine.start(localRoot);
       try {
@@ -518,6 +524,24 @@ final class DeviceConnection {
                   } on Object {
                     // A cache cleanup failure does not discard decoded author input.
                   }
+                }
+              }
+            }
+          : null,
+      pickSharedSourceText:
+          client.welcome.author &&
+              _embeddedLocal &&
+              pickSharedSourcePath != null
+          ? () async {
+              final source = await pickSharedSourcePath!();
+              if (source == null) return null;
+              try {
+                return await readNativeSourceFile(source);
+              } finally {
+                try {
+                  await releasePickedPath?.call(source);
+                } on Object {
+                  /* Decoded input remains available for review. */
                 }
               }
             }

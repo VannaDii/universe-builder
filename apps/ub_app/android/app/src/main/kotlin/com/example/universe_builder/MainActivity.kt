@@ -1,6 +1,8 @@
 package com.example.universe_builder
 
 import android.app.Activity
+import android.net.Uri
+import android.os.Build
 import android.content.Intent
 import android.provider.OpenableColumns
 import android.provider.DocumentsContract
@@ -16,6 +18,10 @@ class MainActivity : FlutterActivity() {
     private var pickingText = false
     private var backupPath: String? = null
     private val pickedFiles = mutableSetOf<String>()
+    private var sharedChannel: MethodChannel? = null
+    private var copyingShared = false
+    private var sharedError: String? = null
+    private val sharedDirectory: File get() = File(cacheDir, "ub-shared-source")
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -69,12 +75,30 @@ class MainActivity : FlutterActivity() {
                         val path = call.argument<String>("source")
                         if (path != null && pickedFiles.remove(path)) {
                             File(path).parentFile?.deleteRecursively()
+                        } else if (path != null && pendingSharedFile()?.absolutePath == path) {
+                            if (sharedDirectory.deleteRecursively()) {
+                                sharedError = null
+                                sharedChannel?.invokeMethod("changed", null)
+                            }
                         }
                         result.success(null)
                     }
                     else -> result.notImplemented()
                 }
             }
+        sharedChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "universe_builder/shared_sources")
+        sharedChannel!!.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "status" -> {
+                    val error = sharedError
+                    sharedError = null
+                    result.success(mapOf("pending" to (pendingSharedFile() != null), "error" to error))
+                }
+                "pendingPath" -> result.success(pendingSharedFile()?.absolutePath)
+                else -> result.notImplemented()
+            }
+        }
+        receiveSharedText(intent)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "universe_builder/device")
             .setMethodCallHandler { call, result ->
                 if (call.method == "installationRoot") {
@@ -83,6 +107,94 @@ class MainActivity : FlutterActivity() {
                     result.notImplemented()
                 }
             }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        receiveSharedText(intent)
+    }
+
+    private fun pendingSharedFile(): File? {
+        val files = sharedDirectory.listFiles() ?: return null
+        if (files.size != 1) return null
+        val file = files.single()
+        if (!file.isFile || (file.canonicalFile.parentFile != sharedDirectory.canonicalFile || file.canonicalFile.name != file.name) || file.length() > 1024L * 1024) return null
+        return file
+    }
+
+    private fun receiveSharedText(incoming: Intent?) {
+        if (incoming?.action != Intent.ACTION_SEND && incoming?.action != Intent.ACTION_VIEW) return
+        val uri = if (incoming.action == Intent.ACTION_VIEW) incoming.data else {
+            if (Build.VERSION.SDK_INT >= 33) incoming.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+            else @Suppress("DEPRECATION") incoming.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+        }
+        val text = if (uri == null && incoming.action == Intent.ACTION_SEND) incoming.getStringExtra(Intent.EXTRA_TEXT) else null
+        // Retained launcher intents must not enqueue the same delivery again.
+        incoming.action = Intent.ACTION_MAIN
+        incoming.removeExtra(Intent.EXTRA_STREAM)
+        incoming.removeExtra(Intent.EXTRA_TEXT)
+        fun reject(message: String) {
+            sharedError = message
+            sharedChannel?.invokeMethod("changed", null)
+        }
+        if (copyingShared || sharedDirectory.exists()) {
+            reject("A shared text file is already waiting. Review it in Import source before sharing another.")
+            return
+        }
+        if ((uri != null && uri.scheme != "content") || (uri == null && text == null)) {
+            reject("Share one .txt or .md file, or plain text, up to 1 MiB to Universe Builder.")
+            return
+        }
+        copyingShared = true
+        sharedError = null
+        Thread {
+            var directory: File? = null
+            try {
+                val name = if (uri == null) "Shared text.txt" else contentResolver.query(
+                    uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
+                    if (it.moveToFirst()) it.getString(0) else null
+                } ?: throw IllegalArgumentException()
+                if (name.isEmpty() || name == "." || name == ".." || name.contains('/') ||
+                    name.contains('\\') || name.contains('\u0000') ||
+                    name.substringAfterLast('.', "").lowercase() !in setOf("txt", "md")) throw IllegalArgumentException()
+                directory = File(cacheDir, "ub-share-incoming-${UUID.randomUUID()}")
+                if (!directory.mkdirs()) throw IllegalStateException()
+                val file = File(directory, name)
+                file.outputStream().use { output ->
+                    if (uri == null) {
+                        if (text!!.length > 1024 * 1024) throw IllegalArgumentException()
+                        val encoded = Charsets.UTF_8.newEncoder().encode(java.nio.CharBuffer.wrap(text))
+                        if (encoded.remaining() > 1024 * 1024) throw IllegalArgumentException()
+                        val bytes = ByteArray(encoded.remaining())
+                        encoded.get(bytes)
+                        output.write(bytes)
+                    } else contentResolver.openInputStream(uri)?.use { input ->
+                        val buffer = ByteArray(65536)
+                        var total = 0L
+                        while (true) {
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            total += count
+                            if (total > 1024L * 1024) throw IllegalArgumentException()
+                            output.write(buffer, 0, count)
+                        }
+                    } ?: throw IllegalArgumentException()
+                    output.fd.sync()
+                }
+                if (!directory.renameTo(sharedDirectory)) throw IllegalStateException()
+                runOnUiThread {
+                    copyingShared = false
+                    sharedChannel?.invokeMethod("changed", null)
+                }
+            } catch (_: Exception) {
+                directory?.deleteRecursively()
+                runOnUiThread {
+                    copyingShared = false
+                    reject("Could not receive this text. Share a readable .txt or .md file, or plain text, up to 1 MiB.")
+                }
+            }
+        }.start()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

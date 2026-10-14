@@ -64,6 +64,7 @@ final class DeviceConnection {
     Future<bool> Function(String)? openBackupFile,
     Future<String?> Function()? pickImagePath,
     Future<String?> Function()? pickSourcePath,
+    Future<String?> Function()? pickSharedSourcePath,
     Future<void> Function(String)? releasePickedPath,
     Future<String?> Function()? installationRoot,
   });
