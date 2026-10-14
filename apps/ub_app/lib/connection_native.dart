@@ -436,6 +436,8 @@ final class DeviceConnection {
             call: (request) => sequenced(() => client.call(request)),
             saveFile: saveBackupFile!,
             openFile: openBackupFile!,
+            downloadArchive: hostedChoice == null ? null : (universe, path) => sequenced(
+              () => client.downloadArchive(universe: Selector(universe.name), destination: path)),
           )
         : null;
     final InstanceLibrary importStatus;
@@ -490,7 +492,8 @@ final class DeviceConnection {
             }
           : null,
       backupFile: hostedChoice == null ? files?.backup : null,
-      saveArchiveFile: hostedChoice == null && client.welcome.author ? files?.archive : null,
+      saveArchiveFile: client.welcome.author ? files?.archive : null,
+      cancelArchiveDownload: hostedChoice == null ? null : client.close,
       restoreBackupFile: hostedChoice == null ? files?.restore : null,
       pickImage:
           client.welcome.author &&

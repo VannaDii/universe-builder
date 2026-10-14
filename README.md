@@ -71,7 +71,7 @@ saves immediately when the
 app loses focus or enters the background, including forms behind a popup. Changes
 rationale and package-import choices use their existing save paths. A save must
 finish before input is durable; failures retain input in the form. Full mobile
-lifecycle and hosted archive export remain unfinished.
+lifecycle and remaining share flows are unfinished.
 
 The shared transport library also accepts an explicit HTTPS origin, TLS server
 context and bind address for either service runtime. Native clients can connect
@@ -106,8 +106,13 @@ staging file; client filesystem paths are not sent. Image staging does not publi
 an appearance. Package review retains the exact import choice before explicit
 admission, including after reconnect. Cancelling an upload closes that connection;
 reconnect and explicitly retry the same file/review to recover the outcome.
-Mobile picker copies are released after upload, including rejected images. Hosted
-archive export and paid-hosting setup remain unfinished.
+Mobile picker copies are released after upload, including rejected images.
+**Save complete archive file** streams a complete archive from a hosted service
+into private staging, then opens the normal system Save dialog. The archive keeps
+history, source content and historical workflow evidence. Cancel closes the
+connection and discards the partial file; reconnect before retrying. A failed
+download does not replace an existing saved file. Paid-hosting setup remains
+unfinished.
 
 The local HTTP transport supports the browser-session prerequisite. The explicit
 `universe --installation <path> --profile <id> browser-session` command returns the

@@ -41,6 +41,7 @@ void main() {
     );
     var server = await start();
     String? selectedImage;
+    var saveSelection = true;
     final selectedArchive = '${temporary.path}/selected-archive.sqlite';
     final device = DeviceConnection(
       ['--installation', clientRoot, '--engine=/nonexistent'],
@@ -48,7 +49,11 @@ void main() {
       hostedSecurityContext: SecurityContext()..setTrustedCertificates(tls.ca),
       pickImagePath: () async => selectedImage,
       releasePickedPath: (path) async => File(path).deleteSync(),
-      saveBackupFile: (_) async => null,
+      saveBackupFile: (path) async {
+        if (!saveSelection) return null;
+        await File(path).copy(selectedArchive);
+        return selectedArchive;
+      },
       openBackupFile: (path) async {
         await File(selectedArchive).copy(path);
         return true;
@@ -126,23 +131,21 @@ void main() {
         ),
       );
       expect(File(selectedImage).existsSync(), isFalse);
-      final admin = await LoopbackEngineClient.discover(
-        root: serverRoot,
-        profile: owner,
-        clientName: 'Archive fixture',
+      expect(
+        await session.saveArchiveFile!(
+          LibraryEntry(scope.universe, 'Hosted memoir'),
+        ),
+        selectedArchive,
       );
-      try {
-        await admin.call(
-          ExportLogicalEngineRequest(
-            universe: const Selector('Hosted memoir'),
-            destination: selectedArchive,
-            recordIds: const [],
-            completeHistory: true,
-          ),
-        );
-      } finally {
-        await admin.close();
-      }
+      expect(File(selectedArchive).lengthSync(), greaterThan(0));
+      saveSelection = false;
+      expect(
+        await session.saveArchiveFile!(
+          LibraryEntry(scope.universe, 'Hosted memoir'),
+        ),
+        isNull,
+      );
+      expect(Directory('$clientRoot/client-files').listSync(), isEmpty);
       final importInput = PackageImportDraft(
         operation: OperationId.generate(),
         name: 'Hosted clone',

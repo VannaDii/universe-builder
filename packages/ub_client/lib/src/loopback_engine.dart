@@ -331,6 +331,88 @@ final class LoopbackEngineClient {
     _http.close(force: true);
   }
 
+  Future<CanonicalObject> downloadArchive({
+    required Selector universe,
+    required String destination,
+  }) async {
+    if (_closed) throw const LocalEngineException(LocalEngineFailure.closed);
+    if (_busy) throw const LocalEngineException(LocalEngineFailure.busy);
+    if (_broken) {
+      throw const LocalEngineException(LocalEngineFailure.reconnectRequired);
+    }
+    late Uint8List input;
+    try {
+      input = CanonicalObject([MapEntry('universe', universe.toWire())])
+          .toBytes();
+      if (input.length > maxFrameBytes) {
+        throw const FormatException('Download request bound');
+      }
+      protectedFile(destination, createNew: true);
+    } on Object {
+      throw const LocalEngineException(LocalEngineFailure.invalidRequest);
+    }
+    _busy = true;
+    _broken = true;
+    try {
+      final request = await _http
+          .postUrl(endpoint.resolve('/engine/archive-file'))
+          .timeout(const Duration(seconds: 30));
+      request.followRedirects = false;
+      request.headers.set(HttpHeaders.authorizationHeader, _authorization);
+      request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
+      request.headers.contentType = ContentType.json;
+      request.add(input);
+      final response = await request.close();
+      final length = response.contentLength;
+      final encoded = response.headers.value('x-ub-archive-manifest');
+      if (response.statusCode != HttpStatus.ok ||
+          response.headers.contentType?.mimeType !=
+              'application/octet-stream' ||
+          length < 1 ||
+          length >
+              ReadMoveChunkEngineRequest.chunkBytes *
+                  ReadMoveChunkEngineRequest.maxChunks ||
+          encoded == null ||
+          encoded.length > 8192) {
+        throw const FormatException('Archive download unavailable');
+      }
+      final manifest = CanonicalValue.parseWireJson(
+        utf8.decode(base64Decode(encoded)),
+      ) as CanonicalObject;
+      final output = File(destination).openWrite();
+      var bytes = 0;
+      try {
+        await for (final chunk in response.timeout(
+          const Duration(seconds: 30),
+        )) {
+          bytes += chunk.length;
+          if (bytes > length) {
+            throw const FormatException('Archive response bound');
+          }
+          output.add(chunk);
+          await output.flush();
+        }
+      } finally {
+        await output.close();
+      }
+      if (_closed || bytes != length) {
+        throw const FormatException('Incomplete archive download');
+      }
+      _broken = false;
+      return manifest;
+    } on Object {
+      _http.close(force: true);
+      try {
+        if (File(destination).existsSync()) File(destination).deleteSync();
+      } on Object {
+        // Preserve fixed diagnostics; the app also owns the staging directory.
+      }
+      throw const LocalEngineException(LocalEngineFailure.interrupted);
+    } finally {
+      _busy = false;
+    }
+  }
+
   Future<CanonicalValue> stageImageFile({
     required String source,
     required Selector universe,

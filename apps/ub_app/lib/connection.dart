@@ -30,6 +30,7 @@ final class AppSession {
     this.logout,
     this.backupFile,
     this.saveArchiveFile,
+    this.cancelArchiveDownload,
     this.restoreBackupFile,
     required this.call,
     required this.close,
@@ -120,6 +121,7 @@ final class AppSession {
   });
   final Future<String?> Function(LibraryEntry)? backupFile;
   final Future<String?> Function(LibraryEntry)? saveArchiveFile;
+  final Future<void> Function()? cancelArchiveDownload;
   final Future<LibraryEntry?> Function(String name)? restoreBackupFile;
   final Future<CanonicalValue> Function(EngineRequest) call;
   final Future<void> Function() close;

@@ -1599,6 +1599,15 @@ void main() {
             endpoint: browserServer.endpoint, hello: hello(authorId));
           try {
             uploaded = await native.stageImageFile(source: source.path, universe: selector);
+            final downloaded = '${directory.path}/native-archive.sqlite';
+            final manifest = await native.downloadArchive(universe: selector, destination: downloaded);
+            expect(wireString(Map.fromEntries(manifest.fields)['universe']!), universe.value);
+            final archive = local.OwnedSqliteDatabase.stageLogicalArchive(downloaded, directory.path);
+            try {
+              expect(archive.package.universeId, universe);
+            } finally {
+              archive.close();
+            }
           } finally {
             await native.close();
           }

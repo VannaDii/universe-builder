@@ -499,6 +499,7 @@ final class LoopbackEngineServer {
             '/engine/browser/call',
             '/engine/browser/logout',
             '/engine/browser/prepare-download',
+            '/engine/archive-file',
           }.contains(request.uri.path)) {
         response.statusCode = HttpStatus.notFound;
         return;
@@ -601,7 +602,8 @@ final class LoopbackEngineServer {
         }
       }
       final authenticated = connection!;
-      if (path == '/engine/browser/prepare-download') {
+      if (path == '/engine/browser/prepare-download' ||
+          path == '/engine/archive-file') {
         if (!authenticated.welcome.author) {
           response.statusCode = HttpStatus.forbidden;
           return;
@@ -626,6 +628,36 @@ final class LoopbackEngineServer {
               completeHistory: true,
             ),
           ) as CanonicalObject;
+          if (path == '/engine/archive-file') {
+            final universe = wireString(
+              Map.fromEntries(manifest.fields)['universe']!,
+            );
+            final status = await authenticated.execute(
+              const StatusEngineRequest(),
+            ) as CanonicalObject;
+            final universes =
+                Map.fromEntries(status.fields)['universes']! as CanonicalArray;
+            if (!universes.items.any(
+              (row) => WireFields(row, {'id', 'name'}).string('id') == universe,
+            )) {
+              response.statusCode = HttpStatus.forbidden;
+              return;
+            }
+            final encoded = base64Encode(manifest.toBytes());
+            if (encoded.length > 8192) {
+              throw const FormatException('Archive metadata bound');
+            }
+            response.headers.contentType = ContentType.binary;
+            response.headers.set('x-ub-archive-manifest', encoded);
+            response.headers.set(
+              'content-disposition',
+              'attachment; filename="Universe Builder archive.sqlite"',
+            );
+            response.headers.set('x-content-type-options', 'nosniff');
+            response.contentLength = await file.length();
+            await response.addStream(file.openRead());
+            return;
+          }
           final archive = OwnedSqliteDatabase.stageLogicalArchive(
             file.path,
             directory.path,

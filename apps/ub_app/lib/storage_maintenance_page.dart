@@ -22,6 +22,7 @@ class _StorageMaintenancePageState extends State<StorageMaintenancePage> {
   final _name = TextEditingController();
   StorageMaintenance? _storage;
   bool _busy = false;
+  bool _savingArchive = false, _cancelled = false;
   String? _message, _error;
   @override
   void dispose() {
@@ -35,6 +36,8 @@ class _StorageMaintenancePageState extends State<StorageMaintenancePage> {
       _busy = true;
       _error = null;
       _message = null;
+      _savingArchive = false;
+      _cancelled = false;
     });
     try {
       await action();
@@ -51,12 +54,20 @@ class _StorageMaintenancePageState extends State<StorageMaintenancePage> {
     } on Object catch (error) {
       if (mounted) {
         setState(
-          () => _error =
-              'Could not confirm the operation. Check the library before retrying. ${error is FormatException ? error.message : ''}',
+          () => _error = _cancelled
+              ? 'Download cancelled. Reconnect before retrying.'
+              : _savingArchive
+              ? 'Could not save the archive. Reconnect before retrying the download.'
+              : 'Could not confirm the operation. Check the library before retrying. ${error is FormatException ? error.message : ''}',
         );
       }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _savingArchive = false;
+        });
+      }
     }
   }
 
@@ -97,11 +108,14 @@ class _StorageMaintenancePageState extends State<StorageMaintenancePage> {
   }
 
   Future<void> _saveArchive() async {
+    setState(() => _savingArchive = true);
     final path = await widget.session.saveArchiveFile!(widget.universe!);
     if (mounted) {
-      setState(() => _message = path == null
-          ? 'Archive file selection cancelled.'
-          : 'Archive saved: $path');
+      setState(
+        () => _message = path == null
+            ? 'Archive file selection cancelled.'
+            : 'Archive saved: $path',
+      );
     }
   }
 
@@ -138,7 +152,9 @@ class _StorageMaintenancePageState extends State<StorageMaintenancePage> {
                 const Text(
                   'Keep a complete backup of this universe, including retained history and embedded source content.',
                 ),
-                if (widget.session.downloadArchive == null)
+                if (widget.session.downloadArchive == null &&
+                    (widget.session.backupFile != null ||
+                        widget.session.saveArchiveFile == null))
                   FilledButton(
                     onPressed: _busy || widget.session.backupFile == null
                         ? null
@@ -164,9 +180,22 @@ class _StorageMaintenancePageState extends State<StorageMaintenancePage> {
                   const Text(
                     'Transfer this universe to another installation with retained history, source content and workflow evidence.',
                   ),
+                  if (_busy &&
+                      _savingArchive &&
+                      widget.session.cancelArchiveDownload != null)
+                    TextButton(
+                      onPressed: _cancelled
+                          ? null
+                          : () {
+                              setState(() => _cancelled = true);
+                              widget.session.cancelArchiveDownload!().ignore();
+                            },
+                      child: const Text('Cancel download'),
+                    ),
                 ],
                 if (widget.session.backupFile == null &&
-                    widget.session.downloadArchive == null)
+                    widget.session.downloadArchive == null &&
+                    widget.session.saveArchiveFile == null)
                   const Text(
                     'Native backup file selection is available on macOS, iOS and Android. Other file flows remain in the operator interface.',
                   ),

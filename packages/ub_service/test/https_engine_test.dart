@@ -1,6 +1,8 @@
 @TestOn('vm')
 library;
 
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:test/test.dart';
@@ -117,6 +119,21 @@ void main() {
         context: trust,
       );
       clients.add(contributor);
+      final downloadDenied = await LoopbackEngineClient.connectHttps(
+        endpoint: endpoint,
+        hello: hello(writer),
+        context: trust,
+      );
+      clients.add(downloadDenied);
+      final deniedDestination = '${temporary.path}/denied.sqlite';
+      await expectLater(
+        downloadDenied.downloadArchive(
+          universe: const Selector('Hosted campaign'),
+          destination: deniedDestination,
+        ),
+        throwsA(isA<LocalEngineException>()),
+      );
+      expect(File(deniedDestination).existsSync(), isFalse);
       final uploadDenied = await LoopbackEngineClient.connectHttps(
         endpoint: endpoint,
         hello: hello(writer),
@@ -210,6 +227,75 @@ void main() {
       } finally {
         await redirect.close(force: true);
         await sink.close(force: true);
+      }
+      final partial = await HttpServer.bindSecure(
+        InternetAddress.loopbackIPv4,
+        0,
+        tls,
+      );
+      final started = Completer<void>(), release = Completer<void>();
+      partial.listen((request) async {
+        await request.drain<void>();
+        if (request.uri.path == '/engine/hello') {
+          request.response.add(native.welcome.toWire().toBytes());
+          await request.response.close();
+        } else {
+          request.response.headers.contentType = ContentType.binary;
+          request.response.headers.set(
+            'x-ub-archive-manifest',
+            base64Encode(CanonicalObject([]).toBytes()),
+          );
+          request.response.contentLength = 10;
+          request.response.add([1, 2, 3]);
+          await request.response.flush();
+          started.complete();
+          await release.future;
+          try {
+            await request.response.close();
+          } on Object {
+            /* cancelled client */
+          }
+        }
+      });
+      try {
+        final download = await LoopbackEngineClient.connectHttps(
+          endpoint: Uri.parse('https://localhost:${partial.port}'),
+          hello: hello(owner),
+          context: trust,
+        );
+        clients.add(download);
+        final existing = File('${temporary.path}/existing.sqlite')
+          ..writeAsStringSync('keep');
+        await expectLater(
+          download.downloadArchive(
+            universe: const Selector('Hosted campaign'),
+            destination: existing.path,
+          ),
+          throwsA(
+            isA<LocalEngineException>().having(
+              (e) => e.failure,
+              'failure',
+              LocalEngineFailure.invalidRequest,
+            ),
+          ),
+        );
+        expect(existing.readAsStringSync(), 'keep');
+        final destination = '${temporary.path}/partial.sqlite';
+        final transfer = download.downloadArchive(
+          universe: const Selector('Hosted campaign'),
+          destination: destination,
+        );
+        final interrupted = expectLater(
+          transfer,
+          throwsA(isA<LocalEngineException>()),
+        );
+        await started.future.timeout(const Duration(seconds: 5));
+        await download.close();
+        await interrupted;
+        expect(File(destination).existsSync(), isFalse);
+      } finally {
+        if (!release.isCompleted) release.complete();
+        await partial.close(force: true);
       }
     } finally {
       http.close(force: true);

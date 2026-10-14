@@ -14,11 +14,14 @@ final class LocalBackupFiles {
     required this.call,
     required this.saveFile,
     required this.openFile,
+    this.downloadArchive,
   });
   final String root;
   final Future<CanonicalValue> Function(EngineRequest) call;
   final Future<String?> Function(String source) saveFile;
   final Future<bool> Function(String destination) openFile;
+  final Future<CanonicalObject> Function(LibraryEntry, String destination)?
+  downloadArchive;
   Directory _directory() {
     final parent = privateDirectory('$root/client-files');
     final directory = Directory(parent).createTempSync('backup-');
@@ -56,14 +59,16 @@ final class LocalBackupFiles {
     final path = '${directory.path}/Universe Builder archive.sqlite';
     try {
       final manifest = WireFields(
-        await call(
-          ExportLogicalEngineRequest(
-            universe: Selector(universe.name),
-            destination: path,
-            recordIds: const [],
-            completeHistory: true,
-          ),
-        ),
+        downloadArchive != null
+            ? await downloadArchive!(universe, path)
+            : await call(
+                ExportLogicalEngineRequest(
+                  universe: Selector(universe.name),
+                  destination: path,
+                  recordIds: const [],
+                  completeHistory: true,
+                ),
+              ),
         {
           'format',
           'universe',
