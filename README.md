@@ -252,6 +252,14 @@ limited scopes require 1–100 selections. An expiry can be chosen using a local
 date/time picker or entered as exact Unix seconds. Credentials are never shown.
 Grant changes take effect through the existing service authority checks.
 Unsubmitted grant fields stay on the current screen and are discarded on exit.
+**Backup and storage** connects to the existing complete backup and maintenance
+operations. On macOS, native save/open dialogs copy files through the app's
+user-selected sandbox access; the service reads and writes private staging paths.
+Saving requires an unused filename. **Restore a backup** is also available in an
+empty Library and registers the original universe identity; an already-reserved
+identity or name is refused. Storage checks show retained counts, and collection
+removes disposable snapshot caches while preserving history, receipts and sources.
+Native file dialogs for the other platforms remain pending.
 **Timeline** in an entity dossier lists events with explicit participation.
 Exact numeric points are ordered separately in each named calendar, using the
 shared rule engine's integer bounds. Equal coordinates do not imply sequence.

@@ -13,9 +13,14 @@ import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
 
 import 'connection.dart';
+import 'local_backup_files.dart';
 
 final class DeviceConnection {
-  DeviceConnection(List<String> arguments) {
+  DeviceConnection(
+    List<String> arguments, {
+    this.saveBackupFile,
+    this.openBackupFile,
+  }) {
     for (var i = 0; i < arguments.length; i++) {
       final argument = arguments[i];
       final equal = argument.indexOf('=');
@@ -38,6 +43,8 @@ final class DeviceConnection {
       }
     }
   }
+  final Future<String?> Function(String)? saveBackupFile;
+  final Future<bool> Function(String)? openBackupFile;
   String? root, profile, helper;
   bool get supportsLocal => true;
   bool get available => root?.isNotEmpty == true;
@@ -207,7 +214,18 @@ final class DeviceConnection {
       return result;
     }
 
+    final files =
+        Platform.isMacOS && saveBackupFile != null && openBackupFile != null
+        ? LocalBackupFiles(
+            root: root!,
+            call: (request) => sequenced(() => client.call(request)),
+            saveFile: saveBackupFile!,
+            openFile: openBackupFile!,
+          )
+        : null;
     return AppSession(
+      backupFile: files?.backup,
+      restoreBackupFile: files?.restore,
       call: (request) => sequenced(() => client.call(request)),
       close: () => sequenced(client.close),
       author: client.welcome.author,

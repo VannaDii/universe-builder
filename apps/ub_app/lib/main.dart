@@ -20,6 +20,8 @@ import 'relation_editor_page.dart';
 import 'action_editor_page.dart';
 import 'continuity_page.dart';
 import 'universe_access_page.dart';
+import 'backup_file_dialogs.dart';
+import 'storage_maintenance_page.dart';
 import 'calendar_editor_page.dart';
 import 'entity_editor_page.dart';
 import 'changes_page.dart';
@@ -28,8 +30,15 @@ import 'postgres_settings.dart';
 import 'sqlite_settings.dart';
 import 'connection_stub.dart' if (dart.library.io) 'connection_native.dart';
 
-void main(List<String> arguments) =>
-    runApp(UniverseBuilderApp(device: DeviceConnection(arguments)));
+void main(List<String> arguments) => runApp(
+  UniverseBuilderApp(
+    device: DeviceConnection(
+      arguments,
+      saveBackupFile: saveBackupFile,
+      openBackupFile: openBackupFile,
+    ),
+  ),
+);
 
 class UniverseBuilderApp extends StatefulWidget {
   const UniverseBuilderApp({super.key, required this.device});
@@ -537,6 +546,22 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
             label: const Text('Create universe'),
           ),
         ),
+        TextButton.icon(
+          onPressed: _busy || _session!.restoreBackupFile == null
+              ? null
+              : () => Navigator.of(context)
+                    .push<void>(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            StorageMaintenancePage(session: _session!),
+                      ),
+                    )
+                    .then((_) {
+                      if (mounted) _connect();
+                    }),
+          icon: const Icon(Icons.restore),
+          label: const Text('Restore a backup'),
+        ),
         const SizedBox(height: 24),
       ],
       if (_library!.universes.isEmpty)
@@ -935,6 +960,23 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                                     }),
                           child: const Text('Universe access'),
                         ),
+                      TextButton(
+                        onPressed: _busy
+                            ? null
+                            : () => Navigator.of(context)
+                                  .push<void>(
+                                    MaterialPageRoute(
+                                      builder: (_) => StorageMaintenancePage(
+                                        session: _session!,
+                                        universe: _selected!,
+                                      ),
+                                    ),
+                                  )
+                                  .then((_) {
+                                    if (mounted) _connect();
+                                  }),
+                        child: const Text('Backup and storage'),
+                      ),
                       if (_contexts.containsKey(continuity.id))
                         TextButton(
                           onPressed: _busy

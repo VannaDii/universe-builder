@@ -2,6 +2,7 @@ import Cocoa
 import FlutterMacOS
 
 class MainFlutterWindow: NSWindow {
+  private var backupChannel: FlutterMethodChannel?
   override func awakeFromNib() {
     let project = FlutterDartProject()
     var arguments = Array(ProcessInfo.processInfo.arguments.dropFirst())
@@ -17,6 +18,47 @@ class MainFlutterWindow: NSWindow {
     self.setFrame(windowFrame, display: true)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
+    let channel = FlutterMethodChannel(name: "universe_builder/backup_files", binaryMessenger: flutterViewController.engine.binaryMessenger)
+    backupChannel = channel
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard let window = self, let arguments = call.arguments as? [String: String] else {
+        result(FlutterError(code: "unavailable", message: "File dialog unavailable", details: nil)); return
+      }
+      if call.method == "saveBackup", let source = arguments["source"] {
+        let panel = NSSavePanel()
+        panel.title = "Save Universe Builder backup"
+        panel.nameFieldStringValue = "Universe Builder backup.sqlite"
+        panel.canCreateDirectories = true
+        panel.beginSheetModal(for: window) { response in
+          guard response == .OK, let destination = panel.url else { result(nil); return }
+          do {
+            try FileManager.default.copyItem(at: URL(fileURLWithPath: source), to: destination)
+            result(destination.path)
+          } catch {
+            result(FlutterError(code: "copy_failed", message: "Choose an unused filename for the backup.", details: nil))
+          }
+        }
+      } else if call.method == "openBackup", let destination = arguments["destination"] {
+        let panel = NSOpenPanel()
+        panel.title = "Choose Universe Builder backup"
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.beginSheetModal(for: window) { response in
+          guard response == .OK, let source = panel.url else { result(false); return }
+          do {
+            let values = try source.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+            guard values.isRegularFile == true, values.isSymbolicLink != true else {
+              result(FlutterError(code: "invalid_file", message: "Choose a regular backup file.", details: nil)); return
+            }
+            try FileManager.default.copyItem(at: source, to: URL(fileURLWithPath: destination))
+            result(true)
+          } catch {
+            result(FlutterError(code: "copy_failed", message: "Could not read the selected backup.", details: nil))
+          }
+        }
+      } else { result(FlutterMethodNotImplemented) }
+    }
+
 
     super.awakeFromNib()
   }

@@ -2,7 +2,11 @@ import 'connection.dart';
 
 final class DeviceConnection {
   bool get supportsLocal => false;
-  DeviceConnection(List<String> arguments);
+  DeviceConnection(
+    List<String> arguments, {
+    Future<String?> Function(String)? saveBackupFile,
+    Future<bool> Function(String)? openBackupFile,
+  });
   bool get available => false;
   String get unavailableMessage =>
       'Web access requires a connection to an authenticated instance.';

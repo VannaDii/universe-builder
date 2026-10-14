@@ -3,6 +3,8 @@ import 'package:ub_domain/ub_domain.dart';
 
 final class AppSession {
   const AppSession({
+    this.backupFile,
+    this.restoreBackupFile,
     required this.call,
     required this.close,
     required this.author,
@@ -32,6 +34,8 @@ final class AppSession {
     required this.loadAttributeForm,
     required this.saveAttributeForm,
   });
+  final Future<String?> Function(LibraryEntry)? backupFile;
+  final Future<LibraryEntry?> Function(String name)? restoreBackupFile;
   final Future<CanonicalValue> Function(EngineRequest) call;
   final Future<void> Function() close;
   final bool author;
