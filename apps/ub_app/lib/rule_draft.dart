@@ -40,9 +40,13 @@ DefineRuleOperation ruleOperation(UnfinishedRuleForm form) {
       capabilities: form.capabilities,
       executable: form.executable!,
       validity: buildActionValidity(form.validity, original?.validity),
-      knowledgeBoundary: original?.knowledgeBoundary,
+      knowledgeBoundary: form.knowledge == null
+          ? original?.knowledgeBoundary
+          : buildRuleKnowledgeBoundary(form.knowledge!),
       relationCardinality: original?.relationCardinality,
-      knowledgePolicy: original?.knowledgePolicy,
+      knowledgePolicy: form.knowledge == null
+          ? original?.knowledgePolicy
+          : buildRuleKnowledgePolicy(form.knowledge!),
       channelChronology: original?.channelChronology,
     ),
   );
@@ -86,6 +90,7 @@ UnfinishedRuleForm ruleFormFromDraft(SavedDraft draft, int index) {
     executable: record.executable,
     validity: actionValidityInput(record.validity),
     original: record,
+    knowledge: ruleKnowledgeInput(record),
     draftVersion: draft.version,
   );
 }
@@ -151,3 +156,41 @@ SaveDraftEngineRequest ruleDraftRequest({
     ),
   );
 }
+
+ExpressionReferenceInput _knowledgeRef(RecordRef? reference) =>
+    reference == null
+    ? const ExpressionReferenceInput()
+    : ExpressionReferenceInput(
+        record: reference.record.value,
+        universe: reference.universe?.value ?? '',
+      );
+RecordRef _buildKnowledgeRef(ExpressionReferenceInput reference) => RecordRef(
+  record: RecordId.parse(reference.record),
+  universe: reference.universe.isEmpty
+      ? null
+      : UniverseId.parse(reference.universe),
+);
+RuleKnowledgeInput ruleKnowledgeInput(RuleRecord rule) => RuleKnowledgeInput(
+  policyEnabled: rule.knowledgePolicy != null,
+  boundaryEnabled: rule.knowledgeBoundary != null,
+  mode: rule.knowledgePolicy?.mode.wireName ?? '',
+  policyContext: _knowledgeRef(rule.knowledgePolicy?.context),
+  holder: _knowledgeRef(rule.knowledgeBoundary?.holder),
+  proposition: _knowledgeRef(rule.knowledgeBoundary?.proposition),
+  boundaryContext: _knowledgeRef(rule.knowledgeBoundary?.context),
+);
+KnowledgePolicy? buildRuleKnowledgePolicy(RuleKnowledgeInput input) =>
+    input.policyEnabled
+    ? KnowledgePolicy(
+        context: _buildKnowledgeRef(input.policyContext),
+        mode: KnowledgeMode.fromName(input.mode),
+      )
+    : null;
+KnowledgeBoundary? buildRuleKnowledgeBoundary(RuleKnowledgeInput input) =>
+    input.boundaryEnabled
+    ? KnowledgeBoundary(
+        holder: _buildKnowledgeRef(input.holder),
+        proposition: _buildKnowledgeRef(input.proposition),
+        context: _buildKnowledgeRef(input.boundaryContext),
+      )
+    : null;

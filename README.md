@@ -265,9 +265,12 @@ named subject types and target predicates, declared capabilities, applicability,
 validity and the existing typed expression grammar. Unfinished fields recover on
 this device; **Edit rule fields** in Changes preserves pending identity and
 rationale. Declaring execution support does not establish that the service can
-execute an unsupported capability. Existing specialized knowledge, cardinality
-and chronology data is retained; controls for editing those extensions remain
-pending.
+execute an unsupported capability. Knowledge acquisition controls offer explicit
+author-established/justified modes and a named policy context. Scoped knowledge
+boundaries name the holder, proposition and context; disabling either extension
+explicitly removes it while retaining unfinished fields on this device. Older
+saved forms retain their original knowledge settings. Cardinality and chronology
+data is retained; controls for editing those extensions remain pending.
 **Timeline** in an entity dossier lists events with explicit participation.
 Exact numeric points are ordered separately in each named calendar, using the
 shared rule engine's integer bounds. Equal coordinates do not imply sequence.

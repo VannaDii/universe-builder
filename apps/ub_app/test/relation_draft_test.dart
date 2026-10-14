@@ -1238,6 +1238,58 @@ void main() {
         (rulePublished.single.payload as RuleRecord).labels['en'],
         'Hometown continuity',
       );
+      final knowledgeBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final knowledgeForm = UnfinishedRuleForm(
+        baseRevision: knowledgeBase.content.baseRevision,
+        representedContext: knowledgeBase.content.representedContext,
+        clientRef: 'knowledge-rule',
+        namespace: 'authored',
+        key: 'knowledge-acquisition',
+        labels: [
+          const PropertyLabelInput(
+            language: 'en',
+            text: 'Knowledge acquisition',
+          ),
+        ],
+        kind: 'physical_constraint',
+        commitPolicy: 'always_block',
+        scope: const ScopeInput(applicability: 'universe_wide'),
+        expression: ExpressionInput(kind: 'lit', flags: {'value': true}),
+        capabilities: ['knowledge.acquisition.v1'],
+        executable: true,
+        knowledge: RuleKnowledgeInput(
+          policyEnabled: true,
+          mode: 'author_established',
+          policyContext: ExpressionReferenceInput(
+            record: scope.representedContext!.value,
+            universe: scope.universe.value,
+          ),
+        ),
+        rationale: 'Establish the authored knowledge policy.',
+      );
+      final knowledgeDraft = SavedDraft.fromWire(
+        await session.call(
+          ruleDraftRequest(
+            draft: knowledgeBase,
+            form: knowledgeForm,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final List<RecordVersion> knowledgePublished;
+      try {
+        knowledgePublished = await publish(knowledgeDraft);
+      } on PolicyDeniedError catch (error) {
+        fail(error.message);
+      }
+      expect(
+        (knowledgePublished.single.payload as RuleRecord).knowledgePolicy!.mode,
+        KnowledgeMode.authorEstablished,
+      );
     } finally {
       await session?.close();
       await server.close();

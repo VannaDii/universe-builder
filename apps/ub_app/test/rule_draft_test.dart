@@ -81,6 +81,51 @@ void main() {
         ruleOperation(form).record.toWire().toText(),
         record.toWire().toText(),
       );
+      final legacy = UnfinishedRuleForm.fromWire(
+        CanonicalObject(
+          form.toWire().fields.where((f) => f.key != 'knowledge'),
+        ),
+      );
+      expect(
+        ruleOperation(legacy).record.toWire().toText(),
+        record.toWire().toText(),
+      );
+      final knowledge = form.knowledge!.copyWith(
+        mode: 'author_established',
+        boundaryEnabled: false,
+      );
+      final edited = UnfinishedRuleForm.fromWire(
+        CanonicalObject([
+          ...form.toWire().fields.where((f) => f.key != 'knowledge'),
+          MapEntry('knowledge', knowledge.toWire()),
+        ]),
+      );
+      final editedRecord = ruleOperation(edited).record;
+      expect(editedRecord.knowledgeBoundary, isNull);
+      expect(
+        editedRecord.knowledgePolicy!.mode,
+        KnowledgeMode.authorEstablished,
+      );
+      expect(
+        editedRecord.knowledgePolicy!.context,
+        record.knowledgePolicy!.context,
+      );
+      expect(
+        editedRecord.relationCardinality!.toWire().toText(),
+        record.relationCardinality!.toWire().toText(),
+      );
+      expect(
+        editedRecord.channelChronology!.toWire().toText(),
+        record.channelChronology!.toWire().toText(),
+      );
+      final removed = UnfinishedRuleForm.fromWire(
+        CanonicalObject([
+          ...form.toWire().fields.where((f) => f.key != 'knowledge'),
+          MapEntry('knowledge', const RuleKnowledgeInput().toWire()),
+        ]),
+      );
+      expect(ruleOperation(removed).record.knowledgePolicy, isNull);
+      expect(ruleOperation(removed).record.knowledgeBoundary, isNull);
       final request = ruleDraftRequest(
         draft: draft,
         form: form,
@@ -117,6 +162,13 @@ void main() {
       namespace: 'authored',
       key: 'incomplete',
       targetPredicates: ['incomplete predicate 記憶 😀'],
+      knowledge: const RuleKnowledgeInput(
+        policyEnabled: true,
+        mode: 'still deciding',
+        policyContext: ExpressionReferenceInput(
+          record: 'unfinished context 記憶 😀',
+        ),
+      ),
       expression: ExpressionInput(
         kind: 'compare',
         operands: {
@@ -131,6 +183,14 @@ void main() {
       store = RuleFormRecoveryStore.open('${root.path}/forms.sqlite');
       final recovered = store.load(scope)!;
       expect(recovered.form.executable, isNull);
+      expect(
+        recovered.form.knowledge!.policyContext.record,
+        'unfinished context 記憶 😀',
+      );
+      expect(
+        () => buildRuleKnowledgePolicy(recovered.form.knowledge!),
+        throwsFormatException,
+      );
       expect(recovered.form.expression.operands['right'], isNull);
       expect(
         recovered.form.targetPredicates.single,

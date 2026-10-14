@@ -4,6 +4,7 @@ import 'editor_forms.dart';
 import 'expression_forms.dart';
 import 'property_forms.dart';
 import 'wire.dart';
+import 'rule_knowledge_forms.dart';
 
 final class UnfinishedRuleForm {
   UnfinishedRuleForm({
@@ -24,6 +25,7 @@ final class UnfinishedRuleForm {
     this.validity = const TemporalValidityInput(kind: 'unspecified'),
     this.rationale = '',
     this.original,
+    this.knowledge,
     BigInt? draftVersion,
   }) : labels = List.unmodifiable(labels),
        subjectTypes = List.unmodifiable(subjectTypes),
@@ -41,6 +43,7 @@ final class UnfinishedRuleForm {
   final bool? executable;
   final TemporalValidityInput validity;
   final RuleRecord? original;
+  final RuleKnowledgeInput? knowledge;
   final BigInt? draftVersion;
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
@@ -69,6 +72,7 @@ final class UnfinishedRuleForm {
     if (executable != null) MapEntry('executable', CanonicalBool(executable!)),
     MapEntry('validity', validity.toWire()),
     if (original != null) MapEntry('original', original!.toWire()),
+    if (knowledge != null) MapEntry('knowledge', knowledge!.toWire()),
     if (draftVersion != null)
       MapEntry('draft_version', CanonicalString(draftVersion.toString())),
   ]);
@@ -91,6 +95,7 @@ final class UnfinishedRuleForm {
       'executable',
       'validity',
       'original',
+      'knowledge',
       'draft_version',
     });
     return UnfinishedRuleForm(
@@ -113,6 +118,7 @@ final class UnfinishedRuleForm {
           : null,
       validity: TemporalValidityInput.fromWire(f.require('validity')),
       original: f.optional('original', RuleRecord.fromWire),
+      knowledge: f.optional('knowledge', RuleKnowledgeInput.fromWire),
       draftVersion: f.optional(
         'draft_version',
         (v) => BigInt.parse(wireString(v)),

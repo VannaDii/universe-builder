@@ -16,6 +16,7 @@ import 'draft_record_choice_field.dart';
 import 'draft_record_choices.dart';
 import 'record_browser.dart';
 import 'connection.dart';
+import 'rule_knowledge_fields.dart';
 
 class RuleEditorPage extends StatefulWidget {
   const RuleEditorPage({
@@ -139,6 +140,7 @@ class _RuleEditorPageState extends State<RuleEditorPage> {
     ScopeInput? scope,
     TemporalValidityInput? validity,
     String? rationale,
+    RuleKnowledgeInput? knowledge,
   }) {
     final f = _form!;
     setState(() {
@@ -159,6 +161,7 @@ class _RuleEditorPageState extends State<RuleEditorPage> {
         scope: scope ?? f.scope,
         validity: validity ?? f.validity,
         original: f.original,
+        knowledge: knowledge ?? f.knowledge,
         rationale: rationale ?? f.rationale,
         draftVersion: f.draftVersion,
       );
@@ -561,12 +564,22 @@ class _RuleEditorPageState extends State<RuleEditorPage> {
                       disabled: _disabled,
                       onChanged: (v) => _change(validity: v),
                     ),
-                  if (f.original?.knowledgeBoundary != null ||
-                      f.original?.knowledgePolicy != null ||
-                      f.original?.relationCardinality != null ||
+                  RuleKnowledgeFields(
+                    key: ValueKey((_fields, 'knowledge')),
+                    input:
+                        f.knowledge ??
+                        (f.original == null
+                            ? const RuleKnowledgeInput()
+                            : ruleKnowledgeInput(f.original!)),
+                    changes: widget.changes,
+                    draft: _choices,
+                    disabled: _disabled,
+                    onChanged: (v) => _change(knowledge: v),
+                  ),
+                  if (f.original?.relationCardinality != null ||
                       f.original?.channelChronology != null)
                     const Text(
-                      'Existing knowledge, cardinality or chronology extensions are retained. Their specialized controls remain pending.',
+                      'Existing cardinality and chronology extensions are retained; their specialized controls remain pending.',
                     ),
                   if (widget.index == null)
                     _text(
