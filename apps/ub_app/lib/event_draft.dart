@@ -90,40 +90,108 @@ RecordEventOperation eventOperation(UnfinishedEventForm form) {
   );
 }
 
+ReviseEventOperation eventRevisionOperation(UnfinishedEventForm form) {
+  if (form.revisionTarget == null ||
+      form.expectedRecordVersion == null ||
+      form.original == null) {
+    throw const FormatException('Open a published event to revise it.');
+  }
+  return ReviseEventOperation(
+    record: _reference(
+      form.revisionTarget!.record,
+      form.revisionTarget!.universe,
+    ),
+    expectedVersion: form.expectedRecordVersion!,
+    replacement: eventOperation(form).record,
+  );
+}
+
+UnfinishedEventForm eventRevisionFormFromRecord({
+  required RecordVersion record,
+  required RevisionId baseRevision,
+  required RecordId representedContext,
+}) {
+  if (record.payload is! EventRecord) {
+    throw const FormatException('Choose a published event.');
+  }
+  return _eventForm(
+    record: record.payload as EventRecord,
+    baseRevision: baseRevision,
+    representedContext: representedContext,
+    clientRef: record.identity.recordId.value,
+    revisionTarget: ExpressionReferenceInput(
+      record: record.identity.recordId.value,
+      universe: record.identity.universeId.value,
+    ),
+    expectedRecordVersion: record.recordVersionId,
+  );
+}
+
 UnfinishedEventForm eventFormFromDraft(SavedDraft draft, int index) {
   final operation = draft.content.operations[index];
+  if (operation is ReviseEventOperation) {
+    return _eventForm(
+      record: operation.replacement,
+      baseRevision: draft.content.baseRevision,
+      representedContext: draft.content.representedContext,
+      clientRef: operation.record.record.value,
+      revisionTarget: ExpressionReferenceInput(
+        record: operation.record.record.value,
+        universe: operation.record.universe?.value ?? '',
+      ),
+      expectedRecordVersion: operation.expectedVersion,
+      draftVersion: draft.version,
+    );
+  }
   if (operation is! RecordEventOperation) {
     throw const FormatException('Choose an event from Changes.');
   }
-  final record = operation.record;
-  return UnfinishedEventForm(
+  return _eventForm(
+    record: operation.record,
     baseRevision: draft.content.baseRevision,
     representedContext: draft.content.representedContext,
     clientRef: operation.clientRef,
-    label: record.labels['en'] ?? '',
-    occurrence: switch (record.occurrence) {
-      SimpleOccurrence(:final kind) => kind.name,
-      DescriptiveOccurrence() => 'descriptive',
-    },
-    description: record.occurrence is DescriptiveOccurrence
-        ? (record.occurrence as DescriptiveOccurrence).label
-        : '',
-    actionRecord: record.action?.record.value ?? '',
-    actionUniverse: record.action?.universe?.value ?? '',
-    time: temporalValidityInput(InstantValidity(record.time)),
-    participants: record.participants.map(
-      (p) => EventParticipantInput(
-        record: p.record.record.value,
-        universe: p.record.universe?.value ?? '',
-        role: p.role,
-      ),
-    ),
-    original: record,
-    effects: record.effects.map(eventEffectInput),
-    preconditions: record.preconditions.map(expressionInput),
     draftVersion: draft.version,
   );
 }
+
+UnfinishedEventForm _eventForm({
+  required EventRecord record,
+  required RevisionId baseRevision,
+  required RecordId representedContext,
+  required String clientRef,
+  ExpressionReferenceInput? revisionTarget,
+  RecordVersionId? expectedRecordVersion,
+  BigInt? draftVersion,
+}) => UnfinishedEventForm(
+  baseRevision: baseRevision,
+  representedContext: representedContext,
+  clientRef: clientRef,
+  revisionTarget: revisionTarget,
+  expectedRecordVersion: expectedRecordVersion,
+  label: record.labels['en'] ?? '',
+  occurrence: switch (record.occurrence) {
+    SimpleOccurrence(:final kind) => kind.name,
+    DescriptiveOccurrence() => 'descriptive',
+  },
+  description: record.occurrence is DescriptiveOccurrence
+      ? (record.occurrence as DescriptiveOccurrence).label
+      : '',
+  actionRecord: record.action?.record.value ?? '',
+  actionUniverse: record.action?.universe?.value ?? '',
+  time: temporalValidityInput(InstantValidity(record.time)),
+  participants: record.participants.map(
+    (p) => EventParticipantInput(
+      record: p.record.record.value,
+      universe: p.record.universe?.value ?? '',
+      role: p.role,
+    ),
+  ),
+  original: record,
+  effects: record.effects.map(eventEffectInput),
+  preconditions: record.preconditions.map(expressionInput),
+  draftVersion: draftVersion,
+);
 
 SaveDraftEngineRequest eventDraftRequest({
   required SavedDraft draft,
@@ -137,12 +205,17 @@ SaveDraftEngineRequest eventDraftRequest({
       draft.content.representedContext != form.representedContext) {
     throw const FormatException('Review Changes before adding this event.');
   }
-  final operation = eventOperation(form);
+  final operation = form.revisionTarget == null
+      ? eventOperation(form)
+      : eventRevisionOperation(form);
   final operations = [...draft.content.operations];
   if (index != null) {
     final before = eventFormFromDraft(draft, index);
     if (form.draftVersion != draft.version ||
-        form.clientRef != before.clientRef) {
+        form.clientRef != before.clientRef ||
+        form.revisionTarget?.toWire().toText() !=
+            before.revisionTarget?.toWire().toText() ||
+        form.expectedRecordVersion != before.expectedRecordVersion) {
       throw const FormatException(
         'The draft changed. Reopen its current event fields.',
       );
@@ -150,6 +223,22 @@ SaveDraftEngineRequest eventDraftRequest({
     operations[index] = operation;
   } else {
     for (final existing in operations) {
+      if (operation is ReviseEventOperation &&
+          existing is ReviseEventOperation &&
+          existing.record == operation.record) {
+        if (existing.toWire().toText() != operation.toWire().toText()) {
+          throw const FormatException(
+            'This event already has a revision. Edit it in Changes.',
+          );
+        }
+        return SaveDraftEngineRequest(
+          universe: universe,
+          continuityId: continuity,
+          expectedVersion: draft.version,
+          content: draft.content,
+        );
+      }
+
       final ref = Map.fromEntries(existing.toWire().fields)['client_ref'];
       if (ref is CanonicalString && ref.value == form.clientRef) {
         if (existing.toWire().toText() != operation.toWire().toText()) {

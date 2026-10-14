@@ -42,6 +42,8 @@ final class UnfinishedEventForm {
     Iterable<EventParticipantInput> participants = const [],
     this.rationale = '',
     this.original,
+    this.revisionTarget,
+    this.expectedRecordVersion,
     Iterable<String>? worlds,
     String? regionRecord,
     String? regionUniverse,
@@ -80,6 +82,8 @@ final class UnfinishedEventForm {
   final List<EventEffectInput>? effects;
   final List<ExpressionInput>? preconditions;
   final EventRecord? original;
+  final ExpressionReferenceInput? revisionTarget;
+  final RecordVersionId? expectedRecordVersion;
   final BigInt? draftVersion;
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
@@ -109,6 +113,13 @@ final class UnfinishedEventForm {
     MapEntry('sequence', CanonicalString(sequence)),
     MapEntry('occurrence_id', CanonicalString(occurrenceId)),
     if (original != null) MapEntry('original', original!.toWire()),
+    if (revisionTarget != null)
+      MapEntry('revision_target', revisionTarget!.toWire()),
+    if (expectedRecordVersion != null)
+      MapEntry(
+        'expected_record_version',
+        CanonicalString(expectedRecordVersion!.value),
+      ),
     if (draftVersion != null)
       MapEntry('draft_version', CanonicalString(draftVersion.toString())),
   ]);
@@ -129,6 +140,8 @@ final class UnfinishedEventForm {
       'effects',
       'preconditions',
       'draft_version',
+      'revision_target',
+      'expected_record_version',
       'worlds',
       'region_record',
       'region_universe',
@@ -167,6 +180,14 @@ final class UnfinishedEventForm {
       original: f.optional(
         'original',
         (v) => RecordPayload.fromWire(v) as EventRecord,
+      ),
+      revisionTarget: f.optional(
+        'revision_target',
+        ExpressionReferenceInput.fromWire,
+      ),
+      expectedRecordVersion: f.optional(
+        'expected_record_version',
+        (v) => RecordVersionId.parse(wireString(v)),
       ),
       draftVersion: f.optional(
         'draft_version',

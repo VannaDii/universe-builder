@@ -23,11 +23,13 @@ class EventEditorPage extends StatefulWidget {
     required this.revision,
     this.editingDraft,
     this.index,
+    this.revisionRecord,
   });
   final SavedChanges changes;
   final RevisionId revision;
   final SavedDraft? editingDraft;
   final int? index;
+  final RecordVersion? revisionRecord;
   @override
   State<EventEditorPage> createState() => _EventEditorPageState();
 }
@@ -73,6 +75,12 @@ class _EventEditorPageState extends State<EventEditorPage> {
 
   UnfinishedEventForm _fresh() => widget.index != null
       ? eventFormFromDraft(_draft!, widget.index!)
+      : widget.revisionRecord != null
+      ? eventRevisionFormFromRecord(
+          record: widget.revisionRecord!,
+          baseRevision: widget.revision,
+          representedContext: _scope.representedContext!,
+        )
       : UnfinishedEventForm(
           baseRevision: widget.revision,
           representedContext: _scope.representedContext!,
@@ -97,13 +105,22 @@ class _EventEditorPageState extends State<EventEditorPage> {
                   _form!.baseRevision != _draft!.content.baseRevision ||
                   _form!.representedContext !=
                       _draft!.content.representedContext
-            : _form!.baseRevision != widget.revision;
+            : _form!.baseRevision != widget.revision ||
+                  (widget.revisionRecord != null &&
+                      _form!.expectedRecordVersion !=
+                          widget.revisionRecord!.recordVersionId);
         _added =
             widget.index == null &&
                 (_draft?.content.operations.any(
                       (op) =>
-                          op is RecordEventOperation &&
-                          op.clientRef == _form!.clientRef,
+                          (op is RecordEventOperation &&
+                              _form!.revisionTarget == null &&
+                              op.clientRef == _form!.clientRef) ||
+                          (op is ReviseEventOperation &&
+                              _form!.revisionTarget?.record ==
+                                  op.record.record.value &&
+                              _form!.revisionTarget?.universe ==
+                                  (op.record.universe?.value ?? '')),
                     ) ??
                     false)
             ? 'This definition is in Changes. Review or edit it there.'
@@ -193,6 +210,8 @@ class _EventEditorPageState extends State<EventEditorPage> {
         sequence: sequence ?? f.sequence,
         occurrenceId: occurrenceId ?? f.occurrenceId,
         draftVersion: f.draftVersion,
+        revisionTarget: f.revisionTarget,
+        expectedRecordVersion: f.expectedRecordVersion,
       );
       _dirty = true;
     });
@@ -324,8 +343,15 @@ class _EventEditorPageState extends State<EventEditorPage> {
       setState(() {
         _draft = saved;
         _result = saved;
-        if (widget.index != null) {
-          _form = eventFormFromDraft(saved, widget.index!);
+        if (widget.index != null || _form!.revisionTarget != null) {
+          final index =
+              widget.index ??
+              saved.content.operations.indexWhere(
+                (op) =>
+                    op is ReviseEventOperation &&
+                    op.record == eventRevisionOperation(_form!).record,
+              );
+          _form = eventFormFromDraft(saved, index);
           _fields++;
           _dirty = true;
         } else {
@@ -407,6 +433,10 @@ class _EventEditorPageState extends State<EventEditorPage> {
                   ),
                 ],
                 if (_form case final f?) ...[
+                  if (f.revisionTarget != null)
+                    const Text(
+                      'Revising this event retains its record and version reference. Review occurrence, time, participants and declared effects explicitly. Publication preserves history; the service checks the action contract and regenerates effects.',
+                    ),
                   _text(
                     'label',
                     'Event label',

@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:ub_app/event_withdrawal_draft.dart';
+import 'package:ub_app/event_draft.dart';
 import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/draft_record_choices.dart';
@@ -129,8 +130,86 @@ void main() {
           rationale: 'Record the authored occurrence.',
         ),
       );
-      final published = (await publish(sourceDraft))
+      var published = (await publish(sourceDraft))
           .singleWhere((r) => r.payload is EventRecord);
+      final revisionBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final revisionScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: published.identity.recordId.value,
+      );
+      final sourceForm = eventRevisionFormFromRecord(
+        record: published,
+        baseRevision: revisionBase.content.baseRevision,
+        representedContext: scope.representedContext!,
+      );
+      final revisionForm = UnfinishedEventForm.fromWire(
+        CanonicalObject(
+          sourceForm.toWire().fields.map(
+            (e) => e.key == 'time'
+                ? MapEntry(
+                    'time',
+                    sourceForm.time
+                        .copyWith(
+                          start: const TemporalBoundInput(
+                            kind: 'exact',
+                            value: '9007199254740999',
+                          ),
+                        )
+                        .toWire(),
+                  )
+                : e.key == 'label'
+                ? MapEntry('label', CanonicalString('Corrected arrival 記憶 😀'))
+                : e.key == 'rationale'
+                ? MapEntry(
+                    'rationale',
+                    CanonicalString(
+                      'Correct the authored occurrence time and label.',
+                    ),
+                  )
+                : e,
+          ),
+        ),
+      );
+      await session.saveEventForm(revisionScope, revisionForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredRevision = (await session.loadEventForm(revisionScope))!
+          .form;
+      expect(
+        recoveredRevision.toWire().toText(),
+        revisionForm.toWire().toText(),
+      );
+      final revisionDraft = SavedDraft.fromWire(
+        await session.call(
+          eventDraftRequest(
+            draft: revisionBase,
+            form: recoveredRevision,
+            universe: const Selector('Events'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final revisedEvent = (await publish(revisionDraft)).single;
+      expect(revisedEvent.identity.recordId, published.identity.recordId);
+      expect(
+        revisedEvent.payload.toWire().toText(),
+        eventRevisionOperation(revisionForm).replacement.toWire().toText(),
+      );
+      final retainedEvent = await readContextRecord(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Events'),
+        context: await openDraftChoiceContext(changes(), revisionBase),
+        record: published.identity.recordId,
+      );
+      expect(retainedEvent.toWire().toText(), published.toWire().toText());
+      published = revisedEvent;
       final withdrawalBase = await changes().rebase(
         (await changes().load())!,
         startNew: true,

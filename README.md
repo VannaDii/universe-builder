@@ -281,6 +281,12 @@ In author perspective, proposition choices show their subject, predicate,
 quantification, context, ordered participants and simple values using accessible
 names. Search matches these descriptions. Hidden dependencies retain the
 existing fallback; labels do not assert that a proposition is true.
+Published events offer **Revise event** in their record details. Authors can edit
+occurrence, time, declared action, location, participants, preconditions and effect
+declarations. Other language labels remain intact. Unfinished revisions recover
+on this device; **Edit event revision fields** in Changes retains the source record
+and version. Publication preserves history and uses the existing action-contract
+checks and generated-effect expansion.
 An event marked as occurred offers **Withdraw occurrence** in its record details.
 Authors give an explicit reason; unfinished reasons recover on this device, and
 **Edit occurrence withdrawal** in Changes keeps the event and version reference.
