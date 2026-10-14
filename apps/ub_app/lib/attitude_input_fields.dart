@@ -27,6 +27,7 @@ class AttitudeInputFields extends StatelessWidget {
     ExpressionReferenceInput value,
     ValueChanged<ExpressionReferenceInput> change, {
     RecordKind? kind,
+    bool readOnly = false,
   }) => DraftRecordChoiceField(
     changes: changes,
     draft: draft,
@@ -34,7 +35,7 @@ class AttitudeInputFields extends StatelessWidget {
     label: label,
     record: value.record,
     universe: value.universe,
-    disabled: disabled,
+    disabled: disabled || readOnly,
     onChanged: (ref) => change(
       ExpressionReferenceInput(
         record: ref.record.value,
@@ -47,19 +48,30 @@ class AttitudeInputFields extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final a = form.acquisition;
+    final fixed = disabled || form.correctionTarget != null;
+    final knowledgeFixed =
+        disabled || (form.correctionTarget != null && form.attitude == 'knows');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (form.correctionTarget != null)
+          Text(
+            form.attitude == 'knows'
+                ? 'Knowledge corrections change duration only. Holder, claim, certainty, basis and acquisition remain fixed.'
+                : 'Corrections retain holder, stance, basis and acquisition. A different claim must change its value only; subject, property, roles, polarity and truth context remain fixed. Existing checks retain an authored calendar.',
+          ),
         _reference(
           'Holder',
           form.holder,
           (v) => onChanged(form.copyWith(holder: v)),
+          readOnly: form.correctionTarget != null,
         ),
         _reference(
           'Proposition',
           form.proposition,
           (v) => onChanged(form.copyWith(proposition: v)),
           kind: RecordKind.proposition,
+          readOnly: knowledgeFixed,
         ),
         DropdownButtonFormField<String>(
           key: ValueKey(('attitude', form.attitude)),
@@ -72,7 +84,7 @@ class AttitudeInputFields extends StatelessWidget {
             DropdownMenuItem(value: 'remembers', child: Text('Remembers')),
             DropdownMenuItem(value: 'knows', child: Text('Knows')),
           ],
-          onChanged: disabled
+          onChanged: fixed
               ? null
               : (v) {
                   if (v != null) onChanged(form.copyWith(attitude: v));
@@ -81,14 +93,14 @@ class AttitudeInputFields extends StatelessWidget {
         SwitchListTile(
           title: const Text('Include a certainty description'),
           value: form.certaintyEnabled,
-          onChanged: disabled
+          onChanged: knowledgeFixed
               ? null
               : (v) => onChanged(form.copyWith(certaintyEnabled: v)),
         ),
         if (form.certaintyEnabled)
           TextFormField(
             initialValue: form.certainty,
-            enabled: !disabled,
+            enabled: !knowledgeFixed,
             decoration: const InputDecoration(labelText: 'Authored certainty'),
             onChanged: (v) => onChanged(form.copyWith(certainty: v)),
           ),
@@ -145,7 +157,7 @@ class AttitudeInputFields extends StatelessWidget {
         EvidenceBasisFields(
           input: form.basis,
           original: form.original?.basis ?? const AuthorDecisionBasis(''),
-          disabled: disabled,
+          disabled: fixed,
           changes: changes,
           draft: draft,
           onChanged: (v) => onChanged(form.copyWith(basis: v)),
@@ -153,9 +165,7 @@ class AttitudeInputFields extends StatelessWidget {
         SwitchListTile(
           title: const Text('Declare knowledge acquisition'),
           value: a.enabled,
-          onChanged: disabled
-              ? null
-              : (v) => _acquisition(a.copyWith(enabled: v)),
+          onChanged: fixed ? null : (v) => _acquisition(a.copyWith(enabled: v)),
         ),
         if (a.enabled) ...[
           const Text(
@@ -165,6 +175,7 @@ class AttitudeInputFields extends StatelessWidget {
             'Truth context',
             a.truthContext,
             (v) => _acquisition(a.copyWith(truthContext: v)),
+            readOnly: form.correctionTarget != null,
             kind: RecordKind.representedContext,
           ),
           const Text('Acquisition time'),
@@ -178,13 +189,13 @@ class AttitudeInputFields extends StatelessWidget {
             ),
             changes: changes,
             draft: draft,
-            disabled: disabled,
+            disabled: fixed,
             onChanged: (v) => _acquisition(a.copyWith(time: v)),
           ),
           SwitchListTile(
             title: const Text('Limit acquisition to a world'),
             value: a.worldEnabled,
-            onChanged: disabled
+            onChanged: fixed
                 ? null
                 : (v) => _acquisition(a.copyWith(worldEnabled: v)),
           ),
@@ -193,6 +204,7 @@ class AttitudeInputFields extends StatelessWidget {
               'Acquisition world',
               a.world,
               (v) => _acquisition(a.copyWith(world: v)),
+              readOnly: form.correctionTarget != null,
               kind: RecordKind.world,
             ),
           DropdownButtonFormField<String>(
@@ -209,7 +221,7 @@ class AttitudeInputFields extends StatelessWidget {
                 child: Text('Communication receipt'),
               ),
             ],
-            onChanged: disabled
+            onChanged: fixed
                 ? null
                 : (v) {
                     if (v != null) _acquisition(a.copyWith(basis: v));
@@ -220,12 +232,13 @@ class AttitudeInputFields extends StatelessWidget {
               'Received communication',
               a.communication,
               (v) => _acquisition(a.copyWith(communication: v)),
+              readOnly: form.correctionTarget != null,
               kind: RecordKind.communication,
             ),
             SwitchListTile(
               title: const Text('Include an interpretation'),
               value: a.interpretationEnabled,
-              onChanged: disabled
+              onChanged: fixed
                   ? null
                   : (v) => _acquisition(a.copyWith(interpretationEnabled: v)),
             ),
@@ -234,6 +247,8 @@ class AttitudeInputFields extends StatelessWidget {
                 'Interpretation',
                 a.interpretation,
                 (v) => _acquisition(a.copyWith(interpretation: v)),
+
+                readOnly: form.correctionTarget != null,
               ),
           ],
         ],

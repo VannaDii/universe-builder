@@ -16,11 +16,13 @@ class AttitudeEditorPage extends StatefulWidget {
     required this.revision,
     this.editingDraft,
     this.index,
+    this.correctionRecord,
   });
   final SavedChanges changes;
   final RevisionId revision;
   final SavedDraft? editingDraft;
   final int? index;
+  final RecordVersion? correctionRecord;
   @override
   State<AttitudeEditorPage> createState() => _AttitudeEditorPageState();
 }
@@ -67,6 +69,12 @@ class _AttitudeEditorPageState extends State<AttitudeEditorPage> {
 
   UnfinishedAttitudeForm _fresh() => widget.index != null
       ? attitudeFormFromDraft(_draft!, widget.index!)
+      : widget.correctionRecord != null
+      ? attitudeCorrectionFormFromRecord(
+          record: widget.correctionRecord!,
+          baseRevision: widget.revision,
+          representedContext: _scope.representedContext!,
+        )
       : UnfinishedAttitudeForm(
           baseRevision: widget.revision,
           representedContext: _scope.representedContext!,
@@ -97,13 +105,22 @@ class _AttitudeEditorPageState extends State<AttitudeEditorPage> {
                   _form!.baseRevision != _draft!.content.baseRevision ||
                   _form!.representedContext !=
                       _draft!.content.representedContext
-            : _form!.baseRevision != widget.revision;
+            : _form!.baseRevision != widget.revision ||
+                  (widget.correctionRecord != null &&
+                      _form!.expectedRecordVersion !=
+                          widget.correctionRecord!.recordVersionId);
         _added =
             widget.index == null &&
                 (_draft?.content.operations.any(
                       (op) =>
-                          op is AddBeliefOperation &&
-                          op.clientRef == _form!.clientRef,
+                          (op is AddBeliefOperation &&
+                              _form!.correctionTarget == null &&
+                              op.clientRef == _form!.clientRef) ||
+                          (op is ReviseAttitudeOperation &&
+                              _form!.correctionTarget?.record ==
+                                  op.record.record.value &&
+                              _form!.correctionTarget?.universe ==
+                                  (op.record.universe?.value ?? '')),
                     ) ??
                     false)
             ? 'This definition is in Changes. Review or edit it there.'
@@ -203,8 +220,15 @@ class _AttitudeEditorPageState extends State<AttitudeEditorPage> {
       setState(() {
         _draft = saved;
         _result = saved;
-        if (widget.index != null) {
-          _form = attitudeFormFromDraft(saved, widget.index!);
+        if (widget.index != null || _form!.correctionTarget != null) {
+          final index =
+              widget.index ??
+              saved.content.operations.indexWhere(
+                (op) =>
+                    op is ReviseAttitudeOperation &&
+                    op.record == attitudeCorrectionOperation(_form!).record,
+              );
+          _form = attitudeFormFromDraft(saved, index);
           _fields++;
           _dirty = true;
         } else {
@@ -298,7 +322,7 @@ class _AttitudeEditorPageState extends State<AttitudeEditorPage> {
                     disabled: _disabled,
                     onChanged: _change,
                   ),
-                  if (widget.index == null)
+                  if (widget.index == null || f.correctionTarget != null)
                     _text(
                       'rationale',
                       'Rationale',

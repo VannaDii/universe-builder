@@ -91,28 +91,112 @@ AddBeliefOperation attitudeOperation(UnfinishedAttitudeForm form) {
   );
 }
 
+ReviseAttitudeOperation attitudeCorrectionOperation(
+  UnfinishedAttitudeForm form,
+) {
+  final old = form.original;
+  if (form.correctionTarget == null ||
+      form.expectedRecordVersion == null ||
+      old == null) {
+    throw const FormatException('Open a published attitude to correct it.');
+  }
+  final next = attitudeOperation(form).record;
+  if (old.holder != next.holder ||
+      old.attitude != next.attitude ||
+      old.basis != next.basis ||
+      old.acquisition?.toWire().toText() !=
+          next.acquisition?.toWire().toText() ||
+      (old.attitude == EpistemicAttitudeKind.knows &&
+          (old.proposition != next.proposition ||
+              old.certainty != next.certainty))) {
+    throw const FormatException(
+      'Retain holder, stance, basis and acquisition. Knowledge corrections change duration only.',
+    );
+  }
+  return ReviseAttitudeOperation(
+    record: _reference(form.correctionTarget!),
+    expectedVersion: form.expectedRecordVersion!,
+    replacement: next,
+    rationale: form.rationale,
+  );
+}
+
+UnfinishedAttitudeForm attitudeCorrectionFormFromRecord({
+  required RecordVersion record,
+  required RevisionId baseRevision,
+  required RecordId representedContext,
+}) {
+  if (record.payload is! EpistemicAttitudeRecord) {
+    throw const FormatException('Choose a published attitude.');
+  }
+  return _attitudeForm(
+    record: record.payload as EpistemicAttitudeRecord,
+    baseRevision: baseRevision,
+    representedContext: representedContext,
+    clientRef: record.identity.recordId.value,
+    correctionTarget: _input(
+      RecordRef(
+        universe: record.identity.universeId,
+        record: record.identity.recordId,
+      ),
+    ),
+    expectedRecordVersion: record.recordVersionId,
+  );
+}
+
 UnfinishedAttitudeForm attitudeFormFromDraft(SavedDraft draft, int index) {
   final operation = draft.content.operations[index];
+  if (operation is ReviseAttitudeOperation) {
+    return _attitudeForm(
+      record: operation.replacement,
+      baseRevision: draft.content.baseRevision,
+      representedContext: draft.content.representedContext,
+      clientRef: operation.record.record.value,
+      correctionTarget: _input(operation.record),
+      expectedRecordVersion: operation.expectedVersion,
+      rationale: operation.rationale,
+      draftVersion: draft.version,
+    );
+  }
   if (operation is! AddBeliefOperation) {
     throw const FormatException('Choose an attitude from Changes.');
   }
-  final record = operation.record;
-  return UnfinishedAttitudeForm(
+  return _attitudeForm(
+    record: operation.record,
     baseRevision: draft.content.baseRevision,
     representedContext: draft.content.representedContext,
     clientRef: operation.clientRef,
-    holder: _input(record.holder),
-    proposition: _input(record.proposition),
-    attitude: record.attitude.name,
-    certaintyEnabled: record.certainty != null,
-    certainty: record.certainty ?? '',
-    validity: actionValidityInput(record.validity),
-    basis: evidenceBasisInput(record.basis),
-    acquisition: acquisitionInput(record.acquisition),
-    original: record,
     draftVersion: draft.version,
   );
 }
+
+UnfinishedAttitudeForm _attitudeForm({
+  required EpistemicAttitudeRecord record,
+  required RevisionId baseRevision,
+  required RecordId representedContext,
+  required String clientRef,
+  ExpressionReferenceInput? correctionTarget,
+  RecordVersionId? expectedRecordVersion,
+  String rationale = '',
+  BigInt? draftVersion,
+}) => UnfinishedAttitudeForm(
+  baseRevision: baseRevision,
+  representedContext: representedContext,
+  clientRef: clientRef,
+  correctionTarget: correctionTarget,
+  expectedRecordVersion: expectedRecordVersion,
+  rationale: rationale,
+  holder: _input(record.holder),
+  proposition: _input(record.proposition),
+  attitude: record.attitude.name,
+  certaintyEnabled: record.certainty != null,
+  certainty: record.certainty ?? '',
+  validity: actionValidityInput(record.validity),
+  basis: evidenceBasisInput(record.basis),
+  acquisition: acquisitionInput(record.acquisition),
+  original: record,
+  draftVersion: draftVersion,
+);
 
 SaveDraftEngineRequest attitudeDraftRequest({
   required SavedDraft draft,
@@ -128,12 +212,17 @@ SaveDraftEngineRequest attitudeDraftRequest({
       'Review Changes before adding this attitude declaration.',
     );
   }
-  final operation = attitudeOperation(form);
+  final operation = form.correctionTarget == null
+      ? attitudeOperation(form)
+      : attitudeCorrectionOperation(form);
   final operations = [...draft.content.operations];
   if (index != null) {
     final before = attitudeFormFromDraft(draft, index);
     if (form.draftVersion != draft.version ||
-        form.clientRef != before.clientRef) {
+        form.clientRef != before.clientRef ||
+        form.correctionTarget?.toWire().toText() !=
+            before.correctionTarget?.toWire().toText() ||
+        form.expectedRecordVersion != before.expectedRecordVersion) {
       throw const FormatException(
         'The draft changed. Reopen its current attitude fields.',
       );
@@ -141,6 +230,21 @@ SaveDraftEngineRequest attitudeDraftRequest({
     operations[index] = operation;
   } else {
     for (final existing in operations) {
+      if (operation is ReviseAttitudeOperation &&
+          existing is ReviseAttitudeOperation &&
+          existing.record == operation.record) {
+        if (existing.toWire().toText() != operation.toWire().toText()) {
+          throw const FormatException(
+            'This attitude already has a correction. Edit it in Changes.',
+          );
+        }
+        return SaveDraftEngineRequest(
+          universe: universe,
+          continuityId: continuity,
+          expectedVersion: draft.version,
+          content: draft.content,
+        );
+      }
       final ref = Map.fromEntries(existing.toWire().fields)['client_ref'];
       if (ref is CanonicalString && ref.value == form.clientRef) {
         if (existing.toWire().toText() != operation.toWire().toText()) {

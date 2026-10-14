@@ -3360,6 +3360,75 @@ void main() {
         retainedCommunication.toWire().toText(),
         communicationPublished.single.toWire().toText(),
       );
+      final attitudeCorrectionBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final attitudeCorrectionScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: attitudePublished.single.identity.recordId.value,
+      );
+      final attitudeCorrectionForm =
+          attitudeCorrectionFormFromRecord(
+            record: attitudePublished.single,
+            baseRevision: attitudeCorrectionBase.content.baseRevision,
+            representedContext: scope.representedContext!,
+          ).copyWith(
+            certainty: 'Tentative account 記憶 😀',
+            rationale: 'Correct the authored certainty of Nia’s suspicion.',
+          );
+      await session.saveAttitudeForm(
+        attitudeCorrectionScope,
+        attitudeCorrectionForm,
+        BigInt.zero,
+      );
+      await session.close();
+      session = await device.connect();
+      final recoveredAttitudeCorrection = (await session.loadAttitudeForm(
+        attitudeCorrectionScope,
+      ))!.form;
+      expect(
+        recoveredAttitudeCorrection.toWire().toText(),
+        attitudeCorrectionForm.toWire().toText(),
+      );
+      final attitudeCorrectionDraft = SavedDraft.fromWire(
+        await session.call(
+          attitudeDraftRequest(
+            draft: attitudeCorrectionBase,
+            form: recoveredAttitudeCorrection,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final correctedAttitude = await publish(attitudeCorrectionDraft);
+      expect(
+        correctedAttitude.single.identity.recordId,
+        attitudePublished.single.identity.recordId,
+      );
+      expect(
+        correctedAttitude.single.payload.toWire().toText(),
+        attitudeCorrectionOperation(attitudeCorrectionForm).replacement
+            .toWire()
+            .toText(),
+      );
+      final retainedAttitude = await readContextRecord(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Relations'),
+        context: await openDraftChoiceContext(
+          changes(),
+          attitudeCorrectionBase,
+        ),
+        record: attitudePublished.single.identity.recordId,
+      );
+      expect(
+        retainedAttitude.toWire().toText(),
+        attitudePublished.single.toWire().toText(),
+      );
     } finally {
       await session?.close();
       await server.close();

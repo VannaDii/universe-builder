@@ -412,6 +412,15 @@ times and explicit distortion. Repeated entries remain intact; actual recipients
 require an authored receipt time. Recording a message does not infer knowledge
 or understanding. Unfinished input recovers on this device, and pending messages
 offer **Edit communication fields** in Changes.
+A published attitude’s dossier offers **Correct belief or knowledge**. Its
+recoverable form retains identity and expected version and submits `revise_attitude`
+with an explicit reason. Holder, stance, basis and acquisition remain fixed.
+Belief-like records can change certainty and select a claim differing in value
+only; existing checks retain subject, property, roles, polarity and truth context.
+Knowledge corrections change duration only. Existing service checks retain an
+authored calendar. Pending corrections can be edited in Changes, and reviewed
+publication preserves earlier history.
+
 **Observation** records a named observer and observed record, an explicit
 sensory-access choice, exact authored time, optional interpretation and source
 basis. Presence and observation do not infer understanding or knowledge.

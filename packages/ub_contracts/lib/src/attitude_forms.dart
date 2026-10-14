@@ -103,6 +103,8 @@ final class UnfinishedAttitudeForm {
     this.acquisition = const KnowledgeAcquisitionInput(),
     this.rationale = '',
     this.original,
+    this.correctionTarget,
+    this.expectedRecordVersion,
     BigInt? draftVersion,
   }) : draftVersion = draftVersion == null ? null : checkedU64(draftVersion);
   final RevisionId baseRevision;
@@ -114,6 +116,8 @@ final class UnfinishedAttitudeForm {
   final EvidenceBasisInput basis;
   final KnowledgeAcquisitionInput acquisition;
   final EpistemicAttitudeRecord? original;
+  final ExpressionReferenceInput? correctionTarget;
+  final RecordVersionId? expectedRecordVersion;
   final BigInt? draftVersion;
   UnfinishedAttitudeForm copyWith({
     ExpressionReferenceInput? holder,
@@ -139,6 +143,8 @@ final class UnfinishedAttitudeForm {
     acquisition: acquisition ?? this.acquisition,
     rationale: rationale ?? this.rationale,
     original: original,
+    correctionTarget: correctionTarget,
+    expectedRecordVersion: expectedRecordVersion,
     draftVersion: draftVersion,
   );
   CanonicalObject toWire() => CanonicalObject([
@@ -154,6 +160,13 @@ final class UnfinishedAttitudeForm {
     MapEntry('basis', basis.toWire()),
     MapEntry('acquisition', acquisition.toWire()),
     MapEntry('rationale', CanonicalString(rationale)),
+    if (correctionTarget != null)
+      MapEntry('correction_target', correctionTarget!.toWire()),
+    if (expectedRecordVersion != null)
+      MapEntry(
+        'expected_record_version',
+        CanonicalString(expectedRecordVersion!.value),
+      ),
     if (original != null) MapEntry('original', original!.toWire()),
     if (draftVersion != null)
       MapEntry('draft_version', CanonicalString(draftVersion.toString())),
@@ -173,6 +186,8 @@ final class UnfinishedAttitudeForm {
       'acquisition',
       'rationale',
       'original',
+      'correction_target',
+      'expected_record_version',
       'draft_version',
     });
     return UnfinishedAttitudeForm(
@@ -188,6 +203,14 @@ final class UnfinishedAttitudeForm {
       basis: EvidenceBasisInput.fromWire(f.require('basis')),
       acquisition: KnowledgeAcquisitionInput.fromWire(f.require('acquisition')),
       rationale: f.string('rationale'),
+      correctionTarget: f.optional(
+        'correction_target',
+        ExpressionReferenceInput.fromWire,
+      ),
+      expectedRecordVersion: f.optional(
+        'expected_record_version',
+        (v) => RecordVersionId.parse(wireString(v)),
+      ),
       original: f.optional('original', EpistemicAttitudeRecord.fromWire),
       draftVersion: f.optional(
         'draft_version',
