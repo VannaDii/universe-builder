@@ -303,6 +303,13 @@ expressions, ordered steps, explicit status and validity. Repeated steps remain
 intact. A plan neither executes its steps nor reserves resources; recording an
 achieved status does not invent occurred events. Unfinished fields recover on
 this device, and pending plans offer **Edit plan fields** in Changes.
+**Work edition** names an external work version and requires an explicit
+unbound, single-continuity or segmented binding. Named continuity selection
+captures the listed canon revision; exact historical revision pins remain
+editable and reopening retains them. Segment order, labels and independent pins
+recover privately and pass through Changes and reviewed publication. Edition
+metadata does not merge continuities or import manuscript prose.
+
 **Saga** groups named external works with explicit membership roles and optional
 unsigned 64-bit order values. A work can appear in separate roles. Reordering rows
 does not renumber authored order values or merge continuity bindings. Title,

@@ -25,6 +25,7 @@ import 'package:ub_app/issue_decision_draft.dart';
 import 'package:ub_app/exception_draft.dart';
 import 'package:ub_app/work_draft.dart';
 import 'package:ub_app/saga_draft.dart';
+import 'package:ub_app/work_version_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -2558,6 +2559,83 @@ void main() {
       expect(
         sagaPublished.single.payload.toWire().toText(),
         sagaOperation(sagaForm).record.toWire().toText(),
+      );
+      final typedEditionBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final editionDescription = Envelope<Description>.fromWire(
+        await session.call(
+          ToolEngineRequest(
+            request: DescribeSummaryRequest(
+              universe: const Selector('Relations'),
+            ),
+          ),
+        ),
+        Description.fromWire,
+      ).result;
+      final alternateEdition = editionDescription.continuities.singleWhere(
+        (c) => c.name == 'Alternate campaign',
+      );
+      final typedEditionForm = UnfinishedWorkVersionForm(
+        baseRevision: typedEditionBase.content.baseRevision,
+        representedContext: scope.representedContext!,
+        clientRef: 'researched-edition',
+        work: memberWork,
+        versionLabel: 'Researched edition 記憶 😀',
+        bindingKind: 'segments',
+        segments: [
+          WorkSegmentInput(
+            segment: 'Opening',
+            continuity: scope.continuity.value,
+            revision: typedEditionBase.content.baseRevision.value,
+          ),
+          WorkSegmentInput(
+            segment: 'Alternative',
+            continuity: alternateEdition.id.value,
+            revision: alternateEdition.revisionId.value,
+          ),
+        ],
+        rationale: 'Keep each represented segment pinned to its authored continuity revision.',
+      );
+      await session.saveWorkVersionForm(scope, typedEditionForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredEdition = (await session.loadWorkVersionForm(scope))!.form;
+      expect(
+        recoveredEdition.toWire().toText(),
+        typedEditionForm.toWire().toText(),
+      );
+      final typedEditionDraft = SavedDraft.fromWire(
+        await session.call(
+          workVersionDraftRequest(
+            draft: typedEditionBase,
+            form: recoveredEdition,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final typedEditionPublished = await publish(typedEditionDraft);
+      expect(
+        typedEditionPublished.single.payload.toWire().toText(),
+        workVersionOperation(typedEditionForm).payload.toWire().toText(),
+      );
+      final afterEditionDescription = Envelope<Description>.fromWire(
+        await session.call(
+          ToolEngineRequest(
+            request: DescribeSummaryRequest(
+              universe: const Selector('Relations'),
+            ),
+          ),
+        ),
+        Description.fromWire,
+      ).result;
+      expect(
+        afterEditionDescription.continuities
+            .singleWhere((c) => c.id == alternateEdition.id)
+            .revisionId,
+        alternateEdition.revisionId,
       );
     } finally {
       await session?.close();

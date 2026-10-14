@@ -27,6 +27,8 @@ final class AppSession {
     required this.saveIssueDecisionForm,
     required this.loadExceptionForm,
     required this.saveExceptionForm,
+    required this.loadWorkVersionForm,
+    required this.saveWorkVersionForm,
     required this.loadSagaForm,
     required this.saveSagaForm,
     required this.loadWorkForm,
@@ -145,6 +147,14 @@ final class AppSession {
     BigInt,
   )
   saveExceptionForm;
+  final Future<SavedWorkVersionForm?> Function(EditorFormScope)
+  loadWorkVersionForm;
+  final Future<SavedWorkVersionForm> Function(
+    EditorFormScope,
+    UnfinishedWorkVersionForm,
+    BigInt,
+  )
+  saveWorkVersionForm;
   final Future<SavedSagaForm?> Function(EditorFormScope) loadSagaForm;
   final Future<SavedSagaForm> Function(
     EditorFormScope,

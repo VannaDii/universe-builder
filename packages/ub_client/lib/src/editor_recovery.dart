@@ -1143,3 +1143,42 @@ final class LocalSagaFormRecovery {
     });
   }
 }
+
+final class LocalWorkVersionFormRecovery {
+  LocalWorkVersionFormRecovery({required String root, required this.client})
+    : _path = '$root/client-recovery/work-version-forms.sqlite';
+  final String _path;
+  final LoopbackEngineClient client;
+
+  Future<SavedWorkVersionForm?> load(EditorFormScope scope) async {
+    await _checkEditorScope(client, scope);
+    final path = _path;
+    return Isolate.run(() {
+      final store = WorkVersionFormRecoveryStore.open(path);
+      try {
+        return store.load(scope);
+      } finally {
+        store.close();
+      }
+    });
+  }
+
+  Future<SavedWorkVersionForm> save(
+    EditorFormScope scope,
+    UnfinishedWorkVersionForm form,
+    BigInt expectedGeneration,
+  ) async {
+    if (scope.profile != client.welcome.principal) {
+      throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
+    }
+    final path = _path;
+    return Isolate.run(() {
+      final store = WorkVersionFormRecoveryStore.open(path);
+      try {
+        return store.save(scope, form, expectedGeneration);
+      } finally {
+        store.close();
+      }
+    });
+  }
+}
