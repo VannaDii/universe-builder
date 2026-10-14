@@ -7,6 +7,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:web/web.dart' as web;
 
 import 'editor_scope.dart';
+import 'browser_input_fields.dart';
 
 final class BrowserEntityFormRecovery {
   const BrowserEntityFormRecovery({
@@ -38,32 +39,6 @@ final class BrowserEntityFormRecovery {
     return store.save(scope, form, expectedGeneration);
   }
 }
-
-// Qualifier/temporal contracts use named string fields and ordered children.
-// Clone those structures directly; never route exact entered text through JS numbers.
-JSAny? _input(CanonicalValue value) => switch (value) {
-  CanonicalString(:final value) => value.toJS,
-  CanonicalBool(:final value) => value.toJS,
-  CanonicalNull() => null,
-  CanonicalArray(:final items) => items.map(_input).toList().toJS,
-  CanonicalObject(:final fields) => {
-    for (final field in fields) field.key: _input(field.value),
-  }.jsify(),
-  _ => throw const FormatException('Unexpected numeric input field'),
-};
-CanonicalValue _field(Object? value) => switch (value) {
-  null => CanonicalNull(),
-  String text => CanonicalString(text),
-  bool flag => CanonicalBool(flag),
-  List<Object?> children => CanonicalArray(children.map(_field)),
-  Map<Object?, Object?> fields => CanonicalObject(
-    fields.entries.map(
-      (entry) => MapEntry(entry.key as String, _field(entry.value)),
-    ),
-  ),
-  _ => throw const FormatException('Invalid input field'),
-};
-CanonicalValue _readInput(JSAny value) => _field(value.dartify());
 
 Iterable<String> _temporalTexts(TemporalValidityInput input) sync* {
   yield* [
@@ -289,7 +264,9 @@ final class BrowserEntityFormRecoveryStore {
                       ),
                 temporalValidity: row.temporal == null
                     ? null
-                    : TemporalValidityInput.fromWire(_readInput(row.temporal!)),
+                    : TemporalValidityInput.fromWire(
+                        decodeBrowserInput(row.temporal!),
+                      ),
               ),
         worlds: worlds.map((world) => WorldId.parse(world.value)),
         associations: !row.associationsPresent
@@ -306,10 +283,13 @@ final class BrowserEntityFormRecoveryStore {
                         ),
                   temporalValidity: a.temporal == null
                       ? null
-                      : TemporalValidityInput.fromWire(_readInput(a.temporal!)),
+                      : TemporalValidityInput.fromWire(
+                          decodeBrowserInput(a.temporal!),
+                        ),
                   qualifiers: a.qualifiers == null
                       ? null
-                      : (_readInput(a.qualifiers!) as CanonicalArray).items
+                      : (decodeBrowserInput(a.qualifiers!) as CanonicalArray)
+                            .items
                             .map(QualifierInput.fromWire)
                             .toList(),
                 ),
@@ -450,7 +430,9 @@ final class BrowserEntityFormRecoveryStore {
               validity: form.nameDetails?.validity?.toWire().toText(),
               temporal: form.nameDetails?.temporalValidity == null
                   ? null
-                  : _input(form.nameDetails!.temporalValidity!.toWire()),
+                  : encodeBrowserInput(
+                      form.nameDetails!.temporalValidity!.toWire(),
+                    ),
             ),
             key.toJS,
           );
@@ -474,10 +456,10 @@ final class BrowserEntityFormRecoveryStore {
                 validity: a.validity?.toWire().toText(),
                 temporal: a.temporalValidity == null
                     ? null
-                    : _input(a.temporalValidity!.toWire()),
+                    : encodeBrowserInput(a.temporalValidity!.toWire()),
                 qualifiers: a.qualifiers == null
                     ? null
-                    : _input(
+                    : encodeBrowserInput(
                         CanonicalArray(a.qualifiers!.map((q) => q.toWire())),
                       ),
               ),
