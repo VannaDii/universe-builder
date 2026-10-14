@@ -303,6 +303,13 @@ expressions, ordered steps, explicit status and validity. Repeated steps remain
 intact. A plan neither executes its steps nor reserves resources; recording an
 achieved status does not invent occurred events. Unfinished fields recover on
 this device, and pending plans offer **Edit plan fields** in Changes.
+**Work** describes an external novel, story, series chapter, play, film or other
+work with its title, multilingual labels, ordered source and edition references,
+and world associations. Each association retains its role, validity and exact
+typed qualifiers. Manuscript prose remains external. Device-private unfinished
+recovery and Changes editing preserve the complete metadata before reviewed
+publication.
+
 **Exception** selects a named rule or creative boundary and pins its version
 at the saved draft revision. Choose an authorizing issue decision, scope,
 validity and rationale separately. Named decision choices include their visible

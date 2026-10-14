@@ -23,6 +23,7 @@ import 'package:ub_app/represented_context_draft.dart';
 import 'package:ub_app/boundary_draft.dart';
 import 'package:ub_app/issue_decision_draft.dart';
 import 'package:ub_app/exception_draft.dart';
+import 'package:ub_app/work_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -2352,6 +2353,166 @@ void main() {
       expect(
         exceptionPublished.single.payload.toWire().toText(),
         exceptionOperation(exceptionForm).record.toWire().toText(),
+      );
+      final workSeedBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final workSeedDraft = SavedDraft.fromWire(
+        await session.call(
+          SaveDraftEngineRequest(
+            universe: const Selector('Relations'),
+            continuityId: scope.continuity,
+            expectedVersion: workSeedBase.version,
+            content: DraftContent(
+              baseRevision: workSeedBase.content.baseRevision,
+              representedContext: scope.representedContext!,
+              operations: [
+                CreateWorldOperation(
+                  clientRef: 'cedar-setting',
+                  record: WorldRecord(selector: 'Cedar setting'),
+                ),
+                RecordNarrativeReferenceOperation(
+                  clientRef: 'campaign-notes',
+                  record: RecordKind.source,
+                  payload: SourceRecord(
+                    label: 'Campaign notes 記憶 😀',
+                    origin: const OriginMetadata(
+                      originNote: 'Authored source metadata.',
+                    ),
+                    versions: [],
+                  ),
+                ),
+              ],
+              rationale: 'Declare a work’s setting and source metadata.',
+            ),
+          ),
+        ),
+      );
+      final workSeedPublished = await publish(workSeedDraft);
+      final workWorld = workSeedPublished.singleWhere(
+        (r) => r.payload is WorldRecord,
+      );
+      final workSource = workSeedPublished.singleWhere(
+        (r) => r.payload is SourceRecord,
+      );
+      final workBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final workForm = UnfinishedWorkForm(
+        baseRevision: workBase.content.baseRevision,
+        representedContext: scope.representedContext!,
+        clientRef: 'campaign-chronicle',
+        kind: 'series_chapter',
+        title: 'Campaign chronicle 記憶 😀',
+        labels: [const PropertyLabelInput(language: 'en', text: 'Chronicle')],
+        sources: [
+          ExpressionReferenceInput(
+            record: workSource.identity.recordId.value,
+            universe: scope.universe.value,
+          ),
+          ExpressionReferenceInput(
+            record: workSource.identity.recordId.value,
+            universe: scope.universe.value,
+          ),
+        ],
+        associations: [
+          WorkAssociationInput(
+            world: worldFromChoice(
+              RecordRef(
+                universe: scope.universe,
+                record: workWorld.identity.recordId,
+              ),
+            ).value,
+            role: 'Setting',
+            qualifiers: [
+              const QualifierInput(
+                key: 'amount',
+                kind: 'integer',
+                value: '9007199254740997',
+              ),
+              const QualifierInput(
+                key: 'explicit',
+                kind: 'boolean',
+                value: 'false',
+              ),
+            ],
+          ),
+        ],
+        rationale:
+            'Describe an external chronicle without importing its prose.',
+      );
+      await session.saveWorkForm(scope, workForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredWork = (await session.loadWorkForm(scope))!.form;
+      expect(recoveredWork.toWire().toText(), workForm.toWire().toText());
+      final workDraft = SavedDraft.fromWire(
+        await session.call(
+          workDraftRequest(
+            draft: workBase,
+            form: recoveredWork,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final workPublished = await publish(workDraft);
+      expect(
+        workPublished.single.payload.toWire().toText(),
+        workOperation(workForm).record.toWire().toText(),
+      );
+      final workEditionBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final workEditionDraft = SavedDraft.fromWire(
+        await session.call(
+          SaveDraftEngineRequest(
+            universe: const Selector('Relations'),
+            continuityId: scope.continuity,
+            expectedVersion: workEditionBase.version,
+            content: DraftContent(
+              baseRevision: workEditionBase.content.baseRevision,
+              representedContext: scope.representedContext!,
+              operations: [
+                RecordNarrativeReferenceOperation(
+                  clientRef: 'chronicle-edition',
+                  record: RecordKind.workVersion,
+                  payload: WorkVersionRecord(
+                    work: RecordRef(
+                      universe: scope.universe,
+                      record: workPublished.single.identity.recordId,
+                    ),
+                    versionLabel: 'Draft edition 記憶 😀',
+                    binding: const UnboundWork(),
+                  ),
+                ),
+              ],
+              rationale: 'Declare an explicitly unbound edition reference.',
+            ),
+          ),
+        ),
+      );
+      final workEditionPublished = await publish(workEditionDraft);
+      final workChoiceBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final workChoiceContext = await openDraftChoiceContext(
+        changes(),
+        workChoiceBase,
+      );
+      final editionChoices = await searchDraftChoices(
+        changes: changes(),
+        context: workChoiceContext,
+        kind: RecordKind.workVersion,
+        query: 'Draft edition 記憶 😀',
+      );
+      expect(
+        editionChoices.result.hits.single.recordId,
+        workEditionPublished.single.identity.recordId,
       );
     } finally {
       await session?.close();

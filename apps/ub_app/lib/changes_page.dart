@@ -6,6 +6,7 @@ import 'proposition_editor_page.dart';
 import 'attitude_editor_page.dart';
 import 'observation_editor_page.dart';
 import 'memory_editor_page.dart';
+import 'work_editor_page.dart';
 import 'boundary_editor_page.dart';
 import 'exception_editor_page.dart';
 import 'issue_decision_editor_page.dart';
@@ -1684,6 +1685,63 @@ class _ChangesPageState extends State<ChangesPage> {
                                 child: const Text(
                                   'Edit creative boundary fields',
                                 ),
+                              ),
+                            if (_proposal == null &&
+                                operations[index] is CreateWorkOperation)
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _changeDraft(
+                                        (draft) async =>
+                                            await Navigator.of(
+                                              context,
+                                            ).push<SavedDraft>(
+                                              MaterialPageRoute(
+                                                builder: (_) => WorkEditorPage(
+                                                  revision: draft
+                                                      .content
+                                                      .baseRevision,
+                                                  editingDraft: draft,
+                                                  index: index,
+                                                  changes: SavedChanges(
+                                                    session:
+                                                        widget.changes.session,
+                                                    universe:
+                                                        widget.changes.universe,
+                                                    scope: EditorFormScope(
+                                                      instance: widget
+                                                          .changes
+                                                          .scope
+                                                          .instance,
+                                                      profile: widget
+                                                          .changes
+                                                          .scope
+                                                          .profile,
+                                                      universe: widget
+                                                          .changes
+                                                          .scope
+                                                          .universe,
+                                                      continuity: widget
+                                                          .changes
+                                                          .scope
+                                                          .continuity,
+                                                      representedContext: draft
+                                                          .content
+                                                          .representedContext,
+                                                      typeClientRef:
+                                                          (draft
+                                                                      .content
+                                                                      .operations[index]
+                                                                  as CreateWorkOperation)
+                                                              .clientRef,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ) ??
+                                            draft,
+                                      ),
+                                child: const Text('Edit work fields'),
                               ),
                             if (_proposal == null &&
                                 operations[index] is RecordMemoryOperation)
