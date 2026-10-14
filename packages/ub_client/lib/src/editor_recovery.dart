@@ -595,3 +595,42 @@ final class LocalCompletenessFormRecovery {
     });
   }
 }
+
+final class LocalPropositionFormRecovery {
+  LocalPropositionFormRecovery({required String root, required this.client})
+    : _path = '$root/client-recovery/proposition-forms.sqlite';
+  final String _path;
+  final LoopbackEngineClient client;
+
+  Future<SavedPropositionForm?> load(EditorFormScope scope) async {
+    await _checkEditorScope(client, scope);
+    final path = _path;
+    return Isolate.run(() {
+      final store = PropositionFormRecoveryStore.open(path);
+      try {
+        return store.load(scope);
+      } finally {
+        store.close();
+      }
+    });
+  }
+
+  Future<SavedPropositionForm> save(
+    EditorFormScope scope,
+    UnfinishedPropositionForm form,
+    BigInt expectedGeneration,
+  ) async {
+    if (scope.profile != client.welcome.principal) {
+      throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
+    }
+    final path = _path;
+    return Isolate.run(() {
+      final store = PropositionFormRecoveryStore.open(path);
+      try {
+        return store.save(scope, form, expectedGeneration);
+      } finally {
+        store.close();
+      }
+    });
+  }
+}

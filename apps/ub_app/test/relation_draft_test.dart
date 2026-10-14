@@ -11,6 +11,7 @@ import 'package:ub_app/action_draft.dart';
 import 'package:ub_app/continuity_draft.dart';
 import 'package:ub_app/rule_draft.dart';
 import 'package:ub_app/completeness_draft.dart';
+import 'package:ub_app/proposition_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -1503,6 +1504,91 @@ void main() {
       expect(
         (completePublished.single.payload as CompletenessRecord).completeness,
         isA<ObjectiveCompleteness>(),
+      );
+      final propositionBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final beforeClaimContext = await openDraftChoiceContext(
+        changes(),
+        propositionBase,
+      );
+      final beforeAssertions = await searchDraftChoices(
+        changes: changes(),
+        context: beforeClaimContext,
+        kind: RecordKind.assertion,
+      );
+      expect(beforeAssertions.delivery.complete, isTrue);
+      final claimForm = UnfinishedPropositionForm(
+        baseRevision: propositionBase.content.baseRevision,
+        representedContext: scope.representedContext!,
+        clientRef: 'unasserted-account',
+        subject: ExpressionReferenceInput(
+          record: participant(0).record.value,
+          universe: scope.universe.value,
+        ),
+        predicate: ExpressionReferenceInput(
+          record: published.identity.recordId.value,
+          universe: scope.universe.value,
+        ),
+        context: ExpressionReferenceInput(
+          record: scope.representedContext!.value,
+          universe: scope.universe.value,
+        ),
+        roles: [
+          PropositionRoleInput(
+            role: 'speaker',
+            record: participant(0).record.value,
+            universe: scope.universe.value,
+          ),
+          PropositionRoleInput(
+            role: 'listeners',
+            record: participant(1).record.value,
+            universe: scope.universe.value,
+          ),
+          PropositionRoleInput(
+            role: 'listeners',
+            record: participant(1).record.value,
+            universe: scope.universe.value,
+          ),
+        ],
+        quantification: 'particular',
+        rationale: 'Define an account that has not been asserted true.',
+      );
+      await session.savePropositionForm(scope, claimForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredClaim = (await session.loadPropositionForm(scope))!.form;
+      expect(recoveredClaim.toWire().toText(), claimForm.toWire().toText());
+      final propositionDraft = SavedDraft.fromWire(
+        await session.call(
+          propositionDraftRequest(
+            draft: propositionBase,
+            form: recoveredClaim,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final claimPublished = await publish(propositionDraft);
+      expect(claimPublished.length, 1);
+      expect(
+        claimPublished.single.payload.toWire().toText(),
+        propositionOperation(claimForm).record.toWire().toText(),
+      );
+      final afterClaimContext = await openDraftChoiceContext(
+        changes(),
+        await changes().rebase((await changes().load())!, startNew: true),
+      );
+      final afterAssertions = await searchDraftChoices(
+        changes: changes(),
+        context: afterClaimContext,
+        kind: RecordKind.assertion,
+      );
+      expect(afterAssertions.delivery.complete, isTrue);
+      expect(
+        afterAssertions.result.hits.map((h) => h.recordId).toSet(),
+        beforeAssertions.result.hits.map((h) => h.recordId).toSet(),
       );
     } finally {
       await session?.close();

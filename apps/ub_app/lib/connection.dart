@@ -19,6 +19,8 @@ final class AppSession {
     required this.saveUnitForm,
     required this.loadRelationForm,
     required this.saveRelationForm,
+    required this.loadPropositionForm,
+    required this.savePropositionForm,
     required this.loadCompletenessForm,
     required this.saveCompletenessForm,
     required this.loadRuleForm,
@@ -87,6 +89,14 @@ final class AppSession {
     BigInt,
   )
   saveRelationForm;
+  final Future<SavedPropositionForm?> Function(EditorFormScope)
+  loadPropositionForm;
+  final Future<SavedPropositionForm> Function(
+    EditorFormScope,
+    UnfinishedPropositionForm,
+    BigInt,
+  )
+  savePropositionForm;
   final Future<SavedCompletenessForm?> Function(EditorFormScope)
   loadCompletenessForm;
   final Future<SavedCompletenessForm> Function(

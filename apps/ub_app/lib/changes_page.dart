@@ -2,6 +2,7 @@ import 'event_editor_page.dart';
 import 'action_editor_page.dart';
 import 'rule_editor_page.dart';
 import 'completeness_editor_page.dart';
+import 'proposition_editor_page.dart';
 
 import 'package:flutter/material.dart';
 import 'package:ub_contracts/ub_contracts.dart' hide State;
@@ -1203,6 +1204,63 @@ class _ChangesPageState extends State<ChangesPage> {
                                             draft,
                                       ),
                                 child: const Text('Edit rule fields'),
+                              ),
+                            if (_proposal == null &&
+                                operations[index] is DefinePropositionOperation)
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _changeDraft(
+                                        (draft) async =>
+                                            await Navigator.of(
+                                              context,
+                                            ).push<SavedDraft>(
+                                              MaterialPageRoute(
+                                                builder: (_) => PropositionEditorPage(
+                                                  revision: draft
+                                                      .content
+                                                      .baseRevision,
+                                                  editingDraft: draft,
+                                                  index: index,
+                                                  changes: SavedChanges(
+                                                    session:
+                                                        widget.changes.session,
+                                                    universe:
+                                                        widget.changes.universe,
+                                                    scope: EditorFormScope(
+                                                      instance: widget
+                                                          .changes
+                                                          .scope
+                                                          .instance,
+                                                      profile: widget
+                                                          .changes
+                                                          .scope
+                                                          .profile,
+                                                      universe: widget
+                                                          .changes
+                                                          .scope
+                                                          .universe,
+                                                      continuity: widget
+                                                          .changes
+                                                          .scope
+                                                          .continuity,
+                                                      representedContext: draft
+                                                          .content
+                                                          .representedContext,
+                                                      typeClientRef:
+                                                          (draft
+                                                                      .content
+                                                                      .operations[index]
+                                                                  as DefinePropositionOperation)
+                                                              .clientRef,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ) ??
+                                            draft,
+                                      ),
+                                child: const Text('Edit proposition fields'),
                               ),
                             if (_proposal == null &&
                                 operations[index] is SetCompletenessOperation)

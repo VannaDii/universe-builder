@@ -277,6 +277,12 @@ Disabling a contract removes it explicitly; older saved forms retain their
 original contracts. Delay bounds remain in the same clock, without inferred
 conversion, and local relation-role multiplicity remains separate from an
 authored cross-instance maximum.
+The **Proposition** editor defines claims without asserting their truth. Choose a
+predicate, subject, represented context and quantification; retain ordered,
+repeated participants and an optional exact typed value. Unfinished fields
+recover on this device, and pending claims remain editable in Changes before
+review and publication.
+
 **Complete collection** authors an explicit scoped completeness declaration with
 a named subject, property, optional observer and ordered member references.
 Objective and observer-known completeness require an explicit choice. An empty
