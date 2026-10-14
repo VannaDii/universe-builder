@@ -484,6 +484,9 @@ pub(crate) fn compile_allocated(
                     Payload::Assertion(assertion.clone()),
                 )?;
             }
+            CreateSecret { client_ref, record } => {
+                create(client_ref, Payload::Secret(record.clone()))?
+            }
             CreateAppearance { client_ref, record } => {
                 create(client_ref, Payload::Appearance(record.clone()))?
             }
@@ -527,6 +530,7 @@ pub(crate) fn compile_allocated(
                 create(client_ref, Payload::DomainPack(record.clone()))?
             }
             InitializeInstance { .. }
+            | ReviseSecret { .. }
             | ReviseAppearance { .. }
             | ReviseDefinition { .. }
             | ReviseItemPower { .. }
@@ -593,6 +597,23 @@ pub(crate) fn compile_allocated(
     for op in &operations {
         use DomainOperation::*;
         let (reference, expected, payload) = match op {
+            ReviseSecret {
+                record,
+                expected_version,
+                replacement,
+            } => {
+                if !matches!(
+                    current(&records, u, record, expected_version)?.payload,
+                    Payload::Secret(_)
+                ) {
+                    return Err(invalid("expected story secret"));
+                }
+                (
+                    record,
+                    expected_version,
+                    Some(Payload::Secret(replacement.clone())),
+                )
+            }
             ReviseAppearance {
                 record,
                 expected_version,

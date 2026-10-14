@@ -150,6 +150,7 @@ List<Assignment> compileAllocatedOperations({
       SetCreativeBoundaryOperation() => (op.clientRef, op.record),
       AddExceptionOperation() => (op.clientRef, op.record),
       AddSourceAnchorOperation() => (op.clientRef, op.record),
+      CreateSecretOperation() => (op.clientRef, op.record),
       CreateAppearanceOperation() => (op.clientRef, op.record),
       AddImageAssetOperation() => (op.clientRef, op.record),
       DefineItemPowerOperation() => (op.clientRef, op.record),
@@ -212,6 +213,7 @@ List<Assignment> compileAllocatedOperations({
         create(clientRef, proposition);
         create('$clientRef:assertion', assertion);
       case InitializeInstanceOperation() ||
+          ReviseSecretOperation() ||
           ReviseAppearanceOperation() ||
           ReviseDefinitionOperation() ||
           ReviseItemPowerOperation() ||
@@ -332,6 +334,11 @@ List<Assignment> compileAllocatedOperations({
   }
 
   switch (op) {
+    case ReviseSecretOperation():
+      if (current(op.record, op.expectedVersion) is! SecretRecord) {
+        throw _invalid('expected story secret');
+      }
+      return (op.record, op.expectedVersion, op.replacement);
     case ReviseAppearanceOperation():
       if (current(op.record, op.expectedVersion) is! AppearanceRecord) {
         throw _invalid('expected appearance');

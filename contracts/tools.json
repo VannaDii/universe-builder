@@ -31168,6 +31168,52 @@
                 "expected_version",
                 "entity_type"
               ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "record": {
+                  "$ref": "#/$defs/Secret"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "create_secret"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "record"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/Secret"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_secret"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement"
+              ]
             }
           ]
         },
@@ -38362,6 +38408,43 @@
             "persistence",
             "precision",
             "basis"
+          ]
+        },
+        "Secret": {
+          "description": "A secret/disclosure constraint (spec §27.6).\n\nFictional secrecy and application access grants remain separate.",
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "fictionalKnowers": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "readerDisclosed": {
+              "type": "boolean"
+            },
+            "concealment": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "scope",
+            "fictionalKnowers",
+            "readerDisclosed",
+            "validity"
           ]
         }
       }
@@ -44262,6 +44345,52 @@
                 "expected_version",
                 "entity_type"
               ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "record": {
+                  "$ref": "#/$defs/Secret"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "create_secret"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "record"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/Secret"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_secret"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement"
+              ]
             }
           ]
         },
@@ -50667,6 +50796,43 @@
             "basis"
           ]
         },
+        "Secret": {
+          "description": "A secret/disclosure constraint (spec §27.6).\n\nFictional secrecy and application access grants remain separate.",
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "fictionalKnowers": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "readerDisclosed": {
+              "type": "boolean"
+            },
+            "concealment": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "scope",
+            "fictionalKnowers",
+            "readerDisclosed",
+            "validity"
+          ]
+        },
         "Submission": {
           "type": "string",
           "enum": [
@@ -53355,6 +53521,52 @@
                 "record",
                 "expected_version",
                 "entity_type"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "record": {
+                  "$ref": "#/$defs/Secret"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "create_secret"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "record"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/Secret"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_secret"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement"
               ]
             }
           ]
@@ -59755,6 +59967,43 @@
             "persistence",
             "precision",
             "basis"
+          ]
+        },
+        "Secret": {
+          "description": "A secret/disclosure constraint (spec §27.6).\n\nFictional secrecy and application access grants remain separate.",
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "fictionalKnowers": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "readerDisclosed": {
+              "type": "boolean"
+            },
+            "concealment": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "scope",
+            "fictionalKnowers",
+            "readerDisclosed",
+            "validity"
           ]
         },
         "CompiledChange": {
@@ -62661,6 +62910,52 @@
                 "expected_version",
                 "entity_type"
               ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "record": {
+                  "$ref": "#/$defs/Secret"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "create_secret"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "record"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/Secret"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_secret"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement"
+              ]
             }
           ]
         },
@@ -69060,6 +69355,43 @@
             "persistence",
             "precision",
             "basis"
+          ]
+        },
+        "Secret": {
+          "description": "A secret/disclosure constraint (spec §27.6).\n\nFictional secrecy and application access grants remain separate.",
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "fictionalKnowers": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "readerDisclosed": {
+              "type": "boolean"
+            },
+            "concealment": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "scope",
+            "fictionalKnowers",
+            "readerDisclosed",
+            "validity"
           ]
         },
         "CompiledChange": {
@@ -76626,6 +76958,52 @@
                 "expected_version",
                 "entity_type"
               ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "record": {
+                  "$ref": "#/$defs/Secret"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "create_secret"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "record"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/Secret"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_secret"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement"
+              ]
             }
           ]
         },
@@ -82708,6 +83086,43 @@
             "persistence",
             "precision",
             "basis"
+          ]
+        },
+        "Secret": {
+          "description": "A secret/disclosure constraint (spec §27.6).\n\nFictional secrecy and application access grants remain separate.",
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "fictionalKnowers": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "readerDisclosed": {
+              "type": "boolean"
+            },
+            "concealment": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "scope",
+            "fictionalKnowers",
+            "readerDisclosed",
+            "validity"
           ]
         },
         "CompiledChange": {
@@ -86723,6 +87138,52 @@
                 "expected_version",
                 "entity_type"
               ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "client_ref": {
+                  "type": "string"
+                },
+                "record": {
+                  "$ref": "#/$defs/Secret"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "create_secret"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "client_ref",
+                "record"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "record": {
+                  "$ref": "#/$defs/RecordRef"
+                },
+                "expected_version": {
+                  "$ref": "#/$defs/RecordVersionId"
+                },
+                "replacement": {
+                  "$ref": "#/$defs/Secret"
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "revise_secret"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "record",
+                "expected_version",
+                "replacement"
+              ]
             }
           ]
         },
@@ -92805,6 +93266,43 @@
             "persistence",
             "precision",
             "basis"
+          ]
+        },
+        "Secret": {
+          "description": "A secret/disclosure constraint (spec §27.6).\n\nFictional secrecy and application access grants remain separate.",
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "fictionalKnowers": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecordRef"
+              }
+            },
+            "readerDisclosed": {
+              "type": "boolean"
+            },
+            "concealment": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "validity": {
+              "$ref": "#/$defs/Validity"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "scope",
+            "fictionalKnowers",
+            "readerDisclosed",
+            "validity"
           ]
         },
         "CompiledChange": {

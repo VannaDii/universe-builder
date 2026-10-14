@@ -662,6 +662,17 @@ class _ChangesPageState extends State<ChangesPage> {
                             ] else
                               ExactFields(value: operations[index].toWire()),
                             if (_proposal == null &&
+                                (operations[index] is CreateSecretOperation ||
+                                    operations[index] is ReviseSecretOperation))
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _changeDraft(
+                                        (draft) => _editOperation(draft, index),
+                                      ),
+                                child: const Text('Edit story secret fields'),
+                              ),
+                            if (_proposal == null &&
                                 operations[index] is DefinePropertyOperation)
                               TextButton(
                                 onPressed: _busy

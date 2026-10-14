@@ -4786,7 +4786,7 @@ CREATE TABLE "r_issue_decision_mode" (
 
 CREATE TABLE "r_domain_operation" (
   __row_id INTEGER PRIMARY KEY,
-  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 66),
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 68),
   v0 INTEGER REFERENCES "r_domain_operation_v0"(__row_id),
   v1 INTEGER REFERENCES "r_domain_operation_v1"(__row_id),
   v2 INTEGER REFERENCES "r_domain_operation_v2"(__row_id),
@@ -4854,6 +4854,8 @@ CREATE TABLE "r_domain_operation" (
   v64 INTEGER REFERENCES "r_domain_operation_v64"(__row_id),
   v65 INTEGER REFERENCES "r_domain_operation_v65"(__row_id),
   v66 INTEGER REFERENCES "r_domain_operation_v66"(__row_id),
+  v67 INTEGER REFERENCES "r_domain_operation_v67"(__row_id),
+  v68 INTEGER REFERENCES "r_domain_operation_v68"(__row_id),
   CHECK(variant=0 OR v0 IS NULL),
   CHECK(variant!=0 OR v0 IS NOT NULL),
   CHECK(variant=1 OR v1 IS NULL),
@@ -4987,7 +4989,11 @@ CREATE TABLE "r_domain_operation" (
   CHECK(variant=65 OR v65 IS NULL),
   CHECK(variant!=65 OR v65 IS NOT NULL),
   CHECK(variant=66 OR v66 IS NULL),
-  CHECK(variant!=66 OR v66 IS NOT NULL)
+  CHECK(variant!=66 OR v66 IS NOT NULL),
+  CHECK(variant=67 OR v67 IS NULL),
+  CHECK(variant!=67 OR v67 IS NOT NULL),
+  CHECK(variant=68 OR v68 IS NULL),
+  CHECK(variant!=68 OR v68 IS NOT NULL)
 ) STRICT;
 
 CREATE TABLE "r_domain_operation_v0" (
@@ -7691,6 +7697,79 @@ CREATE TABLE "r_scene_ref_world_associations" (
 ) STRICT;
 
 CREATE TABLE "r_scene_ref_world_associations_items" (owner INTEGER NOT NULL REFERENCES "r_scene_ref_world_associations"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item INTEGER REFERENCES "r_world_association"(__row_id), PRIMARY KEY(owner,ordinal)) STRICT;
+
+CREATE TABLE "r_domain_operation_v67" (
+  __row_id INTEGER PRIMARY KEY,
+  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
+  "kind" TEXT,
+  "client_ref__state" INTEGER NOT NULL CHECK("client_ref__state" IN (2)),
+  "client_ref" TEXT,
+  "record__state" INTEGER NOT NULL CHECK("record__state" IN (2)),
+  "record" INTEGER REFERENCES "r_secret"(__row_id),
+  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
+  CHECK("kind"='create_secret'),
+  CHECK(("client_ref__state"=2 AND "client_ref" IS NOT NULL) OR ("client_ref__state" IN (0,1) AND "client_ref" IS NULL)),
+  CHECK(("record__state"=2 AND "record" IS NOT NULL) OR ("record__state" IN (0,1) AND "record" IS NULL))
+) STRICT;
+
+CREATE TABLE "r_secret" (
+  __row_id INTEGER PRIMARY KEY,
+  "scope__state" INTEGER NOT NULL CHECK("scope__state" IN (2)),
+  "scope" INTEGER REFERENCES "r_secret_scope"(__row_id),
+  "fictionalKnowers__state" INTEGER NOT NULL CHECK("fictionalKnowers__state" IN (2)),
+  "fictionalKnowers" INTEGER REFERENCES "r_secret_fictional_knowers"(__row_id),
+  "readerDisclosed__state" INTEGER NOT NULL CHECK("readerDisclosed__state" IN (2)),
+  "readerDisclosed" INTEGER,
+  "concealment__state" INTEGER NOT NULL CHECK("concealment__state" IN (0,1,2)),
+  "concealment" INTEGER REFERENCES "r_secret_concealment"(__row_id),
+  "validity__state" INTEGER NOT NULL CHECK("validity__state" IN (2)),
+  "validity" INTEGER REFERENCES "r_validity"(__row_id),
+  CHECK(("scope__state"=2 AND "scope" IS NOT NULL) OR ("scope__state" IN (0,1) AND "scope" IS NULL)),
+  CHECK(("fictionalKnowers__state"=2 AND "fictionalKnowers" IS NOT NULL) OR ("fictionalKnowers__state" IN (0,1) AND "fictionalKnowers" IS NULL)),
+  CHECK(("readerDisclosed__state"=2 AND "readerDisclosed" IS NOT NULL) OR ("readerDisclosed__state" IN (0,1) AND "readerDisclosed" IS NULL)),
+  CHECK("readerDisclosed" IN (0,1)),
+  CHECK(("concealment__state"=2 AND "concealment" IS NOT NULL) OR ("concealment__state" IN (0,1) AND "concealment" IS NULL)),
+  CHECK(("validity__state"=2 AND "validity" IS NOT NULL) OR ("validity__state" IN (0,1) AND "validity" IS NULL))
+) STRICT;
+
+CREATE TABLE "r_secret_scope" (
+  __row_id INTEGER PRIMARY KEY
+) STRICT;
+
+CREATE TABLE "r_secret_scope_items" (owner INTEGER NOT NULL REFERENCES "r_secret_scope"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item INTEGER REFERENCES "r_record_ref"(__row_id), PRIMARY KEY(owner,ordinal)) STRICT;
+
+CREATE TABLE "r_secret_fictional_knowers" (
+  __row_id INTEGER PRIMARY KEY
+) STRICT;
+
+CREATE TABLE "r_secret_fictional_knowers_items" (owner INTEGER NOT NULL REFERENCES "r_secret_fictional_knowers"(__row_id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), item INTEGER REFERENCES "r_record_ref"(__row_id), PRIMARY KEY(owner,ordinal)) STRICT;
+
+CREATE TABLE "r_secret_concealment" (
+  __row_id INTEGER PRIMARY KEY,
+  variant INTEGER NOT NULL CHECK(variant BETWEEN 0 AND 1),
+  v0 TEXT,
+  v1 TEXT,
+  CHECK(variant=0 OR v0 IS NULL),
+  CHECK(variant!=0 OR v0 IS NOT NULL),
+  CHECK(variant=1 OR v1 IS NULL)
+) STRICT;
+
+CREATE TABLE "r_domain_operation_v68" (
+  __row_id INTEGER PRIMARY KEY,
+  "kind__state" INTEGER NOT NULL CHECK("kind__state" IN (2)),
+  "kind" TEXT,
+  "record__state" INTEGER NOT NULL CHECK("record__state" IN (2)),
+  "record" INTEGER REFERENCES "r_record_ref"(__row_id),
+  "expected_version__state" INTEGER NOT NULL CHECK("expected_version__state" IN (2)),
+  "expected_version" TEXT,
+  "replacement__state" INTEGER NOT NULL CHECK("replacement__state" IN (2)),
+  "replacement" INTEGER REFERENCES "r_secret"(__row_id),
+  CHECK(("kind__state"=2 AND "kind" IS NOT NULL) OR ("kind__state" IN (0,1) AND "kind" IS NULL)),
+  CHECK("kind"='revise_secret'),
+  CHECK(("record__state"=2 AND "record" IS NOT NULL) OR ("record__state" IN (0,1) AND "record" IS NULL)),
+  CHECK(("expected_version__state"=2 AND "expected_version" IS NOT NULL) OR ("expected_version__state" IN (0,1) AND "expected_version" IS NULL)),
+  CHECK(("replacement__state"=2 AND "replacement" IS NOT NULL) OR ("replacement__state" IN (0,1) AND "replacement" IS NULL))
+) STRICT;
 
 CREATE TABLE "r_stored_context" (
   __row_id INTEGER PRIMARY KEY,
@@ -12517,6 +12596,38 @@ CREATE TRIGGER "r_scene_ref_world_associations_no_delete" BEFORE DELETE ON "r_sc
 CREATE TRIGGER "r_scene_ref_world_associations_items_no_update" BEFORE UPDATE ON "r_scene_ref_world_associations_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_scene_ref_world_associations_items_no_delete" BEFORE DELETE ON "r_scene_ref_world_associations_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v67_no_update" BEFORE UPDATE ON "r_domain_operation_v67" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v67_no_delete" BEFORE DELETE ON "r_domain_operation_v67" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_secret_no_update" BEFORE UPDATE ON "r_secret" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_secret_no_delete" BEFORE DELETE ON "r_secret" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_secret_scope_no_update" BEFORE UPDATE ON "r_secret_scope" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_secret_scope_no_delete" BEFORE DELETE ON "r_secret_scope" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_secret_scope_items_no_update" BEFORE UPDATE ON "r_secret_scope_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_secret_scope_items_no_delete" BEFORE DELETE ON "r_secret_scope_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_secret_fictional_knowers_no_update" BEFORE UPDATE ON "r_secret_fictional_knowers" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_secret_fictional_knowers_no_delete" BEFORE DELETE ON "r_secret_fictional_knowers" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_secret_fictional_knowers_items_no_update" BEFORE UPDATE ON "r_secret_fictional_knowers_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_secret_fictional_knowers_items_no_delete" BEFORE DELETE ON "r_secret_fictional_knowers_items" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_secret_concealment_no_update" BEFORE UPDATE ON "r_secret_concealment" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_secret_concealment_no_delete" BEFORE DELETE ON "r_secret_concealment" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v68_no_update" BEFORE UPDATE ON "r_domain_operation_v68" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
+
+CREATE TRIGGER "r_domain_operation_v68_no_delete" BEFORE DELETE ON "r_domain_operation_v68" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 
 CREATE TRIGGER "r_stored_context_no_update" BEFORE UPDATE ON "r_stored_context" BEGIN SELECT RAISE(ABORT,'immutable typed body'); END;
 

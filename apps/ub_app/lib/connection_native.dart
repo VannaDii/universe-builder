@@ -257,6 +257,10 @@ final class DeviceConnection {
       client: client,
     );
     final memoryRecovery = LocalMemoryFormRecovery(root: root!, client: client);
+    final secretRecovery = LocalSecretFormRecovery(
+      root: root!,
+      client: client,
+    );
     final observationRecovery = LocalObservationFormRecovery(
       root: root!,
       client: client,
@@ -386,6 +390,9 @@ final class DeviceConnection {
       saveRepresentedContextForm: representedContextRecovery.save,
       loadMemoryForm: (scope) => sequenced(() => memoryRecovery.load(scope)),
       saveMemoryForm: memoryRecovery.save,
+      loadSecretForm: (scope) =>
+          sequenced(() => secretRecovery.load(scope)),
+      saveSecretForm: secretRecovery.save,
       loadObservationForm: (scope) =>
           sequenced(() => observationRecovery.load(scope)),
       saveObservationForm: observationRecovery.save,

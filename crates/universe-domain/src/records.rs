@@ -2311,6 +2311,15 @@ pub enum DomainOperation {
         expected_version: RecordVersionId,
         entity_type: RecordId,
     },
+    CreateSecret {
+        client_ref: String,
+        record: Secret,
+    },
+    ReviseSecret {
+        record: RecordRef,
+        expected_version: RecordVersionId,
+        replacement: Secret,
+    },
 }
 
 impl DomainOperation {
@@ -2323,6 +2332,8 @@ impl DomainOperation {
             | IntroduceInstance { .. }
             | RefineClassification { .. }
             | CreateEntity { .. }
+            | CreateSecret { .. }
+            | ReviseSecret { .. }
             | CreateAppearance { .. }
             | ReviseAppearance { .. }
             | AddImageAsset { .. }

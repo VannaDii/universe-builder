@@ -121,6 +121,13 @@ def contracts():
     defs['DomainOperation']['oneOf'].append(obj(kind={'type':'string','const':'revise_interpretation'},record=ref('RecordRef'),expected_version=ref('RecordVersionId'),interpretation={'anyOf':[ref('RecordRef'),{'type':'null'}]},rationale=S))
     defs['DomainOperation']['oneOf'].append(obj(kind={'type':'string','const':'withdraw_event'},record=ref('RecordRef'),expected_version=ref('RecordVersionId'),rationale=S))
     defs['DomainOperation']['oneOf'].append(obj(kind={'type':'string','const':'revise_scene'},record=ref('RecordRef'),expected_version=ref('RecordVersionId'),replacement=ref('SceneRef'),rationale=S))
+    # Story secrecy retains the existing payload fields and appends operation
+    # branches so every earlier stored operation keeps its ordinal.
+    defs['Secret'] = obj(scope=arr('RecordRef'), fictionalKnowers=arr('RecordRef'),
+        readerDisclosed=B, concealment=nullable(S), validity=ref('Validity'))
+    defs['Secret']['required'].remove('concealment')
+    defs['DomainOperation']['oneOf'].append(obj(kind={'type':'string','const':'create_secret'},client_ref=S,record=ref('Secret')))
+    defs['DomainOperation']['oneOf'].append(obj(kind={'type':'string','const':'revise_secret'},record=ref('RecordRef'),expected_version=ref('RecordVersionId'),replacement=ref('Secret')))
     return defs
 
 

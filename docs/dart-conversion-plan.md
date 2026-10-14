@@ -382,6 +382,11 @@ Port all 38 canonical record families:
 | Facts and policy | Proposition, Assertion, Completeness, Boundary, Rule, Exception, IssueDecision; polarity, validity, supported constraints and resolution |
 | Occurrences | Event, ItemPower, ActionDefinition; participation, declared effects, owner requirements and exact resource accounting |
 | Knowledge and intent | EpistemicAttitude, Observation, Communication, Memory, Secret, Goal, Commitment; acquisition, channel timing, accounts and intent |
+
+Story-secret authoring includes the existing covered-record scope, fictional
+knowers, explicit reader disclosure, optional concealment and validity. Create
+and revise through the reviewed publication flow; retain identity and history.
+Fictional secrecy remains separate from application permissions and credentials.
 | Narratives | Work, WorkVersion, SceneRef, PassageRef, Saga; source bindings, narrative order and cross-world association |
 | Source and media | Source, SourceVersion, Anchor, Appearance, ImageAsset; bytes, citations, typed depiction and temporal provenance |
 

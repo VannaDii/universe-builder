@@ -611,6 +611,14 @@ sensory-access choice, exact authored time, optional interpretation and source
 basis. Presence and observation do not infer understanding or knowledge.
 Unfinished fields recover on this device; pending observations offer
 **Edit observation fields** in Changes before reviewed publication.
+**Story secret** records the ordered facts or entries covered, the characters
+who know, whether the reader has been told, optional concealment notes and an
+authored time scope. It does not infer knowledge or grant application access.
+Unfinished input recovers privately on native devices and in the browser.
+Pending secrets offer **Edit story secret fields** in Changes; published secrets
+offer **Revise story secret** in their dossier. The typed `create_secret` and
+`revise_secret` operations use ordinary review, approval and publication on both
+SQLite and PostgreSQL, retaining record identity and prior history on revision.
 **Belief or knowledge** records a holder’s explicit attitude, optional certainty,
 validity and source basis. Knowledge acquisition includes its truth context,
 time, optional world and either author establishment or a communication receipt

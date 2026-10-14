@@ -1,4 +1,5 @@
 import 'entity_editor_page.dart';
+import 'secret_editor_page.dart';
 import 'attribute_editor_page.dart';
 import 'source_editor_page.dart';
 import 'work_version_editor_page.dart';
@@ -76,6 +77,8 @@ Future<Widget> recordEditorPage({
     scope: editorScope(
       clientRef: action == RecordEditAction.sourceExcerpt
           ? record.recordVersionId.value
+          : action == RecordEditAction.secretRevision
+          ? 'secret-revision:${record.identity.recordId.value}'
           : action == RecordEditAction.attribute ||
                 action == RecordEditAction.relationship
           ? null
@@ -182,6 +185,11 @@ Future<Widget> recordEditorPage({
     RecordEditAction.eventWithdrawal => EventWithdrawalEditorPage(
       revision: revision,
       sourceRecord: record,
+      changes: changes,
+    ),
+    RecordEditAction.secretRevision => SecretEditorPage(
+      revision: revision,
+      correctionRecord: record,
       changes: changes,
     ),
     RecordEditAction.recordRemoval => RecordRemovalEditorPage(

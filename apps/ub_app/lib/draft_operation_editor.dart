@@ -1,4 +1,5 @@
 import 'event_editor_page.dart';
+import 'secret_editor_page.dart';
 import 'action_editor_page.dart';
 import 'rule_editor_page.dart';
 import 'completeness_editor_page.dart';
@@ -143,6 +144,19 @@ Future<Widget> draftOperationEditor(
       ),
       editingDraft: draft,
       operationIndex: index,
+    );
+  }
+  if (operation is CreateSecretOperation || operation is ReviseSecretOperation) {
+    final clientRef = switch (operation) {
+      CreateSecretOperation(:final clientRef) => clientRef,
+      ReviseSecretOperation(:final record) => 'secret-revision:${record.record.value}',
+      _ => throw StateError('Checked secret operation'),
+    };
+    return SecretEditorPage(
+      changes: scopedChanges(clientRef),
+      revision: draft.content.baseRevision,
+      editingDraft: draft,
+      index: index,
     );
   }
   if (operation is DefinePropertyOperation) {

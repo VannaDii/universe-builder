@@ -4168,6 +4168,68 @@ void main() {
           published.result.toWire().toText(),
         );
       });
+      test('story secrets publish and revise through reviewed PostgreSQL operations', () async {
+        final author = await runtime.connect(hello(authorId));
+        final created = WireFields(await author.execute(const CreateUniverseEngineRequest(
+          name: 'Disposable engine universe',
+          start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
+        )), {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'});
+        final universe = UniverseId.parse(created.string('universe_id'));
+        universes.add(universe);
+        final continuity = ContinuityId.parse(created.string('continuity_id'));
+        final represented = RecordId.parse(created.string('context_id'));
+        var revision = RevisionId.parse(created.string('revision'));
+        final id = RecordId.generate();
+        Future<CommitReceipt> publish(DomainOperation operation, String key) async {
+          final opened = await tool(author, OpenContextRequest(
+            universe: selector, continuityId: continuity,
+            revision: const HeadRevisionSelector(),
+            representedContext: ContextIdSelector(represented),
+            temporalQuery: const TimelessFrameTime(), temporalSystems: [],
+            perspective: const AuthorPerspective(),
+          ), OpenedContext.fromWire);
+          final proposal = await tool(author, CreateProposalRequest(
+            universe: selector, contextId: opened.contextId,
+            operations: [operation], submission: Submission.submitted,
+            rationale: 'Author the story disclosure.', idempotencyKey: key,
+          ), Proposal.fromWire);
+          final ref = ProposalRef(proposalId: proposal.proposalId, version: proposal.version, digest: proposal.digest);
+          final validation = await tool(author, ProposalValidationRequest(
+            universe: selector, contextId: opened.contextId,
+            proposalReference: ref, checkScope: CheckScope.candidate,
+          ), ValidationV3.fromWire) as EvaluatedValidation;
+          await author.execute(ApproveEngineRequest(universe: selector, proposalReference: ref, validationRun: validation.execution.runId));
+          final receipt = await tool(author, CommitRequest(universe: selector,
+            proposalReference: ref, expectedBaseRevision: revision,
+            validationRun: validation.execution.runId, idempotencyKey: 'publish-$key',
+          ), CommitReceipt.fromWire);
+          revision = receipt.revision;
+          return receipt;
+        }
+        final first = SecretRecord(scope: [RecordRef(record: represented, universe: universe)],
+          fictionalKnowers: [], readerDisclosed: false,
+          concealment: 'Reveal later 記憶\r\n', validity: const UnspecifiedValidity());
+        final creation = await publish(CreateSecretOperation(clientRef: id.value, record: first), 'create-secret');
+        final prior = await store.transaction((s) async {
+          final journal = s.kernel(universe).journal;
+          final snapshot = await journal.snapshot(continuity, creation.revision);
+          return await journal.load(snapshot[id]!);
+        });
+        final priorRecord = RecordVersion.fromWire(prior.toCanonical());
+        expect(priorRecord.payload.toWire().toText(), first.toWire().toText());
+        final replacement = SecretRecord(scope: first.scope, fictionalKnowers: [],
+          readerDisclosed: true, concealment: null, validity: first.validity);
+        await publish(ReviseSecretOperation(record: RecordRef(record: id, universe: universe),
+          expectedVersion: priorRecord.recordVersionId, replacement: replacement), 'reveal-secret');
+        await store.transaction((s) async {
+          final journal = s.kernel(universe).journal;
+          final current = await journal.snapshot(continuity, revision);
+          final original = await journal.snapshot(continuity, creation.revision);
+          expect(RecordVersion.fromWire((await journal.load(current[id]!)).toCanonical()).payload.toWire().toText(), replacement.toWire().toText());
+          expect((await journal.load(original[id]!)).toCanonical().toText(), prior.toCanonical().toText());
+          expect(current[represented], original[represented]);
+        });
+      });
       test('denies invalid handshake and private universe creation without side effects', () async {
         await expectLater(
           runtime.connect(hello(writerId, credential: 'invalid')),

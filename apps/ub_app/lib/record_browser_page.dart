@@ -556,6 +556,14 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       ExactFields(value: record.payload.toWire()),
+                      if (widget.session.author &&
+                          record.payload is SecretRecord)
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => _edit(record, RecordEditAction.secretRevision),
+                          child: const Text('Revise story secret'),
+                        ),
                       if (record.payload is WorkRecord)
                         TextButton(
                           onPressed: _busy

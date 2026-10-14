@@ -139,6 +139,8 @@ String _versionPayloadDigest(RecordKind kind, RecordPayload payload) =>
     payloadDigest(kind.wireName, payload.toCanonical());
 
 enum DomainOperationKind {
+  createSecret('create_secret', OperationAuthority.ordinary),
+  reviseSecret('revise_secret', OperationAuthority.ordinary),
   createAppearance('create_appearance', OperationAuthority.ordinary),
   reviseAppearance('revise_appearance', OperationAuthority.ordinary),
   addImageAsset('add_image_asset', OperationAuthority.ordinary),
@@ -216,6 +218,8 @@ sealed class DomainOperation {
   CanonicalObject toWire();
   static DomainOperation fromWire(CanonicalValue value) => switch (Fields(value)
       .string('kind')) {
+    'create_secret' => CreateSecretOperation.fromWire(value),
+    'revise_secret' => ReviseSecretOperation.fromWire(value),
     'create_appearance' => CreateAppearanceOperation.fromWire(value),
     'revise_appearance' => ReviseAppearanceOperation.fromWire(value),
     'add_image_asset' => AddImageAssetOperation.fromWire(value),
@@ -281,6 +285,69 @@ sealed class DomainOperation {
     'refine_classification' => RefineClassificationOperation.fromWire(value),
     _ => throw const FormatException('Unknown domain operation'),
   };
+}
+
+final class CreateSecretOperation extends DomainOperation {
+  const CreateSecretOperation({
+    required this.clientRef,
+    required this.record,
+  });
+  final String clientRef;
+  final SecretRecord record;
+  factory CreateSecretOperation.fromWire(CanonicalValue value) {
+    final f = Fields(value)..allow({'kind', 'client_ref', 'record'});
+    if (f.string('kind') != 'create_secret') {
+      throw const FormatException('Wrong operation kind');
+    }
+    return CreateSecretOperation(
+      clientRef: f.string('client_ref'),
+      record: SecretRecord.fromWire(
+        _operationRecordInput(f.require('record'), RecordKind.secret),
+      ),
+    );
+  }
+  @override
+  DomainOperationKind get kind => DomainOperationKind.createSecret;
+  @override
+  CanonicalObject toWire() => tagged(kind.wireName, [
+    MapEntry('client_ref', CanonicalString(clientRef)),
+    MapEntry('record', _operationRecordOutput(record)),
+  ]);
+}
+
+final class ReviseSecretOperation extends DomainOperation {
+  const ReviseSecretOperation({
+    required this.record,
+    required this.expectedVersion,
+    required this.replacement,
+  });
+  final RecordRef record;
+  final RecordVersionId expectedVersion;
+  final SecretRecord replacement;
+  factory ReviseSecretOperation.fromWire(CanonicalValue value) {
+    final f = Fields(value)
+      ..allow({'kind', 'record', 'expected_version', 'replacement'});
+    if (f.string('kind') != 'revise_secret') {
+      throw const FormatException('Wrong operation kind');
+    }
+    return ReviseSecretOperation(
+      record: RecordRef.fromCanonical(f.require('record')),
+      expectedVersion: RecordVersionId.parse(
+        _string(f.require('expected_version')),
+      ),
+      replacement: SecretRecord.fromWire(
+        _operationRecordInput(f.require('replacement'), RecordKind.secret),
+      ),
+    );
+  }
+  @override
+  DomainOperationKind get kind => DomainOperationKind.reviseSecret;
+  @override
+  CanonicalObject toWire() => tagged(kind.wireName, [
+    MapEntry('record', record.toCanonical()),
+    MapEntry('expected_version', CanonicalString(expectedVersion.value)),
+    MapEntry('replacement', _operationRecordOutput(replacement)),
+  ]);
 }
 
 final class CreateAppearanceOperation extends DomainOperation {
