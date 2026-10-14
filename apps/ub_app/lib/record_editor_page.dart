@@ -1,6 +1,7 @@
 import 'entity_editor_page.dart';
 import 'secret_editor_page.dart';
 import 'appearance_editor_page.dart';
+import 'story_time_editor_page.dart';
 import 'attribute_editor_page.dart';
 import 'source_editor_page.dart';
 import 'work_version_editor_page.dart';
@@ -110,6 +111,7 @@ Future<Widget> recordEditorPage({
     );
   }
   return switch (action) {
+    RecordEditAction.storyTime => StoryTimeEditorPage(changes:changes,revision:revision,sourceRecord:record),
     RecordEditAction.workAssociation => WorkEditorPage(
       revision: revision,
       associationRecord: record,

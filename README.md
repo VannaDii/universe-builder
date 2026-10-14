@@ -272,6 +272,12 @@ visible. Image-asset records also offer this preview from Published fields.
 Previews follow the existing service access restrictions and use memory rather
 than saved preview files. The displayed preview is cleared when its record,
 context or connection changes.
+**Story time** opens the pinned context’s authored clock. Propose explicit elapsed
+story time or time travel, supply an exact timestamp (Gregorian offsets remain
+explicit) or whole-tick coordinate, and explain the transition. Unfinished input
+is retained privately on the device or browser. **Edit time transition** in Changes
+uses the same draft version and reviewed publication flow; earlier clock versions
+and the first interaction remain intact. Opening the app never advances time.
 The **Appearance** authoring form describes a universe or a named entry, with an
 exact label, physical description, atmosphere, ordered images and depiction
 links. Choose an existing image asset or a PNG/JPEG/WebP file through the macOS

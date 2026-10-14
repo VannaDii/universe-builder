@@ -55,6 +55,7 @@ final class LibraryLocation {
     'observation',
     'secret',
     'appearance',
+    'story-time',
     'attitude',
     'proposition',
     'completeness',

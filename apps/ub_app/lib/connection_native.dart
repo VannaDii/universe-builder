@@ -263,6 +263,7 @@ final class DeviceConnection {
       root: root!,
       client: client,
     );
+    final storyTimeRecovery = LocalStoryTimeFormRecovery(root:root!,client:client);
     final appearanceRecovery = LocalAppearanceFormRecovery(
       root: root!,
       client: client,
@@ -408,6 +409,8 @@ final class DeviceConnection {
       loadSecretForm: (scope) =>
           sequenced(() => secretRecovery.load(scope)),
       saveSecretForm: secretRecovery.save,
+      loadStoryTimeForm:(scope)=>sequenced(()=>storyTimeRecovery.load(scope)),
+      saveStoryTimeForm:storyTimeRecovery.save,
       loadAppearanceForm: (scope) =>
           sequenced(() => appearanceRecovery.load(scope)),
       saveAppearanceForm: appearanceRecovery.save,

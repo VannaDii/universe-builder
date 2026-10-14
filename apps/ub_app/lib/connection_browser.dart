@@ -44,6 +44,7 @@ import 'package:ub_client/browser_calendar_recovery.dart';
 import 'package:ub_client/browser_entity_recovery.dart';
 import 'package:ub_client/browser_attribute_recovery.dart';
 
+import 'package:ub_client/browser_story_time_recovery.dart';
 import 'connection.dart';
 import 'browser_source_files.dart';
 import 'browser_image_files.dart';
@@ -304,6 +305,10 @@ final class DeviceConnection {
         principal: client.welcome.principal,
         call: client.call,
       );
+      final storyTimeStore = await BrowserStoryTimeFormRecoveryStore.open();
+      closeStores.add(storyTimeStore.close);
+      final storyTimeRecovery=BrowserStoryTimeFormRecovery(store:storyTimeStore,
+        principal:client.welcome.principal,call:client.call);
       final secretStore = await BrowserSecretFormRecoveryStore.open();
       closeStores.add(secretStore.close);
       final secretRecovery = BrowserSecretFormRecovery(
@@ -584,6 +589,8 @@ final class DeviceConnection {
         loadSecretForm: (scope) =>
             sequenced(() => secretRecovery.load(scope)),
         saveSecretForm: secretRecovery.save,
+        loadStoryTimeForm:(scope)=>sequenced(()=>storyTimeRecovery.load(scope)),
+        saveStoryTimeForm:storyTimeRecovery.save,
         loadAppearanceForm: (scope) =>
             sequenced(() => appearanceRecovery.load(scope)),
         saveAppearanceForm: appearanceRecovery.save,

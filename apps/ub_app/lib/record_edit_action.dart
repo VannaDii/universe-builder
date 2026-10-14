@@ -22,6 +22,7 @@ enum RecordEditAction {
   recordRemoval,
   secretRevision,
   appearanceRevision,
+  storyTime,
   eventRevision,
   assertionCorrection,
   assertionEnd,
@@ -55,6 +56,7 @@ enum RecordEditAction {
     recordRemoval => true,
     secretRevision => payload is SecretRecord,
     appearanceRevision => payload is AppearanceRecord,
+    storyTime => payload is RepresentedContextRecord && payload.chronology != null,
     eventRevision => payload is EventRecord,
     assertionEnd =>
       payload is AssertionRecord &&

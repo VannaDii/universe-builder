@@ -735,6 +735,9 @@ class _ChangesPageState extends State<ChangesPage> {
                                       ),
                                 child: const Text('Edit relation fields'),
                               ),
+                            if (_proposal == null && operations[index] is SetStoryTimeOperation)
+                              TextButton(onPressed:_busy?null:()=>_changeDraft(
+                                (draft)=>_editOperation(draft,index)),child:const Text('Edit time transition')),
                             if (_proposal == null &&
                                 operations[index] is RecordEventOperation)
                               TextButton(
