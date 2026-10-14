@@ -228,6 +228,34 @@ final class LoopbackEngineClient {
     return body.takeBytes();
   }
 
+  /// An explicit local action returns a one-use enrollment token, never the
+  /// durable profile credential. The browser session must be exchanged separately.
+  Future<CanonicalObject> createBrowserSession() async {
+    if (_closed) throw const LocalEngineException(LocalEngineFailure.closed);
+    if (_busy) throw const LocalEngineException(LocalEngineFailure.busy);
+    if (_broken) {
+      throw const LocalEngineException(LocalEngineFailure.reconnectRequired);
+    }
+    _busy = true;
+    try {
+      final bytes = await _post(
+        '/engine/browser-grant',
+        Uint8List(0),
+      ).timeout(const Duration(seconds: 5));
+      final value = CanonicalValue.parseWireJson(utf8.decode(bytes));
+      final fields = WireFields(value, {'enrollment_token', 'expires_at'});
+      if (fields.string('enrollment_token').length != 43 ||
+          fields.require('expires_at') is! CanonicalNumber) {
+        throw const FormatException('Invalid browser enrollment');
+      }
+      return value as CanonicalObject;
+    } on Object {
+      throw const LocalEngineException(LocalEngineFailure.interrupted);
+    } finally {
+      _busy = false;
+    }
+  }
+
   Future<CanonicalValue> call(EngineRequest request) async {
     if (_closed) throw const LocalEngineException(LocalEngineFailure.closed);
     if (_busy) throw const LocalEngineException(LocalEngineFailure.busy);

@@ -19,7 +19,7 @@ const _offline = {
 };
 const _usage = '''Usage: universe --installation <path> [--profile <id>] <command> [arguments]
 
-init | status | doctor | enroll | shutdown
+init | status | doctor | enroll | shutdown | browser-session
 configure sqlite | configure postgres [--allow-loopback-postgres-development]
 create <name> --first-time <value> [--calendar <name>] [--tick-label <label>] [--ticks-per-month <u32>]
 register <path> <name> | rename <universe-id> <name> | revoke <profile-id>
@@ -254,6 +254,24 @@ Future<int> runUniverseCli(
           )).toText(),
         );
       }
+      return 0;
+    }
+    if (command == 'browser-session') {
+      if (tail.isNotEmpty) throw const _UsageError();
+      final helper = await (engineHelper ?? LocalEngineClient.siblingEngine)();
+      client = await LoopbackEngineClient.ensureRunning(
+        root: root,
+        profile: principal,
+        helper: helper,
+        clientName: 'browser-session-cli',
+      );
+      final grant = await client.createBrowserSession();
+      output(
+        CanonicalObject([
+          MapEntry('endpoint', CanonicalString(client.endpoint.toString())),
+          ...grant.fields,
+        ]).toText(),
+      );
       return 0;
     }
     final request = await parseAuthorCommand(

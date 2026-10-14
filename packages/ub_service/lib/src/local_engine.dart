@@ -49,6 +49,7 @@ final class LocalSqliteEngineServer {
   static Future<LocalSqliteEngineServer> start(
     String root, {
     bool compatibilitySocket = true,
+    DateTime Function()? httpNow,
   }) async {
     SqliteInstallationStore? store;
     ServerSocket? listener;
@@ -71,7 +72,7 @@ final class LocalSqliteEngineServer {
         protectLocalSocketEndpoint(endpoint);
       }
       runtime = NativeSqliteRuntime(authority: InstallationAuthority(store));
-      http = await LoopbackEngineServer.sqlite(runtime);
+      http = await LoopbackEngineServer.sqlite(runtime, now: httpNow);
       final server = LocalSqliteEngineServer._(store, runtime, listener, http);
       writeLocalHttpEndpoint(store.root, http.endpoint);
       publishedHttp = true;
