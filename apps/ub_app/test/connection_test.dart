@@ -282,6 +282,8 @@ void main() {
         saveAssertionEndForm: active.saveAssertionEndForm,
         loadAssertionCorrectionForm: active.loadAssertionCorrectionForm,
         saveAssertionCorrectionForm: active.saveAssertionCorrectionForm,
+        loadEventWithdrawalForm: active.loadEventWithdrawalForm,
+        saveEventWithdrawalForm: active.saveEventWithdrawalForm,
         loadBoundaryForm: active.loadBoundaryForm,
         saveBoundaryForm: active.saveBoundaryForm,
         loadCommitmentForm: active.loadCommitmentForm,
@@ -430,6 +432,8 @@ void main() {
             publishingSession.loadAssertionCorrectionForm,
         saveAssertionCorrectionForm:
             publishingSession.saveAssertionCorrectionForm,
+        loadEventWithdrawalForm: publishingSession.loadEventWithdrawalForm,
+        saveEventWithdrawalForm: publishingSession.saveEventWithdrawalForm,
         loadBoundaryForm: publishingSession.loadBoundaryForm,
         saveBoundaryForm: publishingSession.saveBoundaryForm,
         loadCommitmentForm: publishingSession.loadCommitmentForm,

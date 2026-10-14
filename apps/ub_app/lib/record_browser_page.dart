@@ -36,6 +36,8 @@ import 'value_definition_editor_page.dart';
 import 'type_editor_page.dart';
 import 'interpretation_editor_page.dart';
 import 'assertion_retraction_editor_page.dart';
+import 'event_withdrawal_editor_page.dart';
+import 'event_withdrawal_draft.dart';
 import 'assertion_correction_editor_page.dart';
 import 'assertion_end_editor_page.dart';
 
@@ -989,6 +991,36 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                                   ),
                                 ),
                           child: const Text('Retract assertion'),
+                        ),
+                      if (isWithdrawableEvent(record.payload))
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context).push<SavedDraft>(
+                                  MaterialPageRoute(
+                                    builder: (_) => EventWithdrawalEditorPage(
+                                      revision: widget.context.frame.revision,
+                                      sourceRecord: record,
+                                      changes: SavedChanges(
+                                        session: widget.session,
+                                        universe: Selector(
+                                          widget.universe.name,
+                                        ),
+                                        scope: EditorFormScope(
+                                          instance: widget.scope.instance,
+                                          profile: widget.scope.profile,
+                                          universe: widget.universe.id,
+                                          continuity: widget.continuity.id,
+                                          representedContext:
+                                              widget.representedContext.id,
+                                          typeClientRef:
+                                              record.identity.recordId.value,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                          child: const Text('Withdraw occurrence'),
                         ),
                       if (record.payload is AssertionRecord)
                         TextButton(

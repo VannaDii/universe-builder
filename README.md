@@ -281,6 +281,12 @@ In author perspective, proposition choices show their subject, predicate,
 quantification, context, ordered participants and simple values using accessible
 names. Search matches these descriptions. Hidden dependencies retain the
 existing fallback; labels do not assert that a proposition is true.
+An event marked as occurred offers **Withdraw occurrence** in its record details.
+Authors give an explicit reason; unfinished reasons recover on this device, and
+**Edit occurrence withdrawal** in Changes keeps the event and version reference.
+Reviewed publication removes the current occurrence and its generated effects
+while retaining history. It does not establish that the event did not occur.
+Planned and reported events do not offer this action.
 Published assertion details offer **Correct assertion**. Authors can choose an
 existing proposition and revise attribute mode, polarity, precision, persistence,
 scope, validity, alternatives and source basis. The editor retains event-establishment

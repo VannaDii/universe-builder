@@ -232,6 +232,10 @@ final class DeviceConnection {
       root: root!,
       client: client,
     );
+    final eventWithdrawalRecovery = LocalEventWithdrawalFormRecovery(
+      root: root!,
+      client: client,
+    );
     final boundaryRecovery = LocalBoundaryFormRecovery(
       root: root!,
       client: client,
@@ -354,6 +358,9 @@ final class DeviceConnection {
       loadAssertionCorrectionForm: (scope) =>
           sequenced(() => assertionCorrectionRecovery.load(scope)),
       saveAssertionCorrectionForm: assertionCorrectionRecovery.save,
+      loadEventWithdrawalForm: (scope) =>
+          sequenced(() => eventWithdrawalRecovery.load(scope)),
+      saveEventWithdrawalForm: eventWithdrawalRecovery.save,
       loadBoundaryForm: (scope) =>
           sequenced(() => boundaryRecovery.load(scope)),
       saveBoundaryForm: boundaryRecovery.save,
