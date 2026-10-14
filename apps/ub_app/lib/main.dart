@@ -41,6 +41,7 @@ import 'continuity_page.dart';
 import 'universe_access_page.dart';
 import 'backup_file_dialogs.dart';
 import 'storage_maintenance_page.dart';
+import 'package_import_page.dart';
 import 'calendar_editor_page.dart';
 import 'pack_editor_page.dart';
 import 'entity_editor_page.dart';
@@ -641,22 +642,39 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
             label: const Text('Create universe'),
           ),
         ),
-        TextButton.icon(
-          onPressed: _busy || _session!.restoreBackupFile == null
-              ? null
-              : () => Navigator.of(context)
-                    .push<void>(
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            StorageMaintenancePage(session: _session!),
-                      ),
-                    )
-                    .then((_) {
-                      if (mounted) _connect();
-                    }),
-          icon: const Icon(Icons.restore),
-          label: const Text('Restore a backup'),
-        ),
+        if (_session!.pickArchiveFile != null)
+          TextButton.icon(
+            onPressed: _busy
+                ? null
+                : () => Navigator.of(context)
+                      .push<void>(
+                        MaterialPageRoute(
+                          builder: (_) => PackageImportPage(session: _session!),
+                        ),
+                      )
+                      .then((_) {
+                        if (mounted) _connect();
+                      }),
+            icon: const Icon(Icons.upload_file),
+            label: const Text('Import a package'),
+          ),
+        if (_session!.pickArchiveFile == null)
+          TextButton.icon(
+            onPressed: _busy || _session!.restoreBackupFile == null
+                ? null
+                : () => Navigator.of(context)
+                      .push<void>(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              StorageMaintenancePage(session: _session!),
+                        ),
+                      )
+                      .then((_) {
+                        if (mounted) _connect();
+                      }),
+            icon: const Icon(Icons.restore),
+            label: const Text('Restore a backup'),
+          ),
         const SizedBox(height: 24),
       ],
       if (_library!.universes.isEmpty)

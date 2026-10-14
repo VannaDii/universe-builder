@@ -4,6 +4,7 @@ import 'package:ub_contracts/ub_contracts.dart' hide State;
 
 import 'connection.dart';
 import 'storage_maintenance.dart';
+import 'package_import_page.dart';
 
 class StorageMaintenancePage extends StatefulWidget {
   const StorageMaintenancePage({
@@ -152,23 +153,39 @@ class _StorageMaintenancePageState extends State<StorageMaintenancePage> {
                   ),
                 const Divider(),
               ],
-              const Text('Restore a backup'),
-              const Text(
-                'Restoration registers the backup’s original universe identity. Use it in an instance where that identity is absent.',
-              ),
-              TextField(
-                controller: _name,
-                enabled: !_busy,
-                decoration: const InputDecoration(
-                  labelText: 'Restored universe name',
+              if (widget.session.pickArchiveFile != null)
+                TextButton.icon(
+                  onPressed: _busy
+                      ? null
+                      : () => Navigator.of(context).push<void>(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                PackageImportPage(session: widget.session),
+                          ),
+                        ),
+                  icon: const Icon(Icons.upload_file),
+                  label: const Text('Import a package'),
                 ),
-              ),
-              FilledButton(
-                onPressed: _busy || widget.session.restoreBackupFile == null
-                    ? null
-                    : () => _run(_restore),
-                child: const Text('Choose backup and restore'),
-              ),
+              if (widget.session.restoreBackupFile != null ||
+                  widget.session.pickArchiveFile == null) ...[
+                const Text('Restore a backup'),
+                const Text(
+                  'Restoration registers the backup’s original universe identity. Use it in an instance where that identity is absent.',
+                ),
+                TextField(
+                  controller: _name,
+                  enabled: !_busy,
+                  decoration: const InputDecoration(
+                    labelText: 'Restored universe name',
+                  ),
+                ),
+                FilledButton(
+                  onPressed: _busy || widget.session.restoreBackupFile == null
+                      ? null
+                      : () => _run(_restore),
+                  child: const Text('Choose backup and restore'),
+                ),
+              ],
               if (widget.universe != null) ...[
                 const Divider(),
                 const Text('Storage maintenance'),

@@ -2,6 +2,7 @@
 library;
 
 import 'dart:js_interop';
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:test/test.dart';
@@ -148,4 +149,41 @@ void main() {
     );
     transport.close();
   });
+  test(
+    'canceling a file transfer aborts fetch and requires a new transport',
+    () async {
+      final pending = Completer<web.Response>();
+      web.AbortSignal? signal;
+      browserFetch = ((JSAny _, web.RequestInit init) {
+        signal = init.signal;
+        signal!.addEventListener(
+          'abort',
+          ((web.Event _) {
+            pending.completeError(StateError('Cancelled'));
+          }).toJS,
+        );
+        return pending.future.toJS;
+      }).toJS;
+      final transport = SameOriginBrowserTransport();
+      final future = transport.postArchive(
+        file: web.File(
+          [
+            Uint8List.fromList([1]).toJS,
+          ].toJS,
+          'archive.sqlite',
+        ),
+        previewId: OperationId.generate(),
+        name: 'Imported',
+        mode: ImportMode.clone,
+        csrf: 'current-csrf',
+      );
+      final result = expectLater(
+        future,
+        failure(LocalEngineFailure.interrupted),
+      );
+      transport.close();
+      await result;
+      expect(signal!.aborted, isTrue);
+    },
+  );
 }

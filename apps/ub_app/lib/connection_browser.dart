@@ -44,6 +44,8 @@ import 'package:ub_client/browser_attribute_recovery.dart';
 
 import 'connection.dart';
 import 'browser_source_files.dart';
+import 'browser_package_files.dart';
+import 'browser_package_import_recovery.dart';
 
 /// The service owns canon and credentials; this tab holds only its short-lived
 /// CSRF token and origin-private unfinished editor input.
@@ -385,6 +387,13 @@ final class DeviceConnection {
         call: client.call,
       );
 
+      final importStore = await BrowserPackageImportFormRecoveryStore.open();
+      closeStores.add(importStore.close);
+      final status = InstanceLibrary.fromWire(
+        await client.call(const StatusEngineRequest()),
+      );
+      final importScope = (status.instance, client.welcome.principal);
+
       // Reference controls can request labels together; admit one call at a time,
       // without replaying a failed request.
       Future<void> pending = Future<void>.value();
@@ -404,6 +413,28 @@ final class DeviceConnection {
       }
 
       return AppSession(
+        cancelArchiveUpload: client.close,
+        loadPackageImport: client.welcome.author
+            ? () => importStore.load(importScope)
+            : null,
+        savePackageImport: client.welcome.author
+            ? (form, generation) =>
+                  importStore.save(importScope, form, generation)
+            : null,
+        pickArchiveFile: client.welcome.author ? pickBrowserArchive : null,
+        reviewArchiveFile: client.welcome.author
+            ? (file, form) => sequenced(
+                () => client.reviewArchiveFile(
+                  upload: (csrf) => transport.postArchive(
+                    file: file.source as web.File,
+                    previewId: form.operation,
+                    name: form.name,
+                    mode: form.mode,
+                    csrf: csrf,
+                  ),
+                ),
+              )
+            : null,
         downloadArchive: (universe) async {
           final archive = await sequenced(
             () => client.prepareArchiveDownload(Selector(universe.name)),

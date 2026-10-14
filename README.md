@@ -53,8 +53,12 @@ operations and keep import review separate from admission. The selected-file
 transport streams up to the existing 8 GiB archive budget into private service
 staging. The service prepares the normal import review; it does not admit the
 package. A caller-selected review ID supports an explicit retry with the same
-file, name and restore/clone mode. Browser file selection and review controls for
-this transport are still being connected.
+file, name and restore/clone mode. Approval owners can choose Import a package from Library or Backup and storage,
+enter a universe name, choose Clone or Restore identity, and select a relational
+archive. The page shows completeness, retained history/workflow and conflicts;
+Admit reviewed package is a separate action. Restoration cannot overwrite an
+existing universe identity. Cancel upload ends this connection without admitting
+anything; reconnect before retrying.
 
 The web app uses the shared typed editor workflows. Named unfinished fields are
 retained in origin-private IndexedDB, scoped to the instance, profile, universe,
@@ -72,8 +76,11 @@ historical workflow evidence. The one-use download link is bound to the current
 session, expires after five minutes and is invalidated by sign-out or restart.
 A new preparation replaces that session’s unused link. The app reports that the
 download started; the browser reports completion. Server staging files are removed
-after streaming, expiry cleanup or normal shutdown. Browser-selected package import,
-backup restoration and URL navigation work remain in progress.
+after streaming, expiry cleanup or normal shutdown. Import choices, operation IDs, review records and admission outcomes are retained
+as named IndexedDB fields, scoped to the target instance and profile. Refresh does
+not upload or admit automatically. An interrupted upload requires explicit file
+reselection; an unknown admission outcome is recovered by retrying the same exact
+admission. Browser URL navigation work remains in progress.
 
 Connected approval owners can create a universe from Library. Gregorian creation
 uses an explicitly entered date, whole-second time and fixed UTC offset, with an

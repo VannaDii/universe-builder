@@ -33,6 +33,7 @@ void main() {
     );
     final paths = <String>[];
     var active = 0, largest = 0, revoked = false;
+    var statusCalls = 0;
     final exact = CanonicalObject([
       MapEntry('exact', CanonicalNumber('18446744073709551615')),
       MapEntry('source', CanonicalString('記憶 😀\r\n')),
@@ -68,9 +69,19 @@ void main() {
           if (active > largest) largest = active;
           await Future<void>.delayed(const Duration(milliseconds: 10));
           final call = EngineCall.decode((init.body as JSUint8Array).toDart);
+          final body = statusCalls++ == 0 || statusCalls == 4
+              ? CanonicalObject([
+                  MapEntry(
+                    'instance_id',
+                    CanonicalString(OperationId.generate().value),
+                  ),
+                  MapEntry('backend', CanonicalString('sqlite')),
+                  MapEntry('universes', CanonicalArray([])),
+                ])
+              : exact;
           result = EngineReply(
             id: call.id,
-            result: EngineSuccess(exact),
+            result: EngineSuccess(body),
           ).toWire();
           active--;
         }
@@ -144,7 +155,7 @@ void main() {
         DeviceConnection([]).connect(),
         throwsA(isA<LocalEngineException>()),
       );
-      expect(paths.where((p) => p.endsWith('/call')).length, 2);
+      expect(paths.where((p) => p.endsWith('/call')).length, 4);
     } finally {
       browserFetch = originalFetch;
       web.window.sessionStorage.removeItem('ub-browser-session-csrf');

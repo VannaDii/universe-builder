@@ -1,8 +1,15 @@
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
+import 'package_import.dart';
+
 final class AppSession {
   const AppSession({
+    this.cancelArchiveUpload,
+    this.loadPackageImport,
+    this.savePackageImport,
+    this.pickArchiveFile,
+    this.reviewArchiveFile,
     this.downloadArchive,
     this.pickSourceText,
     this.logout,
@@ -95,6 +102,16 @@ final class AppSession {
   final Future<void> Function() close;
   final Future<void> Function()? logout;
   final Future<void> Function(LibraryEntry)? downloadArchive;
+  final Future<void> Function()? cancelArchiveUpload;
+  final Future<SavedPackageImport?> Function()? loadPackageImport;
+  final Future<SavedPackageImport> Function(PackageImportDraft, BigInt)?
+  savePackageImport;
+  final Future<SelectedArchiveFile?> Function()? pickArchiveFile;
+  final Future<CanonicalValue> Function(
+    SelectedArchiveFile,
+    PackageImportDraft,
+  )?
+  reviewArchiveFile;
   final Future<SelectedSourceText?> Function()? pickSourceText;
   final bool author;
   final ProfileId principal;
