@@ -2637,6 +2637,73 @@ void main() {
             .revisionId,
         alternateEdition.revisionId,
       );
+      final bindingBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final bindingScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: typedEditionPublished.single.identity.recordId.value,
+      );
+      final bindingForm =
+          workBindingFormFromRecord(
+            record: typedEditionPublished.single,
+            baseRevision: bindingBase.content.baseRevision,
+            representedContext: scope.representedContext!,
+          ).copyWith(
+            bindingKind: 'unbound',
+            rationale: 'Keep the edition explicitly unbound while reviewing its account.',
+          );
+      await session.saveWorkVersionForm(bindingScope, bindingForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredBinding = (await session.loadWorkVersionForm(
+        bindingScope,
+      ))!.form;
+      expect(recoveredBinding.toWire().toText(), bindingForm.toWire().toText());
+      final bindingDraft = SavedDraft.fromWire(
+        await session.call(
+          workVersionDraftRequest(
+            draft: bindingBase,
+            form: recoveredBinding,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final bindingPublished = await publish(bindingDraft);
+      final beforeBinding =
+          typedEditionPublished.single.payload as WorkVersionRecord;
+      final afterBinding = bindingPublished.single.payload as WorkVersionRecord;
+      expect(
+        bindingPublished.single.identity.recordId,
+        typedEditionPublished.single.identity.recordId,
+      );
+      expect(
+        bindingPublished.single.recordVersionId,
+        isNot(typedEditionPublished.single.recordVersionId),
+      );
+      expect(afterBinding.work, beforeBinding.work);
+      expect(afterBinding.versionLabel, beforeBinding.versionLabel);
+      expect(afterBinding.binding, const UnboundWork());
+      final bindingHistoryContext = await openDraftChoiceContext(
+        changes(),
+        bindingBase,
+      );
+      final retainedEdition = await readContextRecord(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Relations'),
+        context: bindingHistoryContext,
+        record: typedEditionPublished.single.identity.recordId,
+      );
+      expect(
+        retainedEdition.toWire().toText(),
+        typedEditionPublished.single.toWire().toText(),
+      );
     } finally {
       await session?.close();
       await server.close();

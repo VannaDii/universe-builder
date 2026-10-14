@@ -310,6 +310,12 @@ editable and reopening retains them. Segment order, labels and independent pins
 recover privately and pass through Changes and reviewed publication. Edition
 metadata does not merge continuities or import manuscript prose.
 
+A published edition’s dossier offers **Change canon binding**. The recoverable
+form retains that edition’s identity and expected record version, and edits only
+its binding through the existing `set_work_binding` operation. Pending binding
+changes can be edited in Changes. Reviewed publication creates new history and
+retains the edition’s work reference and label.
+
 **Saga** groups named external works with explicit membership roles and optional
 unsigned 64-bit order values. A work can appear in separate roles. Reordering rows
 does not renumber authored order values or merge continuity bindings. Title,

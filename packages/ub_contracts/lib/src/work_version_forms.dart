@@ -46,6 +46,8 @@ final class UnfinishedWorkVersionForm {
     this.revision = '',
     Iterable<WorkSegmentInput> segments = const [],
     this.rationale = '',
+    this.bindingTarget,
+    this.expectedRecordVersion,
     BigInt? draftVersion,
   }) : segments = List.unmodifiable(segments),
        draftVersion = draftVersion == null ? null : checkedU64(draftVersion);
@@ -58,6 +60,8 @@ final class UnfinishedWorkVersionForm {
       revision,
       rationale;
   final ExpressionReferenceInput work;
+  final ExpressionReferenceInput? bindingTarget;
+  final RecordVersionId? expectedRecordVersion;
   final List<WorkSegmentInput> segments;
   final BigInt? draftVersion;
   UnfinishedWorkVersionForm copyWith({
@@ -80,6 +84,8 @@ final class UnfinishedWorkVersionForm {
     segments: segments ?? this.segments,
     rationale: rationale ?? this.rationale,
     draftVersion: draftVersion,
+    bindingTarget: bindingTarget,
+    expectedRecordVersion: expectedRecordVersion,
   );
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
@@ -92,6 +98,13 @@ final class UnfinishedWorkVersionForm {
     MapEntry('revision', CanonicalString(revision)),
     MapEntry('segments', CanonicalArray(segments.map((s) => s.toWire()))),
     MapEntry('rationale', CanonicalString(rationale)),
+    if (bindingTarget != null)
+      MapEntry('binding_target', bindingTarget!.toWire()),
+    if (expectedRecordVersion != null)
+      MapEntry(
+        'expected_record_version',
+        CanonicalString(expectedRecordVersion!.value),
+      ),
     if (draftVersion != null)
       MapEntry('draft_version', CanonicalString(draftVersion.toString())),
   ]);
@@ -107,6 +120,8 @@ final class UnfinishedWorkVersionForm {
       'revision',
       'segments',
       'rationale',
+      'binding_target',
+      'expected_record_version',
       'draft_version',
     });
     return UnfinishedWorkVersionForm(
@@ -120,6 +135,14 @@ final class UnfinishedWorkVersionForm {
       revision: f.string('revision'),
       segments: f.array('segments').map(WorkSegmentInput.fromWire),
       rationale: f.string('rationale'),
+      bindingTarget: f.optional(
+        'binding_target',
+        ExpressionReferenceInput.fromWire,
+      ),
+      expectedRecordVersion: f.optional(
+        'expected_record_version',
+        (v) => RecordVersionId.parse(wireString(v)),
+      ),
       draftVersion: f.optional(
         'draft_version',
         (v) => BigInt.parse(wireString(v)),

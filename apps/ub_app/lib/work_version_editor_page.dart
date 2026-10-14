@@ -16,11 +16,13 @@ class WorkVersionEditorPage extends StatefulWidget {
     required this.revision,
     this.editingDraft,
     this.index,
+    this.bindingRecord,
   });
   final SavedChanges changes;
   final RevisionId revision;
   final SavedDraft? editingDraft;
   final int? index;
+  final RecordVersion? bindingRecord;
   @override
   State<WorkVersionEditorPage> createState() => _WorkVersionEditorPageState();
 }
@@ -68,6 +70,12 @@ class _WorkVersionEditorPageState extends State<WorkVersionEditorPage> {
 
   UnfinishedWorkVersionForm _fresh() => widget.index != null
       ? workVersionFormFromDraft(_draft!, widget.index!)
+      : widget.bindingRecord != null
+      ? workBindingFormFromRecord(
+          record: widget.bindingRecord!,
+          baseRevision: widget.revision,
+          representedContext: _scope.representedContext!,
+        )
       : UnfinishedWorkVersionForm(
           baseRevision: widget.revision,
           representedContext: _scope.representedContext!,
@@ -101,17 +109,30 @@ class _WorkVersionEditorPageState extends State<WorkVersionEditorPage> {
                   _form!.baseRevision != _draft!.content.baseRevision ||
                   _form!.representedContext !=
                       _draft!.content.representedContext
-            : _form!.baseRevision != widget.revision;
+            : _form!.baseRevision != widget.revision ||
+                  (widget.bindingRecord != null &&
+                      _form!.expectedRecordVersion !=
+                          widget.bindingRecord!.recordVersionId);
         _added =
             widget.index == null &&
                 (_draft?.content.operations.any(
-                      (op) =>
-                          op is RecordNarrativeReferenceOperation &&
-                          op.record == RecordKind.workVersion &&
-                          op.clientRef == _form!.clientRef,
+                      (op) => switch (op) {
+                        RecordNarrativeReferenceOperation(
+                          :final clientRef,
+                          :final record,
+                        ) =>
+                          _form!.bindingTarget == null &&
+                              record == RecordKind.workVersion &&
+                              clientRef == _form!.clientRef,
+                        SetWorkBindingOperation(:final record) =>
+                          _form!.bindingTarget?.record == record.record.value &&
+                              _form!.bindingTarget?.universe ==
+                                  (record.universe?.value ?? ''),
+                        _ => false,
+                      },
                     ) ??
                     false)
-            ? 'This definition is in Changes. Review or edit it there.'
+            ? 'This edition change is in Changes. Review or edit it there.'
             : null;
       });
     } on Object {
@@ -208,13 +229,21 @@ class _WorkVersionEditorPageState extends State<WorkVersionEditorPage> {
       setState(() {
         _draft = saved;
         _result = saved;
-        if (widget.index != null) {
-          _form = workVersionFormFromDraft(saved, widget.index!);
+        if (widget.index != null || _form!.bindingTarget != null) {
+          final index =
+              widget.index ??
+              saved.content.operations.indexWhere(
+                (op) =>
+                    op is SetWorkBindingOperation &&
+                    op.record == workBindingOperation(_form!).record,
+              );
+          _form = workVersionFormFromDraft(saved, index);
           _fields++;
           _dirty = true;
-        } else {
+        }
+        if (widget.index == null) {
           _added =
-              'Work edition added to Changes. Review it before publication.';
+              'Edition change added to Changes. Review it before publication.';
         }
       });
       await _save();
@@ -267,7 +296,11 @@ class _WorkVersionEditorPageState extends State<WorkVersionEditorPage> {
     child: Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.index == null ? 'Work edition' : 'Edit work edition',
+          widget.bindingRecord != null || _form?.bindingTarget != null
+              ? 'Change edition binding'
+              : widget.index == null
+              ? 'Work edition'
+              : 'Edit work edition',
         ),
       ),
       body: Align(
@@ -280,7 +313,7 @@ class _WorkVersionEditorPageState extends State<WorkVersionEditorPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
-                  'Describe an edition of an external work. Choose explicitly between unbound, one pinned continuity, or separately pinned segments. Reopening does not advance those pins. Unfinished fields stay on this device until added to Changes.',
+                  'Choose explicitly between unbound, one pinned continuity, or separately pinned segments. Reopening does not advance those pins. Published binding changes retain the opened edition identity and expected version for review. Unfinished fields stay on this device until added to Changes.',
                 ),
                 if (_loading || _saving || _adding)
                   const LinearProgressIndicator(),
@@ -290,7 +323,11 @@ class _WorkVersionEditorPageState extends State<WorkVersionEditorPage> {
                   ),
                   TextButton(
                     onPressed: _disabled ? null : _reset,
-                    child: const Text('Use current draft fields'),
+                    child: Text(
+                      widget.bindingRecord != null
+                          ? 'Use opened edition fields'
+                          : 'Use current draft fields',
+                    ),
                   ),
                 ],
                 if (_form case final f?) ...[
@@ -332,7 +369,7 @@ class _WorkVersionEditorPageState extends State<WorkVersionEditorPage> {
                         : _save,
                     child: const Text('Save unfinished work'),
                   ),
-                  if (_added != null)
+                  if (_added != null && _form?.bindingTarget == null)
                     TextButton(
                       onPressed: _loading || _saving || _adding ? null : _reset,
                       child: const Text('Start another work edition'),

@@ -75,18 +75,34 @@ class _WorkVersionInputFieldsState extends State<WorkVersionInputFields> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _reference(
-          'External work',
-          f.work,
-          (v) => change(f.copyWith(work: v)),
-          kind: RecordKind.work,
-        ),
-        TextFormField(
-          initialValue: f.versionLabel,
-          enabled: !disabled,
-          decoration: const InputDecoration(labelText: 'Edition label'),
-          onChanged: (v) => change(f.copyWith(versionLabel: v)),
-        ),
+        if (f.bindingTarget == null) ...[
+          _reference(
+            'External work',
+            f.work,
+            (v) => change(f.copyWith(work: v)),
+            kind: RecordKind.work,
+          ),
+          TextFormField(
+            initialValue: f.versionLabel,
+            enabled: !disabled,
+            decoration: const InputDecoration(labelText: 'Edition label'),
+            onChanged: (v) => change(f.copyWith(versionLabel: v)),
+          ),
+        ] else ...[
+          DraftRecordChoiceField(
+            changes: widget.changes,
+            draft: widget.draft,
+            kind: RecordKind.workVersion,
+            label: 'Published edition',
+            record: f.bindingTarget!.record,
+            universe: f.bindingTarget!.universe,
+            disabled: true,
+            onChanged: (_) {},
+          ),
+          const Text(
+            'This change retains the edition identity, work and label and creates new history after reviewed publication.',
+          ),
+        ],
         DropdownButtonFormField<String>(
           key: ValueKey(('binding', f.bindingKind)),
           initialValue: f.bindingKind.isEmpty ? null : f.bindingKind,
