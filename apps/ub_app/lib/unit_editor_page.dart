@@ -19,11 +19,13 @@ class UnitEditorPage extends StatefulWidget {
     required this.revision,
     this.editingDraft,
     this.index,
+    this.revisionRecord,
   });
   final SavedChanges changes;
   final RevisionId revision;
   final SavedDraft? editingDraft;
   final int? index;
+  final RecordVersion? revisionRecord;
   @override
   State<UnitEditorPage> createState() => _UnitEditorPageState();
 }
@@ -67,6 +69,12 @@ class _UnitEditorPageState extends State<UnitEditorPage> {
 
   UnfinishedUnitForm _fresh() => widget.index != null
       ? unitFormFromDraft(_draft!, widget.index!)
+      : widget.revisionRecord != null
+      ? unitRevisionFormFromRecord(
+          record: widget.revisionRecord!,
+          baseRevision: widget.revision,
+          representedContext: _scope.representedContext!,
+        )
       : UnfinishedUnitForm(
           baseRevision: widget.revision,
           representedContext: _scope.representedContext!,
@@ -91,13 +99,22 @@ class _UnitEditorPageState extends State<UnitEditorPage> {
                   _form!.baseRevision != _draft!.content.baseRevision ||
                   _form!.representedContext !=
                       _draft!.content.representedContext
-            : _form!.baseRevision != widget.revision;
+            : _form!.baseRevision != widget.revision ||
+                  (widget.revisionRecord != null &&
+                      _form!.expectedRecordVersion !=
+                          widget.revisionRecord!.recordVersionId);
         _added =
             widget.index == null &&
                 (_draft?.content.operations.any(
                       (op) =>
-                          op is DefineUnitOperation &&
-                          op.clientRef == _form!.clientRef,
+                          (op is DefineUnitOperation &&
+                              _form!.revisionTarget == null &&
+                              op.clientRef == _form!.clientRef) ||
+                          (op is ReviseDefinitionOperation &&
+                              _form!.revisionTarget?.record ==
+                                  op.record.record.value &&
+                              _form!.revisionTarget?.universe ==
+                                  (op.record.universe?.value ?? '')),
                     ) ??
                     false)
             ? 'This definition is in Changes. Review or edit it there.'
@@ -148,6 +165,9 @@ class _UnitEditorPageState extends State<UnitEditorPage> {
         temporalValidity: temporal ?? f.temporalValidity,
         rationale: rationale ?? f.rationale,
         draftVersion: f.draftVersion,
+        revisionTarget: f.revisionTarget,
+        expectedRecordVersion: f.expectedRecordVersion,
+        original: f.original,
       );
       _dirty = true;
     });
@@ -155,10 +175,19 @@ class _UnitEditorPageState extends State<UnitEditorPage> {
     _autosave = Timer(const Duration(milliseconds: 500), _save);
   }
 
-  UnitRecord? get _original => widget.index == null
-      ? null
-      : (_draft!.content.operations[widget.index!] as DefineUnitOperation)
-            .record;
+  UnitRecord? get _original =>
+      _form?.original ??
+      (widget.revisionRecord?.payload is UnitRecord
+          ? widget.revisionRecord!.payload as UnitRecord
+          : widget.index == null
+          ? null
+          : switch (_draft!.content.operations[widget.index!]) {
+              DefineUnitOperation(:final record) => record,
+              ReviseDefinitionOperation(:final replacement)
+                  when replacement is UnitRecord =>
+                replacement,
+              _ => null,
+            });
   String _baseRecord(String unit) {
     try {
       UnitId.parse(unit);
@@ -235,8 +264,15 @@ class _UnitEditorPageState extends State<UnitEditorPage> {
       setState(() {
         _draft = saved;
         _result = saved;
-        if (widget.index != null) {
-          _form = unitFormFromDraft(saved, widget.index!);
+        if (widget.index != null || _form!.revisionTarget != null) {
+          final index =
+              widget.index ??
+              saved.content.operations.indexWhere(
+                (op) =>
+                    op is ReviseDefinitionOperation &&
+                    op.record == unitRevisionOperation(_form!).record,
+              );
+          _form = unitFormFromDraft(saved, index);
           _fields++;
           _dirty = true;
         } else {
@@ -274,12 +310,13 @@ class _UnitEditorPageState extends State<UnitEditorPage> {
     String value,
     ValueChanged<String> change, {
     int maxLines = 1,
+    bool readOnly = false,
   }) => Padding(
     padding: const EdgeInsets.only(top: 12),
     child: TextFormField(
       key: ValueKey((_fields, key)),
       initialValue: value,
-      enabled: !_disabled,
+      enabled: !_disabled && !readOnly,
       maxLines: maxLines,
       decoration: InputDecoration(labelText: label),
       onChanged: change,
@@ -327,13 +364,24 @@ class _UnitEditorPageState extends State<UnitEditorPage> {
                   ),
                 ],
                 if (_form case final f?) ...[
+                  if (f.revisionTarget != null)
+                    const Text(
+                      'Revisions retain this unit’s namespace and key. Conversion values remain exact; existing checks assess current uses and reviewed publication preserves history.',
+                    ),
                   _text(
                     'namespace',
                     'Namespace',
                     f.namespace,
                     (v) => _change(namespace: v),
+                    readOnly: f.revisionTarget != null,
                   ),
-                  _text('key', 'Unit key', f.key, (v) => _change(key: v)),
+                  _text(
+                    'key',
+                    'Unit key',
+                    f.key,
+                    (v) => _change(key: v),
+                    readOnly: f.revisionTarget != null,
+                  ),
                   const SizedBox(height: 16),
                   const Text('Display labels'),
                   for (var i = 0; i < f.labels.length; i++)

@@ -12,6 +12,7 @@ import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/draft_record_choices.dart';
 import 'package:ub_app/saved_changes.dart';
+import 'package:ub_app/record_browser.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/editor_forms.dart';
@@ -448,6 +449,77 @@ void main() {
           (await publish(propertyDraft)).single.payload as PropertyRecord;
       expect(publishedProperty.value, QuantityShape(unit));
       expect(publishedProperty.unitDimension, 'distance');
+      final revisionBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final revisionScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: publishedDerived.identity.recordId.value,
+      );
+      final revisionForm = UnfinishedUnitForm.fromWire(
+        CanonicalObject(
+          unitRevisionFormFromRecord(
+            record: publishedDerived,
+            baseRevision: revisionBase.content.baseRevision,
+            representedContext: scope.representedContext!,
+          ).toWire().fields.map(
+            (e) => e.key == 'scale'
+                ? MapEntry(
+                    'scale',
+                    qualifierInput(
+                      'scale',
+                      const RationalValue('5', '2'),
+                    ).toWire(),
+                  )
+                : e.key == 'rationale'
+                ? MapEntry(
+                    'rationale',
+                    CanonicalString('Correct the authored conversion factor.'),
+                  )
+                : e,
+          ),
+        ),
+      );
+      await session.saveUnitForm(revisionScope, revisionForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredRevision = (await session.loadUnitForm(revisionScope))!
+          .form;
+      expect(
+        recoveredRevision.toWire().toText(),
+        revisionForm.toWire().toText(),
+      );
+      final revisionDraft = SavedDraft.fromWire(
+        await session.call(
+          unitDraftRequest(
+            draft: revisionBase,
+            form: recoveredRevision,
+            universe: const Selector('Units'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final revisedUnit = (await publish(revisionDraft)).single;
+      expect(revisedUnit.identity.recordId, publishedDerived.identity.recordId);
+      expect(
+        revisedUnit.payload.toWire().toText(),
+        unitRevisionOperation(revisionForm).replacement.toWire().toText(),
+      );
+      final retainedUnit = await readContextRecord(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Units'),
+        context: await openDraftChoiceContext(changes(), revisionBase),
+        record: publishedDerived.identity.recordId,
+      );
+      expect(
+        retainedUnit.toWire().toText(),
+        publishedDerived.toWire().toText(),
+      );
     } finally {
       await session?.close();
       await server.close();

@@ -319,6 +319,13 @@ resolution, applicability and executable classification remain editable through
 Pending revisions can be edited in Changes; reviewed publication retains history.
 Existing unfinished type forms upgrade locally without completing missing choices.
 
+A published unit definition’s dossier offers **Revise unit definition**. Its
+recoverable form retains identity, expected version, namespace and key while
+editing dimension, symbol, labels, optional base unit, exact conversion factor
+and validity through `revise_definition`. Unchanged scale and temporal values
+retain their exact representation. Pending revisions can be edited in Changes;
+existing checks assess current uses, and reviewed publication preserves history.
+
 **Item power** records a named item, holder and power properties, exact typed
 value, explicit universe/world scope and validity. The holder property must be
 a single-valued entity reference. Location and ownership do not establish

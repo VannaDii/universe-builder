@@ -8,6 +8,7 @@ DefineUnitOperation unitOperation(
   UnfinishedUnitForm form, {
   UnitRecord? original,
 }) {
+  original ??= form.original;
   if ([form.namespace, form.key, form.clientRef].any((v) => v.trim().isEmpty)) {
     throw const FormatException('Enter a namespace and unit key.');
   }
@@ -46,39 +47,118 @@ DefineUnitOperation unitOperation(
   );
 }
 
+ReviseDefinitionOperation unitRevisionOperation(UnfinishedUnitForm form) {
+  if (form.revisionTarget == null ||
+      form.expectedRecordVersion == null ||
+      form.original == null) {
+    throw const FormatException(
+      'Open a published unit definition to revise it.',
+    );
+  }
+  final next = unitOperation(form).record;
+  if (next.namespace != form.original!.namespace ||
+      next.key != form.original!.key) {
+    throw const FormatException('Unit revisions retain namespace and key.');
+  }
+  final target = form.revisionTarget!;
+  return ReviseDefinitionOperation(
+    record: RecordRef(
+      record: RecordId.parse(target.record),
+      universe: target.universe.isEmpty
+          ? null
+          : UniverseId.parse(target.universe),
+    ),
+    expectedVersion: form.expectedRecordVersion!,
+    replacement: next,
+  );
+}
+
+UnfinishedUnitForm unitRevisionFormFromRecord({
+  required RecordVersion record,
+  required RevisionId baseRevision,
+  required RecordId representedContext,
+}) {
+  if (record.payload is! UnitRecord) {
+    throw const FormatException('Choose a published unit definition.');
+  }
+  return _unitForm(
+    u: record.payload as UnitRecord,
+    baseRevision: baseRevision,
+    representedContext: representedContext,
+    clientRef: record.identity.recordId.value,
+    revisionTarget: ExpressionReferenceInput(
+      record: record.identity.recordId.value,
+      universe: record.identity.universeId.value,
+    ),
+    expectedRecordVersion: record.recordVersionId,
+  );
+}
+
 UnfinishedUnitForm unitFormFromDraft(SavedDraft draft, int index) {
   final op = draft.content.operations[index];
+  if (op is ReviseDefinitionOperation && op.replacement is UnitRecord) {
+    return _unitForm(
+      u: op.replacement as UnitRecord,
+      baseRevision: draft.content.baseRevision,
+      representedContext: draft.content.representedContext,
+      clientRef: op.record.record.value,
+      revisionTarget: ExpressionReferenceInput(
+        record: op.record.record.value,
+        universe: op.record.universe?.value ?? '',
+      ),
+      expectedRecordVersion: op.expectedVersion,
+      draftVersion: draft.version,
+    );
+  }
   if (op is! DefineUnitOperation) {
     throw const FormatException('Choose a unit definition from Changes.');
   }
-  final u = op.record;
-  return UnfinishedUnitForm(
+  return _unitForm(
+    u: op.record,
     baseRevision: draft.content.baseRevision,
     representedContext: draft.content.representedContext,
     clientRef: op.clientRef,
-    namespace: u.namespace,
-    key: u.key,
-    dimension: u.dimension,
-    symbol: u.symbol,
-    labels: u.labels.entries.map(
-      (e) => PropertyLabelInput(language: e.key, text: e.value),
-    ),
-    hasBase: u.base != null,
-    base: u.base?.value ?? '',
-    hasScale: u.scaleToBase != null,
-    scale: u.scaleToBase == null
-        ? const QualifierInput(kind: 'rational', value: '1', denominator: '1')
-        : qualifierInput('scale', u.scaleToBase!),
-    validityChoice: switch (u.validity) {
-      UnspecifiedValidity() => 'unspecified',
-      UnknownValidity() => 'unknown',
-      ConditionalValidity() => 'conditional',
-      _ => 'retain',
-    },
-    temporalValidity: temporalValidityInput(u.validity),
     draftVersion: draft.version,
   );
 }
+
+UnfinishedUnitForm _unitForm({
+  required UnitRecord u,
+  required RevisionId baseRevision,
+  required RecordId representedContext,
+  required String clientRef,
+  ExpressionReferenceInput? revisionTarget,
+  RecordVersionId? expectedRecordVersion,
+  BigInt? draftVersion,
+}) => UnfinishedUnitForm(
+  baseRevision: baseRevision,
+  representedContext: representedContext,
+  clientRef: clientRef,
+  revisionTarget: revisionTarget,
+  expectedRecordVersion: expectedRecordVersion,
+  original: revisionTarget == null ? null : u,
+  namespace: u.namespace,
+  key: u.key,
+  dimension: u.dimension,
+  symbol: u.symbol,
+  labels: u.labels.entries.map(
+    (e) => PropertyLabelInput(language: e.key, text: e.value),
+  ),
+  hasBase: u.base != null,
+  base: u.base?.value ?? '',
+  hasScale: u.scaleToBase != null,
+  scale: u.scaleToBase == null
+      ? const QualifierInput(kind: 'rational', value: '1', denominator: '1')
+      : qualifierInput('scale', u.scaleToBase!),
+  validityChoice: switch (u.validity) {
+    UnspecifiedValidity() => 'unspecified',
+    UnknownValidity() => 'unknown',
+    ConditionalValidity() => 'conditional',
+    _ => 'retain',
+  },
+  temporalValidity: temporalValidityInput(u.validity),
+  draftVersion: draftVersion,
+);
 
 SaveDraftEngineRequest unitDraftRequest({
   required SavedDraft draft,
@@ -98,19 +178,42 @@ SaveDraftEngineRequest unitDraftRequest({
   if (index != null) {
     final before = unitFormFromDraft(draft, index);
     if (form.draftVersion != draft.version ||
-        form.clientRef != before.clientRef) {
+        form.clientRef != before.clientRef ||
+        form.revisionTarget?.toWire().toText() !=
+            before.revisionTarget?.toWire().toText() ||
+        form.expectedRecordVersion != before.expectedRecordVersion) {
       throw const FormatException(
         'The draft changed. Reopen its current unit fields.',
       );
     }
-    original = (draft.content.operations[index] as DefineUnitOperation).record;
+    final op = draft.content.operations[index];
+    original = op is DefineUnitOperation
+        ? op.record
+        : (op as ReviseDefinitionOperation).replacement as UnitRecord;
   }
-  final operation = unitOperation(form, original: original);
+  final operation = form.revisionTarget == null
+      ? unitOperation(form, original: original)
+      : unitRevisionOperation(form);
   final operations = [...draft.content.operations];
   if (index != null) {
     operations[index] = operation;
   } else {
     for (final existing in operations) {
+      if (operation is ReviseDefinitionOperation &&
+          existing is ReviseDefinitionOperation &&
+          existing.record == operation.record) {
+        if (existing.toWire().toText() != operation.toWire().toText()) {
+          throw const FormatException(
+            'This unit already has a revision. Edit it in Changes.',
+          );
+        }
+        return SaveDraftEngineRequest(
+          universe: universe,
+          continuityId: continuity,
+          expectedVersion: draft.version,
+          content: draft.content,
+        );
+      }
       final ref = Map.fromEntries(existing.toWire().fields)['client_ref'];
       if (ref is CanonicalString && ref.value == form.clientRef) {
         if (existing.toWire().toText() != operation.toWire().toText()) {
