@@ -430,7 +430,7 @@ final class DeviceConnection {
     }
 
     final files =
-        hostedChoice == null && (Platform.isMacOS || _embeddedLocal) && saveBackupFile != null && openBackupFile != null
+        (Platform.isMacOS || _embeddedLocal) && saveBackupFile != null && openBackupFile != null
         ? LocalBackupFiles(
             root: root!,
             call: (request) => sequenced(() => client.call(request)),
@@ -463,7 +463,12 @@ final class DeviceConnection {
                 _saveImportForm(importPath, importScope, form, generation)
           : null,
       pickArchiveFile: client.welcome.author ? files?.pickArchive : null,
-      reviewArchiveFile: client.welcome.author ? files?.reviewArchive : null,
+      reviewArchiveFile: client.welcome.author && files != null
+          ? hostedChoice == null ? files.reviewArchive
+            : (file, form) => sequenced(() => client.reviewArchiveFile(
+                source: file.source as String, previewId: form.operation, name: form.name, mode: form.mode))
+          : null,
+      cancelArchiveUpload: hostedChoice == null ? null : client.close,
       pickSourceText:
           client.welcome.author &&
               (Platform.isMacOS || _embeddedLocal) &&
@@ -484,11 +489,11 @@ final class DeviceConnection {
               }
             }
           : null,
-      backupFile: files?.backup,
-      saveArchiveFile: client.welcome.author ? files?.archive : null,
-      restoreBackupFile: files?.restore,
+      backupFile: hostedChoice == null ? files?.backup : null,
+      saveArchiveFile: hostedChoice == null && client.welcome.author ? files?.archive : null,
+      restoreBackupFile: hostedChoice == null ? files?.restore : null,
       pickImage:
-          hostedChoice == null && client.welcome.author &&
+          client.welcome.author &&
               (Platform.isMacOS || _embeddedLocal) &&
               pickImagePath != null
           ? (universe) async {
@@ -497,7 +502,9 @@ final class DeviceConnection {
               try {
                 return StagedImage.fromWire(
                   await sequenced(
-                    () => client.call(
+                    () => hostedChoice != null
+                      ? client.stageImageFile(source: source, universe: universe)
+                      : client.call(
                       StageImageEngineRequest(
                         universe: universe,
                         source: source,

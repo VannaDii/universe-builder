@@ -236,35 +236,47 @@ final class LoopbackEngineServer {
           {
             '/engine/browser/import-file',
             '/engine/browser/image-file',
+            '/engine/import-file',
+            '/engine/image-file',
           }.contains(request.uri.path)) {
-        final image = request.uri.path == '/engine/browser/image-file';
+        final image = request.uri.path.endsWith('/image-file');
+        final browserUpload = request.uri.path.startsWith('/engine/browser/');
         _expireBrowserAccess();
         if (request.uri.hasQuery ||
-            origin != endpoint.origin ||
+            browserUpload && origin != endpoint.origin ||
             request.headers.contentType?.mimeType !=
                 'application/octet-stream') {
           response.statusCode = HttpStatus.forbidden;
           return;
         }
-        final cookies = request.cookies.where(
-          (cookie) => cookie.name == _cookieName,
-        );
-        final session = cookies.length == 1
-            ? _browserSessions[cookies.single.value]
-            : null;
-        if (session == null) {
-          response.statusCode = HttpStatus.unauthorized;
-          return;
-        }
-        if (request.headers.value('x-ub-csrf') != session.csrf) {
-          response.statusCode = HttpStatus.forbidden;
-          return;
-        }
-        try {
-          connection = await _connect(session.hello);
-        } on Object {
-          response.statusCode = HttpStatus.unauthorized;
-          return;
+        if (browserUpload) {
+          final cookies = request.cookies.where(
+            (cookie) => cookie.name == _cookieName,
+          );
+          final session = cookies.length == 1
+              ? _browserSessions[cookies.single.value]
+              : null;
+          if (session == null) {
+            response.statusCode = HttpStatus.unauthorized;
+            return;
+          }
+          if (request.headers.value('x-ub-csrf') != session.csrf) {
+            response.statusCode = HttpStatus.forbidden;
+            return;
+          }
+          try {
+            connection = await _connect(session.hello);
+          } on Object {
+            response.statusCode = HttpStatus.unauthorized;
+            return;
+          }
+        } else {
+          try {
+            connection = (await _authenticateNative(request)).$2;
+          } on Object {
+            response.statusCode = HttpStatus.unauthorized;
+            return;
+          }
         }
         if (!connection.welcome.author) {
           response.statusCode = HttpStatus.forbidden;
@@ -495,20 +507,10 @@ final class LoopbackEngineServer {
       final browser = path.startsWith('/engine/browser/');
       EngineHello? nativeHello;
       if (!browser) {
-        final authorization = request.headers.value(
-          HttpHeaders.authorizationHeader,
-        );
-        if (authorization == null ||
-            !authorization.startsWith('UB ') ||
-            authorization.length > 8192) {
-          response.statusCode = HttpStatus.unauthorized;
-          return;
-        }
         try {
-          nativeHello = EngineHello.decode(
-            base64Decode(authorization.substring(3)),
-          );
-          connection = await _connect(nativeHello);
+          final authenticated = await _authenticateNative(request);
+          nativeHello = authenticated.$1;
+          connection = authenticated.$2;
         } on Object {
           response.statusCode = HttpStatus.unauthorized;
           return;
@@ -780,6 +782,21 @@ final class LoopbackEngineServer {
       }
       if (shutdown) close().ignore();
     }
+  }
+
+  Future<(EngineHello, _HttpConnection)> _authenticateNative(
+    HttpRequest request,
+  ) async {
+    final authorization = request.headers.value(
+      HttpHeaders.authorizationHeader,
+    );
+    if (authorization == null ||
+        !authorization.startsWith('UB ') ||
+        authorization.length > 8192) {
+      throw const FormatException('Profile authentication required');
+    }
+    final hello = EngineHello.decode(base64Decode(authorization.substring(3)));
+    return (hello, await _connect(hello));
   }
 
   Future<void> close() => _shutdown ??= _close();

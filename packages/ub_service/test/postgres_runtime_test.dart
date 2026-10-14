@@ -6,6 +6,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:ub_client/loopback_engine.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart' hide Description;
 import 'package:ub_contracts/ub_contracts.dart';
@@ -1594,6 +1595,13 @@ void main() {
           );
           expect(result, isA<EngineSuccess>());
           uploaded = (result as EngineSuccess).value;
+          final native = await LoopbackEngineClient.connect(
+            endpoint: browserServer.endpoint, hello: hello(authorId));
+          try {
+            uploaded = await native.stageImageFile(source: source.path, universe: selector);
+          } finally {
+            await native.close();
+          }
         } finally {
           browserHttp.close(force: true);
           await browserServer.close();

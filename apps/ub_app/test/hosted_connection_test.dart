@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:ub_app/connection.dart';
 import 'package:ub_app/connection_native.dart';
+import 'package:ub_client/loopback_engine.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_engine.dart';
@@ -39,10 +40,19 @@ void main() {
         ..usePrivateKey(tls.privateKey),
     );
     var server = await start();
+    String? selectedImage;
+    final selectedArchive = '${temporary.path}/selected-archive.sqlite';
     final device = DeviceConnection(
       ['--installation', clientRoot, '--engine=/nonexistent'],
       embeddedLocal: true,
       hostedSecurityContext: SecurityContext()..setTrustedCertificates(tls.ca),
+      pickImagePath: () async => selectedImage,
+      releasePickedPath: (path) async => File(path).deleteSync(),
+      saveBackupFile: (_) async => null,
+      openBackupFile: (path) async {
+        await File(selectedArchive).copy(path);
+        return true;
+      },
     );
     HostedConnectionChoice choice() => HostedConnectionChoice(
       endpoint: server.httpsEndpoint!,
@@ -56,9 +66,9 @@ void main() {
       expect(session.principal, owner);
       expect(device.isHosted, isTrue);
       expect(device.supportsLocalSettings, isFalse);
-      expect(session.pickImage, isNull);
+      expect(session.pickImage, isNotNull);
       expect(session.backupFile, isNull);
-      expect(session.pickArchiveFile, isNull);
+      expect(session.pickArchiveFile, isNotNull);
       final created = WireFields(
         await session.call(
           const CreateUniverseEngineRequest(
@@ -78,6 +88,82 @@ void main() {
         continuity: ContinuityId.parse(created.string('continuity_id')),
         representedContext: RecordId.parse(created.string('context_id')),
       );
+      expect(await session.pickImage!(const Selector('Hosted memoir')), isNull);
+      final image = File('${temporary.path}/portrait.png')
+        ..writeAsBytesSync(
+          base64Decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR4nGP4z8DwHwQBEPgD/U6VwW8AAAAASUVORK5CYII=',
+          ),
+        );
+      selectedImage = image.path;
+      final staged = (await session.pickImage!(
+        const Selector('Hosted memoir'),
+      ))!;
+      expect(staged.asset.originalName, 'portrait.png');
+      expect(staged.asset.width, 2);
+      expect(image.existsSync(), isFalse);
+      final invalid = File('${temporary.path}/invalid.png')
+        ..writeAsStringSync('invalid image');
+      selectedImage = invalid.path;
+      await expectLater(
+        session.pickImage!(const Selector('Hosted memoir')),
+        throwsA(isA<ProtocolError>()),
+      );
+      expect(invalid.existsSync(), isFalse);
+      final oversized = File('${temporary.path}/large.png')
+          .openSync(mode: FileMode.write);
+      oversized.truncateSync(10 * 1024 * 1024 + 1);
+      oversized.closeSync();
+      selectedImage = '${temporary.path}/large.png';
+      await expectLater(
+        session.pickImage!(const Selector('Hosted memoir')),
+        throwsA(
+          isA<LocalEngineException>().having(
+            (e) => e.failure,
+            'failure',
+            LocalEngineFailure.invalidRequest,
+          ),
+        ),
+      );
+      expect(File(selectedImage).existsSync(), isFalse);
+      final admin = await LoopbackEngineClient.discover(
+        root: serverRoot,
+        profile: owner,
+        clientName: 'Archive fixture',
+      );
+      try {
+        await admin.call(
+          ExportLogicalEngineRequest(
+            universe: const Selector('Hosted memoir'),
+            destination: selectedArchive,
+            recordIds: const [],
+            completeHistory: true,
+          ),
+        );
+      } finally {
+        await admin.close();
+      }
+      final importInput = PackageImportDraft(
+        operation: OperationId.generate(),
+        name: 'Hosted clone',
+      );
+      final selected = (await session.pickArchiveFile!())!;
+      final review = await session.reviewArchiveFile!(
+        selected,
+        importInput,
+      ) as CanonicalObject;
+      await selected.release!();
+      expect(Directory('$clientRoot/client-files').listSync(), isEmpty);
+      expect(
+        InstanceLibrary.fromWire(
+          await session.call(const StatusEngineRequest()),
+        ).universes,
+        hasLength(1),
+      );
+      await session.savePackageImport!(
+        importInput.copyWith(phase: PackageImportPhase.review, review: review),
+        BigInt.zero,
+      );
       final input = UnfinishedSourceForm(
         baseRevision: RevisionId.parse(created.string('revision')),
         representedContext: scope.representedContext!,
@@ -92,6 +178,15 @@ void main() {
       server = await start();
       device.hosted = choice();
       session = await device.connect();
+      final recoveredImport = (await session.loadPackageImport!())!.form;
+      expect(recoveredImport.review!.toText(), review.toText());
+      final imported = Map.fromEntries(
+        (await session.call(
+          recoveredImport.admission(),
+        ) as CanonicalObject).fields,
+      );
+      expect((imported['imported'] as CanonicalBool).value, isTrue);
+      expect(wireString(imported['universe_id']!), isNot(scope.universe.value));
       expect(
         (await session.loadSourceForm(scope))!.form.toWire().toText(),
         input.toWire().toText(),

@@ -8,6 +8,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_store/local_http_endpoint.dart';
 import 'package:ub_store/installation.dart';
+import 'package:ub_store/ub_store.dart' show maxImageBytes;
 
 import 'local_engine.dart' show LocalEngineException, LocalEngineFailure;
 
@@ -328,5 +329,122 @@ final class LoopbackEngineClient {
     if (_closed) return;
     _closed = true;
     _http.close(force: true);
+  }
+
+  Future<CanonicalValue> stageImageFile({
+    required String source,
+    required Selector universe,
+  }) => _uploadFile(
+    source,
+    '/engine/image-file',
+    'x-ub-image',
+    maxImageBytes,
+    CanonicalObject([
+      MapEntry('universe', universe.toWire()),
+      MapEntry(
+        'original_name',
+        CanonicalString(File(source).uri.pathSegments.last),
+      ),
+    ]),
+  );
+
+  Future<CanonicalValue> reviewArchiveFile({
+    required String source,
+    required OperationId previewId,
+    required String name,
+    required ImportMode mode,
+  }) => _uploadFile(
+    source,
+    '/engine/import-file',
+    'x-ub-import',
+    ReadMoveChunkEngineRequest.chunkBytes *
+        ReadMoveChunkEngineRequest.maxChunks,
+    CanonicalObject([
+      MapEntry('preview_id', CanonicalString(previewId.value)),
+      MapEntry('name', CanonicalString(name)),
+      MapEntry('mode', CanonicalString(mode.name)),
+    ]),
+  );
+
+  Future<CanonicalValue> _uploadFile(
+    String source,
+    String path,
+    String header,
+    int limit,
+    CanonicalObject metadata,
+  ) async {
+    if (_closed) throw const LocalEngineException(LocalEngineFailure.closed);
+    if (_busy) throw const LocalEngineException(LocalEngineFailure.busy);
+    if (_broken) {
+      throw const LocalEngineException(LocalEngineFailure.reconnectRequired);
+    }
+    final String encoded;
+    final int length;
+    try {
+      encoded = base64Encode(metadata.toBytes());
+      if (FileSystemEntity.typeSync(source, followLinks: false) !=
+          FileSystemEntityType.file) {
+        throw const FormatException('Selected regular file required');
+      }
+      length = File(source).lengthSync();
+      if (length < 1 || length > limit || encoded.length > 8192) {
+        throw const FormatException('Selected file exceeds input bound');
+      }
+    } on Object {
+      throw const LocalEngineException(LocalEngineFailure.invalidRequest);
+    }
+    _busy = true;
+    _broken = true;
+    final EngineResult result;
+    try {
+      result = await _sendFile(
+        source,
+        path,
+        header,
+        encoded,
+        length,
+      ).timeout(const Duration(minutes: 5));
+    } on Object {
+      _http.close(force: true);
+      throw const LocalEngineException(LocalEngineFailure.interrupted);
+    } finally {
+      _busy = false;
+    }
+    _broken = false;
+    return switch (result) {
+      EngineSuccess(:final value) => value,
+      EngineFailure(:final error) => throw error,
+    };
+  }
+
+  Future<EngineResult> _sendFile(
+    String source,
+    String path,
+    String header,
+    String metadata,
+    int length,
+  ) async {
+    final request = await _http.postUrl(endpoint.resolve(path));
+    request.followRedirects = false;
+    request.headers.set(HttpHeaders.authorizationHeader, _authorization);
+    request.headers.contentType = ContentType.binary;
+    request.headers.set(header, metadata);
+    request.contentLength = length;
+    await request.addStream(File(source).openRead());
+    final response = await request.close();
+    if (response.statusCode != HttpStatus.ok) {
+      throw const FormatException('Upload unavailable');
+    }
+    final output = BytesBuilder(copy: false);
+    await for (final chunk in response) {
+      if (output.length + chunk.length > maxFrameBytes) {
+        throw const FormatException('Upload response bound');
+      }
+      output.add(chunk);
+    }
+    if (_closed) throw const LocalEngineException(LocalEngineFailure.closed);
+    return EngineResult.fromWire(
+      CanonicalValue.parseWireJson(utf8.decode(output.takeBytes())),
+    );
   }
 }

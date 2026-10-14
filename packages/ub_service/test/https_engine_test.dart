@@ -117,6 +117,21 @@ void main() {
         context: trust,
       );
       clients.add(contributor);
+      final uploadDenied = await LoopbackEngineClient.connectHttps(
+        endpoint: endpoint,
+        hello: hello(writer),
+        context: trust,
+      );
+      clients.add(uploadDenied);
+      final deniedFile = File('${temporary.path}/denied.png')
+        ..writeAsBytesSync([1]);
+      await expectLater(
+        uploadDenied.stageImageFile(
+          source: deniedFile.path,
+          universe: const Selector('Hosted campaign'),
+        ),
+        throwsA(isA<LocalEngineException>()),
+      );
       final library = await contributor.call(const StatusEngineRequest());
       expect(
         (Map.fromEntries((library as CanonicalObject).fields)['universes']

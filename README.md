@@ -71,7 +71,7 @@ saves immediately when the
 app loses focus or enters the background, including forms behind a popup. Changes
 rationale and package-import choices use their existing save paths. A save must
 finish before input is durable; failures retain input in the form. Full mobile
-lifecycle and hosted file/share transfers remain unfinished.
+lifecycle and hosted archive export remain unfinished.
 
 The shared transport library also accepts an explicit HTTPS origin, TLS server
 context and bind address for either service runtime. Native clients can connect
@@ -99,8 +99,15 @@ access key supplied by the instance owner. The key stays in memory for the sessi
 and is forgotten on sign-out; it is not written into local recovery. Ordinary
 authoring uses the same service operations and exact review/publication flow.
 Unfinished input stays in app-private storage scoped to the verified service
-instance and profile, and can be reopened after reconnecting. Hosted image/package
-file transfers and paid-hosting setup remain unfinished.
+instance and profile, and can be reopened after reconnecting. **Choose image** and
+**Import a package** stream selected file bytes to the service, preserving the
+existing size limits and original image name. The service creates its own private
+staging file; client filesystem paths are not sent. Image staging does not publish
+an appearance. Package review retains the exact import choice before explicit
+admission, including after reconnect. Cancelling an upload closes that connection;
+reconnect and explicitly retry the same file/review to recover the outcome.
+Mobile picker copies are released after upload, including rejected images. Hosted
+archive export and paid-hosting setup remain unfinished.
 
 The local HTTP transport supports the browser-session prerequisite. The explicit
 `universe --installation <path> --profile <id> browser-session` command returns the
