@@ -281,6 +281,11 @@ In author perspective, proposition choices show their subject, predicate,
 quantification, context, ordered participants and simple values using accessible
 names. Search matches these descriptions. Hidden dependencies retain the
 existing fallback; labels do not assert that a proposition is true.
+Published assertion details offer **Retract assertion** with an explicit reason.
+Unfinished reasons recover on this device, and pending retractions offer
+**Edit assertion retraction** in Changes. Reviewed publication withdraws the
+current assertion while retaining its historical versions and referenced
+proposition; retraction does not declare the opposite proposition true.
 Published rules offer **Revise rule definition** in their record details.
 Authors can edit expressions, commit policies, applicability, capabilities,
 executable choices and knowledge, cardinality or chronology contracts while

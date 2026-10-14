@@ -5,6 +5,8 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:ub_app/attribute_draft.dart';
+import 'package:ub_app/assertion_retraction_draft.dart';
+import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/evidence_basis_draft.dart';
 import 'package:ub_app/draft_record_choices.dart';
 import 'package:ub_app/connection.dart';
@@ -915,8 +917,15 @@ void main() {
           sourceRows.singleWhere((row) => row.payload is AnchorRecord).payload
               as AnchorRecord;
       expect(sourceAnchor.excerpt, sourceText);
-      expect(await readSourceText(session: session, universe: const Selector('Attributes'),
-        context: choiceContext.contextId, source: sourceAnchor.sourceVersion), sourceText);
+      expect(
+        await readSourceText(
+          session: session,
+          universe: const Selector('Attributes'),
+          context: choiceContext.contextId,
+          source: sourceAnchor.sourceVersion,
+        ),
+        sourceText,
+      );
       final textRequest = ReadSourceEngineRequest(
         universe: const Selector('Attributes'),
         contextId: choiceContext.contextId,
@@ -1367,6 +1376,99 @@ void main() {
       expect(
         existingAssertion.basis.toWire().toText(),
         const AuthorDecisionBasis('Another account.').toWire().toText(),
+      );
+      final retractionBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final assertionSource = existingRecords.singleWhere(
+        (r) => r.payload is AssertionRecord,
+      );
+      final retractionScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: assertionSource.identity.recordId.value,
+      );
+      final retractionForm = assertionRetractionFormFromRecord(
+        record: assertionSource,
+        baseRevision: retractionBase.content.baseRevision,
+        representedContext: scope.representedContext!,
+      ).copyWith(rationale: 'Withdraw the incorrect attributed account 記憶 😀.');
+      await session.saveAssertionRetractionForm(
+        retractionScope,
+        retractionForm,
+        BigInt.zero,
+      );
+      await session.close();
+      session = await device.connect();
+      final recoveredRetraction = (await session.loadAssertionRetractionForm(
+        retractionScope,
+      ))!.form;
+      expect(
+        recoveredRetraction.toWire().toText(),
+        retractionForm.toWire().toText(),
+      );
+      final retractionDraft = SavedDraft.fromWire(
+        await session.call(
+          assertionRetractionDraftRequest(
+            draft: retractionBase,
+            form: recoveredRetraction,
+            universe: const Selector('Attributes'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final retractionProposal = await changes().submit(retractionDraft);
+      final retractionValidation =
+          await changes().validate(retractionProposal) as EvaluatedValidation;
+      await changes().approve(retractionProposal, retractionValidation);
+      final retractionReceipt = await changes().publish(
+        retractionProposal,
+        retractionValidation.execution.runId,
+      );
+      expect(
+        await changes().readPublished(retractionProposal, retractionReceipt),
+        isEmpty,
+      );
+      final retainedAssertion = await readContextRecord(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Attributes'),
+        context: await openDraftChoiceContext(changes(), retractionBase),
+        record: assertionSource.identity.recordId,
+      );
+      expect(
+        retainedAssertion.toWire().toText(),
+        assertionSource.toWire().toText(),
+      );
+      final afterRetraction = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final currentContext = await openDraftChoiceContext(
+        changes(),
+        afterRetraction,
+      );
+      final currentAssertions = await searchDraftChoices(
+        changes: changes(),
+        context: currentContext,
+        kind: RecordKind.assertion,
+      );
+      expect(
+        currentAssertions.result.hits.map((hit) => hit.recordId),
+        isNot(contains(assertionSource.identity.recordId)),
+      );
+      final retainedProposition = await readContextRecord(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Attributes'),
+        context: currentContext,
+        record: existingAssertion.proposition.record,
+      );
+      expect(
+        retainedProposition.payload.toWire().toText(),
+        existingFact.toWire().toText(),
       );
     } finally {
       await session?.close();
