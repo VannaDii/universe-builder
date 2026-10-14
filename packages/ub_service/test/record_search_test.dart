@@ -76,6 +76,17 @@ void main() {
           validity: const UnspecifiedValidity(),
         ),
       ),
+      f.row(
+        10,
+        GoalRecord(
+          actor: f.ref(1),
+          desired: f.ref(4),
+          prerequisites: [],
+          steps: [],
+          status: PlanStatus.active,
+          validity: const UnspecifiedValidity(),
+        ),
+      ),
     ];
     final visible = {for (final row in rows) row.identity.recordId: row};
     expect(
@@ -108,6 +119,14 @@ void main() {
     expect(
       recordSearchLabel(rows[7], {f.id(9): rows[7]}, author: true),
       f.id(9).value,
+    );
+    expect(
+      recordSearchLabel(rows[8], visible, author: true),
+      'Alice — Active plan: Alice.open',
+    );
+    expect(
+      recordSearchLabel(rows[8], {f.id(10): rows[8]}, author: true),
+      f.id(10).value,
     );
   });
   test('proposition choices distinguish quantification exact values context and ordered participants', () {

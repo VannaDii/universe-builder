@@ -16,6 +16,7 @@ import 'package:ub_app/attitude_draft.dart';
 import 'package:ub_app/observation_draft.dart';
 import 'package:ub_app/communication_draft.dart';
 import 'package:ub_app/memory_draft.dart';
+import 'package:ub_app/plan_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -1863,6 +1864,58 @@ void main() {
         kind: RecordKind.memory,
       );
       expect(memorySummary.label, 'Nia — memory of Mara.Account 記憶 😀');
+      final planBase = await changes().load();
+      final step = ExpressionReferenceInput(
+        record: communicationPublished.single.identity.recordId.value,
+        universe: scope.universe.value,
+      );
+      final planForm = UnfinishedPlanForm(
+        baseRevision: planBase!.content.baseRevision,
+        representedContext: scope.representedContext!,
+        clientRef: 'account-plan',
+        actor: messageParticipant(0),
+        desiredEnabled: true,
+        desired: messageContent,
+        prerequisites: [
+          ExpressionInput(kind: 'lit', flags: {'value': false}),
+        ],
+        steps: [step, step],
+        status: 'active',
+        rationale: 'Record intended steps without executing them or satisfying prerequisites.',
+      );
+      await session.savePlanForm(scope, planForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredPlan = (await session.loadPlanForm(scope))!.form;
+      expect(recoveredPlan.toWire().toText(), planForm.toWire().toText());
+      final planDraft = SavedDraft.fromWire(
+        await session.call(
+          planDraftRequest(
+            draft: planBase,
+            form: recoveredPlan,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final planPublished = await publish(planDraft);
+      expect(planPublished.length, 1);
+      expect(
+        planPublished.single.payload.toWire().toText(),
+        planOperation(planForm).record.toWire().toText(),
+      );
+      final planChoices = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final planContext = await openDraftChoiceContext(changes(), planChoices);
+      final planSummary = await readDraftChoiceSummary(
+        changes: changes(),
+        context: planContext,
+        record: planPublished.single.identity.recordId,
+        kind: RecordKind.goal,
+      );
+      expect(planSummary.label, 'Mara — Active plan: Mara.Account 記憶 😀');
     } finally {
       await session?.close();
       await server.close();

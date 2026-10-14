@@ -790,3 +790,42 @@ final class LocalMemoryFormRecovery {
     });
   }
 }
+
+final class LocalPlanFormRecovery {
+  LocalPlanFormRecovery({required String root, required this.client})
+    : _path = '$root/client-recovery/plan-forms.sqlite';
+  final String _path;
+  final LoopbackEngineClient client;
+
+  Future<SavedPlanForm?> load(EditorFormScope scope) async {
+    await _checkEditorScope(client, scope);
+    final path = _path;
+    return Isolate.run(() {
+      final store = PlanFormRecoveryStore.open(path);
+      try {
+        return store.load(scope);
+      } finally {
+        store.close();
+      }
+    });
+  }
+
+  Future<SavedPlanForm> save(
+    EditorFormScope scope,
+    UnfinishedPlanForm form,
+    BigInt expectedGeneration,
+  ) async {
+    if (scope.profile != client.welcome.principal) {
+      throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
+    }
+    final path = _path;
+    return Isolate.run(() {
+      final store = PlanFormRecoveryStore.open(path);
+      try {
+        return store.save(scope, form, expectedGeneration);
+      } finally {
+        store.close();
+      }
+    });
+  }
+}

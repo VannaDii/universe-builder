@@ -281,6 +281,11 @@ In author perspective, proposition choices show their subject, predicate,
 quantification, context, ordered participants and simple values using accessible
 names. Search matches these descriptions. Hidden dependencies retain the
 existing fallback; labels do not assert that a proposition is true.
+**Plan** records a named actor, optional desired record, declared prerequisite
+expressions, ordered steps, explicit status and validity. Repeated steps remain
+intact. A plan neither executes its steps nor reserves resources; recording an
+achieved status does not invent occurred events. Unfinished fields recover on
+this device, and pending plans offer **Edit plan fields** in Changes.
 **Memory** records a named holder, remembered content, optional alleged record,
 authored accessibility, explicit alteration and validity. A recollection does
 not assert that its content is true or that an alleged event occurred.

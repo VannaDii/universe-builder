@@ -104,6 +104,15 @@ String recordSearchLabel(
       if (holderLabel != null && contentLabel != null) {
         return '$holderLabel — memory of $contentLabel';
       }
+    case GoalRecord(:final actor, :final desired, :final status):
+      final actorLabel = label(actor),
+          desiredLabel = desired == null
+              ? null
+              : propositionLabel(desired) ?? label(desired);
+      if (actorLabel != null && (desired == null || desiredLabel != null)) {
+        final state = status.name;
+        return '$actorLabel — ${state[0].toUpperCase()}${state.substring(1)} plan${desired == null ? '' : ': $desiredLabel'}';
+      }
     case ItemPowerRecord(:final item, :final powerPredicate):
       final itemLabel = label(item), powerLabel = label(powerPredicate);
       if (itemLabel != null && powerLabel != null) {
