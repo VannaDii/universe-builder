@@ -12,6 +12,7 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_mcp/mcp_cli.dart';
 import 'package:ub_service/local_engine.dart';
+import 'package:ub_service/fixture_engine.dart';
 import 'package:ub_service/local_profiles.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
@@ -19,6 +20,54 @@ import 'package:ub_store/profile_credentials.dart';
 import 'session_test.dart' show field, initialize, call;
 
 void main() {
+  test('explicit fixture MCP reaches disposable service without profile or engine startup', () async {
+    final root = Directory('/tmp').createTempSync('ub-fixture-mcp-');
+    privateDirectory(root.path);
+    final engine = await FixtureEngineServer.start('${root.path}/fixture.sock');
+    final input = StreamController<List<int>>(),
+        output = StreamController<List<int>>();
+    final frames = StreamIterator(decodeMcpStdio(output.stream));
+    final errors = <String>[];
+    final running = runMcp(
+      ['--fixture', '--socket=${root.path}/fixture.sock'],
+      input: input.stream,
+      write: (bytes) async => output.add(bytes),
+      error: errors.add,
+      engineHelper: () async =>
+          throw StateError('must not launch persistent engine'),
+    );
+    try {
+      input.add(encodeMcpStdio(initialize));
+      expect(
+        await frames.moveNext().timeout(const Duration(seconds: 5)),
+        isTrue,
+      );
+      input.add(
+        encodeMcpStdio(
+          CanonicalValue.parseWireJson(
+            '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"universe_describe","arguments":{"universe":"The Ashen Cycle","mode":"summary"}}}',
+          ) as CanonicalObject,
+        ),
+      );
+      expect(
+        await frames.moveNext().timeout(const Duration(seconds: 5)),
+        isTrue,
+      );
+      final result = field(frames.current, 'result') as CanonicalObject;
+      expect(field(result, 'isError').toText(), 'false');
+      expect(result.toText(), contains('disposable-fixture/read-propose-only'));
+      await input.close();
+      expect(await running, 0);
+      expect(errors, isEmpty);
+    } finally {
+      if (!input.isClosed) await input.close();
+      await running;
+      await frames.cancel();
+      await output.close();
+      await engine.close();
+      root.deleteSync(recursive: true);
+    }
+  });
   test(
     'explicit help returns before resolving an installation or helper',
     () async {

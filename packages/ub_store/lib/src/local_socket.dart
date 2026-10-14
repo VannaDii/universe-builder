@@ -71,3 +71,55 @@ void protectLocalSocketEndpoint(String path) => _path(path, 1);
 /// The engine must already hold its installation service lock before removing
 /// an owned stale endpoint. This operation never follows or removes a link/file.
 void removeLocalSocketEndpoint(String path) => _path(path, 2);
+
+/// Cleanup is bound to the endpoint created by this server, never a replacement.
+final class OwnedLocalSocketEndpoint {
+  OwnedLocalSocketEndpoint._(this.path, this._device, this._inode);
+  final String path, _device, _inode;
+  static OwnedLocalSocketEndpoint capture(String path) => using((arena) {
+    final device = arena<Char>(21), inode = arena<Char>(21);
+    final error = nativeOwnedSocket(
+      path.toNativeUtf8(allocator: arena).cast(),
+      device,
+      inode,
+      0,
+    );
+    if (error != 0) {
+      throw FileSystemException('Socket identity unavailable', path);
+    }
+    return OwnedLocalSocketEndpoint._(
+      path,
+      device.cast<Utf8>().toDartString(),
+      inode.cast<Utf8>().toDartString(),
+    );
+  });
+  void remove() => using((arena) {
+    final error = nativeOwnedSocket(
+      path.toNativeUtf8(allocator: arena).cast(),
+      _device.toNativeUtf8(allocator: arena).cast(),
+      _inode.toNativeUtf8(allocator: arena).cast(),
+      1,
+    );
+    if (error != 0) {
+      throw FileSystemException(
+        'Socket identity changed; endpoint retained',
+        path,
+      );
+    }
+  });
+}
+
+/// Link/unlink publication refuses an occupied destination atomically.
+void publishLocalSocketEndpoint(String source, String destination) =>
+    using((arena) {
+      final error = nativePublishSocket(
+        source.toNativeUtf8(allocator: arena).cast(),
+        destination.toNativeUtf8(allocator: arena).cast(),
+      );
+      if (error != 0) {
+        throw FileSystemException(
+          'Fixture endpoint publication refused',
+          destination,
+        );
+      }
+    });

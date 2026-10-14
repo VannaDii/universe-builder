@@ -150,3 +150,23 @@ external int nativeFileIdentity(
   Pointer<Char> device,
   Pointer<Char> inode,
 );
+
+@Native<Int32 Function(Pointer<Char>, Pointer<Char>, Pointer<Char>, Int32)>(
+  symbol: 'ub_owned_socket',
+  assetId: _asset,
+)
+external int nativeOwnedSocket(
+  Pointer<Char> path,
+  Pointer<Char> device,
+  Pointer<Char> inode,
+  int action,
+);
+
+@Native<Int32 Function(Pointer<Char>, Pointer<Char>)>(
+  symbol: 'ub_publish_socket',
+  assetId: _asset,
+)
+external int nativePublishSocket(
+  Pointer<Char> source,
+  Pointer<Char> destination,
+);

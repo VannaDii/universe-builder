@@ -8,6 +8,7 @@ import 'dart:isolate';
 
 import 'package:test/test.dart';
 import 'package:ub_client/local_engine.dart';
+import 'package:ub_client/fixture_engine.dart';
 import 'package:ub_client/loopback_engine.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
@@ -379,6 +380,54 @@ void main() {
       reason: 'Standalone engine compilation failed',
     );
     final binary = '${root.path}/compiled/bundle/bin/universe-engine';
+    final fixturePath = '${root.path}/fixture.sock';
+    final fixture = await Process.start(
+      binary,
+      ['--fixture', '--socket', fixturePath, '--exit-on-stdin-close'],
+      workingDirectory: root.path,
+      environment: {'PATH': '', 'UB_USE_POSTGRES': 'invalid'},
+    );
+    final fixtureOutput = fixture.stdout.transform(utf8.decoder).join();
+    final fixtureErrors = fixture.stderr.transform(utf8.decoder).join();
+    FixtureEngineClient? fixtureClient;
+    try {
+      final deadline = DateTime.now().add(const Duration(seconds: 10));
+      while (DateTime.now().isBefore(deadline)) {
+        if (FileSystemEntity.typeSync(fixturePath, followLinks: false) !=
+            FileSystemEntityType.notFound) {
+          fixtureClient = await FixtureEngineClient.connect(fixturePath);
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 25));
+      }
+      expect(
+        fixtureClient,
+        isNotNull,
+        reason: 'Compiled fixture did not become available',
+      );
+      final response = await fixtureClient!.call(
+        Request.fromTool(
+          'universe_describe',
+          CanonicalValue.parseWireJson(
+            '{"universe":"The Ashen Cycle","mode":"summary"}',
+          ),
+        ),
+      ) as DescribeResponse;
+      expect(response.body.result.fixture, isTrue);
+      await fixtureClient.close();
+      await fixture.stdin.close();
+      expect(await fixture.exitCode.timeout(const Duration(seconds: 5)), 0);
+      expect(await fixtureOutput, isEmpty);
+      expect(await fixtureErrors, isEmpty);
+      expect(
+        FileSystemEntity.typeSync(fixturePath, followLinks: false),
+        FileSystemEntityType.notFound,
+      );
+    } finally {
+      await fixtureClient?.close();
+      fixture.kill();
+      await fixture.exitCode;
+    }
     final webAssets = Directory(
       Platform.isMacOS
           ? '${root.path}/compiled/bundle/Resources/web'

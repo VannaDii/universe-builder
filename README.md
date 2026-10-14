@@ -2636,6 +2636,28 @@ The app bundles its engine, MCP helper, and administration CLI and embeds its CS
 
 ## Standalone MCP fixture
 
+The Dart helpers now support the same disposable mode on macOS/Linux Unix
+sockets. From the repository root, start the engine:
+
+```sh
+runtime=$(mktemp -d /tmp/universe-fixture.XXXXXX)
+dart run apps/ub_engine/bin/universe-engine.dart --fixture --socket "$runtime/fixture.sock"
+```
+
+Connect the MCP host using `dart run apps/ub_mcp/bin/universe-mcp.dart --fixture
+--socket /absolute/path/fixture.sock` (or the compiled Dart `universe-mcp`
+helper). Add `--advanced-tools` for raw record/proposal tools. The public Dart
+launcher also forwards `serve --fixture --socket <path>`. Fixture mode does not
+read installation profiles, database credentials or saved backend settings.
+All contexts, proposals and retry results disappear when the engine exits;
+`--exit-on-stdin-close` ties its lifetime to a parent process. Use a private
+existing socket directory. Startup refuses an occupied endpoint, and shutdown
+removes only the endpoint created by this server. Stop the engine and remove the
+empty temporary directory when finished. The Flutter author application still
+opens persistent workspaces; its disposable fixture UI has not been ported.
+
+The retained Rust fixture commands during migration are:
+
 ```sh
 runtime=$(mktemp -d /tmp/universe-fixture.XXXXXX)
 cargo build --locked -p universe-engine -p universe-mcp

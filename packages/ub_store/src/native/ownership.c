@@ -19,6 +19,12 @@ UB_EXPORT int32_t ub_peer_matches(const uint8_t *bytes, int32_t length) {
 UB_EXPORT int32_t ub_socket_path(const char *path, int32_t action) {
   (void)path; (void)action; return 50;
 }
+UB_EXPORT int32_t ub_owned_socket(const char *path, char *device, char *inode, int32_t action) {
+  (void)path; (void)device; (void)inode; (void)action; return 50;
+}
+UB_EXPORT int32_t ub_publish_socket(const char *source, const char *destination) {
+  (void)source; (void)destination; return 50;
+}
 /* Windows ACL and handle ownership are a separate platform port. Fail closed. */
 UB_EXPORT int32_t ub_private_dir(const char *path) { (void)path; return 50; }
 UB_EXPORT int32_t ub_sync_directory(const char *path) { (void)path; return 50; }
@@ -106,6 +112,38 @@ UB_EXPORT int32_t ub_socket_path(const char *path, int32_t action) {
   if (action == 0) return (info.st_mode & 0077) == 0 ? 0 : EACCES;
   if (action == 1) return chmod(path, 0600) == 0 ? 0 : errno;
   return unlink(path) == 0 ? 0 : errno;
+}
+
+/* Capture the newly bound endpoint, then unlink only that same socket. */
+UB_EXPORT int32_t ub_owned_socket(const char *path, char *device, char *inode, int32_t action) {
+  struct stat info;
+  if (action != 0 && action != 1) return EINVAL;
+  if (lstat(path, &info) != 0) return action == 1 && errno == ENOENT ? 0 : errno;
+  if (!S_ISSOCK(info.st_mode) || info.st_uid != geteuid() || info.st_nlink != 1) return EACCES;
+  char actual_device[21], actual_inode[21];
+  snprintf(actual_device, sizeof(actual_device), "%llu", (unsigned long long)info.st_dev);
+  snprintf(actual_inode, sizeof(actual_inode), "%llu", (unsigned long long)info.st_ino);
+  if (action == 0) {
+    memcpy(device, actual_device, strlen(actual_device) + 1);
+    memcpy(inode, actual_inode, strlen(actual_inode) + 1);
+    return 0;
+  }
+  if (strcmp(device, actual_device) || strcmp(inode, actual_inode)) return EACCES;
+  return unlink(path) == 0 ? 0 : errno;
+}
+
+/* Publish without replacing an existing endpoint. The Dart listener retains
+   its private staging pathname for automatic unlink on close. */
+UB_EXPORT int32_t ub_publish_socket(const char *source, const char *destination) {
+  struct stat info;
+  if (lstat(source, &info) != 0) return errno;
+  if (!S_ISSOCK(info.st_mode) || info.st_uid != geteuid() || info.st_nlink != 1 ||
+      (info.st_mode & 0077) != 0) return EACCES;
+  if (link(source, destination) != 0) return errno;
+  if (unlink(source) == 0) return 0;
+  int error = errno;
+  unlink(destination);
+  return error;
 }
 
 struct original_file { int fd; uint64_t consumed; };

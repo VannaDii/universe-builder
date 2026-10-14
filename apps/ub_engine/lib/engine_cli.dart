@@ -5,6 +5,7 @@ import 'package:ub_contracts/ub_contracts.dart' show Credential;
 
 import 'package:ub_service/local_configuration.dart';
 import 'package:ub_service/local_engine.dart';
+import 'package:ub_service/fixture_engine.dart';
 import 'package:ub_service/local_profiles.dart';
 import 'package:ub_service/ub_service.dart'
     show
@@ -40,7 +41,9 @@ settings are used when the corresponding environment value is absent.
 --allow-loopback-postgres-development explicitly allows unverified TLS for a
 loopback development database. Other hosts still require verified TLS.
 PostgreSQL serves HTTP; the transitional Unix socket is SQLite-only.
-Fixture options are not part of this persistent Dart engine.''';
+--fixture --socket <path> serves disposable read/propose data instead.
+Its socket needs an existing private directory; no installation is opened.
+--exit-on-stdin-close stops fixture mode when its parent closes standard input.''';
 
 Future<int> runEngine(
   List<String> arguments, {
@@ -48,9 +51,11 @@ Future<int> runEngine(
   required void Function(String) output,
   required void Function(String) error,
   Future<void>? stop,
+  Stream<List<int>>? parentInput,
 }) async {
   try {
-    String? root, webAssets;
+    String? root, webAssets, fixtureSocket;
+    var fixture = false, exitOnStdinClose = false;
     final httpsOptions = <String, String>{};
     var initialize = false;
     var deviceProfile = false;
@@ -62,7 +67,28 @@ Future<int> runEngine(
         output(_usage);
         return 0;
       }
-      if (option == '--allow-loopback-postgres-development') {
+      if (option == '--fixture' || option == '--exit-on-stdin-close') {
+        if (option == '--fixture') {
+          if (fixture) throw const _UsageError();
+          fixture = true;
+        } else {
+          if (exitOnStdinClose) throw const _UsageError();
+          exitOnStdinClose = true;
+        }
+      } else if (option == '--socket' || option.startsWith('--socket=')) {
+        if (fixtureSocket != null) throw const _UsageError();
+        if (option == '--socket') {
+          if (++index == arguments.length || arguments[index].startsWith('-')) {
+            throw const _UsageError();
+          }
+          fixtureSocket = arguments[index];
+        } else {
+          fixtureSocket = option.substring('--socket='.length);
+        }
+        if (fixtureSocket.isEmpty || fixtureSocket.contains('\u0000')) {
+          throw const _UsageError();
+        }
+      } else if (option == '--allow-loopback-postgres-development') {
         if (allowLoopbackDevelopment) throw const _UsageError();
         allowLoopbackDevelopment = true;
       } else if (option == '--http-only') {
@@ -126,7 +152,46 @@ Future<int> runEngine(
         throw const _UsageError();
       }
     }
-    if (root == null) throw const _UsageError();
+    if (fixture) {
+      if (root != null ||
+          fixtureSocket == null ||
+          initialize ||
+          deviceProfile ||
+          httpOnly ||
+          webAssets != null ||
+          httpsOptions.isNotEmpty ||
+          allowLoopbackDevelopment) {
+        throw const _UsageError();
+      }
+      final server = await FixtureEngineServer.start(fixtureSocket);
+      StreamSubscription<List<int>>? parent;
+      final parentClosed = Completer<void>();
+      if (exitOnStdinClose) {
+        void closed() {
+          if (!parentClosed.isCompleted) parentClosed.complete();
+        }
+
+        parent = (parentInput ?? stdin).listen(
+          (_) {},
+          onDone: closed,
+          onError: (Object _) => closed(),
+        );
+      }
+      try {
+        await Future.any([
+          server.done,
+          ?stop,
+          if (exitOnStdinClose) parentClosed.future,
+        ]);
+      } finally {
+        await parent?.cancel();
+        await server.close();
+      }
+      return 0;
+    }
+    if (root == null || fixtureSocket != null || exitOnStdinClose) {
+      throw const _UsageError();
+    }
     Uri? httpsOrigin;
     InternetAddress? bindAddress;
     SecurityContext? tlsContext;

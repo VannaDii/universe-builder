@@ -1,15 +1,17 @@
 import 'dart:convert';
 
 import 'package:ub_client/local_engine.dart';
+import 'package:ub_client/fixture_engine.dart';
 import 'package:ub_client/loopback_engine.dart';
 import 'package:ub_domain/ub_domain.dart';
+import 'package:ub_contracts/ub_contracts.dart';
 
 import 'local_backend.dart';
 import 'session.dart';
 import 'stdio.dart';
 
 const _usage =
-    'Usage: universe-mcp --installation <path> --profile <id> [--advanced-tools]';
+    'Usage: universe-mcp --installation <path> --profile <id> [--advanced-tools]\n       universe-mcp --fixture --socket <path> [--advanced-tools]';
 
 Future<int> runMcp(
   List<String> arguments, {
@@ -22,11 +24,17 @@ Future<int> runMcp(
     await write(utf8.encode('$_usage\n'));
     return 0;
   }
-  String? root, profileText;
+  String? root, profileText, socket;
+  var fixture = false;
   var advanced = false;
   try {
     for (var i = 0; i < arguments.length; i++) {
       final argument = arguments[i];
+      if (argument == '--fixture') {
+        if (fixture) throw const FormatException('Duplicate option');
+        fixture = true;
+        continue;
+      }
       if (argument == '--advanced-tools') {
         if (advanced) throw const FormatException('Duplicate option');
         advanced = true;
@@ -34,7 +42,7 @@ Future<int> runMcp(
       }
       final equal = argument.indexOf('=');
       final option = equal < 0 ? argument : argument.substring(0, equal);
-      if (!{'--installation', '--profile'}.contains(option)) {
+      if (!{'--installation', '--profile', '--socket'}.contains(option)) {
         throw const FormatException('Unknown option');
       }
       final value = equal < 0
@@ -46,6 +54,9 @@ Future<int> runMcp(
       if (option == '--installation') {
         if (root != null) throw const FormatException('Duplicate option');
         root = value;
+      } else if (option == '--socket') {
+        if (socket != null) throw const FormatException('Duplicate option');
+        socket = value;
       } else {
         if (profileText != null) {
           throw const FormatException('Duplicate option');
@@ -53,7 +64,25 @@ Future<int> runMcp(
         profileText = value;
       }
     }
-    if (root == null || profileText == null) {
+    if (fixture) {
+      if (socket == null || root != null || profileText != null) {
+        throw const FormatException('Choose fixture socket only');
+      }
+      final ready = await FixtureEngineClient.connect(socket);
+      await ready.close();
+      final session = McpSession(
+        serverName: 'universe-mcp',
+        serverVersion: '0.1.0',
+        fixture: true,
+        advanced: advanced,
+        backend: (request, cancelled) =>
+            _callFixture(socket!, request, cancelled),
+      );
+      return await serveMcpStdio(input: input, write: write, session: session)
+          ? 0
+          : 1;
+    }
+    if (root == null || profileText == null || socket != null) {
       throw const FormatException('Installation and profile required');
     }
     final profile = ProfileId.parse(profileText);
@@ -92,7 +121,32 @@ Future<int> runMcp(
     error(_usage);
     return 2;
   } on Object {
-    error('MCP startup failed. Check the selected installation and profile.');
+    error(
+      fixture
+          ? 'MCP startup failed. Check the disposable fixture socket.'
+          : 'MCP startup failed. Check the selected installation and profile.',
+    );
     return 1;
+  }
+}
+
+Future<CanonicalValue> _callFixture(
+  String socket,
+  Request request,
+  Future<void> cancelled,
+) async {
+  FixtureEngineClient? client;
+  var stopped = false;
+  cancelled.then((_) async {
+    stopped = true;
+    await client?.close();
+  });
+  try {
+    client = await FixtureEngineClient.connect(socket);
+    if (stopped) throw StateError('Fixture call cancelled');
+    return (await client.call(request)).bodyJson();
+  } finally {
+    await client?.close();
+    client = null;
   }
 }
