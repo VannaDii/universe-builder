@@ -31,6 +31,7 @@ import 'package:ub_client/browser_represented_context_recovery.dart';
 import 'package:ub_client/browser_memory_recovery.dart';
 import 'package:ub_client/browser_observation_recovery.dart';
 import 'package:ub_client/browser_secret_recovery.dart';
+import 'package:ub_client/browser_appearance_recovery.dart';
 import 'package:ub_client/browser_attitude_recovery.dart';
 import 'package:ub_client/browser_proposition_recovery.dart';
 import 'package:ub_client/browser_completeness_recovery.dart';
@@ -310,6 +311,13 @@ final class DeviceConnection {
         principal: client.welcome.principal,
         call: client.call,
       );
+      final appearanceStore = await BrowserAppearanceFormRecoveryStore.open();
+      closeStores.add(appearanceStore.close);
+      final appearanceRecovery = BrowserAppearanceFormRecovery(
+        store: appearanceStore,
+        principal: client.welcome.principal,
+        call: client.call,
+      );
       final observationStore = await BrowserObservationFormRecoveryStore.open();
       closeStores.add(observationStore.close);
       final observationRecovery = BrowserObservationFormRecovery(
@@ -576,6 +584,9 @@ final class DeviceConnection {
         loadSecretForm: (scope) =>
             sequenced(() => secretRecovery.load(scope)),
         saveSecretForm: secretRecovery.save,
+        loadAppearanceForm: (scope) =>
+            sequenced(() => appearanceRecovery.load(scope)),
+        saveAppearanceForm: appearanceRecovery.save,
         loadObservationForm: (scope) =>
             sequenced(() => observationRecovery.load(scope)),
         saveObservationForm: observationRecovery.save,

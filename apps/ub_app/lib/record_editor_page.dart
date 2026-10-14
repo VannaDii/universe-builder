@@ -1,5 +1,6 @@
 import 'entity_editor_page.dart';
 import 'secret_editor_page.dart';
+import 'appearance_editor_page.dart';
 import 'attribute_editor_page.dart';
 import 'source_editor_page.dart';
 import 'work_version_editor_page.dart';
@@ -79,6 +80,8 @@ Future<Widget> recordEditorPage({
           ? record.recordVersionId.value
           : action == RecordEditAction.secretRevision
           ? 'secret-revision:${record.identity.recordId.value}'
+          : action == RecordEditAction.appearanceRevision
+          ? 'appearance-revision:${record.identity.recordId.value}'
           : action == RecordEditAction.attribute ||
                 action == RecordEditAction.relationship
           ? null
@@ -188,6 +191,11 @@ Future<Widget> recordEditorPage({
       changes: changes,
     ),
     RecordEditAction.secretRevision => SecretEditorPage(
+      revision: revision,
+      correctionRecord: record,
+      changes: changes,
+    ),
+    RecordEditAction.appearanceRevision => AppearanceEditorPage(
       revision: revision,
       correctionRecord: record,
       changes: changes,

@@ -29,6 +29,7 @@ import 'proposition_editor_page.dart';
 import 'attitude_editor_page.dart';
 import 'observation_editor_page.dart';
 import 'secret_editor_page.dart';
+import 'appearance_editor_page.dart';
 import 'memory_editor_page.dart';
 import 'work_editor_page.dart';
 import 'saga_editor_page.dart';
@@ -632,6 +633,20 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       ),
     ),
     'secret' => SecretEditorPage(
+      revision: continuity.revisionId,
+      changes: SavedChanges(
+        session: _session!,
+        universe: Selector(_selected!.name),
+        scope: EditorFormScope(
+          instance: _library!.instance,
+          profile: _session!.principal,
+          universe: _selected!.id,
+          continuity: continuity.id,
+          representedContext: _contexts[continuity.id],
+        ),
+      ),
+    ),
+    'appearance' => AppearanceEditorPage(
       revision: continuity.revisionId,
       changes: SavedChanges(
         session: _session!,
@@ -2358,6 +2373,42 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                                       }
                                     }),
                           child: const Text('Story secret'),
+                        ),
+                      if (_contexts.containsKey(continuity.id))
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context)
+                                    .push<void>(
+                                      MaterialPageRoute(
+                                        settings: widget.device.supportsBrowser
+                                            ? RouteSettings(
+                                                name: LibraryLocation(
+                                                  universe: _selected!.id,
+                                                  continuity: continuity.id,
+                                                  context:
+                                                      _contexts[continuity.id],
+                                                  editor: 'appearance',
+                                                ).uri.toString(),
+                                              )
+                                            : null,
+                                        builder: (_) => _linkedEditor(
+                                          LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'appearance',
+                                          ),
+                                          continuity,
+                                        ),
+                                      ),
+                                    )
+                                    .then((_) {
+                                      if (mounted && _selected != null) {
+                                        _open(_selected!);
+                                      }
+                                    }),
+                          child: const Text('Appearance'),
                         ),
                       if (_contexts.containsKey(continuity.id))
                         TextButton(

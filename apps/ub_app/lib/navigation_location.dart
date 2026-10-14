@@ -54,6 +54,7 @@ final class LibraryLocation {
     'memory',
     'observation',
     'secret',
+    'appearance',
     'attitude',
     'proposition',
     'completeness',

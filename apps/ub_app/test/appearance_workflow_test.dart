@@ -151,6 +151,14 @@ void main() {
         UnfinishedAppearanceForm.fromWire(form.toWire()).toWire().toText(),
         form.toWire().toText(),
       );
+      await session.saveAppearanceForm(scope, form, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      expect(
+        (await session.loadAppearanceForm(scope))!.form.toWire().toText(),
+        form.toWire().toText(),
+      );
+      source.deleteSync();
       expect(
         () => appearanceOperation(form.copyWith(targetKind: '')),
         throwsFormatException,

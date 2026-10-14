@@ -21,6 +21,7 @@ enum RecordEditAction {
   eventWithdrawal,
   recordRemoval,
   secretRevision,
+  appearanceRevision,
   eventRevision,
   assertionCorrection,
   assertionEnd,
@@ -53,6 +54,7 @@ enum RecordEditAction {
     eventWithdrawal => isWithdrawableEvent(payload),
     recordRemoval => true,
     secretRevision => payload is SecretRecord,
+    appearanceRevision => payload is AppearanceRecord,
     eventRevision => payload is EventRecord,
     assertionEnd =>
       payload is AssertionRecord &&

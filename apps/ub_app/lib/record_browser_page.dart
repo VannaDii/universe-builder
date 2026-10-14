@@ -564,6 +564,14 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                               : () => _edit(record, RecordEditAction.secretRevision),
                           child: const Text('Revise story secret'),
                         ),
+                      if (widget.session.author &&
+                          record.payload is AppearanceRecord)
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => _edit(record, RecordEditAction.appearanceRevision),
+                          child: const Text('Revise appearance'),
+                        ),
                       if (record.payload is WorkRecord)
                         TextButton(
                           onPressed: _busy

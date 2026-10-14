@@ -1,5 +1,6 @@
 import 'event_editor_page.dart';
 import 'secret_editor_page.dart';
+import 'appearance_editor_page.dart';
 import 'action_editor_page.dart';
 import 'rule_editor_page.dart';
 import 'completeness_editor_page.dart';
@@ -153,6 +154,19 @@ Future<Widget> draftOperationEditor(
       _ => throw StateError('Checked secret operation'),
     };
     return SecretEditorPage(
+      changes: scopedChanges(clientRef),
+      revision: draft.content.baseRevision,
+      editingDraft: draft,
+      index: index,
+    );
+  }
+  if (operation is CreateAppearanceOperation || operation is ReviseAppearanceOperation) {
+    final clientRef = switch (operation) {
+      CreateAppearanceOperation(:final clientRef) => clientRef,
+      ReviseAppearanceOperation(:final record) => 'appearance-revision:${record.record.value}',
+      _ => throw StateError('Checked appearance operation'),
+    };
+    return AppearanceEditorPage(
       changes: scopedChanges(clientRef),
       revision: draft.content.baseRevision,
       editingDraft: draft,

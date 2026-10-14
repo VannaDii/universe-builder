@@ -673,6 +673,17 @@ class _ChangesPageState extends State<ChangesPage> {
                                 child: const Text('Edit story secret fields'),
                               ),
                             if (_proposal == null &&
+                                (operations[index] is CreateAppearanceOperation ||
+                                    operations[index] is ReviseAppearanceOperation))
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _changeDraft(
+                                        (draft) => _editOperation(draft, index),
+                                      ),
+                                child: const Text('Edit appearance fields'),
+                              ),
+                            if (_proposal == null &&
                                 operations[index] is DefinePropertyOperation)
                               TextButton(
                                 onPressed: _busy

@@ -72,6 +72,8 @@ final class AppSession {
     required this.saveRepresentedContextForm,
     required this.loadMemoryForm,
     required this.saveMemoryForm,
+    required this.loadAppearanceForm,
+    required this.saveAppearanceForm,
     required this.loadSecretForm,
     required this.saveSecretForm,
     required this.loadObservationForm,
@@ -328,6 +330,14 @@ final class AppSession {
     BigInt,
   )
   saveSecretForm;
+  final Future<SavedAppearanceForm?> Function(EditorFormScope)
+  loadAppearanceForm;
+  final Future<SavedAppearanceForm> Function(
+    EditorFormScope,
+    UnfinishedAppearanceForm,
+    BigInt,
+  )
+  saveAppearanceForm;
   final Future<SavedObservationForm?> Function(EditorFormScope)
   loadObservationForm;
   final Future<SavedObservationForm> Function(

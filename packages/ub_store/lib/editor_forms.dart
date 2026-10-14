@@ -61,3 +61,5 @@ export 'src/assertion_correction_forms.dart';
 export 'src/event_withdrawal_forms.dart';
 export 'src/pack_forms.dart';
 export 'src/record_removal_forms.dart';
+
+export 'src/appearance_forms.dart';

@@ -272,6 +272,16 @@ visible. Image-asset records also offer this preview from Published fields.
 Previews follow the existing service access restrictions and use memory rather
 than saved preview files. The displayed preview is cleared when its record,
 context or connection changes.
+The **Appearance** authoring form describes a universe or a named entry, with an
+exact label, physical description, atmosphere, ordered images and depiction
+links. Choose an existing image asset or a PNG/JPEG/WebP file through the macOS
+or browser picker; retaining the original does not publish it. Captions and image
+purposes remain explicit. Time scope is unspecified or an authored calendar
+interval with exact increasing or explicitly unbounded endpoints; it never
+advances the story clock. Native and browser unfinished recovery retain named
+fields, ordered image/link rows and bounded previews. **Edit appearance fields**
+in Changes and **Revise appearance** in the published appearance’s dossier keep
+the same reviewed publication flow, expected versions, identity and history.
 **Sources** in a record dossier displays accessible source attribution, import
 metadata and anchored excerpts at the opened revision. Excerpts retain exact
 Unicode text and UTF-8 byte ranges. Source names are resolved only from the exact
