@@ -35,10 +35,16 @@ RecordEventOperation eventOperation(UnfinishedEventForm form) {
       participants: form.participants.map(
         (p) => EventParticipant(_reference(p.record, p.universe), p.role),
       ),
-      worlds: old?.worlds ?? [],
-      region: old?.region,
-      sequence: old?.sequence,
-      occurrenceId: old?.occurrenceId,
+      worlds: form.worlds.map(WorldId.parse),
+      region: form.regionRecord.isEmpty
+          ? null
+          : _reference(form.regionRecord, form.regionUniverse),
+      sequence: form.sequence.isEmpty
+          ? (old?.sequence == '' ? '' : null)
+          : form.sequence,
+      occurrenceId: form.occurrenceId.isEmpty
+          ? (old?.occurrenceId == '' ? '' : null)
+          : form.occurrenceId,
       preconditions: old?.preconditions ?? [],
       effects: old?.effects ?? [],
       expansionVersion: old?.expansionVersion,

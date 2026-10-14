@@ -40,8 +40,21 @@ final class UnfinishedEventForm {
     Iterable<EventParticipantInput> participants = const [],
     this.rationale = '',
     this.original,
+    Iterable<String>? worlds,
+    String? regionRecord,
+    String? regionUniverse,
+    String? sequence,
+    String? occurrenceId,
     BigInt? draftVersion,
   }) : participants = List.unmodifiable(participants),
+       worlds = List.unmodifiable(
+         worlds ?? original?.worlds.map((w) => w.value) ?? const [],
+       ),
+       regionRecord = regionRecord ?? original?.region?.record.value ?? '',
+       regionUniverse =
+           regionUniverse ?? original?.region?.universe?.value ?? '',
+       sequence = sequence ?? original?.sequence ?? '',
+       occurrenceId = occurrenceId ?? original?.occurrenceId ?? '',
        draftVersion = draftVersion == null ? null : checkedU64(draftVersion);
   final RevisionId baseRevision;
   final RecordId representedContext;
@@ -52,6 +65,8 @@ final class UnfinishedEventForm {
       actionRecord,
       actionUniverse,
       rationale;
+  final List<String> worlds;
+  final String regionRecord, regionUniverse, sequence, occurrenceId;
   final TemporalValidityInput time;
   final List<EventParticipantInput> participants;
   final EventRecord? original;
@@ -71,6 +86,11 @@ final class UnfinishedEventForm {
       CanonicalArray(participants.map((p) => p.toWire())),
     ),
     MapEntry('rationale', CanonicalString(rationale)),
+    MapEntry('worlds', CanonicalArray(worlds.map(CanonicalString.new))),
+    MapEntry('region_record', CanonicalString(regionRecord)),
+    MapEntry('region_universe', CanonicalString(regionUniverse)),
+    MapEntry('sequence', CanonicalString(sequence)),
+    MapEntry('occurrence_id', CanonicalString(occurrenceId)),
     if (original != null) MapEntry('original', original!.toWire()),
     if (draftVersion != null)
       MapEntry('draft_version', CanonicalString(draftVersion.toString())),
@@ -90,12 +110,25 @@ final class UnfinishedEventForm {
       'rationale',
       'original',
       'draft_version',
+      'worlds',
+      'region_record',
+      'region_universe',
+      'sequence',
+      'occurrence_id',
     });
     return UnfinishedEventForm(
       baseRevision: RevisionId.parse(f.string('base_revision')),
       representedContext: RecordId.parse(f.string('represented_context')),
       clientRef: f.string('client_ref'),
       label: f.string('label'),
+      worlds: f.optional(
+        'worlds',
+        (v) => (v as CanonicalArray).items.map(wireString),
+      ),
+      regionRecord: f.optional('region_record', wireString),
+      regionUniverse: f.optional('region_universe', wireString),
+      sequence: f.optional('sequence', wireString),
+      occurrenceId: f.optional('occurrence_id', wireString),
       occurrence: f.string('occurrence'),
       description: f.string('description'),
       actionRecord: f.string('action_record'),
@@ -114,6 +147,11 @@ final class UnfinishedEventForm {
     );
   }
   Iterable<String> get exactTexts => [
+    ...worlds,
+    regionRecord,
+    regionUniverse,
+    sequence,
+    occurrenceId,
     clientRef,
     label,
     occurrence,

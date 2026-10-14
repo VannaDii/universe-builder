@@ -11,6 +11,7 @@ import 'draft_record_choice_field.dart';
 import 'temporal_validity_fields.dart';
 import 'temporal_validity_draft.dart';
 import 'record_fields.dart';
+import 'draft_record_choices.dart';
 
 class EventEditorPage extends StatefulWidget {
   const EventEditorPage({
@@ -41,6 +42,8 @@ class _EventEditorPageState extends State<EventEditorPage> {
   String? _error, _added;
   Timer? _autosave;
   int _fields = 0;
+  List<WorldSummary> _worlds = [];
+  bool _worldsComplete = false;
   bool get _disabled =>
       _loading || _saving || _adding || _form == null || _added != null;
   EditorFormScope get _scope => widget.changes.scope;
@@ -115,6 +118,28 @@ class _EventEditorPageState extends State<EventEditorPage> {
     }
   }
 
+  Future<void> _loadWorlds() async {
+    final opened = await openDraftChoiceContext(widget.changes, _choices);
+    final worlds = Envelope<Description>.fromWire(
+      await widget.changes.session.call(
+        ToolEngineRequest(
+          request: DescribeWorldsRequest(
+            universe: widget.changes.universe,
+            universeId: _scope.universe,
+            contextId: opened.contextId,
+          ),
+        ),
+      ),
+      Description.fromWire,
+    );
+    if (mounted) {
+      setState(() {
+        _worlds = worlds.result.worlds;
+        _worldsComplete = worlds.delivery.complete;
+      });
+    }
+  }
+
   bool get _inputDisabled =>
       _loading || _adding || _form == null || _added != null;
   void _change({
@@ -126,6 +151,11 @@ class _EventEditorPageState extends State<EventEditorPage> {
     TemporalValidityInput? time,
     List<EventParticipantInput>? participants,
     String? rationale,
+    List<String>? worlds,
+    String? regionRecord,
+    String? regionUniverse,
+    String? sequence,
+    String? occurrenceId,
   }) {
     final f = _form!;
     setState(() {
@@ -142,6 +172,11 @@ class _EventEditorPageState extends State<EventEditorPage> {
         participants: participants ?? f.participants,
         rationale: rationale ?? f.rationale,
         original: f.original,
+        worlds: worlds ?? f.worlds,
+        regionRecord: regionRecord ?? f.regionRecord,
+        regionUniverse: regionUniverse ?? f.regionUniverse,
+        sequence: sequence ?? f.sequence,
+        occurrenceId: occurrenceId ?? f.occurrenceId,
         draftVersion: f.draftVersion,
       );
       _dirty = true;
@@ -213,6 +248,7 @@ class _EventEditorPageState extends State<EventEditorPage> {
       _added = null;
     });
     await _save();
+    await _loadWorlds();
   }
 
   Future<void> _add() async {
@@ -386,6 +422,69 @@ class _EventEditorPageState extends State<EventEditorPage> {
                           : InstantValidity(f.original!.time),
                     ),
                     onChanged: (time) => _change(time: time),
+                  ),
+                  const Text('Declared worlds'),
+                  if (!_worldsComplete)
+                    const Text('Only part of the world list was returned.'),
+                  for (final world in _worlds)
+                    CheckboxListTile(
+                      title: Text(world.name.value),
+                      value: f.worlds.contains(world.id.value),
+                      onChanged: _inputDisabled
+                          ? null
+                          : (selected) {
+                              final worlds = [...f.worlds];
+                              if (selected == true) {
+                                worlds.add(world.id.value);
+                              } else {
+                                worlds.remove(world.id.value);
+                              }
+                              _change(worlds: worlds);
+                            },
+                    ),
+                  for (final id in f.worlds.where(
+                    (id) => !_worlds.any((w) => w.id.value == id),
+                  ))
+                    ListTile(
+                      title: Text('Unavailable world name ($id)'),
+                      trailing: TextButton(
+                        onPressed: _inputDisabled
+                            ? null
+                            : () => _change(worlds: [...f.worlds]..remove(id)),
+                        child: const Text('Remove'),
+                      ),
+                    ),
+                  DraftRecordChoiceField(
+                    changes: widget.changes,
+                    draft: _choices,
+                    kind: null,
+                    label: 'Declared region',
+                    record: f.regionRecord,
+                    universe: f.regionUniverse,
+                    disabled: _inputDisabled,
+                    onChanged: (ref) => _change(
+                      regionRecord: ref.record.value,
+                      regionUniverse: ref.universe?.value ?? '',
+                    ),
+                  ),
+                  if (f.regionRecord.isNotEmpty)
+                    TextButton(
+                      onPressed: _inputDisabled
+                          ? null
+                          : () => _change(regionRecord: '', regionUniverse: ''),
+                      child: const Text('Clear region'),
+                    ),
+                  _text(
+                    'sequence',
+                    'Authored sequence',
+                    f.sequence,
+                    (v) => _change(sequence: v),
+                  ),
+                  _text(
+                    'occurrence-id',
+                    'Authored occurrence identity',
+                    f.occurrenceId,
+                    (v) => _change(occurrenceId: v),
                   ),
                   const Text('Participants in authored order'),
                   for (var i = 0; i < f.participants.length; i++)

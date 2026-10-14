@@ -58,6 +58,51 @@ void main() {
       eventOperation(form).record.toWire().toText(),
       event.toWire().toText(),
     );
+    final legacy = CanonicalObject(
+      form.toWire().fields.where(
+        (field) => !{
+          'worlds',
+          'region_record',
+          'region_universe',
+          'sequence',
+          'occurrence_id',
+        }.contains(field.key),
+      ),
+    );
+    expect(
+      eventOperation(UnfinishedEventForm.fromWire(legacy)).record
+          .toWire()
+          .toText(),
+      event.toWire().toText(),
+    );
+    final cleared = UnfinishedEventForm(
+      baseRevision: form.baseRevision,
+      representedContext: context,
+      clientRef: form.clientRef,
+      label: form.label,
+      occurrence: form.occurrence,
+      actionRecord: form.actionRecord,
+      actionUniverse: form.actionUniverse,
+      time: form.time,
+      participants: form.participants,
+      original: form.original,
+      worlds: [],
+      regionRecord: '',
+      regionUniverse: '',
+      sequence: '',
+      occurrenceId: '',
+    );
+    final clearedEvent = eventOperation(
+      UnfinishedEventForm.fromWire(cleared.toWire()),
+    ).record;
+    expect(clearedEvent.worlds, isEmpty);
+    expect(clearedEvent.region, isNull);
+    expect(clearedEvent.sequence, isNull);
+    expect(clearedEvent.occurrenceId, isNull);
+    expect(
+      clearedEvent.effects.single.toWire().toText(),
+      effect.toWire().toText(),
+    );
     final edited = UnfinishedEventForm(
       baseRevision: form.baseRevision,
       representedContext: context,
