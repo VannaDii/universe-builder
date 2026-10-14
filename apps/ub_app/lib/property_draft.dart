@@ -76,35 +76,116 @@ DefinePropertyOperation propertyOperation(UnfinishedPropertyForm form) {
   );
 }
 
+ReviseDefinitionOperation propertyRevisionOperation(
+  UnfinishedPropertyForm form,
+) {
+  if (form.revisionTarget == null ||
+      form.expectedRecordVersion == null ||
+      form.original == null) {
+    throw const FormatException(
+      'Open a published property definition to revise it.',
+    );
+  }
+  final next = propertyOperation(form).record;
+  if (next.namespace != form.original!.namespace ||
+      next.key != form.original!.key) {
+    throw const FormatException('Property revisions retain namespace and key.');
+  }
+  final target = form.revisionTarget!;
+  return ReviseDefinitionOperation(
+    record: RecordRef(
+      record: RecordId.parse(target.record),
+      universe: target.universe.isEmpty
+          ? null
+          : UniverseId.parse(target.universe),
+    ),
+    expectedVersion: form.expectedRecordVersion!,
+    replacement: next,
+  );
+}
+
+UnfinishedPropertyForm propertyRevisionFormFromRecord({
+  required RecordVersion record,
+  required RevisionId baseRevision,
+  required RecordId representedContext,
+}) {
+  if (record.payload is! PropertyRecord) {
+    throw const FormatException('Choose a published property definition.');
+  }
+  return _propertyForm(
+    p: record.payload as PropertyRecord,
+    baseRevision: baseRevision,
+    representedContext: representedContext,
+    clientRef: record.identity.recordId.value,
+    revisionTarget: ExpressionReferenceInput(
+      record: record.identity.recordId.value,
+      universe: record.identity.universeId.value,
+    ),
+    expectedRecordVersion: record.recordVersionId,
+  );
+}
+
 UnfinishedPropertyForm propertyFormFromDraft(SavedDraft draft, int index) {
   final op = draft.content.operations[index];
+  if (op is ReviseDefinitionOperation && op.replacement is PropertyRecord) {
+    return _propertyForm(
+      p: op.replacement as PropertyRecord,
+      baseRevision: draft.content.baseRevision,
+      representedContext: draft.content.representedContext,
+      clientRef: op.record.record.value,
+      revisionTarget: ExpressionReferenceInput(
+        record: op.record.record.value,
+        universe: op.record.universe?.value ?? '',
+      ),
+      expectedRecordVersion: op.expectedVersion,
+      draftVersion: draft.version,
+    );
+  }
   if (op is! DefinePropertyOperation) {
     throw const FormatException('Choose a property definition from Changes.');
   }
-  final p = op.record;
-  return UnfinishedPropertyForm(
+  return _propertyForm(
+    p: op.record,
     baseRevision: draft.content.baseRevision,
     representedContext: draft.content.representedContext,
     clientRef: op.clientRef,
-    namespace: p.namespace,
-    key: p.key,
-    labels: p.labels.entries.map(
-      (e) => PropertyLabelInput(language: e.key, text: e.value),
-    ),
-    subjectTypes: p.subjectTypes.map((id) => id.value),
-    shape: valueShapeInput(p.value),
-    multiplicity: p.multiplicity.name,
-    persistence: p.persistence.wireName,
-    hasUnitDimension: p.unitDimension != null,
-    unitDimension: p.unitDimension ?? '',
-    hasInverse: p.inverse != null,
-    inverse: p.inverse ?? '',
-    exclusive: p.exclusive,
-    symmetric: p.symmetric,
-    transitive: p.transitive,
     draftVersion: draft.version,
   );
 }
+
+UnfinishedPropertyForm _propertyForm({
+  required PropertyRecord p,
+  required RevisionId baseRevision,
+  required RecordId representedContext,
+  required String clientRef,
+  ExpressionReferenceInput? revisionTarget,
+  RecordVersionId? expectedRecordVersion,
+  BigInt? draftVersion,
+}) => UnfinishedPropertyForm(
+  baseRevision: baseRevision,
+  representedContext: representedContext,
+  clientRef: clientRef,
+  revisionTarget: revisionTarget,
+  expectedRecordVersion: expectedRecordVersion,
+  original: revisionTarget == null ? null : p,
+  namespace: p.namespace,
+  key: p.key,
+  labels: p.labels.entries.map(
+    (e) => PropertyLabelInput(language: e.key, text: e.value),
+  ),
+  subjectTypes: p.subjectTypes.map((id) => id.value),
+  shape: valueShapeInput(p.value),
+  multiplicity: p.multiplicity.name,
+  persistence: p.persistence.wireName,
+  hasUnitDimension: p.unitDimension != null,
+  unitDimension: p.unitDimension ?? '',
+  hasInverse: p.inverse != null,
+  inverse: p.inverse ?? '',
+  exclusive: p.exclusive,
+  symmetric: p.symmetric,
+  transitive: p.transitive,
+  draftVersion: draftVersion,
+);
 
 SaveDraftEngineRequest propertyDraftRequest({
   required SavedDraft draft,
@@ -120,12 +201,17 @@ SaveDraftEngineRequest propertyDraftRequest({
       'Review Changes before adding this property definition.',
     );
   }
-  final operation = propertyOperation(form);
+  final operation = form.revisionTarget == null
+      ? propertyOperation(form)
+      : propertyRevisionOperation(form);
   final operations = [...draft.content.operations];
   if (index != null) {
     final original = propertyFormFromDraft(draft, index);
     if (form.draftVersion != draft.version ||
-        original.clientRef != form.clientRef) {
+        original.clientRef != form.clientRef ||
+        form.revisionTarget?.toWire().toText() !=
+            original.revisionTarget?.toWire().toText() ||
+        form.expectedRecordVersion != original.expectedRecordVersion) {
       throw const FormatException(
         'The draft changed. Reopen its current property fields.',
       );
@@ -133,6 +219,21 @@ SaveDraftEngineRequest propertyDraftRequest({
     operations[index] = operation;
   } else {
     for (final existing in operations) {
+      if (operation is ReviseDefinitionOperation &&
+          existing is ReviseDefinitionOperation &&
+          existing.record == operation.record) {
+        if (existing.toWire().toText() != operation.toWire().toText()) {
+          throw const FormatException(
+            'This property already has a revision. Edit it in Changes.',
+          );
+        }
+        return SaveDraftEngineRequest(
+          universe: universe,
+          continuityId: continuity,
+          expectedVersion: draft.version,
+          content: draft.content,
+        );
+      }
       final ref = Map.fromEntries(existing.toWire().fields)['client_ref'];
       if (ref is CanonicalString && ref.value == form.clientRef) {
         if (existing.toWire().toText() != operation.toWire().toText()) {

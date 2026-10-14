@@ -1,6 +1,7 @@
 import 'package:ub_domain/ub_domain.dart';
 
 import 'wire.dart';
+import 'expression_forms.dart';
 
 final class ValueShapeInput {
   ValueShapeInput({
@@ -84,6 +85,9 @@ final class UnfinishedPropertyForm {
     this.symmetric = false,
     this.transitive = false,
     this.rationale = '',
+    this.revisionTarget,
+    this.expectedRecordVersion,
+    this.original,
     BigInt? draftVersion,
   }) : labels = List.unmodifiable(labels),
        subjectTypes = List.unmodifiable(subjectTypes),
@@ -102,6 +106,9 @@ final class UnfinishedPropertyForm {
   final List<String> subjectTypes;
   final ValueShapeInput shape;
   final bool hasUnitDimension, hasInverse, exclusive, symmetric, transitive;
+  final ExpressionReferenceInput? revisionTarget;
+  final RecordVersionId? expectedRecordVersion;
+  final PropertyRecord? original;
   final BigInt? draftVersion;
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
@@ -125,6 +132,14 @@ final class UnfinishedPropertyForm {
     MapEntry('symmetric', CanonicalBool(symmetric)),
     MapEntry('transitive', CanonicalBool(transitive)),
     MapEntry('rationale', CanonicalString(rationale)),
+    if (revisionTarget != null)
+      MapEntry('revision_target', revisionTarget!.toWire()),
+    if (expectedRecordVersion != null)
+      MapEntry(
+        'expected_record_version',
+        CanonicalString(expectedRecordVersion!.value),
+      ),
+    if (original != null) MapEntry('original', original!.toWire()),
     if (draftVersion != null)
       MapEntry('draft_version', CanonicalString(draftVersion.toString())),
   ]);
@@ -149,6 +164,9 @@ final class UnfinishedPropertyForm {
       'transitive',
       'rationale',
       'draft_version',
+      'revision_target',
+      'expected_record_version',
+      'original',
     });
     return UnfinishedPropertyForm(
       baseRevision: RevisionId.parse(f.string('base_revision')),
@@ -169,6 +187,15 @@ final class UnfinishedPropertyForm {
       symmetric: f.boolean('symmetric'),
       transitive: f.boolean('transitive'),
       rationale: f.string('rationale'),
+      revisionTarget: f.optional(
+        'revision_target',
+        ExpressionReferenceInput.fromWire,
+      ),
+      expectedRecordVersion: f.optional(
+        'expected_record_version',
+        (v) => RecordVersionId.parse(wireString(v)),
+      ),
+      original: f.optional('original', PropertyRecord.fromWire),
       draftVersion: f.optional(
         'draft_version',
         (v) => BigInt.parse(wireString(v)),

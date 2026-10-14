@@ -16,11 +16,13 @@ class PropertyEditorPage extends StatefulWidget {
     required this.revision,
     this.editingDraft,
     this.index,
+    this.revisionRecord,
   });
   final SavedChanges changes;
   final RevisionId revision;
   final SavedDraft? editingDraft;
   final int? index;
+  final RecordVersion? revisionRecord;
   @override
   State<PropertyEditorPage> createState() => _PropertyEditorPageState();
 }
@@ -64,6 +66,12 @@ class _PropertyEditorPageState extends State<PropertyEditorPage> {
 
   UnfinishedPropertyForm _fresh() => widget.index != null
       ? propertyFormFromDraft(_draft!, widget.index!)
+      : widget.revisionRecord != null
+      ? propertyRevisionFormFromRecord(
+          record: widget.revisionRecord!,
+          baseRevision: widget.revision,
+          representedContext: _scope.representedContext!,
+        )
       : UnfinishedPropertyForm(
           baseRevision: widget.revision,
           representedContext: _scope.representedContext!,
@@ -89,13 +97,22 @@ class _PropertyEditorPageState extends State<PropertyEditorPage> {
                   _form!.baseRevision != _draft!.content.baseRevision ||
                   _form!.representedContext !=
                       _draft!.content.representedContext
-            : _form!.baseRevision != widget.revision;
+            : _form!.baseRevision != widget.revision ||
+                  (widget.revisionRecord != null &&
+                      _form!.expectedRecordVersion !=
+                          widget.revisionRecord!.recordVersionId);
         _added =
             widget.index == null &&
                 (_draft?.content.operations.any(
                       (op) =>
-                          op is DefinePropertyOperation &&
-                          op.clientRef == _form!.clientRef,
+                          (op is DefinePropertyOperation &&
+                              _form!.revisionTarget == null &&
+                              op.clientRef == _form!.clientRef) ||
+                          (op is ReviseDefinitionOperation &&
+                              _form!.revisionTarget?.record ==
+                                  op.record.record.value &&
+                              _form!.revisionTarget?.universe ==
+                                  (op.record.universe?.value ?? '')),
                     ) ??
                     false)
             ? 'This definition is in Changes. Review or edit it there.'
@@ -151,6 +168,9 @@ class _PropertyEditorPageState extends State<PropertyEditorPage> {
         transitive: transitive ?? f.transitive,
         rationale: rationale ?? f.rationale,
         draftVersion: f.draftVersion,
+        revisionTarget: f.revisionTarget,
+        expectedRecordVersion: f.expectedRecordVersion,
+        original: f.original,
       );
       _dirty = true;
     });
@@ -225,8 +245,15 @@ class _PropertyEditorPageState extends State<PropertyEditorPage> {
       setState(() {
         _draft = saved;
         _result = saved;
-        if (widget.index != null) {
-          _form = propertyFormFromDraft(saved, widget.index!);
+        if (widget.index != null || _form!.revisionTarget != null) {
+          final index =
+              widget.index ??
+              saved.content.operations.indexWhere(
+                (op) =>
+                    op is ReviseDefinitionOperation &&
+                    op.record == propertyRevisionOperation(_form!).record,
+              );
+          _form = propertyFormFromDraft(saved, index);
           _fields++;
           _dirty = true;
         } else {
@@ -263,12 +290,13 @@ class _PropertyEditorPageState extends State<PropertyEditorPage> {
     String value,
     ValueChanged<String> change, {
     int maxLines = 1,
+    bool readOnly = false,
   }) => Padding(
     padding: const EdgeInsets.only(top: 12),
     child: TextFormField(
       key: ValueKey((_fields, key)),
       initialValue: value,
-      enabled: !_disabled,
+      enabled: !_disabled && !readOnly,
       maxLines: maxLines,
       decoration: InputDecoration(labelText: label),
       onChanged: change,
@@ -318,13 +346,24 @@ class _PropertyEditorPageState extends State<PropertyEditorPage> {
                   ),
                 ],
                 if (_form case final f?) ...[
+                  if (f.revisionTarget != null)
+                    const Text(
+                      'Revisions retain this property’s namespace and key. Existing checks assess changes against its current users and rules; publication preserves history.',
+                    ),
                   _text(
                     'namespace',
                     'Namespace',
                     f.namespace,
                     (v) => _change(namespace: v),
+                    readOnly: f.revisionTarget != null,
                   ),
-                  _text('key', 'Property key', f.key, (v) => _change(key: v)),
+                  _text(
+                    'key',
+                    'Property key',
+                    f.key,
+                    (v) => _change(key: v),
+                    readOnly: f.revisionTarget != null,
+                  ),
                   const SizedBox(height: 16),
                   const Text('Display labels'),
                   for (var i = 0; i < f.labels.length; i++)

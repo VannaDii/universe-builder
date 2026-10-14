@@ -26,6 +26,7 @@ import 'scene_editor_page.dart';
 import 'item_power_editor_page.dart';
 import 'communication_editor_page.dart';
 import 'attitude_editor_page.dart';
+import 'property_editor_page.dart';
 import 'interpretation_editor_page.dart';
 
 enum _DossierView {
@@ -764,6 +765,36 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                                   ),
                                 ),
                           child: const Text('Correct belief or knowledge'),
+                        ),
+                      if (record.payload is PropertyRecord)
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context).push<SavedDraft>(
+                                  MaterialPageRoute(
+                                    builder: (_) => PropertyEditorPage(
+                                      revision: widget.context.frame.revision,
+                                      revisionRecord: record,
+                                      changes: SavedChanges(
+                                        session: widget.session,
+                                        universe: Selector(
+                                          widget.universe.name,
+                                        ),
+                                        scope: EditorFormScope(
+                                          instance: widget.scope.instance,
+                                          profile: widget.scope.profile,
+                                          universe: widget.universe.id,
+                                          continuity: widget.continuity.id,
+                                          representedContext:
+                                              widget.representedContext.id,
+                                          typeClientRef:
+                                              record.identity.recordId.value,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                          child: const Text('Revise property definition'),
                         ),
                       if (record.payload is EpistemicAttitudeRecord &&
                           (record.payload as EpistemicAttitudeRecord)

@@ -295,6 +295,14 @@ corrections remain editable in Changes. Existing checks retain authored sent
 and receipt calendars; reviewed publication preserves earlier message history.
 Correcting a message does not establish recipient knowledge automatically.
 
+A published property definition’s dossier offers **Revise property definition**.
+Its recoverable form retains identity, expected version, namespace and key and
+submits the full definition through `revise_definition`. All remaining fields
+stay editable, including labels, subject types, nested value shape, multiplicity,
+persistence, dimensions, inverse and relation flags. Pending revisions can be
+edited in Changes; existing checks assess their effects, and reviewed publication
+preserves prior history.
+
 **Item power** records a named item, holder and power properties, exact typed
 value, explicit universe/world scope and validity. The holder property must be
 a single-valued entity reference. Location and ownership do not establish

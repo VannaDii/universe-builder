@@ -17,6 +17,164 @@ import 'package:ub_service/local_engine.dart';
 import 'package:ub_service/local_profiles.dart';
 
 void main() {
+  test('published property revisions retain identity, namespace, key and complete fields through edits', () {
+    final universe = UniverseId.generate(), context = RecordId.generate();
+    final payload = PropertyRecord(
+      namespace: 'authored',
+      key: 'account',
+      labels: {'en': 'Account', 'ja': '記憶 😀'},
+      subjectTypes: [RecordId.generate()],
+      value: SequenceShape(StructuredShape(ValueDefinitionId.generate())),
+      multiplicity: Multiplicity.multiple,
+      persistence: PersistenceSemantics.conditionDependent,
+      unitDimension: '',
+      inverse: 'inverse 記憶 😀',
+      exclusive: true,
+      symmetric: true,
+      transitive: true,
+    );
+    final source = RecordVersion.build(
+      recordVersionId: RecordVersionId.generate(),
+      identity: RecordIdentity(
+        universeId: universe,
+        recordId: RecordId.generate(),
+        recordKind: RecordKind.property,
+      ),
+      payload: payload,
+    );
+    UnfinishedPropertyForm patch(
+      UnfinishedPropertyForm f,
+      Map<String, CanonicalValue> changes,
+    ) => UnfinishedPropertyForm.fromWire(
+      CanonicalObject(
+        f.toWire().fields.map(
+          (e) =>
+              changes.containsKey(e.key) ? MapEntry(e.key, changes[e.key]!) : e,
+        ),
+      ),
+    );
+    final form = propertyRevisionFormFromRecord(
+      record: source,
+      baseRevision: RevisionId.generate(),
+      representedContext: context,
+    );
+    expect(
+      propertyRevisionOperation(form).replacement.toWire().toText(),
+      payload.toWire().toText(),
+    );
+    final empty = SavedDraft(
+      version: BigInt.one,
+      content: DraftContent(
+        baseRevision: form.baseRevision,
+        representedContext: context,
+        operations: [],
+        rationale: 'Review definitions.',
+      ),
+    );
+    final add = propertyDraftRequest(
+      draft: empty,
+      form: form,
+      universe: const Selector('Universe'),
+      continuity: ContinuityId.generate(),
+    );
+    final saved = SavedDraft(version: BigInt.two, content: add.content),
+        pending = propertyFormFromDraft(
+          SavedDraft(version: BigInt.two, content: add.content),
+          0,
+        );
+    final edit = propertyDraftRequest(
+      draft: saved,
+      form: patch(pending, {'multiplicity': CanonicalString('single')}),
+      universe: const Selector('Universe'),
+      continuity: ContinuityId.generate(),
+      index: 0,
+    );
+    final op = edit.content.operations.single as ReviseDefinitionOperation,
+        next = op.replacement as PropertyRecord;
+    expect(op.record.record, source.identity.recordId);
+    expect(op.expectedVersion, source.recordVersionId);
+    expect(next.multiplicity, Multiplicity.single);
+    expect(next.namespace, payload.namespace);
+    expect(next.key, payload.key);
+    expect(next.labels, payload.labels);
+    expect(next.subjectTypes, payload.subjectTypes);
+    expect(next.value.toWire().toText(), payload.value.toWire().toText());
+    expect(next.persistence, payload.persistence);
+    expect(next.unitDimension, payload.unitDimension);
+    expect(next.inverse, payload.inverse);
+    expect(next.exclusive, payload.exclusive);
+    expect(next.symmetric, payload.symmetric);
+    expect(next.transitive, payload.transitive);
+    expect(
+      () => propertyRevisionOperation(
+        patch(form, {'namespace': CanonicalString('other')}),
+      ),
+      throwsFormatException,
+    );
+    expect(
+      () => propertyRevisionOperation(
+        patch(form, {'key': CanonicalString('other')}),
+      ),
+      throwsFormatException,
+    );
+    expect(
+      () => propertyDraftRequest(
+        draft: SavedDraft(version: BigInt.from(3), content: saved.content),
+        form: pending,
+        universe: const Selector('Universe'),
+        continuity: ContinuityId.generate(),
+        index: 0,
+      ),
+      throwsFormatException,
+    );
+    expect(
+      () => propertyDraftRequest(
+        draft: saved,
+        form: patch(pending, {
+          'expected_record_version': CanonicalString(
+            RecordVersionId.generate().value,
+          ),
+        }),
+        universe: const Selector('Universe'),
+        continuity: ContinuityId.generate(),
+        index: 0,
+      ),
+      throwsFormatException,
+    );
+    final root = Directory('/tmp').createTempSync('ub-property-revision-');
+    final scope = EditorFormScope(
+      instance: OperationId.generate(),
+      profile: ProfileId.generate(),
+      universe: universe,
+      continuity: ContinuityId.generate(),
+      representedContext: context,
+      typeClientRef: source.identity.recordId.value,
+    );
+    var store = PropertyFormRecoveryStore.open('${root.path}/forms.sqlite');
+    try {
+      final incomplete = patch(form, {
+        'shape': ValueShapeInput(
+          kind: 'sequence',
+          item: ValueShapeInput(kind: 'quantity', unit: 'unfinished'),
+        ).toWire(),
+      });
+      store.save(scope, incomplete, BigInt.zero);
+      store.close();
+      store = PropertyFormRecoveryStore.open('${root.path}/forms.sqlite');
+      expect(
+        store.load(scope)!.form.toWire().toText(),
+        incomplete.toWire().toText(),
+      );
+      expect(
+        () => propertyRevisionOperation(store.load(scope)!.form),
+        throwsFormatException,
+      );
+    } finally {
+      store.close();
+      root.deleteSync(recursive: true);
+    }
+  });
+
   test(
     'all authored value shapes round trip without changing nested references',
     () {
@@ -333,6 +491,88 @@ void main() {
           kind: RecordKind.property,
         )).record,
         property.identity.recordId,
+      );
+      final revisionScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: property.identity.recordId.value,
+      );
+      final revisionForm = UnfinishedPropertyForm.fromWire(
+        CanonicalObject(
+          propertyRevisionFormFromRecord(
+            record: property,
+            baseRevision: next.content.baseRevision,
+            representedContext: scope.representedContext!,
+          ).toWire().fields.map(
+            (e) => e.key == 'multiplicity'
+                ? MapEntry('multiplicity', CanonicalString('single'))
+                : e.key == 'rationale'
+                ? MapEntry(
+                    'rationale',
+                    CanonicalString(
+                      'Set the account property to single-valued.',
+                    ),
+                  )
+                : e,
+          ),
+        ),
+      );
+      await session.savePropertyForm(revisionScope, revisionForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredRevision = (await session.loadPropertyForm(revisionScope))!
+          .form;
+      expect(
+        recoveredRevision.toWire().toText(),
+        revisionForm.toWire().toText(),
+      );
+      final revisedDraft = SavedDraft.fromWire(
+        await session.call(
+          propertyDraftRequest(
+            draft: next,
+            form: recoveredRevision,
+            universe: const Selector('Properties'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final revisedProposal = await changes().submit(revisedDraft);
+      final revisedValidation =
+          await changes().validate(revisedProposal) as EvaluatedValidation;
+      await changes().approve(revisedProposal, revisedValidation);
+      final revisedReceipt = await changes().publish(
+        revisedProposal,
+        revisedValidation.execution.runId,
+      );
+      final revisedProperty = (await changes().readPublished(
+        revisedProposal,
+        revisedReceipt,
+      )).single;
+      expect(revisedProperty.identity.recordId, property.identity.recordId);
+      expect(
+        revisedProperty.payload.toWire().toText(),
+        propertyRevisionOperation(revisionForm).replacement.toWire().toText(),
+      );
+      final retainedProperty = Envelope<Records>.fromWire(
+        await session.call(
+          ToolEngineRequest(
+            request: GetRequest(
+              universe: const Selector('Properties'),
+              universeId: scope.universe,
+              contextId: context.contextId,
+              recordIds: [property.identity.recordId],
+              fieldGroups: [FieldGroup.payload],
+            ),
+          ),
+        ),
+        Records.fromWire,
+      );
+      expect(
+        retainedProperty.result.records.single.toWire().toText(),
+        property.toWire().toText(),
       );
     } finally {
       await session?.close();
