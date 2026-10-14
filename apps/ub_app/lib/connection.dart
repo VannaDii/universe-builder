@@ -19,6 +19,8 @@ final class HostedConnectionChoice {
 
 final class AppSession {
   const AppSession({
+    this.loadUniverseCreationForm,
+    this.saveUniverseCreationForm,
     this.cancelArchiveUpload,
     this.loadPackageImport,
     this.savePackageImport,
@@ -127,6 +129,9 @@ final class AppSession {
   final Future<void> Function() close;
   final Future<void> Function()? logout;
   final Future<void> Function(LibraryEntry)? downloadArchive;
+  final Future<SavedUniverseCreationForm?> Function()? loadUniverseCreationForm;
+  final Future<SavedUniverseCreationForm> Function(UniverseCreationForm, BigInt)?
+      saveUniverseCreationForm;
   final Future<void> Function()? cancelArchiveUpload;
   final Future<SavedPackageImport?> Function()? loadPackageImport;
   final Future<SavedPackageImport> Function(PackageImportDraft, BigInt)?

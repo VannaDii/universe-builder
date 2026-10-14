@@ -50,6 +50,7 @@ import 'browser_source_files.dart';
 import 'browser_image_files.dart';
 import 'browser_package_files.dart';
 import 'browser_package_import_recovery.dart';
+import 'browser_universe_creation_recovery.dart';
 
 /// The service owns canon and credentials; this tab holds only its short-lived
 /// CSRF token and origin-private unfinished editor input.
@@ -417,6 +418,8 @@ final class DeviceConnection {
         call: client.call,
       );
 
+      final creationStore = await BrowserUniverseCreationFormRecoveryStore.open();
+      closeStores.add(creationStore.close);
       final importStore = await BrowserPackageImportFormRecoveryStore.open();
       closeStores.add(importStore.close);
       final status = InstanceLibrary.fromWire(
@@ -443,6 +446,10 @@ final class DeviceConnection {
       }
 
       return AppSession(
+        loadUniverseCreationForm: client.welcome.author
+            ? () => creationStore.load(importScope) : null,
+        saveUniverseCreationForm: client.welcome.author
+            ? (form, generation) => creationStore.save(importScope, form, generation) : null,
         cancelArchiveUpload: client.close,
         loadPackageImport: client.welcome.author
             ? () => importStore.load(importScope)

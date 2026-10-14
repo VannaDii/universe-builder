@@ -8,7 +8,6 @@ import 'package:ub_domain/ub_domain.dart'
 
 import 'connection.dart';
 import 'create_universe_page.dart';
-import 'universe_creation.dart';
 import 'world_editor_page.dart';
 import 'world_browser.dart';
 import 'world_detail_page.dart';
@@ -1129,15 +1128,27 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
     final session = _session!;
     final result = await Navigator.of(context).push<CreationResult>(
       MaterialPageRoute(
-        builder: (_) => CreateUniversePage(
-          create: (request) async =>
-              createdUniverse(await session.call(request)),
-        ),
+        builder: (_) => CreateUniversePage(session: session),
       ),
     );
     if (!mounted || result == null) return;
     if (result.refresh) {
       await _connect();
+      if (_session != null && _library != null) {
+        try {
+          final saved = await _session!.loadUniverseCreationForm!();
+          if (saved?.form.creationPending == true) {
+            await _session!.saveUniverseCreationForm!(
+              saved!.form.withPending(false), saved.generation,
+            );
+          }
+        } on Object {
+          if (mounted) {
+            setState(() => _error =
+                'The library is open, but the interrupted creation fields could not be updated. Check the library again before another creation.');
+          }
+        }
+      }
       return;
     }
     final created = result.created!;

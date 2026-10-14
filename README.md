@@ -200,8 +200,15 @@ tick label and optional authored month conversion. No current date or inferred
 month conversion is supplied. Successful creation refreshes the catalog and opens
 the universe summary. Invalid input and known rejection retain the form; an
 interrupted response requires an explicit library check rather than resubmitting
-creation automatically. Unfinished creation fields are not yet recovered after
-app termination; typed durable form recovery remains in progress.
+creation automatically. Unfinished names and both calendar forms autosave in
+private device storage (IndexedDB in the browser), scoped to the connected
+instance and profile. Back saves before leaving; backgrounding requests a save.
+Only completed saves survive termination. Reopening restores partial fields and
+never creates a universe. Before creation, the app saves an unconfirmed-attempt
+marker. If the app closes or loses the response, **Check library** reconnects and
+reads the current catalog before enabling another explicit attempt. A confirmed
+creation clears the input for the next universe. Competing windows cannot silently
+overwrite a newer saved form.
 
 Overview offers a **Represented context** selector for each continuity. A sole
 context is selected automatically; multiple contexts require an explicit choice.

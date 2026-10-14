@@ -16,6 +16,7 @@ import 'package:ub_service/ub_service.dart'
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
 import 'package:ub_store/package_import_forms.dart';
+import 'package:ub_store/universe_creation_forms.dart';
 
 import 'connection.dart';
 import 'local_backup_files.dart';
@@ -40,6 +41,31 @@ Future<SavedPackageImport> _saveImportForm(
   BigInt generation,
 ) => Isolate.run(() {
   final store = PackageImportFormRecoveryStore.open(path);
+  try {
+    return store.save(scope, form, generation);
+  } finally {
+    store.close();
+  }
+});
+Future<SavedUniverseCreationForm?> _loadCreationForm(
+  String path,
+  (OperationId, ProfileId) scope,
+) => Isolate.run(() {
+  final store = UniverseCreationFormRecoveryStore.open(path);
+  try {
+    return store.load(scope);
+  } finally {
+    store.close();
+  }
+});
+
+Future<SavedUniverseCreationForm> _saveCreationForm(
+  String path,
+  (OperationId, ProfileId) scope,
+  UniverseCreationForm form,
+  BigInt generation,
+) => Isolate.run(() {
+  final store = UniverseCreationFormRecoveryStore.open(path);
   try {
     return store.save(scope, form, generation);
   } finally {
@@ -452,7 +478,12 @@ final class DeviceConnection {
     }
     final importScope = (importStatus.instance, client.welcome.principal);
     final importPath = '$root/client-recovery/package-import-forms.sqlite';
+    final creationPath = '$root/client-recovery/universe-creation-forms.sqlite';
     return AppSession(
+      loadUniverseCreationForm: client.welcome.author
+          ? () => _loadCreationForm(creationPath, importScope) : null,
+      saveUniverseCreationForm: client.welcome.author
+          ? (form, generation) => _saveCreationForm(creationPath, importScope, form, generation) : null,
       logout: hostedChoice == null ? null : () async {
         if (identical(hosted, hostedChoice)) hosted = null;
         await client.close();

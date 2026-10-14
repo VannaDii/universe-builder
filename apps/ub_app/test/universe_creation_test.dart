@@ -3,6 +3,22 @@ import 'package:ub_app/universe_creation.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 void main() {
+  test('recovered creation attempt cannot become another request before a library check', () {
+    const form = UniverseCreationForm(
+      name: 'History',
+      calendar: CreationCalendar.gregorian,
+      date: '2040-02-29',
+      time: '12:30:00',
+      offset: '-03:30',
+    );
+    final pending = UniverseCreationForm.fromWire(
+      form.withPending(true).toWire(),
+    );
+    expect(pending.creationPending, isTrue);
+    expect(pending.request, throwsFormatException);
+    expect(pending.withPending(false).request().name, form.name);
+  });
+
   test('creation requires an authored valid date, whole-second time and fixed offset', () {
     for (final parts in [
       ('', '', ''),

@@ -1,14 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:ub_contracts/ub_contracts.dart' hide State;
 
 import 'connection.dart';
+import 'guarded_pop_scope.dart';
 import 'universe_creation.dart';
 
 typedef CreationResult = ({LibraryEntry? created, bool refresh});
 
 class CreateUniversePage extends StatefulWidget {
-  const CreateUniversePage({super.key, required this.create});
-  final Future<LibraryEntry> Function(CreateUniverseEngineRequest) create;
+  const CreateUniversePage({super.key, required this.session});
+  final AppSession session;
   @override
   State<CreateUniversePage> createState() => _CreateUniversePageState();
 }
@@ -23,7 +26,16 @@ class _CreateUniversePageState extends State<CreateUniversePage> {
       _tickLabel = TextEditingController(),
       _month = TextEditingController();
   CreationCalendar _calendar = CreationCalendar.gregorian;
-  bool _busy = false, _uncertain = false;
+  bool _busy = false,
+      _uncertain = false,
+      _loading = true,
+      _loaded = false,
+      _leaving = false;
+  BigInt _generation = BigInt.zero;
+  String? _saved;
+  Future<void> _writes = Future.value();
+  Timer? _autosave;
+  String _saveLabel = 'No saved fields yet';
   String? _error;
 
   UniverseCreationForm get _form => UniverseCreationForm(
@@ -36,10 +48,117 @@ class _CreateUniversePageState extends State<CreateUniversePage> {
     initialTick: _tick.text,
     tickLabel: _tickLabel.text,
     ticksPerMonth: _month.text,
+    creationPending: _uncertain,
   );
 
   @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final saved = await widget.session.loadUniverseCreationForm!();
+      if (!mounted) return;
+      final form = saved?.form;
+      if (form != null) {
+        _name.text = form.name;
+        _date.text = form.date;
+        _time.text = form.time;
+        _offset.text = form.offset;
+        _calendarName.text = form.calendarName;
+        _tick.text = form.initialTick;
+        _tickLabel.text = form.tickLabel;
+        _month.text = form.ticksPerMonth;
+        _calendar = form.calendar;
+        _uncertain = form.creationPending;
+        _generation = saved!.generation;
+        _saved = form.toWire().toText();
+        _saveLabel = 'Recovered on this device';
+      }
+      _loaded = true;
+    } on Object {
+      _error = 'Could not open saved creation fields. Reconnect and try again.';
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _persist(UniverseCreationForm form) {
+    final result = _writes.then((_) async {
+      final exact = form.toWire().toText();
+      if (_saved == exact) return;
+      final saved = await widget.session.saveUniverseCreationForm!(
+        form,
+        _generation,
+      );
+      _generation = saved.generation;
+      _saved = exact;
+    });
+    _writes = result.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    return result;
+  }
+
+  void _changed() {
+    setState(() {
+      _error = null;
+      _saveLabel = 'Unsaved input';
+    });
+    _autosave?.cancel();
+    _autosave = Timer(const Duration(milliseconds: 500), _saveInput);
+  }
+
+  Future<bool> _saveInput() async {
+    if (!_loaded) return false;
+    final form = _form;
+    try {
+      await _persist(form);
+      if (mounted) {
+        setState(() {
+          _saveLabel = _form.toWire().toText() == form.toWire().toText()
+              ? 'Saved on this device'
+              : 'Unsaved input';
+        });
+      }
+      return true;
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _error = 'Could not save creation fields. They remain here; another window may have changed them.';
+        });
+      }
+      return false;
+    }
+  }
+
+  Future<void> _leave() async {
+    if (_busy || _uncertain || _loading) return;
+    _autosave?.cancel();
+    setState(() => _busy = true);
+    final saved = !_loaded || await _saveInput();
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _leaving = saved;
+    });
+    if (!saved) return;
+    Navigator.of(context).pop();
+  }
+
+  void _checkLibrary() {
+    // The parent reconnects before reading the catalog. A connection with an
+    // interrupted request cannot be reused, and this action never resends it.
+    setState(() {
+      _leaving = true;
+      _uncertain = false;
+    });
+    Navigator.of(context).pop<CreationResult>((created: null, refresh: true));
+  }
+
+  @override
   void dispose() {
+    _autosave?.cancel();
     for (final controller in [
       _name,
       _date,
@@ -56,6 +175,8 @@ class _CreateUniversePageState extends State<CreateUniversePage> {
   }
 
   Future<void> _submit() async {
+    if (_busy || _uncertain || !_loaded) return;
+    _autosave?.cancel();
     CreateUniverseEngineRequest request;
     try {
       request = _form.request();
@@ -70,16 +191,51 @@ class _CreateUniversePageState extends State<CreateUniversePage> {
       _error = null;
     });
     try {
-      final entry = await widget.create(request);
+      await _persist(_form.withPending(true));
+    } on Object {
       if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = 'Could not save creation fields. Nothing was sent; keep this form open and try saving again.';
+        });
+      }
+      return;
+    }
+    try {
+      final entry = createdUniverse(await widget.session.call(request));
+      try {
+        await _persist(
+          const UniverseCreationForm(
+            name: '',
+            calendar: CreationCalendar.gregorian,
+          ),
+        );
+      } on Object {
+        // The confirmed universe remains usable; the retained attempt will
+        // require a library check before the next creation.
+      }
+      if (mounted) {
+        setState(() {
+          _leaving = true;
+          _busy = false;
+        });
         Navigator.of(context)
             .pop<CreationResult>((created: entry, refresh: false));
       }
     } on ProtocolError catch (error) {
+      final unknown =
+          error is StorageFailureError || error is MaintenanceRequiredError;
+      var retainedUnknown = unknown;
+      if (!unknown) {
+        try {
+          await _persist(_form.withPending(false));
+        } on Object {
+          retainedUnknown = true;
+        }
+      }
       if (mounted) {
         setState(() {
-          _uncertain =
-              error is StorageFailureError || error is MaintenanceRequiredError;
+          _uncertain = retainedUnknown;
           _error = _uncertain
               ? 'Creation could not be confirmed. Check your library before trying again.'
               : 'Could not create this universe. Check the name, calendar and your access.';
@@ -112,24 +268,34 @@ class _CreateUniversePageState extends State<CreateUniversePage> {
       label: label,
       child: TextField(
         controller: controller,
-        enabled: !_busy && !_uncertain,
+        enabled: _loaded && !_busy && !_uncertain,
         autofocus: autofocus,
         decoration: InputDecoration(labelText: label, hintText: hint),
-        onChanged: (_) => setState(() {
-          _error = null;
-        }),
+        onChanged: (_) => _changed(),
         textInputAction: TextInputAction.next,
       ),
     ),
   );
 
   @override
-  Widget build(BuildContext context) => PopScope(
-    canPop: !_busy && !_uncertain,
+  Widget build(BuildContext context) => GuardedPopScope<CreationResult>(
+    canPop: _leaving,
+    onLeave: _leave,
+    onBackground: () async {
+      if (!_busy) await _saveInput();
+    },
+    onPopInvokedWithResult: (didPop, _) {
+      if (!didPop) _leave();
+    },
     child: Scaffold(
       appBar: AppBar(
         title: const Text('Create universe'),
-        automaticallyImplyLeading: !_busy,
+        automaticallyImplyLeading: false,
+        leading: IconButton(
+          tooltip: 'Back',
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _busy || _uncertain || _loading ? null : _leave,
+        ),
       ),
       body: Align(
         alignment: Alignment.topCenter,
@@ -138,6 +304,18 @@ class _CreateUniversePageState extends State<CreateUniversePage> {
           child: ListView(
             padding: const EdgeInsets.all(24),
             children: [
+              if (_loading) const LinearProgressIndicator(),
+              if (_loaded) ...[
+                Text(_saveLabel),
+                const Text(
+                  'Unfinished input stays on this device. Reopening never creates a universe.',
+                ),
+                if (_uncertain)
+                  const Text(
+                    'Creation was interrupted or could not be confirmed. Check your library before trying again.',
+                  ),
+                const SizedBox(height: 20),
+              ],
               _field(_name, 'Universe name', autofocus: true),
               const Text('Starting calendar', style: TextStyle(fontSize: 20)),
               const SizedBox(height: 12),
@@ -152,12 +330,12 @@ class _CreateUniversePageState extends State<CreateUniversePage> {
                             : 'Fictional',
                       ),
                       selected: _calendar == calendar,
-                      onSelected: _busy || _uncertain
+                      onSelected: !_loaded || _busy || _uncertain
                           ? null
-                          : (_) => setState(() {
+                          : (_) {
                               _calendar = calendar;
-                              _error = null;
-                            }),
+                              _changed();
+                            },
                     ),
                 ],
               ),
@@ -200,18 +378,21 @@ class _CreateUniversePageState extends State<CreateUniversePage> {
                 ),
                 const SizedBox(height: 20),
               ],
+              if (_loaded && !_uncertain)
+                TextButton(
+                  onPressed: _busy ? null : _saveInput,
+                  child: const Text('Save unfinished work'),
+                ),
               if (_busy) const LinearProgressIndicator(),
               Align(
                 alignment: Alignment.centerLeft,
                 child: _uncertain
                     ? FilledButton(
-                        onPressed: () => Navigator.of(
-                          context,
-                        ).pop<CreationResult>((created: null, refresh: true)),
+                        onPressed: _busy ? null : _checkLibrary,
                         child: const Text('Check library'),
                       )
                     : FilledButton(
-                        onPressed: _busy ? null : _submit,
+                        onPressed: _busy || !_loaded ? null : _submit,
                         child: const Text('Create universe'),
                       ),
               ),
