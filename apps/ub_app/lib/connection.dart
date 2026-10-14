@@ -39,6 +39,8 @@ final class AppSession {
     required this.saveInterpretationForm,
     required this.loadAssertionRetractionForm,
     required this.saveAssertionRetractionForm,
+    required this.loadAssertionEndForm,
+    required this.saveAssertionEndForm,
     required this.savePassageForm,
     required this.saveSceneForm,
     required this.loadBoundaryForm,
@@ -207,6 +209,14 @@ final class AppSession {
     BigInt,
   )
   saveAssertionRetractionForm;
+  final Future<SavedAssertionEndForm?> Function(EditorFormScope)
+  loadAssertionEndForm;
+  final Future<SavedAssertionEndForm> Function(
+    EditorFormScope,
+    UnfinishedAssertionEndForm,
+    BigInt,
+  )
+  saveAssertionEndForm;
   final Future<SavedBoundaryForm?> Function(EditorFormScope) loadBoundaryForm;
   final Future<SavedBoundaryForm> Function(
     EditorFormScope,

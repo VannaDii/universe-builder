@@ -6,6 +6,7 @@ import 'proposition_editor_page.dart';
 import 'attitude_editor_page.dart';
 import 'interpretation_editor_page.dart';
 import 'assertion_retraction_editor_page.dart';
+import 'assertion_end_editor_page.dart';
 import 'observation_editor_page.dart';
 import 'memory_editor_page.dart';
 import 'work_editor_page.dart';
@@ -2819,6 +2820,65 @@ class _ChangesPageState extends State<ChangesPage> {
                                             draft,
                                       ),
                                 child: const Text('Edit assertion retraction'),
+                              ),
+                            if (_proposal == null &&
+                                operations[index] is EndAssertionAtOperation)
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _changeDraft(
+                                        (draft) async =>
+                                            await Navigator.of(
+                                              context,
+                                            ).push<SavedDraft>(
+                                              MaterialPageRoute(
+                                                builder: (_) => AssertionEndEditorPage(
+                                                  revision: draft
+                                                      .content
+                                                      .baseRevision,
+                                                  editingDraft: draft,
+                                                  index: index,
+                                                  changes: SavedChanges(
+                                                    session:
+                                                        widget.changes.session,
+                                                    universe:
+                                                        widget.changes.universe,
+                                                    scope: EditorFormScope(
+                                                      instance: widget
+                                                          .changes
+                                                          .scope
+                                                          .instance,
+                                                      profile: widget
+                                                          .changes
+                                                          .scope
+                                                          .profile,
+                                                      universe: widget
+                                                          .changes
+                                                          .scope
+                                                          .universe,
+                                                      continuity: widget
+                                                          .changes
+                                                          .scope
+                                                          .continuity,
+                                                      representedContext: draft
+                                                          .content
+                                                          .representedContext,
+                                                      typeClientRef:
+                                                          (draft
+                                                                      .content
+                                                                      .operations[index]
+                                                                  as EndAssertionAtOperation)
+                                                              .record
+                                                              .record
+                                                              .value,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ) ??
+                                            draft,
+                                      ),
+                                child: const Text('Edit assertion ending'),
                               ),
                             if (_proposal == null &&
                                 operations[index] is SetWorkBindingOperation)

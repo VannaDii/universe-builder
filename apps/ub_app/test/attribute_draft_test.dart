@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:ub_app/attribute_draft.dart';
 import 'package:ub_app/assertion_retraction_draft.dart';
+import 'package:ub_app/assertion_end_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/evidence_basis_draft.dart';
 import 'package:ub_app/draft_record_choices.dart';
@@ -1377,6 +1378,143 @@ void main() {
         existingAssertion.basis.toWire().toText(),
         const AuthorDecisionBasis('Another account.').toWire().toText(),
       );
+      Future<List<RecordVersion>> publishAssertionChange(
+        SavedDraft draft,
+      ) async {
+        final proposal = await changes().submit(draft);
+        final validation =
+            await changes().validate(proposal) as EvaluatedValidation;
+        await changes().approve(proposal, validation);
+        final receipt = await changes().publish(
+          proposal,
+          validation.execution.runId,
+        );
+        return changes().readPublished(proposal, receipt);
+      }
+
+      final endSetupBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final gregorian = (await searchDraftChoices(
+        changes: changes(),
+        context: await openDraftChoiceContext(changes(), endSetupBase),
+        kind: RecordKind.calendar,
+        query: 'Gregorian',
+      )).result.hits.single;
+      final endingCalendar = CalendarId.fromRecordId(gregorian.recordId);
+      final priorAssertion = result.singleWhere(
+        (r) => r.payload is AssertionRecord,
+      );
+      final intervalAssertion = AssertionRecord.fromWire(
+        CanonicalObject(
+          priorAssertion.payload.toWire().fields.map(
+            (e) => e.key == 'validity'
+                ? MapEntry(
+                    'validity',
+                    CalendarIntervalValidity(
+                      endingCalendar,
+                      const ExactBound('0'),
+                      const UnboundedBound(),
+                    ).toWire(),
+                  )
+                : e,
+          ),
+        ),
+      );
+      final intervalDraft = await changes().saveContent(
+        endSetupBase,
+        DraftContent(
+          baseRevision: endSetupBase.content.baseRevision,
+          representedContext: scope.representedContext!,
+          operations: [
+            SupersedeAssertionOperation(
+              record: RecordRef(
+                record: priorAssertion.identity.recordId,
+                universe: scope.universe,
+              ),
+              expectedVersion: priorAssertion.recordVersionId,
+              replacement: intervalAssertion,
+              rationale: 'Declare the authored interval.',
+            ),
+          ],
+          rationale: 'Declare the authored interval.',
+        ),
+      );
+      final endSource = (await publishAssertionChange(intervalDraft)).single;
+      final endBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final endScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: endSource.identity.recordId.value,
+      );
+      final endForm =
+          assertionEndFormFromRecord(
+            record: endSource,
+            baseRevision: endBase.content.baseRevision,
+            representedContext: scope.representedContext!,
+          ).copyWith(
+            coordinate: '9007199254740997',
+            basis: const EvidenceBasisInput(
+              kind: 'author_decision',
+              note: 'The authored fact stops applying 記憶 😀.',
+            ),
+            rationale: 'End this authored fact at the declared time.',
+          );
+      await session.saveAssertionEndForm(endScope, endForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredEnd = (await session.loadAssertionEndForm(endScope))!.form;
+      expect(recoveredEnd.toWire().toText(), endForm.toWire().toText());
+      final endDraft = SavedDraft.fromWire(
+        await session.call(
+          assertionEndDraftRequest(
+            draft: endBase,
+            form: recoveredEnd,
+            universe: const Selector('Attributes'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final ended = (await publishAssertionChange(endDraft)).single;
+      expect(ended.identity.recordId, endSource.identity.recordId);
+      final expectedEnded = AssertionRecord.fromWire(
+        CanonicalObject(
+          intervalAssertion.toWire().fields.map(
+            (e) => e.key == 'validity'
+                ? MapEntry(
+                    'validity',
+                    CalendarIntervalValidity(
+                      endingCalendar,
+                      const ExactBound('0'),
+                      const ExactBound('9007199254740997'),
+                    ).toWire(),
+                  )
+                : e.key == 'basis'
+                ? MapEntry(
+                    'basis',
+                    const AuthorDecisionBasis(
+                      'The authored fact stops applying 記憶 😀.',
+                    ).toWire(),
+                  )
+                : e,
+          ),
+        ),
+      );
+      expect(ended.payload.toWire().toText(), expectedEnded.toWire().toText());
+      final retainedInterval = await readContextRecord(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Attributes'),
+        context: await openDraftChoiceContext(changes(), endBase),
+        record: endSource.identity.recordId,
+      );
+      expect(retainedInterval.toWire().toText(), endSource.toWire().toText());
       final retractionBase = await changes().rebase(
         (await changes().load())!,
         startNew: true,

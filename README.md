@@ -281,6 +281,12 @@ In author perspective, proposition choices show their subject, predicate,
 quantification, context, ordered participants and simple values using accessible
 names. Search matches these descriptions. Hidden dependencies retain the
 existing fallback; labels do not assert that a proposition is true.
+Assertions with a declared calendar interval offer **End assertion at a time**.
+Authors enter an exact coordinate in the assertion’s retained calendar and its
+evidence basis. Unfinished input recovers on this device; pending endings offer
+**Edit assertion ending** in Changes. Reviewed publication retains the interval’s
+start and other assertion fields, changes the end and basis, and preserves
+history. The service checks that the endpoint belongs to the existing interval.
 Published assertion details offer **Retract assertion** with an explicit reason.
 Unfinished reasons recover on this device, and pending retractions offer
 **Edit assertion retraction** in Changes. Reviewed publication withdraws the

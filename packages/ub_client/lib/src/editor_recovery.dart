@@ -1340,3 +1340,42 @@ final class LocalAssertionRetractionFormRecovery {
     });
   }
 }
+
+final class LocalAssertionEndFormRecovery {
+  LocalAssertionEndFormRecovery({required String root, required this.client})
+    : _path = '$root/client-recovery/assertion-end-forms.sqlite';
+  final String _path;
+  final LoopbackEngineClient client;
+
+  Future<SavedAssertionEndForm?> load(EditorFormScope scope) async {
+    await _checkEditorScope(client, scope);
+    final path = _path;
+    return Isolate.run(() {
+      final store = AssertionEndFormRecoveryStore.open(path);
+      try {
+        return store.load(scope);
+      } finally {
+        store.close();
+      }
+    });
+  }
+
+  Future<SavedAssertionEndForm> save(
+    EditorFormScope scope,
+    UnfinishedAssertionEndForm form,
+    BigInt expectedGeneration,
+  ) async {
+    if (scope.profile != client.welcome.principal) {
+      throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
+    }
+    final path = _path;
+    return Isolate.run(() {
+      final store = AssertionEndFormRecoveryStore.open(path);
+      try {
+        return store.save(scope, form, expectedGeneration);
+      } finally {
+        store.close();
+      }
+    });
+  }
+}
