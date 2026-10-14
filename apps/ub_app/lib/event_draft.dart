@@ -3,6 +3,7 @@ import 'package:ub_domain/ub_domain.dart';
 
 import 'temporal_validity_draft.dart';
 import 'scope_draft.dart';
+import 'expression_draft.dart';
 
 EventEffectInput eventEffectInput(EntityEffect effect) => EventEffectInput(
   slot: effect.slot,
@@ -78,7 +79,8 @@ RecordEventOperation eventOperation(UnfinishedEventForm form) {
       occurrenceId: form.occurrenceId.isEmpty
           ? (old?.occurrenceId == '' ? '' : null)
           : form.occurrenceId,
-      preconditions: old?.preconditions ?? [],
+      preconditions:
+          form.preconditions?.map(buildExpression) ?? old?.preconditions ?? [],
       effects: form.effects?.map(buildEventEffect) ?? old?.effects ?? [],
       expansionVersion: old?.expansionVersion,
     ),
@@ -115,6 +117,7 @@ UnfinishedEventForm eventFormFromDraft(SavedDraft draft, int index) {
     ),
     original: record,
     effects: record.effects.map(eventEffectInput),
+    preconditions: record.preconditions.map(expressionInput),
     draftVersion: draft.version,
   );
 }

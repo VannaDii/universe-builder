@@ -177,6 +177,7 @@ class _EventEditorPageState extends State<EventEditorPage> {
         time: time ?? f.time,
         participants: participants ?? f.participants,
         effects: effects ?? f.effects,
+        preconditions: f.preconditions,
         rationale: rationale ?? f.rationale,
         original: f.original,
         worlds: worlds ?? f.worlds,
