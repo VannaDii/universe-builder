@@ -1498,3 +1498,42 @@ final class LocalPackFormRecovery {
     });
   }
 }
+
+final class LocalRecordRemovalFormRecovery {
+  LocalRecordRemovalFormRecovery({required String root, required this.client})
+    : _path = '$root/client-recovery/record-removal-forms.sqlite';
+  final String _path;
+  final LoopbackEngineClient client;
+
+  Future<SavedRecordRemovalForm?> load(EditorFormScope scope) async {
+    await _checkEditorScope(client, scope);
+    final path = _path;
+    return Isolate.run(() {
+      final store = RecordRemovalFormRecoveryStore.open(path);
+      try {
+        return store.load(scope);
+      } finally {
+        store.close();
+      }
+    });
+  }
+
+  Future<SavedRecordRemovalForm> save(
+    EditorFormScope scope,
+    UnfinishedRecordRemovalForm form,
+    BigInt expectedGeneration,
+  ) async {
+    if (scope.profile != client.welcome.principal) {
+      throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
+    }
+    final path = _path;
+    return Isolate.run(() {
+      final store = RecordRemovalFormRecoveryStore.open(path);
+      try {
+        return store.save(scope, form, expectedGeneration);
+      } finally {
+        store.close();
+      }
+    });
+  }
+}

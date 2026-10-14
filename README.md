@@ -281,6 +281,12 @@ In author perspective, proposition choices show their subject, predicate,
 quantification, context, ordered participants and simple values using accessible
 names. Search matches these descriptions. Hidden dependencies retain the
 existing fallback; labels do not assert that a proposition is true.
+Record details offer **Remove from canon** with an explicit reason. This is the
+existing privileged removal operation; the service checks current rights and
+remaining references. Unfinished reasons recover on this device, and pending
+removals offer **Edit record removal** in Changes. Reviewed publication removes
+the current record while retaining historical versions. Review the proposed changes before
+approving publication.
 **Domain pack** declares a data pack key, exact version, exact dependency versions,
 capabilities and ordered named member records. Declaring a pack does not download
 content or change its members. Unfinished fields recover on this device, and

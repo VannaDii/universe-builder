@@ -7,6 +7,7 @@ import 'attitude_editor_page.dart';
 import 'interpretation_editor_page.dart';
 import 'assertion_retraction_editor_page.dart';
 import 'event_withdrawal_editor_page.dart';
+import 'record_removal_editor_page.dart';
 import 'assertion_correction_editor_page.dart';
 import 'assertion_end_editor_page.dart';
 import 'observation_editor_page.dart';
@@ -2941,6 +2942,65 @@ class _ChangesPageState extends State<ChangesPage> {
                                             draft,
                                       ),
                                 child: const Text('Edit occurrence withdrawal'),
+                              ),
+                            if (_proposal == null &&
+                                operations[index] is TombstoneRecordOperation)
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _changeDraft(
+                                        (draft) async =>
+                                            await Navigator.of(
+                                              context,
+                                            ).push<SavedDraft>(
+                                              MaterialPageRoute(
+                                                builder: (_) => RecordRemovalEditorPage(
+                                                  revision: draft
+                                                      .content
+                                                      .baseRevision,
+                                                  editingDraft: draft,
+                                                  index: index,
+                                                  changes: SavedChanges(
+                                                    session:
+                                                        widget.changes.session,
+                                                    universe:
+                                                        widget.changes.universe,
+                                                    scope: EditorFormScope(
+                                                      instance: widget
+                                                          .changes
+                                                          .scope
+                                                          .instance,
+                                                      profile: widget
+                                                          .changes
+                                                          .scope
+                                                          .profile,
+                                                      universe: widget
+                                                          .changes
+                                                          .scope
+                                                          .universe,
+                                                      continuity: widget
+                                                          .changes
+                                                          .scope
+                                                          .continuity,
+                                                      representedContext: draft
+                                                          .content
+                                                          .representedContext,
+                                                      typeClientRef:
+                                                          (draft
+                                                                      .content
+                                                                      .operations[index]
+                                                                  as TombstoneRecordOperation)
+                                                              .record
+                                                              .record
+                                                              .value,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ) ??
+                                            draft,
+                                      ),
+                                child: const Text('Edit record removal'),
                               ),
                             if (_proposal == null &&
                                 operations[index] is ReviseEventOperation)
