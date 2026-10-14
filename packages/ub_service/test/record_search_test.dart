@@ -73,6 +73,87 @@ void main() {
       f.id(7).value,
     );
   });
+  test('proposition choices distinguish quantification exact values context and ordered participants', () {
+    final rows = [
+      f.row(1, permissions.entity(labels: {'en': 'Mara'})),
+      f.row(2, f.type(2, key: 'account')),
+      f.row(
+        3,
+        RepresentedContextRecord(
+          universe: f.u,
+          kind: const AuthoredContext('Diary'),
+          labels: {},
+        ),
+      ),
+      f.row(8, permissions.entity(labels: {'en': 'Nia 記憶 😀'})),
+      f.row(
+        4,
+        PropositionRecord(
+          subject: f.ref(1),
+          predicate: f.ref(2),
+          context: f.ref(3),
+          quantification: Quantification.exists,
+          value: IntegerValue('9007199254740997'),
+          roles: [
+            PropositionRole('listener', f.ref(8)),
+            PropositionRole('listener', f.ref(8)),
+          ],
+        ),
+      ),
+    ];
+    final visible = {for (final row in rows) row.identity.recordId: row};
+    const expected =
+        'Exists: Mara.account = 9007199254740997 — listener: Nia 記憶 😀; listener: Nia 記憶 😀 [Diary]';
+    expect(recordSearchLabel(rows.last, visible, author: true), expected);
+    final hit = buildSearchHits(
+      accessible: rows,
+      indexed: {},
+      query: 'Nia 記憶',
+      filters: Filters(recordKinds: [RecordKind.proposition]),
+      world: null,
+      author: true,
+    ).single;
+    expect(hit.recordId, f.id(4));
+    expect(hit.label, expected);
+    expect(recordSearchLabel(rows.last, visible, author: false), f.id(4).value);
+    expect(
+      buildSearchHits(
+        accessible: rows,
+        indexed: {},
+        query: 'Nia 記憶',
+        filters: Filters(recordKinds: [RecordKind.proposition]),
+        world: null,
+        author: false,
+      ),
+      isEmpty,
+    );
+    final restricted = {...visible}..remove(f.id(8));
+    expect(
+      recordSearchLabel(rows.last, restricted, author: true),
+      f.id(4).value,
+    );
+    expect(
+      buildSearchHits(
+        accessible: rows.where((r) => r.identity.recordId != f.id(8)).toList(),
+        indexed: {},
+        query: 'Nia 記憶',
+        filters: Filters(recordKinds: [RecordKind.proposition]),
+        world: null,
+        author: true,
+      ),
+      isEmpty,
+    );
+    final foreign = f.row(
+      9,
+      PropositionRecord(
+        subject: RecordRef(universe: UniverseId.generate(), record: f.id(1)),
+        predicate: f.ref(2),
+        context: f.ref(3),
+        quantification: Quantification.particular,
+      ),
+    );
+    expect(recordSearchLabel(foreign, visible, author: true), f.id(9).value);
+  });
   test('search preserves selected shared unassigned and required dependency categories', () {
     final rows = [
       f.row(1, permissions.entity(worlds: [50])),

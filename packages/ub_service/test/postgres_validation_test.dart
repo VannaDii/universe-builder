@@ -416,6 +416,76 @@ void main() {
           await observer.close();
         }
       });
+      test('readable proposition search and summaries agree in the pinned PostgreSQL context', () async {
+        await seed([
+          f.row(
+            1,
+            EntityRecord(
+              names: [],
+              classificationResolution: ClassificationResolution.unclassified,
+              worldAssociations: [],
+              labels: {'en': 'Mara'},
+              metadata: {},
+            ),
+          ),
+          f.row(
+            2,
+            PropertyRecord(
+              namespace: 'authored',
+              key: 'age',
+              labels: {'en': 'Age'},
+              subjectTypes: [],
+              value: const SimpleValueShape(SimpleShapeKind.integer),
+              multiplicity: Multiplicity.single,
+              persistence: PersistenceSemantics.unspecified,
+              exclusive: false,
+              symmetric: false,
+              transitive: false,
+            ),
+          ),
+          f.row(
+            4,
+            PropositionRecord(
+              subject: f.ref(1),
+              predicate: f.ref(2),
+              context: f.ref(99),
+              quantification: Quantification.particular,
+              value: IntegerValue('9007199254740997'),
+            ),
+          ),
+        ]);
+        await refreshContext();
+        final found = await run(
+          writer,
+          (w) => w.searchRequest(
+            SearchRequest(
+              universe: const Selector('Disposable universe'),
+              contextId: writerContext,
+              query: 'Mara.Age',
+              typedFilters: Filters(recordKinds: [RecordKind.proposition]),
+              limit: 100,
+            ),
+          ),
+        );
+        final summary = await run(
+          writer,
+          (w) => w.getRequest(
+            GetRequest(
+              universe: const Selector('Disposable universe'),
+              contextId: writerContext,
+              recordIds: [f.id(4)],
+              fieldGroups: [FieldGroup.summary],
+            ),
+          ),
+        );
+        expect(found.results.hits.single.recordId, f.id(4));
+        expect(
+          summary.summaries.single.label,
+          'Particular: Mara.Age = 9007199254740997 [${f.id(99).value}]',
+        );
+        expect(found.results.hits.single.label, summary.summaries.single.label);
+        expect(summary.records, isEmpty);
+      });
       test('private knowledge establishes only attributed claims and preserves original acquisition during duration edits', () async {
         final clock = FictionalUniverseStart(
           calendarName: 'Knowledge clock',

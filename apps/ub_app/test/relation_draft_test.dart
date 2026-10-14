@@ -1591,6 +1591,30 @@ void main() {
         afterAssertions.result.hits.map((h) => h.recordId).toSet(),
         beforeAssertions.result.hits.map((h) => h.recordId).toSet(),
       );
+      final claimChoice = await readDraftChoiceSummary(
+        changes: changes(),
+        context: afterClaimContext,
+        record: claimPublished.single.identity.recordId,
+        kind: RecordKind.proposition,
+      );
+      expect(
+        claimChoice.label,
+        'Particular: Mara.Account 記憶 😀 — speaker: Mara; listeners: Nia; listeners: Nia [Objective reality]',
+      );
+      final claimSearch = await searchDraftChoices(
+        changes: changes(),
+        context: afterClaimContext,
+        kind: RecordKind.proposition,
+        query: 'Mara.Account',
+      );
+      expect(
+        claimSearch.result.hits.any(
+          (h) =>
+              h.recordId == claimPublished.single.identity.recordId &&
+              h.label == claimChoice.label,
+        ),
+        isTrue,
+      );
       final attitudeBase = await changes().load();
       final attitudeForm = UnfinishedAttitudeForm(
         baseRevision: attitudeBase!.content.baseRevision,

@@ -1349,6 +1349,7 @@ final class SqliteValidationWorkflow implements ValidationJobService {
         );
       }
     }
+    final visible = {for (final row in accessible) row.identity.recordId: row};
     final needed = groups.contains(FieldGroup.evidence)
         ? readResearchClosure(accessible, request.recordIds)
         : <RecordId>{};
@@ -1361,7 +1362,11 @@ final class SqliteValidationWorkflow implements ValidationJobService {
               (row) => RecordSummary(
                 recordId: row.identity.recordId,
                 kind: row.identity.recordKind,
-                label: recordReadLabel(row),
+                label: recordSearchLabel(
+                  row,
+                  visible,
+                  author: frame.perspective is AuthorPerspective,
+                ),
               ),
             )
           : [],

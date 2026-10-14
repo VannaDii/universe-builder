@@ -26,18 +26,72 @@ String recordSearchLabel(
   if (!author) return recordReadLabel(row);
   String? label(RecordRef reference) {
     final target = visible[reference.record];
-    return target == null ? null : recordReadLabel(target);
+    return target == null ||
+            target.identity.universeId !=
+                (reference.universe ?? row.identity.universeId)
+        ? null
+        : recordReadLabel(target);
   }
 
   String? propositionLabel(RecordRef reference) {
-    final payload = visible[reference.record]?.payload;
+    final target = visible[reference.record];
+    if (target == null ||
+        target.identity.universeId !=
+            (reference.universe ?? row.identity.universeId)) {
+      return null;
+    }
+    final payload = target.payload;
     if (payload is! PropositionRecord) return null;
     final subject = label(payload.subject),
         predicate = label(payload.predicate);
     return subject == null || predicate == null ? null : '$subject.$predicate';
   }
 
+  String? valueLabel(DomainValue value) => switch (value) {
+    TextValue(:final text) =>
+      text.runes.length > 160
+          ? '${String.fromCharCodes(text.runes.take(160))}…'
+          : text,
+    BooleanValue(:final value) => value ? 'Yes' : 'No',
+    IntegerValue(:final digits) || DecimalValue(:final digits) => digits,
+    RationalValue(:final numerator, :final denominator) =>
+      '$numerator / $denominator',
+    ReferenceValue(:final record) => label(record),
+    _ => 'Typed value',
+  };
   switch (row.payload) {
+    case PropositionRecord(
+      :final subject,
+      :final predicate,
+      :final context,
+      :final roles,
+      :final value,
+      :final quantification,
+    ):
+      final subjectLabel = label(subject),
+          predicateLabel = label(predicate),
+          contextLabel = label(context);
+      if (subjectLabel == null ||
+          predicateLabel == null ||
+          contextLabel == null) {
+        break;
+      }
+      final roleLabels = <String>[];
+      for (final role in roles) {
+        final participant = label(role.participant);
+        if (participant == null) return recordReadLabel(row);
+        roleLabels.add('${role.role}: $participant');
+      }
+      final amount = value == null ? null : valueLabel(value);
+      if (value != null && amount == null) break;
+      final quantifier = switch (quantification) {
+        Quantification.particular => 'Particular',
+        Quantification.universal => 'Universal',
+        Quantification.exists => 'Exists',
+      };
+      return '$quantifier: $subjectLabel.$predicateLabel'
+          '${value == null ? '' : ' = $amount'}'
+          '${roleLabels.isEmpty ? '' : ' — ${roleLabels.join('; ')}'} [$contextLabel]';
     case ItemPowerRecord(:final item, :final powerPredicate):
       final itemLabel = label(item), powerLabel = label(powerPredicate);
       if (itemLabel != null && powerLabel != null) {
@@ -86,7 +140,9 @@ List<SearchHit> buildSearchHits({
         !filters.recordKinds.contains(row.identity.recordKind)) {
       continue;
     }
+    final label = recordSearchLabel(row, visible, author: author);
     if (query.isNotEmpty &&
+        !label.toLowerCase().contains(query.toLowerCase()) &&
         !indexed.contains(row.identity.recordId) &&
         !recordNameMatches(row, query) &&
         row.identity.recordId.value != query) {
@@ -98,7 +154,7 @@ List<SearchHit> buildSearchHits({
       SearchHit(
         recordId: row.identity.recordId,
         kind: row.identity.recordKind,
-        label: recordSearchLabel(row, visible, author: author),
+        label: label,
         worldIds: worlds,
         scopeCategory: worlds.isEmpty
             ? ScopeCategory.unassigned

@@ -277,6 +277,10 @@ Disabling a contract removes it explicitly; older saved forms retain their
 original contracts. Delay bounds remain in the same clock, without inferred
 conversion, and local relation-role multiplicity remains separate from an
 authored cross-instance maximum.
+In author perspective, proposition choices show their subject, predicate,
+quantification, context, ordered participants and simple values using accessible
+names. Search matches these descriptions. Hidden dependencies retain the
+existing fallback; labels do not assert that a proposition is true.
 **Belief or knowledge** records a holder’s explicit attitude, optional certainty,
 validity and source basis. Knowledge acquisition includes its truth context,
 time, optional world and either author establishment or a communication receipt
