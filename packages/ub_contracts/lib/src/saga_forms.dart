@@ -51,6 +51,8 @@ final class UnfinishedSagaForm {
     Iterable<PropertyLabelInput> labels = const [],
     Iterable<SagaMembershipInput> memberships = const [],
     this.rationale = '',
+    this.membershipTarget,
+    this.expectedRecordVersion,
     BigInt? draftVersion,
   }) : labels = List.unmodifiable(labels),
        memberships = List.unmodifiable(memberships),
@@ -60,6 +62,8 @@ final class UnfinishedSagaForm {
   final String clientRef, title, rationale;
   final List<PropertyLabelInput> labels;
   final List<SagaMembershipInput> memberships;
+  final ExpressionReferenceInput? membershipTarget;
+  final RecordVersionId? expectedRecordVersion;
   final BigInt? draftVersion;
   UnfinishedSagaForm copyWith({
     String? title,
@@ -75,6 +79,8 @@ final class UnfinishedSagaForm {
     memberships: memberships ?? this.memberships,
     rationale: rationale ?? this.rationale,
     draftVersion: draftVersion,
+    membershipTarget: membershipTarget,
+    expectedRecordVersion: expectedRecordVersion,
   );
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
@@ -84,6 +90,13 @@ final class UnfinishedSagaForm {
     MapEntry('labels', CanonicalArray(labels.map((e) => e.toWire()))),
     MapEntry('memberships', CanonicalArray(memberships.map((e) => e.toWire()))),
     MapEntry('rationale', CanonicalString(rationale)),
+    if (membershipTarget != null)
+      MapEntry('membership_target', membershipTarget!.toWire()),
+    if (expectedRecordVersion != null)
+      MapEntry(
+        'expected_record_version',
+        CanonicalString(expectedRecordVersion!.value),
+      ),
     if (draftVersion != null)
       MapEntry('draft_version', CanonicalString(draftVersion.toString())),
   ]);
@@ -96,6 +109,8 @@ final class UnfinishedSagaForm {
       'labels',
       'memberships',
       'rationale',
+      'membership_target',
+      'expected_record_version',
       'draft_version',
     });
     return UnfinishedSagaForm(
@@ -106,6 +121,14 @@ final class UnfinishedSagaForm {
       labels: f.array('labels').map(PropertyLabelInput.fromWire),
       memberships: f.array('memberships').map(SagaMembershipInput.fromWire),
       rationale: f.string('rationale'),
+      membershipTarget: f.optional(
+        'membership_target',
+        ExpressionReferenceInput.fromWire,
+      ),
+      expectedRecordVersion: f.optional(
+        'expected_record_version',
+        (v) => RecordVersionId.parse(wireString(v)),
+      ),
       draftVersion: f.optional(
         'draft_version',
         (v) => BigInt.parse(wireString(v)),

@@ -95,44 +95,63 @@ class _SagaInputFieldsState extends State<SagaInputFields> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        text('Saga title', f.title, (v) => change(f.copyWith(title: v))),
-        const Text('Saga labels'),
-        for (var i = 0; i < f.labels.length; i++)
-          Card(
-            semanticContainer: false,
-            key: ValueKey((_layout, 'label', i)),
-            child: Column(
-              children: [
-                text('Label language', f.labels[i].language, (v) {
-                  final rows = [...f.labels];
-                  rows[i] = PropertyLabelInput(language: v, text: rows[i].text);
-                  change(f.copyWith(labels: rows));
-                }),
-                text('Label text', f.labels[i].text, (v) {
-                  final rows = [...f.labels];
-                  rows[i] = PropertyLabelInput(
-                    language: rows[i].language,
-                    text: v,
-                  );
-                  change(f.copyWith(labels: rows));
-                }),
-                controls(i, f.labels, (v) => change(f.copyWith(labels: v))),
-              ],
+        if (f.membershipTarget == null) ...[
+          text('Saga title', f.title, (v) => change(f.copyWith(title: v))),
+          const Text('Saga labels'),
+          for (var i = 0; i < f.labels.length; i++)
+            Card(
+              semanticContainer: false,
+              key: ValueKey((_layout, 'label', i)),
+              child: Column(
+                children: [
+                  text('Label language', f.labels[i].language, (v) {
+                    final rows = [...f.labels];
+                    rows[i] = PropertyLabelInput(
+                      language: v,
+                      text: rows[i].text,
+                    );
+                    change(f.copyWith(labels: rows));
+                  }),
+                  text('Label text', f.labels[i].text, (v) {
+                    final rows = [...f.labels];
+                    rows[i] = PropertyLabelInput(
+                      language: rows[i].language,
+                      text: v,
+                    );
+                    change(f.copyWith(labels: rows));
+                  }),
+                  controls(i, f.labels, (v) => change(f.copyWith(labels: v))),
+                ],
+              ),
             ),
+          TextButton(
+            onPressed: disabled
+                ? null
+                : () {
+                    _layout++;
+                    change(
+                      f.copyWith(
+                        labels: [...f.labels, const PropertyLabelInput()],
+                      ),
+                    );
+                  },
+            child: const Text('Add label'),
           ),
-        TextButton(
-          onPressed: disabled
-              ? null
-              : () {
-                  _layout++;
-                  change(
-                    f.copyWith(
-                      labels: [...f.labels, const PropertyLabelInput()],
-                    ),
-                  );
-                },
-          child: const Text('Add label'),
-        ),
+        ] else ...[
+          DraftRecordChoiceField(
+            changes: widget.changes,
+            draft: widget.draft,
+            kind: RecordKind.saga,
+            label: 'Published saga',
+            record: f.membershipTarget!.record,
+            universe: f.membershipTarget!.universe,
+            disabled: true,
+            onChanged: (_) {},
+          ),
+          const Text(
+            'Set one work-and-role membership. A matching pair updates its order; a different role adds another membership and retains prior roles.',
+          ),
+        ],
         const Text('Work memberships'),
         for (var i = 0; i < f.memberships.length; i++)
           Card(
@@ -180,30 +199,32 @@ class _SagaInputFieldsState extends State<SagaInputFields> {
                     );
                   },
                 ),
-                controls(
-                  i,
-                  f.memberships,
-                  (v) => change(f.copyWith(memberships: v)),
-                ),
+                if (f.membershipTarget == null)
+                  controls(
+                    i,
+                    f.memberships,
+                    (v) => change(f.copyWith(memberships: v)),
+                  ),
               ],
             ),
           ),
-        TextButton(
-          onPressed: disabled
-              ? null
-              : () {
-                  _layout++;
-                  change(
-                    f.copyWith(
-                      memberships: [
-                        ...f.memberships,
-                        const SagaMembershipInput(),
-                      ],
-                    ),
-                  );
-                },
-          child: const Text('Add work membership'),
-        ),
+        if (f.membershipTarget == null)
+          TextButton(
+            onPressed: disabled
+                ? null
+                : () {
+                    _layout++;
+                    change(
+                      f.copyWith(
+                        memberships: [
+                          ...f.memberships,
+                          const SagaMembershipInput(),
+                        ],
+                      ),
+                    );
+                  },
+            child: const Text('Add work membership'),
+          ),
       ],
     );
   }

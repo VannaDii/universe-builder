@@ -1926,6 +1926,67 @@ class _ChangesPageState extends State<ChangesPage> {
                                 child: const Text('Edit saga fields'),
                               ),
                             if (_proposal == null &&
+                                operations[index] is SetSagaMembershipOperation)
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _changeDraft(
+                                        (draft) async =>
+                                            await Navigator.of(
+                                              context,
+                                            ).push<SavedDraft>(
+                                              MaterialPageRoute(
+                                                builder: (_) => SagaEditorPage(
+                                                  revision: draft
+                                                      .content
+                                                      .baseRevision,
+                                                  editingDraft: draft,
+                                                  index: index,
+                                                  changes: SavedChanges(
+                                                    session:
+                                                        widget.changes.session,
+                                                    universe:
+                                                        widget.changes.universe,
+                                                    scope: EditorFormScope(
+                                                      instance: widget
+                                                          .changes
+                                                          .scope
+                                                          .instance,
+                                                      profile: widget
+                                                          .changes
+                                                          .scope
+                                                          .profile,
+                                                      universe: widget
+                                                          .changes
+                                                          .scope
+                                                          .universe,
+                                                      continuity: widget
+                                                          .changes
+                                                          .scope
+                                                          .continuity,
+                                                      representedContext: draft
+                                                          .content
+                                                          .representedContext,
+                                                      typeClientRef:
+                                                          (draft
+                                                                      .content
+                                                                      .operations[index]
+                                                                  as SetSagaMembershipOperation)
+                                                              .record
+                                                              .record
+                                                              .value,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ) ??
+                                            draft,
+                                      ),
+                                child: const Text(
+                                  'Edit saga membership fields',
+                                ),
+                              ),
+                            if (_proposal == null &&
                                 operations[index] is RecordMemoryOperation)
                               TextButton(
                                 onPressed: _busy

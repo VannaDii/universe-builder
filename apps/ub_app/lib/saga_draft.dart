@@ -10,6 +10,9 @@ RecordRef _reference(ExpressionReferenceInput input) => RecordRef(
   universe: input.universe.isEmpty ? null : UniverseId.parse(input.universe),
 );
 CreateSagaOperation sagaOperation(UnfinishedSagaForm form) {
+  if (form.membershipTarget != null) {
+    throw const FormatException('Use the published saga membership operation.');
+  }
   final labels = <String, String>{};
   for (final label in form.labels) {
     if (labels.containsKey(label.language)) {
@@ -35,8 +38,66 @@ CreateSagaOperation sagaOperation(UnfinishedSagaForm form) {
   );
 }
 
+SagaMembership _membership(SagaMembershipInput m) => SagaMembership(
+  work: _reference(m.work),
+  role: m.role,
+  order: m.orderEnabled ? BigInt.parse(m.order) : null,
+);
+SagaMembershipInput _membershipInput(SagaMembership m) => SagaMembershipInput(
+  work: _input(m.work),
+  role: m.role,
+  orderEnabled: m.order != null,
+  order: m.order?.toString() ?? '',
+);
+SetSagaMembershipOperation sagaMembershipOperation(UnfinishedSagaForm form) {
+  if (form.membershipTarget == null ||
+      form.expectedRecordVersion == null ||
+      form.memberships.length != 1) {
+    throw const FormatException(
+      'Open a published saga and set one work membership.',
+    );
+  }
+  return SetSagaMembershipOperation(
+    record: _reference(form.membershipTarget!),
+    expectedVersion: form.expectedRecordVersion!,
+    membership: _membership(form.memberships.single),
+  );
+}
+
+UnfinishedSagaForm sagaMembershipFormFromRecord({
+  required RecordVersion record,
+  required RevisionId baseRevision,
+  required RecordId representedContext,
+}) {
+  if (record.payload is! SagaRecord) {
+    throw const FormatException('Choose a published saga.');
+  }
+  return UnfinishedSagaForm(
+    baseRevision: baseRevision,
+    representedContext: representedContext,
+    clientRef: record.identity.recordId.value,
+    membershipTarget: ExpressionReferenceInput(
+      record: record.identity.recordId.value,
+      universe: record.identity.universeId.value,
+    ),
+    expectedRecordVersion: record.recordVersionId,
+    memberships: [const SagaMembershipInput()],
+  );
+}
+
 UnfinishedSagaForm sagaFormFromDraft(SavedDraft draft, int index) {
   final operation = draft.content.operations[index];
+  if (operation is SetSagaMembershipOperation) {
+    return UnfinishedSagaForm(
+      baseRevision: draft.content.baseRevision,
+      representedContext: draft.content.representedContext,
+      clientRef: operation.record.record.value,
+      membershipTarget: _input(operation.record),
+      expectedRecordVersion: operation.expectedVersion,
+      memberships: [_membershipInput(operation.membership)],
+      draftVersion: draft.version,
+    );
+  }
   if (operation is! CreateSagaOperation) {
     throw const FormatException('Choose a saga from Changes.');
   }
@@ -75,12 +136,17 @@ SaveDraftEngineRequest sagaDraftRequest({
       'Review Changes before adding this saga declaration.',
     );
   }
-  final operation = sagaOperation(form);
+  final operation = form.membershipTarget == null
+      ? sagaOperation(form)
+      : sagaMembershipOperation(form);
   final operations = [...draft.content.operations];
   if (index != null) {
     final before = sagaFormFromDraft(draft, index);
     if (form.draftVersion != draft.version ||
-        form.clientRef != before.clientRef) {
+        form.clientRef != before.clientRef ||
+        form.membershipTarget?.toWire().toText() !=
+            before.membershipTarget?.toWire().toText() ||
+        form.expectedRecordVersion != before.expectedRecordVersion) {
       throw const FormatException(
         'The draft changed. Reopen its current saga fields.',
       );
@@ -88,6 +154,21 @@ SaveDraftEngineRequest sagaDraftRequest({
     operations[index] = operation;
   } else {
     for (final existing in operations) {
+      if (operation is SetSagaMembershipOperation &&
+          existing is SetSagaMembershipOperation &&
+          existing.record == operation.record) {
+        if (existing.toWire().toText() != operation.toWire().toText()) {
+          throw const FormatException(
+            'This saga already has a membership change. Edit it in Changes.',
+          );
+        }
+        return SaveDraftEngineRequest(
+          universe: universe,
+          continuityId: continuity,
+          expectedVersion: draft.version,
+          content: draft.content,
+        );
+      }
       final ref = Map.fromEntries(existing.toWire().fields)['client_ref'];
       if (ref is CanonicalString && ref.value == form.clientRef) {
         if (existing.toWire().toText() != operation.toWire().toText()) {

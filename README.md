@@ -322,6 +322,12 @@ does not renumber authored order values or merge continuity bindings. Title,
 labels and unfinished membership fields recover privately; Changes editing and
 reviewed publication retain the existing service checks.
 
+A published saga’s dossier offers **Set work membership**. The recoverable form
+retains its identity and expected version and sets one work-and-role pair through
+`set_saga_membership`. A matching pair updates its order; a different role adds a
+membership and preserves prior roles. Pending membership changes are editable in
+Changes. Reviewed publication retains the saga’s title, labels and history.
+
 **Work** describes an external novel, story, series chapter, play, film or other
 work with its title, multilingual labels, ordered source and edition references,
 and world associations. Each association retains its role, validity and exact

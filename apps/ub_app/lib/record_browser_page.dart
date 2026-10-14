@@ -20,6 +20,7 @@ import 'image_preview_view.dart';
 import 'dossier_sources_view.dart';
 import 'source_editor_page.dart';
 import 'work_version_editor_page.dart';
+import 'saga_editor_page.dart';
 
 enum _DossierView {
   fields,
@@ -548,6 +549,36 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       ExactFields(value: record.payload.toWire()),
+                      if (record.payload is SagaRecord)
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context).push<SavedDraft>(
+                                  MaterialPageRoute(
+                                    builder: (_) => SagaEditorPage(
+                                      revision: widget.context.frame.revision,
+                                      membershipRecord: record,
+                                      changes: SavedChanges(
+                                        session: widget.session,
+                                        universe: Selector(
+                                          widget.universe.name,
+                                        ),
+                                        scope: EditorFormScope(
+                                          instance: widget.scope.instance,
+                                          profile: widget.scope.profile,
+                                          universe: widget.universe.id,
+                                          continuity: widget.continuity.id,
+                                          representedContext:
+                                              widget.representedContext.id,
+                                          typeClientRef:
+                                              record.identity.recordId.value,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                          child: const Text('Set work membership'),
+                        ),
                       if (record.payload is WorkVersionRecord)
                         TextButton(
                           onPressed: _busy

@@ -2704,6 +2704,118 @@ void main() {
         retainedEdition.toWire().toText(),
         typedEditionPublished.single.toWire().toText(),
       );
+      final membershipBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final membershipScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: sagaPublished.single.identity.recordId.value,
+      );
+      final membershipForm =
+          sagaMembershipFormFromRecord(
+            record: sagaPublished.single,
+            baseRevision: membershipBase.content.baseRevision,
+            representedContext: scope.representedContext!,
+          ).copyWith(
+            memberships: [
+              SagaMembershipInput(
+                work: memberWork,
+                role: 'chapter',
+                orderEnabled: true,
+                order: '9007199254740999',
+              ),
+            ],
+            rationale: 'Revise the existing chapter ordering without replacing other roles.',
+          );
+      await session.saveSagaForm(membershipScope, membershipForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredMembership = (await session.loadSagaForm(membershipScope))!
+          .form;
+      expect(
+        recoveredMembership.toWire().toText(),
+        membershipForm.toWire().toText(),
+      );
+      final membershipDraft = SavedDraft.fromWire(
+        await session.call(
+          sagaDraftRequest(
+            draft: membershipBase,
+            form: recoveredMembership,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final membershipPublished = await publish(membershipDraft);
+      final beforeMembership = sagaPublished.single.payload as SagaRecord;
+      final afterMembership = membershipPublished.single.payload as SagaRecord;
+      expect(
+        membershipPublished.single.identity.recordId,
+        sagaPublished.single.identity.recordId,
+      );
+      expect(afterMembership.title, beforeMembership.title);
+      expect(afterMembership.labels, beforeMembership.labels);
+      expect(afterMembership.memberships.length, 2);
+      expect(
+        afterMembership.memberships.first.order.toString(),
+        '9007199254740999',
+      );
+      expect(
+        afterMembership.memberships.last.toWire().toText(),
+        beforeMembership.memberships.last.toWire().toText(),
+      );
+      final membershipHistoryContext = await openDraftChoiceContext(
+        changes(),
+        membershipBase,
+      );
+      final retainedSaga = await readContextRecord(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Relations'),
+        context: membershipHistoryContext,
+        record: sagaPublished.single.identity.recordId,
+      );
+      expect(
+        retainedSaga.toWire().toText(),
+        sagaPublished.single.toWire().toText(),
+      );
+      final newRoleBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final newRoleForm =
+          sagaMembershipFormFromRecord(
+            record: membershipPublished.single,
+            baseRevision: newRoleBase.content.baseRevision,
+            representedContext: scope.representedContext!,
+          ).copyWith(
+            memberships: [
+              SagaMembershipInput(work: memberWork, role: 'reference'),
+            ],
+            rationale: 'Add a reference role without removing the existing memberships.',
+          );
+      final newRoleDraft = SavedDraft.fromWire(
+        await session.call(
+          sagaDraftRequest(
+            draft: newRoleBase,
+            form: newRoleForm,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final newRolePublished = await publish(newRoleDraft);
+      final newRolePayload = newRolePublished.single.payload as SagaRecord;
+      expect(newRolePayload.memberships.length, 3);
+      expect(
+        newRolePayload.memberships.take(2).map((m) => m.toWire().toText()),
+        afterMembership.memberships.map((m) => m.toWire().toText()),
+      );
+      expect(newRolePayload.memberships.last.role, 'reference');
     } finally {
       await session?.close();
       await server.close();

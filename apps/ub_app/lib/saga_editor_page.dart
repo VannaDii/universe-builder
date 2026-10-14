@@ -16,11 +16,13 @@ class SagaEditorPage extends StatefulWidget {
     required this.revision,
     this.editingDraft,
     this.index,
+    this.membershipRecord,
   });
   final SavedChanges changes;
   final RevisionId revision;
   final SavedDraft? editingDraft;
   final int? index;
+  final RecordVersion? membershipRecord;
   @override
   State<SagaEditorPage> createState() => _SagaEditorPageState();
 }
@@ -67,6 +69,12 @@ class _SagaEditorPageState extends State<SagaEditorPage> {
 
   UnfinishedSagaForm _fresh() => widget.index != null
       ? sagaFormFromDraft(_draft!, widget.index!)
+      : widget.membershipRecord != null
+      ? sagaMembershipFormFromRecord(
+          record: widget.membershipRecord!,
+          baseRevision: widget.revision,
+          representedContext: _scope.representedContext!,
+        )
       : UnfinishedSagaForm(
           baseRevision: widget.revision,
           representedContext: _scope.representedContext!,
@@ -91,16 +99,27 @@ class _SagaEditorPageState extends State<SagaEditorPage> {
                   _form!.baseRevision != _draft!.content.baseRevision ||
                   _form!.representedContext !=
                       _draft!.content.representedContext
-            : _form!.baseRevision != widget.revision;
+            : _form!.baseRevision != widget.revision ||
+                  (widget.membershipRecord != null &&
+                      _form!.expectedRecordVersion !=
+                          widget.membershipRecord!.recordVersionId);
         _added =
             widget.index == null &&
                 (_draft?.content.operations.any(
-                      (op) =>
-                          op is CreateSagaOperation &&
-                          op.clientRef == _form!.clientRef,
+                      (op) => switch (op) {
+                        CreateSagaOperation(:final clientRef) =>
+                          _form!.membershipTarget == null &&
+                              clientRef == _form!.clientRef,
+                        SetSagaMembershipOperation(:final record) =>
+                          _form!.membershipTarget?.record ==
+                                  record.record.value &&
+                              _form!.membershipTarget?.universe ==
+                                  (record.universe?.value ?? ''),
+                        _ => false,
+                      },
                     ) ??
                     false)
-            ? 'This definition is in Changes. Review or edit it there.'
+            ? 'This saga change is in Changes. Review or edit it there.'
             : null;
       });
     } on Object {
@@ -198,12 +217,21 @@ class _SagaEditorPageState extends State<SagaEditorPage> {
       setState(() {
         _draft = saved;
         _result = saved;
-        if (widget.index != null) {
-          _form = sagaFormFromDraft(saved, widget.index!);
+        if (widget.index != null || _form!.membershipTarget != null) {
+          final index =
+              widget.index ??
+              saved.content.operations.indexWhere(
+                (op) =>
+                    op is SetSagaMembershipOperation &&
+                    op.record == sagaMembershipOperation(_form!).record,
+              );
+          _form = sagaFormFromDraft(saved, index);
           _fields++;
           _dirty = true;
-        } else {
-          _added = 'Saga added to Changes. Review it before publication.';
+        }
+        if (widget.index == null) {
+          _added =
+              'Saga change added to Changes. Review it before publication.';
         }
       });
       await _save();
@@ -254,7 +282,15 @@ class _SagaEditorPageState extends State<SagaEditorPage> {
       if (!didPop) _leave();
     },
     child: Scaffold(
-      appBar: AppBar(title: Text(widget.index == null ? 'Saga' : 'Edit saga')),
+      appBar: AppBar(
+        title: Text(
+          widget.membershipRecord != null || _form?.membershipTarget != null
+              ? 'Set saga membership'
+              : widget.index == null
+              ? 'Saga'
+              : 'Edit saga',
+        ),
+      ),
       body: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
@@ -275,7 +311,11 @@ class _SagaEditorPageState extends State<SagaEditorPage> {
                   ),
                   TextButton(
                     onPressed: _disabled ? null : _reset,
-                    child: const Text('Use current draft fields'),
+                    child: Text(
+                      widget.membershipRecord != null
+                          ? 'Use opened saga fields'
+                          : 'Use current draft fields',
+                    ),
                   ),
                 ],
                 if (_form case final f?) ...[
@@ -316,7 +356,7 @@ class _SagaEditorPageState extends State<SagaEditorPage> {
                         : _save,
                     child: const Text('Save unfinished work'),
                   ),
-                  if (_added != null)
+                  if (_added != null && _form?.membershipTarget == null)
                     TextButton(
                       onPressed: _loading || _saving || _adding ? null : _reset,
                       child: const Text('Start another saga'),
