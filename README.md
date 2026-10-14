@@ -38,8 +38,12 @@ returns the durable profile credential. Same-origin exchange creates a 15-minute
 HttpOnly, SameSite=Strict session, with a CSRF token required on browser calls.
 The service rechecks the profile and current rights on every call. Logout, expiry
 and engine restart invalidate access. Cookie names distinguish local listener
-ports. Serving Flutter web assets and connecting the browser app remain pending;
-this command does not launch a working browser author interface yet.
+ports. The packaged macOS engine serves its bundled Flutter web pages at that
+endpoint. For a standalone development engine, use `--web-assets <absolute path>`
+to serve a Flutter web build. Only that asset directory is served, without directory
+listings or symbolic links; installation files remain private. Connecting the
+browser app remains pending; this command does not launch a working browser author
+interface yet.
 
 Connected approval owners can create a universe from Library. Gregorian creation
 uses an explicitly entered date, whole-second time and fixed UTC offset, with an

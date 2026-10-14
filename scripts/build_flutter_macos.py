@@ -27,11 +27,16 @@ def run(*command, cwd=root):
 
 run('dart', 'build', 'cli', '--target', 'bin/universe-engine.dart',
     '--output', 'build/native', '--verbosity=error', cwd=engine)
+run('flutter', 'build', 'web', '--no-pub', cwd=app)
 run('flutter', 'build', 'macos', f'--{args.mode}', '--no-pub', cwd=app)
 native = engine / 'build/native/bundle'
 shutil.copy2(native / 'bin/universe-engine', contents / 'MacOS/universe-engine')
 shutil.copytree(native / 'lib', contents / 'lib', dirs_exist_ok=True)
 shutil.copy2(root / 'assets/branding/universe-builder.icns', contents / 'Resources/AppIcon.icns')
+web_destination = contents / 'Resources/web'
+if web_destination.exists():
+    shutil.rmtree(web_destination)
+shutil.copytree(app / 'build/web', web_destination)
 
 # Keep the helper inside the app's sandbox, with the parent's access rights.
 with tempfile.TemporaryDirectory(prefix='ub-sign-') as temporary:

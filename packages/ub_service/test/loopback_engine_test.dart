@@ -15,6 +15,93 @@ import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
 
 void main() {
+  test('bundled web assets share the loopback origin without exposing installation files', () async {
+    final temporary = Directory('/tmp').createTempSync('ub-web-assets-');
+    final root = '${temporary.path}/installation';
+    final store = SqliteInstallationStore.create(root);
+    InstallationAuthority(store).initializeAuthor();
+    store.close();
+    final assets = Directory('${temporary.path}/web')..createSync();
+    File('${assets.path}/index.html')
+        .writeAsStringSync('<html>Universe Builder é</html>');
+    File('${assets.path}/main.dart.js')
+        .writeAsStringSync('console.log("bundled");');
+    File('${assets.path}/engine.wasm').writeAsBytesSync([0, 97, 115, 109]);
+    Directory('${assets.path}/assets').createSync();
+    File('${assets.path}/assets/font.ttf').writeAsBytesSync([1, 2, 3]);
+    Link('${assets.path}/private').createSync(root);
+    Link('${assets.path}/secret.json').createSync('$root/engine-http.json');
+    final server = await LocalSqliteEngineServer.start(
+      root,
+      compatibilitySocket: false,
+      webAssets: assets.path,
+    );
+    final http = HttpClient();
+    Future<({int status, List<int> bytes, String? type, int length})> fetch(
+      String path, {
+      String method = 'GET',
+      String? host,
+      String? origin,
+    }) async {
+      final request = await http.openUrl(
+        method,
+        server.httpEndpoint.resolve(path),
+      );
+      if (host != null) request.headers.set(HttpHeaders.hostHeader, host);
+      if (origin != null) request.headers.set('origin', origin);
+      final response = await request.close();
+      final bytes = <int>[];
+      await for (final chunk in response) {
+        bytes.addAll(chunk);
+      }
+      return (
+        status: response.statusCode,
+        bytes: bytes,
+        type: response.headers.contentType?.mimeType,
+        length: response.contentLength,
+      );
+    }
+
+    try {
+      final index = await fetch('/');
+      expect(index.status, HttpStatus.ok);
+      expect(utf8.decode(index.bytes), '<html>Universe Builder é</html>');
+      expect(index.type, 'text/html');
+      expect((await fetch('/main.dart.js?v=1')).type, 'text/javascript');
+      final wasm = await fetch('/engine.wasm');
+      expect(wasm.type, 'application/wasm');
+      expect(wasm.bytes, [0, 97, 115, 109]);
+      expect((await fetch('/assets/font.ttf')).bytes, [1, 2, 3]);
+      final head = await fetch('/index.html', method: 'HEAD');
+      expect(head.status, HttpStatus.ok);
+      expect(head.bytes, isEmpty);
+      expect(head.length, index.bytes.length);
+      for (final path in [
+        '/engine/hello',
+        '/engine-http.json',
+        '/secret.json',
+        '/private/engine-http.json',
+        '/assets/%2e%2e%2fengine-http.json',
+        '/missing.js',
+      ]) {
+        expect((await fetch(path)).status, HttpStatus.notFound, reason: path);
+      }
+      expect((await fetch('/', method: 'POST')).status, HttpStatus.notFound);
+      expect(
+        (await fetch('/', host: 'foreign.example')).status,
+        HttpStatus.forbidden,
+      );
+      expect(
+        (await fetch('/', origin: 'https://foreign.example')).status,
+        HttpStatus.forbidden,
+      );
+    } finally {
+      http.close(force: true);
+      await server.close();
+      temporary.deleteSync(recursive: true);
+    }
+  });
+
   test('loopback HTTP authenticates current profiles, dispatches exact calls and rejects foreign hosts/origins', () async {
     final root = Directory('/tmp').createTempSync('ub-http-');
     final store = SqliteInstallationStore.create(root.path);

@@ -22,8 +22,14 @@ typedef _HttpConnection = ({
 /// sessions retain that hello only in this process, recheck it on every call,
 /// and require a same-origin request with a CSRF token. Mutations are not replayed.
 final class LoopbackEngineServer {
-  LoopbackEngineServer._(this._server, this._connect, this._now);
+  LoopbackEngineServer._(
+    this._server,
+    this._connect,
+    this._now,
+    this._webFiles,
+  );
   final HttpServer _server;
+  final Map<String, File> _webFiles;
   final DateTime Function() _now;
   final _enrollments = <String, ({EngineHello hello, DateTime expires})>{};
   final _browserSessions =
@@ -56,37 +62,69 @@ final class LoopbackEngineServer {
   static Future<LoopbackEngineServer> sqlite(
     NativeSqliteRuntime runtime, {
     DateTime Function()? now,
-  }) => _bind((hello) async {
-    final connection = runtime.connect(hello);
-    return (
-      welcome: connection.welcome,
-      execute: connection.execute,
-      close: connection.close,
-    );
-  }, now: now);
+    String? webAssets,
+  }) => _bind(
+    (hello) async {
+      final connection = runtime.connect(hello);
+      return (
+        welcome: connection.welcome,
+        execute: connection.execute,
+        close: connection.close,
+      );
+    },
+    now: now,
+    webAssets: webAssets,
+  );
 
   static Future<LoopbackEngineServer> postgres(
     NativePostgresRuntime runtime, {
     DateTime Function()? now,
-  }) => _bind((hello) async {
-    final connection = await runtime.connect(hello);
-    return (
-      welcome: connection.welcome,
-      execute: connection.execute,
-      close: connection.close,
-    );
-  }, now: now);
+    String? webAssets,
+  }) => _bind(
+    (hello) async {
+      final connection = await runtime.connect(hello);
+      return (
+        welcome: connection.welcome,
+        execute: connection.execute,
+        close: connection.close,
+      );
+    },
+    now: now,
+    webAssets: webAssets,
+  );
 
   static Future<LoopbackEngineServer> _bind(
     Future<_HttpConnection> Function(EngineHello) connect, {
     DateTime Function()? now,
+    String? webAssets,
   }) async {
+    final files = <String, File>{};
+    if (webAssets != null) {
+      final directory = Directory(webAssets);
+      if (!directory.isAbsolute || !directory.existsSync()) {
+        throw const FileSystemException('Web assets unavailable');
+      }
+      final root = Directory(directory.resolveSymbolicLinksSync());
+      for (final entry in root.listSync(recursive: true, followLinks: false)) {
+        if (entry is File) {
+          final relative = entry.path
+              .substring(root.path.length + 1)
+              .replaceAll(Platform.pathSeparator, '/');
+          files['/$relative'] = entry;
+        }
+      }
+      if (!files.containsKey('/index.html')) {
+        throw const FileSystemException('Web entry point unavailable');
+      }
+      files['/'] = files['/index.html']!;
+    }
     final listener = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     listener.idleTimeout = const Duration(seconds: 60);
     final server = LoopbackEngineServer._(
       listener,
       connect,
       now ?? DateTime.now,
+      files,
     );
     server._subscription = listener.listen(server._accept);
     return server;
@@ -117,6 +155,46 @@ final class LoopbackEngineServer {
       if (request.headers.value(HttpHeaders.hostHeader) != endpoint.authority ||
           origin != null && origin != endpoint.origin) {
         response.statusCode = HttpStatus.forbidden;
+        return;
+      }
+      if (request.method == 'GET' || request.method == 'HEAD') {
+        final segments = request.uri.pathSegments;
+        if (segments.any(
+          (part) =>
+              part == '.' ||
+              part == '..' ||
+              part.contains('/') ||
+              part.contains('\\'),
+        )) {
+          response.statusCode = HttpStatus.notFound;
+          return;
+        }
+        final path = '/${segments.join('/')}';
+        final file = path.startsWith('/engine/') ? null : _webFiles[path];
+        if (file == null) {
+          response.statusCode = HttpStatus.notFound;
+          return;
+        }
+        response.headers.set('x-content-type-options', 'nosniff');
+        response.headers.set('cross-origin-resource-policy', 'same-origin');
+        response.headers.contentType = switch (path.split('.').last) {
+          'html' => ContentType.html,
+          'js' => ContentType('text', 'javascript', charset: 'utf-8'),
+          'css' => ContentType('text', 'css', charset: 'utf-8'),
+          'json' => ContentType.json,
+          'wasm' => ContentType('application', 'wasm'),
+          'png' => ContentType('image', 'png'),
+          'jpg' || 'jpeg' => ContentType('image', 'jpeg'),
+          'svg' => ContentType('image', 'svg+xml'),
+          'ico' => ContentType('image', 'x-icon'),
+          'ttf' => ContentType('font', 'ttf'),
+          'otf' => ContentType('font', 'otf'),
+          'woff' => ContentType('font', 'woff'),
+          'woff2' => ContentType('font', 'woff2'),
+          _ => path == '/' ? ContentType.html : ContentType.binary,
+        };
+        response.contentLength = await file.length();
+        if (request.method == 'GET') await response.addStream(file.openRead());
         return;
       }
       if (request.method != 'POST' ||

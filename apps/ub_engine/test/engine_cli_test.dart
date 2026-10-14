@@ -14,6 +14,7 @@ import 'package:ub_engine/engine_cli.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/local_settings.dart';
 import 'package:ub_store/profile_credentials.dart';
+import 'package:ub_store/local_http_endpoint.dart';
 
 void main() {
   late Directory root;
@@ -117,6 +118,16 @@ void main() {
       ['--installation', path, '--installation', path],
       ['--installation='],
       ['--installation', path, 'extra'],
+      ['--installation', path, '--web-assets'],
+      ['--installation', path, '--web-assets=relative'],
+      [
+        '--installation',
+        path,
+        '--web-assets',
+        root.path,
+        '--web-assets',
+        root.path,
+      ],
     ]) {
       expect(await run(args), 2);
       expect(Directory(path).existsSync(), isFalse);
@@ -211,6 +222,13 @@ void main() {
       reason: 'Standalone engine compilation failed',
     );
     final binary = '${root.path}/compiled/bundle/bin/universe-engine';
+    final webAssets = Directory(
+      Platform.isMacOS
+          ? '${root.path}/compiled/bundle/Resources/web'
+          : '${root.path}/compiled/bundle/bin/web',
+    )..createSync(recursive: true);
+    File('${webAssets.path}/index.html')
+        .writeAsStringSync('<html>Compiled web app é</html>');
     final path = '${root.path}/installation';
     const env = {
       'PATH': '',
@@ -230,7 +248,10 @@ void main() {
     for (final stopMode in ['author', 'interrupt', 'terminate']) {
       final process = await Process.start(
         binary,
-        ['--installation=$path'],
+        [
+          '--installation=$path',
+          if (stopMode == 'author') '--web-assets=${webAssets.path}',
+        ],
         workingDirectory: root.path,
         environment: env,
       );
@@ -263,6 +284,19 @@ void main() {
           reason: 'Compiled engine did not become available',
         );
         await connection!.call(const StatusEngineRequest());
+        final http = HttpClient();
+        try {
+          final request = await http.getUrl(readLocalHttpEndpoint(path));
+          final response = await request.close();
+          expect(response.statusCode, HttpStatus.ok);
+          expect(response.headers.contentType?.mimeType, 'text/html');
+          expect(
+            await response.transform(utf8.decoder).join(),
+            '<html>Compiled web app é</html>',
+          );
+        } finally {
+          http.close(force: true);
+        }
         final blockedInitialization = await Process.run(
           binary,
           initialize(path),

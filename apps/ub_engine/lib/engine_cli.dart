@@ -24,6 +24,8 @@ const _usage = '''Usage: universe-engine --installation <path> [--initialize | -
 or initializes an existing empty installation. It prints the profile ID only.
 Otherwise, serve an existing installation until author shutdown or a signal.
 --http-only omits the transitional Unix socket for HTTP clients.
+--web-assets <path> serves a local Flutter web build from the engine origin.
+Installed bundles use their adjacent web assets when present.
 --device-profile explicitly sets up the local device workspace if needed and
 prints its retained owner profile ID. It never prints credentials.
 UB_USE_POSTGRES selects SQLite (false/default) or PostgreSQL (true).
@@ -42,7 +44,7 @@ Future<int> runEngine(
   Future<void>? stop,
 }) async {
   try {
-    String? root;
+    String? root, webAssets;
     var initialize = false;
     var deviceProfile = false;
     var httpOnly = false;
@@ -63,6 +65,22 @@ Future<int> runEngine(
         if (initialize || deviceProfile) throw const _UsageError();
         initialize = option == '--initialize';
         deviceProfile = option == '--device-profile';
+      } else if (option == '--web-assets' ||
+          option.startsWith('--web-assets=')) {
+        if (webAssets != null) throw const _UsageError();
+        if (option == '--web-assets') {
+          if (++index == arguments.length || arguments[index].startsWith('-')) {
+            throw const _UsageError();
+          }
+          webAssets = arguments[index];
+        } else {
+          webAssets = option.substring('--web-assets='.length);
+        }
+        if (webAssets.isEmpty ||
+            webAssets.contains('\u0000') ||
+            !Directory(webAssets).isAbsolute) {
+          throw const _UsageError();
+        }
       } else if (option == '--installation' ||
           option.startsWith('--installation=')) {
         if (root != null) throw const _UsageError();
@@ -80,6 +98,13 @@ Future<int> runEngine(
       }
     }
     if (root == null) throw const _UsageError();
+    if (webAssets == null) {
+      final executable = File(Platform.resolvedExecutable);
+      final adjacent = Platform.isMacOS
+          ? Directory('${executable.parent.parent.path}/Resources/web')
+          : Directory('${executable.parent.path}/web');
+      if (adjacent.existsSync()) webAssets = adjacent.path;
+    }
     late BackendConfiguration configuration;
     LocalSettingsStore? settings;
     try {
@@ -119,7 +144,11 @@ Future<int> runEngine(
         output(profile.value);
         return 0;
       }
-      final server = await LocalPostgresEngineServer.start(root, postgres);
+      final server = await LocalPostgresEngineServer.start(
+        root,
+        postgres,
+        webAssets: webAssets,
+      );
       try {
         if (stop == null) {
           await server.done;
@@ -159,6 +188,7 @@ Future<int> runEngine(
     final server = await LocalSqliteEngineServer.start(
       root,
       compatibilitySocket: !httpOnly,
+      webAssets: webAssets,
     );
     try {
       if (stop == null) {

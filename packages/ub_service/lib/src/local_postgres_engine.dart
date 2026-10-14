@@ -35,8 +35,9 @@ final class LocalPostgresEngineServer {
 
   static Future<LocalPostgresEngineServer> start(
     String root,
-    PostgresConfiguration configuration,
-  ) async {
+    PostgresConfiguration configuration, {
+    String? webAssets,
+  }) async {
     OwnedFileLock? lock;
     PostgresInstallationStore? store;
     NativePostgresRuntime? runtime;
@@ -51,7 +52,7 @@ final class LocalPostgresEngineServer {
       lock = OwnedFileLock.acquire('$directory/service.lock');
       store = await openPostgresInstallation(configuration);
       runtime = NativePostgresRuntime(store: store, profileRoot: directory);
-      http = await LoopbackEngineServer.postgres(runtime);
+      http = await LoopbackEngineServer.postgres(runtime, webAssets: webAssets);
       final server = LocalPostgresEngineServer._(
         directory,
         lock,
