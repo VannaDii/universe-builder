@@ -224,8 +224,9 @@ scope and validity. Moving rows retains their declared execution-order numbers.
 Preconditions offer nested conditions, named property/relation predicates,
 typed operands, participant roles, comparisons, collections and quantifiers.
 Unfinished conditions recover with the event; adding one requires an explicit
-kind and values before it can enter Changes. Conditional effect validity can
-be retained; its expression editing remains pending. World/region
+kind and values before it can enter Changes. Effects also offer the existing
+condition-dependent validity marker; it carries no separate expression.
+World/region
 declarations and sequence tokens do not infer location or temporal order. Plans
 and reports remain distinct from occurred events.
 **Timeline** in an entity dossier lists events with explicit participation.

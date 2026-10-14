@@ -15,7 +15,9 @@ EventEffectInput eventEffectInput(EntityEffect effect) => EventEffectInput(
   validity: switch (effect.validity) {
     UnknownValidity() => const TemporalValidityInput(kind: 'unknown'),
     UnspecifiedValidity() => const TemporalValidityInput(kind: 'unspecified'),
-    ConditionalValidity() => const TemporalValidityInput(kind: 'retain'),
+    ConditionalValidity() => const TemporalValidityInput(
+      kind: 'condition_dependent',
+    ),
     _ => temporalValidityInput(effect.validity),
   },
   original: effect,
@@ -33,6 +35,7 @@ EntityEffect buildEventEffect(EventEffectInput input) => EntityEffect(
           (throw const FormatException('No original validity to retain.')),
     'unknown' => const UnknownValidity(),
     'unspecified' => const UnspecifiedValidity(),
+    'condition_dependent' => const ConditionalValidity(),
     _ => buildTemporalValidity(input.validity, input.original?.validity),
   },
 );

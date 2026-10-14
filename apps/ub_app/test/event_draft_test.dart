@@ -122,6 +122,42 @@ void main() {
     expect(editedEffect.polarity, Polarity.support);
     expect(editedEffect.proposition, effect.proposition);
     expect(editedEffect.validity, isA<UnknownValidity>());
+    final conditionalInput = eventEffectInput(
+      EntityEffect(
+        slot: effect.slot,
+        proposition: effect.proposition,
+        polarity: effect.polarity,
+        validity: const ConditionalValidity(),
+        scope: effect.scope,
+        order: effect.order,
+      ),
+    );
+    expect(conditionalInput.validity.kind, 'condition_dependent');
+    final newlyConditional = buildEventEffect(
+      EventEffectInput(
+        slot: conditionalInput.slot,
+        propositionRecord: conditionalInput.propositionRecord,
+        propositionUniverse: conditionalInput.propositionUniverse,
+        polarity: conditionalInput.polarity,
+        order: conditionalInput.order,
+        scope: conditionalInput.scope,
+        validity: conditionalInput.validity,
+      ),
+    );
+    expect(newlyConditional.validity, isA<ConditionalValidity>());
+    final legacyRetained = buildEventEffect(
+      EventEffectInput(
+        slot: conditionalInput.slot,
+        propositionRecord: conditionalInput.propositionRecord,
+        propositionUniverse: conditionalInput.propositionUniverse,
+        polarity: conditionalInput.polarity,
+        order: conditionalInput.order,
+        scope: conditionalInput.scope,
+        validity: const TemporalValidityInput(kind: 'retain'),
+        original: conditionalInput.original,
+      ),
+    );
+    expect(legacyRetained.validity, isA<ConditionalValidity>());
     final partial = EventEffectInput(slot: 'incomplete', order: 'not a number');
     expect(
       EventEffectInput.fromWire(partial.toWire()).toWire().toText(),

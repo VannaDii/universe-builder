@@ -758,6 +758,7 @@ class _EventEditorPageState extends State<EventEditorPage> {
                                     'unknown',
                                     'unspecified',
                                     'retain',
+                                    'condition_dependent',
                                   }.contains(_effects[i].validity.kind)
                                   ? _effects[i].validity.kind
                                   : 'temporal',
@@ -772,6 +773,10 @@ class _EventEditorPageState extends State<EventEditorPage> {
                                 const DropdownMenuItem(
                                   value: 'unknown',
                                   child: Text('Unknown'),
+                                ),
+                                const DropdownMenuItem(
+                                  value: 'condition_dependent',
+                                  child: Text('Condition dependent'),
                                 ),
                                 const DropdownMenuItem(
                                   value: 'temporal',
@@ -801,6 +806,7 @@ class _EventEditorPageState extends State<EventEditorPage> {
                               'unknown',
                               'unspecified',
                               'retain',
+                              'condition_dependent',
                             }.contains(_effects[i].validity.kind))
                               ExpansionTile(
                                 title: const Text('Effect validity'),
