@@ -8,6 +8,7 @@ import 'package:ub_domain/ub_domain.dart';
 
 import 'changes_page.dart';
 import 'story_time_draft.dart';
+import 'story_date_resolver.dart';
 import 'saved_changes.dart';
 import 'draft_record_choice_field.dart';
 import 'draft_record_choices.dart';
@@ -387,6 +388,7 @@ class _StoryTimeEditorPageState extends State<StoryTimeEditorPage> {
                       (v) => _change(f.copyWith(rationale: v)),
                       maxLines: 3,
                     ),
+                  StoryDateResolver(clock: f.original),
                   Text(
                     _dirty
                         ? 'Unsaved fields'

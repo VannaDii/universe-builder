@@ -278,6 +278,9 @@ explicit) or whole-tick coordinate, and explain the transition. Unfinished input
 is retained privately on the device or browser. **Edit time transition** in Changes
 uses the same draft version and reviewed publication flow; earlier clock versions
 and the first interaction remain intact. Opening the app never advances time.
+**Resolve “N months ago”** previews a date from the pinned clock without a draft
+operation. Fictional months require an authored month length; Gregorian dates
+retain the fixed offset and reject a day absent from the target month.
 The **Appearance** authoring form describes a universe or a named entry, with an
 exact label, physical description, atmosphere, ordered images and depiction
 links. Choose an existing image asset or a PNG/JPEG/WebP file through the macOS
