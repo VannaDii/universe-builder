@@ -37,6 +37,7 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
   bool _loading = true,
       _saving = false,
       _adding = false,
+      _picking = false,
       _dirty = false,
       _stale = false,
       _leaving = false;
@@ -47,7 +48,12 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
   Timer? _autosave;
   int _fields = 0;
   bool get _disabled =>
-      _loading || _saving || _adding || _form == null || _added != null;
+      _loading ||
+      _saving ||
+      _adding ||
+      _picking ||
+      _form == null ||
+      _added != null;
   EditorFormScope get _scope => widget.changes.scope;
   SavedDraft get _choices => SavedDraft(
     version: BigInt.zero,
@@ -139,6 +145,42 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
     });
     _autosave?.cancel();
     _autosave = Timer(const Duration(milliseconds: 500), _save);
+  }
+
+  Future<void> _pickSource() async {
+    final pick = widget.changes.session.pickSourceText;
+    if (_disabled || _anchor || pick == null) return;
+    _autosave?.cancel();
+    setState(() {
+      _picking = true;
+      _error = null;
+    });
+    try {
+      final source = await pick();
+      if (!mounted || source == null) return;
+      _change(
+        text: source.text,
+        label: _form!.label.isEmpty ? source.name : null,
+      );
+      // Refresh the controls as a single edit while retaining an entered label.
+      setState(() => _fields++);
+    } on FormatException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _error = 'Could not read this file as exact UTF-8 text. Your existing input remains here.',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _picking = false);
+        _autosave?.cancel();
+        if (_dirty && _error == null) {
+          _autosave = Timer(const Duration(milliseconds: 500), _save);
+        }
+      }
+    }
   }
 
   Future<void> _save() async {
@@ -349,7 +391,7 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
   }
 
   Future<void> _leave() async {
-    if (_loading || _saving || _adding) return;
+    if (_loading || _saving || _adding || _picking) return;
     _autosave?.cancel();
     await _save();
     if (!mounted || _dirty) return;
@@ -369,7 +411,8 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
     child: TextFormField(
       key: ValueKey((_fields, key)),
       initialValue: value,
-      enabled: !_loading && !_adding && _form != null && _added == null,
+      enabled:
+          !_loading && !_adding && !_picking && _form != null && _added == null,
       maxLines: maxLines,
       decoration: InputDecoration(labelText: label),
       onChanged: change,
@@ -423,6 +466,12 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
                       universe: widget.changes.universe,
                       context: widget.context!,
                       version: f.anchorSource!,
+                    ),
+                  if (!_anchor && widget.changes.session.pickSourceText != null)
+                    OutlinedButton.icon(
+                      onPressed: _disabled ? null : _pickSource,
+                      icon: const Icon(Icons.upload_file),
+                      label: const Text('Choose text file'),
                     ),
                   if (!_anchor)
                     _text(

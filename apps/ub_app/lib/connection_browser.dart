@@ -42,6 +42,7 @@ import 'package:ub_client/browser_entity_recovery.dart';
 import 'package:ub_client/browser_attribute_recovery.dart';
 
 import 'connection.dart';
+import 'browser_source_files.dart';
 
 /// The service owns canon and credentials; this tab holds only its short-lived
 /// CSRF token and origin-private unfinished editor input.
@@ -402,6 +403,7 @@ final class DeviceConnection {
       }
 
       return AppSession(
+        pickSourceText: pickBrowserSourceText,
         call: (request) => sequenced(() => client.call(request)),
         close: () => sequenced(() async {
           closeRecovery();

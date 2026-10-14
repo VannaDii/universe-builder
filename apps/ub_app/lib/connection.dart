@@ -3,6 +3,7 @@ import 'package:ub_domain/ub_domain.dart';
 
 final class AppSession {
   const AppSession({
+    this.pickSourceText,
     this.logout,
     this.backupFile,
     this.restoreBackupFile,
@@ -92,6 +93,7 @@ final class AppSession {
   final Future<CanonicalValue> Function(EngineRequest) call;
   final Future<void> Function() close;
   final Future<void> Function()? logout;
+  final Future<SelectedSourceText?> Function()? pickSourceText;
   final bool author;
   final ProfileId principal;
   final Future<SavedWorldForm?> Function(EditorFormScope) loadWorldForm;
@@ -432,4 +434,10 @@ final class InstanceLibrary {
       }),
     );
   }
+}
+
+/// Exact selected source text, retained as unfinished input before review.
+final class SelectedSourceText {
+  const SelectedSourceText({required this.name, required this.text});
+  final String name, text;
 }
