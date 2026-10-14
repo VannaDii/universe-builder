@@ -10,6 +10,7 @@ import 'work_editor_page.dart';
 import 'saga_editor_page.dart';
 import 'work_version_editor_page.dart';
 import 'scene_editor_page.dart';
+import 'passage_editor_page.dart';
 import 'boundary_editor_page.dart';
 import 'exception_editor_page.dart';
 import 'issue_decision_editor_page.dart';
@@ -1932,6 +1933,70 @@ class _ChangesPageState extends State<ChangesPage> {
                                       ),
                                 child: const Text(
                                   'Edit scene reference fields',
+                                ),
+                              ),
+                            if (_proposal == null &&
+                                operations[index]
+                                    is RecordNarrativeReferenceOperation &&
+                                (operations[index]
+                                            as RecordNarrativeReferenceOperation)
+                                        .record ==
+                                    RecordKind.passageRef)
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _changeDraft(
+                                        (draft) async =>
+                                            await Navigator.of(
+                                              context,
+                                            ).push<SavedDraft>(
+                                              MaterialPageRoute(
+                                                builder: (_) => PassageEditorPage(
+                                                  revision: draft
+                                                      .content
+                                                      .baseRevision,
+                                                  editingDraft: draft,
+                                                  index: index,
+                                                  changes: SavedChanges(
+                                                    session:
+                                                        widget.changes.session,
+                                                    universe:
+                                                        widget.changes.universe,
+                                                    scope: EditorFormScope(
+                                                      instance: widget
+                                                          .changes
+                                                          .scope
+                                                          .instance,
+                                                      profile: widget
+                                                          .changes
+                                                          .scope
+                                                          .profile,
+                                                      universe: widget
+                                                          .changes
+                                                          .scope
+                                                          .universe,
+                                                      continuity: widget
+                                                          .changes
+                                                          .scope
+                                                          .continuity,
+                                                      representedContext: draft
+                                                          .content
+                                                          .representedContext,
+                                                      typeClientRef:
+                                                          (draft
+                                                                      .content
+                                                                      .operations[index]
+                                                                  as RecordNarrativeReferenceOperation)
+                                                              .clientRef,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ) ??
+                                            draft,
+                                      ),
+                                child: const Text(
+                                  'Edit passage reference fields',
                                 ),
                               ),
                             if (_proposal == null &&

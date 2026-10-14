@@ -27,6 +27,7 @@ import 'memory_editor_page.dart';
 import 'work_editor_page.dart';
 import 'saga_editor_page.dart';
 import 'scene_editor_page.dart';
+import 'passage_editor_page.dart';
 import 'work_version_editor_page.dart';
 import 'boundary_editor_page.dart';
 import 'exception_editor_page.dart';
@@ -1313,6 +1314,37 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                                       }
                                     }),
                           child: const Text('Scene reference'),
+                        ),
+                      if (_contexts.containsKey(continuity.id))
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context)
+                                    .push<void>(
+                                      MaterialPageRoute(
+                                        builder: (_) => PassageEditorPage(
+                                          revision: continuity.revisionId,
+                                          changes: SavedChanges(
+                                            session: _session!,
+                                            universe: Selector(_selected!.name),
+                                            scope: EditorFormScope(
+                                              instance: _library!.instance,
+                                              profile: _session!.principal,
+                                              universe: _selected!.id,
+                                              continuity: continuity.id,
+                                              representedContext:
+                                                  _contexts[continuity.id],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                    .then((_) {
+                                      if (mounted && _selected != null) {
+                                        _open(_selected!);
+                                      }
+                                    }),
+                          child: const Text('Passage reference'),
                         ),
                       if (_contexts.containsKey(continuity.id))
                         TextButton(

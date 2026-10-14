@@ -360,6 +360,13 @@ narration context, reader order, disclosures and depicted events through
 fixed. Supply a correction reason; pending corrections are editable in Changes,
 and reviewed publication retains the earlier scene in history.
 
+**Passage reference** links an authored passage identifier to an exact
+work-edition version and, optionally, a named existing source anchor. Choosing
+an edition pins its version at the saved draft revision; reopening retains it.
+Unfinished fields recover privately, and pending references can be edited in
+Changes before reviewed publication. Passage metadata neither imports manuscript
+prose nor creates source anchors implicitly.
+
 **Exception** selects a named rule or creative boundary and pins its version
 at the saved draft revision. Choose an authorizing issue decision, scope,
 validity and rationale separately. Named decision choices include their visible

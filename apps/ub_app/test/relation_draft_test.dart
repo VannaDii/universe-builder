@@ -25,6 +25,8 @@ import 'package:ub_app/issue_decision_draft.dart';
 import 'package:ub_app/exception_draft.dart';
 import 'package:ub_app/work_draft.dart';
 import 'package:ub_app/scene_draft.dart';
+import 'package:ub_app/passage_draft.dart';
+import 'package:crypto/crypto.dart';
 import 'package:ub_app/saga_draft.dart';
 import 'package:ub_app/work_version_draft.dart';
 import 'package:ub_app/record_browser.dart';
@@ -3088,6 +3090,131 @@ void main() {
         historicalScene.toWire().toText(),
         scenePublished.single.toWire().toText(),
       );
+      const excerpt = 'The journey begins 記憶 😀';
+      final passageSourceBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final stagedPassageSource = WireFields(
+        await session.call(
+          const StageSourceEngineRequest(
+            universe: Selector('Relations'),
+            label: 'Chapter excerpt',
+            text: excerpt,
+          ),
+        ),
+        {'canonical', 'operations'},
+      );
+      final sourceDraft = await changes().saveContent(
+        passageSourceBase,
+        DraftContent(
+          baseRevision: passageSourceBase.content.baseRevision,
+          representedContext: scope.representedContext!,
+          operations: stagedPassageSource
+              .array('operations')
+              .map(DomainOperation.fromWire),
+          rationale: 'Retain submitted chapter text.',
+        ),
+      );
+      final passageSourcePublished = await publish(sourceDraft);
+      final passageSourceVersion = passageSourcePublished.singleWhere(
+        (r) => r.payload is SourceVersionRecord,
+      );
+      final passageAnchorBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final passageAnchorDraft = await changes().saveContent(
+        passageAnchorBase,
+        DraftContent(
+          baseRevision: passageAnchorBase.content.baseRevision,
+          representedContext: scope.representedContext!,
+          operations: [
+            AddSourceAnchorOperation(
+              clientRef: RecordId.generate().value,
+              record: AnchorRecord(
+                sourceVersion: VersionRef(
+                  universe: scope.universe,
+                  record: passageSourceVersion.identity.recordId,
+                  version: passageSourceVersion.recordVersionId,
+                ),
+                locator: ByteRangeLocator(
+                  BigInt.zero,
+                  BigInt.from(utf8.encode(excerpt).length),
+                ),
+                excerptDigest: sha256.convert(utf8.encode(excerpt)).toString(),
+                excerpt: excerpt,
+                context: RecordRef(
+                  universe: scope.universe,
+                  record: scope.representedContext!,
+                ),
+              ),
+            ),
+          ],
+          rationale: 'Select the complete chapter excerpt.',
+        ),
+      );
+      final passageAnchorPublished = await publish(passageAnchorDraft);
+      final passageBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final passageScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+      );
+      final passageForm = UnfinishedPassageForm(
+        baseRevision: passageBase.content.baseRevision,
+        representedContext: scope.representedContext!,
+        clientRef: RecordId.generate().value,
+        passageId: 'Journey paragraph 記憶 😀',
+        edition: ExpressionReferenceInput(
+          record: sceneEditionPublished.single.identity.recordId.value,
+          universe: scope.universe.value,
+        ),
+        editionVersion: sceneEditionPublished.single.recordVersionId.value,
+        anchorEnabled: true,
+        anchor: ExpressionReferenceInput(
+          record: passageAnchorPublished.single.identity.recordId.value,
+          universe: scope.universe.value,
+        ),
+        rationale:
+            'Link the passage to its edition and submitted source anchor.',
+      );
+      await session.savePassageForm(passageScope, passageForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredPassage = (await session.loadPassageForm(passageScope))!
+          .form;
+      expect(recoveredPassage.toWire().toText(), passageForm.toWire().toText());
+      final passageDraft = SavedDraft.fromWire(
+        await session.call(
+          passageDraftRequest(
+            draft: passageBase,
+            form: recoveredPassage,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final passagePublished = await publish(passageDraft);
+      expect(
+        passagePublished.single.payload.toWire().toText(),
+        passageOperation(passageForm).payload.toWire().toText(),
+      );
+      final passageContext = await openDraftChoiceContext(
+        changes(),
+        await changes().rebase((await changes().load())!, startNew: true),
+      );
+      final passageChoices = await searchDraftChoices(
+        changes: changes(),
+        context: passageContext,
+        kind: RecordKind.passageRef,
+      );
+      expect(passageChoices.result.hits.single.label, passageForm.passageId);
     } finally {
       await session?.close();
       await server.close();
