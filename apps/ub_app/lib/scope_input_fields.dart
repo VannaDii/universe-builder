@@ -10,6 +10,7 @@ import 'saved_changes.dart';
 class ScopeInputFields extends StatefulWidget {
   const ScopeInputFields({
     super.key,
+    this.applicabilityOnly = false,
     required this.input,
     required this.disabled,
     required this.onChanged,
@@ -17,7 +18,7 @@ class ScopeInputFields extends StatefulWidget {
     required this.draft,
   });
   final ScopeInput input;
-  final bool disabled;
+  final bool disabled, applicabilityOnly;
   final ValueChanged<ScopeInput> onChanged;
   final SavedChanges changes;
   final SavedDraft draft;
@@ -207,50 +208,54 @@ class _ScopeInputFieldsState extends State<ScopeInputFields> {
           'An empty world list applies nowhere. Order and repeated worlds are retained.',
         ),
       ],
-      _choice(
-        'Factual context',
-        RecordKind.representedContext,
-        _contextRecord.text,
-        _contextUniverse.text,
-        (ref) {
-          _contextRecord.text = ref.record.value;
-          _contextUniverse.text = ref.universe?.value ?? '';
-          _changed();
-        },
-      ),
-      CheckboxListTile(
-        title: const Text('Limit to a realm'),
-        value: _hasRealm,
-        onChanged: widget.disabled
-            ? null
-            : (v) {
-                setState(() => _hasRealm = v!);
-                _changed();
-              },
-      ),
-      if (_hasRealm) ...[
+      if (!widget.applicabilityOnly) ...[
         _choice(
-          'Realm',
-          RecordKind.realm,
-          _realmRecord.text,
-          _realmUniverse.text,
+          'Factual context',
+          RecordKind.representedContext,
+          _contextRecord.text,
+          _contextUniverse.text,
           (ref) {
-            _realmRecord.text = ref.record.value;
-            _realmUniverse.text = ref.universe?.value ?? '';
+            _contextRecord.text = ref.record.value;
+            _contextUniverse.text = ref.universe?.value ?? '';
             _changed();
           },
         ),
+        CheckboxListTile(
+          title: const Text('Limit to a realm'),
+          value: _hasRealm,
+          onChanged: widget.disabled
+              ? null
+              : (v) {
+                  setState(() => _hasRealm = v!);
+                  _changed();
+                },
+        ),
+        if (_hasRealm) ...[
+          _choice(
+            'Realm',
+            RecordKind.realm,
+            _realmRecord.text,
+            _realmUniverse.text,
+            (ref) {
+              _realmRecord.text = ref.record.value;
+              _realmUniverse.text = ref.universe?.value ?? '';
+              _changed();
+            },
+          ),
+        ],
       ],
       ExpansionTile(
         title: const Text('Advanced references'),
         children: [
           if (_applicability == 'worlds')
             _field(_worlds, 'World IDs, one per line', multiline: true),
-          _field(_contextRecord, 'Factual context record ID'),
-          _field(_contextUniverse, 'Context universe ID (optional)'),
-          if (_hasRealm) ...[
-            _field(_realmRecord, 'Realm record ID'),
-            _field(_realmUniverse, 'Realm universe ID (optional)'),
+          if (!widget.applicabilityOnly) ...[
+            _field(_contextRecord, 'Factual context record ID'),
+            _field(_contextUniverse, 'Context universe ID (optional)'),
+            if (_hasRealm) ...[
+              _field(_realmRecord, 'Realm record ID'),
+              _field(_realmUniverse, 'Realm universe ID (optional)'),
+            ],
           ],
         ],
       ),

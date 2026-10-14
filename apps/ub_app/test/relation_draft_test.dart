@@ -9,6 +9,7 @@ import 'package:ub_app/relation_draft.dart';
 import 'package:ub_app/event_draft.dart';
 import 'package:ub_app/action_draft.dart';
 import 'package:ub_app/continuity_draft.dart';
+import 'package:ub_app/rule_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -1193,6 +1194,50 @@ void main() {
         validation.execution.runId,
       );
       expect(adopted.revision, isNot(target.revisionId));
+      final ruleBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final ruleForm = UnfinishedRuleForm(
+        baseRevision: ruleBase.content.baseRevision,
+        representedContext: ruleBase.content.representedContext,
+        clientRef: 'ui-rule',
+        namespace: 'authored',
+        key: 'hometown-continuity',
+        rationale: 'Declare a continuity rule.',
+        labels: [
+          const PropertyLabelInput(language: 'en', text: 'Hometown continuity'),
+        ],
+        kind: 'physical_constraint',
+        commitPolicy: 'block_unless_exception',
+        scope: ScopeInput(applicability: 'universe_wide'),
+        targetPredicates: ['authored:hometown'],
+        expression: ExpressionInput(kind: 'lit', flags: {'value': true}),
+        capabilities: ['basic.v1'],
+        executable: true,
+      );
+      await session.saveRuleForm(scope, ruleForm, BigInt.zero);
+      final recoveredRule = (await session.loadRuleForm(scope))!.form;
+      final ruleDraft = SavedDraft.fromWire(
+        await session.call(
+          ruleDraftRequest(
+            draft: ruleBase,
+            form: recoveredRule,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final List<RecordVersion> rulePublished;
+      try {
+        rulePublished = await publish(ruleDraft);
+      } on InvalidArgumentError catch (error) {
+        fail(error.message);
+      }
+      expect(
+        (rulePublished.single.payload as RuleRecord).labels['en'],
+        'Hometown continuity',
+      );
     } finally {
       await session?.close();
       await server.close();

@@ -260,6 +260,14 @@ empty Library and registers the original universe identity; an already-reserved
 identity or name is refused. Storage checks show retained counts, and collection
 removes disposable snapshot caches while preserving history, receipts and sources.
 Native file dialogs for the other platforms remain pending.
+**Rule definition** offers explicit kind, commit policy and executable choices,
+named subject types and target predicates, declared capabilities, applicability,
+validity and the existing typed expression grammar. Unfinished fields recover on
+this device; **Edit rule fields** in Changes preserves pending identity and
+rationale. Declaring execution support does not establish that the service can
+execute an unsupported capability. Existing specialized knowledge, cardinality
+and chronology data is retained; controls for editing those extensions remain
+pending.
 **Timeline** in an entity dossier lists events with explicit participation.
 Exact numeric points are ordered separately in each named calendar, using the
 shared rule engine's integer bounds. Equal coordinates do not imply sequence.
