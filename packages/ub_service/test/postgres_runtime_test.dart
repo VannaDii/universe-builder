@@ -4168,6 +4168,77 @@ void main() {
           published.result.toWire().toText(),
         );
       });
+      test('staged images and timed appearances publish and revise together on PostgreSQL', () async {
+        final directory = Directory('/tmp').createTempSync('ub-pg-appearance-');
+        try {
+          final author = await runtime.connect(hello(authorId));
+          final created = WireFields(await author.execute(const CreateUniverseEngineRequest(
+            name: 'Disposable engine universe', start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
+          )), {'universe_id', 'continuity_id', 'context_id', 'revision', 'name'});
+          final universe = UniverseId.parse(created.string('universe_id'));
+          universes.add(universe);
+          final continuity = ContinuityId.parse(created.string('continuity_id'));
+          final represented = RecordId.parse(created.string('context_id'));
+          var revision = RevisionId.parse(created.string('revision'));
+          final before = await store.transaction((s) async {
+            final journal = s.kernel(universe).journal;
+            final snapshot = await journal.snapshot(continuity, revision);
+            return RecordVersion.fromWire((await journal.load(snapshot[represented]!)).toCanonical());
+          });
+          Future<CommitReceipt> publish(List<DomainOperation> operations, String key) async {
+            final opened = await tool(author, OpenContextRequest(universe: selector,
+              continuityId: continuity, revision: const HeadRevisionSelector(),
+              representedContext: ContextIdSelector(represented), temporalQuery: const TimelessFrameTime(),
+              temporalSystems: [], perspective: const AuthorPerspective()), OpenedContext.fromWire);
+            final proposal = await tool(author, CreateProposalRequest(universe: selector,
+              contextId: opened.contextId, operations: operations, submission: Submission.submitted,
+              rationale: 'Record an authored appearance phase.', idempotencyKey: key), Proposal.fromWire);
+            final ref = ProposalRef(proposalId: proposal.proposalId, version: proposal.version, digest: proposal.digest);
+            final validation = await tool(author, ProposalValidationRequest(universe: selector,
+              contextId: opened.contextId, proposalReference: ref, checkScope: CheckScope.candidate), ValidationV3.fromWire) as EvaluatedValidation;
+            await author.execute(ApproveEngineRequest(universe: selector, proposalReference: ref, validationRun: validation.execution.runId));
+            final receipt = await tool(author, CommitRequest(universe: selector,
+              proposalReference: ref, expectedBaseRevision: revision,
+              validationRun: validation.execution.runId, idempotencyKey: 'publish-$key'), CommitReceipt.fromWire);
+            revision = receipt.revision;
+            return receipt;
+          }
+          final bytes = base64.decode('iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR4nGP4z8DwHwQBEPgD/U6VwW8AAAAASUVORK5CYII=');
+          final source = File('${directory.path}/Portrait é.png')..writeAsBytesSync(bytes);
+          final staged = StagedImage.fromWire(await author.execute(StageImageEngineRequest(universe: selector, source: source.path)));
+          final id = RecordId.generate();
+          final chronology = (before.payload as RepresentedContextRecord).chronology!;
+          final first = AppearanceRecord(target: EntryAppearance(RecordRef(record: represented, universe: universe)),
+            label: 'Before the reveal', physicalDescription: 'Green robes 記憶\r\n', atmosphere: 'Quiet',
+            images: [AppearanceImage(asset: RecordRef(record: staged.assetId, universe: universe), caption: 'Exact portrait 😀', purpose: ImagePurpose.appearance)],
+            links: [], validity: CalendarIntervalValidity(chronology.calendar,
+              ExactBound((BigInt.parse(chronology.current) - BigInt.one).toString()),
+              ExactBound((BigInt.parse(chronology.current) + BigInt.one).toString())));
+          final creation = await publish([staged.operation, CreateAppearanceOperation(clientRef: id.value, record: first)], 'create-appearance');
+          final prior = await store.transaction((s) async {
+            final journal = s.kernel(universe).journal;
+            final snapshot = await journal.snapshot(continuity, creation.revision);
+            expect(await s.kernel(universe).imageBytes(staged.asset), orderedEquals(bytes));
+            return RecordVersion.fromWire((await journal.load(snapshot[id]!)).toCanonical());
+          });
+          expect(prior.payload.toWire().toText(), first.toWire().toText());
+          final replacement = AppearanceRecord(target: first.target, label: first.label,
+            physicalDescription: 'Silver robes 記憶\r\n', atmosphere: first.atmosphere,
+            images: first.images.reversed, links: first.links, validity: first.validity);
+          await publish([ReviseAppearanceOperation(record: RecordRef(record: id, universe: universe),
+            expectedVersion: prior.recordVersionId, replacement: replacement)], 'revise-appearance');
+          await store.transaction((s) async {
+            final journal = s.kernel(universe).journal;
+            final current = await journal.snapshot(continuity, revision);
+            final historical = await journal.snapshot(continuity, creation.revision);
+            expect(RecordVersion.fromWire((await journal.load(current[id]!)).toCanonical()).payload.toWire().toText(), replacement.toWire().toText());
+            expect(RecordVersion.fromWire((await journal.load(historical[id]!)).toCanonical()).toWire().toText(), prior.toWire().toText());
+            expect(RecordVersion.fromWire((await journal.load(current[represented]!)).toCanonical()).toWire().toText(), before.toWire().toText());
+          });
+        } finally {
+          directory.deleteSync(recursive: true);
+        }
+      });
       test('story secrets publish and revise through reviewed PostgreSQL operations', () async {
         final author = await runtime.connect(hello(authorId));
         final created = WireFields(await author.execute(const CreateUniverseEngineRequest(

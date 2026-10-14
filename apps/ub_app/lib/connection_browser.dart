@@ -45,6 +45,7 @@ import 'package:ub_client/browser_attribute_recovery.dart';
 
 import 'connection.dart';
 import 'browser_source_files.dart';
+import 'browser_image_files.dart';
 import 'browser_package_files.dart';
 import 'browser_package_import_recovery.dart';
 
@@ -55,6 +56,7 @@ final class DeviceConnection {
     List<String> arguments, {
     Future<String?> Function(String)? saveBackupFile,
     Future<bool> Function(String)? openBackupFile,
+    Future<String?> Function()? pickImagePath,
   });
   static const _csrfKey = 'ub-browser-session-csrf';
   String? browserEnrollmentToken;
@@ -465,6 +467,23 @@ final class DeviceConnection {
           }
         },
         pickSourceText: pickBrowserSourceText,
+        pickImage: client.welcome.author
+            ? (universe) async {
+                final file = await pickBrowserImage();
+                if (file == null) return null;
+                final result = StagedImage.fromWire(await sequenced(
+                  () => client.stageImageFile(
+                    upload: (csrf) => transport.postImage(
+                      file: file, universe: universe, csrf: csrf,
+                    ),
+                  ),
+                ));
+                if (result.asset.originalName != file.name) {
+                  throw const FormatException('Selected image differs from retained image.');
+                }
+                return result;
+              }
+            : null,
         call: (request) => sequenced(() => client.call(request)),
         close: () => sequenced(() async {
           closeRecovery();

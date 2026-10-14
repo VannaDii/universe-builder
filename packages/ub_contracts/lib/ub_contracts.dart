@@ -1,5 +1,8 @@
 library;
 
+export 'src/staged_image.dart';
+export 'src/appearance_forms.dart';
+
 export 'src/workflow.dart';
 export 'src/validation.dart';
 export 'src/opposing_intersection.dart';

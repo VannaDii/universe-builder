@@ -1,5 +1,6 @@
 import Cocoa
 import FlutterMacOS
+import UniformTypeIdentifiers
 
 class MainFlutterWindow: NSWindow {
   private var backupChannel: FlutterMethodChannel?
@@ -55,6 +56,16 @@ class MainFlutterWindow: NSWindow {
           } catch {
             result(FlutterError(code: "copy_failed", message: "Could not read the selected backup.", details: nil))
           }
+        }
+      } else if call.method == "pickImage" {
+        let panel = NSOpenPanel()
+        panel.title = "Choose appearance image"
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = ["png", "jpg", "jpeg", "webp"].compactMap { UTType(filenameExtension: $0) }
+        panel.beginSheetModal(for: window) { response in
+          guard response == .OK, let source = panel.url else { result(nil); return }
+          result(source.path)
         }
       } else { result(FlutterMethodNotImplemented) }
     }

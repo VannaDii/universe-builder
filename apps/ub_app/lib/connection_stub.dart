@@ -8,6 +8,7 @@ final class DeviceConnection {
     List<String> arguments, {
     Future<String?> Function(String)? saveBackupFile,
     Future<bool> Function(String)? openBackupFile,
+    Future<String?> Function()? pickImagePath,
   });
   bool get available => false;
   String get unavailableMessage =>

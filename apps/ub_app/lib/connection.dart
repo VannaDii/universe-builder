@@ -12,6 +12,7 @@ final class AppSession {
     this.reviewArchiveFile,
     this.downloadArchive,
     this.pickSourceText,
+    this.pickImage,
     this.logout,
     this.backupFile,
     this.restoreBackupFile,
@@ -115,6 +116,7 @@ final class AppSession {
   )?
   reviewArchiveFile;
   final Future<SelectedSourceText?> Function()? pickSourceText;
+  final Future<StagedImage?> Function(Selector universe)? pickImage;
   final bool author;
   final ProfileId principal;
   final Future<SavedWorldForm?> Function(EditorFormScope) loadWorldForm;

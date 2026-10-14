@@ -67,6 +67,7 @@ void main(List<String> arguments) => runApp(
       arguments,
       saveBackupFile: saveBackupFile,
       openBackupFile: openBackupFile,
+      pickImagePath: pickImagePath,
     ),
   ),
 );

@@ -20,6 +20,7 @@ final class DeviceConnection {
     List<String> arguments, {
     this.saveBackupFile,
     this.openBackupFile,
+    this.pickImagePath,
   }) {
     for (var i = 0; i < arguments.length; i++) {
       final argument = arguments[i];
@@ -45,6 +46,7 @@ final class DeviceConnection {
   }
   final Future<String?> Function(String)? saveBackupFile;
   final Future<bool> Function(String)? openBackupFile;
+  final Future<String?> Function()? pickImagePath;
   String? root, profile, helper;
   bool get supportsBrowser => false;
   String? browserEnrollmentToken;
@@ -315,6 +317,15 @@ final class DeviceConnection {
     return AppSession(
       backupFile: files?.backup,
       restoreBackupFile: files?.restore,
+      pickImage: client.welcome.author && pickImagePath != null
+          ? (universe) async {
+              final source = await pickImagePath!();
+              if (source == null) return null;
+              return StagedImage.fromWire(await sequenced(
+                () => client.call(StageImageEngineRequest(universe: universe, source: source)),
+              ));
+            }
+          : null,
       call: (request) => sequenced(() => client.call(request)),
       close: () => sequenced(client.close),
       author: client.welcome.author,

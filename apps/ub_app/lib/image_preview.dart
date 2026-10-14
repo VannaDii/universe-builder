@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:ub_contracts/ub_contracts.dart';
@@ -53,16 +52,6 @@ Future<({ImageAssetRecord asset, Uint8List bytes})> readImagePreview({
   if (returned.toWire().toText() != asset.toWire().toText()) {
     throw const FormatException('Image preview metadata differs.');
   }
-  final preview = response.string('preview');
-  const prefix = 'data:image/jpeg;base64,';
-  const maxBytes = 512 * 1024; // Existing service preview limit.
-  if (!preview.startsWith(prefix) ||
-      preview.length > prefix.length + ((maxBytes + 2) ~/ 3) * 4) {
-    throw const FormatException('Unsupported image preview.');
-  }
-  final bytes = base64.decode(preview.substring(prefix.length));
-  if (bytes.isEmpty || bytes.length > maxBytes) {
-    throw const FormatException('Unsupported image preview.');
-  }
+  final bytes = decodeImagePreviewBytes(response.string('preview'));
   return (asset: asset, bytes: bytes);
 }
