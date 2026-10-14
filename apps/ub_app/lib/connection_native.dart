@@ -228,6 +228,10 @@ final class DeviceConnection {
       root: root!,
       client: client,
     );
+    final assertionCorrectionRecovery = LocalAssertionCorrectionFormRecovery(
+      root: root!,
+      client: client,
+    );
     final boundaryRecovery = LocalBoundaryFormRecovery(
       root: root!,
       client: client,
@@ -347,6 +351,9 @@ final class DeviceConnection {
       loadAssertionEndForm: (scope) =>
           sequenced(() => assertionEndRecovery.load(scope)),
       saveAssertionEndForm: assertionEndRecovery.save,
+      loadAssertionCorrectionForm: (scope) =>
+          sequenced(() => assertionCorrectionRecovery.load(scope)),
+      saveAssertionCorrectionForm: assertionCorrectionRecovery.save,
       loadBoundaryForm: (scope) =>
           sequenced(() => boundaryRecovery.load(scope)),
       saveBoundaryForm: boundaryRecovery.save,

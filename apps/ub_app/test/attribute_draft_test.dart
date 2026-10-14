@@ -7,6 +7,7 @@ import 'package:test/test.dart';
 import 'package:ub_app/attribute_draft.dart';
 import 'package:ub_app/assertion_retraction_draft.dart';
 import 'package:ub_app/assertion_end_draft.dart';
+import 'package:ub_app/assertion_correction_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/evidence_basis_draft.dart';
 import 'package:ub_app/draft_record_choices.dart';
@@ -1515,6 +1516,76 @@ void main() {
         record: endSource.identity.recordId,
       );
       expect(retainedInterval.toWire().toText(), endSource.toWire().toText());
+      final correctionBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final correctionScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: ended.identity.recordId.value,
+      );
+      final correctionForm =
+          assertionCorrectionFormFromRecord(
+            record: ended,
+            baseRevision: correctionBase.content.baseRevision,
+            representedContext: scope.representedContext!,
+          ).copyWith(
+            proposition: ExpressionReferenceInput(
+              record: existingAssertion.proposition.record.value,
+              universe: existingAssertion.proposition.universe?.value ?? '',
+            ),
+            evidence: const AttributeEvidenceInput(
+              precision: Precision.approximate,
+              basis: EvidenceBasisInput(
+                kind: 'author_decision',
+                note: 'Correct the claim and attribution 記憶 😀.',
+              ),
+            ),
+            rationale: 'Correct which account this assertion attributes.',
+          );
+      await session.saveAssertionCorrectionForm(
+        correctionScope,
+        correctionForm,
+        BigInt.zero,
+      );
+      await session.close();
+      session = await device.connect();
+      final recoveredCorrection = (await session.loadAssertionCorrectionForm(
+        correctionScope,
+      ))!.form;
+      expect(
+        recoveredCorrection.toWire().toText(),
+        correctionForm.toWire().toText(),
+      );
+      final correctionDraft = SavedDraft.fromWire(
+        await session.call(
+          assertionCorrectionDraftRequest(
+            draft: correctionBase,
+            form: recoveredCorrection,
+            universe: const Selector('Attributes'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final corrected = (await publishAssertionChange(correctionDraft)).single;
+      expect(corrected.identity.recordId, ended.identity.recordId);
+      expect(
+        corrected.payload.toWire().toText(),
+        assertionCorrectionOperation(correctionForm).replacement
+            .toWire()
+            .toText(),
+      );
+      final retainedEnded = await readContextRecord(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Attributes'),
+        context: await openDraftChoiceContext(changes(), correctionBase),
+        record: ended.identity.recordId,
+      );
+      expect(retainedEnded.toWire().toText(), ended.toWire().toText());
       final retractionBase = await changes().rebase(
         (await changes().load())!,
         startNew: true,

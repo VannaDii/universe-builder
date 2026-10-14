@@ -9,17 +9,11 @@ import 'connection.dart';
 import 'draft_record_choice_field.dart';
 import 'draft_record_choices.dart';
 import 'record_browser.dart';
-import 'evidence_basis_draft.dart';
-import 'evidence_basis_fields.dart';
-import 'qualifier_draft.dart';
-import 'scope_draft.dart';
-import 'scope_input_fields.dart';
 import 'record_fields.dart';
 import 'record_reference_fields.dart';
 import 'saved_changes.dart';
 import 'value_input_fields.dart';
-import 'temporal_validity_draft.dart';
-import 'temporal_validity_fields.dart';
+import 'assertion_evidence_fields.dart';
 
 class AttributeEditorPage extends StatefulWidget {
   const AttributeEditorPage({
@@ -369,214 +363,6 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
   );
   int _roleGeneration = 0;
 
-  void _editEvidence({
-    EvidenceBasisInput? basis,
-    AttributeMode? attributeMode,
-    ScopeInput? scope,
-    Polarity? polarity,
-    Precision? precision,
-    PersistenceSemantics? persistence,
-    String? validityChoice,
-    TemporalValidityInput? temporal,
-    List<QualifierInput>? alternatives,
-  }) {
-    final old = _form!.evidenceInput ?? const AttributeEvidenceInput();
-    _change(
-      _form!.value,
-      evidence: AttributeEvidenceInput(
-        basis: basis ?? old.basis,
-        attributeMode: attributeMode ?? old.attributeMode,
-        scope: scope ?? old.scope,
-        alternatives: alternatives ?? old.alternatives,
-        polarity: polarity ?? old.polarity,
-        precision: precision ?? old.precision,
-        persistence: persistence ?? old.persistence,
-        validity: validityChoice == null
-            ? old.validity
-            : switch (validityChoice) {
-                'unspecified' => const UnspecifiedValidity(),
-                'unknown' => const UnknownValidity(),
-                'conditional' => const ConditionalValidity(),
-                _ => null,
-              },
-        temporalValidity: validityChoice == null
-            ? temporal ?? old.temporalValidity
-            : validityChoice == 'temporal'
-            ? temporalValidityInput(_evidence.validity)
-            : null,
-      ),
-    );
-  }
-
-  List<QualifierInput> get _alternatives =>
-      _form!.evidenceInput?.alternatives ??
-      [
-        for (var i = 0; i < _evidence.alternatives.length; i++)
-          qualifierInput(i.toString(), _evidence.alternatives[i]),
-      ];
-  void _moveAlternative(int index, int destination) {
-    final rows = [..._alternatives];
-    rows.insert(destination, rows.removeAt(index));
-    _editEvidence(alternatives: rows);
-  }
-
-  Widget _alternativeFields() {
-    final rows = _alternatives;
-    final original = qualifierChildren(SequenceValue(_evidence.alternatives));
-    return ExpansionTile(
-      key: const ValueKey('attribute alternatives'),
-      title: const Text('Alternative values'),
-      children: [
-        const Text(
-          'These are authored alternatives, not additional established facts. Precision is selected separately.',
-        ),
-        if (rows.isEmpty) const Text('No alternatives'),
-        for (var i = 0; i < rows.length; i++)
-          Column(
-            key: ValueKey(('attribute alternative', i)),
-            children: [
-              ValueInputFields(
-                changes: widget.changes,
-                draft: _choices,
-                input: rows[i],
-                original: original[rows[i].originalKey],
-                disabled: _disabled,
-                label: 'Alternative ${i + 1}',
-                onChanged: (value) {
-                  final changed = [..._alternatives];
-                  changed[i] = value;
-                  _editEvidence(alternatives: changed);
-                },
-              ),
-              Wrap(
-                children: [
-                  TextButton(
-                    onPressed: _disabled || i == 0
-                        ? null
-                        : () => _moveAlternative(i, i - 1),
-                    child: const Text('Move earlier'),
-                  ),
-                  TextButton(
-                    onPressed: _disabled || i == rows.length - 1
-                        ? null
-                        : () => _moveAlternative(i, i + 1),
-                    child: const Text('Move later'),
-                  ),
-                  TextButton(
-                    onPressed: _disabled
-                        ? null
-                        : () {
-                            final changed = [..._alternatives]..removeAt(i);
-                            _editEvidence(alternatives: changed);
-                          },
-                    child: const Text('Remove alternative'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        TextButton(
-          onPressed: _disabled
-              ? null
-              : () => _editEvidence(
-                  alternatives: [..._alternatives, const QualifierInput()],
-                ),
-          child: const Text('Add alternative'),
-        ),
-      ],
-    );
-  }
-
-  Widget _choice<T>(
-    String label,
-    T value,
-    Map<T, String> choices,
-    ValueChanged<T> change,
-  ) => DropdownButtonFormField<T>(
-    key: ValueKey((label, value)),
-    initialValue: value,
-    decoration: InputDecoration(labelText: label),
-    items: [
-      for (final e in choices.entries)
-        DropdownMenuItem(value: e.key, child: Text(e.value)),
-    ],
-    onChanged: _disabled
-        ? null
-        : (v) {
-            if (v != null) change(v);
-          },
-  );
-  Widget _evidenceFields() {
-    final input = _form!.evidenceInput;
-    final original = _evidence;
-    final choice = input?.temporalValidity != null
-        ? 'temporal'
-        : switch (input?.validity) {
-            UnspecifiedValidity() => 'unspecified',
-            UnknownValidity() => 'unknown',
-            ConditionalValidity() => 'conditional',
-            _ => 'retain',
-          };
-    return ExpansionTile(
-      key: const ValueKey('attribute assertion details'),
-      title: const Text('Assertion details'),
-      children: [
-        _choice(
-          'Attribute mode',
-          input?.attributeMode ?? original.attributeMode,
-          const {
-            AttributeMode.instance: 'Instance fact',
-            AttributeMode.shared: 'Shared attribute',
-            AttributeMode.initialValue: 'Initial value',
-          },
-          (v) => _editEvidence(attributeMode: v),
-        ),
-        _choice('Polarity', input?.polarity ?? original.polarity, const {
-          Polarity.support: 'Supports this fact',
-          Polarity.refutation: 'Refutes this fact',
-        }, (v) => _editEvidence(polarity: v)),
-        _choice('Precision', input?.precision ?? original.precision, const {
-          Precision.exact: 'Exact',
-          Precision.approximate: 'Approximate',
-          Precision.range: 'Range',
-          Precision.oneOf: 'One of the authored alternatives',
-          Precision.unresolved: 'Unresolved',
-        }, (v) => _editEvidence(precision: v)),
-        _choice(
-          'Persistence',
-          input?.persistence ?? original.persistence,
-          const {
-            PersistenceSemantics.explicitInterval: 'Explicit interval',
-            PersistenceSemantics.persistentUntilChanged:
-                'Persistent until changed',
-            PersistenceSemantics.instantaneousObservation:
-                'Instantaneous observation',
-            PersistenceSemantics.conditionDependent: 'Condition dependent',
-            PersistenceSemantics.unspecified: 'Unspecified',
-          },
-          (v) => _editEvidence(persistence: v),
-        ),
-        _choice('Validity', choice, const {
-          'retain': 'Keep current validity',
-          'unspecified': 'Unspecified',
-          'unknown': 'Unknown',
-          'conditional': 'Conditional',
-          'temporal': 'Temporal validity',
-        }, (v) => _editEvidence(validityChoice: v)),
-        if (input?.temporalValidity != null)
-          TemporalValidityFields(
-            changes: widget.changes,
-            draft: _choices,
-            key: const ValueKey('attribute temporal'),
-            input: input!.temporalValidity!,
-            originalAmounts: temporalOriginalAmounts(original.validity),
-            disabled: _disabled,
-            onChanged: (v) => _editEvidence(temporal: v),
-          ),
-      ],
-    );
-  }
-
   Future<void> _save() async {
     if (!_dirty || _saving || _form == null) return;
     setState(() {
@@ -860,38 +646,13 @@ class _AttributeEditorPageState extends State<AttributeEditorPage> {
                       _source is AssertPropositionOperation ||
                       _source is RecordRelationOperation)
                     _roleFields(),
-                  _evidenceFields(),
-                  ExpansionTile(
-                    key: const ValueKey('attribute factual scope'),
-                    title: const Text('Factual scope'),
-                    children: [
-                      ScopeInputFields(
-                        changes: widget.changes,
-                        draft: _draft,
-                        input:
-                            _form!.evidenceInput?.scope ??
-                            scopeInput(_evidence.scope),
-                        disabled: _disabled,
-                        onChanged: (v) => _editEvidence(scope: v),
-                      ),
-                    ],
-                  ),
-                  _alternativeFields(),
-                  ExpansionTile(
-                    key: const ValueKey('attribute source basis'),
-                    title: const Text('Source basis'),
-                    children: [
-                      EvidenceBasisFields(
-                        changes: widget.changes,
-                        draft: _draft,
-                        input:
-                            _form!.evidenceInput?.basis ??
-                            evidenceBasisInput(_evidence.basis),
-                        original: _evidence.basis,
-                        disabled: _disabled,
-                        onChanged: (v) => _editEvidence(basis: v),
-                      ),
-                    ],
+                  AssertionEvidenceFields(
+                    input: _form!.evidenceInput,
+                    original: _evidence,
+                    changes: widget.changes,
+                    draft: _draft,
+                    disabled: _disabled,
+                    onChanged: (v) => _change(_form!.value, evidence: v),
                   ),
                 ],
                 if (_source != null)

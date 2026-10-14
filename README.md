@@ -281,6 +281,12 @@ In author perspective, proposition choices show their subject, predicate,
 quantification, context, ordered participants and simple values using accessible
 names. Search matches these descriptions. Hidden dependencies retain the
 existing fallback; labels do not assert that a proposition is true.
+Published assertion details offer **Correct assertion**. Authors can choose an
+existing proposition and revise attribute mode, polarity, precision, persistence,
+scope, validity, alternatives and source basis. The editor retains event-establishment
+provenance. Unfinished corrections recover on this device; **Edit assertion
+correction** in Changes keeps the source record and version. Reviewed publication
+preserves historical assertions and does not rewrite referenced propositions.
 Assertions with a declared calendar interval offer **End assertion at a time**.
 Authors enter an exact coordinate in the assertion’s retained calendar and its
 evidence basis. Unfinished input recovers on this device; pending endings offer

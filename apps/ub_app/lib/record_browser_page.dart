@@ -36,6 +36,7 @@ import 'value_definition_editor_page.dart';
 import 'type_editor_page.dart';
 import 'interpretation_editor_page.dart';
 import 'assertion_retraction_editor_page.dart';
+import 'assertion_correction_editor_page.dart';
 import 'assertion_end_editor_page.dart';
 
 enum _DossierView {
@@ -988,6 +989,40 @@ class _RecordDetailPageState extends State<_RecordDetailPage> {
                                   ),
                                 ),
                           child: const Text('Retract assertion'),
+                        ),
+                      if (record.payload is AssertionRecord)
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context).push<SavedDraft>(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        AssertionCorrectionEditorPage(
+                                          revision:
+                                              widget.context.frame.revision,
+                                          sourceRecord: record,
+                                          changes: SavedChanges(
+                                            session: widget.session,
+                                            universe: Selector(
+                                              widget.universe.name,
+                                            ),
+                                            scope: EditorFormScope(
+                                              instance: widget.scope.instance,
+                                              profile: widget.scope.profile,
+                                              universe: widget.universe.id,
+                                              continuity: widget.continuity.id,
+                                              representedContext:
+                                                  widget.representedContext.id,
+                                              typeClientRef: record
+                                                  .identity
+                                                  .recordId
+                                                  .value,
+                                            ),
+                                          ),
+                                        ),
+                                  ),
+                                ),
+                          child: const Text('Correct assertion'),
                         ),
                       if (record.payload is AssertionRecord &&
                           (record.payload as AssertionRecord).validity

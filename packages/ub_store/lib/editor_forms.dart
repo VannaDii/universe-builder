@@ -56,3 +56,4 @@ export 'src/passage_forms.dart';
 export 'src/interpretation_forms.dart';
 export 'src/assertion_retraction_forms.dart';
 export 'src/assertion_end_forms.dart';
+export 'src/assertion_correction_forms.dart';
