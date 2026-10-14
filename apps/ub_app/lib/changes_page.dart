@@ -9,6 +9,9 @@ import 'property_editor_page.dart';
 import 'unit_editor_page.dart';
 import 'value_definition_editor_page.dart';
 import 'relation_editor_page.dart';
+import 'source_editor_page.dart';
+import 'source_draft.dart';
+import 'draft_record_choices.dart';
 import 'calendar_editor_page.dart';
 import 'entity_editor_page.dart';
 import 'attribute_editor_page.dart';
@@ -903,6 +906,70 @@ class _ChangesPageState extends State<ChangesPage> {
                                 child: const Text(
                                   'Edit value-definition fields',
                                 ),
+                              ),
+                            if (_proposal == null &&
+                                operations[index] is AddSourceAnchorOperation)
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _changeDraft((draft) async {
+                                        final form = sourceAnchorFormFromDraft(
+                                          draft,
+                                          index,
+                                        );
+                                        final opened =
+                                            await openDraftChoiceContext(
+                                              widget.changes,
+                                              draft,
+                                            );
+                                        if (!context.mounted) return draft;
+                                        return await Navigator.of(
+                                              context,
+                                            ).push<SavedDraft>(
+                                              MaterialPageRoute(
+                                                builder: (_) => SourceEditorPage(
+                                                  revision: draft
+                                                      .content
+                                                      .baseRevision,
+                                                  source: form.anchorSource,
+                                                  context: opened.contextId,
+                                                  editingDraft: draft,
+                                                  index: index,
+                                                  changes: SavedChanges(
+                                                    session:
+                                                        widget.changes.session,
+                                                    universe:
+                                                        widget.changes.universe,
+                                                    scope: EditorFormScope(
+                                                      instance: widget
+                                                          .changes
+                                                          .scope
+                                                          .instance,
+                                                      profile: widget
+                                                          .changes
+                                                          .scope
+                                                          .profile,
+                                                      universe: widget
+                                                          .changes
+                                                          .scope
+                                                          .universe,
+                                                      continuity: widget
+                                                          .changes
+                                                          .scope
+                                                          .continuity,
+                                                      representedContext: draft
+                                                          .content
+                                                          .representedContext,
+                                                      typeClientRef:
+                                                          form.clientRef,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ) ??
+                                            draft;
+                                      }),
+                                child: const Text('Edit source anchor'),
                               ),
                             if (_proposal == null &&
                                 operations[index] is DefineRelationOperation)

@@ -12,12 +12,14 @@ final class UnfinishedSourceForm {
     this.rationale = '',
     Iterable<DomainOperation> staged = const [],
     this.anchorSource,
+    this.draftVersion,
   }) : staged = List.unmodifiable(staged);
   final RevisionId baseRevision;
   final RecordId representedContext;
   final String clientRef, label, text, rationale;
   final List<DomainOperation> staged;
   final VersionRef? anchorSource;
+  final BigInt? draftVersion;
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
     MapEntry('represented_context', CanonicalString(representedContext.value)),
@@ -28,6 +30,8 @@ final class UnfinishedSourceForm {
     MapEntry('staged', CanonicalArray(staged.map((o) => o.toWire()))),
     if (anchorSource != null)
       MapEntry('anchor_source', anchorSource!.toCanonical()),
+    if (draftVersion != null)
+      MapEntry('draft_version', CanonicalString(draftVersion.toString())),
   ]);
   factory UnfinishedSourceForm.fromWire(CanonicalValue value) {
     final f = WireFields(value, {
@@ -39,6 +43,7 @@ final class UnfinishedSourceForm {
       'rationale',
       'staged',
       'anchor_source',
+      'draft_version',
     });
     return UnfinishedSourceForm(
       baseRevision: RevisionId.parse(f.string('base_revision')),
@@ -49,6 +54,10 @@ final class UnfinishedSourceForm {
       rationale: f.string('rationale'),
       staged: f.array('staged').map(DomainOperation.fromWire),
       anchorSource: f.optional('anchor_source', VersionRef.fromCanonical),
+      draftVersion: f.optional(
+        'draft_version',
+        (v) => checkedU64(BigInt.parse(wireString(v))),
+      ),
     );
   }
   Iterable<String> get exactTexts => [

@@ -212,6 +212,9 @@ the retained text and locate an exact quotation. Repeated quotations require an
 explicit occurrence number. The selected source version, UTF-8 range, excerpt
 and represented context recover together and enter Changes for review; creating
 an anchor does not assert that the source supports a factual claim.
+Unpublished anchors offer **Edit source anchor** in Changes. Editing retains the
+anchor identity and proposal rationale; a changed draft must be reopened before
+its fields can be saved.
 **Timeline** in an entity dossier lists events with explicit participation.
 Exact numeric points are ordered separately in each named calendar, using the
 shared rule engine's integer bounds. Equal coordinates do not imply sequence.

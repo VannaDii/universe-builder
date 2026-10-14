@@ -152,7 +152,9 @@ final class SourceFormRecoveryStore {
     if (scope.representedContext != form.representedContext ||
         (scope.typeClientRef != null &&
             scope.typeClientRef !=
-                (form.anchorSource?.version.value ?? form.clientRef))) {
+                (form.draftVersion == null
+                    ? (form.anchorSource?.version.value ?? form.clientRef)
+                    : form.clientRef))) {
       throw const FormatException('Source import form context does not match.');
     }
     for (final text in form.exactTexts) {

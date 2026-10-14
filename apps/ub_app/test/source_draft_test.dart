@@ -8,8 +8,78 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/editor_forms.dart';
 import 'package:ub_app/source_anchor.dart';
+import 'package:ub_app/source_draft.dart';
 
 void main() {
+  test(
+    'source anchor edits retain identity and refuse a different draft version',
+    () {
+      final context = RecordId.generate();
+      final source = VersionRef(
+        record: RecordId.generate(),
+        version: RecordVersionId.generate(),
+      );
+      AnchorRecord excerpt(String value) => sourceExcerptMatch(
+        text: 'first second',
+        excerpt: value,
+        source: source,
+        context: RecordRef(record: context),
+      ).selected!;
+      final draft = SavedDraft(
+        version: BigInt.from(4),
+        content: DraftContent(
+          baseRevision: RevisionId.generate(),
+          representedContext: context,
+          operations: [
+            AddSourceAnchorOperation(
+              clientRef: 'anchor',
+              record: excerpt('first'),
+            ),
+          ],
+          rationale: 'Existing author decision.',
+        ),
+      );
+      final before = sourceAnchorFormFromDraft(draft, 0);
+      final edited = UnfinishedSourceForm(
+        baseRevision: before.baseRevision,
+        representedContext: context,
+        clientRef: before.clientRef,
+        text: 'second',
+        anchorSource: source,
+        draftVersion: before.draftVersion,
+        staged: [
+          AddSourceAnchorOperation(
+            clientRef: 'anchor',
+            record: excerpt('second'),
+          ),
+        ],
+      );
+      final recovered = UnfinishedSourceForm.fromWire(edited.toWire());
+      final request = sourceDraftRequest(
+        draft: draft,
+        form: recovered,
+        universe: const Selector('World'),
+        continuity: ContinuityId.generate(),
+        index: 0,
+      );
+      final result =
+          request.content.operations.single as AddSourceAnchorOperation;
+      expect(result.clientRef, 'anchor');
+      expect(result.record.excerpt, 'second');
+      expect(result.record.sourceVersion, source);
+      expect(request.content.rationale, draft.content.rationale);
+      expect(
+        () => sourceDraftRequest(
+          draft: SavedDraft(version: BigInt.from(5), content: draft.content),
+          form: recovered,
+          universe: const Selector('World'),
+          continuity: ContinuityId.generate(),
+          index: 0,
+        ),
+        throwsFormatException,
+      );
+    },
+  );
   test('repeated excerpts require an explicit occurrence and retain UTF-8 positions', () {
     final source = VersionRef(
       record: RecordId.generate(),

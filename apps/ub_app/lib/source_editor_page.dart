@@ -17,11 +17,15 @@ class SourceEditorPage extends StatefulWidget {
     required this.revision,
     this.source,
     this.context,
+    this.editingDraft,
+    this.index,
   });
   final SavedChanges changes;
   final RevisionId revision;
   final VersionRef? source;
   final ContextId? context;
+  final SavedDraft? editingDraft;
+  final int? index;
   @override
   State<SourceEditorPage> createState() => _SourceEditorPageState();
 }
@@ -66,19 +70,21 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
     super.dispose();
   }
 
-  UnfinishedSourceForm _fresh() => UnfinishedSourceForm(
-    baseRevision: widget.revision,
-    representedContext: _scope.representedContext!,
-    clientRef: RecordId.generate().value,
-    anchorSource: widget.source,
-  );
+  UnfinishedSourceForm _fresh() => widget.index != null
+      ? sourceAnchorFormFromDraft(_draft!, widget.index!)
+      : UnfinishedSourceForm(
+          baseRevision: widget.revision,
+          representedContext: _scope.representedContext!,
+          clientRef: RecordId.generate().value,
+          anchorSource: widget.source,
+        );
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      _draft = await widget.changes.load();
+      _draft = widget.editingDraft ?? await widget.changes.load();
       final saved = await widget.changes.session.loadSourceForm(_scope);
       if (!mounted) return;
       setState(() {
@@ -88,9 +94,11 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
         _dirty = false;
         _stale =
             _form!.baseRevision != widget.revision ||
-            _form!.anchorSource != widget.source;
+            _form!.anchorSource != widget.source ||
+            (widget.index != null && _form!.draftVersion != _draft!.version);
         _added =
-            _form!.staged.isNotEmpty &&
+            widget.index == null &&
+                _form!.staged.isNotEmpty &&
                 (_draft?.content.operations.isNotEmpty ?? false) &&
                 _form!.staged.every(
                   (op) => _draft!.content.operations.any(
@@ -124,6 +132,7 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
         rationale: rationale ?? f.rationale,
         staged: label == null && text == null ? f.staged : const [],
         anchorSource: f.anchorSource,
+        draftVersion: f.draftVersion,
       );
       _dirty = true;
       if (text != null) _matches = null;
@@ -159,6 +168,10 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
       }
     } finally {
       if (mounted) setState(() => _saving = false);
+      if (mounted && _dirty && _error == null) {
+        _autosave?.cancel();
+        _autosave = Timer(const Duration(milliseconds: 500), _save);
+      }
     }
   }
 
@@ -225,6 +238,7 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
           text: f.text,
           rationale: f.rationale,
           anchorSource: f.anchorSource,
+          draftVersion: f.draftVersion,
           staged: [
             AddSourceAnchorOperation(
               clientRef: f.clientRef,
@@ -292,13 +306,14 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
         await _save();
         if (_dirty) return;
       }
-      final draft = await widget.changes.load();
+      final draft = widget.index == null ? await widget.changes.load() : _draft;
       final base = draft ?? _choices;
       final request = sourceDraftRequest(
         draft: base,
         form: _form!,
         universe: widget.changes.universe,
         continuity: _scope.continuity,
+        index: widget.index,
       );
       final saved =
           request.content.toWire().toText() == base.content.toWire().toText()
@@ -308,7 +323,14 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
       setState(() {
         _draft = saved;
         _result = saved;
-        _added = _anchor
+        if (widget.index != null) {
+          _form = sourceAnchorFormFromDraft(saved, widget.index!);
+          _fields++;
+          _dirty = true;
+        }
+        _added = widget.index != null
+            ? 'Source anchor fields saved to Changes.'
+            : _anchor
             ? 'Source anchor added to Changes. Review it before publication.'
             : 'Source added to Changes. Review it before publication.';
       });
@@ -347,7 +369,7 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
     child: TextFormField(
       key: ValueKey((_fields, key)),
       initialValue: value,
-      enabled: !_disabled,
+      enabled: !_loading && !_adding && _form != null && _added == null,
       maxLines: maxLines,
       decoration: InputDecoration(labelText: label),
       onChanged: change,
@@ -360,7 +382,15 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
       if (!didPop) _leave();
     },
     child: Scaffold(
-      appBar: AppBar(title: const Text('Import source')),
+      appBar: AppBar(
+        title: Text(
+          widget.index != null
+              ? 'Edit source anchor'
+              : _anchor
+              ? 'Anchor source excerpt'
+              : 'Import source',
+        ),
+      ),
       body: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
@@ -370,8 +400,10 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'Retain submitted source text without fetching external URLs. Importing creates proposed source records; publication still requires review in Changes.',
+                Text(
+                  _anchor
+                      ? 'Select an exact excerpt from this retained source version. Repeated text requires an occurrence number. Review the anchor in Changes before publication.'
+                      : 'Retain submitted source text without fetching external URLs. Importing creates proposed source records; publication still requires review in Changes.',
                 ),
                 if (_loading || _saving || _adding)
                   const LinearProgressIndicator(),
@@ -442,7 +474,11 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
                   ),
                   FilledButton(
                     onPressed: _disabled || _stale ? null : _add,
-                    child: const Text('Add to Changes'),
+                    child: Text(
+                      widget.index == null
+                          ? 'Add to Changes'
+                          : 'Save source anchor changes',
+                    ),
                   ),
                   TextButton(
                     onPressed: _loading || _saving || _adding || !_dirty
@@ -450,7 +486,7 @@ class _SourceEditorPageState extends State<SourceEditorPage> {
                         : _save,
                     child: const Text('Save unfinished work'),
                   ),
-                  if (_added != null)
+                  if (_added != null && widget.index == null)
                     TextButton(
                       onPressed: _loading || _saving || _adding ? null : _reset,
                       child: const Text('Import another source'),
