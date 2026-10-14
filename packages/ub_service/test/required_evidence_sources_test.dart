@@ -50,6 +50,7 @@ AssertionRecord assertion({
   EvidenceBasis? basis,
   Applicability applicability = const UniverseApplicability(),
   Validity? validity,
+  Precision precision = Precision.exact,
 }) => AssertionRecord(
   attributeMode: AttributeMode.instance,
   proposition: f.ref(3),
@@ -57,7 +58,7 @@ AssertionRecord assertion({
   scope: Scope(context: f.ref(99), applicability: applicability),
   validity: validity ?? f.interval(12, 18),
   persistence: PersistenceSemantics.explicitInterval,
-  precision: Precision.exact,
+  precision: precision,
   basis: basis ?? SourceAnchorBasis(f.ref(13), false),
 );
 List<RecordVersion> fixture() => [
@@ -100,6 +101,18 @@ List<protocol.Finding> assess(
   changed: changed.map(f.id).toSet(),
 );
 void main() {
+  test('a qualifying source preserves an approximate recollection but cannot resolve explicit alternatives', () {
+    final rows = fixture();
+    replace(rows, 4, assertion(precision: Precision.approximate));
+    expect(assess(rows).single.outcome, protocol.EvidenceOutcome.supported);
+    for (final precision in [Precision.unresolved, Precision.oneOf]) {
+      replace(rows, 4, assertion(precision: precision));
+      expect(
+        assess(rows).single.outcome,
+        protocol.EvidenceOutcome.notEstablished,
+      );
+    }
+  });
   test('private attributed recollection qualifies without a public URL or writer verification flag', () {
     final finding = assess(fixture()).single;
     expect(finding.outcome, protocol.EvidenceOutcome.supported);
@@ -245,4 +258,36 @@ void main() {
       );
     },
   );
+  test('new opposing evidence revisits the affected claim without choosing a truth winner', () {
+    final base = fixture();
+    final rows = [
+      ...base,
+      f.record(
+        5,
+        AssertionRecord(
+          attributeMode: AttributeMode.instance,
+          proposition: f.ref(3),
+          polarity: Polarity.refutation,
+          scope: f.scope,
+          validity: f.interval(15, 25),
+          persistence: PersistenceSemantics.explicitInterval,
+          precision: Precision.exact,
+          basis: SourceAnchorBasis(f.ref(13), false),
+        ),
+      ),
+    ];
+    final findings = assess(rows, base: base, changed: [5]);
+    expect(findings, hasLength(2));
+    expect(
+      findings.every((f) => f.outcome == protocol.EvidenceOutcome.conflicting),
+      isTrue,
+    );
+    expect(findings.expand((f) => f.records), contains(f.ref(4)));
+    expect(assess(rows, base: base, changed: [77]), isEmpty);
+    replace(rows, 10, policy(validity: f.interval(12, 14)));
+    expect(
+      assess(rows, base: base, changed: [10]).single.outcome,
+      protocol.EvidenceOutcome.supported,
+    );
+  });
 }

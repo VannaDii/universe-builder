@@ -15,12 +15,14 @@ import 'knowledge_checks.dart';
 import 'opposing_diagnostics.dart';
 import 'proposal_authorization.dart';
 import 'resource_checks.dart';
+import 'required_evidence_checks.dart';
+import 'required_evidence_reviews.dart';
 import 'rule_checks.dart';
 import 'structural_checks.dart';
 import 'validation_findings.dart';
 
 const candidateEvaluatorVersion =
-    'finite-policy-v15-writer-constraint-diagnostics';
+    'finite-policy-v16-scoped-source-review';
 
 /// Candidate assessment only. Approval, source staging, snapshot selection and
 /// durable publication remain the responsibility of the author workflow.
@@ -54,6 +56,7 @@ CandidateValidationResult evaluateCandidate({
   required WriteFootprint footprint,
   required bool authorOrigin,
   required ProfileId approvalAuthor,
+  protocol.AssessmentReview? selectedAssessment,
   void Function()? checkCancelled,
 }) {
   final definitions = DefinitionRegistry();
@@ -116,6 +119,23 @@ CandidateValidationResult evaluateCandidate({
     frame: frame,
   );
   var admissible = findings.isEmpty;
+  for (final finding in assessRequiredEvidenceReviews(
+    sourceFindings: assessRequiredEvidenceSources(
+      records: candidate,
+      base: base,
+      changed: changedIds,
+    ),
+    records: candidate,
+    review: selectedAssessment,
+  )) {
+    if (finding.outcome != protocol.EvidenceOutcome.supported) {
+      admissible = false;
+    }
+    if (finding.coverage != protocol.Coverage.complete) {
+      unsupported.add('required_evidence:${finding.ruleId.value}');
+    }
+    findings.add(finding);
+  }
   for (final f in findings) {
     if (f.coverage != protocol.Coverage.complete) {
       unsupported.add('event.preconditions:${f.ruleId.value}');

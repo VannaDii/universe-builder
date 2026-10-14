@@ -144,6 +144,7 @@ Future<CheckedValidation> checkProposalCandidate({
   readCanon,
   required FutureOr<CanonicalValue?> Function(String) readWorkflow,
   required FutureOr<RecordVersion> Function(RecordVersionId) readVersion,
+  FutureOr<AssessmentReview> Function(ProposalRef)? readSelectedAssessment,
 }) async {
   final frame = stored.proposal.baseFrame;
   if (frame.time is! TimelessFrameTime) {
@@ -183,6 +184,15 @@ Future<CheckedValidation> checkProposalCandidate({
     readVersion: readVersion,
   );
   final base = await readCanon(frame.continuity, frame.revision);
+  final needsReview = candidate.any(
+    (r) =>
+        r.payload is RuleRecord &&
+        ((r.payload as RuleRecord).requiredEvidence?.reviewMethods.isNotEmpty ??
+            false),
+  );
+  final selectedAssessment = needsReview && readSelectedAssessment != null
+      ? await readSelectedAssessment(stored.reference)
+      : null;
   final result = evaluateCandidate(
     candidate: candidate,
     base: base,
@@ -192,6 +202,7 @@ Future<CheckedValidation> checkProposalCandidate({
     footprint: stored.footprint,
     authorOrigin: stored.authorOrigin,
     approvalAuthor: approvalAuthor,
+    selectedAssessment: selectedAssessment,
   );
   return CheckedValidation(
     proposalDigest: stored.proposal.digest,

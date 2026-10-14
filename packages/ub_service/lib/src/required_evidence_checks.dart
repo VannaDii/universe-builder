@@ -19,6 +19,28 @@ List<protocol.Finding> assessRequiredEvidenceSources({
     return const [];
   }
   final index = rules.RecordIndex(records);
+  final universe = records.first.identity.universeId;
+  final opposing = rules.detectOpposing(
+    universe: universe,
+    records: records,
+    indexed: true,
+    budget: 10000,
+  );
+  final historicalPairs =
+      base.any(
+        (r) =>
+            changed.contains(r.identity.recordId) &&
+            r.payload is AssertionRecord,
+      )
+      ? rules
+            .detectOpposing(
+              universe: universe,
+              records: base,
+              indexed: true,
+              budget: 10000,
+            )
+            .pairs
+      : const <rules.OpposingPair>[];
   final dependents = <RecordId, Set<RecordId>>{};
   for (final row in [...base, ...records]) {
     for (final dependency in recordDependencies(
@@ -31,6 +53,12 @@ List<protocol.Finding> assessRequiredEvidenceSources({
     )) {
       (dependents[dependency] ??= {}).add(row.identity.recordId);
     }
+  }
+  for (final pair in [...opposing.pairs, ...historicalPairs]) {
+    final a = pair.support.assertion.identity.recordId;
+    final b = pair.refutation.assertion.identity.recordId;
+    (dependents[a] ??= {}).add(b);
+    (dependents[b] ??= {}).add(a);
   }
   final affected = <RecordId>{};
   final pending = changed.toList();
@@ -131,6 +159,10 @@ List<protocol.Finding> assessRequiredEvidenceSources({
         message = 'Resolve this claim’s world, subject classification or time before applying its evidence policy.';
       } else if (!categoriesResolved) {
         message = 'Select nonempty qualifying source categories at their exact current published versions.';
+      } else if (assertion.precision == Precision.unresolved ||
+          assertion.precision == Precision.oneOf ||
+          assertion.alternatives.isNotEmpty) {
+        message = 'This required fact still has unresolved alternatives; a qualifying source does not resolve them by itself.';
       } else if (assertion.basis case SourceAnchorBasis(:final anchor)) {
         final anchorRow = index.get(anchor.record);
         final payload = anchorRow?.payload;
@@ -160,6 +192,37 @@ List<protocol.Finding> assessRequiredEvidenceSources({
           assertion.basis is EventEffectBasis) {
         coverage = protocol.Coverage.unsupported;
         message = 'Derived and event-effect source admission requires its evidence evaluator.';
+      }
+      for (final pair in opposing.pairs.where(
+        (p) =>
+            p.support.assertion.identity.recordId == row.identity.recordId ||
+            p.refutation.assertion.identity.recordId == row.identity.recordId,
+      )) {
+        final applies = pair.applicability == null
+            ? null
+            : _overlaps(rule.applicability, pair.applicability!);
+        final bool? overlaps = rule.validity is UnspecifiedValidity
+            ? true
+            : switch (pair.intersection) {
+                rules.ExactIntersection(:final validity) =>
+                  rules.temporalOverlaps(rule.validity, validity),
+                _ => null,
+              };
+        if (applies == false || overlaps == false) continue;
+        outcome = protocol.EvidenceOutcome.conflicting;
+        if (applies == null || overlaps == null || !pair.definite) {
+          coverage = protocol.Coverage.unsupported;
+        }
+        message = 'Opposing evidence remains in this required claim’s scope; resolve the disagreement without discarding its attribution.';
+        evidence.addAll([
+          pair.support.assertion.recordVersionId,
+          pair.refutation.assertion.recordVersionId,
+        ]);
+      }
+      if (opposing.gaps.contains(rules.OpposingGap.budget)) {
+        outcome = protocol.EvidenceOutcome.notEstablished;
+        coverage = protocol.Coverage.unsupported;
+        message = 'The existing opposing-evidence comparison limit prevented a complete check of this required claim.';
       }
       findings.add(
         protocol.Finding(

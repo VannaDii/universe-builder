@@ -2667,6 +2667,8 @@ final class SqliteValidationWorkflow implements ValidationJobService {
       readCanon: _canon,
       readWorkflow: _workflow.get,
       readVersion: _version,
+      readSelectedAssessment: (reference) =>
+          _assessmentReview(reference, current),
     );
     final input = await proposalCommitInput(
       stored: stored,
@@ -3592,6 +3594,8 @@ final class SqliteValidationWorkflow implements ValidationJobService {
       readCanon: _canon,
       readWorkflow: _workflow.get,
       readVersion: _version,
+      readSelectedAssessment: (reference) =>
+          _assessmentReview(reference, current),
     );
     final report =
         captured?.report(
@@ -4017,6 +4021,19 @@ final class SqliteValidationWorkflow implements ValidationJobService {
       approvalAuthor: current.approvalAuthor,
       restricted: restricted,
       capture: captured,
+      selectedAssessment:
+          restricted ||
+              !candidate.any(
+                (r) =>
+                    r.payload is RuleRecord &&
+                    ((r.payload as RuleRecord)
+                            .requiredEvidence
+                            ?.reviewMethods
+                            .isNotEmpty ??
+                        false),
+              )
+          ? null
+          : await _assessmentReview(reference, current),
     );
   });
 
@@ -4435,6 +4452,8 @@ final class SqliteValidationWorkflow implements ValidationJobService {
       readCanon: _canon,
       readWorkflow: _workflow.get,
       readVersion: _version,
+      readSelectedAssessment: (reference) =>
+          _assessmentReview(reference, current, publication: true),
     );
     final v = fresh.validation;
     final comparable = Validation(

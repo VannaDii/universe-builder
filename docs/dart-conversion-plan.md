@@ -191,13 +191,19 @@ approval cannot by itself discharge a required evidence or interpretation duty.
 Category/policy changes require new reviewed versions and fresh dependent checks.
 No historical payload receives a default policy or a retroactive pass.
 
-This typed contract precedes its admission implementation. Until supported
-checks are wired into publication, both engines must return an explicit
-unsupported result for a candidate containing `requiredEvidence`; they must not
-treat its ordinary rule expression as evidence-policy completion. Delivery still
-requires scoped admission, creation choices, review findings and the platform UX
-specified above, including opposing evidence, event/effect claims and explicit
-fictional departures.
+The Dart service now applies this contract to objective assertions under
+predicate-scoped policies, through synchronous validation, queued evaluation and
+publication rechecks in SQLite and PostgreSQL. Source/category revisions and
+opposing assertions reopen affected dependencies. Selected interpretation review
+must match the exact claim and passage and cover the required worlds and time;
+unrelated unresolved material does not block it. An ordinary rule expression or
+author approval cannot discharge these duties.
+
+Broad policies covering every claim kind remain explicitly unsupported, as do
+event/derived evidence paths. The Rust engine still rejects all required-evidence
+declarations. Delivery still requires the broader admission paths, creation
+choices, review findings and platform UX specified above, including event/effect
+claims and explicit fictional departures.
 
 ## 5. Target application architecture
 

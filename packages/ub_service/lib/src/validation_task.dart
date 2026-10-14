@@ -16,6 +16,7 @@ final class PreparedValidationTask {
     required this.approvalAuthor,
     required this.restricted,
     required this.capture,
+    this.selectedAssessment,
   }) : base = List.unmodifiable(base),
        candidate = List.unmodifiable(candidate);
   final OperationId operationId;
@@ -24,6 +25,7 @@ final class PreparedValidationTask {
   final ProfileId approvalAuthor;
   final bool restricted;
   final ValidationCapture? capture;
+  final AssessmentReview? selectedAssessment;
 
   CheckedValidation evaluate({void Function()? checkCancelled}) {
     if (restricted) {
@@ -52,6 +54,7 @@ final class PreparedValidationTask {
       footprint: proposal.footprint,
       authorOrigin: proposal.authorOrigin,
       approvalAuthor: approvalAuthor,
+      selectedAssessment: selectedAssessment,
       checkCancelled: checkCancelled,
     );
     return CheckedValidation(

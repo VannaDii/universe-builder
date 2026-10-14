@@ -9,10 +9,15 @@ The Real World evidence-policy contract now has an optional Rule
 accepted interpretation-review methods; an empty method list requires no review.
 It does not change historical rule bodies or make ordinary fictional assessments
 mandatory. SQLite/PostgreSQL retain the declaration through the normal typed
-codec. Admission is still being implemented: both engines explicitly reject a
-candidate containing this declaration rather than treating its ordinary rule
-expression as a completed evidence check. Real World creation/review UI is not
-yet available.
+codec. The Dart service admits policies scoped to named predicates: affected
+objective assertions need a retained source in a qualifying category, and a
+current selected assessment when the policy requires review. Review coverage is
+specific to the claim version, passage, world, context and time. Opposing evidence
+and required unresolved interpretations block the affected claim. Ordinary
+approval cannot waive these duties. SQLite and PostgreSQL use the same checks.
+Policies covering every claim kind, event/derived evidence admission and the
+Real World creation/review UI remain unfinished. The Rust engine still rejects
+all `requiredEvidence` declarations explicitly.
 
 The initial Flutter shell is in `apps/ub_app`, with desktop and compact navigation,
 the approved branding, and System/Light/Dark appearance controls in Settings.

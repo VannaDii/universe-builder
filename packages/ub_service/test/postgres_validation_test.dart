@@ -13,6 +13,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_profiles.dart';
 import 'package:ub_service/postgres_validation.dart';
 import 'package:ub_service/validation_scheduler.dart';
+import 'package:ub_service/validation_worker.dart';
 import 'package:ub_service/proposal_state.dart';
 import 'package:ub_store/installation.dart';
 import 'package:ub_store/postgres_installation.dart';
@@ -25,6 +26,8 @@ import 'structural_checks_test.dart' as structure;
 import 'rule_checks_test.dart' as frames;
 import 'source_verification_test.dart' as sources;
 import 'assessment_validation_test.dart' as assessments;
+import 'required_evidence_sources_test.dart' as evidence;
+import 'required_evidence_reviews_test.dart' as reviews;
 import 'knowledge_checks_test.dart' as knowledge;
 import 'resource_checks_test.dart' as resources;
 import '../../ub_contracts/test/assessment_integrity_test.dart' as accounting;
@@ -416,6 +419,151 @@ void main() {
           await observer.close();
         }
       });
+      for (final requiresReview in [false, true]) {
+        test(
+          'scoped evidence policy validates and publishes through PostgreSQL with review=$requiresReview',
+          () async {
+            final rows = evidence
+                .fixture()
+                .where(
+                  (r) => ![f.id(99), f.id(10)].contains(r.identity.recordId),
+                )
+                .toList();
+            final source = SourceVersionRecord.fromWire(
+              accounting.replace(
+                rows
+                    .singleWhere((r) => r.identity.recordId == f.id(12))
+                    .payload
+                    .toWire(),
+                ['source'],
+                f.ref(14).toCanonical(),
+              ),
+            );
+            evidence.replace(rows, 12, source);
+            rows.addAll([
+              f.row(
+                10,
+                CalendarRecord(
+                  namespace: 'test',
+                  key: 'clock',
+                  labels: {},
+                  unitStructure: {},
+                ),
+              ),
+              f.row(
+                14,
+                SourceRecord(
+                  label: 'Private recollection',
+                  origin: const OriginMetadata(),
+                  versions: [f.id(12)],
+                ),
+              ),
+            ]);
+            await store.transaction(
+              (s) => s.workflows(f.u).compareAppend({}, [
+                MapEntry('source-version:${f.id(12).value}', source.toWire()),
+                MapEntry(
+                  'source:${source.contentDigest}',
+                  CanonicalString(sources.sourceText),
+                ),
+              ]),
+            );
+            await seed(rows);
+            await store.transaction(
+              (s) => s.authority.putGrant(
+                actor: owner,
+                grant: GrantSpec(
+                  profileId: writer,
+                  universeId: f.u,
+                  worlds: null,
+                  propose: true,
+                  edit: true,
+                  protected: true,
+                ),
+                epochSeconds: now,
+              ),
+            );
+            await refreshContext();
+            final proposal = await propose(
+              CreateProposalRequest(
+                universe: const Selector('Disposable universe'),
+                universeId: f.u,
+                contextId: writerContext,
+                operations: [
+                  DefineRuleOperation(
+                    clientRef: f.id(40).value,
+                    record: evidence.policy(
+                      reviewMethods: requiresReview
+                          ? [EvidenceReviewMethod.humanReview]
+                          : [],
+                    ),
+                  ),
+                ],
+                submission: Submission.submitted,
+                rationale: 'Scoped evidence policy',
+                idempotencyKey: 'scoped-policy',
+              ),
+            );
+            final initial = await validate(proposal) as EvaluatedValidation;
+            expect(
+              initial.execution.findings.any(
+                (f) => f.outcome == EvidenceOutcome.notEstablished,
+              ),
+              requiresReview,
+            );
+            if (requiresReview) {
+              CanonicalValue body = reviews.review().envelope!.body.toWire();
+              body = accounting.replace(body, [
+                'proposal',
+              ], reference(proposal).toWire());
+              body = accounting.replace(body, [
+                'base_frame',
+              ], proposal.baseFrame.toWire());
+              body = accounting.replace(body, [
+                'assessor',
+                'principal',
+              ], CanonicalString(writer.value.replaceFirst('prf_', 'prn_')));
+              await attach(proposal, SourceAssessmentV1.fromWire(body));
+            }
+            final queuedStatus = await run(
+              writer,
+              (w) => w.queueValidationRequest(
+                queued(proposal),
+                isValidationActive: (_) => false,
+              ),
+            );
+            final task = (await run(
+              writer,
+              (w) => w.prepareValidation(
+                queuedStatus.operationId,
+                isValidationActive: (_) => true,
+              ),
+            ))!;
+            expect(task.selectedAssessment != null, requiresReview);
+            final checked = await ValidationEvaluationWorker(task).result;
+            expect(checked.admissible, isTrue);
+            await run(
+              writer,
+              (w) => w.finishValidation(
+                queuedStatus.operationId,
+                checked,
+                isValidationActive: (_) => true,
+              ),
+            );
+            await run(
+              owner,
+              (w) => w.approve(reference(proposal), checked.validation.runId),
+            );
+            final receipt = await commit(
+              request(proposal, checked.validation.runId),
+            );
+            final head = await store.transaction(
+              (s) => s.kernel(f.u).journal.head(continuity),
+            );
+            expect(head, receipt.revision);
+          },
+        );
+      }
       test('readable proposition search and summaries agree in the pinned PostgreSQL context', () async {
         await seed([
           f.row(

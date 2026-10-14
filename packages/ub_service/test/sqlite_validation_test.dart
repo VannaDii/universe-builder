@@ -13,6 +13,7 @@ import 'package:ub_service/proposal_validation.dart';
 import 'package:ub_service/sqlite_validation.dart';
 import 'package:ub_service/validation_binding.dart';
 import 'package:ub_service/validation_scheduler.dart';
+import 'package:ub_service/validation_worker.dart';
 import 'package:ub_service/context_binding.dart';
 import 'package:ub_service/instance_initialization.dart';
 import 'package:ub_store/installation.dart';
@@ -26,6 +27,8 @@ import 'proposal_authorization_test.dart' as permissions;
 import 'rule_checks_test.dart' as frames;
 import 'structural_checks_test.dart' as structure;
 import 'assessment_validation_test.dart' as assessments;
+import 'required_evidence_sources_test.dart' as evidence;
+import 'required_evidence_reviews_test.dart' as reviews;
 import 'source_verification_test.dart' as sources;
 import 'instance_initialization_test.dart' as initialization;
 import 'effective_objects_test.dart' as objects;
@@ -5416,6 +5419,183 @@ void main() {
     validationRun: checked.validation.runId,
     idempotencyKey: key,
   );
+
+  for (final requiresReview in [false, true]) {
+    test(
+      'scoped evidence policy validates and publishes through SQLite with review=$requiresReview',
+      () async {
+        final rows = evidence
+            .fixture()
+            .where((r) => ![f.id(99), f.id(10)].contains(r.identity.recordId))
+            .toList();
+        final sourceRow = rows.singleWhere(
+          (r) => r.identity.recordId == f.id(12),
+        );
+        final source = SourceVersionRecord.fromWire(
+          accounting.replace(sourceRow.payload.toWire(), [
+            'source',
+          ], f.ref(14).toCanonical()),
+        );
+        evidence.replace(rows, 12, source);
+        rows.add(
+          f.row(
+            10,
+            CalendarRecord(
+              namespace: 'test',
+              key: 'clock',
+              labels: {},
+              unitStructure: {},
+            ),
+          ),
+        );
+        rows.add(
+          f.row(
+            14,
+            SourceRecord(
+              label: 'Private recollection',
+              origin: const OriginMetadata(),
+              versions: [f.id(12)],
+            ),
+          ),
+        );
+        final workflow = WorkflowStorage(package.database);
+        workflow.compareAppend({}, [
+          MapEntry('source-version:${f.id(12).value}', source.toWire()),
+          MapEntry(
+            'source:${source.contentDigest}',
+            CanonicalString(sources.sourceText),
+          ),
+        ]);
+        kernel.commit(input('evidence-fixture', rows));
+        final head = kernel.journal.head(continuity);
+        proposal = proposals.prepare(
+          principal: writer.id,
+          author: false,
+          frame: Frame(
+            universe: f.u,
+            continuity: continuity,
+            revision: head,
+            context: f.ref(99),
+            time: const TimelessFrameTime(),
+            perspective: const AuthorPerspective(),
+          ),
+          base: canon(continuity, head),
+          versions: {f.id(40): f.ver(40)},
+          request: CreateProposalRequest(
+            universe: const Selector('World'),
+            contextId: proposals.contextId,
+            operations: [
+              DefineRuleOperation(
+                clientRef: f.id(40).value,
+                record: evidence.policy(
+                  reviewMethods: requiresReview
+                      ? [EvidenceReviewMethod.humanReview]
+                      : [],
+                ),
+              ),
+            ],
+            submission: Submission.submitted,
+            rationale: 'Scoped evidence policy',
+            idempotencyKey: 'scoped-policy',
+          ),
+        );
+        workflow.compareAppend({}, [MapEntry(proposal.key, proposal.toWire())]);
+        final opened = await service.openContext(contextRequest());
+        Future<CheckedValidation> validate() async {
+          final report = await service.validateProposalRequest(
+            ProposalValidationRequest(
+              universe: const Selector('World'),
+              contextId: opened.contextId,
+              proposalReference: proposal.reference,
+              checkScope: CheckScope.candidate,
+            ),
+          ) as EvaluatedValidation;
+          return CheckedValidation.fromWire(
+            workflow.get('validation:${report.execution.runId.value}')!,
+          );
+        }
+
+        final initial = await validate();
+        expect(initial.admissible, !requiresReview);
+        if (requiresReview) {
+          CanonicalValue body = reviews.review().envelope!.body.toWire();
+          body = accounting.replace(body, [
+            'proposal',
+          ], proposal.reference.toWire());
+          body = accounting.replace(body, [
+            'base_frame',
+          ], proposal.proposal.baseFrame.toWire());
+          body = accounting.replace(body, [
+            'assessor',
+            'principal',
+          ], CanonicalString(writer.id.value.replaceFirst('prf_', 'prn_')));
+          await service.attachAssessment(
+            proposal.reference,
+            expectedGeneration: BigInt.zero,
+            body: SourceAssessmentV1.fromWire(body),
+            idempotencyKey: 'scoped-review',
+          );
+          expect((await validate()).admissible, isTrue);
+        }
+        final queuedStatus = await service.queueValidation(
+          queued(),
+          resolvedFrame: proposal.proposal.baseFrame,
+          isValidationActive: (_) => false,
+        );
+        final task = (await service.prepareValidation(
+          queuedStatus.operationId,
+          isValidationActive: (_) => true,
+        ))!;
+        expect(task.selectedAssessment != null, requiresReview);
+        final evaluated = await ValidationEvaluationWorker(task).result;
+        expect(evaluated.admissible, isTrue);
+        await service.finishValidation(
+          queuedStatus.operationId,
+          evaluated,
+          isValidationActive: (_) => true,
+        );
+        final retained = CheckedValidation.fromWire(
+          workflow.get('validation:${evaluated.validation.runId.value}')!,
+        );
+        await authorService().approve(
+          proposal.reference,
+          retained.validation.runId,
+        );
+        final receipt = await service.commit(
+          publication(retained),
+          isValidationActive: (_) => false,
+        );
+        expect(kernel.journal.head(continuity), receipt.revision);
+        expect(kernel.identityExists(f.id(40)), isTrue);
+        final researchContext = await service.openContext(contextRequest());
+        final inline = await service.validateInlineRequest(
+          InlineValidationRequest(
+            universe: const Selector('World'),
+            contextId: researchContext.contextId,
+            operations: [
+              ReviseDefinitionOperation(
+                record: f.ref(2),
+                expectedVersion: f.ver(2),
+                replacement: rows
+                    .singleWhere((r) => r.identity.recordId == f.id(2))
+                    .payload,
+              ),
+            ],
+            checkScope: CheckScope.candidate,
+          ),
+        ) as EvaluatedValidation;
+        expect(
+          inline.execution.findings.any(
+            (finding) =>
+                finding.ruleId == f.id(40) &&
+                finding.outcome == EvidenceOutcome.notEstablished,
+          ),
+          requiresReview,
+        );
+        expect(kernel.journal.head(continuity), receipt.revision);
+      },
+    );
+  }
 
   test('synchronous source check feeds exact author approval and reviewed publication', () async {
     final body = await submittedAssessment();

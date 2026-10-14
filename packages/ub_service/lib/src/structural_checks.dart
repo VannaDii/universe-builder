@@ -334,10 +334,33 @@ void validateStructuralCandidate(List<RecordVersion> records) {
           );
         }
       case RuleRecord rule:
-        if (rule.requiredEvidence != null) {
+        if (rule.requiredEvidence != null && rule.targetPredicates.isEmpty) {
           throw const UnsupportedSemanticsError(
-            message: 'Required Real World evidence admission is not implemented; this policy cannot be published or treated as satisfied.',
+            message: 'Evidence admission covering every claim kind is not implemented; this policy cannot yet be published or treated as satisfied.',
           );
+        }
+        if (rule.requiredEvidence case final required?) {
+          if (required.sourceCategories.isEmpty) {
+            throw _invalid(
+              'required evidence needs an authored source category',
+            );
+          }
+          for (final ref in required.sourceCategories) {
+            final category = map[ref.record];
+            if (ref.universe != null &&
+                    ref.universe != record.identity.universeId ||
+                category is! DomainPackRecord ||
+                !records.any(
+                  (r) =>
+                      r.identity.recordId == ref.record &&
+                      r.recordVersionId == ref.version,
+                ) ||
+                category.records.any((id) => map[id] is! SourceVersionRecord)) {
+              throw _invalid(
+                'required evidence categories must be exact active domain packs containing source versions',
+              );
+            }
+          }
         }
         validateChannelChronologyRule(rule);
         validateKnowledgeRule(rule);
