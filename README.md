@@ -244,6 +244,14 @@ uses the existing reviewed adoption operations. Publication still requires the
 separate check, proposal and exact approval flow. Refreshing editions clears the
 comparison and selection; an older target draft must be reviewed or rebased.
 Creation retries retain the same continuity identity while this screen is open.
+**Universe access** lists current instance profiles and grants. The approval
+owner can enroll contributors, edit this universe's grant, remove its access,
+or revoke a profile across the instance. The editor retains exact world,
+entity, predicate and continuity limits, expiry and delegated-publication flags;
+limited scopes require 1–100 selections. An expiry can be chosen using a local
+date/time picker or entered as exact Unix seconds. Credentials are never shown.
+Grant changes take effect through the existing service authority checks.
+Unsubmitted grant fields stay on the current screen and are discarded on exit.
 **Timeline** in an entity dossier lists events with explicit participation.
 Exact numeric points are ordered separately in each named calendar, using the
 shared rule engine's integer bounds. Equal coordinates do not imply sequence.

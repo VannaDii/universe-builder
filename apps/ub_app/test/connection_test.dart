@@ -12,6 +12,7 @@ import 'package:ub_store/installation.dart';
 import 'package:ub_store/profile_credentials.dart';
 
 import 'package:ub_app/connection.dart';
+import 'package:ub_app/access_management.dart';
 import 'package:ub_app/connection_native.dart';
 import 'package:ub_app/universe_creation.dart';
 import 'package:ub_app/world_draft.dart';
@@ -801,6 +802,53 @@ void main() {
       );
       contributor = await connection(writer).connect();
       expect(contributor.author, isFalse);
+      final access = await readAccessDirectory(owner);
+      expect(access.profiles.map((p) => p.id), contains(writer));
+      expect(access.grant(writer, scope.universe), isNull);
+      final restrictedGrant = GrantSpec(
+        profileId: writer,
+        universeId: scope.universe,
+        worlds: null,
+        propose: true,
+        edit: false,
+        protected: false,
+        limits: GrantLimits(
+          entities: [RecordId.generate()],
+          predicates: [RecordId.generate()],
+          continuities: [scope.continuity],
+          expiresAt: (BigInt.one << 64) - BigInt.one,
+          delegatedCommit: false,
+          allowShared: true,
+        ),
+      );
+      await saveAccessGrant(owner, restrictedGrant);
+      final grantedAccess = await readAccessDirectory(owner);
+      expect(
+        grantedAccess.grant(writer, scope.universe)!.toWire().toText(),
+        restrictedGrant.toWire().toText(),
+      );
+      expect(
+        InstanceLibrary.fromWire(
+          await contributor.call(const StatusEngineRequest()),
+        ).universes.map((u) => u.id),
+        contains(scope.universe),
+      );
+      await expectLater(
+        readAccessDirectory(contributor),
+        throwsA(isA<NotFoundOrNotAccessibleError>()),
+      );
+      await withdrawAccessGrant(owner, writer, scope.universe);
+      expect(
+        (await readAccessDirectory(owner)).grant(writer, scope.universe),
+        isNull,
+      );
+      expect(
+        InstanceLibrary.fromWire(
+          await contributor.call(const StatusEngineRequest()),
+        ).universes,
+        isEmpty,
+      );
+
       await expectLater(
         contributor.loadWorldForm(scope),
         throwsA(isA<NotFoundOrNotAccessibleError>()),

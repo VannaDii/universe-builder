@@ -19,6 +19,7 @@ import 'value_definition_editor_page.dart';
 import 'relation_editor_page.dart';
 import 'action_editor_page.dart';
 import 'continuity_page.dart';
+import 'universe_access_page.dart';
 import 'calendar_editor_page.dart';
 import 'entity_editor_page.dart';
 import 'changes_page.dart';
@@ -895,6 +896,44 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                                       }
                                     }),
                           child: const Text('Continuities'),
+                        ),
+                      if (_contexts.containsKey(continuity.id))
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context)
+                                    .push<void>(
+                                      MaterialPageRoute(
+                                        builder: (_) => UniverseAccessPage(
+                                          revision: continuity.revisionId,
+                                          worlds:
+                                              _worlds[continuity.id]
+                                                  ?.result
+                                                  .worlds ??
+                                              [],
+                                          continuities:
+                                              _description!.result.continuities,
+                                          changes: SavedChanges(
+                                            session: _session!,
+                                            universe: Selector(_selected!.name),
+                                            scope: EditorFormScope(
+                                              instance: _library!.instance,
+                                              profile: _session!.principal,
+                                              universe: _selected!.id,
+                                              continuity: continuity.id,
+                                              representedContext:
+                                                  _contexts[continuity.id],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                    .then((_) {
+                                      if (mounted && _selected != null) {
+                                        _open(_selected!);
+                                      }
+                                    }),
+                          child: const Text('Universe access'),
                         ),
                       if (_contexts.containsKey(continuity.id))
                         TextButton(
