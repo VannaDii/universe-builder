@@ -60,3 +60,4 @@ export 'src/item_power_forms.dart';
 export 'src/represented_context_forms.dart';
 
 export 'src/boundary_forms.dart';
+export 'src/issue_decision_forms.dart';

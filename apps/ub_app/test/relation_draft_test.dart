@@ -21,6 +21,7 @@ import 'package:ub_app/commitment_draft.dart';
 import 'package:ub_app/item_power_draft.dart';
 import 'package:ub_app/represented_context_draft.dart';
 import 'package:ub_app/boundary_draft.dart';
+import 'package:ub_app/issue_decision_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -2217,6 +2218,51 @@ void main() {
       expect(
         boundaryPublished.single.payload.toWire().toText(),
         boundaryOperation(boundaryForm).record.toWire().toText(),
+      );
+      final decisionBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final decisionPrincipal = PrincipalId.parse(
+        profile.value.replaceFirst('prf_', 'prn_'),
+      );
+      final decisionForm = UnfinishedIssueDecisionForm(
+        baseRevision: decisionBase.content.baseRevision,
+        representedContext: scope.representedContext!,
+        clientRef: 'brooch-origin-decision',
+        principal: decisionPrincipal,
+        mode: 'defer',
+        fingerprints: ['authored-finding 記憶 😀', 'authored-finding 記憶 😀'],
+        scope: boundaryPublished.single.identity.recordId.value,
+        rationale: 'Defer the origin question until research is complete.',
+      );
+      await session.saveIssueDecisionForm(scope, decisionForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredDecision = (await session.loadIssueDecisionForm(scope))!
+          .form;
+      expect(
+        recoveredDecision.toWire().toText(),
+        decisionForm.toWire().toText(),
+      );
+      final decisionDraft = SavedDraft.fromWire(
+        await session.call(
+          issueDecisionDraftRequest(
+            draft: decisionBase,
+            form: recoveredDecision,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+            principal: decisionPrincipal,
+          ),
+        ),
+      );
+      final decisionPublished = await publish(decisionDraft);
+      expect(
+        decisionPublished.single.payload.toWire().toText(),
+        issueDecisionOperation(
+          decisionForm,
+          principal: decisionPrincipal,
+        ).record.toWire().toText(),
       );
     } finally {
       await session?.close();

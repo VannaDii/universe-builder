@@ -303,6 +303,12 @@ expressions, ordered steps, explicit status and validity. Repeated steps remain
 intact. A plan neither executes its steps nor reserves resources; recording an
 achieved status does not invent occurred events. Unfinished fields recover on
 this device, and pending plans offer **Edit plan fields** in Changes.
+**Issue decision** lets the installation author record accept, defer or resolve
+for exact finding fingerprints, with an authored scope and rationale. Identities
+retain their order and repeats. A named record can supply the scope value;
+authorship comes from the connected profile. Device-private unfinished recovery,
+Changes editing and reviewed publication preserve the existing service checks.
+
 **Creative boundary** declares a record, authored predicate (with an optional
 subject), or entity category boundary. Choose fixed, open with constraints,
 proposal required, author reserved, intentionally unresolved, or prohibited.

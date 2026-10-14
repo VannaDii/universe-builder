@@ -25,6 +25,7 @@ import 'attitude_editor_page.dart';
 import 'observation_editor_page.dart';
 import 'memory_editor_page.dart';
 import 'boundary_editor_page.dart';
+import 'issue_decision_editor_page.dart';
 import 'represented_context_editor_page.dart';
 import 'item_power_editor_page.dart';
 import 'plan_editor_page.dart';
@@ -1089,6 +1090,38 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                                       }
                                     }),
                           child: const Text('Context definition'),
+                        ),
+                      if (_session!.author &&
+                          _contexts.containsKey(continuity.id))
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context)
+                                    .push<void>(
+                                      MaterialPageRoute(
+                                        builder: (_) => IssueDecisionEditorPage(
+                                          revision: continuity.revisionId,
+                                          changes: SavedChanges(
+                                            session: _session!,
+                                            universe: Selector(_selected!.name),
+                                            scope: EditorFormScope(
+                                              instance: _library!.instance,
+                                              profile: _session!.principal,
+                                              universe: _selected!.id,
+                                              continuity: continuity.id,
+                                              representedContext:
+                                                  _contexts[continuity.id],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                    .then((_) {
+                                      if (mounted && _selected != null) {
+                                        _open(_selected!);
+                                      }
+                                    }),
+                          child: const Text('Issue decision'),
                         ),
                       if (_contexts.containsKey(continuity.id))
                         TextButton(
