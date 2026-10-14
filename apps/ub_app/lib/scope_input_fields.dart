@@ -11,6 +11,7 @@ class ScopeInputFields extends StatefulWidget {
   const ScopeInputFields({
     super.key,
     this.applicabilityOnly = false,
+    this.contextReadOnly = false,
     this.explicitWorldScope = false,
     required this.input,
     required this.disabled,
@@ -19,7 +20,7 @@ class ScopeInputFields extends StatefulWidget {
     required this.draft,
   });
   final ScopeInput input;
-  final bool disabled, applicabilityOnly, explicitWorldScope;
+  final bool disabled, applicabilityOnly, explicitWorldScope, contextReadOnly;
   final ValueChanged<ScopeInput> onChanged;
   final SavedChanges changes;
   final SavedDraft draft;
@@ -94,7 +95,9 @@ class _ScopeInputFieldsState extends State<ScopeInputFields> {
     label: label,
     record: record,
     universe: universe,
-    disabled: widget.disabled,
+    disabled:
+        widget.disabled ||
+        (widget.contextReadOnly && kind == RecordKind.representedContext),
     onChanged: changed,
   );
   void _moveWorld(int index, int destination) {

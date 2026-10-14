@@ -293,6 +293,13 @@ value, explicit universe/world scope and validity. The holder property must be
 a single-valued entity reference. Location and ownership do not establish
 possession. Unfinished fields recover on this device; pending powers offer
 **Edit item power fields** in Changes before reviewed publication.
+A published item power’s dossier offers **Correct item power**. The recoverable
+form retains its identity and expected version and permits changes to its value,
+scope and validity through `revise_item_power`. The item, holder property, power
+property and represented context remain fixed; existing service checks also
+retain an authored calendar. Supply a correction reason. Pending corrections
+are editable in Changes, and reviewed publication retains earlier history.
+
 **Commitment** records named parties and authored roles, an obligated record,
 condition expressions, optional exact deadline and explicit status. Party order
 and repeated entries remain intact. Fulfillment and breach do not trigger

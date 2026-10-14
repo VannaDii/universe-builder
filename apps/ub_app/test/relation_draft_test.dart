@@ -3215,6 +3215,75 @@ void main() {
         kind: RecordKind.passageRef,
       );
       expect(passageChoices.result.hits.single.label, passageForm.passageId);
+      final powerCorrectionBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final powerCorrectionScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: itemPowerPublished.single.identity.recordId.value,
+      );
+      final powerCorrectionForm =
+          itemPowerCorrectionFormFromRecord(
+            record: itemPowerPublished.single,
+            baseRevision: powerCorrectionBase.content.baseRevision,
+            representedContext: scope.representedContext!,
+          ).copyWith(
+            value: const QualifierInput(
+              kind: 'integer',
+              value: '9007199254740999',
+            ),
+            rationale: 'Correct the declared ward strength.',
+          );
+      await session.saveItemPowerForm(
+        powerCorrectionScope,
+        powerCorrectionForm,
+        BigInt.zero,
+      );
+      await session.close();
+      session = await device.connect();
+      final recoveredPowerCorrection = (await session.loadItemPowerForm(
+        powerCorrectionScope,
+      ))!.form;
+      expect(
+        recoveredPowerCorrection.toWire().toText(),
+        powerCorrectionForm.toWire().toText(),
+      );
+      final powerCorrectionDraft = SavedDraft.fromWire(
+        await session.call(
+          itemPowerDraftRequest(
+            draft: powerCorrectionBase,
+            form: recoveredPowerCorrection,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final correctedPower = await publish(powerCorrectionDraft);
+      expect(
+        correctedPower.single.identity.recordId,
+        itemPowerPublished.single.identity.recordId,
+      );
+      expect(
+        correctedPower.single.payload.toWire().toText(),
+        itemPowerCorrectionOperation(powerCorrectionForm).replacement
+            .toWire()
+            .toText(),
+      );
+      final retainedPower = await readContextRecord(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Relations'),
+        context: await openDraftChoiceContext(changes(), powerCorrectionBase),
+        record: itemPowerPublished.single.identity.recordId,
+      );
+      expect(
+        retainedPower.toWire().toText(),
+        itemPowerPublished.single.toWire().toText(),
+      );
     } finally {
       await session?.close();
       await server.close();

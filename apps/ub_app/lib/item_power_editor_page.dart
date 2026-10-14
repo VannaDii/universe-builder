@@ -16,11 +16,13 @@ class ItemPowerEditorPage extends StatefulWidget {
     required this.revision,
     this.editingDraft,
     this.index,
+    this.correctionRecord,
   });
   final SavedChanges changes;
   final RevisionId revision;
   final SavedDraft? editingDraft;
   final int? index;
+  final RecordVersion? correctionRecord;
   @override
   State<ItemPowerEditorPage> createState() => _ItemPowerEditorPageState();
 }
@@ -67,6 +69,12 @@ class _ItemPowerEditorPageState extends State<ItemPowerEditorPage> {
 
   UnfinishedItemPowerForm _fresh() => widget.index != null
       ? itemPowerFormFromDraft(_draft!, widget.index!)
+      : widget.correctionRecord != null
+      ? itemPowerCorrectionFormFromRecord(
+          record: widget.correctionRecord!,
+          baseRevision: widget.revision,
+          representedContext: _scope.representedContext!,
+        )
       : UnfinishedItemPowerForm(
           baseRevision: widget.revision,
           representedContext: _scope.representedContext!,
@@ -95,13 +103,22 @@ class _ItemPowerEditorPageState extends State<ItemPowerEditorPage> {
                   _form!.baseRevision != _draft!.content.baseRevision ||
                   _form!.representedContext !=
                       _draft!.content.representedContext
-            : _form!.baseRevision != widget.revision;
+            : _form!.baseRevision != widget.revision ||
+                  (widget.correctionRecord != null &&
+                      _form!.expectedRecordVersion !=
+                          widget.correctionRecord!.recordVersionId);
         _added =
             widget.index == null &&
                 (_draft?.content.operations.any(
                       (op) =>
-                          op is DefineItemPowerOperation &&
-                          op.clientRef == _form!.clientRef,
+                          (op is DefineItemPowerOperation &&
+                              _form!.correctionTarget == null &&
+                              op.clientRef == _form!.clientRef) ||
+                          (op is ReviseItemPowerOperation &&
+                              _form!.correctionTarget?.record ==
+                                  op.record.record.value &&
+                              _form!.correctionTarget?.universe ==
+                                  (op.record.universe?.value ?? '')),
                     ) ??
                     false)
             ? 'This definition is in Changes. Review or edit it there.'
@@ -201,8 +218,15 @@ class _ItemPowerEditorPageState extends State<ItemPowerEditorPage> {
       setState(() {
         _draft = saved;
         _result = saved;
-        if (widget.index != null) {
-          _form = itemPowerFormFromDraft(saved, widget.index!);
+        if (widget.index != null || _form!.correctionTarget != null) {
+          final index =
+              widget.index ??
+              saved.content.operations.indexWhere(
+                (op) =>
+                    op is ReviseItemPowerOperation &&
+                    op.record == itemPowerCorrectionOperation(_form!).record,
+              );
+          _form = itemPowerFormFromDraft(saved, index);
           _fields++;
           _dirty = true;
         } else {
@@ -292,7 +316,7 @@ class _ItemPowerEditorPageState extends State<ItemPowerEditorPage> {
                     disabled: _disabled,
                     onChanged: _change,
                   ),
-                  if (widget.index == null)
+                  if (widget.index == null || f.correctionTarget != null)
                     _text(
                       'rationale',
                       'Rationale',

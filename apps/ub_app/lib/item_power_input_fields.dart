@@ -35,7 +35,7 @@ class ItemPowerInputFields extends StatelessWidget {
     label: label,
     record: value.record,
     universe: value.universe,
-    disabled: disabled,
+    disabled: disabled || form.correctionTarget != null,
     onChanged: (ref) => change(
       ExpressionReferenceInput(
         record: ref.record.value,
@@ -47,6 +47,10 @@ class ItemPowerInputFields extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
+      if (form.correctionTarget != null)
+        const Text(
+          'Corrections retain the item, holder property, power property, represented context and authored calendar. Explain the change in the rationale.',
+        ),
       _reference(
         'Item',
         form.item,
@@ -83,6 +87,7 @@ class ItemPowerInputFields extends StatelessWidget {
           ScopeInputFields(
             input: form.scope,
             explicitWorldScope: true,
+            contextReadOnly: form.correctionTarget != null,
             changes: changes,
             draft: draft,
             disabled: disabled,

@@ -17,6 +17,8 @@ final class UnfinishedItemPowerForm {
     this.validity = const TemporalValidityInput(kind: 'unspecified'),
     this.rationale = '',
     this.original,
+    this.correctionTarget,
+    this.expectedRecordVersion,
     BigInt? draftVersion,
   }) : draftVersion = draftVersion == null ? null : checkedU64(draftVersion);
   final RevisionId baseRevision;
@@ -27,6 +29,8 @@ final class UnfinishedItemPowerForm {
   final ScopeInput scope;
   final TemporalValidityInput validity;
   final ItemPowerRecord? original;
+  final ExpressionReferenceInput? correctionTarget;
+  final RecordVersionId? expectedRecordVersion;
   final BigInt? draftVersion;
   UnfinishedItemPowerForm copyWith({
     ExpressionReferenceInput? item,
@@ -48,6 +52,8 @@ final class UnfinishedItemPowerForm {
     validity: validity ?? this.validity,
     rationale: rationale ?? this.rationale,
     original: original,
+    correctionTarget: correctionTarget,
+    expectedRecordVersion: expectedRecordVersion,
     draftVersion: draftVersion,
   );
   CanonicalObject toWire() => CanonicalObject([
@@ -61,6 +67,13 @@ final class UnfinishedItemPowerForm {
     MapEntry('scope', scope.toWire()),
     MapEntry('validity', validity.toWire()),
     MapEntry('rationale', CanonicalString(rationale)),
+    if (correctionTarget != null)
+      MapEntry('correction_target', correctionTarget!.toWire()),
+    if (expectedRecordVersion != null)
+      MapEntry(
+        'expected_record_version',
+        CanonicalString(expectedRecordVersion!.value),
+      ),
     if (original != null) MapEntry('original', original!.toWire()),
     if (draftVersion != null)
       MapEntry('draft_version', CanonicalString(draftVersion.toString())),
@@ -78,6 +91,8 @@ final class UnfinishedItemPowerForm {
       'validity',
       'rationale',
       'original',
+      'correction_target',
+      'expected_record_version',
       'draft_version',
     });
     return UnfinishedItemPowerForm(
@@ -95,6 +110,14 @@ final class UnfinishedItemPowerForm {
       scope: ScopeInput.fromWire(f.require('scope')),
       validity: TemporalValidityInput.fromWire(f.require('validity')),
       rationale: f.string('rationale'),
+      correctionTarget: f.optional(
+        'correction_target',
+        ExpressionReferenceInput.fromWire,
+      ),
+      expectedRecordVersion: f.optional(
+        'expected_record_version',
+        (v) => RecordVersionId.parse(wireString(v)),
+      ),
       original: f.optional('original', ItemPowerRecord.fromWire),
       draftVersion: f.optional(
         'draft_version',

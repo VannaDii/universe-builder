@@ -323,7 +323,7 @@ class _SceneEditorPageState extends State<SceneEditorPage> {
                     onChanged: _change,
                     onBusy: (v) => setState(() => _pickingEdition = v),
                   ),
-                  if (widget.index == null)
+                  if (widget.index == null || f.correctionTarget != null)
                     _text(
                       'rationale',
                       'Rationale',
