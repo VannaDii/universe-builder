@@ -197,6 +197,10 @@ final class DeviceConnection {
       root: root!,
       client: client,
     );
+    final boundaryRecovery = LocalBoundaryFormRecovery(
+      root: root!,
+      client: client,
+    );
     final commitmentRecovery = LocalCommitmentFormRecovery(
       root: root!,
       client: client,
@@ -286,6 +290,9 @@ final class DeviceConnection {
       loadItemPowerForm: (scope) =>
           sequenced(() => itemPowerRecovery.load(scope)),
       saveItemPowerForm: itemPowerRecovery.save,
+      loadBoundaryForm: (scope) =>
+          sequenced(() => boundaryRecovery.load(scope)),
+      saveBoundaryForm: boundaryRecovery.save,
       loadCommitmentForm: (scope) =>
           sequenced(() => commitmentRecovery.load(scope)),
       saveCommitmentForm: commitmentRecovery.save,

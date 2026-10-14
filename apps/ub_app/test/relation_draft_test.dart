@@ -20,6 +20,7 @@ import 'package:ub_app/plan_draft.dart';
 import 'package:ub_app/commitment_draft.dart';
 import 'package:ub_app/item_power_draft.dart';
 import 'package:ub_app/represented_context_draft.dart';
+import 'package:ub_app/boundary_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -2167,6 +2168,55 @@ void main() {
       expect(
         selectedRepresented.frame.context.record,
         representedPublished.single.identity.recordId,
+      );
+      final boundaryBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final boundaryForm = UnfinishedBoundaryForm(
+        baseRevision: boundaryBase.content.baseRevision,
+        representedContext: scope.representedContext!,
+        clientRef: 'brooch-origin',
+        key: 'Brooch origin',
+        areaKind: 'record',
+        record: ExpressionReferenceInput(
+          record: itemId.value,
+          universe: scope.universe.value,
+        ),
+        mode: 'author_reserved',
+        constraints: [
+          ExpressionInput(kind: 'lit', flags: {'value': false}),
+          ExpressionInput(kind: 'lit', flags: {'value': false}),
+        ],
+        scope: ScopeInput(
+          applicability: 'universe_wide',
+          contextRecord: scope.representedContext!.value,
+          contextUniverse: scope.universe.value,
+        ),
+        rationale: 'Reserve the brooch origin to its author.',
+      );
+      await session.saveBoundaryForm(scope, boundaryForm, BigInt.zero);
+      await session.close();
+      session = await device.connect();
+      final recoveredBoundary = (await session.loadBoundaryForm(scope))!.form;
+      expect(
+        recoveredBoundary.toWire().toText(),
+        boundaryForm.toWire().toText(),
+      );
+      final boundaryDraft = SavedDraft.fromWire(
+        await session.call(
+          boundaryDraftRequest(
+            draft: boundaryBase,
+            form: recoveredBoundary,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final boundaryPublished = await publish(boundaryDraft);
+      expect(
+        boundaryPublished.single.payload.toWire().toText(),
+        boundaryOperation(boundaryForm).record.toWire().toText(),
       );
     } finally {
       await session?.close();

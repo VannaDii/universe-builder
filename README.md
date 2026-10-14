@@ -303,6 +303,13 @@ expressions, ordered steps, explicit status and validity. Repeated steps remain
 intact. A plan neither executes its steps nor reserves resources; recording an
 achieved status does not invent occurred events. Unfinished fields recover on
 this device, and pending plans offer **Edit plan fields** in Changes.
+**Creative boundary** declares a record, authored predicate (with an optional
+subject), or entity category boundary. Choose fixed, open with constraints,
+proposal required, author reserved, intentionally unresolved, or prohibited.
+Ordered constraints, scope and validity remain explicit. Unfinished fields are
+saved privately on the device; adding or editing uses Changes and the existing
+reviewed publication flow and boundary evaluation.
+
 **Memory** records a named holder, remembered content, optional alleged record,
 authored accessibility, explicit alteration and validity. A recollection does
 not assert that its content is true or that an alleged event occurred.

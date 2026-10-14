@@ -28,6 +28,7 @@ String recordReadLabel(RecordVersion row) {
       first(labels) ??
           (names.isEmpty ? row.identity.recordId.value : names.first.text),
     WorldRecord(:final selector) => selector,
+    BoundaryRecord(:final key) => key,
     RealmRecord(:final labels) => first(labels) ?? row.identity.recordId.value,
     AnchorRecord(:final excerpt) => excerpt,
     RepresentedContextRecord(:final labels, :final kind) =>
