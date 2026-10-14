@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'guarded_pop_scope.dart';
+
 import 'package:flutter/material.dart';
 import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'package:ub_domain/ub_domain.dart';
@@ -444,7 +446,8 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
   );
 
   @override
-  Widget build(BuildContext context) => PopScope<SavedDraft>(
+  Widget build(BuildContext context) => GuardedPopScope<SavedDraft>(
+    onLeave: _leave,
     canPop:
         _leaving ||
         (widget.editingDraft == null && !_dirty && !_saving && !_adding),

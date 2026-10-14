@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'navigation_location.dart';
+import 'guarded_pop_scope.dart';
 
 final class LibraryRouteParser extends RouteInformationParser<LibraryLocation> {
   const LibraryRouteParser();
@@ -34,7 +35,10 @@ final class LibraryRouter extends RouterDelegate<LibraryLocation>
   @override
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   LibraryLocation _location = const LibraryLocation();
-  LibraryLocation? _pending;
+  final _routes = <Route<dynamic>>[];
+  LibraryLocation _base = const LibraryLocation();
+  bool _external = false;
+  Future<void> _navigation = Future<void>.value();
   bool _disposed = false;
   @override
   void dispose() {
@@ -45,31 +49,72 @@ final class LibraryRouter extends RouterDelegate<LibraryLocation>
   @override
   LibraryLocation get currentConfiguration => _location;
   void setLocation(LibraryLocation location) {
-    if (_disposed || _location.uri == location.uri) return;
+    if (_disposed || _external) return;
+    if (location.editor == null) _base = location;
+    if (_location.uri == location.uri) return;
     _location = location;
     notifyListeners();
   }
 
   @override
-  Future<void> setNewRoutePath(LibraryLocation configuration) async {
-    if (_disposed) return;
-    if (navigatorKey.currentState?.canPop() == true) {
-      _pending = configuration;
-      await navigatorKey.currentState!.maybePop();
-      return;
-    }
-    _location = await navigate(configuration);
-    if (!_disposed) notifyListeners();
+  Future<void> setNewRoutePath(LibraryLocation configuration) {
+    final result = _navigation.then((_) => _applyRoute(configuration));
+    _navigation = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return result;
   }
 
-  void childLeft() {
+  Future<void> _applyRoute(LibraryLocation configuration) async {
     if (_disposed) return;
-    if (navigatorKey.currentState?.canPop() == true || _pending == null) {
-      return;
+    _external = true;
+    try {
+      final navigator = navigatorKey.currentState;
+      while (navigator?.canPop() == true && _routes.isNotEmpty) {
+        final top = _routes.last;
+        if (top.settings.name == configuration.uri.toString()) {
+          _location = configuration;
+          return;
+        }
+        if (!await leaveRoute(navigator!, top)) return;
+      }
+      _location = await navigate(configuration);
+      _base = LibraryLocation(
+        section: _location.section,
+        universe: _location.universe,
+      );
+    } finally {
+      _external = false;
+      if (!_disposed) notifyListeners();
     }
-    final target = _pending!;
-    _pending = null;
-    setNewRoutePath(target);
+  }
+
+  void pushed(Route<dynamic> route) {
+    _routes.add(route);
+    if (_external || route.settings.name == null) return;
+    try {
+      setLocation(LibraryLocation.parse(Uri.parse(route.settings.name!)));
+    } on Object {
+      /* Unmapped dialogs keep their parent location. */
+    }
+  }
+
+  void popped(Route<dynamic> route) {
+    _routes.remove(route);
+    if (_external || _disposed) return;
+    final names = _routes.reversed
+        .map((route) => route.settings.name)
+        .whereType<String>();
+    LibraryLocation target = _base;
+    if (names.isNotEmpty) {
+      try {
+        target = LibraryLocation.parse(Uri.parse(names.first));
+      } on Object {
+        /* Root. */
+      }
+    }
+    setLocation(target);
   }
 
   @override
@@ -90,7 +135,12 @@ final class _LibraryObserver extends NavigatorObserver {
   _LibraryObserver(this.router);
   final LibraryRouter router;
   @override
-  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    WidgetsBinding.instance.addPostFrameCallback((_) => router.childLeft());
-  }
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      router.pushed(route);
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      router.popped(route);
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      router.popped(route);
 }

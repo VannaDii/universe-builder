@@ -17,6 +17,33 @@ void main() {
       LibrarySection.library,
     );
   });
+  test('editor links preserve exact scope and reject unknown capabilities', () {
+    final universe = UniverseId.generate(),
+        continuity = ContinuityId.generate(),
+        context = RecordId.generate();
+    for (final editor in LibraryLocation.editors) {
+      final location = LibraryLocation(
+        universe: universe,
+        continuity: continuity,
+        context: context,
+        editor: editor,
+      );
+      final parsed = LibraryLocation.parse(location.uri);
+      expect(parsed.universe, universe);
+      expect(parsed.continuity, continuity);
+      expect(parsed.context, context);
+      expect(parsed.editor, editor);
+    }
+    expect(
+      () => LibraryLocation.parse(
+        Uri(
+          path:
+              '/universe/${universe.value}/continuity/${continuity.value}/context/${context.value}/editor/execute',
+        ),
+      ),
+      throwsFormatException,
+    );
+  });
   test('unrecognized paths, credentials, queries and invalid identities are rejected', () {
     for (final path in [
       '/universe/not-an-id',

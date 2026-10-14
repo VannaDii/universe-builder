@@ -1,3 +1,5 @@
+import 'guarded_pop_scope.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -244,7 +246,8 @@ class _PackageImportPageState extends State<PackageImportPage> {
     final conflicts =
         (fields?['conflicts'] as CanonicalArray?)?.items ??
         const <CanonicalValue>[];
-    return PopScope(
+    return GuardedPopScope(
+      onLeave: _leave,
       canPop: _leaving,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _leave();

@@ -1,3 +1,4 @@
+import 'guarded_pop_scope.dart';
 import 'event_editor_page.dart';
 import 'action_editor_page.dart';
 import 'rule_editor_page.dart';
@@ -588,7 +589,8 @@ class _ChangesPageState extends State<ChangesPage> {
   Widget build(BuildContext context) {
     final operations =
         _proposal?.operations ?? _draft?.content.operations ?? [];
-    return PopScope(
+    return GuardedPopScope(
+      onLeave: _leave,
       canPop: !_busy && !_rationaleDirty,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _leave();

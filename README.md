@@ -84,8 +84,13 @@ admission. Browser root links use `#/library`, `#/settings`, `#/help` and
 `#/universe/<universe-id>`. Back/Forward follows those pages; refresh retains a
 universe bookmark but opens it only after an explicit authenticated connection.
 Unavailable universe IDs return to Library. An open editor uses its existing
-guarded Back action before a requested root navigation is applied. Editor-specific
-links and full editor history remain in progress.
+guarded Back action before a requested root navigation is applied. Creation editors, Changes and the record browser also have scoped links:
+`#/universe/<id>/continuity/<id>/context/<id>/editor/<editor>`. These links resolve
+fresh authorized continuity/context data after connection; recovery never submits
+or publishes. Back awaits the existing editor leave/save action. A failed save
+keeps the editor and its input open; Forward reconstructs its screen and refresh
+reopens its scoped bookmark. Existing-record revision links and nested detail
+screen history remain in progress.
 
 Connected approval owners can create a universe from Library. Gregorian creation
 uses an explicitly entered date, whole-second time and fixed UTC offset, with an
