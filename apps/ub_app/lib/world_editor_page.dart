@@ -454,6 +454,7 @@ class _WorldEditorPageState extends State<WorldEditorPage> {
   @override
   Widget build(BuildContext context) => GuardedPopScope(
     onLeave: _leave,
+    onBackground: _save,
     canPop: widget.editingDraft == null && !_dirty && !_saving && !_adding,
     onPopInvokedWithResult: (didPop, _) {
       if (!didPop) _leave();

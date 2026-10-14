@@ -279,6 +279,7 @@ class _SceneEditorPageState extends State<SceneEditorPage> {
   @override
   Widget build(BuildContext context) => GuardedPopScope<SavedDraft>(
     onLeave: _leave,
+    onBackground: _save,
     canPop: _leaving,
     onPopInvokedWithResult: (didPop, _) {
       if (!didPop) _leave();

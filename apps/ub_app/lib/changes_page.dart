@@ -485,6 +485,7 @@ class _ChangesPageState extends State<ChangesPage> {
         _proposal?.operations ?? _draft?.content.operations ?? [];
     return GuardedPopScope(
       onLeave: _leave,
+      onBackground: _saveRationale,
       canPop: !_busy && !_rationaleDirty,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _leave();

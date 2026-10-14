@@ -21,19 +21,38 @@ class GuardedPopScope<T> extends StatefulWidget {
     super.key,
     required this.canPop,
     required this.onLeave,
+    this.onBackground,
     this.onPopInvokedWithResult,
     required this.child,
   });
   final bool canPop;
   final Future<void> Function() onLeave;
+
+  /// Request private input persistence before focus/suspension. This neither
+  /// navigates nor admits canonical work; the editor retains save failures.
+  final Future<void> Function()? onBackground;
   final PopInvokedWithResultCallback<T>? onPopInvokedWithResult;
   final Widget child;
   @override
   State<GuardedPopScope<T>> createState() => _GuardedPopScopeState<T>();
 }
 
-class _GuardedPopScopeState<T> extends State<GuardedPopScope<T>> {
+class _GuardedPopScopeState<T> extends State<GuardedPopScope<T>>
+    with WidgetsBindingObserver {
   ModalRoute<dynamic>? _route;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed && _route?.isActive == true) {
+      widget.onBackground?.call().ignore();
+    }
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -43,6 +62,7 @@ class _GuardedPopScopeState<T> extends State<GuardedPopScope<T>> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     if (_route != null) _leaveRequests[_route!] = null;
     super.dispose();
   }

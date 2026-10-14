@@ -313,6 +313,7 @@ class _PropertyEditorPageState extends State<PropertyEditorPage> {
   @override
   Widget build(BuildContext context) => GuardedPopScope<SavedDraft>(
     onLeave: _leave,
+    onBackground: _save,
     canPop: _leaving,
     onPopInvokedWithResult: (didPop, _) {
       if (!didPop) _leave();

@@ -248,6 +248,7 @@ class _PackageImportPageState extends State<PackageImportPage> {
         const <CanonicalValue>[];
     return GuardedPopScope(
       onLeave: _leave,
+      onBackground: () async { await _save(); },
       canPop: _leaving,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _leave();

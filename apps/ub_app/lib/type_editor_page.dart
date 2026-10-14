@@ -448,6 +448,7 @@ class _TypeEditorPageState extends State<TypeEditorPage> {
   @override
   Widget build(BuildContext context) => GuardedPopScope<SavedDraft>(
     onLeave: _leave,
+    onBackground: _save,
     canPop:
         _leaving ||
         (widget.editingDraft == null && !_dirty && !_saving && !_adding),

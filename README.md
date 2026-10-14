@@ -53,8 +53,12 @@ rejected files. Reading a file does not stage or publish it.
 Mobile appearance images use the system document picker. Selected PNG/JPEG/WebP
 files are copied into app-private temporary storage with the existing 10 MiB
 limit, staged by the service, then released from the picker cache. Cancelling
-retains the existing form. Full mobile lifecycle, other file/share flows and
-hosted connections remain unfinished.
+retains the existing form. Guarded editors request their existing private input
+saves immediately when the
+app loses focus or enters the background, including forms behind a popup. Changes
+rationale and package-import choices use their existing save paths. A save must
+finish before input is durable; failures retain input in the form. Full mobile
+lifecycle, other file/share flows and hosted connections remain unfinished.
 
 The local HTTP transport supports the browser-session prerequisite. The explicit
 `universe --installation <path> --profile <id> browser-session` command returns the
