@@ -507,7 +507,7 @@ void main() {
       final publication = (await resumedChanges.publication(
         recoveredProposal,
       ))!;
-      final receipt = publication.status.receipt!;
+      final receipt = publication.status!.receipt!;
       expect(publication.run, validation.execution.runId);
       expect(receipt.revision, isNot(continuity.revisionId));
       expect(

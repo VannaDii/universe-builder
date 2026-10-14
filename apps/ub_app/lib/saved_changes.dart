@@ -90,8 +90,9 @@ final class SavedChanges {
       ).result;
 
   /// Existing author approvals identify exact publication requests after restart.
+  /// A null status means the approval exists without a publication attempt.
   /// Looking them up never approves or retries publication.
-  Future<({ValidationRunId run, OperationStatusV3 status})?> publication(
+  Future<({ValidationRunId run, OperationStatusV3? status})?> publication(
     Proposal proposal,
   ) async {
     final library = await session.call(
@@ -99,7 +100,8 @@ final class SavedChanges {
     );
     final body = Map.fromEntries((library as CanonicalObject).fields);
     final writing = WireFields(body['writing']!, {'approved', 'proposals'});
-    ({ValidationRunId run, OperationStatusV3 status})? pending;
+    ({ValidationRunId run, OperationStatusV3? status})? pending;
+    ({ValidationRunId run, OperationStatusV3? status})? approved;
     for (final row in writing.array('approved')) {
       final approval = WireFields(row, {
         'candidate',
@@ -127,12 +129,13 @@ final class SavedChanges {
           OperationStatusV3.fromWire,
         ).result;
       } on NotFoundOrNotAccessibleError {
+        approved ??= (run: run, status: null);
         continue;
       }
       if (status.receipt != null) return (run: run, status: status);
       pending ??= (run: run, status: status);
     }
-    return pending;
+    return pending ?? approved;
   }
 
   Future<List<RecordVersion>> readPublished(

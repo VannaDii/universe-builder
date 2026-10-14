@@ -852,7 +852,9 @@ assessment available for review. The service's existing rules decide whether
 approval is admissible. **Approve reviewed changes** retains approval for this
 exact proposal and check run; **Publish approved changes** is a separate action.
 **Check publication** and reopening use existing approvals and operation lookup
-to recover the outcome without retrying publication automatically. The confirmed
+to recover the outcome without retrying publication automatically. An approval
+saved before closing remains ready for **Publish approved changes** after restart,
+even when publication has not started. The confirmed
 receipt names its revision, and **Read published records** opens that exact
 revision with current access. Returning to Overview refreshes the canon summary.
 Unsubmitted operations can be removed with **Remove from draft**. Draft changes

@@ -46,7 +46,7 @@ class _ChangesPageState extends State<ChangesPage> {
   ValidationV3? _validation;
   bool _approved = false;
   CommitReceipt? _receipt;
-  ({ValidationRunId run, OperationStatusV3 status})? _publication;
+  ({ValidationRunId run, OperationStatusV3? status})? _publication;
   List<RecordVersion> _publishedRecords = [];
   final _undo = <DraftContent>[], _redo = <DraftContent>[];
   @override
@@ -95,7 +95,7 @@ class _ChangesPageState extends State<ChangesPage> {
           _rationale.text = draft?.content.rationale ?? '';
           _rationaleDirty = false;
           _publication = publication;
-          _receipt = publication?.status.receipt;
+          _receipt = publication?.status?.receipt;
         });
       }
     } on Object {
@@ -328,7 +328,7 @@ class _ChangesPageState extends State<ChangesPage> {
       if (mounted) {
         setState(() {
           _publication = publication;
-          _receipt = publication?.status.receipt;
+          _receipt = publication?.status?.receipt;
         });
       }
     } on Object {
@@ -429,7 +429,7 @@ class _ChangesPageState extends State<ChangesPage> {
         _proposal = proposal;
         _before = before;
         _publication = publication;
-        _receipt = publication?.status.receipt;
+        _receipt = publication?.status?.receipt;
         _validation = null;
         _approved = false;
         _publishedRecords = [];
@@ -545,11 +545,13 @@ class _ChangesPageState extends State<ChangesPage> {
                       ),
                     ),
                   ),
-                if (_publication != null && _receipt == null)
+                if (_publication?.status != null && _receipt == null)
                   Text(
-                    'Publication status: ${_publication!.status.state.wireName.replaceAll('_', ' ')}',
+                    'Publication status: ${_publication!.status!.state.wireName.replaceAll('_', ' ')}',
                   ),
-                if (_approved && _receipt == null)
+                if ((_approved ||
+                        _publication != null && _publication!.status == null) &&
+                    _receipt == null)
                   const Text(
                     'This exact proposal and check run are approved. Publication is a separate action.',
                   ),
@@ -1560,11 +1562,11 @@ class _ChangesPageState extends State<ChangesPage> {
                               !{
                                 OperationState.failed,
                                 OperationState.cancelled,
-                              }.contains(_publication!.status.state)))
+                              }.contains(_publication!.status?.state)))
                         FilledButton(
                           onPressed: _busy ? null : _publish,
                           child: Text(
-                            _publication == null
+                            _publication?.status == null
                                 ? 'Publish approved changes'
                                 : 'Continue publication',
                           ),
