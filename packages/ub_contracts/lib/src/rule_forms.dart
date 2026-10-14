@@ -26,6 +26,8 @@ final class UnfinishedRuleForm {
     this.validity = const TemporalValidityInput(kind: 'unspecified'),
     this.rationale = '',
     this.original,
+    this.revisionTarget,
+    this.expectedRecordVersion,
     this.knowledge,
     this.constraints,
     BigInt? draftVersion,
@@ -47,6 +49,8 @@ final class UnfinishedRuleForm {
   final RuleRecord? original;
   final RuleKnowledgeInput? knowledge;
   final RuleConstraintInput? constraints;
+  final ExpressionReferenceInput? revisionTarget;
+  final RecordVersionId? expectedRecordVersion;
   final BigInt? draftVersion;
   CanonicalObject toWire() => CanonicalObject([
     MapEntry('base_revision', CanonicalString(baseRevision.value)),
@@ -77,6 +81,13 @@ final class UnfinishedRuleForm {
     if (original != null) MapEntry('original', original!.toWire()),
     if (knowledge != null) MapEntry('knowledge', knowledge!.toWire()),
     if (constraints != null) MapEntry('constraints', constraints!.toWire()),
+    if (revisionTarget != null)
+      MapEntry('revision_target', revisionTarget!.toWire()),
+    if (expectedRecordVersion != null)
+      MapEntry(
+        'expected_record_version',
+        CanonicalString(expectedRecordVersion!.value),
+      ),
     if (draftVersion != null)
       MapEntry('draft_version', CanonicalString(draftVersion.toString())),
   ]);
@@ -102,6 +113,8 @@ final class UnfinishedRuleForm {
       'knowledge',
       'constraints',
       'draft_version',
+      'revision_target',
+      'expected_record_version',
     });
     return UnfinishedRuleForm(
       baseRevision: RevisionId.parse(f.string('base_revision')),
@@ -125,6 +138,14 @@ final class UnfinishedRuleForm {
       original: f.optional('original', RuleRecord.fromWire),
       knowledge: f.optional('knowledge', RuleKnowledgeInput.fromWire),
       constraints: f.optional('constraints', RuleConstraintInput.fromWire),
+      revisionTarget: f.optional(
+        'revision_target',
+        ExpressionReferenceInput.fromWire,
+      ),
+      expectedRecordVersion: f.optional(
+        'expected_record_version',
+        (v) => RecordVersionId.parse(wireString(v)),
+      ),
       draftVersion: f.optional(
         'draft_version',
         (v) => BigInt.parse(wireString(v)),

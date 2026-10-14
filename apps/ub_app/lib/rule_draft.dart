@@ -60,49 +60,128 @@ DefineRuleOperation ruleOperation(UnfinishedRuleForm form) {
   );
 }
 
+ReviseDefinitionOperation ruleRevisionOperation(UnfinishedRuleForm form) {
+  if (form.revisionTarget == null ||
+      form.expectedRecordVersion == null ||
+      form.original == null) {
+    throw const FormatException(
+      'Open a published rule definition to revise it.',
+    );
+  }
+  final next = ruleOperation(form).record;
+  if (next.namespace != form.original!.namespace ||
+      next.key != form.original!.key) {
+    throw const FormatException('Rule revisions retain namespace and key.');
+  }
+  final target = form.revisionTarget!;
+  return ReviseDefinitionOperation(
+    record: RecordRef(
+      record: RecordId.parse(target.record),
+      universe: target.universe.isEmpty
+          ? null
+          : UniverseId.parse(target.universe),
+    ),
+    expectedVersion: form.expectedRecordVersion!,
+    replacement: next,
+  );
+}
+
+UnfinishedRuleForm ruleRevisionFormFromRecord({
+  required RecordVersion record,
+  required RevisionId baseRevision,
+  required RecordId representedContext,
+}) {
+  if (record.payload is! RuleRecord) {
+    throw const FormatException('Choose a published rule definition.');
+  }
+  return _ruleForm(
+    record: record.payload as RuleRecord,
+    baseRevision: baseRevision,
+    representedContext: representedContext,
+    clientRef: record.identity.recordId.value,
+    revisionTarget: ExpressionReferenceInput(
+      record: record.identity.recordId.value,
+      universe: record.identity.universeId.value,
+    ),
+    expectedRecordVersion: record.recordVersionId,
+  );
+}
+
 UnfinishedRuleForm ruleFormFromDraft(SavedDraft draft, int index) {
   final operation = draft.content.operations[index];
+  if (operation is ReviseDefinitionOperation &&
+      operation.replacement is RuleRecord) {
+    return _ruleForm(
+      record: operation.replacement as RuleRecord,
+      baseRevision: draft.content.baseRevision,
+      representedContext: draft.content.representedContext,
+      clientRef: operation.record.record.value,
+      revisionTarget: ExpressionReferenceInput(
+        record: operation.record.record.value,
+        universe: operation.record.universe?.value ?? '',
+      ),
+      expectedRecordVersion: operation.expectedVersion,
+      draftVersion: draft.version,
+    );
+  }
   if (operation is! DefineRuleOperation) {
     throw const FormatException('Choose a rule definition from Changes.');
   }
-  final record = operation.record;
-  return UnfinishedRuleForm(
+  return _ruleForm(
+    record: operation.record,
     baseRevision: draft.content.baseRevision,
     representedContext: draft.content.representedContext,
     clientRef: operation.clientRef,
-    namespace: record.namespace,
-    key: record.key,
-    labels: record.labels.entries.map(
-      (e) => PropertyLabelInput(language: e.key, text: e.value),
-    ),
-    kind: record.kind.wireName,
-    commitPolicy: record.commitPolicy.wireName,
-    scope: ScopeInput(
-      applicability: switch (record.applicability) {
-        UniverseApplicability() => 'universe_wide',
-        WorldsApplicability() => 'worlds',
-        ConditionalApplicability() => 'conditional',
-        UnspecifiedApplicability() => 'unspecified',
-      },
-      worlds: record.applicability is WorldsApplicability
-          ? (record.applicability as WorldsApplicability).worldIds
-                .map((v) => v.value)
-                .toList()
-          : [],
-      contextRecord: draft.content.representedContext.value,
-    ),
-    subjectTypes: record.subjectTypes.map((v) => v.value),
-    targetPredicates: record.targetPredicates,
-    capabilities: record.capabilities,
-    expression: expressionInput(record.expression),
-    executable: record.executable,
-    validity: actionValidityInput(record.validity),
-    original: record,
-    knowledge: ruleKnowledgeInput(record),
-    constraints: ruleConstraintInput(record),
     draftVersion: draft.version,
   );
 }
+
+UnfinishedRuleForm _ruleForm({
+  required RuleRecord record,
+  required RevisionId baseRevision,
+  required RecordId representedContext,
+  required String clientRef,
+  ExpressionReferenceInput? revisionTarget,
+  RecordVersionId? expectedRecordVersion,
+  BigInt? draftVersion,
+}) => UnfinishedRuleForm(
+  baseRevision: baseRevision,
+  representedContext: representedContext,
+  clientRef: clientRef,
+  revisionTarget: revisionTarget,
+  expectedRecordVersion: expectedRecordVersion,
+  namespace: record.namespace,
+  key: record.key,
+  labels: record.labels.entries.map(
+    (e) => PropertyLabelInput(language: e.key, text: e.value),
+  ),
+  kind: record.kind.wireName,
+  commitPolicy: record.commitPolicy.wireName,
+  scope: ScopeInput(
+    applicability: switch (record.applicability) {
+      UniverseApplicability() => 'universe_wide',
+      WorldsApplicability() => 'worlds',
+      ConditionalApplicability() => 'conditional',
+      UnspecifiedApplicability() => 'unspecified',
+    },
+    worlds: record.applicability is WorldsApplicability
+        ? (record.applicability as WorldsApplicability).worldIds
+              .map((v) => v.value)
+              .toList()
+        : [],
+    contextRecord: representedContext.value,
+  ),
+  subjectTypes: record.subjectTypes.map((v) => v.value),
+  targetPredicates: record.targetPredicates,
+  capabilities: record.capabilities,
+  expression: expressionInput(record.expression),
+  executable: record.executable,
+  validity: actionValidityInput(record.validity),
+  original: record,
+  knowledge: ruleKnowledgeInput(record),
+  constraints: ruleConstraintInput(record),
+  draftVersion: draftVersion,
+);
 
 SaveDraftEngineRequest ruleDraftRequest({
   required SavedDraft draft,
@@ -118,12 +197,17 @@ SaveDraftEngineRequest ruleDraftRequest({
       'Review Changes before adding this rule definition.',
     );
   }
-  final operation = ruleOperation(form);
+  final operation = form.revisionTarget == null
+      ? ruleOperation(form)
+      : ruleRevisionOperation(form);
   final operations = [...draft.content.operations];
   if (index != null) {
     final before = ruleFormFromDraft(draft, index);
     if (form.draftVersion != draft.version ||
-        form.clientRef != before.clientRef) {
+        form.clientRef != before.clientRef ||
+        form.revisionTarget?.toWire().toText() !=
+            before.revisionTarget?.toWire().toText() ||
+        form.expectedRecordVersion != before.expectedRecordVersion) {
       throw const FormatException(
         'The draft changed. Reopen its current rule-definition fields.',
       );
@@ -131,6 +215,22 @@ SaveDraftEngineRequest ruleDraftRequest({
     operations[index] = operation;
   } else {
     for (final existing in operations) {
+      if (operation is ReviseDefinitionOperation &&
+          existing is ReviseDefinitionOperation &&
+          existing.record == operation.record) {
+        if (existing.toWire().toText() != operation.toWire().toText()) {
+          throw const FormatException(
+            'This rule already has a revision. Edit it in Changes.',
+          );
+        }
+        return SaveDraftEngineRequest(
+          universe: universe,
+          continuityId: continuity,
+          expectedVersion: draft.version,
+          content: draft.content,
+        );
+      }
+
       final ref = Map.fromEntries(existing.toWire().fields)['client_ref'];
       if (ref is CanonicalString && ref.value == form.clientRef) {
         if (existing.toWire().toText() != operation.toWire().toText()) {

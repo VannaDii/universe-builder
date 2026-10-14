@@ -281,6 +281,12 @@ In author perspective, proposition choices show their subject, predicate,
 quantification, context, ordered participants and simple values using accessible
 names. Search matches these descriptions. Hidden dependencies retain the
 existing fallback; labels do not assert that a proposition is true.
+Published rules offer **Revise rule definition** in their record details.
+Authors can edit expressions, commit policies, applicability, capabilities,
+executable choices and knowledge, cardinality or chronology contracts while
+retaining the namespace and key. Unfinished revisions recover on this device;
+**Edit rule revision fields** in Changes retains the source version, and reviewed
+publication preserves earlier rule versions and history.
 Published actions offer **Revise action definition** in their record details.
 Requirements, consequence slots, scope and validity remain editable, while the
 namespace and key stay fixed. Unfinished revisions recover on this device;

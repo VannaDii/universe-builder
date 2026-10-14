@@ -26,11 +26,13 @@ class RuleEditorPage extends StatefulWidget {
     required this.revision,
     this.editingDraft,
     this.index,
+    this.revisionRecord,
   });
   final SavedChanges changes;
   final RevisionId revision;
   final SavedDraft? editingDraft;
   final int? index;
+  final RecordVersion? revisionRecord;
   @override
   State<RuleEditorPage> createState() => _RuleEditorPageState();
 }
@@ -79,6 +81,12 @@ class _RuleEditorPageState extends State<RuleEditorPage> {
 
   UnfinishedRuleForm _fresh() => widget.index != null
       ? ruleFormFromDraft(_draft!, widget.index!)
+      : widget.revisionRecord != null
+      ? ruleRevisionFormFromRecord(
+          record: widget.revisionRecord!,
+          baseRevision: widget.revision,
+          representedContext: _scope.representedContext!,
+        )
       : UnfinishedRuleForm(
           baseRevision: widget.revision,
           representedContext: _scope.representedContext!,
@@ -104,13 +112,22 @@ class _RuleEditorPageState extends State<RuleEditorPage> {
                   _form!.baseRevision != _draft!.content.baseRevision ||
                   _form!.representedContext !=
                       _draft!.content.representedContext
-            : _form!.baseRevision != widget.revision;
+            : _form!.baseRevision != widget.revision ||
+                  (widget.revisionRecord != null &&
+                      _form!.expectedRecordVersion !=
+                          widget.revisionRecord!.recordVersionId);
         _added =
             widget.index == null &&
                 (_draft?.content.operations.any(
                       (op) =>
-                          op is DefineRuleOperation &&
-                          op.clientRef == _form!.clientRef,
+                          (op is DefineRuleOperation &&
+                              _form!.revisionTarget == null &&
+                              op.clientRef == _form!.clientRef) ||
+                          (op is ReviseDefinitionOperation &&
+                              _form!.revisionTarget?.record ==
+                                  op.record.record.value &&
+                              _form!.revisionTarget?.universe ==
+                                  (op.record.universe?.value ?? '')),
                     ) ??
                     false)
             ? 'This definition is in Changes. Review or edit it there.'
@@ -167,6 +184,8 @@ class _RuleEditorPageState extends State<RuleEditorPage> {
         constraints: constraints ?? f.constraints,
         rationale: rationale ?? f.rationale,
         draftVersion: f.draftVersion,
+        revisionTarget: f.revisionTarget,
+        expectedRecordVersion: f.expectedRecordVersion,
       );
       _dirty = true;
     });
@@ -248,8 +267,15 @@ class _RuleEditorPageState extends State<RuleEditorPage> {
       setState(() {
         _draft = saved;
         _result = saved;
-        if (widget.index != null) {
-          _form = ruleFormFromDraft(saved, widget.index!);
+        if (widget.index != null || _form!.revisionTarget != null) {
+          final index =
+              widget.index ??
+              saved.content.operations.indexWhere(
+                (op) =>
+                    op is ReviseDefinitionOperation &&
+                    op.record == ruleRevisionOperation(_form!).record,
+              );
+          _form = ruleFormFromDraft(saved, index);
           _fields++;
           _dirty = true;
         } else {
@@ -289,12 +315,13 @@ class _RuleEditorPageState extends State<RuleEditorPage> {
     String value,
     ValueChanged<String> change, {
     int maxLines = 1,
+    bool readOnly = false,
   }) => Padding(
     padding: const EdgeInsets.only(top: 12),
     child: TextFormField(
       key: ValueKey((_fields, key)),
       initialValue: value,
-      enabled: !_disabled,
+      enabled: !_disabled && !readOnly,
       maxLines: maxLines,
       decoration: InputDecoration(labelText: label),
       onChanged: change,
@@ -392,17 +419,23 @@ class _RuleEditorPageState extends State<RuleEditorPage> {
                   ),
                 ],
                 if (_form case final f?) ...[
+                  if (f.revisionTarget != null)
+                    const Text(
+                      'Revisions retain the namespace and key. Edit rule declarations and contracts explicitly; publication preserves earlier rule versions and their history.',
+                    ),
                   _text(
                     'namespace',
                     'Namespace',
                     f.namespace,
                     (v) => _change(namespace: v),
+                    readOnly: f.revisionTarget != null,
                   ),
                   _text(
                     'key',
                     'Rule definition key',
                     f.key,
                     (v) => _change(key: v),
+                    readOnly: f.revisionTarget != null,
                   ),
                   const SizedBox(height: 16),
                   const Text('Display labels'),
