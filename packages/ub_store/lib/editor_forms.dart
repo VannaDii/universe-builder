@@ -52,3 +52,5 @@ export 'src/work_version_forms.dart';
 export 'src/scene_forms.dart';
 
 export 'src/passage_forms.dart';
+
+export 'src/interpretation_forms.dart';

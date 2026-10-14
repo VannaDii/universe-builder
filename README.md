@@ -421,6 +421,16 @@ Knowledge corrections change duration only. Existing service checks retain an
 authored calendar. Pending corrections can be edited in Changes, and reviewed
 publication preserves earlier history.
 
+Existing knowledge acquired through a communication receipt offers **Correct
+receipt interpretation** in its dossier. Choose a named proposition in the
+original acquisition truth context or explicitly clear the interpretation, and
+supply a reason. Private recovery and Changes editing retain the exact target
+and expected version. The existing `revise_interpretation` operation preserves
+holder, message, acquisition time, world, certainty, duration and evidence basis.
+Selecting an interpretation updates the knowledge claim to that proposition;
+clearing it retains the current claim and can leave knowledge unsupported.
+Reviewed publication remains subject to existing checks and preserves history.
+
 **Observation** records a named observer and observed record, an explicit
 sensory-access choice, exact authored time, optional interpretation and source
 basis. Presence and observation do not infer understanding or knowledge.

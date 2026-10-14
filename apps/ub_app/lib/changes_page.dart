@@ -4,6 +4,7 @@ import 'rule_editor_page.dart';
 import 'completeness_editor_page.dart';
 import 'proposition_editor_page.dart';
 import 'attitude_editor_page.dart';
+import 'interpretation_editor_page.dart';
 import 'observation_editor_page.dart';
 import 'memory_editor_page.dart';
 import 'work_editor_page.dart';
@@ -2242,6 +2243,68 @@ class _ChangesPageState extends State<ChangesPage> {
                                       ),
                                 child: const Text(
                                   'Edit attitude correction fields',
+                                ),
+                              ),
+                            if (_proposal == null &&
+                                operations[index]
+                                    is ReviseInterpretationOperation)
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _changeDraft(
+                                        (draft) async =>
+                                            await Navigator.of(
+                                              context,
+                                            ).push<SavedDraft>(
+                                              MaterialPageRoute(
+                                                builder: (_) => InterpretationEditorPage(
+                                                  revision: draft
+                                                      .content
+                                                      .baseRevision,
+                                                  editingDraft: draft,
+                                                  index: index,
+                                                  changes: SavedChanges(
+                                                    session:
+                                                        widget.changes.session,
+                                                    universe:
+                                                        widget.changes.universe,
+                                                    scope: EditorFormScope(
+                                                      instance: widget
+                                                          .changes
+                                                          .scope
+                                                          .instance,
+                                                      profile: widget
+                                                          .changes
+                                                          .scope
+                                                          .profile,
+                                                      universe: widget
+                                                          .changes
+                                                          .scope
+                                                          .universe,
+                                                      continuity: widget
+                                                          .changes
+                                                          .scope
+                                                          .continuity,
+                                                      representedContext: draft
+                                                          .content
+                                                          .representedContext,
+                                                      typeClientRef:
+                                                          (draft
+                                                                      .content
+                                                                      .operations[index]
+                                                                  as ReviseInterpretationOperation)
+                                                              .record
+                                                              .record
+                                                              .value,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ) ??
+                                            draft,
+                                      ),
+                                child: const Text(
+                                  'Edit interpretation correction fields',
                                 ),
                               ),
                             if (_proposal == null &&

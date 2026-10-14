@@ -35,6 +35,8 @@ final class AppSession {
     required this.saveWorkForm,
     required this.loadSceneForm,
     required this.loadPassageForm,
+    required this.loadInterpretationForm,
+    required this.saveInterpretationForm,
     required this.savePassageForm,
     required this.saveSceneForm,
     required this.loadBoundaryForm,
@@ -187,6 +189,14 @@ final class AppSession {
     BigInt,
   )
   savePassageForm;
+  final Future<SavedInterpretationForm?> Function(EditorFormScope)
+  loadInterpretationForm;
+  final Future<SavedInterpretationForm> Function(
+    EditorFormScope,
+    UnfinishedInterpretationForm,
+    BigInt,
+  )
+  saveInterpretationForm;
   final Future<SavedBoundaryForm?> Function(EditorFormScope) loadBoundaryForm;
   final Future<SavedBoundaryForm> Function(
     EditorFormScope,

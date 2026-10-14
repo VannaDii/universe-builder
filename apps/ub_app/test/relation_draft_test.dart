@@ -26,6 +26,7 @@ import 'package:ub_app/exception_draft.dart';
 import 'package:ub_app/work_draft.dart';
 import 'package:ub_app/scene_draft.dart';
 import 'package:ub_app/passage_draft.dart';
+import 'package:ub_app/interpretation_draft.dart';
 import 'package:crypto/crypto.dart';
 import 'package:ub_app/saga_draft.dart';
 import 'package:ub_app/work_version_draft.dart';
@@ -3428,6 +3429,243 @@ void main() {
       expect(
         retainedAttitude.toWire().toText(),
         attitudePublished.single.toWire().toText(),
+      );
+      final receiptKnowledgeBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final receiptClaimId = RecordId.generate(),
+          receiptMessageId = RecordId.generate(),
+          receiptPropertyId = RecordId.generate(),
+          receiptAlternativeId = RecordId.generate();
+      final receiptClaim = PropositionRecord(
+        subject: participant(0),
+        predicate: RecordRef(
+          universe: scope.universe,
+          record: receiptPropertyId,
+        ),
+        context: evidence.scope.context,
+        quantification: Quantification.particular,
+        value: const BooleanValue(true),
+      );
+      final receiptKnowledgeDraft = await changes().saveContent(
+        receiptKnowledgeBase,
+        DraftContent(
+          baseRevision: receiptKnowledgeBase.content.baseRevision,
+          representedContext: scope.representedContext!,
+          rationale: 'Record explicit truthful receipt knowledge.',
+          operations: [
+            ReviseDefinitionOperation(
+              record: RecordRef(
+                universe: scope.universe,
+                record: knowledgePublished.single.identity.recordId,
+              ),
+              expectedVersion: knowledgePublished.single.recordVersionId,
+              replacement: RuleRecord.fromWire(
+                CanonicalObject(
+                  (knowledgePublished.single.payload as RuleRecord)
+                      .toWire()
+                      .fields
+                      .map(
+                        (e) => e.key == 'knowledgePolicy'
+                            ? MapEntry(
+                                e.key,
+                                KnowledgePolicy(
+                                  context: receiptClaim.context,
+                                  mode: KnowledgeMode.justified,
+                                ).toWire(),
+                              )
+                            : e,
+                      ),
+                ),
+              ),
+            ),
+            DefinePropertyOperation(
+              clientRef: receiptPropertyId.value,
+              record: PropertyRecord(
+                namespace: 'authored',
+                key: 'receipt-account-established',
+                labels: {'en': 'Receipt account established'},
+                subjectTypes: [person],
+                value: const SimpleValueShape(SimpleShapeKind.boolean),
+                multiplicity: Multiplicity.single,
+                persistence: PersistenceSemantics.unspecified,
+                exclusive: false,
+                symmetric: false,
+                transitive: false,
+              ),
+            ),
+            for (final claimId in [receiptClaimId, receiptAlternativeId])
+              AssertPropositionOperation(
+                clientRef: claimId.value,
+                proposition: receiptClaim,
+                assertion: AssertionRecord(
+                  attributeMode: AttributeMode.instance,
+                  proposition: RecordRef(
+                    universe: scope.universe,
+                    record: claimId,
+                  ),
+                  polarity: Polarity.support,
+                  scope: evidence.scope,
+                  validity: CalendarIntervalValidity(
+                    calendar,
+                    const ExactBound('0'),
+                    const UnboundedBound(),
+                  ),
+                  persistence: PersistenceSemantics.unspecified,
+                  precision: Precision.exact,
+                  basis: const AuthorDecisionBasis(
+                    'The account is established.',
+                  ),
+                ),
+              ),
+            RecordCommunicationOperation(
+              clientRef: receiptMessageId.value,
+              record: CommunicationRecord(
+                sender: participant(0),
+                intendedRecipients: [participant(2)],
+                actualRecipients: [participant(2)],
+                content: [
+                  RecordRef(universe: scope.universe, record: receiptClaimId),
+                  RecordRef(
+                    universe: scope.universe,
+                    record: receiptAlternativeId,
+                  ),
+                ],
+                channel: 'mail',
+                distorted: false,
+                sentAt: ExactTime(calendar, '20'),
+                receivedAt: ExactTime(calendar, '9007199254741015'),
+              ),
+            ),
+            AddBeliefOperation(
+              clientRef: RecordId.generate().value,
+              record: EpistemicAttitudeRecord(
+                holder: participant(2),
+                proposition: RecordRef(
+                  universe: scope.universe,
+                  record: receiptClaimId,
+                ),
+                attitude: EpistemicAttitudeKind.knows,
+                validity: CalendarIntervalValidity(
+                  calendar,
+                  const ExactBound('9007199254741015'),
+                  const UnboundedBound(),
+                ),
+                basis: const AuthorDecisionBasis('Orr understood the receipt.'),
+                acquisition: KnowledgeAcquisition(
+                  truthContext: receiptClaim.context,
+                  time: ExactTime(calendar, '9007199254741015'),
+                  basis: CommunicationKnowledge(
+                    communication: RecordRef(
+                      universe: scope.universe,
+                      record: receiptMessageId,
+                    ),
+                    interpretation: RecordRef(
+                      universe: scope.universe,
+                      record: receiptClaimId,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+      final receiptKnowledgePublished = await publish(receiptKnowledgeDraft);
+      final receiptKnowledge = receiptKnowledgePublished.singleWhere(
+        (r) => r.payload is EpistemicAttitudeRecord,
+      );
+      final interpretationBase = await changes().rebase(
+        (await changes().load())!,
+        startNew: true,
+      );
+      final interpretationScope = EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: scope.representedContext,
+        typeClientRef: receiptKnowledge.identity.recordId.value,
+      );
+      final interpretationForm =
+          interpretationFormFromRecord(
+            record: receiptKnowledge,
+            baseRevision: interpretationBase.content.baseRevision,
+            representedContext: scope.representedContext!,
+          ).copyWith(
+            interpretation: ExpressionReferenceInput(
+              record: receiptAlternativeId.value,
+              universe: scope.universe.value,
+            ),
+            rationale: 'Use the equivalent authored account claim as the receipt interpretation.',
+          );
+      await session.saveInterpretationForm(
+        interpretationScope,
+        interpretationForm,
+        BigInt.zero,
+      );
+      await session.close();
+      session = await device.connect();
+      final recoveredInterpretation = (await session.loadInterpretationForm(
+        interpretationScope,
+      ))!.form;
+      expect(
+        recoveredInterpretation.toWire().toText(),
+        interpretationForm.toWire().toText(),
+      );
+      final interpretationDraft = SavedDraft.fromWire(
+        await session.call(
+          interpretationDraftRequest(
+            draft: interpretationBase,
+            form: recoveredInterpretation,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final correctedInterpretation = await publish(interpretationDraft);
+      final knowledgeBefore =
+          receiptKnowledge.payload as EpistemicAttitudeRecord;
+      final knowledgeAfter =
+          correctedInterpretation.single.payload as EpistemicAttitudeRecord;
+      expect(
+        correctedInterpretation.single.identity.recordId,
+        receiptKnowledge.identity.recordId,
+      );
+      expect(
+        knowledgeAfter.proposition,
+        RecordRef(universe: scope.universe, record: receiptAlternativeId),
+      );
+      expect(knowledgeAfter.holder, knowledgeBefore.holder);
+      expect(knowledgeAfter.basis, knowledgeBefore.basis);
+      expect(
+        knowledgeAfter.validity.toWire().toText(),
+        knowledgeBefore.validity.toWire().toText(),
+      );
+      expect(
+        knowledgeAfter.acquisition!.truthContext,
+        knowledgeBefore.acquisition!.truthContext,
+      );
+      expect(
+        knowledgeAfter.acquisition!.time.encode(canonical: true).toText(),
+        knowledgeBefore.acquisition!.time.encode(canonical: true).toText(),
+      );
+      expect(
+        (knowledgeAfter.acquisition!.basis as CommunicationKnowledge)
+            .communication,
+        (knowledgeBefore.acquisition!.basis as CommunicationKnowledge)
+            .communication,
+      );
+      final historicalKnowledge = await readContextRecord(
+        session: session,
+        universe: LibraryEntry(scope.universe, 'Relations'),
+        context: await openDraftChoiceContext(changes(), interpretationBase),
+        record: receiptKnowledge.identity.recordId,
+      );
+      expect(
+        historicalKnowledge.toWire().toText(),
+        receiptKnowledge.toWire().toText(),
       );
     } finally {
       await session?.close();

@@ -1260,3 +1260,42 @@ final class LocalPassageFormRecovery {
     });
   }
 }
+
+final class LocalInterpretationFormRecovery {
+  LocalInterpretationFormRecovery({required String root, required this.client})
+    : _path = '$root/client-recovery/interpretation-forms.sqlite';
+  final String _path;
+  final LoopbackEngineClient client;
+
+  Future<SavedInterpretationForm?> load(EditorFormScope scope) async {
+    await _checkEditorScope(client, scope);
+    final path = _path;
+    return Isolate.run(() {
+      final store = InterpretationFormRecoveryStore.open(path);
+      try {
+        return store.load(scope);
+      } finally {
+        store.close();
+      }
+    });
+  }
+
+  Future<SavedInterpretationForm> save(
+    EditorFormScope scope,
+    UnfinishedInterpretationForm form,
+    BigInt expectedGeneration,
+  ) async {
+    if (scope.profile != client.welcome.principal) {
+      throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
+    }
+    final path = _path;
+    return Isolate.run(() {
+      final store = InterpretationFormRecoveryStore.open(path);
+      try {
+        return store.save(scope, form, expectedGeneration);
+      } finally {
+        store.close();
+      }
+    });
+  }
+}
