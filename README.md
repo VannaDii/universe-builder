@@ -281,6 +281,12 @@ In author perspective, proposition choices show their subject, predicate,
 quantification, context, ordered participants and simple values using accessible
 names. Search matches these descriptions. Hidden dependencies retain the
 existing fallback; labels do not assert that a proposition is true.
+**Communication** records a named sender, separate ordered lists of intended
+and actual recipients, ordered content, optional channel, exact send/receipt
+times and explicit distortion. Repeated entries remain intact; actual recipients
+require an authored receipt time. Recording a message does not infer knowledge
+or understanding. Unfinished input recovers on this device, and pending messages
+offer **Edit communication fields** in Changes.
 **Observation** records a named observer and observed record, an explicit
 sensory-access choice, exact authored time, optional interpretation and source
 basis. Presence and observation do not infer understanding or knowledge.

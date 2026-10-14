@@ -14,6 +14,7 @@ import 'package:ub_app/completeness_draft.dart';
 import 'package:ub_app/proposition_draft.dart';
 import 'package:ub_app/attitude_draft.dart';
 import 'package:ub_app/observation_draft.dart';
+import 'package:ub_app/communication_draft.dart';
 import 'package:ub_app/record_browser.dart';
 import 'package:ub_app/dossier_timeline.dart';
 import 'package:ub_app/dossier_appearance.dart';
@@ -1740,6 +1741,70 @@ void main() {
       expect(
         observationSummary.label,
         'Nia — observation of Mara.Account 記憶 😀',
+      );
+      final messageBase = await changes().load();
+      ExpressionReferenceInput messageParticipant(int i) =>
+          ExpressionReferenceInput(
+            record: participant(i).record.value,
+            universe: scope.universe.value,
+          );
+      final messageContent = ExpressionReferenceInput(
+        record: claimPublished.single.identity.recordId.value,
+        universe: scope.universe.value,
+      );
+      final communicationForm = UnfinishedCommunicationForm(
+        baseRevision: messageBase!.content.baseRevision,
+        representedContext: scope.representedContext!,
+        clientRef: 'recorded-message',
+        sender: messageParticipant(0),
+        intendedRecipients: [messageParticipant(1), messageParticipant(1)],
+        actualRecipients: [messageParticipant(2)],
+        content: [messageContent, messageContent],
+        channelEnabled: true,
+        channel: 'mail',
+        distorted: false,
+        sentAt: TemporalValidityInput(
+          kind: 'instant',
+          calendar: calendar.value,
+          start: const TemporalBoundInput(value: '20'),
+        ),
+        receivedEnabled: true,
+        receivedAt: TemporalValidityInput(
+          kind: 'instant',
+          calendar: calendar.value,
+          start: const TemporalBoundInput(value: '9007199254741013'),
+        ),
+        rationale: 'Keep intended listeners distinct from actual receipt.',
+      );
+      await session.saveCommunicationForm(
+        scope,
+        communicationForm,
+        BigInt.zero,
+      );
+      await session.close();
+      session = await device.connect();
+      final recoveredCommunication = (await session.loadCommunicationForm(
+        scope,
+      ))!.form;
+      expect(
+        recoveredCommunication.toWire().toText(),
+        communicationForm.toWire().toText(),
+      );
+      final communicationDraft = SavedDraft.fromWire(
+        await session.call(
+          communicationDraftRequest(
+            draft: messageBase,
+            form: recoveredCommunication,
+            universe: const Selector('Relations'),
+            continuity: scope.continuity,
+          ),
+        ),
+      );
+      final communicationPublished = await publish(communicationDraft);
+      expect(communicationPublished.length, 1);
+      expect(
+        communicationPublished.single.payload.toWire().toText(),
+        communicationOperation(communicationForm).record.toWire().toText(),
       );
     } finally {
       await session?.close();

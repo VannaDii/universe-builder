@@ -712,3 +712,42 @@ final class LocalObservationFormRecovery {
     });
   }
 }
+
+final class LocalCommunicationFormRecovery {
+  LocalCommunicationFormRecovery({required String root, required this.client})
+    : _path = '$root/client-recovery/communication-forms.sqlite';
+  final String _path;
+  final LoopbackEngineClient client;
+
+  Future<SavedCommunicationForm?> load(EditorFormScope scope) async {
+    await _checkEditorScope(client, scope);
+    final path = _path;
+    return Isolate.run(() {
+      final store = CommunicationFormRecoveryStore.open(path);
+      try {
+        return store.load(scope);
+      } finally {
+        store.close();
+      }
+    });
+  }
+
+  Future<SavedCommunicationForm> save(
+    EditorFormScope scope,
+    UnfinishedCommunicationForm form,
+    BigInt expectedGeneration,
+  ) async {
+    if (scope.profile != client.welcome.principal) {
+      throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
+    }
+    final path = _path;
+    return Isolate.run(() {
+      final store = CommunicationFormRecoveryStore.open(path);
+      try {
+        return store.save(scope, form, expectedGeneration);
+      } finally {
+        store.close();
+      }
+    });
+  }
+}

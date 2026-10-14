@@ -189,6 +189,10 @@ final class DeviceConnection {
       client: client,
     );
     final sourceRecovery = LocalSourceFormRecovery(root: root!, client: client);
+    final communicationRecovery = LocalCommunicationFormRecovery(
+      root: root!,
+      client: client,
+    );
     final observationRecovery = LocalObservationFormRecovery(
       root: root!,
       client: client,
@@ -262,6 +266,9 @@ final class DeviceConnection {
       loadRelationForm: (scope) =>
           sequenced(() => relationRecovery.load(scope)),
       saveRelationForm: relationRecovery.save,
+      loadCommunicationForm: (scope) =>
+          sequenced(() => communicationRecovery.load(scope)),
+      saveCommunicationForm: communicationRecovery.save,
       loadObservationForm: (scope) =>
           sequenced(() => observationRecovery.load(scope)),
       saveObservationForm: observationRecovery.save,
