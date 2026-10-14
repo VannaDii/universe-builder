@@ -60,8 +60,15 @@ and database credentials never enter the browser. Source import offers Choose te
 file for UTF-8 `.txt` and `.md` files within the existing service input bound. It
 preserves BOM, Unicode and line endings, uses the filename only when the label is
 empty, and autosaves unfinished input before the normal Add to Changes action.
-Invalid encoding or oversized files leave prior input intact. Package
-upload/download, backup/restore and URL navigation work remain in progress.
+Invalid encoding or oversized files leave prior input intact. In Backup and storage,
+Download complete archive starts a browser-managed download of a pinned
+complete-history relational archive, including embedded source content and
+historical workflow evidence. The one-use download link is bound to the current
+session, expires after five minutes and is invalidated by sign-out or restart.
+A new preparation replaces that session’s unused link. The app reports that the
+download started; the browser reports completion. Server staging files are removed
+after streaming, expiry cleanup or normal shutdown. Browser-selected package import,
+backup restoration and URL navigation work remain in progress.
 
 Connected approval owners can create a universe from Library. Gregorian creation
 uses an explicitly entered date, whole-second time and fixed UTC offset, with an

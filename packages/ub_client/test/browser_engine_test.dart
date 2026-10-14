@@ -208,4 +208,56 @@ void main() {
       );
     }
   });
+  test('archive preparation validates same-origin download metadata and never retries an unknown result', () async {
+    var prepares = 0, invalid = false;
+    final client = await BrowserEngineClient.connect(
+      enrollmentToken: token,
+      abort: () {},
+      post: (path, bytes, header) async {
+        if (path.endsWith('/exchange')) return enrollment();
+        expect(header, csrf);
+        expect(path, '/engine/browser/prepare-download');
+        prepares++;
+        expect(
+          WireFields(
+            CanonicalValue.parseWireJson(String.fromCharCodes(bytes)),
+            {'universe'},
+          ).require('universe').toText(),
+          Selector('Campaign').toWire().toText(),
+        );
+        return response(
+          CanonicalObject([
+            MapEntry(
+              'path',
+              CanonicalString(
+                invalid
+                    ? 'https://foreign.example/archive'
+                    : '/engine/browser/download/${'c' * 43}',
+              ),
+            ),
+            MapEntry('digest', CanonicalString('d' * 64)),
+            MapEntry('bytes', CanonicalNumber('900719925')),
+            MapEntry(
+              'manifest',
+              CanonicalObject([MapEntry('name', CanonicalString('Campaign'))]),
+            ),
+          ]),
+        );
+      },
+    );
+    final prepared = await client.prepareArchiveDownload(Selector('Campaign'));
+    expect(prepared.bytes, 900719925);
+    expect(prepared.digest, 'd' * 64);
+    invalid = true;
+    await expectLater(
+      client.prepareArchiveDownload(Selector('Campaign')),
+      failure(LocalEngineFailure.interrupted),
+    );
+    await expectLater(
+      client.prepareArchiveDownload(Selector('Campaign')),
+      failure(LocalEngineFailure.reconnectRequired),
+    );
+    expect(prepares, 2);
+    await client.close();
+  });
 }

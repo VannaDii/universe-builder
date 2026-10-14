@@ -1,5 +1,6 @@
 import 'package:ub_client/browser_engine.dart';
 import 'package:ub_client/browser_http.dart';
+import 'package:ub_contracts/ub_contracts.dart';
 import 'package:web/web.dart' as web;
 
 import 'package:ub_client/browser_world_recovery.dart';
@@ -403,6 +404,27 @@ final class DeviceConnection {
       }
 
       return AppSession(
+        downloadArchive: (universe) async {
+          final archive = await sequenced(
+            () => client.prepareArchiveDownload(Selector(universe.name)),
+          );
+          if (wireString(
+                Map.fromEntries(archive.manifest.fields)['universe']!,
+              ) !=
+              universe.id.value) {
+            throw const FormatException('Selected universe changed');
+          }
+          final link = web.HTMLAnchorElement()
+            ..href = archive.path
+            ..download = 'Universe Builder archive.sqlite';
+          link.style.display = 'none';
+          web.document.body!.append(link);
+          try {
+            link.click();
+          } finally {
+            link.remove();
+          }
+        },
         pickSourceText: pickBrowserSourceText,
         call: (request) => sequenced(() => client.call(request)),
         close: () => sequenced(() async {

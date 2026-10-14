@@ -15,6 +15,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/local_engine.dart';
 import 'package:ub_service/local_profiles.dart';
 import 'package:ub_store/installation.dart';
+import 'package:ub_store/src/ownership.dart' show protectedFile;
 import 'package:ub_store/profile_credentials.dart';
 
 void main() {
@@ -76,6 +77,26 @@ void main() {
         bytes: data.takeBytes(),
         cookies: cookies,
         setCookie: setCookie,
+      );
+    }
+
+    Future<({int status, Uint8List bytes, String? disposition})> download(
+      String path, {
+      String? cookie,
+      String? origin,
+    }) async {
+      final request = await http.getUrl(server.httpEndpoint.resolve(path));
+      if (cookie != null) request.headers.set(HttpHeaders.cookieHeader, cookie);
+      if (origin != null) request.headers.set('origin', origin);
+      final response = await request.close();
+      final bytes = BytesBuilder(copy: false);
+      await for (final chunk in response) {
+        bytes.add(chunk);
+      }
+      return (
+        status: response.statusCode,
+        bytes: bytes.takeBytes(),
+        disposition: response.headers.value('content-disposition'),
       );
     }
 
@@ -268,6 +289,81 @@ void main() {
         ),
       );
       expect(File(nativeBackup).existsSync(), isTrue);
+      final preparation = await post(
+        '/engine/browser/prepare-download',
+        cookie: session.cookie,
+        csrf: session.csrf,
+        body: CanonicalObject([
+          MapEntry('universe', Selector('Browser universe').toWire()),
+        ]),
+      );
+      expect(preparation.status, HttpStatus.ok);
+      final prepared = PreparedBrowserArchive.fromWire(
+        CanonicalValue.parseWireJson(utf8.decode(preparation.bytes)),
+      );
+      expect(prepared.path, isNot(contains(root.path)));
+      expect((await download(prepared.path)).status, HttpStatus.unauthorized);
+      expect(
+        (await download(
+          prepared.path,
+          cookie: session.cookie,
+          origin: 'https://foreign.example',
+        )).status,
+        HttpStatus.forbidden,
+      );
+      final freshSession = await exchange(await native.createBrowserSession());
+      expect(
+        (await download(prepared.path, cookie: freshSession.cookie)).status,
+        HttpStatus.unauthorized,
+      );
+      final downloaded = await download(prepared.path, cookie: session.cookie);
+      expect(downloaded.status, HttpStatus.ok);
+      expect(downloaded.disposition, contains('attachment'));
+      expect(downloaded.bytes.length, prepared.bytes);
+      final downloadedPath = '${root.path}/downloaded.sqlite';
+      protectedFile(downloadedPath, createNew: true);
+      File(downloadedPath).writeAsBytesSync(downloaded.bytes);
+      final downloadedArchive = local.OwnedSqliteDatabase.stageLogicalArchive(
+        downloadedPath,
+        root.path,
+      );
+      try {
+        expect(downloadedArchive.digest, prepared.digest);
+      } finally {
+        downloadedArchive.close();
+      }
+      expect(
+        (await download(prepared.path, cookie: session.cookie)).status,
+        HttpStatus.unauthorized,
+      );
+      // Preparing a replacement invalidates the session's unused snapshot URL.
+      Future<PreparedBrowserArchive> prepare() async {
+        final response = await post(
+          '/engine/browser/prepare-download',
+          cookie: session.cookie,
+          csrf: session.csrf,
+          body: CanonicalObject([
+            MapEntry('universe', Selector('Browser universe').toWire()),
+          ]),
+        );
+        expect(response.status, HttpStatus.ok);
+        return PreparedBrowserArchive.fromWire(
+          CanonicalValue.parseWireJson(utf8.decode(response.bytes)),
+        );
+      }
+
+      final replaced = await prepare();
+      final replacement = await prepare();
+      expect(
+        (await download(replaced.path, cookie: session.cookie)).status,
+        HttpStatus.unauthorized,
+      );
+      now = now.add(const Duration(minutes: 6));
+      expect(
+        (await download(replacement.path, cookie: session.cookie)).status,
+        HttpStatus.unauthorized,
+      );
+
       // Content upload remains available to a browser without filesystem paths.
       final exported = '${root.path}/browser-upload.sqlite';
       await native.call(

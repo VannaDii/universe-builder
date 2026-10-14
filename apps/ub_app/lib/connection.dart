@@ -3,6 +3,7 @@ import 'package:ub_domain/ub_domain.dart';
 
 final class AppSession {
   const AppSession({
+    this.downloadArchive,
     this.pickSourceText,
     this.logout,
     this.backupFile,
@@ -93,6 +94,7 @@ final class AppSession {
   final Future<CanonicalValue> Function(EngineRequest) call;
   final Future<void> Function() close;
   final Future<void> Function()? logout;
+  final Future<void> Function(LibraryEntry)? downloadArchive;
   final Future<SelectedSourceText?> Function()? pickSourceText;
   final bool author;
   final ProfileId principal;

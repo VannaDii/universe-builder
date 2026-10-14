@@ -38,6 +38,7 @@ final class SameOriginBrowserTransport {
           '/engine/browser/hello',
           '/engine/browser/call',
           '/engine/browser/logout',
+          '/engine/browser/prepare-download',
         }.contains(path) ||
         bytes.length > maxFrameBytes) {
       throw const LocalEngineException(LocalEngineFailure.invalidRequest);

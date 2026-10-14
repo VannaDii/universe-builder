@@ -138,6 +138,48 @@ final class BrowserEngineClient {
     };
   }
 
+  /// Prepare a pinned, complete-history archive for a browser-native download.
+  /// The one-use URL contains no filesystem path or durable credential.
+  Future<PreparedBrowserArchive> prepareArchiveDownload(
+    Selector universe,
+  ) async {
+    if (_closed) throw const LocalEngineException(LocalEngineFailure.closed);
+    if (_busy) throw const LocalEngineException(LocalEngineFailure.busy);
+    if (_broken) {
+      throw const LocalEngineException(LocalEngineFailure.reconnectRequired);
+    }
+    late Uint8List input;
+    try {
+      input = CanonicalObject([MapEntry('universe', universe.toWire())])
+          .toBytes();
+      if (input.length > maxFrameBytes) {
+        throw const FormatException('Frame too large');
+      }
+    } on Object {
+      throw const LocalEngineException(LocalEngineFailure.invalidRequest);
+    }
+    _busy = true;
+    _broken = true;
+    try {
+      final response = await _request(
+        '/engine/browser/prepare-download',
+        input,
+        csrf,
+      );
+      final prepared = PreparedBrowserArchive.fromWire(
+        CanonicalValue.parseWireJson(utf8.decode(response)),
+      );
+      if (_closed) throw const FormatException('Connection closed');
+      _broken = false;
+      return prepared;
+    } on Object {
+      _abort();
+      throw const LocalEngineException(LocalEngineFailure.interrupted);
+    } finally {
+      _busy = false;
+    }
+  }
+
   /// Ending the local connection leaves the browser session available on reload.
   /// Only an explicit logout revokes its server cookie/session.
   Future<void> close() async {
@@ -168,5 +210,42 @@ final class BrowserEngineClient {
       _busy = false;
       await close();
     }
+  }
+}
+
+/// Metadata from the service's pinned relational archive snapshot.
+final class PreparedBrowserArchive {
+  const PreparedBrowserArchive({
+    required this.path,
+    required this.digest,
+    required this.bytes,
+    required this.manifest,
+  });
+  final String path, digest;
+  final int bytes;
+  final CanonicalObject manifest;
+  factory PreparedBrowserArchive.fromWire(CanonicalValue value) {
+    final fields = WireFields(value, {'path', 'digest', 'bytes', 'manifest'});
+    final path = fields.string('path'), digest = fields.string('digest');
+    final bytes = fields.u64('bytes');
+    final manifest = fields.require('manifest');
+    if (!RegExp(r'^/engine/browser/download/[A-Za-z0-9_-]{43}$')
+            .hasMatch(path) ||
+        !RegExp(r'^[0-9a-f]{64}$').hasMatch(digest) ||
+        bytes < BigInt.one ||
+        bytes >
+            BigInt.from(
+              ReadMoveChunkEngineRequest.chunkBytes *
+                  ReadMoveChunkEngineRequest.maxChunks,
+            ) ||
+        manifest is! CanonicalObject) {
+      throw const FormatException('Invalid prepared archive');
+    }
+    return PreparedBrowserArchive(
+      path: path,
+      digest: digest,
+      bytes: bytes.toInt(),
+      manifest: manifest,
+    );
   }
 }

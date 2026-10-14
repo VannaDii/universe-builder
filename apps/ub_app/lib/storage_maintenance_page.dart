@@ -86,6 +86,15 @@ class _StorageMaintenancePageState extends State<StorageMaintenancePage> {
     }
   }
 
+  Future<void> _downloadArchive() async {
+    await widget.session.downloadArchive!(widget.universe!);
+    if (mounted) {
+      setState(
+        () => _message = 'Archive download started. Check your browser’s downloads for completion.',
+      );
+    }
+  }
+
   Future<void> _restore() async {
     final restored = await widget.session.restoreBackupFile!(_name.text);
     if (mounted) {
@@ -119,13 +128,25 @@ class _StorageMaintenancePageState extends State<StorageMaintenancePage> {
                 const Text(
                   'Keep a complete backup of this universe, including retained history and embedded source content.',
                 ),
-                FilledButton(
-                  onPressed: _busy || widget.session.backupFile == null
-                      ? null
-                      : () => _run(_backup),
-                  child: const Text('Save complete backup file'),
-                ),
-                if (widget.session.backupFile == null)
+                if (widget.session.downloadArchive == null)
+                  FilledButton(
+                    onPressed: _busy || widget.session.backupFile == null
+                        ? null
+                        : () => _run(_backup),
+                    child: const Text('Save complete backup file'),
+                  ),
+                if (widget.session.downloadArchive != null) ...[
+                  FilledButton.icon(
+                    onPressed: _busy ? null : () => _run(_downloadArchive),
+                    icon: const Icon(Icons.download),
+                    label: const Text('Download complete archive'),
+                  ),
+                  const Text(
+                    'The archive includes retained history, source content and workflow evidence. Your browser manages the download.',
+                  ),
+                ],
+                if (widget.session.backupFile == null &&
+                    widget.session.downloadArchive == null)
                   const Text(
                     'Native backup file selection is currently available on macOS. Other file flows remain in the operator interface.',
                   ),

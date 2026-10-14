@@ -6,6 +6,8 @@ import 'dart:typed_data';
 
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
+import 'package:ub_store/installation.dart' show privateDirectory;
+import 'package:ub_store/sqlite.dart' show OwnedSqliteDatabase;
 
 import 'postgres_runtime.dart';
 import 'sqlite_runtime.dart';
@@ -34,6 +36,32 @@ final class LoopbackEngineServer {
   final _enrollments = <String, ({EngineHello hello, DateTime expires})>{};
   final _browserSessions =
       <String, ({EngineHello hello, DateTime expires, String csrf})>{};
+  final _downloads =
+      <
+        String,
+        ({
+          String session,
+          DateTime expires,
+          Directory directory,
+          File file,
+          UniverseId universe,
+        })
+      >{};
+  void _expireDownloads() {
+    final expired = _downloads.entries
+        .where(
+          (entry) =>
+              !entry.value.expires.isAfter(_now()) ||
+              !_browserSessions.containsKey(entry.value.session),
+        )
+        .map((entry) => entry.key)
+        .toList();
+    for (final token in expired) {
+      final download = _downloads.remove(token)!;
+      download.directory.deleteSync(recursive: true);
+    }
+  }
+
   String get _cookieName => 'ub_browser_${_server.port}';
   String _token() {
     final random = Random.secure();
@@ -45,6 +73,7 @@ final class LoopbackEngineServer {
     final now = _now();
     _enrollments.removeWhere((_, value) => !value.expires.isAfter(now));
     _browserSessions.removeWhere((_, value) => !value.expires.isAfter(now));
+    _expireDownloads();
   }
 
   final Future<_HttpConnection> Function(EngineHello) _connect;
@@ -157,6 +186,68 @@ final class LoopbackEngineServer {
         response.statusCode = HttpStatus.forbidden;
         return;
       }
+      if (request.method == 'GET' &&
+          request.uri.path.startsWith('/engine/browser/download/')) {
+        _expireBrowserAccess();
+        if (request.uri.hasQuery || request.uri.pathSegments.length != 4) {
+          response.statusCode = HttpStatus.notFound;
+          return;
+        }
+        final token = request.uri.pathSegments.last;
+        final cookies = request.cookies.where(
+          (cookie) => cookie.name == _cookieName,
+        );
+        final download = _downloads[token];
+        if (cookies.length != 1 ||
+            download == null ||
+            cookies.single.value != download.session) {
+          response.statusCode = HttpStatus.unauthorized;
+          return;
+        }
+        final session = _browserSessions[download.session]!;
+        try {
+          connection = await _connect(session.hello);
+        } on Object {
+          response.statusCode = HttpStatus.unauthorized;
+          return;
+        }
+        if (!connection.welcome.author) {
+          response.statusCode = HttpStatus.forbidden;
+          return;
+        }
+        final status = await connection.execute(
+          const StatusEngineRequest(),
+        ) as CanonicalObject;
+        final universes =
+            Map.fromEntries(status.fields)['universes']! as CanonicalArray;
+        if (!universes.items.any(
+          (row) =>
+              WireFields(row, {'id', 'name'}).string('id') ==
+              download.universe.value,
+        )) {
+          response.statusCode = HttpStatus.forbidden;
+          return;
+        }
+        if (_downloads[token] != download) {
+          response.statusCode = HttpStatus.notFound;
+          return;
+        }
+        _downloads.remove(token); // One-use URL, bound to this browser session.
+        try {
+          response.headers.contentType = ContentType.binary;
+          response.headers.set(
+            'content-disposition',
+            'attachment; filename="Universe Builder archive.sqlite"',
+          );
+          response.headers.set('x-content-type-options', 'nosniff');
+          response.headers.set('cross-origin-resource-policy', 'same-origin');
+          response.contentLength = await download.file.length();
+          await response.addStream(download.file.openRead());
+        } finally {
+          download.directory.deleteSync(recursive: true);
+        }
+        return;
+      }
       if (request.method == 'GET' || request.method == 'HEAD') {
         final segments = request.uri.pathSegments;
         if (segments.any(
@@ -207,6 +298,7 @@ final class LoopbackEngineServer {
             '/engine/browser/hello',
             '/engine/browser/call',
             '/engine/browser/logout',
+            '/engine/browser/prepare-download',
           }.contains(request.uri.path)) {
         response.statusCode = HttpStatus.notFound;
         return;
@@ -290,6 +382,7 @@ final class LoopbackEngineServer {
               return;
             }
             _browserSessions.remove(browserId);
+            _expireDownloads();
             response.cookies.add(
               Cookie(_cookieName, '')
                 ..httpOnly = true
@@ -317,7 +410,77 @@ final class LoopbackEngineServer {
         }
       }
       final authenticated = connection!;
-      if (path == '/engine/browser-grant') {
+      if (path == '/engine/browser/prepare-download') {
+        if (!authenticated.welcome.author) {
+          response.statusCode = HttpStatus.forbidden;
+          return;
+        }
+        final fields = WireFields(
+          CanonicalValue.parseWireJson(utf8.decode(input.takeBytes())),
+          {'universe'},
+        );
+        final selector = Selector.fromWire(fields.require('universe'));
+        final directory = Directory.systemTemp.createTempSync(
+          'universe-builder-browser-download-',
+        );
+        var retained = false;
+        try {
+          privateDirectory(directory.path);
+          final file = File('${directory.path}/archive.sqlite');
+          final manifest = await authenticated.execute(
+            ExportLogicalEngineRequest(
+              universe: selector,
+              destination: file.path,
+              recordIds: [],
+              completeHistory: true,
+            ),
+          ) as CanonicalObject;
+          final archive = OwnedSqliteDatabase.stageLogicalArchive(
+            file.path,
+            directory.path,
+          );
+          late String digest;
+          try {
+            digest = archive.digest;
+          } finally {
+            archive.close();
+          }
+          if (_stopping || !_browserSessions.containsKey(browserId)) {
+            response.statusCode = HttpStatus.unauthorized;
+            return;
+          }
+          // A session owns at most one unused download snapshot.
+          final previous = _downloads.entries
+              .where((entry) => entry.value.session == browserId)
+              .map((entry) => entry.key)
+              .toList();
+          for (final old in previous) {
+            _downloads.remove(old)!.directory.deleteSync(recursive: true);
+          }
+          final token = _token();
+          _downloads[token] = (
+            session: browserId!,
+            expires: _now().add(const Duration(minutes: 5)),
+            directory: directory,
+            file: file,
+            universe: UniverseId.parse(
+              wireString(Map.fromEntries(manifest.fields)['universe']!),
+            ),
+          );
+          retained = true;
+          value = CanonicalObject([
+            MapEntry(
+              'path',
+              CanonicalString('/engine/browser/download/$token'),
+            ),
+            MapEntry('digest', CanonicalString(digest)),
+            MapEntry('bytes', CanonicalNumber('${await file.length()}')),
+            MapEntry('manifest', manifest),
+          ]);
+        } finally {
+          if (!retained) directory.deleteSync(recursive: true);
+        }
+      } else if (path == '/engine/browser-grant') {
         if (input.length != 0) {
           response.statusCode = HttpStatus.badRequest;
           return;
@@ -438,6 +601,7 @@ final class LoopbackEngineServer {
       await _subscription.cancel();
       await Future.wait(_active.toList());
       await _server.close(force: true);
+      _expireDownloads();
     } finally {
       _done.complete();
     }
