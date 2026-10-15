@@ -32,14 +32,35 @@ void main() {
       applicabilityChoice: '',
       rationale: '',
     );
-    var store = TypeFormRecoveryStore.open(path);
-    store.save(scope, form, BigInt.zero);
-    store.close();
+    protectedFile(path, create: true);
     final db = sqlite3.open(path);
     db.execute(
-      'ALTER TABLE type_form DROP COLUMN revision_input; PRAGMA user_version=2',
+      'CREATE TABLE type_form(instance TEXT NOT NULL,profile TEXT NOT NULL,universe TEXT NOT NULL,continuity TEXT NOT NULL,context TEXT NOT NULL,editor_key TEXT NOT NULL,generation TEXT NOT NULL,base_revision TEXT NOT NULL,client_ref TEXT NOT NULL,namespace TEXT NOT NULL,key TEXT NOT NULL,name TEXT NOT NULL,parent_choice TEXT NOT NULL,applicability_choice TEXT NOT NULL,rationale TEXT NOT NULL,classification_executable INTEGER,draft_version TEXT,PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)) STRICT; CREATE TABLE type_form_world(instance TEXT NOT NULL,profile TEXT NOT NULL,universe TEXT NOT NULL,continuity TEXT NOT NULL,context TEXT NOT NULL,editor_key TEXT NOT NULL,ordinal INTEGER NOT NULL,world TEXT NOT NULL,PRIMARY KEY(instance,profile,universe,continuity,context,editor_key,ordinal)) STRICT;PRAGMA user_version=2',
+    );
+    db.execute(
+      'INSERT INTO type_form VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      [
+        scope.instance.value,
+        scope.profile.value,
+        scope.universe.value,
+        scope.continuity.value,
+        scope.representedContext!.value,
+        '',
+        '1',
+        form.baseRevision.value,
+        form.clientRef,
+        form.namespace,
+        form.key,
+        form.name,
+        form.parentChoice,
+        form.applicabilityChoice,
+        form.rationale,
+        null,
+        null,
+      ],
     );
     db.close();
+    var store = TypeFormRecoveryStore.open(path);
     try {
       store = TypeFormRecoveryStore.open(path);
       expect(store.load(scope)!.form.toWire().toText(), form.toWire().toText());
@@ -270,7 +291,7 @@ void main() {
     final store = TypeFormRecoveryStore.open(path);
     store.close();
     final db = sqlite3.open(path);
-    db.execute('PRAGMA user_version=4');
+    db.execute('PRAGMA user_version=99');
     db.close();
     final before = File(path).readAsBytesSync();
     try {

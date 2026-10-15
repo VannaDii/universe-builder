@@ -6,15 +6,26 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 import 'ownership.dart';
+import 'catalog.dart';
+import 'relational.dart';
+import 'recovery_domain_rows.dart';
 
 const _legacyColumns =
     'instance,profile,universe,continuity,context,generation,base_revision,client_ref,namespace,key,name,parent_choice,applicability_choice,rationale,classification_executable';
 const _columns =
     'instance,profile,universe,continuity,context,editor_key,generation,base_revision,client_ref,namespace,key,name,parent_choice,applicability_choice,rationale,classification_executable,draft_version';
-const _currentColumns = '$_columns,revision_input';
+const _v3Columns = '$_columns,revision_input';
+const _currentColumns =
+    '$_columns,target_record,target_universe,expected_record_version,original,parent_resolution';
+const _keys = 'instance,profile,universe,continuity,context,editor_key';
+const _fields =
+    'generation,base_revision,client_ref,namespace,key,name,parent_choice,applicability_choice,rationale,classification_executable,draft_version,target_record,target_universe,expected_record_version,original,parent_resolution';
+final _originalModel = recoveryPayloadModel(RecordKind.entityType.wireName);
+final _domains = RecoveryDomainSchema([_originalModel]);
 const _where =
     'instance=? AND profile=? AND universe=? AND continuity=? AND context=? AND editor_key=?';
-const _schema = '''
+final _schema =
+    '''
 CREATE TABLE type_form (
  instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL,
  continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL, generation TEXT NOT NULL,
@@ -22,7 +33,8 @@ CREATE TABLE type_form (
  key TEXT NOT NULL, name TEXT NOT NULL, parent_choice TEXT NOT NULL,
  applicability_choice TEXT NOT NULL, rationale TEXT NOT NULL,
  classification_executable INTEGER CHECK(classification_executable IN (0,1)),
- draft_version TEXT, revision_input TEXT,
+ draft_version TEXT,target_record TEXT,target_universe TEXT,expected_record_version TEXT,original INTEGER REFERENCES "${BodyCatalog.instance.model(_originalModel).table}"(__row_id),parent_resolution TEXT NOT NULL,
+ CHECK(target_record IS NOT NULL OR target_universe IS NULL),
  PRIMARY KEY(instance,profile,universe,continuity,context,editor_key)
 ) STRICT;
 CREATE TABLE type_form_world (
@@ -31,8 +43,22 @@ CREATE TABLE type_form_world (
  PRIMARY KEY(instance,profile,universe,continuity,context,editor_key,ordinal),
  FOREIGN KEY(instance,profile,universe,continuity,context,editor_key) REFERENCES type_form(instance,profile,universe,continuity,context,editor_key) ON DELETE CASCADE
 ) STRICT;
-PRAGMA user_version=3;
+CREATE TABLE type_form_label (
+ instance TEXT NOT NULL,profile TEXT NOT NULL,universe TEXT NOT NULL,continuity TEXT NOT NULL,context TEXT NOT NULL,editor_key TEXT NOT NULL,ordinal INTEGER NOT NULL CHECK(ordinal>=0),language TEXT NOT NULL,label_text TEXT NOT NULL,
+ PRIMARY KEY(instance,profile,universe,continuity,context,editor_key,ordinal),FOREIGN KEY(instance,profile,universe,continuity,context,editor_key) REFERENCES type_form(instance,profile,universe,continuity,context,editor_key)) STRICT;
+${_domains.statements.join('\n')}
+PRAGMA user_version=4;
 ''';
+
+String _projection(String columns) => columns
+    .split(',')
+    .map(
+      (c) => {'ordinal', 'classification_executable', 'original'}.contains(c)
+          ? c
+          : 'CAST($c AS BLOB) AS $c',
+    )
+    .join(',');
+String _text(Row r, String column) => decodeExactUtf8(r[column] as List<int>);
 
 /// Device-private incomplete type input, separate from canon and world forms.
 final class TypeFormRecoveryStore {
@@ -65,26 +91,98 @@ final class TypeFormRecoveryStore {
         final version = _checkSchema(db);
         if (version == 0) {
           db.execute(_schema);
-        } else if (version == 1) {
+        } else if (version < 4) {
           db.execute(
             'ALTER TABLE type_form_world RENAME TO legacy_type_form_world',
           );
           db.execute('ALTER TABLE type_form RENAME TO legacy_type_form');
           db.execute(_schema);
-          db.execute(
-            "INSERT INTO type_form SELECT instance,profile,universe,continuity,context,'',generation,base_revision,client_ref,namespace,key,name,parent_choice,applicability_choice,rationale,classification_executable,NULL,NULL FROM legacy_type_form",
-          );
-          db.execute(
-            "INSERT INTO type_form_world SELECT instance,profile,universe,continuity,context,'',ordinal,world FROM legacy_type_form_world",
-          );
-          db.execute(
-            'DROP TABLE legacy_type_form_world; DROP TABLE legacy_type_form',
-          );
-        }
-        if (version == 2) {
-          db.execute(
-            'ALTER TABLE type_form ADD COLUMN revision_input TEXT; PRAGMA user_version=3',
-          );
+          final store = TypeFormRecoveryStore._(db),
+              legacyColumns = version == 1
+                  ? _legacyColumns
+                  : version == 2
+                  ? _columns
+                  : _v3Columns;
+          for (final r in db.select(
+            'SELECT ${_projection(legacyColumns)} FROM legacy_type_form',
+          )) {
+            final scope = EditorFormScope(
+              instance: OperationId.parse(_text(r, 'instance')),
+              profile: ProfileId.parse(_text(r, 'profile')),
+              universe: UniverseId.parse(_text(r, 'universe')),
+              continuity: ContinuityId.parse(_text(r, 'continuity')),
+              representedContext: RecordId.parse(_text(r, 'context')),
+              typeClientRef: version == 1 || _text(r, 'editor_key').isEmpty
+                  ? null
+                  : _text(r, 'editor_key'),
+            );
+            final revision = version < 3 || r['revision_input'] == null
+                ? null
+                : WireFields(
+                    CanonicalValue.parseWireJson(_text(r, 'revision_input')),
+                    {
+                      'target',
+                      'expected_version',
+                      'original',
+                      'parent_resolution',
+                      'labels',
+                    },
+                  );
+            final worldWhere = version == 1
+                ? 'instance=? AND profile=? AND universe=? AND continuity=? AND context=?'
+                : _where;
+            final form = UnfinishedTypeForm(
+              baseRevision: RevisionId.parse(_text(r, 'base_revision')),
+              representedContext: scope.representedContext!,
+              clientRef: _text(r, 'client_ref'),
+              namespace: _text(r, 'namespace'),
+              key: _text(r, 'key'),
+              name: _text(r, 'name'),
+              parentChoice: _text(r, 'parent_choice'),
+              applicabilityChoice: _text(r, 'applicability_choice'),
+              rationale: _text(r, 'rationale'),
+              classificationExecutable: r['classification_executable'] == null
+                  ? null
+                  : r['classification_executable'] == 1,
+              draftVersion: version == 1 || r['draft_version'] == null
+                  ? null
+                  : BigInt.parse(_text(r, 'draft_version')),
+              revisionTarget: revision?.optional(
+                'target',
+                RecordRef.fromCanonical,
+              ),
+              expectedRecordVersion: revision?.optional(
+                'expected_version',
+                (v) => RecordVersionId.parse(wireString(v)),
+              ),
+              original: revision?.optional(
+                'original',
+                EntityTypeRecord.fromWire,
+              ),
+              parentResolution: revision?.string('parent_resolution') ?? '',
+              labels:
+                  revision?.array('labels').map(PropertyLabelInput.fromWire) ??
+                  const [],
+              worlds: db
+                  .select(
+                    'SELECT ${_projection('world')} FROM legacy_type_form_world WHERE $worldWhere ORDER BY ordinal',
+                    version == 1
+                        ? store._binding(scope).sublist(0, 5)
+                        : store._binding(scope),
+                  )
+                  .map((w) => WorldId.parse(_text(w, 'world'))),
+            );
+            store._validate(scope, form);
+            store._write(
+              scope,
+              SavedTypeForm(
+                generation: BigInt.parse(_text(r, 'generation')),
+                form: form,
+              ),
+            );
+          }
+          db.execute('DROP TABLE legacy_type_form_world');
+          db.execute('DROP TABLE legacy_type_form');
         }
         db.execute('COMMIT');
       } catch (_) {
@@ -112,24 +210,33 @@ final class TypeFormRecoveryStore {
     );
     if (tables.isEmpty) return 0;
     final version = db.select('PRAGMA user_version').single.values.single;
-    if (tables.length != 2 ||
-        (version != 1 && version != 2 && version != 3) ||
-        db
-                .select('PRAGMA table_info(type_form)')
-                .map((row) => row['name'])
-                .join(',') !=
-            (version == 1
-                ? _legacyColumns
-                : version == 2
-                ? _columns
-                : _currentColumns) ||
-        db
-                .select('PRAGMA table_info(type_form_world)')
-                .map((row) => row['name'])
-                .join(',') !=
+    String columns(String table) =>
+        db.select('PRAGMA table_info($table)').map((r) => r['name']).join(',');
+    final legacyColumns = switch (version) {
+      1 => _legacyColumns,
+      2 => _columns,
+      3 => _v3Columns,
+      _ => null,
+    };
+    final legacy =
+        legacyColumns != null &&
+        tables.length == 2 &&
+        columns('type_form') == legacyColumns &&
+        columns('type_form_world') ==
             (version == 1
                 ? 'instance,profile,universe,continuity,context,ordinal,world'
-                : 'instance,profile,universe,continuity,context,editor_key,ordinal,world')) {
+                : '$_keys,ordinal,world');
+    final expected = {
+      'type_form': _currentColumns,
+      'type_form_world': '$_keys,ordinal,world',
+      'type_form_label': '$_keys,ordinal,language,label_text',
+    };
+    final current =
+        version == 4 &&
+        tables.length == expected.length + _domains.statements.length &&
+        expected.entries.every((e) => columns(e.key) == e.value) &&
+        _domains.matches(db);
+    if (!legacy && !current) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
       );
@@ -159,59 +266,131 @@ final class TypeFormRecoveryStore {
   }
 
   SavedTypeForm? _read(EditorFormScope scope) {
-    final binding = _binding(scope);
-    final rows = _db.select('SELECT * FROM type_form WHERE $_where', binding);
+    final binding = _binding(scope),
+        rows = _db.select(
+          'SELECT ${_projection(_currentColumns)} FROM type_form WHERE $_where',
+          _binding(scope),
+        );
     if (rows.isEmpty) return null;
-    final row = rows.single;
-    final revision = row['revision_input'] == null
-        ? null
-        : WireFields(
-            CanonicalValue.parseWireJson(row['revision_input'] as String),
-            {
-              'target',
-              'expected_version',
-              'original',
-              'parent_resolution',
-              'labels',
-            },
-          );
-
+    final r = rows.single;
+    final labels = _db.select(
+      'SELECT ordinal,${_projection('language,label_text')} FROM type_form_label WHERE $_where ORDER BY ordinal',
+      binding,
+    );
+    final worlds = _db.select(
+      'SELECT ordinal,${_projection('world')} FROM type_form_world WHERE $_where ORDER BY ordinal',
+      binding,
+    );
+    for (final list in [labels, worlds]) {
+      for (var i = 0; i < list.length; i++) {
+        if (list[i]['ordinal'] != i) {
+          throw const FormatException('Incomplete type input order');
+        }
+      }
+    }
     return SavedTypeForm(
-      generation: BigInt.parse(row['generation'] as String),
+      generation: BigInt.parse(_text(r, 'generation')),
       form: UnfinishedTypeForm(
-        revisionTarget: revision?.optional('target', RecordRef.fromCanonical),
-        expectedRecordVersion: revision?.optional(
-          'expected_version',
-          (v) => RecordVersionId.parse(wireString(v)),
+        baseRevision: RevisionId.parse(_text(r, 'base_revision')),
+        representedContext: scope.representedContext!,
+        clientRef: _text(r, 'client_ref'),
+        namespace: _text(r, 'namespace'),
+        key: _text(r, 'key'),
+        name: _text(r, 'name'),
+        parentChoice: _text(r, 'parent_choice'),
+        applicabilityChoice: _text(r, 'applicability_choice'),
+        rationale: _text(r, 'rationale'),
+        classificationExecutable: r['classification_executable'] == null
+            ? null
+            : r['classification_executable'] == 1,
+        draftVersion: r['draft_version'] == null
+            ? null
+            : BigInt.parse(_text(r, 'draft_version')),
+        revisionTarget: r['target_record'] == null
+            ? null
+            : RecordRef(
+                record: RecordId.parse(_text(r, 'target_record')),
+                universe: r['target_universe'] == null
+                    ? null
+                    : UniverseId.parse(_text(r, 'target_universe')),
+              ),
+        expectedRecordVersion: r['expected_record_version'] == null
+            ? null
+            : RecordVersionId.parse(_text(r, 'expected_record_version')),
+        original: r['original'] == null
+            ? null
+            : EntityTypeRecord.fromWire(
+                RelationalCodec(_db).get(_originalModel, r['original']),
+              ),
+        parentResolution: _text(r, 'parent_resolution'),
+        labels: labels.map(
+          (l) => PropertyLabelInput(
+            language: _text(l, 'language'),
+            text: _text(l, 'label_text'),
+          ),
         ),
-        original: revision?.optional('original', EntityTypeRecord.fromWire),
-        parentResolution: revision?.string('parent_resolution') ?? '',
-        labels:
-            revision?.array('labels').map(PropertyLabelInput.fromWire) ??
-            const [],
-        baseRevision: RevisionId.parse(row['base_revision'] as String),
-        representedContext: RecordId.parse(row['context'] as String),
-        clientRef: row['client_ref'] as String,
-        draftVersion: row['draft_version'] == null
-            ? null
-            : BigInt.parse(row['draft_version'] as String),
-        namespace: row['namespace'] as String,
-        key: row['key'] as String,
-        name: row['name'] as String,
-        parentChoice: row['parent_choice'] as String,
-        applicabilityChoice: row['applicability_choice'] as String,
-        rationale: row['rationale'] as String,
-        classificationExecutable: row['classification_executable'] == null
-            ? null
-            : row['classification_executable'] == 1,
-        worlds: _db
-            .select(
-              'SELECT world FROM type_form_world WHERE $_where ORDER BY ordinal',
-              binding,
-            )
-            .map((row) => WorldId.parse(row['world'] as String)),
+        worlds: worlds.map((w) => WorldId.parse(_text(w, 'world'))),
       ),
     );
+  }
+
+  void _write(EditorFormScope scope, SavedTypeForm saved) {
+    final binding = _binding(scope), f = saved.form;
+    final old = _db.select(
+      'SELECT original FROM type_form WHERE $_where',
+      binding,
+    );
+    final original = f.original == null
+            ? null
+            : RelationalCodec(_db).put(_originalModel, f.original!.toWire()),
+        columns = _currentColumns.split(',');
+    _db.execute(
+      'INSERT INTO type_form VALUES(${List.filled(columns.length, '?').join(',')}) ON CONFLICT($_keys) DO UPDATE SET ${_fields.split(',').map((c) => '$c=excluded.$c').join(',')}',
+      [
+        ...binding,
+        saved.generation.toString(),
+        f.baseRevision.value,
+        f.clientRef,
+        f.namespace,
+        f.key,
+        f.name,
+        f.parentChoice,
+        f.applicabilityChoice,
+        f.rationale,
+        f.classificationExecutable == null
+            ? null
+            : f.classificationExecutable!
+            ? 1
+            : 0,
+        f.draftVersion?.toString(),
+        f.revisionTarget?.record.value,
+        f.revisionTarget?.universe?.value,
+        f.expectedRecordVersion?.value,
+        original,
+        f.parentResolution,
+      ],
+    );
+    _db.execute('DELETE FROM type_form_world WHERE $_where', binding);
+    _db.execute('DELETE FROM type_form_label WHERE $_where', binding);
+    for (var i = 0; i < f.worlds.length; i++) {
+      _db.execute('INSERT INTO type_form_world VALUES(?,?,?,?,?,?,?,?)', [
+        ...binding,
+        i,
+        f.worlds[i].value,
+      ]);
+    }
+    for (var i = 0; i < f.labels.length; i++) {
+      final l = f.labels[i];
+      _db.execute('INSERT INTO type_form_label VALUES(?,?,?,?,?,?,?,?,?)', [
+        ...binding,
+        i,
+        l.language,
+        l.text,
+      ]);
+    }
+    if (old.isNotEmpty) {
+      _domains.deleteOwned(_db, _originalModel, old.single['original']);
+    }
   }
 
   SavedTypeForm? load(EditorFormScope scope) {
@@ -226,16 +405,7 @@ final class TypeFormRecoveryStore {
     }
   }
 
-  SavedTypeForm save(
-    EditorFormScope scope,
-    UnfinishedTypeForm form,
-    BigInt expectedGeneration,
-  ) {
-    final binding = _binding(scope);
-    if (expectedGeneration < BigInt.zero ||
-        expectedGeneration >= BigInt.one << 64) {
-      throw const FormatException('Invalid expected editor generation');
-    }
+  void _validate(EditorFormScope scope, UnfinishedTypeForm form) {
     if (scope.representedContext != form.representedContext ||
         (scope.typeClientRef != null &&
             scope.typeClientRef != form.clientRef)) {
@@ -256,6 +426,20 @@ final class TypeFormRecoveryStore {
         throw const EditorRecoveryException(EditorRecoveryFailure.invalidText);
       }
     }
+    form.revisionFields;
+  }
+
+  SavedTypeForm save(
+    EditorFormScope scope,
+    UnfinishedTypeForm form,
+    BigInt expectedGeneration,
+  ) {
+    _binding(scope);
+    if (expectedGeneration < BigInt.zero ||
+        expectedGeneration >= BigInt.one << 64) {
+      throw const FormatException('Invalid expected editor generation');
+    }
+    _validate(scope, form);
     _db.execute('BEGIN IMMEDIATE');
     try {
       final current = _read(scope);
@@ -277,34 +461,7 @@ final class TypeFormRecoveryStore {
         generation: generation + BigInt.one,
         form: form,
       );
-      _db.execute(
-        'INSERT INTO type_form VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(instance,profile,universe,continuity,context,editor_key) DO UPDATE SET generation=excluded.generation,base_revision=excluded.base_revision,client_ref=excluded.client_ref,namespace=excluded.namespace,key=excluded.key,name=excluded.name,parent_choice=excluded.parent_choice,applicability_choice=excluded.applicability_choice,rationale=excluded.rationale,classification_executable=excluded.classification_executable,draft_version=excluded.draft_version,revision_input=excluded.revision_input',
-        [
-          ...binding,
-          saved.generation.toString(),
-          form.baseRevision.value,
-          form.clientRef,
-          form.namespace,
-          form.key,
-          form.name,
-          form.parentChoice,
-          form.applicabilityChoice,
-          form.rationale,
-          form.classificationExecutable == null
-              ? null
-              : (form.classificationExecutable! ? 1 : 0),
-          form.draftVersion?.toString(),
-          form.revisionTarget == null ? null : form.revisionFields.toText(),
-        ],
-      );
-      _db.execute('DELETE FROM type_form_world WHERE $_where', binding);
-      for (var i = 0; i < form.worlds.length; i++) {
-        _db.execute('INSERT INTO type_form_world VALUES(?,?,?,?,?,?,?,?)', [
-          ...binding,
-          i,
-          form.worlds[i].value,
-        ]);
-      }
+      _write(scope, saved);
       _db.execute('COMMIT');
       return saved;
     } on EditorRecoveryException {
