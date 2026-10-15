@@ -105,7 +105,7 @@ UB_EXPORT int32_t ub_key_delete(const char *reference) {
   CFRelease(attributes);
   return status;
 }
-#elif defined(__linux__)
+#elif defined(__linux__) && !defined(__ANDROID__)
 #include <libsecret/secret.h>
 #define UB_EXPORT __attribute__((visibility("default")))
 #define UB_KEY_UNAVAILABLE (-4)
