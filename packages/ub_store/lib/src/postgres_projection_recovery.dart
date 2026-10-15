@@ -38,12 +38,30 @@ final class PostgresProjectionRecovery {
       throw const FormatException('Projection rebuild budget exceeded');
     }
     final projections = PostgresRecordProjections(_session, universe);
+    final batch = <StoredVersion>[];
+    Future<void> flush() async {
+      if (batch.isEmpty) {
+        return;
+      }
+      await projections.projectMany(next, batch);
+      batch.clear();
+    }
+
     await for (final record in _journal.loadMany(
       rows.map((row) => RecordVersionId.parse(row[0] as String)),
     )) {
-      await projections.project(next, record);
-      afterProjection?.call();
+      if (afterProjection != null) {
+        // Preserve the existing per-record observation/interruption boundary.
+        await projections.project(next, record);
+        afterProjection();
+      } else {
+        batch.add(record);
+        if (batch.length == 50) {
+          await flush();
+        }
+      }
     }
+    await flush();
     final heads = await _session.execute(
       'SELECT id,head_commit FROM $_schema.continuities WHERE universe_id=\$1 ORDER BY id',
       parameters: [universe.value],

@@ -283,7 +283,11 @@ void main() {
         );
         final enriched = entity(
           label,
-          metadata: {key: TextValue(value)},
+          metadata: {
+            key: TextValue(value),
+            // Cross the bounded projection buffer within one valid record.
+            for (var n = 0; n < 300; n++) 'field$n': TextValue('value$n'),
+          },
           worlds: [association],
         );
         final work = StoredVersion.build(
@@ -363,6 +367,18 @@ void main() {
           parameters: [postgresAuthoredText('/metadata/$key/text')],
         );
         expect(prose, isEmpty);
+        final fields = await connection.execute(
+          'SELECT path,value FROM $schema.typed_projection WHERE version_id=\$1',
+          parameters: [enriched.versionId.value],
+        );
+        final indexed = {
+          for (final row in fields)
+            readPostgresAuthoredText(row[0] as List<int>):
+                readPostgresAuthoredText(row[1] as List<int>),
+        };
+        for (var n = 0; n < 300; n++) {
+          expect(indexed['/metadata/field$n/kind'], 'text');
+        }
         final references = await connection.execute(
           'SELECT target_record,path FROM $schema.reference_index WHERE version_id=\$1',
           parameters: [work.versionId.value],

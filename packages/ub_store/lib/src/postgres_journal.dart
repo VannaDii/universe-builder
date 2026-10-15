@@ -566,10 +566,19 @@ final class PostgresJournal {
     );
     final ids = membership.keys.toList()
       ..sort((a, b) => a.value.compareTo(b.value));
-    for (final id in ids) {
+    for (var offset = 0; offset < ids.length; offset += 64) {
+      final end = (offset + 64).clamp(0, ids.length);
+      final batch = ids.sublist(offset, end);
       await _execute(
-        'INSERT INTO $_schema.head_membership VALUES(\$1,\$2,\$3,\$4)',
-        [universe.value, continuity.value, id.value, membership[id]!.value],
+        'INSERT INTO $_schema.head_membership '
+        'SELECT \$1,\$2,m.record_id,m.version_id '
+        'FROM unnest(\$3::text[],\$4::text[]) AS m(record_id,version_id)',
+        [
+          universe.value,
+          continuity.value,
+          [for (final id in batch) id.value],
+          [for (final id in batch) membership[id]!.value],
+        ],
       );
     }
     await _execute(
