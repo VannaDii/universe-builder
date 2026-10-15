@@ -59,7 +59,7 @@ extension type _CommunicationRow._(JSObject _) implements JSObject {
     required JSAny receivedAt,
     required String rationale,
     String? draftVersion,
-    String? original,
+    JSAny? originalFields,
     JSAny? correctionTarget,
     String? expectedRecordVersion,
   });
@@ -79,9 +79,100 @@ extension type _CommunicationRow._(JSObject _) implements JSObject {
   external JSAny get receivedAt;
   external String get rationale;
   external String? get draftVersion;
+  external JSAny? get originalFields;
   external String? get original;
   external JSAny? get correctionTarget;
   external String? get expectedRecordVersion;
+}
+
+SavedCommunicationForm _decodeCommunication(
+  _CommunicationRow row, {
+  bool legacy = false,
+}) {
+  return SavedCommunicationForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedCommunicationForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      sender: ExpressionReferenceInput.fromWire(decodeBrowserInput(row.sender)),
+      intendedRecipients: (decodeBrowserInput(
+        row.intendedRecipients,
+      ) as CanonicalArray).items.map(ExpressionReferenceInput.fromWire),
+      actualRecipients: (decodeBrowserInput(
+        row.actualRecipients,
+      ) as CanonicalArray).items.map(ExpressionReferenceInput.fromWire),
+      content: (decodeBrowserInput(row.content) as CanonicalArray).items.map(
+        ExpressionReferenceInput.fromWire,
+      ),
+      channelEnabled: row.channelEnabled,
+      channel: row.channel,
+      distorted: row.distorted,
+      sentAt: TemporalValidityInput.fromWire(decodeBrowserInput(row.sentAt)),
+      receivedEnabled: row.receivedEnabled,
+      receivedAt: TemporalValidityInput.fromWire(
+        decodeBrowserInput(row.receivedAt),
+      ),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : CommunicationRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : CommunicationRecord.fromWire(
+              decodeBrowserInput(row.originalFields!),
+            ),
+      correctionTarget: row.correctionTarget == null
+          ? null
+          : ExpressionReferenceInput.fromWire(
+              decodeBrowserInput(row.correctionTarget!),
+            ),
+      expectedRecordVersion: row.expectedRecordVersion == null
+          ? null
+          : RecordVersionId.parse(row.expectedRecordVersion!),
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+    ),
+  );
+}
+
+_CommunicationRow _encodeCommunication(SavedCommunicationForm saved) {
+  final form = saved.form;
+  return _CommunicationRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    sender: encodeBrowserInput(form.sender.toWire())!,
+    intendedRecipients: encodeBrowserInput(
+      CanonicalArray(form.intendedRecipients.map((ref) => ref.toWire())),
+    )!,
+    actualRecipients: encodeBrowserInput(
+      CanonicalArray(form.actualRecipients.map((ref) => ref.toWire())),
+    )!,
+    content: encodeBrowserInput(
+      CanonicalArray(form.content.map((ref) => ref.toWire())),
+    )!,
+    channelEnabled: form.channelEnabled,
+    channel: form.channel,
+    distorted: form.distorted,
+    sentAt: encodeBrowserInput(form.sentAt.toWire())!,
+    receivedEnabled: form.receivedEnabled,
+    receivedAt: encodeBrowserInput(form.receivedAt.toWire())!,
+    originalFields: form.original == null
+        ? null
+        : encodeBrowserInput(form.original!.toWire()),
+    correctionTarget: form.correctionTarget == null
+        ? null
+        : encodeBrowserInput(form.correctionTarget!.toWire()),
+    expectedRecordVersion: form.expectedRecordVersion?.value,
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+  );
 }
 
 /// Named fields retain communication recipients, content and temporal input.
@@ -98,7 +189,7 @@ final class BrowserCommunicationFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserCommunicationFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -107,10 +198,33 @@ final class BrowserCommunicationFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            db.createObjectStore(_tables.single);
+          } else {
+            final scan = tx.objectStore(_tables.single).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeCommunication(
+                    _decodeCommunication(
+                      cursor.value as _CommunicationRow,
+                      legacy: true,
+                    ),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -165,51 +279,7 @@ final class BrowserCommunicationFormRecoveryStore {
   SavedCommunicationForm? _read(web.IDBRequest main) {
     if (main.result == null || main.result.isUndefined) return null;
     final row = main.result as _CommunicationRow;
-    return SavedCommunicationForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedCommunicationForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        sender: ExpressionReferenceInput.fromWire(
-          decodeBrowserInput(row.sender),
-        ),
-        intendedRecipients: (decodeBrowserInput(
-          row.intendedRecipients,
-        ) as CanonicalArray).items.map(ExpressionReferenceInput.fromWire),
-        actualRecipients: (decodeBrowserInput(
-          row.actualRecipients,
-        ) as CanonicalArray).items.map(ExpressionReferenceInput.fromWire),
-        content: (decodeBrowserInput(row.content) as CanonicalArray).items.map(
-          ExpressionReferenceInput.fromWire,
-        ),
-        channelEnabled: row.channelEnabled,
-        channel: row.channel,
-        distorted: row.distorted,
-        sentAt: TemporalValidityInput.fromWire(decodeBrowserInput(row.sentAt)),
-        receivedEnabled: row.receivedEnabled,
-        receivedAt: TemporalValidityInput.fromWire(
-          decodeBrowserInput(row.receivedAt),
-        ),
-        original: row.original == null
-            ? null
-            : CommunicationRecord.fromWire(
-                CanonicalValue.parseWireJson(row.original!),
-              ),
-        correctionTarget: row.correctionTarget == null
-            ? null
-            : ExpressionReferenceInput.fromWire(
-                decodeBrowserInput(row.correctionTarget!),
-              ),
-        expectedRecordVersion: row.expectedRecordVersion == null
-            ? null
-            : RecordVersionId.parse(row.expectedRecordVersion!),
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+    return _decodeCommunication(row);
   }
 
   Future<SavedCommunicationForm?> load(EditorFormScope scope) {
@@ -298,42 +368,7 @@ final class BrowserCommunicationFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _CommunicationRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              sender: encodeBrowserInput(form.sender.toWire())!,
-              intendedRecipients: encodeBrowserInput(
-                CanonicalArray(
-                  form.intendedRecipients.map((ref) => ref.toWire()),
-                ),
-              )!,
-              actualRecipients: encodeBrowserInput(
-                CanonicalArray(
-                  form.actualRecipients.map((ref) => ref.toWire()),
-                ),
-              )!,
-              content: encodeBrowserInput(
-                CanonicalArray(form.content.map((ref) => ref.toWire())),
-              )!,
-              channelEnabled: form.channelEnabled,
-              channel: form.channel,
-              distorted: form.distorted,
-              sentAt: encodeBrowserInput(form.sentAt.toWire())!,
-              receivedEnabled: form.receivedEnabled,
-              receivedAt: encodeBrowserInput(form.receivedAt.toWire())!,
-              original: form.original?.toWire().toText(),
-              correctionTarget: form.correctionTarget == null
-                  ? null
-                  : encodeBrowserInput(form.correctionTarget!.toWire()),
-              expectedRecordVersion: form.expectedRecordVersion?.value,
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeCommunication(saved!), key.toJS);
         } on Object catch (error) {
           failure = error is EditorRecoveryException
               ? error

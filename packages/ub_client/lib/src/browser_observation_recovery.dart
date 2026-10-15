@@ -56,7 +56,7 @@ extension type _ObservationRow._(JSObject _) implements JSObject {
     required JSAny basis,
     required String rationale,
     String? draftVersion,
-    String? original,
+    JSAny? originalFields,
   });
   external String get generation;
   external String get baseRevision;
@@ -71,7 +71,70 @@ extension type _ObservationRow._(JSObject _) implements JSObject {
   external JSAny get basis;
   external String get rationale;
   external String? get draftVersion;
+  external JSAny? get originalFields;
   external String? get original;
+}
+
+SavedObservationForm _decodeObservation(
+  _ObservationRow row, {
+  bool legacy = false,
+}) {
+  return SavedObservationForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedObservationForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      observer: ExpressionReferenceInput.fromWire(
+        decodeBrowserInput(row.observer),
+      ),
+      observed: ExpressionReferenceInput.fromWire(
+        decodeBrowserInput(row.observed),
+      ),
+      sensoryAccess: row.sensoryAccess,
+      time: TemporalValidityInput.fromWire(decodeBrowserInput(row.time)),
+      interpretationEnabled: row.interpretationEnabled,
+      interpretation: ExpressionReferenceInput.fromWire(
+        decodeBrowserInput(row.interpretation),
+      ),
+      basis: EvidenceBasisInput.fromWire(decodeBrowserInput(row.basis)),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : ObservationRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : ObservationRecord.fromWire(decodeBrowserInput(row.originalFields!)),
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+    ),
+  );
+}
+
+_ObservationRow _encodeObservation(SavedObservationForm saved) {
+  final form = saved.form;
+  return _ObservationRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    observer: encodeBrowserInput(form.observer.toWire())!,
+    observed: encodeBrowserInput(form.observed.toWire())!,
+    sensoryAccess: form.sensoryAccess,
+    time: encodeBrowserInput(form.time.toWire())!,
+    interpretationEnabled: form.interpretationEnabled,
+    interpretation: encodeBrowserInput(form.interpretation.toWire())!,
+    basis: encodeBrowserInput(form.basis.toWire())!,
+    originalFields: form.original == null
+        ? null
+        : encodeBrowserInput(form.original!.toWire()),
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+  );
 }
 
 /// Named fields retain observation references, sensory-access choices and temporal input.
@@ -88,7 +151,7 @@ final class BrowserObservationFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserObservationFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -97,10 +160,33 @@ final class BrowserObservationFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            db.createObjectStore(_tables.single);
+          } else {
+            final scan = tx.objectStore(_tables.single).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeObservation(
+                    _decodeObservation(
+                      cursor.value as _ObservationRow,
+                      legacy: true,
+                    ),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -155,36 +241,7 @@ final class BrowserObservationFormRecoveryStore {
   SavedObservationForm? _read(web.IDBRequest main) {
     if (main.result == null || main.result.isUndefined) return null;
     final row = main.result as _ObservationRow;
-    return SavedObservationForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedObservationForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        observer: ExpressionReferenceInput.fromWire(
-          decodeBrowserInput(row.observer),
-        ),
-        observed: ExpressionReferenceInput.fromWire(
-          decodeBrowserInput(row.observed),
-        ),
-        sensoryAccess: row.sensoryAccess,
-        time: TemporalValidityInput.fromWire(decodeBrowserInput(row.time)),
-        interpretationEnabled: row.interpretationEnabled,
-        interpretation: ExpressionReferenceInput.fromWire(
-          decodeBrowserInput(row.interpretation),
-        ),
-        basis: EvidenceBasisInput.fromWire(decodeBrowserInput(row.basis)),
-        original: row.original == null
-            ? null
-            : ObservationRecord.fromWire(
-                CanonicalValue.parseWireJson(row.original!),
-              ),
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+    return _decodeObservation(row);
   }
 
   Future<SavedObservationForm?> load(EditorFormScope scope) {
@@ -273,25 +330,7 @@ final class BrowserObservationFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _ObservationRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              observer: encodeBrowserInput(form.observer.toWire())!,
-              observed: encodeBrowserInput(form.observed.toWire())!,
-              sensoryAccess: form.sensoryAccess,
-              time: encodeBrowserInput(form.time.toWire())!,
-              interpretationEnabled: form.interpretationEnabled,
-              interpretation: encodeBrowserInput(form.interpretation.toWire())!,
-              basis: encodeBrowserInput(form.basis.toWire())!,
-              original: form.original?.toWire().toText(),
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeObservation(saved!), key.toJS);
         } on Object catch (error) {
           failure = error is EditorRecoveryException
               ? error
