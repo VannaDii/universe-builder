@@ -53,7 +53,7 @@ extension type _RelationRow._(JSObject _) implements JSObject {
     String? draftVersion,
     JSAny? revisionTarget,
     String? expectedRecordVersion,
-    String? original,
+    JSAny? originalFields,
   });
   external String get generation;
   external String get baseRevision;
@@ -65,6 +65,7 @@ extension type _RelationRow._(JSObject _) implements JSObject {
   external String? get draftVersion;
   external JSAny? get revisionTarget;
   external String? get expectedRecordVersion;
+  external JSAny? get originalFields;
   external String? get original;
 }
 
@@ -96,6 +97,80 @@ extension type _LabelRow._(JSObject _) implements JSObject {
   external String get text;
 }
 
+SavedRelationForm _decodeRelation(
+  _RelationRow row,
+  Iterable<_RoleRow> roleRows,
+  Iterable<_LabelRow> labelRows, {
+  bool legacy = false,
+}) {
+  return SavedRelationForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedRelationForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      namespace: row.namespace,
+      key: row.key,
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+      revisionTarget: row.revisionTarget == null
+          ? null
+          : ExpressionReferenceInput.fromWire(
+              decodeBrowserInput(row.revisionTarget!),
+            ),
+      expectedRecordVersion: row.expectedRecordVersion == null
+          ? null
+          : RecordVersionId.parse(row.expectedRecordVersion!),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : RelationRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : RelationRecord.fromWire(decodeBrowserInput(row.originalFields!)),
+      roles: roleRows.map(
+        (role) => RelationRoleInput(
+          name: role.name,
+          participantTypes: role.participantTypes.toDart.map(
+            (type) => type.toDart,
+          ),
+          multiplicity: role.multiplicity,
+          ordered: role.ordered,
+        ),
+      ),
+      labels: labelRows.map(
+        (label) =>
+            PropertyLabelInput(language: label.language, text: label.text),
+      ),
+    ),
+  );
+}
+
+_RelationRow _encodeRelation(SavedRelationForm saved) {
+  final form = saved.form;
+  return _RelationRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    namespace: form.namespace,
+    key: form.key,
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+    revisionTarget: form.revisionTarget == null
+        ? null
+        : encodeBrowserInput(form.revisionTarget!.toWire()),
+    expectedRecordVersion: form.expectedRecordVersion?.value,
+    originalFields: form.original == null
+        ? null
+        : encodeBrowserInput(form.original!.toWire()),
+  );
+}
+
 /// Named fields and ordered child rows, never a serialized UI-state blob.
 /// IndexedDB transactions compare generations and commit all children together.
 /// Browser storage is origin-private and may be cleared by the user/browser;
@@ -110,7 +185,7 @@ final class BrowserRelationFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserRelationFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -119,10 +194,37 @@ final class BrowserRelationFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            for (final table in _tables) {
+              db.createObjectStore(table);
+            }
+          } else {
+            final scan = tx.objectStore(_tables.first).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeRelation(
+                    _decodeRelation(
+                      cursor.value as _RelationRow,
+                      [],
+                      [],
+                      legacy: true,
+                    ),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -192,47 +294,7 @@ final class BrowserRelationFormRecoveryStore {
       ..sort((a, b) => a.ordinal.compareTo(b.ordinal));
     final labelRows = (labels.result as JSArray<_LabelRow>).toDart
       ..sort((a, b) => a.ordinal.compareTo(b.ordinal));
-    return SavedRelationForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedRelationForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        namespace: row.namespace,
-        key: row.key,
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-        revisionTarget: row.revisionTarget == null
-            ? null
-            : ExpressionReferenceInput.fromWire(
-                decodeBrowserInput(row.revisionTarget!),
-              ),
-        expectedRecordVersion: row.expectedRecordVersion == null
-            ? null
-            : RecordVersionId.parse(row.expectedRecordVersion!),
-        original: row.original == null
-            ? null
-            : RelationRecord.fromWire(
-                CanonicalValue.parseWireJson(row.original!),
-              ),
-        roles: roleRows.map(
-          (role) => RelationRoleInput(
-            name: role.name,
-            participantTypes: role.participantTypes.toDart.map(
-              (type) => type.toDart,
-            ),
-            multiplicity: role.multiplicity,
-            ordered: role.ordered,
-          ),
-        ),
-        labels: labelRows.map(
-          (label) =>
-              PropertyLabelInput(language: label.language, text: label.text),
-        ),
-      ),
-    );
+    return _decodeRelation(row, roleRows, labelRows);
   }
 
   Future<SavedRelationForm?> load(EditorFormScope scope) {
@@ -327,24 +389,7 @@ final class BrowserRelationFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _RelationRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              namespace: form.namespace,
-              key: form.key,
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-              revisionTarget: form.revisionTarget == null
-                  ? null
-                  : encodeBrowserInput(form.revisionTarget!.toWire()),
-              expectedRecordVersion: form.expectedRecordVersion?.value,
-              original: form.original?.toWire().toText(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeRelation(saved!), key.toJS);
           aliasStore.delete(range);
           labelStore.delete(range);
           for (var i = 0; i < form.roles.length; i++) {
