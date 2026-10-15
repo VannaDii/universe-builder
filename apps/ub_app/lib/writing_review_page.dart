@@ -11,6 +11,8 @@ import 'guarded_pop_scope.dart';
 import 'record_fields.dart';
 import 'source_text_editing.dart';
 import 'writing_review.dart';
+import 'assessment_declaration_view.dart';
+import 'proposal_assessment.dart';
 
 class WritingReviewPage extends StatefulWidget {
   const WritingReviewPage({super.key, required this.workflow});
@@ -360,6 +362,13 @@ class _WritingReviewPageState extends State<WritingReviewPage> {
                           ),
                         ),
                     for (final line in review.summary) SelectableText(line),
+                    AssessmentDeclarationView(
+                      state: review.assessment.state,
+                      envelope: review.assessment.envelope,
+                      load: (reference) => readProposalAssessment(
+                        _flow.changes, review.proposal, reference,
+                      ),
+                    ),
                     Text(
                       'Impact: ${review.impact.coverage.wireName} · ${review.impact.records.length} related records',
                     ),

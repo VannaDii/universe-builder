@@ -70,11 +70,13 @@ final class WritingReview {
       'assessment_review',
     });
     proposal = Proposal.fromWire(review.require('proposal'));
+    assessment = AssessmentReview.fromWire(review.require('assessment_review'));
     footprint = review.require('footprint');
     diff = review.require('diff');
   }
   late final ProposalRef candidate;
   late final Proposal proposal;
+  late final AssessmentReview assessment;
   late final ValidationV3 validation;
   late final Impact impact;
   late final bool publishable;

@@ -14,6 +14,8 @@ import 'evidence_review_summary.dart';
 import 'evidence_policy_view.dart';
 import 'resource_acceptance.dart';
 import 'issue_decision_editor_page.dart';
+import 'assessment_declaration_view.dart';
+import 'proposal_assessment.dart';
 
 MaterialPageRoute<void> changesRoute(SavedChanges changes) {
   final scope = changes.scope;
@@ -1603,8 +1605,16 @@ class _ChangesPageState extends State<ChangesPage> {
                     ExpansionTile(
                       title: const Text('Submitted evidence and assessment'),
                       children: [
-                        ExactFields(value: report.submittedInput.toWire()),
-                        ExactFields(value: report.assessment.toWire()),
+                        AssessmentDeclarationView(
+                          state: report.assessment,
+                          load: (reference) => readProposalAssessment(
+                            widget.changes, _proposal!, reference,
+                          ),
+                        ),
+                        ExpansionTile(
+                          title: const Text('Submitted source byte bindings'),
+                          children: [ExactFields(value: report.submittedInput.toWire())],
+                        ),
                       ],
                     ),
                   ],

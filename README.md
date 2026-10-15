@@ -1019,7 +1019,15 @@ an interrupted draft-link save can be completed with **Save proposal with
 changes**, preserving the existing proposal. **Run checks** evaluates the exact
 proposal against the complete universe. Findings retain their outcome, coverage,
 records and evidence, with opposing evidence, unsupported checks and the submitted
-assessment available for review. The service's existing rules decide whether
+assessment available for review. **Submitted evidence and assessment → Read assessor
+declaration** retrieves the exact attachment used by that check, including large
+declarations delivered in pages. It shows assessor attribution, source ranges,
+dependencies, declared inventory and exclusions, mappings, unresolved material
+and the assessor's conclusion. Later selection changes do not replace the
+attachment being read; a new check refreshes its binding. Writing-proposal review
+shows the same declaration. Reading does not attach, select or approve an
+assessment, and byte verification is separate from the assessor's judgment.
+The service's existing rules decide whether
 approval is admissible. **Approve reviewed changes** retains approval for this
 exact proposal and check run; **Publish approved changes** is a separate action.
 **Check publication** and reopening use existing approvals and operation lookup
