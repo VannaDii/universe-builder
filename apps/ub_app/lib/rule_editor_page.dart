@@ -20,6 +20,7 @@ import 'record_browser.dart';
 import 'connection.dart';
 import 'rule_knowledge_fields.dart';
 import 'rule_constraint_fields.dart';
+import 'rule_evidence_fields.dart';
 
 class RuleEditorPage extends StatefulWidget {
   const RuleEditorPage({
@@ -53,10 +54,12 @@ class _RuleEditorPageState extends State<RuleEditorPage> {
   Timer? _autosave;
   int _fields = 0;
   bool _choosingPredicate = false;
+  bool _choosingEvidence = false;
   bool get _disabled =>
       _loading ||
       _adding ||
       _choosingPredicate ||
+      _choosingEvidence ||
       _form == null ||
       (widget.index == null && _added != null);
   EditorFormScope get _scope => widget.changes.scope;
@@ -162,6 +165,7 @@ class _RuleEditorPageState extends State<RuleEditorPage> {
     String? rationale,
     RuleKnowledgeInput? knowledge,
     RuleConstraintInput? constraints,
+    RuleEvidenceInput? evidence,
   }) {
     final f = _form!;
     setState(() {
@@ -184,6 +188,7 @@ class _RuleEditorPageState extends State<RuleEditorPage> {
         original: f.original,
         knowledge: knowledge ?? f.knowledge,
         constraints: constraints ?? f.constraints,
+        evidence: evidence ?? f.evidence,
         rationale: rationale ?? f.rationale,
         draftVersion: f.draftVersion,
         revisionTarget: f.revisionTarget,
@@ -523,6 +528,19 @@ class _RuleEditorPageState extends State<RuleEditorPage> {
                     label: 'Subject type',
                     disabled: _disabled,
                     onChanged: (v) => _change(subjectTypes: v),
+                  ),
+                  RuleEvidenceFields(
+                    key: ValueKey((_fields, 'evidence')),
+                    input:
+                        f.evidence ??
+                        ruleEvidenceInput(f.original?.requiredEvidence),
+                    changes: widget.changes,
+                    draft: _choices,
+                    disabled: _disabled,
+                    onChanged: (value) => _change(evidence: value),
+                    onBusyChanged: (value) {
+                      if (mounted) setState(() => _choosingEvidence = value);
+                    },
                   ),
                   for (final kind in [RecordKind.property, RecordKind.relation])
                     DraftRecordChoiceField(

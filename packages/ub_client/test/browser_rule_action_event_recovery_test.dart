@@ -120,6 +120,17 @@ void main() {
               clientRef: family,
               namespace: 'authored',
               key: 'rule',
+              evidence: RuleEvidenceInput(
+                enabled: true,
+                categories: [
+                  RuleEvidenceCategoryInput(
+                    universe: universe.value,
+                    record: 'unfinished category 記憶 😀',
+                    version: pin.value,
+                  ),
+                ],
+                reviewMethods: ['external_model_review'],
+              ),
               labels: labels,
               kind: 'unfinished',
               commitPolicy: '',
@@ -194,6 +205,7 @@ void main() {
               'executable': null,
               'knowledge': null,
               'constraints': null,
+              'evidence': null,
             };
           case 'action':
             var store = await BrowserActionFormRecoveryStore.open(

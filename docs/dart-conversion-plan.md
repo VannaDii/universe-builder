@@ -185,6 +185,12 @@ requires an exact attributed assessment using one of those methods. Required
 unresolved facts still block affected publication. Attributed private recollections
 can qualify without public corroboration or a public URL.
 
+The shared Flutter rule editor now exposes source-category selection and optional
+accepted review methods for new rules and published revisions, alongside the
+existing scope controls. It retains exact published category versions and saves
+unfinished input through native/browser form recovery. Changes use the existing
+review/publication path. Explicit fictional departures remain pending.
+
 Represent a required evidence policy on the existing published Rule record with
 an optional `requiredEvidence` field. Its `sourceCategories` are exact VersionRef
 bindings to published DomainPack records grouping qualifying SourceVersion record

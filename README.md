@@ -12,6 +12,15 @@ unfinished creation input on native and web clients. Existing universes and olde
 unfinished forms keep their prior behavior.
 The equivalent CLI option is `universe create <name> --first-time <value> --real-world`.
 
+The rule editor offers **Required evidence** for new rules and published rule
+revisions. Choose published source categories and optionally accepted human or
+external-writer interpretation review. With both review methods off, the policy
+adds no interpretation-review duty. Existing world, subject, predicate and time
+controls scope the requirement. Source categories retain their exact published
+selection; publish category changes before selecting the new version. Unfinished
+choices recover on native and web clients, and edits enter Changes for normal
+review and publication.
+
 The Real World evidence-policy contract now has an optional Rule
 `requiredEvidence` declaration. It pins published source-category packs and lists
 accepted interpretation-review methods; an empty method list requires no review.

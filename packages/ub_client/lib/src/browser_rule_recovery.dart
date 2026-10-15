@@ -61,6 +61,7 @@ extension type _RuleRow._(JSObject _) implements JSObject {
     required JSAny validity,
     JSAny? knowledge,
     JSAny? constraints,
+    JSAny? evidence,
     JSAny? revisionTarget,
     String? expectedRecordVersion,
     required String rationale,
@@ -85,6 +86,7 @@ extension type _RuleRow._(JSObject _) implements JSObject {
   external JSAny get validity;
   external JSAny? get knowledge;
   external JSAny? get constraints;
+  external JSAny? get evidence;
   external JSAny? get revisionTarget;
   external String? get expectedRecordVersion;
   external String get rationale;
@@ -203,6 +205,9 @@ final class BrowserRuleFormRecoveryStore {
         validity: TemporalValidityInput.fromWire(
           decodeBrowserInput(row.validity),
         ),
+        evidence: row.evidence == null
+            ? null
+            : RuleEvidenceInput.fromWire(decodeBrowserInput(row.evidence!)),
         knowledge: row.knowledge == null
             ? null
             : RuleKnowledgeInput.fromWire(decodeBrowserInput(row.knowledge!)),
@@ -342,6 +347,9 @@ final class BrowserRuleFormRecoveryStore {
               expression: encodeBrowserInput(form.expression.toWire())!,
               executable: form.executable,
               validity: encodeBrowserInput(form.validity.toWire())!,
+              evidence: form.evidence == null
+                  ? null
+                  : encodeBrowserInput(form.evidence!.toWire()),
               knowledge: form.knowledge == null
                   ? null
                   : encodeBrowserInput(form.knowledge!.toWire()),

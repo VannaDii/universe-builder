@@ -20,6 +20,15 @@ void main() {
       applicability: const UniverseApplicability(),
     );
     final payload = RuleRecord(
+      requiredEvidence: RequiredEvidence(
+        sourceCategories: [
+          VersionRef(
+            universe: universe,
+            record: RecordId.generate(),
+            version: RecordVersionId.generate(),
+          ),
+        ],
+      ),
       namespace: 'authored',
       key: 'continuity',
       labels: {'en': 'Continuity 記憶 😀', 'fr': 'Continuité'},
@@ -130,6 +139,9 @@ void main() {
       final edit = ruleDraftRequest(
         draft: saved,
         form: patch(pending, {
+          'evidence': pending.evidence!
+              .copyWith(reviewMethods: ['external_model_review'])
+              .toWire(),
           'knowledge': pending.knowledge!
               .copyWith(mode: 'author_established', boundaryEnabled: false)
               .toWire(),
@@ -150,6 +162,13 @@ void main() {
           next = op.replacement as RuleRecord;
       expect(op.record.record, source.identity.recordId);
       expect(op.expectedVersion, source.recordVersionId);
+      expect(next.requiredEvidence!.reviewMethods, [
+        EvidenceReviewMethod.externalModelReview,
+      ]);
+      expect(
+        next.requiredEvidence!.sourceCategories.single,
+        payload.requiredEvidence!.sourceCategories.single,
+      );
       expect(next.namespace, payload.namespace);
       expect(next.key, payload.key);
       expect(next.labels, payload.labels);

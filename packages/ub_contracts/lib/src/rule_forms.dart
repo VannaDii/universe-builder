@@ -30,6 +30,7 @@ final class UnfinishedRuleForm {
     this.expectedRecordVersion,
     this.knowledge,
     this.constraints,
+    this.evidence,
     BigInt? draftVersion,
   }) : labels = List.unmodifiable(labels),
        subjectTypes = List.unmodifiable(subjectTypes),
@@ -49,6 +50,7 @@ final class UnfinishedRuleForm {
   final RuleRecord? original;
   final RuleKnowledgeInput? knowledge;
   final RuleConstraintInput? constraints;
+  final RuleEvidenceInput? evidence;
   final ExpressionReferenceInput? revisionTarget;
   final RecordVersionId? expectedRecordVersion;
   final BigInt? draftVersion;
@@ -81,6 +83,7 @@ final class UnfinishedRuleForm {
     if (original != null) MapEntry('original', original!.toWire()),
     if (knowledge != null) MapEntry('knowledge', knowledge!.toWire()),
     if (constraints != null) MapEntry('constraints', constraints!.toWire()),
+    if (evidence != null) MapEntry('evidence', evidence!.toWire()),
     if (revisionTarget != null)
       MapEntry('revision_target', revisionTarget!.toWire()),
     if (expectedRecordVersion != null)
@@ -112,6 +115,7 @@ final class UnfinishedRuleForm {
       'original',
       'knowledge',
       'constraints',
+      'evidence',
       'draft_version',
       'revision_target',
       'expected_record_version',
@@ -138,6 +142,7 @@ final class UnfinishedRuleForm {
       original: f.optional('original', RuleRecord.fromWire),
       knowledge: f.optional('knowledge', RuleKnowledgeInput.fromWire),
       constraints: f.optional('constraints', RuleConstraintInput.fromWire),
+      evidence: f.optional('evidence', RuleEvidenceInput.fromWire),
       revisionTarget: f.optional(
         'revision_target',
         ExpressionReferenceInput.fromWire,
@@ -153,6 +158,66 @@ final class UnfinishedRuleForm {
     );
   }
   Iterable<String> get exactTexts => _texts(toWire());
+}
+
+/// Incomplete device-private input. Exact references are parsed on submission.
+final class RuleEvidenceCategoryInput {
+  const RuleEvidenceCategoryInput({
+    this.universe = '',
+    this.record = '',
+    this.version = '',
+  });
+  final String universe, record, version;
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('universe', CanonicalString(universe)),
+    MapEntry('record', CanonicalString(record)),
+    MapEntry('version', CanonicalString(version)),
+  ]);
+  factory RuleEvidenceCategoryInput.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {'universe', 'record', 'version'});
+    return RuleEvidenceCategoryInput(
+      universe: f.string('universe'),
+      record: f.string('record'),
+      version: f.string('version'),
+    );
+  }
+}
+
+final class RuleEvidenceInput {
+  RuleEvidenceInput({
+    this.enabled = false,
+    Iterable<RuleEvidenceCategoryInput> categories = const [],
+    Iterable<String> reviewMethods = const [],
+  }) : categories = List.unmodifiable(categories),
+       reviewMethods = List.unmodifiable(reviewMethods);
+  final bool enabled;
+  final List<RuleEvidenceCategoryInput> categories;
+  final List<String> reviewMethods;
+  RuleEvidenceInput copyWith({
+    bool? enabled,
+    Iterable<RuleEvidenceCategoryInput>? categories,
+    Iterable<String>? reviewMethods,
+  }) => RuleEvidenceInput(
+    enabled: enabled ?? this.enabled,
+    categories: categories ?? this.categories,
+    reviewMethods: reviewMethods ?? this.reviewMethods,
+  );
+  CanonicalObject toWire() => CanonicalObject([
+    MapEntry('enabled', CanonicalBool(enabled)),
+    MapEntry('categories', CanonicalArray(categories.map((c) => c.toWire()))),
+    MapEntry(
+      'review_methods',
+      CanonicalArray(reviewMethods.map(CanonicalString.new)),
+    ),
+  ]);
+  factory RuleEvidenceInput.fromWire(CanonicalValue value) {
+    final f = WireFields(value, {'enabled', 'categories', 'review_methods'});
+    return RuleEvidenceInput(
+      enabled: f.boolean('enabled'),
+      categories: f.array('categories').map(RuleEvidenceCategoryInput.fromWire),
+      reviewMethods: f.array('review_methods').map(wireString),
+    );
+  }
 }
 
 Iterable<String> _texts(CanonicalValue value) sync* {

@@ -23,7 +23,9 @@ DefineRuleOperation ruleOperation(UnfinishedRuleForm form) {
   return DefineRuleOperation(
     clientRef: form.clientRef,
     record: RuleRecord(
-      requiredEvidence: original?.requiredEvidence,
+      requiredEvidence: form.evidence == null
+          ? original?.requiredEvidence
+          : buildRuleEvidence(form.evidence!),
       namespace: form.namespace,
       key: form.key,
       labels: labels,
@@ -181,8 +183,49 @@ UnfinishedRuleForm _ruleForm({
   original: record,
   knowledge: ruleKnowledgeInput(record),
   constraints: ruleConstraintInput(record),
+  evidence: ruleEvidenceInput(record.requiredEvidence),
   draftVersion: draftVersion,
 );
+
+RuleEvidenceInput ruleEvidenceInput(RequiredEvidence? evidence) =>
+    RuleEvidenceInput(
+      enabled: evidence != null,
+      categories:
+          evidence?.sourceCategories.map(
+            (ref) => RuleEvidenceCategoryInput(
+              universe: ref.universe?.value ?? '',
+              record: ref.record.value,
+              version: ref.version.value,
+            ),
+          ) ??
+          [],
+      reviewMethods: evidence?.reviewMethods.map((m) => m.wireName) ?? [],
+    );
+
+RequiredEvidence? buildRuleEvidence(RuleEvidenceInput input) {
+  if (!input.enabled) return null;
+  if (input.categories.isEmpty) {
+    throw const FormatException(
+      'Choose at least one published source category.',
+    );
+  }
+  try {
+    return RequiredEvidence(
+      sourceCategories: input.categories.map(
+        (c) => VersionRef(
+          universe: c.universe.isEmpty ? null : UniverseId.parse(c.universe),
+          record: RecordId.parse(c.record),
+          version: RecordVersionId.parse(c.version),
+        ),
+      ),
+      reviewMethods: input.reviewMethods.map(EvidenceReviewMethod.fromName),
+    );
+  } on FormatException {
+    throw const FormatException(
+      'Choose a published version for each source category and supported review methods.',
+    );
+  }
+}
 
 SaveDraftEngineRequest ruleDraftRequest({
   required SavedDraft draft,

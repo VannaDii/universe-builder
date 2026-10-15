@@ -16,11 +16,13 @@ class DraftRecordChoiceField extends StatefulWidget {
     required this.universe,
     required this.disabled,
     required this.onChanged,
+    this.version = '',
   });
   final SavedChanges changes;
   final SavedDraft draft;
   final RecordKind? kind;
   final String label, record, universe;
+  final String version;
   final bool disabled;
   final ValueChanged<RecordRef> onChanged;
   @override
@@ -41,6 +43,7 @@ class _DraftRecordChoiceFieldState extends State<DraftRecordChoiceField> {
   void didUpdateWidget(DraftRecordChoiceField oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.record != widget.record ||
+        oldWidget.version != widget.version ||
         oldWidget.universe != widget.universe ||
         oldWidget.kind != widget.kind ||
         oldWidget.changes.session != widget.changes.session ||
@@ -66,6 +69,29 @@ class _DraftRecordChoiceFieldState extends State<DraftRecordChoiceField> {
         widget.changes,
         widget.draft,
       );
+      if (widget.kind == RecordKind.domainPack && widget.version.isNotEmpty) {
+        final row = await readDraftChoiceVersion(
+          changes: widget.changes,
+          context: context,
+          reference: RecordRef(
+            universe: widget.changes.scope.universe,
+            record: record,
+          ),
+          kind: RecordKind.domainPack,
+        );
+        final pack = row.payload as DomainPackRecord;
+        final label = pack.key == 'real_world.sources'
+            ? 'Selected sources'
+            : pack.key;
+        if (mounted && _read == read) {
+          setState(
+            () => _name = widget.version == row.recordVersionId.value
+                ? '$label (${pack.version})'
+                : '$label (earlier selection retained)',
+          );
+        }
+        return;
+      }
       final summary = await readDraftChoiceSummary(
         changes: widget.changes,
         context: context,

@@ -41,6 +41,7 @@ void main() {
         await session.call(
           const CreateUniverseEngineRequest(
             name: 'Rules',
+            realWorld: true,
             start: GregorianUniverseStart('2040-01-01T00:00:00Z'),
           ),
         ),
@@ -78,6 +79,46 @@ void main() {
           operations: [],
           rationale: 'Declare the journey resource.',
         ),
+      );
+      final choiceContext = await openDraftChoiceContext(changes(), initial);
+      final categories = await searchDraftChoices(
+        changes: changes(),
+        context: choiceContext,
+        kind: RecordKind.domainPack,
+      );
+      final categoryHit = categories.result.hits.single;
+      final categoryRef = RecordRef(
+        universe: scope.universe,
+        record: categoryHit.recordId,
+      );
+      final category = await readDraftChoiceVersion(
+        changes: changes(),
+        context: choiceContext,
+        reference: categoryRef,
+        kind: RecordKind.domainPack,
+      );
+      expect(category.payload, isA<DomainPackRecord>());
+      expect(category.recordVersionId.value, isNotEmpty);
+      await expectLater(
+        readDraftChoiceVersion(
+          changes: changes(),
+          context: choiceContext,
+          reference: categoryRef,
+          kind: RecordKind.rule,
+        ),
+        throwsFormatException,
+      );
+      await expectLater(
+        readDraftChoiceVersion(
+          changes: changes(),
+          context: choiceContext,
+          reference: RecordRef(
+            universe: UniverseId.generate(),
+            record: categoryHit.recordId,
+          ),
+          kind: RecordKind.domainPack,
+        ),
+        throwsFormatException,
       );
       final sourceForm = UnfinishedRuleForm(
         baseRevision: initial.content.baseRevision,

@@ -50,7 +50,8 @@ String recordReadLabel(RecordVersion row) {
     UnitRecord(:final labels, :final key) => first(labels) ?? key,
     ValueDefinitionRecord(:final labels, :final key) => first(labels) ?? key,
     CalendarRecord(:final labels, :final key) => first(labels) ?? key,
-    DomainPackRecord(:final key, :final version) => '$key ($version)',
+    DomainPackRecord(:final key, :final version) =>
+      '${key == 'real_world.sources' ? 'Selected sources' : key} ($version)',
     RuleRecord(:final labels, :final namespace, :final key) =>
       first(labels) ?? '$namespace:$key',
     _ => row.identity.recordId.value,

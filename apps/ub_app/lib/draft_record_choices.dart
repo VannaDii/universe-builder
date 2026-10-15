@@ -92,6 +92,29 @@ Future<RecordRef> selectDraftChoice({
   );
 }
 
+/// Exact published selection at the draft's pinned revision.
+Future<RecordVersion> readDraftChoiceVersion({
+  required SavedChanges changes,
+  required OpenedContext context,
+  required RecordRef reference,
+  required RecordKind kind,
+}) async {
+  if (reference.universe != null &&
+      reference.universe != changes.scope.universe) {
+    throw const FormatException('Choose a category in this universe.');
+  }
+  final row = await readContextRecord(
+    session: changes.session,
+    universe: _library(changes),
+    context: context,
+    record: reference.record,
+  );
+  if (row.payload.recordKind != kind) {
+    throw const FormatException('Choose the required record type.');
+  }
+  return row;
+}
+
 RecordId worldChoiceRecord(String world) => RecordId.parse(
   '${RecordId.prefix}${WorldId.parse(world).value.substring(WorldId.prefix.length)}',
 );

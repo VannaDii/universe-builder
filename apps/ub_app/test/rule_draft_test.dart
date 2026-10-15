@@ -91,6 +91,73 @@ void main() {
         ruleOperation(form).record.toWire().toText(),
         record.toWire().toText(),
       );
+      final oldEvidenceForm = UnfinishedRuleForm.fromWire(
+        CanonicalObject(form.toWire().fields.where((f) => f.key != 'evidence')),
+      );
+      expect(
+        ruleOperation(oldEvidenceForm).record.toWire().toText(),
+        record.toWire().toText(),
+      );
+      UnfinishedRuleForm withEvidence(RuleEvidenceInput input) =>
+          UnfinishedRuleForm.fromWire(
+            CanonicalObject([
+              ...form.toWire().fields.where((f) => f.key != 'evidence'),
+              MapEntry('evidence', input.toWire()),
+            ]),
+          );
+      expect(
+        ruleOperation(withEvidence(form.evidence!.copyWith(enabled: false)))
+            .record
+            .requiredEvidence,
+        isNull,
+      );
+      for (final methods in <List<String>>[
+        [],
+        ['human_review'],
+        ['external_model_review'],
+        ['human_review', 'external_model_review'],
+      ]) {
+        final editedEvidence = withEvidence(
+          form.evidence!.copyWith(reviewMethods: methods),
+        );
+        final policy = ruleOperation(editedEvidence).record.requiredEvidence!;
+        expect(policy.reviewMethods.map((m) => m.wireName), methods);
+        expect(
+          policy.sourceCategories.single.version,
+          record.requiredEvidence!.sourceCategories.single.version,
+        );
+      }
+      final nextCategory = RecordVersionId.generate();
+      final changedEvidence = withEvidence(
+        form.evidence!.copyWith(
+          categories: [
+            RuleEvidenceCategoryInput(
+              universe: reference.universe!.value,
+              record: reference.record.value,
+              version: nextCategory.value,
+            ),
+          ],
+        ),
+      );
+      expect(
+        ruleOperation(changedEvidence)
+            .record
+            .requiredEvidence!
+            .sourceCategories
+            .single
+            .version,
+        nextCategory,
+      );
+      expect(
+        () => buildRuleEvidence(RuleEvidenceInput(enabled: true)),
+        throwsFormatException,
+      );
+      expect(
+        () => buildRuleEvidence(
+          form.evidence!.copyWith(reviewMethods: ['unknown']),
+        ),
+        throwsFormatException,
+      );
       final legacy = UnfinishedRuleForm.fromWire(
         CanonicalObject(
           form.toWire().fields.where((f) => f.key != 'knowledge'),
@@ -219,6 +286,16 @@ void main() {
       namespace: 'authored',
       key: 'incomplete',
       targetPredicates: ['incomplete predicate 記憶 😀'],
+      evidence: RuleEvidenceInput(
+        enabled: true,
+        categories: [
+          const RuleEvidenceCategoryInput(
+            record: 'unfinished category 記憶 😀',
+            version: 'not chosen',
+          ),
+        ],
+        reviewMethods: ['still deciding'],
+      ),
       constraints: const RuleConstraintInput(
         cardinalityEnabled: true,
         chronologyEnabled: true,
@@ -246,6 +323,14 @@ void main() {
       store.close();
       store = RuleFormRecoveryStore.open('${root.path}/forms.sqlite');
       final recovered = store.load(scope)!;
+      expect(
+        recovered.form.evidence!.toWire().toText(),
+        form.evidence!.toWire().toText(),
+      );
+      expect(
+        () => buildRuleEvidence(recovered.form.evidence!),
+        throwsFormatException,
+      );
       expect(recovered.form.executable, isNull);
       expect(recovered.form.constraints!.forwardOnly, isNull);
       expect(recovered.form.constraints!.minimumDelay, '9007199254740993');
