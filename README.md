@@ -137,6 +137,12 @@ overwrite. Linux builds additionally require CMake, Ninja and GTK 3 development
 headers (`cmake ninja-build libgtk-3-dev` on Debian/Ubuntu); desktop runtime hosts
 need GTK 3 and a working graphical session. Native window, picker and
 accessibility interaction remains unqualified.
+The macOS app retains its window frame in app preferences. On close, Linux
+retains the normal window size and maximized state in
+`$XDG_CONFIG_HOME/universe-builder/window.ini` (or
+`~/.config/universe-builder/window.ini`); restored sizes fit the current primary
+monitor's work area. Linux window placement remains under the window manager's
+control. Resize/reopen interaction still requires a graphical platform check.
 An explicit installation without a profile uses the same local device setup.
 The engine's `--device-profile` action prints only the retained profile ID;
 `--initialize` keeps its existing create-only behavior. The app starts HTTP-only

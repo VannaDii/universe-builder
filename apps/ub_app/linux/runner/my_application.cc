@@ -15,6 +15,90 @@ struct _MyApplication {
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
+struct WindowPreferences {
+  gint width = 1280;
+  gint height = 720;
+  gboolean maximized = FALSE;
+};
+
+static gchar* window_preferences_path() {
+  return g_build_filename(g_get_user_config_dir(), "universe-builder",
+                          "window.ini", nullptr);
+}
+
+static gboolean remember_window_size(GtkWidget* widget, GdkEventConfigure*,
+                                     WindowPreferences* preferences) {
+  GdkWindow* window = gtk_widget_get_window(widget);
+  if (window && !(gdk_window_get_state(window) &
+                  (GDK_WINDOW_STATE_MAXIMIZED | GDK_WINDOW_STATE_FULLSCREEN |
+                   GDK_WINDOW_STATE_ICONIFIED))) {
+    gtk_window_get_size(GTK_WINDOW(widget), &preferences->width,
+                         &preferences->height);
+  }
+  return FALSE;
+}
+
+static gboolean remember_window_state(GtkWidget*, GdkEventWindowState* event,
+                                      WindowPreferences* preferences) {
+  preferences->maximized =
+      (event->new_window_state & GDK_WINDOW_STATE_MAXIMIZED) != 0;
+  return FALSE;
+}
+
+static void save_window_preferences(GtkWidget*, WindowPreferences* preferences) {
+  g_autofree gchar* path = window_preferences_path();
+  g_autofree gchar* directory = g_path_get_dirname(path);
+  if (g_mkdir_with_parents(directory, 0700) != 0) return;
+  g_autoptr(GKeyFile) settings = g_key_file_new();
+  g_key_file_set_integer(settings, "window", "width", preferences->width);
+  g_key_file_set_integer(settings, "window", "height", preferences->height);
+  g_key_file_set_boolean(settings, "window", "maximized", preferences->maximized);
+  // Window preferences are optional; a read-only configuration directory must
+  // never prevent closing the author workspace.
+  g_key_file_save_to_file(settings, path, nullptr);
+}
+
+static void restore_window_preferences(GtkWindow* window) {
+  auto* preferences = new WindowPreferences();
+  g_object_set_data_full(G_OBJECT(window), "ub-window-preferences", preferences,
+                        [](gpointer data) {
+                          delete static_cast<WindowPreferences*>(data);
+                        });
+  g_autofree gchar* path = window_preferences_path();
+  g_autoptr(GKeyFile) settings = g_key_file_new();
+  if (g_key_file_load_from_file(settings, path, G_KEY_FILE_NONE, nullptr)) {
+    gint width = g_key_file_get_integer(settings, "window", "width", nullptr);
+    gint height = g_key_file_get_integer(settings, "window", "height", nullptr);
+    if (width > 0 && height > 0) {
+      preferences->width = width;
+      preferences->height = height;
+    }
+    preferences->maximized =
+        g_key_file_get_boolean(settings, "window", "maximized", nullptr);
+  }
+  GdkDisplay* display = gtk_widget_get_display(GTK_WIDGET(window));
+  GdkMonitor* monitor = gdk_display_get_primary_monitor(display);
+  if (!monitor && gdk_display_get_n_monitors(display) > 0) {
+    monitor = gdk_display_get_monitor(display, 0);
+  }
+  if (monitor) {
+    GdkRectangle area;
+    gdk_monitor_get_workarea(monitor, &area);
+    if (area.width > 0 && area.height > 0) {
+      preferences->width = MIN(preferences->width, area.width);
+      preferences->height = MIN(preferences->height, area.height);
+    }
+  }
+  gtk_window_set_default_size(window, preferences->width, preferences->height);
+  if (preferences->maximized) gtk_window_maximize(window);
+  g_signal_connect(window, "configure-event", G_CALLBACK(remember_window_size),
+                   preferences);
+  g_signal_connect(window, "window-state-event", G_CALLBACK(remember_window_state),
+                   preferences);
+  g_signal_connect(window, "destroy", G_CALLBACK(save_window_preferences),
+                   preferences);
+}
+
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
@@ -53,7 +137,7 @@ static void my_application_activate(GApplication* application) {
     gtk_window_set_title(window, "Universe Builder");
   }
 
-  gtk_window_set_default_size(window, 1280, 720);
+  restore_window_preferences(window);
   g_autofree gchar* executable = g_file_read_link("/proc/self/exe", nullptr);
   if (executable) {
     g_autofree gchar* directory = g_path_get_dirname(executable);

@@ -79,5 +79,7 @@ class MainFlutterWindow: NSWindow {
 
 
     super.awakeFromNib()
+    setFrameAutosaveName("Universe Builder Main Window")
+    setFrameUsingName("Universe Builder Main Window")
   }
 }
