@@ -16,6 +16,8 @@ current selected assessment when the policy requires review. Review coverage is
 specific to the claim version, passage, world, context and time. Opposing evidence
 and required unresolved interpretations block the affected claim. Ordinary
 approval cannot waive these duties. SQLite and PostgreSQL use the same checks.
+Policies keep their selected source-category versions when a category is revised;
+using the new membership requires a reviewed policy change.
 An event's optional `basis` names its source; the declared action supplies its
 context and realm. Verified generated effects can use that source, while a
 required effect review must still identify the exact effect claim. Plans and

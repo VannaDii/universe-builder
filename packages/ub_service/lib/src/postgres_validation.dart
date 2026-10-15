@@ -40,6 +40,7 @@ import 'proposal_validation.dart';
 import 'validation_binding.dart';
 import 'validation_task.dart';
 import 'source_verification.dart';
+import 'required_evidence_checks.dart';
 
 /// Native PostgreSQL proposal workflow in the caller's installation transaction.
 /// Request routes admit retained contexts under current authority; lower-level
@@ -3989,6 +3990,7 @@ final class PostgresValidationWorkflow {
       );
     }
     final List<RecordVersion> base, candidate;
+    List<RecordVersion> evidenceCategories = const [];
     if (restricted) {
       base = const [];
       candidate = const [];
@@ -4005,6 +4007,10 @@ final class PostgresValidationWorkflow {
       await verifyCandidateSources(
         records: candidate,
         readWorkflow: _workflow.get,
+        readVersion: _version,
+      );
+      evidenceCategories = await resolveRequiredEvidenceCategories(
+        records: candidate,
         readVersion: _version,
       );
       base = await _canon(
@@ -4039,6 +4045,7 @@ final class PostgresValidationWorkflow {
       proposal: proposal,
       base: base,
       candidate: candidate,
+      evidenceCategories: evidenceCategories,
       approvalAuthor: current.approvalAuthor,
       restricted: restricted,
       capture: captured,

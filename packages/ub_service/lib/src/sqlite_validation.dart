@@ -27,6 +27,7 @@ import 'record_reading.dart';
 import 'record_search.dart';
 import 'read_cursor.dart';
 import 'source_verification.dart';
+import 'required_evidence_checks.dart';
 import 'state_reading.dart';
 import 'validation_binding.dart';
 import 'validation_task.dart';
@@ -3965,6 +3966,7 @@ final class SqliteValidationWorkflow implements ValidationJobService {
       );
     }
     final List<RecordVersion> base, candidate;
+    List<RecordVersion> evidenceCategories = const [];
     if (restricted) {
       base = const [];
       candidate = const [];
@@ -3984,6 +3986,10 @@ final class SqliteValidationWorkflow implements ValidationJobService {
       await verifyCandidateSources(
         records: candidate,
         readWorkflow: _workflow.get,
+        readVersion: _version,
+      );
+      evidenceCategories = await resolveRequiredEvidenceCategories(
+        records: candidate,
         readVersion: _version,
       );
       base = _canon(
@@ -4018,6 +4024,7 @@ final class SqliteValidationWorkflow implements ValidationJobService {
       proposal: proposal,
       base: base,
       candidate: candidate,
+      evidenceCategories: evidenceCategories,
       approvalAuthor: current.approvalAuthor,
       restricted: restricted,
       capture: captured,

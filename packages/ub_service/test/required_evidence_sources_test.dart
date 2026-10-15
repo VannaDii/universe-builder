@@ -2,6 +2,7 @@ import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart' as protocol;
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_service/src/required_evidence_checks.dart';
+import 'package:ub_service/src/structural_checks.dart';
 
 import 'candidate_validation_test.dart' as candidate;
 import 'operation_compilation_test.dart' as definitions;
@@ -101,6 +102,60 @@ List<protocol.Finding> assess(
   changed: changed.map(f.id).toSet(),
 );
 void main() {
+  test('category upgrades preserve the policy’s exact published membership', () async {
+    final rows = fixture();
+    final old = rows.singleWhere((r) => r.identity.recordId == f.id(11));
+    rows.remove(old);
+    rows.add(
+      RecordVersion.build(
+        recordVersionId: f.version(55),
+        identity: old.identity,
+        payload: category(includesSource: false),
+      ),
+    );
+    final categories = await resolveRequiredEvidenceCategories(
+      records: rows,
+      readVersion: (version) {
+        expect(version, old.recordVersionId);
+        return old;
+      },
+    );
+    validateStructuralCandidate(rows, evidenceCategories: categories);
+    expect(
+      assessRequiredEvidenceSources(
+        records: rows,
+        base: rows,
+        changed: {f.id(4)},
+        categories: categories,
+      ).single.outcome,
+      protocol.EvidenceOutcome.supported,
+    );
+    final previousEmpty = RecordVersion.build(
+      recordVersionId: old.recordVersionId,
+      identity: old.identity,
+      payload: category(includesSource: false),
+    );
+    replace(rows, 11, category());
+    // Even a current category containing the source cannot replace an explicit
+    // pin to an older version that excluded it.
+    rows.removeWhere((r) => r.identity.recordId == f.id(11));
+    rows.add(
+      RecordVersion.build(
+        recordVersionId: f.version(55),
+        identity: old.identity,
+        payload: category(),
+      ),
+    );
+    expect(
+      assessRequiredEvidenceSources(
+        records: rows,
+        base: rows,
+        changed: {f.id(4)},
+        categories: [previousEmpty],
+      ).single.outcome,
+      protocol.EvidenceOutcome.notEstablished,
+    );
+  });
   test('a qualifying source preserves an approximate recollection but cannot resolve explicit alternatives', () {
     final rows = fixture();
     replace(rows, 4, assertion(precision: Precision.approximate));
@@ -134,7 +189,7 @@ void main() {
       );
     },
   );
-  test('categories must contain the cited source at the exact pinned active version', () {
+  test('categories must contain the cited source at the exact pinned published version', () {
     final rows = fixture();
     replace(rows, 11, category(includesSource: false));
     expect(
@@ -147,7 +202,7 @@ void main() {
       assess(rows).single.outcome,
       protocol.EvidenceOutcome.notEstablished,
     );
-    expect(assess(rows).single.message, contains('exact current'));
+    expect(assess(rows).single.message, contains('exact published'));
   });
   test('an anchor cannot silently follow a source revision', () {
     final rows = fixture();

@@ -189,6 +189,10 @@ existing attributed source assessments bind interpretations to exact candidate
 versions. A URL, a caller-supplied verification flag, a digest, or ordinary author
 approval cannot by itself discharge a required evidence or interpretation duty.
 Category/policy changes require new reviewed versions and fresh dependent checks.
+Publishing a category revision does not move a policy's exact pin. The policy
+continues using its selected published membership until an authored policy
+revision selects the new category version. Checks resolve that pinned category
+through the existing immutable history under the admitted universe authority.
 No historical payload receives a default policy or a retroactive pass.
 
 Events use an optional `basis` with the existing EvidenceBasis type. Absence is

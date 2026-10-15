@@ -118,7 +118,10 @@ void _actionContract(
 
 /// Checks the complete candidate's structure; no conflict, authorization or
 /// approval is inferred from passing this function.
-void validateStructuralCandidate(List<RecordVersion> records) {
+void validateStructuralCandidate(
+  List<RecordVersion> records, {
+  List<RecordVersion> evidenceCategories = const [],
+}) {
   try {
     checkTemporalOrderings(records);
   } on TemporalOrderingError catch (e) {
@@ -130,6 +133,9 @@ void validateStructuralCandidate(List<RecordVersion> records) {
     throw _invalid(e.message);
   }
   final map = {for (final r in records) r.identity.recordId: r.payload};
+  final categoryVersions = {
+    for (final r in [...records, ...evidenceCategories]) r.recordVersionId: r,
+  };
   final actionNames = <(String, String)>{};
   for (final record in records) {
     final p = record.payload;
@@ -341,18 +347,16 @@ void validateStructuralCandidate(List<RecordVersion> records) {
             );
           }
           for (final ref in required.sourceCategories) {
-            final category = map[ref.record];
+            final categoryRow = categoryVersions[ref.version];
+            final category = categoryRow?.payload;
             if (ref.universe != null &&
                     ref.universe != record.identity.universeId ||
                 category is! DomainPackRecord ||
-                !records.any(
-                  (r) =>
-                      r.identity.recordId == ref.record &&
-                      r.recordVersionId == ref.version,
-                ) ||
+                categoryRow!.identity.recordId != ref.record ||
+                categoryRow.identity.universeId != record.identity.universeId ||
                 category.records.any((id) => map[id] is! SourceVersionRecord)) {
               throw _invalid(
-                'required evidence categories must be exact active domain packs containing source versions',
+                'required evidence categories must be exact published domain packs containing source versions',
               );
             }
           }

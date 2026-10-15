@@ -7,6 +7,7 @@ import 'package:ub_store/ub_store.dart';
 import 'candidate_validation.dart';
 import 'proposal_state.dart';
 import 'source_verification.dart';
+import 'required_evidence_checks.dart';
 import 'validation_binding.dart';
 
 /// Disclosures and their complete dependency closure must still be the exact
@@ -203,6 +204,10 @@ Future<CheckedValidation> checkProposalCandidate({
     authorOrigin: stored.authorOrigin,
     approvalAuthor: approvalAuthor,
     selectedAssessment: selectedAssessment,
+    evidenceCategories: await resolveRequiredEvidenceCategories(
+      records: candidate,
+      readVersion: readVersion,
+    ),
   );
   return CheckedValidation(
     proposalDigest: stored.proposal.digest,

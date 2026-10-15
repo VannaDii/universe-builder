@@ -5612,6 +5612,140 @@ void main() {
             requiresReview,
           );
           expect(kernel.journal.head(continuity), receipt.revision);
+          if (!requiresReview && !includeEvents) {
+            final upgrade = await service.proposeRequest(
+              CreateProposalRequest(
+                universe: const Selector('World'),
+                contextId: researchContext.contextId,
+                operations: [
+                  UpgradePackOperation(
+                    record: f.ref(11),
+                    expectedVersion: f.ver(11),
+                    replacement: DomainPackRecord(
+                      key: 'private_memories',
+                      version: '2',
+                      dependencies: {},
+                      capabilities: [],
+                      records: [],
+                    ),
+                  ),
+                ],
+                submission: Submission.submitted,
+                rationale: 'Revise qualifying source category',
+                idempotencyKey: 'upgrade-category',
+              ),
+              isValidationActive: (_) => false,
+            );
+            proposal = StoredProposal.fromWire(
+              workflow.get(proposalKey(reference(upgrade)))!,
+            );
+            final synchronous = await service.validateProposalRequest(
+              ProposalValidationRequest(
+                universe: const Selector('World'),
+                contextId: researchContext.contextId,
+                proposalReference: proposal.reference,
+                checkScope: CheckScope.candidate,
+              ),
+            ) as EvaluatedValidation;
+            expect(
+              synchronous.execution.findings
+                  .where((finding) => finding.records.contains(f.ref(4)))
+                  .single
+                  .outcome,
+              EvidenceOutcome.supported,
+            );
+            final operation = await service.queueValidation(
+              QueuedProposalValidationRequest(
+                universe: const Selector('World'),
+                contextId: researchContext.contextId,
+                proposalReference: proposal.reference,
+                checkScope: CheckScope.candidate,
+                idempotencyKey: 'upgrade-category-check',
+              ),
+              resolvedFrame: proposal.proposal.baseFrame,
+              isValidationActive: (_) => false,
+            );
+            final task = (await service.prepareValidation(
+              operation.operationId,
+              isValidationActive: (_) => true,
+            ))!;
+            expect(task.evidenceCategories.single.recordVersionId, f.ver(11));
+            final result = await ValidationEvaluationWorker(task).result;
+            expect(result.admissible, isTrue);
+            await service.finishValidation(
+              operation.operationId,
+              result,
+              isValidationActive: (_) => true,
+            );
+            await authorService().approve(
+              proposal.reference,
+              result.validation.runId,
+            );
+            final upgraded = await service.commit(
+              publication(result, key: 'upgrade-category-publish'),
+              isValidationActive: (_) => false,
+            );
+            final current = canon(continuity, upgraded.revision);
+            final category = current.singleWhere(
+              (r) => r.identity.recordId == f.id(11),
+            );
+            expect(category.recordVersionId, isNot(f.ver(11)));
+            final rule = current.singleWhere(
+              (r) => r.identity.recordId == f.id(40),
+            );
+            expect(
+              (rule.payload as RuleRecord)
+                  .requiredEvidence!
+                  .sourceCategories
+                  .single
+                  .version,
+              f.ver(11),
+            );
+            final newContext = await service.openContext(contextRequest());
+            final replacement = RuleRecord.fromWire(
+              CanonicalObject(
+                rule.payload.toWire().fields.map(
+                  (field) => MapEntry(
+                    field.key,
+                    field.key == 'requiredEvidence'
+                        ? RequiredEvidence(
+                            sourceCategories: [
+                              VersionRef(
+                                universe: f.u,
+                                record: f.id(11),
+                                version: category.recordVersionId,
+                              ),
+                            ],
+                          ).toWire()
+                        : field.value,
+                  ),
+                ),
+              ),
+            );
+            final changed = await service.validateInlineRequest(
+              InlineValidationRequest(
+                universe: const Selector('World'),
+                contextId: newContext.contextId,
+                checkScope: CheckScope.candidate,
+                operations: [
+                  ReviseDefinitionOperation(
+                    record: f.ref(40),
+                    expectedVersion: rule.recordVersionId,
+                    replacement: replacement,
+                  ),
+                ],
+              ),
+            ) as EvaluatedValidation;
+            expect(
+              changed.execution.findings.any(
+                (finding) =>
+                    finding.ruleId == f.id(40) &&
+                    finding.outcome == EvidenceOutcome.notEstablished,
+              ),
+              isTrue,
+            );
+            expect(kernel.journal.head(continuity), upgraded.revision);
+          }
         },
       );
     }

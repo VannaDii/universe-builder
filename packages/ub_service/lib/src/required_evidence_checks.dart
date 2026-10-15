@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ub_contracts/ub_contracts.dart' as protocol;
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_rules/ub_rules.dart' as rules;
@@ -10,6 +12,7 @@ List<protocol.Finding> assessRequiredEvidenceSources({
   required List<RecordVersion> records,
   required List<RecordVersion> base,
   required Set<RecordId> changed,
+  List<RecordVersion> categories = const [],
 }) {
   if (!records.any(
     (r) =>
@@ -19,6 +22,9 @@ List<protocol.Finding> assessRequiredEvidenceSources({
     return const [];
   }
   final index = rules.RecordIndex(records);
+  final categoryVersions = {
+    for (final r in [...records, ...categories]) r.recordVersionId: r,
+  };
   final universe = records.first.identity.universeId;
   final opposing = rules.detectOpposing(
     universe: universe,
@@ -75,10 +81,11 @@ List<protocol.Finding> assessRequiredEvidenceSources({
     final categories = <RecordVersion>[];
     var categoriesResolved = requirement.sourceCategories.isNotEmpty;
     for (final ref in requirement.sourceCategories) {
-      final category = index.get(ref.record);
+      final category = categoryVersions[ref.version];
       if (category == null ||
           ref.universe != null && ref.universe != policy.identity.universeId ||
           category.recordVersionId != ref.version ||
+          category.identity.recordId != ref.record ||
           category.payload is! DomainPackRecord) {
         categoriesResolved = false;
       } else {
@@ -198,7 +205,7 @@ List<protocol.Finding> assessRequiredEvidenceSources({
             ? 'Resolve this event’s declared action, context, world, subject scope, occurrence or time before applying its evidence policy.'
             : 'Resolve this claim’s world, subject classification or time before applying its evidence policy.';
       } else if (!categoriesResolved) {
-        message = 'Select nonempty qualifying source categories at their exact current published versions.';
+        message = 'Select nonempty qualifying source categories at their exact published versions.';
       } else if (payload is AssertionRecord &&
           (payload.precision == Precision.unresolved ||
               payload.precision == Precision.oneOf ||
@@ -283,6 +290,26 @@ List<protocol.Finding> assessRequiredEvidenceSources({
     }
   }
   return findings;
+}
+
+/// Resolve exact published pins under the owning workflow's admitted universe.
+/// A later category revision does not silently change the policy's membership.
+Future<List<RecordVersion>> resolveRequiredEvidenceCategories({
+  required List<RecordVersion> records,
+  required FutureOr<RecordVersion> Function(RecordVersionId) readVersion,
+}) async {
+  final available = {for (final row in records) row.recordVersionId: row};
+  final selected = <RecordVersionId, RecordVersion>{};
+  for (final row in records) {
+    final rule = row.payload;
+    if (rule is! RuleRecord) continue;
+    for (final ref
+        in rule.requiredEvidence?.sourceCategories ?? <VersionRef>[]) {
+      selected[ref.version] ??=
+          available[ref.version] ?? await readVersion(ref.version);
+    }
+  }
+  return List.unmodifiable(selected.values);
 }
 
 bool? _overlaps(Applicability a, Applicability b) => switch ((a, b)) {

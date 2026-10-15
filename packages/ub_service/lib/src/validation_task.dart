@@ -17,8 +17,10 @@ final class PreparedValidationTask {
     required this.restricted,
     required this.capture,
     this.selectedAssessment,
+    Iterable<RecordVersion> evidenceCategories = const [],
   }) : base = List.unmodifiable(base),
-       candidate = List.unmodifiable(candidate);
+       candidate = List.unmodifiable(candidate),
+       evidenceCategories = List.unmodifiable(evidenceCategories);
   final OperationId operationId;
   final StoredProposal proposal;
   final List<RecordVersion> base, candidate;
@@ -26,6 +28,7 @@ final class PreparedValidationTask {
   final bool restricted;
   final ValidationCapture? capture;
   final AssessmentReview? selectedAssessment;
+  final List<RecordVersion> evidenceCategories;
 
   CheckedValidation evaluate({void Function()? checkCancelled}) {
     if (restricted) {
@@ -55,6 +58,7 @@ final class PreparedValidationTask {
       authorOrigin: proposal.authorOrigin,
       approvalAuthor: approvalAuthor,
       selectedAssessment: selectedAssessment,
+      evidenceCategories: evidenceCategories,
       checkCancelled: checkCancelled,
     );
     return CheckedValidation(

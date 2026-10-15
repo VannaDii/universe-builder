@@ -22,7 +22,7 @@ import 'structural_checks.dart';
 import 'validation_findings.dart';
 
 const candidateEvaluatorVersion =
-    'finite-policy-v17-event-source-review';
+    'finite-policy-v18-pinned-evidence-categories';
 
 /// Candidate assessment only. Approval, source staging, snapshot selection and
 /// durable publication remain the responsibility of the author workflow.
@@ -57,6 +57,7 @@ CandidateValidationResult evaluateCandidate({
   required bool authorOrigin,
   required ProfileId approvalAuthor,
   protocol.AssessmentReview? selectedAssessment,
+  List<RecordVersion> evidenceCategories = const [],
   void Function()? checkCancelled,
 }) {
   final definitions = DefinitionRegistry();
@@ -65,7 +66,10 @@ CandidateValidationResult evaluateCandidate({
     definitions.add(r);
   }
   definitions.validate();
-  validateStructuralCandidate(candidate);
+  validateStructuralCandidate(
+    candidate,
+    evidenceCategories: evidenceCategories,
+  );
   final changedIds = changes.map((c) => c.recordId).toSet();
   validateActionRequirements(
     records: candidate,
@@ -124,6 +128,7 @@ CandidateValidationResult evaluateCandidate({
       records: candidate,
       base: base,
       changed: changedIds,
+      categories: evidenceCategories,
     ),
     records: candidate,
     review: selectedAssessment,

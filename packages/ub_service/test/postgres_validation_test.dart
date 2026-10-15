@@ -576,6 +576,160 @@ void main() {
                 (s) => s.kernel(f.u).journal.head(continuity),
               );
               expect(head, receipt.revision);
+              if (!requiresReview && !includeEvents) {
+                await refreshContext();
+                final upgrading = await propose(
+                  CreateProposalRequest(
+                    universe: const Selector('Disposable universe'),
+                    contextId: writerContext,
+                    operations: [
+                      UpgradePackOperation(
+                        record: f.ref(11),
+                        expectedVersion: f.ver(11),
+                        replacement: DomainPackRecord(
+                          key: 'private_memories',
+                          version: '2',
+                          dependencies: {},
+                          capabilities: [],
+                          records: [],
+                        ),
+                      ),
+                    ],
+                    submission: Submission.submitted,
+                    rationale: 'Revise source category',
+                    idempotencyKey: 'upgrade-category',
+                  ),
+                );
+                final synchronous =
+                    await validate(upgrading) as EvaluatedValidation;
+                expect(
+                  synchronous.execution.findings
+                      .where((finding) => finding.records.contains(f.ref(4)))
+                      .single
+                      .outcome,
+                  EvidenceOutcome.supported,
+                );
+                final operation = await run(
+                  writer,
+                  (w) => w.queueValidationRequest(
+                    QueuedProposalValidationRequest(
+                      universe: const Selector('Disposable universe'),
+                      contextId: writerContext,
+                      proposalReference: reference(upgrading),
+                      checkScope: CheckScope.candidate,
+                      idempotencyKey: 'upgrade-category-check',
+                    ),
+                    isValidationActive: (_) => false,
+                  ),
+                );
+                final task = (await run(
+                  writer,
+                  (w) => w.prepareValidation(
+                    operation.operationId,
+                    isValidationActive: (_) => true,
+                  ),
+                ))!;
+                expect(
+                  task.evidenceCategories.single.recordVersionId,
+                  f.ver(11),
+                );
+                final result = await ValidationEvaluationWorker(task).result;
+                expect(result.admissible, isTrue);
+                await run(
+                  writer,
+                  (w) => w.finishValidation(
+                    operation.operationId,
+                    result,
+                    isValidationActive: (_) => true,
+                  ),
+                );
+                await run(
+                  owner,
+                  (w) =>
+                      w.approve(reference(upgrading), result.validation.runId),
+                );
+                final published = await commit(
+                  request(
+                    upgrading,
+                    result.validation.runId,
+                    key: 'upgrade-category-publish',
+                  ),
+                );
+                final current = await store.transaction((s) async {
+                  final journal = s.kernel(f.u).journal;
+                  final membership = await journal.snapshot(
+                    continuity,
+                    published.revision,
+                  );
+                  return [
+                    for (final version in membership.values)
+                      RecordVersion.fromWire(
+                        (await journal.load(version)).toCanonical(),
+                      ),
+                  ];
+                });
+                final category = current.singleWhere(
+                  (r) => r.identity.recordId == f.id(11),
+                );
+                final rule = current.singleWhere(
+                  (r) => r.identity.recordId == f.id(40),
+                );
+                expect(category.recordVersionId, isNot(f.ver(11)));
+                expect(
+                  (rule.payload as RuleRecord)
+                      .requiredEvidence!
+                      .sourceCategories
+                      .single
+                      .version,
+                  f.ver(11),
+                );
+                await refreshContext();
+                final replacement = RuleRecord.fromWire(
+                  CanonicalObject(
+                    rule.payload.toWire().fields.map(
+                      (field) => MapEntry(
+                        field.key,
+                        field.key == 'requiredEvidence'
+                            ? RequiredEvidence(
+                                sourceCategories: [
+                                  VersionRef(
+                                    universe: f.u,
+                                    record: f.id(11),
+                                    version: category.recordVersionId,
+                                  ),
+                                ],
+                              ).toWire()
+                            : field.value,
+                      ),
+                    ),
+                  ),
+                );
+                final changed = await propose(
+                  CreateProposalRequest(
+                    universe: const Selector('Disposable universe'),
+                    contextId: writerContext,
+                    operations: [
+                      ReviseDefinitionOperation(
+                        record: f.ref(40),
+                        expectedVersion: rule.recordVersionId,
+                        replacement: replacement,
+                      ),
+                    ],
+                    submission: Submission.submitted,
+                    rationale: 'Choose the new category version',
+                    idempotencyKey: 'new-policy-pin',
+                  ),
+                );
+                final report = await validate(changed) as EvaluatedValidation;
+                expect(
+                  report.execution.findings.any(
+                    (finding) =>
+                        finding.ruleId == f.id(40) &&
+                        finding.outcome == EvidenceOutcome.notEstablished,
+                  ),
+                  isTrue,
+                );
+              }
             },
           );
         }
