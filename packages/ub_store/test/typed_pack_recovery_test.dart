@@ -9,6 +9,7 @@ import 'package:test/test.dart';
 import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:ub_store/editor_forms.dart';
+import 'package:ub_store/installation.dart' show protectedFile;
 
 final maxU64 = (BigInt.one << 64) - BigInt.one;
 EditorFormScope scope() => EditorFormScope(
@@ -67,6 +68,7 @@ UnfinishedPackForm pack(EditorFormScope s, {bool editing = true}) {
 }
 
 void legacy(String path, List<(EditorFormScope, BigInt, String)> entries) {
+  protectedFile(path, createNew: true);
   final db = sqlite3.open(path);
   try {
     db.execute(
