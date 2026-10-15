@@ -20,40 +20,13 @@ fn root() -> PathBuf {
         .to_path_buf()
 }
 fn schemas(check: bool) -> Result<()> {
-    let dir = root().join("contracts");
-    if !check {
-        fs::create_dir_all(&dir)?;
+    let mut args = vec!["run", "tool/build_contracts.dart"];
+    if check {
+        args.push("--check");
     }
-    let catalog = universe_protocol::tool_schemas();
-    let entries = std::iter::once(("tools.json", serde_json::to_value(catalog)?))
-        .chain(std::iter::once((
-            "examples.json",
-            serde_json::Value::Array(
-                universe_protocol::examples::valid()
-                    .into_iter()
-                    .map(|(tool, args)| serde_json::json!({"tool":tool,"args":args}))
-                    .collect(),
-            ),
-        )))
-        .chain(std::iter::once((
-            "source-assessments.json",
-            universe_protocol::assessment::schemas(),
-        )));
-    for (name, value) in entries {
-        let text = serde_json::to_string_pretty(&value)? + "\n";
-        let path = dir.join(name);
-        if check {
-            anyhow::ensure!(
-                fs::read_to_string(&path).ok().as_deref() == Some(&text),
-                "stale {}: run xtask schemas",
-                path.display()
-            );
-        } else {
-            fs::write(path, text)?;
-        }
-    }
-    Ok(())
+    run("dart", &args)
 }
+
 fn package(release: bool) -> Result<()> {
     anyhow::ensure!(cfg!(target_os = "macos"), "native package requires macOS");
     let status = Command::new("cargo")

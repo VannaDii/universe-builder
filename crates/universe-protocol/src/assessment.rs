@@ -937,12 +937,8 @@ pub fn execution_result_digest(execution: &crate::response::Validation) -> Sha25
 
 /// Standalone contracts, deliberately absent from the public tool catalog.
 pub fn schemas() -> serde_json::Value {
-    serde_json::json!({
-        "body": schemars::schema_for!(SourceAssessmentV1),
-        "envelope": schemars::schema_for!(AssessmentEnvelope),
-        "selection": schemars::schema_for!(AssessmentSelection),
-        "binding": schemars::schema_for!(SourceValidationBindingV1),
-    })
+    serde_json::from_str(include_str!("../../../contracts/source-assessments.json"))
+        .expect("generated source assessment schemas")
 }
 
 fn nullable_tool_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {

@@ -39,6 +39,7 @@ jobs:
           APP_VERSION="$(sed -n 's/^version: \([^+]*\).*$/\1/p' apps/ub_app/pubspec.yaml)"
           test "$RELEASE_TAG" = "v$APP_VERSION"
           test "$(uname -m)" = "$EXPECTED_ARCH"
+      - run: dart run tool/build_contracts.dart --check
       - run: dart run tool/build_schema.dart --check
       - run: dart run tool/embed_schema.dart
       - run: dart run tool/embed_mcp.dart

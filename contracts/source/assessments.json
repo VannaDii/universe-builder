@@ -1,0 +1,654 @@
+{
+  "body": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "SourceAssessmentV1",
+    "type": "object",
+    "properties": {
+      "kind": {
+        "$ref": "#/$defs/AssessmentKind"
+      },
+      "proposal": {
+        "type": "object",
+        "properties": {
+          "proposal_id": {
+            "$ref": "#/$defs/ProposalId"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 18446744073709551615
+          },
+          "digest": {
+            "$ref": "#/$defs/Sha256Hex"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "proposal_id",
+          "version",
+          "digest"
+        ]
+      },
+      "base_frame": {
+        "$ref": "#/$defs/Frame"
+      },
+      "assessor": {
+        "$ref": "#/$defs/Assessor"
+      },
+      "sources": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/SourceBinding"
+        },
+        "minItems": 1,
+        "maxItems": 64
+      },
+      "dependencies": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/AssessmentVersionRef"
+        },
+        "maxItems": 16384
+      },
+      "declared_inventory": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/MaterialItem"
+        },
+        "maxItems": 4096
+      },
+      "inventory_declaration": {
+        "$ref": "#/$defs/InventoryDeclaration"
+      },
+      "claim_mappings": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/ClaimMapping"
+        },
+        "maxItems": 4096
+      },
+      "unresolved": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/UnresolvedDisposition"
+        },
+        "maxItems": 4096
+      },
+      "conclusion": {
+        "$ref": "#/$defs/DeclaredConclusion"
+      }
+    },
+    "additionalProperties": false,
+    "required": [
+      "kind",
+      "proposal",
+      "base_frame",
+      "assessor",
+      "sources",
+      "dependencies",
+      "declared_inventory",
+      "inventory_declaration",
+      "claim_mappings",
+      "unresolved",
+      "conclusion"
+    ],
+    "$defs": {
+      "AssessmentKind": {
+        "$ref": "models.schema.json#/$defs/AssessmentKind"
+      },
+      "ProposalId": {
+        "$ref": "models.schema.json#/$defs/ProposalId"
+      },
+      "Sha256Hex": {
+        "$ref": "models.schema.json#/$defs/Sha256Hex"
+      },
+      "Frame": {
+        "$ref": "models.schema.json#/$defs/Frame"
+      },
+      "UniverseId": {
+        "$ref": "models.schema.json#/$defs/UniverseId"
+      },
+      "ContinuityId": {
+        "$ref": "models.schema.json#/$defs/ContinuityId"
+      },
+      "RevisionId": {
+        "$ref": "models.schema.json#/$defs/RevisionId"
+      },
+      "RecordRef": {
+        "$ref": "models.schema.json#/$defs/RecordRef"
+      },
+      "RecordId": {
+        "$ref": "models.schema.json#/$defs/RecordId"
+      },
+      "FrameTime": {
+        "$ref": "models.schema.json#/$defs/FrameTime"
+      },
+      "TemporalExpression": {
+        "$ref": "models.schema.json#/$defs/TemporalExpression"
+      },
+      "CalendarId": {
+        "$ref": "models.schema.json#/$defs/CalendarId"
+      },
+      "TemporalBound": {
+        "$ref": "models.schema.json#/$defs/TemporalBound"
+      },
+      "Value": {
+        "$ref": "models.schema.json#/$defs/Value"
+      },
+      "UnitId": {
+        "$ref": "models.schema.json#/$defs/UnitId"
+      },
+      "SpatialExpression": {
+        "$ref": "models.schema.json#/$defs/SpatialExpression"
+      },
+      "ValueDefinitionId": {
+        "$ref": "models.schema.json#/$defs/ValueDefinitionId"
+      },
+      "TemporalRelation": {
+        "$ref": "models.schema.json#/$defs/TemporalRelation"
+      },
+      "EventTimeSide": {
+        "$ref": "models.schema.json#/$defs/EventTimeSide"
+      },
+      "Perspective": {
+        "$ref": "models.schema.json#/$defs/Perspective"
+      },
+      "Assessor": {
+        "$ref": "models.schema.json#/$defs/Assessor"
+      },
+      "PrincipalId": {
+        "$ref": "models.schema.json#/$defs/PrincipalId"
+      },
+      "Method": {
+        "$ref": "models.schema.json#/$defs/Method"
+      },
+      "ToolIdentity": {
+        "$ref": "models.schema.json#/$defs/ToolIdentity"
+      },
+      "SourceBinding": {
+        "$ref": "models.schema.json#/$defs/SourceBinding"
+      },
+      "AssessmentVersionRef": {
+        "$ref": "models.schema.json#/$defs/AssessmentVersionRef"
+      },
+      "RecordVersionId": {
+        "$ref": "models.schema.json#/$defs/RecordVersionId"
+      },
+      "SourceRepresentation": {
+        "$ref": "models.schema.json#/$defs/SourceRepresentation"
+      },
+      "ByteRange": {
+        "$ref": "models.schema.json#/$defs/ByteRange"
+      },
+      "MaterialItem": {
+        "$ref": "models.schema.json#/$defs/MaterialItem"
+      },
+      "MaterialKind": {
+        "$ref": "models.schema.json#/$defs/MaterialKind"
+      },
+      "InventoryDeclaration": {
+        "$ref": "models.schema.json#/$defs/InventoryDeclaration"
+      },
+      "InventoryKind": {
+        "$ref": "models.schema.json#/$defs/InventoryKind"
+      },
+      "Exclusion": {
+        "$ref": "models.schema.json#/$defs/Exclusion"
+      },
+      "ClaimMapping": {
+        "$ref": "models.schema.json#/$defs/ClaimMapping"
+      },
+      "Position": {
+        "$ref": "models.schema.json#/$defs/Position"
+      },
+      "Occurrence": {
+        "$ref": "models.schema.json#/$defs/Occurrence"
+      },
+      "Modality": {
+        "$ref": "models.schema.json#/$defs/Modality"
+      },
+      "SemanticMapping": {
+        "$ref": "models.schema.json#/$defs/SemanticMapping"
+      },
+      "RoleParticipant": {
+        "$ref": "models.schema.json#/$defs/RoleParticipant"
+      },
+      "Polarity": {
+        "$ref": "models.schema.json#/$defs/Polarity"
+      },
+      "Depiction": {
+        "$ref": "models.schema.json#/$defs/Depiction"
+      },
+      "CandidateLink": {
+        "$ref": "models.schema.json#/$defs/CandidateLink"
+      },
+      "CandidateLinkKind": {
+        "$ref": "models.schema.json#/$defs/CandidateLinkKind"
+      },
+      "MappingJudgment": {
+        "$ref": "models.schema.json#/$defs/MappingJudgment"
+      },
+      "UnresolvedDisposition": {
+        "$ref": "models.schema.json#/$defs/UnresolvedDisposition"
+      },
+      "UnresolvedReason": {
+        "$ref": "models.schema.json#/$defs/UnresolvedReason"
+      },
+      "DeclaredConclusion": {
+        "$ref": "models.schema.json#/$defs/DeclaredConclusion"
+      }
+    }
+  },
+  "envelope": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "AssessmentEnvelope",
+    "type": "object",
+    "properties": {
+      "assessment_id": {
+        "$ref": "#/$defs/AssessmentId"
+      },
+      "digest": {
+        "$ref": "#/$defs/Sha256Hex"
+      },
+      "body": {
+        "$ref": "#/$defs/SourceAssessmentV1"
+      }
+    },
+    "additionalProperties": false,
+    "required": [
+      "assessment_id",
+      "digest",
+      "body"
+    ],
+    "$defs": {
+      "AssessmentId": {
+        "$ref": "models.schema.json#/$defs/AssessmentId"
+      },
+      "Sha256Hex": {
+        "$ref": "models.schema.json#/$defs/Sha256Hex"
+      },
+      "SourceAssessmentV1": {
+        "$ref": "models.schema.json#/$defs/SourceAssessmentV1"
+      },
+      "AssessmentKind": {
+        "$ref": "models.schema.json#/$defs/AssessmentKind"
+      },
+      "ProposalId": {
+        "$ref": "models.schema.json#/$defs/ProposalId"
+      },
+      "Frame": {
+        "$ref": "models.schema.json#/$defs/Frame"
+      },
+      "UniverseId": {
+        "$ref": "models.schema.json#/$defs/UniverseId"
+      },
+      "ContinuityId": {
+        "$ref": "models.schema.json#/$defs/ContinuityId"
+      },
+      "RevisionId": {
+        "$ref": "models.schema.json#/$defs/RevisionId"
+      },
+      "RecordRef": {
+        "$ref": "models.schema.json#/$defs/RecordRef"
+      },
+      "RecordId": {
+        "$ref": "models.schema.json#/$defs/RecordId"
+      },
+      "FrameTime": {
+        "$ref": "models.schema.json#/$defs/FrameTime"
+      },
+      "TemporalExpression": {
+        "$ref": "models.schema.json#/$defs/TemporalExpression"
+      },
+      "CalendarId": {
+        "$ref": "models.schema.json#/$defs/CalendarId"
+      },
+      "TemporalBound": {
+        "$ref": "models.schema.json#/$defs/TemporalBound"
+      },
+      "Value": {
+        "$ref": "models.schema.json#/$defs/Value"
+      },
+      "UnitId": {
+        "$ref": "models.schema.json#/$defs/UnitId"
+      },
+      "SpatialExpression": {
+        "$ref": "models.schema.json#/$defs/SpatialExpression"
+      },
+      "ValueDefinitionId": {
+        "$ref": "models.schema.json#/$defs/ValueDefinitionId"
+      },
+      "TemporalRelation": {
+        "$ref": "models.schema.json#/$defs/TemporalRelation"
+      },
+      "EventTimeSide": {
+        "$ref": "models.schema.json#/$defs/EventTimeSide"
+      },
+      "Perspective": {
+        "$ref": "models.schema.json#/$defs/Perspective"
+      },
+      "Assessor": {
+        "$ref": "models.schema.json#/$defs/Assessor"
+      },
+      "PrincipalId": {
+        "$ref": "models.schema.json#/$defs/PrincipalId"
+      },
+      "Method": {
+        "$ref": "models.schema.json#/$defs/Method"
+      },
+      "ToolIdentity": {
+        "$ref": "models.schema.json#/$defs/ToolIdentity"
+      },
+      "SourceBinding": {
+        "$ref": "models.schema.json#/$defs/SourceBinding"
+      },
+      "AssessmentVersionRef": {
+        "$ref": "models.schema.json#/$defs/AssessmentVersionRef"
+      },
+      "RecordVersionId": {
+        "$ref": "models.schema.json#/$defs/RecordVersionId"
+      },
+      "SourceRepresentation": {
+        "$ref": "models.schema.json#/$defs/SourceRepresentation"
+      },
+      "ByteRange": {
+        "$ref": "models.schema.json#/$defs/ByteRange"
+      },
+      "MaterialItem": {
+        "$ref": "models.schema.json#/$defs/MaterialItem"
+      },
+      "MaterialKind": {
+        "$ref": "models.schema.json#/$defs/MaterialKind"
+      },
+      "InventoryDeclaration": {
+        "$ref": "models.schema.json#/$defs/InventoryDeclaration"
+      },
+      "InventoryKind": {
+        "$ref": "models.schema.json#/$defs/InventoryKind"
+      },
+      "Exclusion": {
+        "$ref": "models.schema.json#/$defs/Exclusion"
+      },
+      "ClaimMapping": {
+        "$ref": "models.schema.json#/$defs/ClaimMapping"
+      },
+      "Position": {
+        "$ref": "models.schema.json#/$defs/Position"
+      },
+      "Occurrence": {
+        "$ref": "models.schema.json#/$defs/Occurrence"
+      },
+      "Modality": {
+        "$ref": "models.schema.json#/$defs/Modality"
+      },
+      "SemanticMapping": {
+        "$ref": "models.schema.json#/$defs/SemanticMapping"
+      },
+      "RoleParticipant": {
+        "$ref": "models.schema.json#/$defs/RoleParticipant"
+      },
+      "Polarity": {
+        "$ref": "models.schema.json#/$defs/Polarity"
+      },
+      "Depiction": {
+        "$ref": "models.schema.json#/$defs/Depiction"
+      },
+      "CandidateLink": {
+        "$ref": "models.schema.json#/$defs/CandidateLink"
+      },
+      "CandidateLinkKind": {
+        "$ref": "models.schema.json#/$defs/CandidateLinkKind"
+      },
+      "MappingJudgment": {
+        "$ref": "models.schema.json#/$defs/MappingJudgment"
+      },
+      "UnresolvedDisposition": {
+        "$ref": "models.schema.json#/$defs/UnresolvedDisposition"
+      },
+      "UnresolvedReason": {
+        "$ref": "models.schema.json#/$defs/UnresolvedReason"
+      },
+      "DeclaredConclusion": {
+        "$ref": "models.schema.json#/$defs/DeclaredConclusion"
+      }
+    }
+  },
+  "selection": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "AssessmentSelection",
+    "type": "object",
+    "properties": {
+      "proposal": {
+        "type": "object",
+        "properties": {
+          "proposal_id": {
+            "$ref": "#/$defs/ProposalId"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 18446744073709551615
+          },
+          "digest": {
+            "$ref": "#/$defs/Sha256Hex"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "proposal_id",
+          "version",
+          "digest"
+        ]
+      },
+      "generation": {
+        "type": "integer",
+        "format": "uint64",
+        "minimum": 0
+      },
+      "selected": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/AssessmentRef"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "additionalProperties": false,
+    "required": [
+      "proposal",
+      "generation",
+      "selected"
+    ],
+    "$defs": {
+      "ProposalId": {
+        "$ref": "models.schema.json#/$defs/ProposalId"
+      },
+      "Sha256Hex": {
+        "$ref": "models.schema.json#/$defs/Sha256Hex"
+      },
+      "AssessmentRef": {
+        "$ref": "models.schema.json#/$defs/AssessmentRef"
+      },
+      "AssessmentId": {
+        "$ref": "models.schema.json#/$defs/AssessmentId"
+      }
+    }
+  },
+  "binding": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "SourceValidationBindingV1",
+    "description": "Acyclic final binding, independently hashed from the frozen candidate.",
+    "type": "object",
+    "properties": {
+      "kind": {
+        "$ref": "#/$defs/ValidationBindingKind"
+      },
+      "proposal": {
+        "type": "object",
+        "properties": {
+          "proposal_id": {
+            "$ref": "#/$defs/ProposalId"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 18446744073709551615
+          },
+          "digest": {
+            "$ref": "#/$defs/Sha256Hex"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "proposal_id",
+          "version",
+          "digest"
+        ]
+      },
+      "base_frame": {
+        "$ref": "#/$defs/Frame"
+      },
+      "selection": {
+        "$ref": "#/$defs/AssessmentSelection"
+      },
+      "submitted_input": {
+        "$ref": "#/$defs/SubmittedInput"
+      },
+      "assessment_state": {
+        "$ref": "#/$defs/AssessmentState"
+      },
+      "execution_result_digest": {
+        "$ref": "#/$defs/Sha256Hex"
+      },
+      "evaluator_version": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 16384
+      }
+    },
+    "additionalProperties": false,
+    "required": [
+      "kind",
+      "proposal",
+      "base_frame",
+      "selection",
+      "submitted_input",
+      "assessment_state",
+      "execution_result_digest",
+      "evaluator_version"
+    ],
+    "$defs": {
+      "ValidationBindingKind": {
+        "$ref": "models.schema.json#/$defs/ValidationBindingKind"
+      },
+      "ProposalId": {
+        "$ref": "models.schema.json#/$defs/ProposalId"
+      },
+      "Sha256Hex": {
+        "$ref": "models.schema.json#/$defs/Sha256Hex"
+      },
+      "Frame": {
+        "$ref": "models.schema.json#/$defs/Frame"
+      },
+      "UniverseId": {
+        "$ref": "models.schema.json#/$defs/UniverseId"
+      },
+      "ContinuityId": {
+        "$ref": "models.schema.json#/$defs/ContinuityId"
+      },
+      "RevisionId": {
+        "$ref": "models.schema.json#/$defs/RevisionId"
+      },
+      "RecordRef": {
+        "$ref": "models.schema.json#/$defs/RecordRef"
+      },
+      "RecordId": {
+        "$ref": "models.schema.json#/$defs/RecordId"
+      },
+      "FrameTime": {
+        "$ref": "models.schema.json#/$defs/FrameTime"
+      },
+      "TemporalExpression": {
+        "$ref": "models.schema.json#/$defs/TemporalExpression"
+      },
+      "CalendarId": {
+        "$ref": "models.schema.json#/$defs/CalendarId"
+      },
+      "TemporalBound": {
+        "$ref": "models.schema.json#/$defs/TemporalBound"
+      },
+      "Value": {
+        "$ref": "models.schema.json#/$defs/Value"
+      },
+      "UnitId": {
+        "$ref": "models.schema.json#/$defs/UnitId"
+      },
+      "SpatialExpression": {
+        "$ref": "models.schema.json#/$defs/SpatialExpression"
+      },
+      "ValueDefinitionId": {
+        "$ref": "models.schema.json#/$defs/ValueDefinitionId"
+      },
+      "TemporalRelation": {
+        "$ref": "models.schema.json#/$defs/TemporalRelation"
+      },
+      "EventTimeSide": {
+        "$ref": "models.schema.json#/$defs/EventTimeSide"
+      },
+      "Perspective": {
+        "$ref": "models.schema.json#/$defs/Perspective"
+      },
+      "AssessmentSelection": {
+        "$ref": "models.schema.json#/$defs/AssessmentSelection"
+      },
+      "AssessmentRef": {
+        "$ref": "models.schema.json#/$defs/AssessmentRef"
+      },
+      "AssessmentId": {
+        "$ref": "models.schema.json#/$defs/AssessmentId"
+      },
+      "SubmittedInput": {
+        "$ref": "models.schema.json#/$defs/SubmittedInput"
+      },
+      "CheckScope": {
+        "$ref": "models.schema.json#/$defs/CheckScope"
+      },
+      "ProposalRef": {
+        "$ref": "models.schema.json#/$defs/ProposalRef"
+      },
+      "SourceBinding": {
+        "$ref": "models.schema.json#/$defs/SourceBinding"
+      },
+      "AssessmentVersionRef": {
+        "$ref": "models.schema.json#/$defs/AssessmentVersionRef"
+      },
+      "RecordVersionId": {
+        "$ref": "models.schema.json#/$defs/RecordVersionId"
+      },
+      "SourceRepresentation": {
+        "$ref": "models.schema.json#/$defs/SourceRepresentation"
+      },
+      "ByteRange": {
+        "$ref": "models.schema.json#/$defs/ByteRange"
+      },
+      "AssessmentState": {
+        "$ref": "models.schema.json#/$defs/AssessmentState"
+      },
+      "UnavailableReason": {
+        "$ref": "models.schema.json#/$defs/UnavailableReason"
+      },
+      "StaleReason": {
+        "$ref": "models.schema.json#/$defs/StaleReason"
+      },
+      "ByteVerification": {
+        "$ref": "models.schema.json#/$defs/ByteVerification"
+      },
+      "DeclaredConclusion": {
+        "$ref": "models.schema.json#/$defs/DeclaredConclusion"
+      }
+    }
+  }
+}

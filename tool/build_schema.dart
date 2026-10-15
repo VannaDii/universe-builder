@@ -1,7 +1,8 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:ub_domain/ub_domain.dart';
+
+import 'src/software_json.dart';
 
 // Generates the existing closed software schema. Never opens an installation.
 typedef Json = Map<String, dynamic>;
@@ -24,23 +25,6 @@ Json _nullable(Json schema) => {
 };
 Json _asObject(Object? value) => value as Json;
 List<dynamic> _asList(Object? value) => value as List<dynamic>;
-
-dynamic _decode(CanonicalValue value) => switch (value) {
-  CanonicalObject(:final fields) => <String, dynamic>{
-    for (final f in fields) f.key: _decode(f.value),
-  },
-  CanonicalArray(:final items) => items.map(_decode).toList(),
-  CanonicalString(:final value) => value,
-  CanonicalBool(:final value) => value,
-  CanonicalNull() => null,
-  CanonicalNumber() => value,
-};
-dynamic _read(File file) => _decode(
-  CanonicalValue.parseWireJson(
-    file.readAsStringSync(),
-    preserveObjectOrder: true,
-  ),
-);
 
 Json _contracts(Directory root, Directory source) {
   var definitions = <String, dynamic>{};
@@ -65,9 +49,11 @@ Json _contracts(Directory root, Directory source) {
           .toList()
         ..sort((a, b) => a.path.compareTo(b.path));
   for (final file in files) {
-    collect(_read(file));
+    collect(readSoftwareJson(file));
   }
-  final live = _asObject(_read(File('${source.path}/source-contracts.json')));
+  final live = _asObject(
+    readSoftwareJson(File('${source.path}/source-contracts.json')),
+  );
   for (final entry in live.entries) {
     final schema = _asObject(entry.value);
     definitions.addAll(_asObject(schema[r'$defs'] ?? <String, dynamic>{}));
@@ -618,19 +604,6 @@ final class _Compiler {
   }
 }
 
-String _pretty(dynamic value, [int depth = 0]) {
-  final indent = '  ' * depth, childIndent = '  ' * (depth + 1);
-  if (value is Json) {
-    if (value.isEmpty) return '{}';
-    return '{\n${value.entries.map((e) => '$childIndent${jsonEncode(e.key)}: ${_pretty(e.value, depth + 1)}').join(',\n')}\n$indent}';
-  }
-  if (value is List<dynamic>) {
-    if (value.isEmpty) return '[]';
-    return '[\n${value.map((e) => '$childIndent${_pretty(e, depth + 1)}').join(',\n')}\n$indent]';
-  }
-  return value is CanonicalNumber ? value.digits : jsonEncode(value);
-}
-
 const _roots = [
   'Payload',
   'DomainOperation',
@@ -701,7 +674,7 @@ void main(List<String> arguments) {
   for (final entry in {
     'typed.sql': compiler.ddl(),
     'catalog.json':
-        '${_pretty({'roots': _roots, 'models': compiler.models})}\n',
+        '${prettySoftwareJson({'roots': _roots, 'models': compiler.models})}\n',
     'field-mapping.md': '${lines.join('\n')}\n',
   }.entries) {
     final file = File('${source.path}/${entry.key}');
