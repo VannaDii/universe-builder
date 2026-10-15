@@ -8,7 +8,8 @@ import 'package:ub_domain/ub_domain.dart';
 import 'ownership.dart';
 import 'catalog.dart';
 import 'relational.dart';
-import 'schema.g.dart';
+import 'recovery_domain_rows.dart';
+import 'recovery_value_inputs.dart';
 
 const _keys = 'instance,profile,universe,continuity,context,editor_key';
 const _legacyColumns = '$_keys,generation,form_input';
@@ -17,45 +18,11 @@ const _fields =
 const _where =
     'instance=? AND profile=? AND universe=? AND continuity=? AND context=? AND editor_key=?';
 final _catalog = BodyCatalog.instance;
-final _originalModel = _catalog.model('Payload').variants.singleWhere((name) {
-  final kind = _catalog.model(name).fields['record_kind'];
-  if (kind == null) return false;
-  final value = _catalog.model(kind.model).constant;
-  return value is CanonicalString && value.value == 'unit';
-});
+final _originalModel = recoveryPayloadModel('unit');
 // Reuse the existing closed UnitRecord/Value/Validity tables and codec. Only
 // tables reachable from UnitRecord are installed in this private recovery file.
-final _originalTables = <String>{};
-final _originalSchema = (() {
-  final visited = <String>{};
-  void visit(String name) {
-    if (!visited.add(name)) return;
-    final model = _catalog.model(name);
-    if (model.scalar) return;
-    _originalTables.add(model.table);
-    if (model.kind == 'array' || model.kind == 'map') {
-      _originalTables.add('${model.table}_items');
-    }
-    for (final field in model.fields.values) {
-      visit(field.model);
-    }
-    for (final variant in model.variants) {
-      visit(variant);
-    }
-    if (model.item != null) visit(model.item!);
-  }
-
-  visit(_originalModel);
-  final statements = RegExp(r'CREATE TABLE "([^"\n]+)" \([\s\S]*?\) STRICT;')
-      .allMatches(sqliteSchema)
-      .where((m) => _originalTables.contains(m.group(1)))
-      .map((m) => m.group(0)!)
-      .toList();
-  if (statements.length != _originalTables.length) {
-    throw StateError('Missing unit recovery domain table');
-  }
-  return statements;
-})();
+final _originalStorage = RecoveryDomainSchema([_originalModel]);
+final _originalSchema = _originalStorage.statements;
 final _schema =
     """
 CREATE TABLE unit_form (
@@ -70,19 +37,7 @@ CREATE TABLE unit_label (
  instance TEXT NOT NULL, profile TEXT NOT NULL, universe TEXT NOT NULL, continuity TEXT NOT NULL, context TEXT NOT NULL, editor_key TEXT NOT NULL, ordinal INTEGER NOT NULL CHECK(ordinal>=0), language TEXT NOT NULL, label_text TEXT NOT NULL,
  PRIMARY KEY(instance,profile,universe,continuity,context,editor_key,ordinal), FOREIGN KEY(instance,profile,universe,continuity,context,editor_key) REFERENCES unit_form(instance,profile,universe,continuity,context,editor_key)
 ) STRICT;
-CREATE TABLE unit_qualifier (
- id INTEGER PRIMARY KEY, input_key TEXT NOT NULL, kind TEXT NOT NULL, input_value TEXT NOT NULL, denominator TEXT NOT NULL, unit TEXT NOT NULL, universe TEXT NOT NULL, definition TEXT NOT NULL, original_key TEXT,
- lower_input INTEGER REFERENCES unit_qualifier(id), upper_input INTEGER REFERENCES unit_qualifier(id), temporal INTEGER REFERENCES unit_temporal(id), lower_inclusive TEXT NOT NULL, upper_inclusive TEXT NOT NULL
-) STRICT;
-CREATE TABLE unit_child (
- owner INTEGER NOT NULL REFERENCES unit_qualifier(id), ordinal INTEGER NOT NULL CHECK(ordinal>=0), child INTEGER NOT NULL REFERENCES unit_qualifier(id), PRIMARY KEY(owner,ordinal)
-) STRICT;
-CREATE TABLE unit_temporal (
- id INTEGER PRIMARY KEY, kind TEXT NOT NULL, calendar TEXT NOT NULL, relation TEXT NOT NULL, target_universe TEXT NOT NULL, target_record TEXT NOT NULL, start_input INTEGER NOT NULL REFERENCES unit_bound(id), end_input INTEGER NOT NULL REFERENCES unit_bound(id)
-) STRICT;
-CREATE TABLE unit_bound (
- id INTEGER PRIMARY KEY, kind TEXT NOT NULL, input_value TEXT NOT NULL, upper_value TEXT NOT NULL, uncertainty_kind TEXT NOT NULL, uncertainty TEXT NOT NULL, denominator TEXT NOT NULL, unit TEXT NOT NULL, amount INTEGER REFERENCES unit_qualifier(id)
-) STRICT;
+${RecoveryValueInputs.schema('unit')}
 ${_originalSchema.join('\n')}
 PRAGMA user_version=2;
 """;
@@ -118,6 +73,7 @@ String _text(Row row, String column) =>
 final class UnitFormRecoveryStore {
   UnitFormRecoveryStore._(this._db);
   final Database _db;
+  late final _inputs = RecoveryValueInputs(_db, 'unit');
 
   static UnitFormRecoveryStore open(String path) {
     Database? db;
@@ -211,27 +167,13 @@ final class UnitFormRecoveryStore {
     final expected = {
       'unit_form': '$_keys,$_fields',
       'unit_label': '$_keys,ordinal,language,label_text',
-      'unit_qualifier': 'id,input_key,kind,input_value,denominator,unit,universe,definition,original_key,lower_input,upper_input,temporal,lower_inclusive,upper_inclusive',
-      'unit_child': 'owner,ordinal,child',
-      'unit_temporal': 'id,kind,calendar,relation,target_universe,target_record,start_input,end_input',
-      'unit_bound': 'id,kind,input_value,upper_value,uncertainty_kind,uncertainty,denominator,unit,amount',
+      ...RecoveryValueInputs.columns('unit'),
     };
     final current =
         version == 2 &&
         tables.length == expected.length + _originalSchema.length &&
         expected.entries.every((e) => columns(e.key) == e.value) &&
-        _originalSchema.every((statement) {
-          final name = RegExp(r'CREATE TABLE "([^"\n]+)"')
-              .firstMatch(statement)!
-              .group(1)!;
-          final rows = db.select(
-            "SELECT sql FROM sqlite_master WHERE type='table' AND name=?",
-            [name],
-          );
-          return rows.length == 1 &&
-              rows.single['sql'] ==
-                  statement.substring(0, statement.length - 1);
-        });
+        _originalStorage.matches(db);
     if (!legacy && !current) {
       throw const EditorRecoveryException(
         EditorRecoveryFailure.incompatibleSchema,
@@ -291,11 +233,11 @@ final class UnitFormRecoveryStore {
         hasBase: r['has_base'] == 1,
         base: _text(r, 'base_input'),
         hasScale: r['has_scale'] == 1,
-        scale: _readQualifier(r['scale_input'] as int, 0),
+        scale: _inputs.readQualifier(r['scale_input'] as int, 0),
         validityChoice: _text(r, 'validity_choice'),
         temporalValidity: r['temporal_input'] == null
             ? null
-            : _readTemporal(r['temporal_input'] as int, 0),
+            : _inputs.readTemporal(r['temporal_input'] as int, 0),
         labels: labels.map(
           (l) => PropertyLabelInput(
             language: _text(l, 'language'),
@@ -330,10 +272,10 @@ final class UnitFormRecoveryStore {
       'SELECT scale_input,temporal_input,original FROM unit_form WHERE $_where',
       binding,
     );
-    final scale = _writeQualifier(f.scale, 0),
+    final scale = _inputs.writeQualifier(f.scale, 0),
         temporal = f.temporalValidity == null
             ? null
-            : _writeTemporal(f.temporalValidity!, 0);
+            : _inputs.writeTemporal(f.temporalValidity!, 0);
     final original = f.original == null
         ? null
         : RelationalCodec(_db).put(_originalModel, f.original!.toWire());
@@ -373,238 +315,11 @@ final class UnitFormRecoveryStore {
       ]);
     }
     if (old.isNotEmpty) {
-      _deleteQualifier(old.single['scale_input'] as int);
-      if (old.single['temporal_input'] case final int t) _deleteTemporal(t);
-      _deleteOriginal(_originalModel, old.single['original']);
-    }
-  }
-
-  void _depth(int depth) {
-    if (depth > 128) throw const FormatException('Value nesting limit');
-  }
-
-  Row _inputRow(String table, String columns, int id) => _db.select(
-    'SELECT ${_textProjection(columns)} FROM unit_$table WHERE id=?',
-    [id],
-  ).single;
-  int _writeQualifier(QualifierInput q, int depth) {
-    _depth(depth);
-    final lower = q.lower == null ? null : _writeQualifier(q.lower!, depth + 1);
-    final upper = q.upper == null ? null : _writeQualifier(q.upper!, depth + 1);
-    final temporal = q.temporal == null
-        ? null
-        : _writeTemporal(q.temporal!, depth + 1);
-    _db.execute(
-      'INSERT INTO unit_qualifier(input_key,kind,input_value,denominator,unit,universe,definition,original_key,lower_input,upper_input,temporal,lower_inclusive,upper_inclusive) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
-      [
-        q.key,
-        q.kind,
-        q.value,
-        q.denominator,
-        q.unit,
-        q.universe,
-        q.definition,
-        q.originalKey,
-        lower,
-        upper,
-        temporal,
-        q.lowerInclusive,
-        q.upperInclusive,
-      ],
-    );
-    final id = _db.lastInsertRowId;
-    for (var i = 0; i < q.children.length; i++) {
-      final child = _writeQualifier(q.children[i], depth + 1);
-      _db.execute('INSERT INTO unit_child VALUES(?,?,?)', [id, i, child]);
-    }
-    return id;
-  }
-
-  QualifierInput _readQualifier(int id, int depth) {
-    _depth(depth);
-    final r = _inputRow(
-      'qualifier',
-      'input_key,kind,input_value,denominator,unit,universe,definition,original_key,lower_input,upper_input,temporal,lower_inclusive,upper_inclusive',
-      id,
-    );
-    final children = _db.select(
-      'SELECT ordinal,child FROM unit_child WHERE owner=? ORDER BY ordinal',
-      [id],
-    );
-    for (var i = 0; i < children.length; i++) {
-      if (children[i]['ordinal'] != i) {
-        throw const FormatException('Incomplete unit value order');
+      _inputs.deleteQualifier(old.single['scale_input'] as int);
+      if (old.single['temporal_input'] case final int t) {
+        _inputs.deleteTemporal(t);
       }
-    }
-    return QualifierInput(
-      key: _text(r, 'input_key'),
-      kind: _text(r, 'kind'),
-      value: _text(r, 'input_value'),
-      denominator: _text(r, 'denominator'),
-      unit: _text(r, 'unit'),
-      universe: _text(r, 'universe'),
-      definition: _text(r, 'definition'),
-      originalKey: r['original_key'] == null ? null : _text(r, 'original_key'),
-      lowerInclusive: _text(r, 'lower_inclusive'),
-      upperInclusive: _text(r, 'upper_inclusive'),
-      lower: r['lower_input'] == null
-          ? null
-          : _readQualifier(r['lower_input'] as int, depth + 1),
-      upper: r['upper_input'] == null
-          ? null
-          : _readQualifier(r['upper_input'] as int, depth + 1),
-      temporal: r['temporal'] == null
-          ? null
-          : _readTemporal(r['temporal'] as int, depth + 1),
-      children: children
-          .map((c) => _readQualifier(c['child'] as int, depth + 1))
-          .toList(),
-    );
-  }
-
-  int _writeTemporal(TemporalValidityInput t, int depth) {
-    _depth(depth);
-    final start = _writeBound(t.start, depth), end = _writeBound(t.end, depth);
-    _db.execute(
-      'INSERT INTO unit_temporal(kind,calendar,relation,target_universe,target_record,start_input,end_input) VALUES(?,?,?,?,?,?,?)',
-      [
-        t.kind,
-        t.calendar,
-        t.relation,
-        t.targetUniverse,
-        t.targetRecord,
-        start,
-        end,
-      ],
-    );
-    return _db.lastInsertRowId;
-  }
-
-  TemporalValidityInput _readTemporal(int id, int depth) {
-    _depth(depth);
-    final r = _inputRow(
-      'temporal',
-      'kind,calendar,relation,target_universe,target_record,start_input,end_input',
-      id,
-    );
-    return TemporalValidityInput(
-      kind: _text(r, 'kind'),
-      calendar: _text(r, 'calendar'),
-      relation: _text(r, 'relation'),
-      targetUniverse: _text(r, 'target_universe'),
-      targetRecord: _text(r, 'target_record'),
-      start: _readBound(r['start_input'] as int, depth),
-      end: _readBound(r['end_input'] as int, depth),
-    );
-  }
-
-  int _writeBound(TemporalBoundInput b, int depth) {
-    final amount = b.amount == null
-        ? null
-        : _writeQualifier(b.amount!, depth + 1);
-    _db.execute(
-      'INSERT INTO unit_bound(kind,input_value,upper_value,uncertainty_kind,uncertainty,denominator,unit,amount) VALUES(?,?,?,?,?,?,?,?)',
-      [
-        b.kind,
-        b.value,
-        b.upper,
-        b.uncertaintyKind,
-        b.uncertainty,
-        b.denominator,
-        b.unit,
-        amount,
-      ],
-    );
-    return _db.lastInsertRowId;
-  }
-
-  TemporalBoundInput _readBound(int id, int depth) {
-    final r = _inputRow(
-      'bound',
-      'kind,input_value,upper_value,uncertainty_kind,uncertainty,denominator,unit,amount',
-      id,
-    );
-    return TemporalBoundInput(
-      kind: _text(r, 'kind'),
-      value: _text(r, 'input_value'),
-      upper: _text(r, 'upper_value'),
-      uncertaintyKind: _text(r, 'uncertainty_kind'),
-      uncertainty: _text(r, 'uncertainty'),
-      denominator: _text(r, 'denominator'),
-      unit: _text(r, 'unit'),
-      amount: r['amount'] == null
-          ? null
-          : _readQualifier(r['amount'] as int, depth + 1),
-    );
-  }
-
-  void _deleteQualifier(int id) {
-    final r = _db.select(
-      'SELECT lower_input,upper_input,temporal FROM unit_qualifier WHERE id=?',
-      [id],
-    ).single;
-    final children = _db.select('SELECT child FROM unit_child WHERE owner=?', [
-      id,
-    ]);
-    _db.execute('DELETE FROM unit_child WHERE owner=?', [id]);
-    _db.execute('DELETE FROM unit_qualifier WHERE id=?', [id]);
-    for (final c in children) {
-      _deleteQualifier(c['child'] as int);
-    }
-    for (final key in ['lower_input', 'upper_input']) {
-      if (r[key] case final int q) _deleteQualifier(q);
-    }
-    if (r['temporal'] case final int t) _deleteTemporal(t);
-  }
-
-  void _deleteTemporal(int id) {
-    final r = _db.select(
-      'SELECT start_input,end_input FROM unit_temporal WHERE id=?',
-      [id],
-    ).single;
-    _db.execute('DELETE FROM unit_temporal WHERE id=?', [id]);
-    for (final key in ['start_input', 'end_input']) {
-      final b = r[key] as int;
-      final amount = _db.select('SELECT amount FROM unit_bound WHERE id=?', [
-        b,
-      ]).single['amount'];
-      _db.execute('DELETE FROM unit_bound WHERE id=?', [b]);
-      if (amount case final int q) _deleteQualifier(q);
-    }
-  }
-
-  // Recovery replaces private original snapshots. Normative canon remains
-  // append-only; these rows are owned exclusively by this one saved form.
-  void _deleteOriginal(String name, Object? id) {
-    final m = _catalog.model(name);
-    if (m.scalar || id == null) return;
-    final table = quoteIdentifier(m.table);
-    final r = _db.select('SELECT * FROM $table WHERE __row_id=?', [id]).single;
-    final children = <(String, Object?)>[];
-    switch (m.kind) {
-      case 'object':
-      case 'tuple':
-        for (final e in m.fields.entries) {
-          if (r['${e.key}__state'] == 2) {
-            children.add((e.value.model, r[e.key]));
-          }
-        }
-      case 'union':
-        final branch = r['variant'] as int;
-        children.add((m.variants[branch], r['v$branch']));
-      case 'array':
-      case 'map':
-        final items = quoteIdentifier('${m.table}_items');
-        for (final item in _db.select('SELECT item FROM $items WHERE owner=?', [
-          id,
-        ])) {
-          children.add((m.item!, item['item']));
-        }
-        _db.execute('DELETE FROM $items WHERE owner=?', [id]);
-    }
-    _db.execute('DELETE FROM $table WHERE __row_id=?', [id]);
-    for (final (model, child) in children) {
-      _deleteOriginal(model, child);
+      _originalStorage.deleteOwned(_db, _originalModel, old.single['original']);
     }
   }
 
