@@ -93,6 +93,63 @@ establish that the host has no developer tools installed. They do not open the
 desktop. Rust fixture packaging and its remaining Python checks are legacy
 migration tooling, not the version-tag distribution route.
 
+## Headless container
+
+On the intended Linux architecture, assemble the headless package with the pinned
+Flutter/Dart toolchain, then build using only that output directory as context:
+
+```sh
+dart run apps/ub_cli/tool/package_headless.dart --output target/headless/linux
+docker build --file packaging/Dockerfile.headless \
+  --tag universe-builder-mcp-headless:local target/headless/linux
+docker volume create --label io.universe-builder-mcp.project=universe-builder-mcp \
+  --label io.universe-builder-mcp.purpose=installation universe-builder-mcp-data
+docker run --rm --name universe-builder-mcp-setup \
+  --mount type=volume,source=universe-builder-mcp-data,target=/data \
+  --env UB_USE_POSTGRES=false universe-builder-mcp-headless:local \
+  --installation /data/installation --initialize
+docker run -d --name universe-builder-mcp-service \
+  --read-only --tmpfs /tmp:rw,nosuid,nodev,size=64m \
+  --mount type=volume,source=universe-builder-mcp-data,target=/data \
+  --env UB_USE_POSTGRES=false universe-builder-mcp-headless:local
+```
+
+Retain the approval-owner profile ID printed by initialization. Profile
+credentials remain in the volume. Existing installation directories must be
+owned by UID/GID 10001 and private; startup never repairs permissions or
+overwrites an installation. Reuse an existing suitable volume and container
+rather than creating duplicates. The image inherits project/purpose labels.
+
+The image runs as UID/GID 10001, has no Dart/Flutter/Rust/Python SDK, and includes
+system TLS trust roots. The default command opens `/data/installation` without
+initializing or converting it. No ports are published by default. The local API
+is available only inside the container; without an HTTPS listener the existing
+15-minute idle shutdown applies. Local administration and stdio MCP use:
+
+```sh
+docker exec universe-builder-mcp-service multiverse-mcp admin \
+  --installation /data/installation --profile PROFILE_ID status
+docker exec -i universe-builder-mcp-service multiverse-mcp serve \
+  --installation /data/installation --profile PROFILE_ID
+```
+
+For remote clients, supply the engine's existing HTTPS options and publish only
+that TLS port. Mount the certificate and private-key files read-only, readable
+by UID 10001. HTTPS mode stays running until explicit shutdown or a signal.
+For PostgreSQL, supply `UB_USE_POSTGRES=true` and `UB_POSTGRES_ENDPOINT` to both
+setup and service from an operator-managed environment or protected env file;
+never bake credentials into the image. Saved encrypted Linux configuration is
+not yet supported. The requested database must already exist; backend selection
+does not transfer data or silently provision/convert schemas.
+
+Before replacement, finish queued work, retain backups outside the container,
+and stop the service with `docker stop --timeout 60 universe-builder-mcp-service`.
+SIGTERM drains the engine. Keep the volume, prior image and compatible backups;
+replace the entire container using the same volume only when its schema is
+compatible. Do not delete the volume on uninstall or try an older image against
+an upgraded schema. Perform an explicit supported conversion separately when
+required. This local image recipe does not deploy or publish a hosted service.
+
 ## Workload and recovery drill
 
 `scripts/benchmark_workload.py --bin-dir PATH/Contents/MacOS --output REPORT` creates disposable installations, commits five batches of 100 entities through exact author approval, measures cold start and 30 concurrent searches in separate universes, restarts the engine and restores a backup into a second installation. Reports include OS/architecture, sample count, median and maximum latency. These measurements are evidence for that workload and hardware only. They are not an SLA or a substitute for source-heavy, event-heavy, many-world or memory-pressure acceptance.

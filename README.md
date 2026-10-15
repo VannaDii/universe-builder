@@ -115,6 +115,10 @@ background service or change user data. On Linux without an available protected
 credential-store adapter, select the backend through `UB_USE_POSTGRES` and
 `UB_POSTGRES_ENDPOINT`; encrypted saved configuration remains unavailable there.
 Windows packaging and Linux desktop delivery remain pending.
+The [headless container procedure](docs/release-runbook.md#headless-container)
+packages these Linux binaries with a pinned runtime base, unprivileged service
+user and explicit persistent volume. Initialization and schema conversion stay
+explicit; the image does not include installation data or database credentials.
 An explicit installation without a profile uses the same local device setup.
 The engine's `--device-profile` action prints only the retained profile ID;
 `--initialize` keeps its existing create-only behavior. The app starts HTTP-only

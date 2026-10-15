@@ -57,6 +57,10 @@ jobs:
         run: |
           umask 077
           dart test test/mcp_cli_test.dart --name 'stdio reaches real service'
+      - name: Build headless runtime image
+        run: |
+          docker build --file packaging/Dockerfile.headless --tag universe-builder-mcp-headless:ci target/headless/linux
+          docker run --rm --name universe-builder-mcp-container-ci universe-builder-mcp-headless:ci --help
   macos:
     runs-on: macos-15
     steps:
