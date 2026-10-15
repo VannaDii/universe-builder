@@ -494,9 +494,12 @@ final class _Evaluation {
       if (participant == null) return _unsupported();
       roles.add((r.role, participant));
     }
-    final all = <RecordId, RecordVersion>{
-      for (final r in context.baseSnapshot) r.identity.recordId: r,
-    };
+    final readyIndex = context.candidateChanges.isEmpty ? context.index : null;
+    final all =
+        readyIndex?.recordsById ??
+        <RecordId, RecordVersion>{
+          for (final r in context.baseSnapshot) r.identity.recordId: r,
+        };
     for (final (id, next) in context.candidateChanges) {
       if (next == null) {
         all.remove(id);
@@ -508,12 +511,20 @@ final class _Evaluation {
         (records.keys.toList()..sort((a, b) => a.value.compareTo(b.value)))
             .map((id) => records[id]!)
             .toList();
-    final allRecords = ordered(all);
-    final inherits = all[subject.record]?.payload is EntityRecord;
+    final allRecords = readyIndex?.orderedRecords ?? ordered(all);
+    final owner = all[subject.record]?.payload;
+    final inherits = owner is EntityRecord;
     final chain = definitionAncestry(subject.record, allRecords);
-    final selected =
-        context.index != null && context.candidateChanges.isEmpty && !inherits
-        ? context.index!.claim(subject, predicate, cell)
+    // An explicitly unclassified owner with no shared assertions has only its
+    // direct facts to consider. Retain the full conservative path whenever
+    // inherited evidence might affect the result.
+    final directOnly =
+        !inherits ||
+        owner.classificationResolution ==
+                ClassificationResolution.unclassified &&
+            readyIndex?.hasSharedAssertions == false;
+    final selected = readyIndex != null && directOnly
+        ? readyIndex.claim(subject, predicate, cell)
         : allRecords;
     final snapshot = <RecordId, RecordVersion>{
       for (final r in selected) r.identity.recordId: r,
@@ -569,6 +580,7 @@ final class _Evaluation {
     }
     if (inherits &&
         !chain.complete &&
+        (readyIndex == null || readyIndex.hasSharedAssertions) &&
         allRecords.any((r) {
           final a = r.payload;
           if (a is! AssertionRecord ||

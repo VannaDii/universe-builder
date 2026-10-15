@@ -182,6 +182,54 @@ RecordVersion closed({
   ),
 );
 void main() {
+  test('indexed direct claims for unclassified entities keep coverage above the linear scan limit', () {
+    final owner = record(
+      1,
+      EntityRecord(
+        names: [],
+        labels: {},
+        metadata: {},
+        worldAssociations: [],
+        classificationResolution: ClassificationResolution.unclassified,
+      ),
+    );
+    final small = [...direct(), owner];
+    final large = [
+      ...small,
+      for (var n = 1000; n < 12000; n++)
+        record(
+          n,
+          SourceRecord(
+            label: 'Unrelated $n',
+            origin: const OriginMetadata(),
+            versions: [],
+          ),
+        ),
+    ];
+    final expected = run(small);
+    final indexed = run(large, indexed: true);
+    expect(indexed.$1, expected.$1);
+    expect(indexed.$2, isTrue);
+    expect(indexed.$1.support.sources, [version(5)]);
+    expect(run(large).$2, isFalse);
+    // Unknown classification plus shared evidence still requires the broader
+    // conservative evaluation; indexing must not turn it into a complete claim.
+    final shared = [
+      ...large,
+      record(20, type()),
+      prop(21, subject: 20),
+      assertion(22, 21, mode: AttributeMode.shared),
+    ];
+    expect(run(shared, indexed: true).$2, isFalse);
+    final scoped = [
+      ...small,
+      record(20, type()),
+      prop(21, subject: 20),
+      assertion(22, 21, mode: AttributeMode.shared),
+    ];
+    expect(run(scoped, indexed: true), run(scoped));
+  });
+
   test('direct claims retain both evidence sides, negation and existence semantics', () {
     final rows = direct()..add(assertion(6, 4, polarity: Polarity.refutation));
     for (final indexed in [false, true]) {

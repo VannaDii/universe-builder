@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:ub_domain/ub_domain.dart';
 
 /// Ephemeral lookup over one exact candidate, without frame or grant authority.
@@ -5,6 +7,10 @@ import 'package:ub_domain/ub_domain.dart';
 final class EvaluationIndex {
   EvaluationIndex(Iterable<RecordVersion> records) {
     for (final r in records) {
+      _byId[r.identity.recordId] = r;
+      if (r.payload case AssertionRecord(attributeMode: AttributeMode.shared)) {
+        _hasSharedAssertions = true;
+      }
       switch (r.payload) {
         case ItemPowerRecord():
           _hasPowers = true;
@@ -30,7 +36,19 @@ final class EvaluationIndex {
           break;
       }
     }
+    recordsById = UnmodifiableMapView(_byId);
+    orderedRecords = List.unmodifiable(
+      (_byId.keys.toList()..sort((a, b) => a.value.compareTo(b.value))).map(
+        (id) => _byId[id]!,
+      ),
+    );
   }
+
+  final _byId = <RecordId, RecordVersion>{};
+  late final Map<RecordId, RecordVersion> recordsById;
+  late final List<RecordVersion> orderedRecords;
+  bool _hasSharedAssertions = false;
+  bool get hasSharedAssertions => _hasSharedAssertions;
 
   final _definitions = <String, List<RecordVersion>>{};
   final _propositions =
