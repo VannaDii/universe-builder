@@ -135,25 +135,24 @@ entry use the approved UB logo. GTK native choosers support source text, images
 and backup/archive files, with asynchronous file copying and no destination
 overwrite. Linux builds additionally require CMake, Ninja and GTK 3 development
 headers (`cmake ninja-build libgtk-3-dev` on Debian/Ubuntu); desktop runtime hosts
-need GTK 3 and a working graphical session. Native window, picker and
-accessibility interaction remains unqualified.
+need GTK 3, libsecret, an available Secret Service and a working graphical
+session. Cross-distribution and screen-reader behavior remain unqualified.
 The macOS app retains its window frame in app preferences. On close, Linux
 retains the normal window size and maximized state in
 `$XDG_CONFIG_HOME/universe-builder/window.ini` (or
 `~/.config/universe-builder/window.ini`); restored sizes fit the current primary
 monitor's work area. Linux window placement remains under the window manager's
-control. Resize/reopen interaction still requires a graphical platform check.
+control. Custom-size restoration still requires a graphical platform check.
 An explicit installation without a profile uses the same local device setup.
 The engine's `--device-profile` action prints only the retained profile ID;
 `--initialize` keeps its existing create-only behavior. The app starts HTTP-only
 helpers, avoiding Unix socket path limits in Application Support. Linux uses
-XDG data storage (or `~/.local/share`) once its helper is installed; that platform
-journey remains unqualified.
+XDG data storage (or `~/.local/share`) once its helper is installed.
 Appearance currently lasts for the app session. Native access to installations
 outside the macOS sandbox, editing/recovery and remote connections remain in
 progress. Web connects to the instance serving its page;
-it does not offer local database authority. Generated mobile/Windows/Linux runners
-are not yet qualified. Build the shell from `apps/ub_app` with `flutter build web`
+it does not offer local database authority. Mobile and Windows platform checks
+remain incomplete. Build the shell from `apps/ub_app` with `flutter build web`
 or, on macOS, `flutter build macos --debug`.
 
 The shared service also exposes `EmbeddedSqliteEngine` for app-owned local
@@ -194,7 +193,7 @@ When an app update relocates its private installation container, owned catalog
 paths follow the same files only if their recorded device/inode still matches
 and the old location is absent. File copies with changed identities and custom
 external registrations are not automatically adopted.
-The macOS and mobile **Choose text file** controls read bounded UTF-8
+The native **Choose text file** controls read bounded UTF-8
 files, preserving BOMs, Unicode and line endings in the existing unfinished
 source form. Mobile temporary copies are released after decoding, including
 rejected files. Reading a file does not stage or publish it.
@@ -1299,6 +1298,7 @@ Use Dart **3.13.4** (enforced by the workspace SDK constraint) and Flutter
 the root `pubspec.lock`. Run `dart pub get` at the repository root, then:
 
 ```sh
+umask 077
 dart analyze packages tool
 dart format --output=none --set-exit-if-changed packages tool
 cd packages/ub_domain
@@ -1320,6 +1320,8 @@ dart test test/configuration_test.dart test/postgres_endpoint_test.dart test/end
 Browser tests must run from the package directory. Set `CHROME_EXECUTABLE` if
 Chrome is not discoverable automatically. Tests consume existing canonical and
 historical fixtures; they do not read or modify author installations.
+The private creation mask matches CI and lets native storage fixtures satisfy
+the same directory and file permissions required of author installations.
 
 The ownership bridge builds with the host C compiler through Dart build hooks.
 Native command-line bundles must use `dart build cli`; `dart compile exe` alone
