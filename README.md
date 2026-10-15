@@ -369,6 +369,20 @@ accessible research closure. History shows retained versions, publication
 reasons and expandable publication details, with the service's complete or
 restricted coverage shown explicitly. A failed read retains the selected view
 for retry; it does not switch to a newer revision.
+**Restore this version in Changes** adds an accessible prior version as a
+compensating draft operation against the record version being viewed. Existing
+draft work must use the same revision and context. Repeating the same selection
+retains one operation; event-established assertions require their occurrence
+correction workflow. Checks, approval and publication remain separate, and
+publication creates a new version while retaining earlier history.
+**Writing proposals** opens pending changes from the connected writer. Attach
+an exact passage for factual review or an explicit contract declaration, reopen
+a prepared review, or reject the proposal. The review shows staged passages,
+changes, findings and scoped evidence requirements. Creative resource acceptance
+uses the selected finding and an explicit reason. Approval and publication are
+separate actions; **Recover an approved publication** retries the original
+approval and publication key. Unfinished passage title and text recover privately
+after reconnect or browser reload; recovery does not stage or publish them.
 **Person, place or entity** opens a recoverable instance form. A name is enough;
 classification is optional. Classification choices and worlds are read at the
 form's revision. Selected worlds require an explicit association role and retain

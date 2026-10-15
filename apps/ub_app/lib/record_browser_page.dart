@@ -24,6 +24,9 @@ import 'dossier_appearance_view.dart';
 import 'image_preview_view.dart';
 import 'dossier_sources_view.dart';
 import 'event_withdrawal_draft.dart';
+import 'history_draft.dart';
+import 'saved_changes.dart';
+import 'changes_page.dart';
 
 enum _DossierView {
   fields,
@@ -433,7 +436,9 @@ class RecordDetailPageState extends State<RecordDetailPage> {
         record: widget.record,
         group: _group,
         includePayload:
-            _view == _DossierView.appearance || _view == _DossierView.sources,
+            _view == _DossierView.appearance ||
+            _view == _DossierView.sources ||
+            _view == _DossierView.history,
       );
       if (_group == FieldGroup.payload &&
           (material.result.records.length != 1 ||
@@ -448,6 +453,39 @@ class RecordDetailPageState extends State<RecordDetailPage> {
           () => _error = 'Could not read this record in full. Check your connection and access, then retry.',
         );
       }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _restore(RecordVersion source) async {
+    final current = _material?.result.records
+        .where((row) => row.identity.recordId == widget.record)
+        .firstOrNull;
+    if (current == null) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final changes = SavedChanges(
+        session: widget.session,
+        universe: Selector(widget.universe.name),
+        scope: widget.scope,
+      );
+      await stageHistoryRestoration(
+        changes: changes,
+        context: widget.context,
+        current: current,
+        source: source,
+        rationale: 'Restore a prior version of ${widget.label.isEmpty ? "this record" : widget.label}.',
+      );
+      if (!mounted) return;
+      await Navigator.of(context).push<void>(changesRoute(changes));
+    } on FormatException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } on Object {
+      if (mounted) setState(() => _error = 'Could not save this restoration. Your draft is retained; retry with the same version.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -961,6 +999,7 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                   ),
               ],
               if (_group == FieldGroup.history) ...[
+                const Text('Restoring adds a compensating change to Changes. Earlier revisions remain intact. Review, check, approve and publish separately.'),
                 Text(switch (_material!.result.historyCoverage) {
                   Coverage.complete =>
                     'Complete retained history through this revision.',
@@ -993,6 +1032,16 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                             const Text('Record removed in this revision.')
                           else
                             ExactFields(value: entry.record!.payload.toWire()),
+                          if (entry.record case final source?)
+                            if (_material!.result.records
+                                    .where((row) => row.identity.recordId == widget.record)
+                                    .firstOrNull
+                                case final current?)
+                              if (canRestoreRecordVersion(current, source))
+                                TextButton(
+                                  onPressed: _busy ? null : () => _restore(source),
+                                  child: const Text('Restore this version in Changes'),
+                                ),
                         ],
                       ),
                     ),
