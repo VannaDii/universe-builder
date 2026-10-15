@@ -189,9 +189,43 @@ required. This local image recipe does not deploy or publish a hosted service.
 
 ## Workload and recovery drill
 
-`scripts/benchmark_workload.py --bin-dir PATH/Contents/MacOS --output REPORT` creates disposable installations, commits five batches of 100 entities through exact author approval, measures cold start and 30 concurrent searches in separate universes, restarts the engine and restores a backup into a second installation. Reports include OS/architecture, sample count, median and maximum latency. These measurements are evidence for that workload and hardware only. They are not an SLA or a substitute for source-heavy, event-heavy, many-world or memory-pressure acceptance.
+Run the opt-in Dart storage/evaluator workload from `packages/ub_service`
+with the pinned toolchain:
 
-All fixtures stop their own engines in cleanup. They do not inspect or close unrelated processes. Do not start the desktop or LM Studio while the user's pause on native testing remains in force. The earlier Bionic state was historical; it is not a current process observation.
+```sh
+UB_RUN_STANDARD_WORKLOAD=1 dart test test/standard_workload_test.dart --reporter expanded
+```
+
+It creates a disposable normative SQLite package containing 10,000 entities,
+200,000 propositions and their 200,000 assertions, 2,000 rules and ten
+continuities (412,002 records). The initial fixture is already admitted data;
+it does not bypass or increase the application's 100-change commit limit.
+Ordinary recovery validates its retained data and rebuilds projections. The
+case evaluates all 2,000 rules, creates a complete physical backup, restarts
+and restores into a separate package, then compares every retained payload
+digest and continuity head. It removes only its own temporary directory.
+
+Phase timings go to ordinary test output; no report file is needed. These
+measurements describe this workload and machine, not an SLA, an interactive
+latency target or mobile/clean-machine qualification. Do not run it against an
+author's installation. The former Rust standard-workload test and Python
+benchmark are transitional procedures, not the Dart migration check.
+
+The separate PostgreSQL catalog workload uses the existing disposable test
+database (`ub_disposable`) selected by `UB_TEST_POSTGRES_PORT`. Run it alone
+against that database, without other PostgreSQL suites:
+
+```sh
+UB_TEST_POSTGRES_PORT=PORT UB_RUN_STANDARD_WORKLOAD=1 dart test test/postgres_catalog_workload_test.dart --reporter expanded
+```
+
+It provisions twenty universes through the service, reopens the installation,
+checks their catalog names and exact continuity heads, reads every library and
+checks that an ungranted profile sees no universes. It prints phase timings and
+the universe tables' storage footprint, then removes only its own namespaces.
+This small-record catalog case does not establish large-record, network-latency
+or commercial capacity targets. Use a disposable database, never a hosted or
+author database.
 
 ## Data preservation guarantees and bounds
 
@@ -202,8 +236,6 @@ A physical backup is first copied to a private temporary file and synchronized. 
 Supported schema upgrades first retain a verified private rollback copy alongside the original, named `.PACKAGE.before-schema-VERSION-UNIQUE.sqlite`. Keep these copies until the upgraded universe has passed recovery checks. If the copy cannot be verified or synchronized, the upgrade stops. An older binary must use the matching pre-upgrade copy in a separate installation; never point it at the upgraded original.
 
 Current bounds: 500,000 records per snapshot, one million stored versions, a bounded 10,000-commit chain, 512 MiB logical archives and 8 GiB physical restore files. Logical history replay has a separate ten-million-membership budget. Every writer uses the same 8 GiB SQLite page-growth ceiling as physical restore; a growth failure rolls back its transaction. Existing oversized packages are never truncated. An explicit limit error preserves the original package; it is not permission to delete history. Physical backups and complete-history relational archives preserve full workflow evidence. Canon-only archives omit workflows and operation receipts. Imported approvals and operation receipts remain historical evidence; current authority and delegation come from the owning installation. Keep author-selected backups on a separate protected device/location as part of final recovery acceptance; no off-device backup is configured automatically.
-
-The opt-in standard storage/evaluator workload is `cargo test --locked --release -p universe-service --test standard_workload -- --ignored --nocapture`. It verifies 412,002 records, 2,000 indexed rules, ten continuities and exact full backup/restart/restore. It does not establish the plan's interactive latency or memory targets.
 
 ## Appearance image recovery
 
