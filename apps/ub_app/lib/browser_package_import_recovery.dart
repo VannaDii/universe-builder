@@ -6,7 +6,6 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 import 'package:web/web.dart' as web;
 
-
 @JS()
 extension type _ImportRow._(JSObject _) implements JSObject {
   external factory _ImportRow({
@@ -16,8 +15,8 @@ extension type _ImportRow._(JSObject _) implements JSObject {
     required String mode,
     required String phase,
     required String fileName,
-    String? review,
-    String? receipt,
+    _ReviewFields? reviewFields,
+    _ReceiptFields? receiptFields,
   });
   external String get generation;
   external String get operation;
@@ -25,9 +24,285 @@ extension type _ImportRow._(JSObject _) implements JSObject {
   external String get mode;
   external String get phase;
   external String get fileName;
+  external _ReviewFields? get reviewFields;
+  external _ReceiptFields? get receiptFields;
+  // Version-one values are read only within the upgrade transaction.
   external String? get review;
   external String? get receipt;
 }
+
+@JS()
+extension type _ReviewFields._(JSObject _) implements JSObject {
+  external factory _ReviewFields({
+    String? previewId,
+    String? digest,
+    String? sourceUniverse,
+    String? targetUniverse,
+    String? name,
+    String? recordIds,
+    String? versionIds,
+    String? references,
+    String? workflowAndApprovals,
+    String? omittedRecords,
+    String? recordCount,
+    bool? complete,
+    bool? includesHistory,
+    bool? includesWorkflow,
+    bool? canonical,
+    JSArray<JSString>? conflicts,
+  });
+  external String? get previewId;
+  external String? get digest;
+  external String? get sourceUniverse;
+  external String? get targetUniverse;
+  external String? get name;
+  external String? get recordIds;
+  external String? get versionIds;
+  external String? get references;
+  external String? get workflowAndApprovals;
+  external String? get omittedRecords;
+  external String? get recordCount;
+  external bool? get complete;
+  external bool? get includesHistory;
+  external bool? get includesWorkflow;
+  external bool? get canonical;
+  external JSArray<JSString>? get conflicts;
+}
+
+@JS()
+extension type _ReceiptFields._(JSObject _) implements JSObject {
+  external factory _ReceiptFields({
+    String? previewId,
+    String? digest,
+    String? universeId,
+    String? name,
+    String? omittedRecords,
+    bool? complete,
+    bool? imported,
+  });
+  external String? get previewId;
+  external String? get digest;
+  external String? get universeId;
+  external String? get name;
+  external String? get omittedRecords;
+  external bool? get complete;
+  external bool? get imported;
+}
+
+_ReviewFields? _encodeReview(CanonicalObject? value) {
+  if (value == null) return null;
+  final fields = Map.fromEntries(value.fields);
+  if (fields.keys.any(
+    (k) => !{
+      'preview_id',
+      'digest',
+      'source_universe',
+      'target_universe',
+      'name',
+      'record_ids',
+      'version_ids',
+      'references',
+      'workflow_and_approvals',
+      'omitted_records',
+      'record_count',
+      'complete',
+      'includes_history',
+      'includes_workflow',
+      'canonical',
+      'conflicts',
+    }.contains(k),
+  )) {
+    throw const FormatException('Unsupported import report field');
+  }
+  return _ReviewFields(
+    previewId: fields.containsKey('preview_id')
+        ? (fields['preview_id'] as CanonicalString).value
+        : null,
+    digest: fields.containsKey('digest')
+        ? (fields['digest'] as CanonicalString).value
+        : null,
+    sourceUniverse: fields.containsKey('source_universe')
+        ? (fields['source_universe'] as CanonicalString).value
+        : null,
+    targetUniverse: fields.containsKey('target_universe')
+        ? (fields['target_universe'] as CanonicalString).value
+        : null,
+    name: fields.containsKey('name')
+        ? (fields['name'] as CanonicalString).value
+        : null,
+    recordIds: fields.containsKey('record_ids')
+        ? (fields['record_ids'] as CanonicalString).value
+        : null,
+    versionIds: fields.containsKey('version_ids')
+        ? (fields['version_ids'] as CanonicalString).value
+        : null,
+    references: fields.containsKey('references')
+        ? (fields['references'] as CanonicalString).value
+        : null,
+    workflowAndApprovals: fields.containsKey('workflow_and_approvals')
+        ? (fields['workflow_and_approvals'] as CanonicalString).value
+        : null,
+    omittedRecords: fields.containsKey('omitted_records')
+        ? (fields['omitted_records'] as CanonicalNumber).digits
+        : null,
+    recordCount: fields.containsKey('record_count')
+        ? (fields['record_count'] as CanonicalNumber).digits
+        : null,
+    complete: fields.containsKey('complete')
+        ? (fields['complete'] as CanonicalBool).value
+        : null,
+    includesHistory: fields.containsKey('includes_history')
+        ? (fields['includes_history'] as CanonicalBool).value
+        : null,
+    includesWorkflow: fields.containsKey('includes_workflow')
+        ? (fields['includes_workflow'] as CanonicalBool).value
+        : null,
+    canonical: fields.containsKey('canonical')
+        ? (fields['canonical'] as CanonicalBool).value
+        : null,
+    conflicts: fields.containsKey('conflicts')
+        ? (fields['conflicts'] as CanonicalArray).items
+              .map((v) => (v as CanonicalString).value.toJS)
+              .toList()
+              .toJS
+        : null,
+  );
+}
+
+_ReceiptFields? _encodeReceipt(CanonicalObject? value) {
+  if (value == null) return null;
+  final fields = Map.fromEntries(value.fields);
+  if (fields.keys.any(
+    (k) => !{
+      'preview_id',
+      'digest',
+      'universe_id',
+      'name',
+      'omitted_records',
+      'complete',
+      'imported',
+    }.contains(k),
+  )) {
+    throw const FormatException('Unsupported import report field');
+  }
+  return _ReceiptFields(
+    previewId: fields.containsKey('preview_id')
+        ? (fields['preview_id'] as CanonicalString).value
+        : null,
+    digest: fields.containsKey('digest')
+        ? (fields['digest'] as CanonicalString).value
+        : null,
+    universeId: fields.containsKey('universe_id')
+        ? (fields['universe_id'] as CanonicalString).value
+        : null,
+    name: fields.containsKey('name')
+        ? (fields['name'] as CanonicalString).value
+        : null,
+    omittedRecords: fields.containsKey('omitted_records')
+        ? (fields['omitted_records'] as CanonicalNumber).digits
+        : null,
+    complete: fields.containsKey('complete')
+        ? (fields['complete'] as CanonicalBool).value
+        : null,
+    imported: fields.containsKey('imported')
+        ? (fields['imported'] as CanonicalBool).value
+        : null,
+  );
+}
+
+CanonicalObject? _decodeReview(_ReviewFields? row) => row == null
+    ? null
+    : CanonicalObject([
+        if (row.previewId != null)
+          MapEntry('preview_id', CanonicalString(row.previewId!)),
+        if (row.digest != null)
+          MapEntry('digest', CanonicalString(row.digest!)),
+        if (row.sourceUniverse != null)
+          MapEntry('source_universe', CanonicalString(row.sourceUniverse!)),
+        if (row.targetUniverse != null)
+          MapEntry('target_universe', CanonicalString(row.targetUniverse!)),
+        if (row.name != null) MapEntry('name', CanonicalString(row.name!)),
+        if (row.recordIds != null)
+          MapEntry('record_ids', CanonicalString(row.recordIds!)),
+        if (row.versionIds != null)
+          MapEntry('version_ids', CanonicalString(row.versionIds!)),
+        if (row.references != null)
+          MapEntry('references', CanonicalString(row.references!)),
+        if (row.workflowAndApprovals != null)
+          MapEntry(
+            'workflow_and_approvals',
+            CanonicalString(row.workflowAndApprovals!),
+          ),
+        if (row.omittedRecords != null)
+          MapEntry('omitted_records', CanonicalNumber(row.omittedRecords!)),
+        if (row.recordCount != null)
+          MapEntry('record_count', CanonicalNumber(row.recordCount!)),
+        if (row.complete != null)
+          MapEntry('complete', CanonicalBool(row.complete!)),
+        if (row.includesHistory != null)
+          MapEntry('includes_history', CanonicalBool(row.includesHistory!)),
+        if (row.includesWorkflow != null)
+          MapEntry('includes_workflow', CanonicalBool(row.includesWorkflow!)),
+        if (row.canonical != null)
+          MapEntry('canonical', CanonicalBool(row.canonical!)),
+        if (row.conflicts != null)
+          MapEntry(
+            'conflicts',
+            CanonicalArray(
+              row.conflicts!.toDart.map((v) => CanonicalString(v.toDart)),
+            ),
+          ),
+      ]);
+CanonicalObject? _decodeReceipt(_ReceiptFields? row) => row == null
+    ? null
+    : CanonicalObject([
+        if (row.previewId != null)
+          MapEntry('preview_id', CanonicalString(row.previewId!)),
+        if (row.digest != null)
+          MapEntry('digest', CanonicalString(row.digest!)),
+        if (row.universeId != null)
+          MapEntry('universe_id', CanonicalString(row.universeId!)),
+        if (row.name != null) MapEntry('name', CanonicalString(row.name!)),
+        if (row.omittedRecords != null)
+          MapEntry('omitted_records', CanonicalNumber(row.omittedRecords!)),
+        if (row.complete != null)
+          MapEntry('complete', CanonicalBool(row.complete!)),
+        if (row.imported != null)
+          MapEntry('imported', CanonicalBool(row.imported!)),
+      ]);
+_ImportRow _encodeRow(SavedPackageImport saved) => _ImportRow(
+  generation: saved.generation.toString(),
+  operation: saved.form.operation.value,
+  name: saved.form.name,
+  mode: saved.form.mode.name,
+  phase: saved.form.phase.name,
+  fileName: saved.form.fileName,
+  reviewFields: _encodeReview(saved.form.review),
+  receiptFields: _encodeReceipt(saved.form.receipt),
+);
+SavedPackageImport _decodeRow(
+  _ImportRow row, {
+  bool legacy = false,
+}) => SavedPackageImport(
+  generation: BigInt.parse(row.generation),
+  form: PackageImportDraft(
+    operation: OperationId.parse(row.operation),
+    name: row.name,
+    mode: ImportMode.fromName(row.mode),
+    phase: PackageImportPhase.values.byName(row.phase),
+    fileName: row.fileName,
+    review: legacy
+        ? (row.review == null
+              ? null
+              : CanonicalValue.parseWireJson(row.review!) as CanonicalObject)
+        : _decodeReview(row.reviewFields),
+    receipt: legacy
+        ? (row.receipt == null
+              ? null
+              : CanonicalValue.parseWireJson(row.receipt!) as CanonicalObject)
+        : _decodeReceipt(row.receiptFields),
+  ),
+);
 
 /// Named fields retain import choices and domain review/receipt records.
 /// IndexedDB transactions compare generations and commit each form atomically.
@@ -43,7 +318,7 @@ final class BrowserPackageImportFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserPackageImportFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -52,10 +327,31 @@ final class BrowserPackageImportFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
+      request.onupgradeneeded = ((web.Event event) {
         final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+        final transaction = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            db.createObjectStore(_tables.single);
+          } else {
+            final scan = transaction.objectStore(_tables.single).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeRow(
+                    _decodeRow(cursor.value as _ImportRow, legacy: true),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                transaction.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          transaction.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -93,23 +389,7 @@ final class BrowserPackageImportFormRecoveryStore {
 
   SavedPackageImport? _read(web.IDBRequest main) {
     if (main.result == null || main.result.isUndefined) return null;
-    final row = main.result as _ImportRow;
-    return SavedPackageImport(
-      generation: BigInt.parse(row.generation),
-      form: PackageImportDraft(
-        operation: OperationId.parse(row.operation),
-        name: row.name,
-        mode: ImportMode.values.byName(row.mode),
-        phase: PackageImportPhase.values.byName(row.phase),
-        fileName: row.fileName,
-        review: row.review == null
-            ? null
-            : CanonicalValue.parseWireJson(row.review!) as CanonicalObject,
-        receipt: row.receipt == null
-            ? null
-            : CanonicalValue.parseWireJson(row.receipt!) as CanonicalObject,
-      ),
-    );
+    return _decodeRow(main.result as _ImportRow);
   }
 
   Future<SavedPackageImport?> load((OperationId, ProfileId) scope) {
@@ -192,19 +472,7 @@ final class BrowserPackageImportFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _ImportRow(
-              generation: saved!.generation.toString(),
-              operation: form.operation.value,
-              name: form.name,
-              mode: form.mode.name,
-              phase: form.phase.name,
-              fileName: form.fileName,
-              review: form.review?.toText(),
-              receipt: form.receipt?.toText(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeRow(saved!), key.toJS);
         } on Object catch (error) {
           failure = error is EditorRecoveryException
               ? error
