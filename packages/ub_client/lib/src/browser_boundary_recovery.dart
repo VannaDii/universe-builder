@@ -60,7 +60,7 @@ extension type _BoundaryRow._(JSObject _) implements JSObject {
     required JSAny validity,
     required String rationale,
     String? draftVersion,
-    String? original,
+    JSAny? originalFields,
   });
   external String get generation;
   external String get baseRevision;
@@ -79,7 +79,76 @@ extension type _BoundaryRow._(JSObject _) implements JSObject {
   external JSAny get validity;
   external String get rationale;
   external String? get draftVersion;
+  external JSAny? get originalFields;
   external String? get original;
+}
+
+SavedBoundaryForm _decodeBoundary(_BoundaryRow row, {bool legacy = false}) {
+  return SavedBoundaryForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedBoundaryForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      key: row.key,
+      areaKind: row.areaKind,
+      record: ExpressionReferenceInput.fromWire(decodeBrowserInput(row.record)),
+      predicate: row.predicate,
+      subjectEnabled: row.subjectEnabled,
+      subject: ExpressionReferenceInput.fromWire(
+        decodeBrowserInput(row.subject),
+      ),
+      category: row.category,
+      mode: row.mode,
+      constraints: (decodeBrowserInput(row.constraints) as CanonicalArray).items
+          .map(ExpressionInput.fromWire),
+      scope: ScopeInput.fromWire(decodeBrowserInput(row.factualScope)),
+      validity: TemporalValidityInput.fromWire(
+        decodeBrowserInput(row.validity),
+      ),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : BoundaryRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : BoundaryRecord.fromWire(decodeBrowserInput(row.originalFields!)),
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+    ),
+  );
+}
+
+_BoundaryRow _encodeBoundary(SavedBoundaryForm saved) {
+  final form = saved.form;
+  return _BoundaryRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    key: form.key,
+    areaKind: form.areaKind,
+    record: encodeBrowserInput(form.record.toWire())!,
+    predicate: form.predicate,
+    subjectEnabled: form.subjectEnabled,
+    subject: encodeBrowserInput(form.subject.toWire())!,
+    category: form.category,
+    mode: form.mode,
+    constraints: encodeBrowserInput(
+      CanonicalArray(form.constraints.map((expr) => expr.toWire())),
+    )!,
+    factualScope: encodeBrowserInput(form.scope.toWire())!,
+    validity: encodeBrowserInput(form.validity.toWire())!,
+    originalFields: form.original == null
+        ? null
+        : encodeBrowserInput(form.original!.toWire()),
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+  );
 }
 
 /// Named fields retain boundary areas, modes, ordered constraints and scoped validity input.
@@ -96,7 +165,7 @@ final class BrowserBoundaryFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserBoundaryFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -105,10 +174,30 @@ final class BrowserBoundaryFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            db.createObjectStore(_tables.single);
+          } else {
+            final scan = tx.objectStore(_tables.single).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeBoundary(
+                    _decodeBoundary(cursor.value as _BoundaryRow, legacy: true),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -163,42 +252,7 @@ final class BrowserBoundaryFormRecoveryStore {
   SavedBoundaryForm? _read(web.IDBRequest main) {
     if (main.result == null || main.result.isUndefined) return null;
     final row = main.result as _BoundaryRow;
-    return SavedBoundaryForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedBoundaryForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        key: row.key,
-        areaKind: row.areaKind,
-        record: ExpressionReferenceInput.fromWire(
-          decodeBrowserInput(row.record),
-        ),
-        predicate: row.predicate,
-        subjectEnabled: row.subjectEnabled,
-        subject: ExpressionReferenceInput.fromWire(
-          decodeBrowserInput(row.subject),
-        ),
-        category: row.category,
-        mode: row.mode,
-        constraints: (decodeBrowserInput(row.constraints) as CanonicalArray)
-            .items
-            .map(ExpressionInput.fromWire),
-        scope: ScopeInput.fromWire(decodeBrowserInput(row.factualScope)),
-        validity: TemporalValidityInput.fromWire(
-          decodeBrowserInput(row.validity),
-        ),
-        original: row.original == null
-            ? null
-            : BoundaryRecord.fromWire(
-                CanonicalValue.parseWireJson(row.original!),
-              ),
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+    return _decodeBoundary(row);
   }
 
   Future<SavedBoundaryForm?> load(EditorFormScope scope) {
@@ -287,31 +341,7 @@ final class BrowserBoundaryFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _BoundaryRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              key: form.key,
-              areaKind: form.areaKind,
-              record: encodeBrowserInput(form.record.toWire())!,
-              predicate: form.predicate,
-              subjectEnabled: form.subjectEnabled,
-              subject: encodeBrowserInput(form.subject.toWire())!,
-              category: form.category,
-              mode: form.mode,
-              constraints: encodeBrowserInput(
-                CanonicalArray(form.constraints.map((expr) => expr.toWire())),
-              )!,
-              factualScope: encodeBrowserInput(form.scope.toWire())!,
-              validity: encodeBrowserInput(form.validity.toWire())!,
-              original: form.original?.toWire().toText(),
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeBoundary(saved!), key.toJS);
         } on Object catch (error) {
           failure = error is EditorRecoveryException
               ? error

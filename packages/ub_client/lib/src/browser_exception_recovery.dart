@@ -56,7 +56,7 @@ extension type _ExceptionRow._(JSObject _) implements JSObject {
     required JSAny validity,
     required String rationale,
     String? draftVersion,
-    String? original,
+    JSAny? originalFields,
   });
   external String get generation;
   external String get baseRevision;
@@ -71,7 +71,65 @@ extension type _ExceptionRow._(JSObject _) implements JSObject {
   external JSAny get validity;
   external String get rationale;
   external String? get draftVersion;
+  external JSAny? get originalFields;
   external String? get original;
+}
+
+SavedExceptionForm _decodeException(_ExceptionRow row, {bool legacy = false}) {
+  return SavedExceptionForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedExceptionForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      rule: ExpressionReferenceInput.fromWire(decodeBrowserInput(row.rule)),
+      ruleVersionEnabled: row.ruleVersionEnabled,
+      ruleVersion: row.ruleVersion,
+      fictionalDeparture: row.fictionalDeparture ?? false,
+      decision: ExpressionReferenceInput.fromWire(
+        decodeBrowserInput(row.decision),
+      ),
+      scope: ScopeInput.fromWire(decodeBrowserInput(row.factualScope)),
+      validity: TemporalValidityInput.fromWire(
+        decodeBrowserInput(row.validity),
+      ),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : ExceptionRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : ExceptionRecord.fromWire(decodeBrowserInput(row.originalFields!)),
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+    ),
+  );
+}
+
+_ExceptionRow _encodeException(SavedExceptionForm saved) {
+  final form = saved.form;
+  return _ExceptionRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    rule: encodeBrowserInput(form.rule.toWire())!,
+    ruleVersionEnabled: form.ruleVersionEnabled,
+    ruleVersion: form.ruleVersion,
+    fictionalDeparture: form.fictionalDeparture,
+    decision: encodeBrowserInput(form.decision.toWire())!,
+    factualScope: encodeBrowserInput(form.scope.toWire())!,
+    validity: encodeBrowserInput(form.validity.toWire())!,
+    originalFields: form.original == null
+        ? null
+        : encodeBrowserInput(form.original!.toWire()),
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+  );
 }
 
 /// Named fields retain unfinished exception input.
@@ -88,7 +146,7 @@ final class BrowserExceptionFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserExceptionFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -97,10 +155,33 @@ final class BrowserExceptionFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            db.createObjectStore(_tables.single);
+          } else {
+            final scan = tx.objectStore(_tables.single).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeException(
+                    _decodeException(
+                      cursor.value as _ExceptionRow,
+                      legacy: true,
+                    ),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -155,34 +236,7 @@ final class BrowserExceptionFormRecoveryStore {
   SavedExceptionForm? _read(web.IDBRequest main) {
     if (main.result == null || main.result.isUndefined) return null;
     final row = main.result as _ExceptionRow;
-    return SavedExceptionForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedExceptionForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        rule: ExpressionReferenceInput.fromWire(decodeBrowserInput(row.rule)),
-        ruleVersionEnabled: row.ruleVersionEnabled,
-        ruleVersion: row.ruleVersion,
-        fictionalDeparture: row.fictionalDeparture ?? false,
-        decision: ExpressionReferenceInput.fromWire(
-          decodeBrowserInput(row.decision),
-        ),
-        scope: ScopeInput.fromWire(decodeBrowserInput(row.factualScope)),
-        validity: TemporalValidityInput.fromWire(
-          decodeBrowserInput(row.validity),
-        ),
-        original: row.original == null
-            ? null
-            : ExceptionRecord.fromWire(
-                CanonicalValue.parseWireJson(row.original!),
-              ),
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+    return _decodeException(row);
   }
 
   Future<SavedExceptionForm?> load(EditorFormScope scope) {
@@ -271,25 +325,7 @@ final class BrowserExceptionFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _ExceptionRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              rule: encodeBrowserInput(form.rule.toWire())!,
-              ruleVersionEnabled: form.ruleVersionEnabled,
-              ruleVersion: form.ruleVersion,
-              fictionalDeparture: form.fictionalDeparture,
-              decision: encodeBrowserInput(form.decision.toWire())!,
-              factualScope: encodeBrowserInput(form.scope.toWire())!,
-              validity: encodeBrowserInput(form.validity.toWire())!,
-              original: form.original?.toWire().toText(),
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeException(saved!), key.toJS);
         } on Object catch (error) {
           failure = error is EditorRecoveryException
               ? error
