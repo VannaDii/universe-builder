@@ -69,6 +69,118 @@ final class SavedChanges {
     );
   }
 
+  /// Optional display material at the checked proposal's frame. Candidate
+  /// versions take precedence; unavailable names never change check results.
+  Future<Map<RecordId, RecordVersion>> findingRecords(
+    Proposal proposal,
+    EvaluatedValidation validation,
+  ) async {
+    final records = <RecordId, RecordVersion>{
+      for (final change in proposal.compiledChanges)
+        change.recordId: ?change.next,
+    };
+    final removed = {
+      for (final change in proposal.compiledChanges)
+        if (change.next == null) change.recordId,
+    };
+    final attempted = <RecordId>{...records.keys, ...removed};
+    final frame = proposal.baseFrame;
+    try {
+      final opened = Envelope<OpenedContext>.fromWire(
+        await session.call(
+          ToolEngineRequest(
+            request: OpenContextRequest(
+              universe: universe,
+              universeId: scope.universe,
+              continuityId: frame.continuity,
+              revision: ExactRevisionSelector(revisionId: frame.revision),
+              representedContext: ContextIdSelector(frame.context.record),
+              temporalQuery: frame.time,
+              temporalSystems: [],
+              perspective: frame.perspective,
+            ),
+          ),
+        ),
+        OpenedContext.fromWire,
+      ).result;
+      Future<void> read(Iterable<RecordId> ids) async {
+        final missing = ids.toSet().difference(attempted).toList();
+        attempted.addAll(missing);
+        for (var offset = 0; offset < missing.length; offset += 50) {
+          final batch = missing.skip(offset).take(50).toSet();
+          try {
+            final result = Envelope<Records>.fromWire(
+              await session.call(
+                ToolEngineRequest(
+                  request: GetRequest(
+                    universe: universe,
+                    universeId: scope.universe,
+                    contextId: opened.contextId,
+                    recordIds: batch,
+                    fieldGroups: [FieldGroup.payload],
+                  ),
+                ),
+              ),
+              Records.fromWire,
+            );
+            if (result.delivery.complete) {
+              for (final row in result.result.records) {
+                if (row.identity.universeId == scope.universe &&
+                    batch.contains(row.identity.recordId)) {
+                  records[row.identity.recordId] = row;
+                }
+              }
+            }
+          } on Object {
+            // A missing/inaccessible label does not invalidate the check result.
+          }
+        }
+      }
+
+      bool local(RecordRef ref) =>
+          ref.universe == null || ref.universe == scope.universe;
+      await read([
+        for (final finding in validation.execution.findings) ...[
+          finding.ruleId,
+          for (final ref in finding.records)
+            if (local(ref)) ref.record,
+        ],
+      ]);
+      await read([
+        for (final row in records.values.toList())
+          ...switch (row.payload) {
+            AssertionRecord(:final proposition) => [
+              if (local(proposition)) proposition.record,
+            ],
+            RuleRecord(:final requiredEvidence) => [
+              for (final ref
+                  in requiredEvidence?.sourceCategories ?? <VersionRef>[])
+                if (ref.universe == null || ref.universe == scope.universe)
+                  ref.record,
+            ],
+            EventRecord(:final participants) => [
+              for (final p in participants)
+                if (local(p.record)) p.record.record,
+            ],
+            _ => <RecordId>[],
+          },
+      ]);
+      await read([
+        for (final row in records.values.toList())
+          if (row.payload case PropositionRecord(
+            :final subject,
+            :final predicate,
+          )) ...[
+            if (local(subject)) subject.record,
+            if (local(predicate)) predicate.record,
+          ],
+      ]);
+    } on Object {
+      // The checked proposal still supplies any newly authored display names.
+    }
+    return Map.unmodifiable(records);
+  }
+
   String publicationKey(Proposal proposal, ValidationRunId run) =>
       'flutter-publish-${proposal.digest}-${run.value}';
 

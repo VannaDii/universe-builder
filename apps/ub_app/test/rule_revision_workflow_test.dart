@@ -63,6 +63,21 @@ void main() {
         final proposal = await changes().submit(draft);
         final validation =
             await changes().validate(proposal) as EvaluatedValidation;
+        final material = await changes().findingRecords(proposal, validation);
+        for (final change in proposal.compiledChanges) {
+          if (change.next case final next?) {
+            expect(
+              material[change.recordId]!.recordVersionId,
+              next.recordVersionId,
+            );
+            if (next.payload case RuleRecord(:final requiredEvidence)
+                when requiredEvidence != null) {
+              for (final ref in requiredEvidence.sourceCategories) {
+                expect(material[ref.record]!.recordVersionId, ref.version);
+              }
+            }
+          }
+        }
         await changes().approve(proposal, validation);
         final receipt = await changes().publish(
           proposal,
@@ -121,6 +136,16 @@ void main() {
         throwsFormatException,
       );
       final sourceForm = UnfinishedRuleForm(
+        evidence: RuleEvidenceInput(
+          enabled: true,
+          categories: [
+            RuleEvidenceCategoryInput(
+              universe: scope.universe.value,
+              record: category.identity.recordId.value,
+              version: category.recordVersionId.value,
+            ),
+          ],
+        ),
         baseRevision: initial.content.baseRevision,
         representedContext: scope.representedContext!,
         clientRef: RecordId.generate().value,

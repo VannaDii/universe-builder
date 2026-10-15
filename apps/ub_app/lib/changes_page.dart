@@ -10,6 +10,8 @@ import 'attribute_draft.dart';
 import 'record_fields.dart';
 import 'navigation_location.dart';
 import 'draft_operation_editor.dart';
+import 'evidence_review_summary.dart';
+import 'evidence_policy_view.dart';
 
 MaterialPageRoute<void> changesRoute(SavedChanges changes) {
   final scope = changes.scope;
@@ -44,6 +46,7 @@ class _ChangesPageState extends State<ChangesPage> {
   final _rationale = TextEditingController();
   bool _rationaleDirty = false;
   ValidationV3? _validation;
+  Map<RecordId, RecordVersion> _findingRecords = {};
   bool _approved = false;
   CommitReceipt? _receipt;
   ({ValidationRunId run, OperationStatusV3? status})? _publication;
@@ -69,6 +72,7 @@ class _ChangesPageState extends State<ChangesPage> {
       _proposal = null;
       _before = {};
       _validation = null;
+      _findingRecords = {};
       _approved = false;
       _receipt = null;
       _publication = null;
@@ -217,9 +221,13 @@ class _ChangesPageState extends State<ChangesPage> {
     });
     try {
       final validation = await widget.changes.validate(proposal);
+      final findingRecords = validation is EvaluatedValidation
+          ? await widget.changes.findingRecords(proposal, validation)
+          : <RecordId, RecordVersion>{};
       if (mounted) {
         setState(() {
           _validation = validation;
+          _findingRecords = findingRecords;
         });
       }
     } on Object {
@@ -738,9 +746,16 @@ class _ChangesPageState extends State<ChangesPage> {
                                       ),
                                 child: const Text('Edit relation fields'),
                               ),
-                            if (_proposal == null && operations[index] is SetStoryTimeOperation)
-                              TextButton(onPressed:_busy?null:()=>_changeDraft(
-                                (draft)=>_editOperation(draft,index)),child:const Text('Edit time transition')),
+                            if (_proposal == null &&
+                                operations[index] is SetStoryTimeOperation)
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _changeDraft(
+                                        (draft) => _editOperation(draft, index),
+                                      ),
+                                child: const Text('Edit time transition'),
+                              ),
                             if (_proposal == null &&
                                 operations[index] is RecordEventOperation)
                               TextButton(
@@ -1441,10 +1456,34 @@ class _ChangesPageState extends State<ChangesPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
+                                FindingReviewSummary(
+                                  finding: finding,
+                                  universe: widget.changes.scope.universe,
+                                  records: _findingRecords,
+                                ).title,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              for (final claim in FindingReviewSummary(
+                                finding: finding,
+                                universe: widget.changes.scope.universe,
+                                records: _findingRecords,
+                              ).claims)
+                                Text(claim),
+                              Text(
                                 '${finding.outcome.wireName.replaceAll('_', ' ')} · ${finding.coverage.wireName}',
                               ),
                               if (finding.message != null)
                                 SelectableText(finding.message!),
+                              if (_findingRecords[finding.ruleId]?.payload
+                                  case RuleRecord(:final requiredEvidence)
+                                  when requiredEvidence != null)
+                                EvidencePolicyView(
+                                  summary: EvidencePolicySummary(
+                                    _findingRecords[finding.ruleId]!.payload
+                                        as RuleRecord,
+                                    _findingRecords,
+                                  ),
+                                ),
                               ExpansionTile(
                                 title: const Text('Rule, records and evidence'),
                                 children: [

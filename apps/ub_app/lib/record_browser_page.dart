@@ -9,6 +9,8 @@ import 'package:ub_domain/ub_domain.dart';
 import 'connection.dart';
 import 'record_browser.dart';
 import 'record_fields.dart';
+import 'evidence_review_summary.dart';
+import 'evidence_policy_view.dart';
 import 'world_browser.dart';
 import 'record_editor_page.dart';
 import 'record_edit_action.dart';
@@ -555,24 +557,50 @@ class RecordDetailPageState extends State<RecordDetailPage> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      if (record.payload
+                          case RuleRecord(:final requiredEvidence)
+                          when requiredEvidence != null)
+                        EvidencePolicyView(
+                          summary: EvidencePolicySummary(
+                            record.payload as RuleRecord,
+                            {
+                              for (final row in [
+                                ..._material!.result.evidence,
+                                ..._material!.result.records,
+                              ])
+                                row.identity.recordId: row,
+                            },
+                          ),
+                        ),
                       ExactFields(value: record.payload.toWire()),
                       if (widget.session.author &&
                           record.payload is SecretRecord)
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => _edit(record, RecordEditAction.secretRevision),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.secretRevision,
+                                ),
                           child: const Text('Revise story secret'),
                         ),
-                      if (widget.session.author && RecordEditAction.storyTime.supports(record.payload))
-                        TextButton(onPressed:_busy?null:()=>_edit(record,RecordEditAction.storyTime),
-                          child:const Text('Change story time')),
+                      if (widget.session.author &&
+                          RecordEditAction.storyTime.supports(record.payload))
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => _edit(record, RecordEditAction.storyTime),
+                          child: const Text('Change story time'),
+                        ),
                       if (widget.session.author &&
                           record.payload is AppearanceRecord)
                         TextButton(
                           onPressed: _busy
                               ? null
-                              : () => _edit(record, RecordEditAction.appearanceRevision),
+                              : () => _edit(
+                                  record,
+                                  RecordEditAction.appearanceRevision,
+                                ),
                           child: const Text('Revise appearance'),
                         ),
                       if (record.payload is WorkRecord)

@@ -42,8 +42,9 @@ dossierRelationships(Records material, UniverseId universe, RecordId entity) {
 String dossierReferenceLabel(
   Records material,
   UniverseId universe,
-  RecordRef ref,
-) {
+  RecordRef ref, {
+  String? unavailableLabel,
+}) {
   for (final row in [...material.records, ...material.evidence]) {
     if (row.identity.recordId != ref.record ||
         row.identity.universeId != (ref.universe ?? universe)) {
@@ -72,11 +73,15 @@ String dossierReferenceLabel(
     }
     if (row.payload case AppearanceRecord(:final label)) return label;
     if (row.payload case SourceRecord(:final label)) return label;
+    if (row.payload case WorldRecord(:final selector)) return selector;
+    if (row.payload case DomainPackRecord(:final key)) {
+      return key == 'real_world.sources' ? 'Selected sources' : key;
+    }
     if (row.payload case ImageAssetRecord(:final originalName)) {
       return originalName;
     }
   }
-  return 'Unavailable name (${ref.record.value})';
+  return unavailableLabel ?? 'Unavailable name (${ref.record.value})';
 }
 
 Future<Envelope<State>> readContextEntityState({

@@ -190,6 +190,10 @@ accepted review methods for new rules and published revisions, alongside the
 existing scope controls. It retains exact published category versions and saves
 unfinished input through native/browser form recovery. Changes use the existing
 review/publication path. Explicit fictional departures remain pending.
+Changes now presents readable policy/claim names from the checked candidate and
+base revision, with requirement scope, accepted review methods and source-category
+selections. Missing display names do not alter the original findings or their
+coverage. Published rule details show the same requirement summary.
 
 Represent a required evidence policy on the existing published Rule record with
 an optional `requiredEvidence` field. Its `sourceCategories` are exact VersionRef
@@ -236,8 +240,8 @@ author approval cannot discharge these duties.
 Policies may cover assertions and occurrences together or select named predicates
 for assertions/effects. Arbitrary derivation chains remain explicitly unsupported.
 The Rust engine still rejects all required-evidence declarations. Delivery still
-requires the remaining admission paths, creation choices, review findings and
-platform UX specified above, including explicit fictional departures.
+requires world-level policy overrides, explicit fictional departures and the
+remaining platform workflows specified above.
 
 ## 5. Target application architecture
 

@@ -39,8 +39,15 @@ An event's optional `basis` names its source; the declared action supplies its
 context and realm. Verified generated effects can use that source, while a
 required effect review must still identify the exact effect claim. Plans and
 reports retain their existing occurrence distinctions. Arbitrary derived
-evidence, policy editing and world overrides/review UI remain unfinished. The Rust engine still rejects
+evidence and world overrides/scoped fictional departures remain unfinished. The Rust engine still rejects
 all `requiredEvidence` declarations explicitly.
+
+Changes shows readable policy and affected-fact names alongside each check's
+outcome, coverage and message. Evidence policies also show their scope, optional
+review duty and selected source categories. Display names come from the checked
+proposal and its base revision; unavailable names do not change the findings.
+Earlier category pins are labeled as retained selections rather than the latest
+category version. Published rule details include the same requirement summary.
 
 The initial Flutter shell is in `apps/ub_app`, with desktop and compact navigation,
 the approved branding, and System/Light/Dark appearance controls in Settings.
