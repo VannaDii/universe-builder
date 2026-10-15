@@ -100,6 +100,21 @@ and x86_64 archives must be present. Formulas pin checksums from the actual
 archive bytes and install `Universe Builder.app`. These commands neither upload
 assets nor publish a release. The version-tag workflow uses this Flutter/Dart
 route and creates a draft preview for explicit publication review.
+For standalone engine, CLI and stdio MCP delivery, run
+`dart run apps/ub_cli/tool/package_headless.dart --output target/headless/local`
+with the pinned toolchain on macOS or Linux. Choose a fresh output directory;
+the assembler refuses an existing destination. Build on the intended OS and
+architecture; the build host also needs a native C compiler (Clang on Linux).
+It compiles `universe-engine`,
+`universe-mcp`, `universe` and `multiverse-mcp` into `bin/` with matching native
+assets in `lib/`, and records software version/source/checksums in a manifest.
+Keep those directories together when copying the package. Runtime users do not
+need a Dart, Flutter, Rust or Python installation. This package contains no
+desktop or web assets; it serves the API and stdio MCP. It does not install a
+background service or change user data. On Linux without an available protected
+credential-store adapter, select the backend through `UB_USE_POSTGRES` and
+`UB_POSTGRES_ENDPOINT`; encrypted saved configuration remains unavailable there.
+Windows packaging and Linux desktop delivery remain pending.
 An explicit installation without a profile uses the same local device setup.
 The engine's `--device-profile` action prints only the retained profile ID;
 `--initialize` keeps its existing create-only behavior. The app starts HTTP-only

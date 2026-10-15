@@ -422,11 +422,14 @@ void main() {
   test('standalone universe command initializes and authors on a long path using its installed sibling', () async {
     await server.close();
     final packaged = Platform.environment['UB_TEST_MACOS_BUNDLE'];
+    final binDirectory = Platform.environment['UB_TEST_BIN_DIR'];
+    expect(packaged == null || binDirectory == null, isTrue);
     late String binary;
     final prefix = <String>[];
-    if (packaged != null) {
-      binary =
-          '${Directory(packaged).absolute.path}/Contents/MacOS/multiverse-mcp';
+    if (packaged != null || binDirectory != null) {
+      final bin =
+          binDirectory ?? '${Directory(packaged!).absolute.path}/Contents/MacOS';
+      binary = '${Directory(bin).absolute.path}/multiverse-mcp';
       prefix.add('admin');
       expect(File(binary).existsSync(), isTrue);
     } else {

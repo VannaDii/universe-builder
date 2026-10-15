@@ -217,11 +217,14 @@ void main() {
       }
 
       final packaged = Platform.environment['UB_TEST_MACOS_BUNDLE'];
+      final binDirectory = Platform.environment['UB_TEST_BIN_DIR'];
+      expect(packaged == null || binDirectory == null, isTrue);
       late String binary;
       final prefix = <String>[];
-      if (packaged != null) {
-        binary =
-            '${Directory(packaged).absolute.path}/Contents/MacOS/multiverse-mcp';
+      if (packaged != null || binDirectory != null) {
+        final bin =
+            binDirectory ?? '${Directory(packaged!).absolute.path}/Contents/MacOS';
+        binary = '${Directory(bin).absolute.path}/multiverse-mcp';
         prefix.add('serve');
         expect(File(binary).existsSync(), isTrue);
       } else {

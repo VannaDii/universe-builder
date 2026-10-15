@@ -5,29 +5,58 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: dart-lang/setup-dart@v1
-        with:
-          sdk: '3.13.4'
-      - run: dart pub get --enforce-lockfile
+      - name: Install pinned Flutter and bundled Dart
+        run: |
+          git clone --depth 1 --branch "$(cat .flutter-version)" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+      - run: flutter pub get --enforce-lockfile
       - run: dart run tool/build_schema.dart
       - run: dart run tool/embed_schema.dart
       - run: git diff --exit-code -- packages/ub_store/lib/src/schema.g.dart packages/ub_store/lib/src/credential_schema.g.dart packages/ub_store/lib/src/installation_schema.g.dart
       - run: dart format --output=none --set-exit-if-changed packages tool
       - run: dart analyze packages tool
-      - run: dart test
+      - run: |
+          umask 077
+          dart test
         working-directory: packages/ub_domain
-      - run: dart test
+      - run: |
+          umask 077
+          dart test
         working-directory: packages/ub_store
-      - run: dart test
+      - run: |
+          umask 077
+          dart test
         working-directory: packages/ub_rules
-      - run: dart test
+      - run: |
+          umask 077
+          dart test
         working-directory: packages/ub_contracts
-      - run: dart test
+      - run: |
+          umask 077
+          dart test
         working-directory: packages/ub_service
       - run: dart analyze tool test/distribution_test.dart
         working-directory: apps/ub_cli
-      - run: dart test test/distribution_test.dart
+      - run: |
+          umask 077
+          dart test test/distribution_test.dart
         working-directory: apps/ub_cli
+      - name: Assemble standalone Linux helpers
+        run: dart run apps/ub_cli/tool/package_headless.dart --output target/headless/linux
+      - name: Exercise standalone Linux CLI and engine
+        working-directory: apps/ub_cli
+        env:
+          UB_TEST_BIN_DIR: ${{ github.workspace }}/target/headless/linux/bin
+        run: |
+          umask 077
+          dart test test/universe_cli_test.dart --name 'standalone universe command'
+      - name: Exercise standalone Linux MCP
+        working-directory: apps/ub_mcp
+        env:
+          UB_TEST_BIN_DIR: ${{ github.workspace }}/target/headless/linux/bin
+        run: |
+          umask 077
+          dart test test/mcp_cli_test.dart --name 'stdio reaches real service'
   macos:
     runs-on: macos-15
     steps:
