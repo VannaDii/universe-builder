@@ -66,7 +66,7 @@ extension type _RuleRow._(JSObject _) implements JSObject {
     String? expectedRecordVersion,
     required String rationale,
     String? draftVersion,
-    String? original,
+    JSAny? originalFields,
   });
   external String get generation;
   external String get baseRevision;
@@ -91,7 +91,163 @@ extension type _RuleRow._(JSObject _) implements JSObject {
   external String? get expectedRecordVersion;
   external String get rationale;
   external String? get draftVersion;
+  external JSAny? get originalFields;
   external String? get original;
+}
+
+// Cardinality maxima are persisted as exact decimal strings in their named field.
+JSAny _encodeOriginalRule(RuleRecord value) => encodeBrowserInput(
+  CanonicalObject([
+    for (final field in value.toWire().fields)
+      field.key == 'relationCardinality'
+          ? MapEntry(
+              field.key,
+              CanonicalObject([
+                for (final bound in (field.value as CanonicalObject).fields)
+                  bound.key == 'maximum'
+                      ? MapEntry(
+                          'maximum',
+                          CanonicalString(
+                            (bound.value as CanonicalNumber).digits,
+                          ),
+                        )
+                      : bound,
+              ]),
+            )
+          : field,
+  ]),
+)!;
+RuleRecord _decodeOriginalRule(JSAny value) => RuleRecord.fromWire(
+  CanonicalObject([
+    for (final field in (decodeBrowserInput(value) as CanonicalObject).fields)
+      field.key == 'relationCardinality'
+          ? MapEntry(
+              field.key,
+              CanonicalObject([
+                for (final bound in (field.value as CanonicalObject).fields)
+                  bound.key == 'maximum'
+                      ? MapEntry(
+                          'maximum',
+                          CanonicalNumber(
+                            (bound.value as CanonicalString).value,
+                          ),
+                        )
+                      : bound,
+              ]),
+            )
+          : field,
+  ]),
+);
+
+SavedRuleForm _decodeRule(_RuleRow row, {bool legacy = false}) {
+  return SavedRuleForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedRuleForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      namespace: row.namespace,
+      key: row.key,
+      labels: (decodeBrowserInput(row.labels) as CanonicalArray).items.map(
+        PropertyLabelInput.fromWire,
+      ),
+      kind: row.kind,
+      commitPolicy: row.commitPolicy,
+      scope: ScopeInput.fromWire(decodeBrowserInput(row.factualScope)),
+      subjectTypes: (decodeBrowserInput(row.subjectTypes) as CanonicalArray)
+          .items
+          .map(wireString),
+      targetPredicates: (decodeBrowserInput(
+        row.targetPredicates,
+      ) as CanonicalArray).items.map(wireString),
+      capabilities: (decodeBrowserInput(row.capabilities) as CanonicalArray)
+          .items
+          .map(wireString),
+      expression: ExpressionInput.fromWire(decodeBrowserInput(row.expression)),
+      executable: row.executable,
+      validity: TemporalValidityInput.fromWire(
+        decodeBrowserInput(row.validity),
+      ),
+      evidence: row.evidence == null
+          ? null
+          : RuleEvidenceInput.fromWire(decodeBrowserInput(row.evidence!)),
+      knowledge: row.knowledge == null
+          ? null
+          : RuleKnowledgeInput.fromWire(decodeBrowserInput(row.knowledge!)),
+      constraints: row.constraints == null
+          ? null
+          : RuleConstraintInput.fromWire(decodeBrowserInput(row.constraints!)),
+      revisionTarget: row.revisionTarget == null
+          ? null
+          : ExpressionReferenceInput.fromWire(
+              decodeBrowserInput(row.revisionTarget!),
+            ),
+      expectedRecordVersion: row.expectedRecordVersion == null
+          ? null
+          : RecordVersionId.parse(row.expectedRecordVersion!),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : RuleRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : _decodeOriginalRule(row.originalFields!),
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+    ),
+  );
+}
+
+_RuleRow _encodeRule(SavedRuleForm saved) {
+  final form = saved.form;
+  return _RuleRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    namespace: form.namespace,
+    key: form.key,
+    labels: encodeBrowserInput(
+      CanonicalArray(form.labels.map((v) => v.toWire())),
+    )!,
+    kind: form.kind,
+    commitPolicy: form.commitPolicy,
+    factualScope: encodeBrowserInput(form.scope.toWire())!,
+    subjectTypes: encodeBrowserInput(
+      CanonicalArray(form.subjectTypes.map(CanonicalString.new)),
+    )!,
+    targetPredicates: encodeBrowserInput(
+      CanonicalArray(form.targetPredicates.map(CanonicalString.new)),
+    )!,
+    capabilities: encodeBrowserInput(
+      CanonicalArray(form.capabilities.map(CanonicalString.new)),
+    )!,
+    expression: encodeBrowserInput(form.expression.toWire())!,
+    executable: form.executable,
+    validity: encodeBrowserInput(form.validity.toWire())!,
+    evidence: form.evidence == null
+        ? null
+        : encodeBrowserInput(form.evidence!.toWire()),
+    knowledge: form.knowledge == null
+        ? null
+        : encodeBrowserInput(form.knowledge!.toWire()),
+    constraints: form.constraints == null
+        ? null
+        : encodeBrowserInput(form.constraints!.toWire()),
+    revisionTarget: form.revisionTarget == null
+        ? null
+        : encodeBrowserInput(form.revisionTarget!.toWire()),
+    expectedRecordVersion: form.expectedRecordVersion?.value,
+    originalFields: form.original == null
+        ? null
+        : _encodeOriginalRule(form.original!),
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+  );
 }
 
 /// Named fields retain unfinished rule input and ordered declarations.
@@ -108,7 +264,7 @@ final class BrowserRuleFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserRuleFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -117,10 +273,30 @@ final class BrowserRuleFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            db.createObjectStore(_tables.single);
+          } else {
+            final scan = tx.objectStore(_tables.single).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeRule(
+                    _decodeRule(cursor.value as _RuleRow, legacy: true),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -175,64 +351,7 @@ final class BrowserRuleFormRecoveryStore {
   SavedRuleForm? _read(web.IDBRequest main) {
     if (main.result == null || main.result.isUndefined) return null;
     final row = main.result as _RuleRow;
-    return SavedRuleForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedRuleForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        namespace: row.namespace,
-        key: row.key,
-        labels: (decodeBrowserInput(row.labels) as CanonicalArray).items.map(
-          PropertyLabelInput.fromWire,
-        ),
-        kind: row.kind,
-        commitPolicy: row.commitPolicy,
-        scope: ScopeInput.fromWire(decodeBrowserInput(row.factualScope)),
-        subjectTypes: (decodeBrowserInput(row.subjectTypes) as CanonicalArray)
-            .items
-            .map(wireString),
-        targetPredicates: (decodeBrowserInput(
-          row.targetPredicates,
-        ) as CanonicalArray).items.map(wireString),
-        capabilities: (decodeBrowserInput(row.capabilities) as CanonicalArray)
-            .items
-            .map(wireString),
-        expression: ExpressionInput.fromWire(
-          decodeBrowserInput(row.expression),
-        ),
-        executable: row.executable,
-        validity: TemporalValidityInput.fromWire(
-          decodeBrowserInput(row.validity),
-        ),
-        evidence: row.evidence == null
-            ? null
-            : RuleEvidenceInput.fromWire(decodeBrowserInput(row.evidence!)),
-        knowledge: row.knowledge == null
-            ? null
-            : RuleKnowledgeInput.fromWire(decodeBrowserInput(row.knowledge!)),
-        constraints: row.constraints == null
-            ? null
-            : RuleConstraintInput.fromWire(
-                decodeBrowserInput(row.constraints!),
-              ),
-        revisionTarget: row.revisionTarget == null
-            ? null
-            : ExpressionReferenceInput.fromWire(
-                decodeBrowserInput(row.revisionTarget!),
-              ),
-        expectedRecordVersion: row.expectedRecordVersion == null
-            ? null
-            : RecordVersionId.parse(row.expectedRecordVersion!),
-        original: row.original == null
-            ? null
-            : RuleRecord.fromWire(CanonicalValue.parseWireJson(row.original!)),
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+    return _decodeRule(row);
   }
 
   Future<SavedRuleForm?> load(EditorFormScope scope) {
@@ -321,51 +440,7 @@ final class BrowserRuleFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _RuleRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              namespace: form.namespace,
-              key: form.key,
-              labels: encodeBrowserInput(
-                CanonicalArray(form.labels.map((v) => v.toWire())),
-              )!,
-              kind: form.kind,
-              commitPolicy: form.commitPolicy,
-              factualScope: encodeBrowserInput(form.scope.toWire())!,
-              subjectTypes: encodeBrowserInput(
-                CanonicalArray(form.subjectTypes.map(CanonicalString.new)),
-              )!,
-              targetPredicates: encodeBrowserInput(
-                CanonicalArray(form.targetPredicates.map(CanonicalString.new)),
-              )!,
-              capabilities: encodeBrowserInput(
-                CanonicalArray(form.capabilities.map(CanonicalString.new)),
-              )!,
-              expression: encodeBrowserInput(form.expression.toWire())!,
-              executable: form.executable,
-              validity: encodeBrowserInput(form.validity.toWire())!,
-              evidence: form.evidence == null
-                  ? null
-                  : encodeBrowserInput(form.evidence!.toWire()),
-              knowledge: form.knowledge == null
-                  ? null
-                  : encodeBrowserInput(form.knowledge!.toWire()),
-              constraints: form.constraints == null
-                  ? null
-                  : encodeBrowserInput(form.constraints!.toWire()),
-              revisionTarget: form.revisionTarget == null
-                  ? null
-                  : encodeBrowserInput(form.revisionTarget!.toWire()),
-              expectedRecordVersion: form.expectedRecordVersion?.value,
-              original: form.original?.toWire().toText(),
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeRule(saved!), key.toJS);
         } on Object catch (error) {
           failure = error is EditorRecoveryException
               ? error
