@@ -55,10 +55,10 @@ extension type _WorkRow._(JSObject _) implements JSObject {
     required JSAny associations,
     required String rationale,
     String? draftVersion,
-    String? original,
+    JSAny? originalFields,
     JSAny? associationTarget,
     String? expectedRecordVersion,
-    String? associationOriginal,
+    JSAny? associationOriginalFields,
   });
   external String get generation;
   external String get baseRevision;
@@ -72,10 +72,101 @@ extension type _WorkRow._(JSObject _) implements JSObject {
   external JSAny get associations;
   external String get rationale;
   external String? get draftVersion;
+  external JSAny? get originalFields;
   external String? get original;
   external JSAny? get associationTarget;
   external String? get expectedRecordVersion;
+  external JSAny? get associationOriginalFields;
   external String? get associationOriginal;
+}
+
+SavedWorkForm _decodeWork(_WorkRow row, {bool legacy = false}) {
+  return SavedWorkForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedWorkForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      kind: row.kind,
+      title: row.title,
+      labels: (decodeBrowserInput(row.labels) as CanonicalArray).items.map(
+        PropertyLabelInput.fromWire,
+      ),
+      sources: (decodeBrowserInput(row.sources) as CanonicalArray).items.map(
+        ExpressionReferenceInput.fromWire,
+      ),
+      versions: row.versions.toDart.map((v) => v.toDart),
+      associations: (decodeBrowserInput(row.associations) as CanonicalArray)
+          .items
+          .map(WorkAssociationInput.fromWire),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : WorkRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : WorkRecord.fromWire(decodeBrowserInput(row.originalFields!)),
+      associationTarget: row.associationTarget == null
+          ? null
+          : ExpressionReferenceInput.fromWire(
+              decodeBrowserInput(row.associationTarget!),
+            ),
+      expectedRecordVersion: row.expectedRecordVersion == null
+          ? null
+          : RecordVersionId.parse(row.expectedRecordVersion!),
+      associationOriginal: legacy
+          ? (row.associationOriginal == null
+                ? null
+                : WorldAssociation.fromWire(
+                    CanonicalValue.parseWireJson(row.associationOriginal!),
+                  ))
+          : row.associationOriginalFields == null
+          ? null
+          : WorldAssociation.fromWire(
+              decodeBrowserInput(row.associationOriginalFields!),
+            ),
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+    ),
+  );
+}
+
+_WorkRow _encodeWork(SavedWorkForm saved) {
+  final form = saved.form;
+  return _WorkRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    kind: form.kind,
+    title: form.title,
+    labels: encodeBrowserInput(
+      CanonicalArray(form.labels.map((l) => l.toWire())),
+    )!,
+    sources: encodeBrowserInput(
+      CanonicalArray(form.sources.map((ref) => ref.toWire())),
+    )!,
+    versions: form.versions.map((version) => version.toJS).toList().toJS,
+    associations: encodeBrowserInput(
+      CanonicalArray(form.associations.map((a) => a.toWire())),
+    )!,
+    originalFields: form.original == null
+        ? null
+        : encodeBrowserInput(form.original!.toWire()),
+    associationTarget: form.associationTarget == null
+        ? null
+        : encodeBrowserInput(form.associationTarget!.toWire()),
+    expectedRecordVersion: form.expectedRecordVersion?.value,
+    associationOriginalFields: form.associationOriginal == null
+        ? null
+        : encodeBrowserInput(form.associationOriginal!.toWire()),
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+  );
 }
 
 /// Named fields and ordered structured children retain work and association input.
@@ -92,7 +183,7 @@ final class BrowserWorkFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserWorkFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -101,10 +192,30 @@ final class BrowserWorkFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            db.createObjectStore(_tables.single);
+          } else {
+            final scan = tx.objectStore(_tables.single).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeWork(
+                    _decodeWork(cursor.value as _WorkRow, legacy: true),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -159,46 +270,7 @@ final class BrowserWorkFormRecoveryStore {
   SavedWorkForm? _read(web.IDBRequest main) {
     if (main.result == null || main.result.isUndefined) return null;
     final row = main.result as _WorkRow;
-    return SavedWorkForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedWorkForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        kind: row.kind,
-        title: row.title,
-        labels: (decodeBrowserInput(row.labels) as CanonicalArray).items.map(
-          PropertyLabelInput.fromWire,
-        ),
-        sources: (decodeBrowserInput(row.sources) as CanonicalArray).items.map(
-          ExpressionReferenceInput.fromWire,
-        ),
-        versions: row.versions.toDart.map((v) => v.toDart),
-        associations: (decodeBrowserInput(row.associations) as CanonicalArray)
-            .items
-            .map(WorkAssociationInput.fromWire),
-        original: row.original == null
-            ? null
-            : WorkRecord.fromWire(CanonicalValue.parseWireJson(row.original!)),
-        associationTarget: row.associationTarget == null
-            ? null
-            : ExpressionReferenceInput.fromWire(
-                decodeBrowserInput(row.associationTarget!),
-              ),
-        expectedRecordVersion: row.expectedRecordVersion == null
-            ? null
-            : RecordVersionId.parse(row.expectedRecordVersion!),
-        associationOriginal: row.associationOriginal == null
-            ? null
-            : WorldAssociation.fromWire(
-                CanonicalValue.parseWireJson(row.associationOriginal!),
-              ),
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+    return _decodeWork(row);
   }
 
   Future<SavedWorkForm?> load(EditorFormScope scope) {
@@ -287,38 +359,7 @@ final class BrowserWorkFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _WorkRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              kind: form.kind,
-              title: form.title,
-              labels: encodeBrowserInput(
-                CanonicalArray(form.labels.map((l) => l.toWire())),
-              )!,
-              sources: encodeBrowserInput(
-                CanonicalArray(form.sources.map((ref) => ref.toWire())),
-              )!,
-              versions: form.versions
-                  .map((version) => version.toJS)
-                  .toList()
-                  .toJS,
-              associations: encodeBrowserInput(
-                CanonicalArray(form.associations.map((a) => a.toWire())),
-              )!,
-              original: form.original?.toWire().toText(),
-              associationTarget: form.associationTarget == null
-                  ? null
-                  : encodeBrowserInput(form.associationTarget!.toWire()),
-              expectedRecordVersion: form.expectedRecordVersion?.value,
-              associationOriginal: form.associationOriginal?.toWire().toText(),
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeWork(saved!), key.toJS);
         } on Object catch (error) {
           failure = error is EditorRecoveryException
               ? error

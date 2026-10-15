@@ -61,7 +61,7 @@ extension type _SceneRow._(JSObject _) implements JSObject {
     required JSAny associations,
     required String rationale,
     String? draftVersion,
-    String? original,
+    JSAny? originalFields,
     JSAny? correctionTarget,
     String? expectedRecordVersion,
   });
@@ -83,9 +83,126 @@ extension type _SceneRow._(JSObject _) implements JSObject {
   external JSAny get associations;
   external String get rationale;
   external String? get draftVersion;
+  external JSAny? get originalFields;
   external String? get original;
   external JSAny? get correctionTarget;
   external String? get expectedRecordVersion;
+}
+
+// Domain wire positions are u64 numbers. Retain their exact decimal text in JS.
+JSAny _encodeOriginalScene(SceneRecord value) => encodeBrowserInput(
+  CanonicalObject([
+    ...value.toWire().fields.where((field) => field.key != 'narrativePosition'),
+    MapEntry(
+      'narrativePosition',
+      value.narrativePosition == null
+          ? const CanonicalNull()
+          : CanonicalString(value.narrativePosition.toString()),
+    ),
+  ]),
+)!;
+SceneRecord _decodeOriginalScene(JSAny value) => SceneRecord.fromWire(
+  CanonicalObject([
+    for (final field in (decodeBrowserInput(value) as CanonicalObject).fields)
+      field.key == 'narrativePosition' && field.value is! CanonicalNull
+          ? MapEntry(
+              field.key,
+              CanonicalNumber((field.value as CanonicalString).value),
+            )
+          : field,
+  ]),
+);
+
+SavedSceneForm _decodeScene(_SceneRow row, {bool legacy = false}) {
+  return SavedSceneForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedSceneForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      sceneId: row.sceneId,
+      edition: ExpressionReferenceInput.fromWire(
+        decodeBrowserInput(row.edition),
+      ),
+      editionVersion: row.editionVersion,
+      viewpointEnabled: row.viewpointEnabled,
+      viewpoint: ExpressionReferenceInput.fromWire(
+        decodeBrowserInput(row.viewpoint),
+      ),
+      narrationEnabled: row.narrationEnabled,
+      narration: ExpressionReferenceInput.fromWire(
+        decodeBrowserInput(row.narration),
+      ),
+      positionEnabled: row.positionEnabled,
+      position: row.position,
+      disclosed: (decodeBrowserInput(row.disclosed) as CanonicalArray).items
+          .map(ExpressionReferenceInput.fromWire),
+      depicted: (decodeBrowserInput(row.depicted) as CanonicalArray).items.map(
+        ExpressionReferenceInput.fromWire,
+      ),
+      associations: (decodeBrowserInput(row.associations) as CanonicalArray)
+          .items
+          .map(WorkAssociationInput.fromWire),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : SceneRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : _decodeOriginalScene(row.originalFields!),
+      correctionTarget: row.correctionTarget == null
+          ? null
+          : ExpressionReferenceInput.fromWire(
+              decodeBrowserInput(row.correctionTarget!),
+            ),
+      expectedRecordVersion: row.expectedRecordVersion == null
+          ? null
+          : RecordVersionId.parse(row.expectedRecordVersion!),
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+    ),
+  );
+}
+
+_SceneRow _encodeScene(SavedSceneForm saved) {
+  final form = saved.form;
+  return _SceneRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    sceneId: form.sceneId,
+    edition: encodeBrowserInput(form.edition.toWire())!,
+    editionVersion: form.editionVersion,
+    viewpointEnabled: form.viewpointEnabled,
+    viewpoint: encodeBrowserInput(form.viewpoint.toWire())!,
+    narrationEnabled: form.narrationEnabled,
+    narration: encodeBrowserInput(form.narration.toWire())!,
+    positionEnabled: form.positionEnabled,
+    position: form.position,
+    disclosed: encodeBrowserInput(
+      CanonicalArray(form.disclosed.map((ref) => ref.toWire())),
+    )!,
+    depicted: encodeBrowserInput(
+      CanonicalArray(form.depicted.map((ref) => ref.toWire())),
+    )!,
+    associations: encodeBrowserInput(
+      CanonicalArray(form.associations.map((a) => a.toWire())),
+    )!,
+    originalFields: form.original == null
+        ? null
+        : _encodeOriginalScene(form.original!),
+    correctionTarget: form.correctionTarget == null
+        ? null
+        : encodeBrowserInput(form.correctionTarget!.toWire()),
+    expectedRecordVersion: form.expectedRecordVersion?.value,
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+  );
 }
 
 /// Named fields retain scene narration, disclosures, depictions and association input.
@@ -102,7 +219,7 @@ final class BrowserSceneFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserSceneFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -111,10 +228,30 @@ final class BrowserSceneFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            db.createObjectStore(_tables.single);
+          } else {
+            final scan = tx.objectStore(_tables.single).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeScene(
+                    _decodeScene(cursor.value as _SceneRow, legacy: true),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -169,51 +306,7 @@ final class BrowserSceneFormRecoveryStore {
   SavedSceneForm? _read(web.IDBRequest main) {
     if (main.result == null || main.result.isUndefined) return null;
     final row = main.result as _SceneRow;
-    return SavedSceneForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedSceneForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        sceneId: row.sceneId,
-        edition: ExpressionReferenceInput.fromWire(
-          decodeBrowserInput(row.edition),
-        ),
-        editionVersion: row.editionVersion,
-        viewpointEnabled: row.viewpointEnabled,
-        viewpoint: ExpressionReferenceInput.fromWire(
-          decodeBrowserInput(row.viewpoint),
-        ),
-        narrationEnabled: row.narrationEnabled,
-        narration: ExpressionReferenceInput.fromWire(
-          decodeBrowserInput(row.narration),
-        ),
-        positionEnabled: row.positionEnabled,
-        position: row.position,
-        disclosed: (decodeBrowserInput(row.disclosed) as CanonicalArray).items
-            .map(ExpressionReferenceInput.fromWire),
-        depicted: (decodeBrowserInput(row.depicted) as CanonicalArray).items
-            .map(ExpressionReferenceInput.fromWire),
-        associations: (decodeBrowserInput(row.associations) as CanonicalArray)
-            .items
-            .map(WorkAssociationInput.fromWire),
-        original: row.original == null
-            ? null
-            : SceneRecord.fromWire(CanonicalValue.parseWireJson(row.original!)),
-        correctionTarget: row.correctionTarget == null
-            ? null
-            : ExpressionReferenceInput.fromWire(
-                decodeBrowserInput(row.correctionTarget!),
-              ),
-        expectedRecordVersion: row.expectedRecordVersion == null
-            ? null
-            : RecordVersionId.parse(row.expectedRecordVersion!),
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-      ),
-    );
+    return _decodeScene(row);
   }
 
   Future<SavedSceneForm?> load(EditorFormScope scope) {
@@ -302,40 +395,7 @@ final class BrowserSceneFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _SceneRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              sceneId: form.sceneId,
-              edition: encodeBrowserInput(form.edition.toWire())!,
-              editionVersion: form.editionVersion,
-              viewpointEnabled: form.viewpointEnabled,
-              viewpoint: encodeBrowserInput(form.viewpoint.toWire())!,
-              narrationEnabled: form.narrationEnabled,
-              narration: encodeBrowserInput(form.narration.toWire())!,
-              positionEnabled: form.positionEnabled,
-              position: form.position,
-              disclosed: encodeBrowserInput(
-                CanonicalArray(form.disclosed.map((ref) => ref.toWire())),
-              )!,
-              depicted: encodeBrowserInput(
-                CanonicalArray(form.depicted.map((ref) => ref.toWire())),
-              )!,
-              associations: encodeBrowserInput(
-                CanonicalArray(form.associations.map((a) => a.toWire())),
-              )!,
-              original: form.original?.toWire().toText(),
-              correctionTarget: form.correctionTarget == null
-                  ? null
-                  : encodeBrowserInput(form.correctionTarget!.toWire()),
-              expectedRecordVersion: form.expectedRecordVersion?.value,
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeScene(saved!), key.toJS);
         } on Object catch (error) {
           failure = error is EditorRecoveryException
               ? error
