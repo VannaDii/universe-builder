@@ -2826,6 +2826,19 @@ fixture is implemented for macOS/Linux; native checks currently cover macOS.
 Fixture mode cannot be combined with installation/profile arguments and is not
 the mobile or browser connection mode.
 
+To print a fixture host configuration, use the actual absolute MCP helper and
+socket paths:
+
+```sh
+dart run tool/mcp_config.dart /absolute/path/universe-mcp /absolute/path/fixture.sock
+```
+
+This command prints JSON without connecting, reading credentials or editing a
+host's settings. The transitional `xtask mcp-config` command delegates to the
+same Dart generator. This configuration uses the lower-level `universe-mcp`
+helper; when configuring the public `multiverse-mcp` launcher instead, prepend
+`serve` to its arguments.
+
 The retained Rust fixture commands during migration are:
 
 ```sh
@@ -2834,30 +2847,40 @@ cargo build --locked -p universe-engine -p universe-mcp
 ./target/debug/universe-engine --fixture --socket "$runtime/fixture.sock"
 ```
 
-Leave that process running. In a second terminal, print a host configuration using the actual absolute binary and socket paths:
-
-```sh
-cargo run --locked -p xtask -- mcp-config /absolute/path/universe-mcp /absolute/path/fixture.sock
-```
-
-This command prints configuration; it does not edit a host's settings. Stop the fixture engine when finished. Its read/propose scope is deliberately limited to disposable data. Do not connect a production package to this endpoint.
+Leave the chosen engine running while its MCP host uses the socket, and stop it
+when finished. Its read/propose scope is deliberately limited to disposable data.
+Do not connect a production package to this endpoint.
 
 The fixture implements describe, open-context, search, advanced get/propose, get-proposal, and operation lookup. Cancellation reports an already-completed proposal without pretending to undo it. Record retrieval supports the payload field group; history/evidence views return typed unsupported errors. World-scoped fixture proposals enforce explicit entity/work associations and supported target footprints; more complex footprints remain unsupported. Ordinary factual checks, state/context assembly, validation, and impact require the persistent engine; fixture commit returns policy denied. Default discovery exposes 11 tools; `--advanced-tools` exposes all 16 typed contracts, including raw record reads and proposals.
 
 ## Persistent installation
 
-Build the helpers together so discovery can use the absolute sibling engine path:
+For the ordinary desktop workspace, build the Flutter bundle as above and choose
+**Use this device**. It retains its app-private installation and owner profile.
+For a separate CLI/headless installation, build the Dart helpers together so
+discovery uses their absolute sibling engine path. Use a fresh package output
+directory:
 
 ```sh
-cargo build --locked -p universe-cli -p universe-engine -p universe-mcp -p universe-builder-desktop
+dart run apps/ub_cli/tool/package_headless.dart --output target/headless/development
 installation="$HOME/Library/Application Support/Universe Builder"
-author=$(./target/debug/universe --installation "$installation" init)
-./target/debug/universe --installation "$installation" --profile "$author" create 'The Ashen Cycle' --first-time '2040-01-01T09:00:00+00:00'
-./target/debug/universe --installation "$installation" --profile "$author" doctor
-./target/debug/universe-builder --installation "$installation" --profile "$author"
+author=$(./target/headless/development/bin/universe --installation "$installation" init)
+./target/headless/development/bin/universe --installation "$installation" --profile "$author" create 'The Ashen Cycle' --first-time '2040-01-01T09:00:00+00:00'
+./target/headless/development/bin/universe --installation "$installation" --profile "$author" doctor
 ```
 
-`init` prints a profile ID, never its credential. Keep that ID for subsequent launches; initialization is a one-time operation. Credential files live in the protected installation directory. The persistent desktop opens a universe library, pinned paged explorer, entity/world/work/saga draft controls, durable draft autosave and recovery, typed value/relationship/fictional-time claim controls, typed inspector and authored-clock controls, agent proposal review, validation findings, exact approval, withdrawal and commit. Autosave preserves completed draft operations, their submitted proposal reference and rationale without publishing canon. Unfinished form fields are saved only when added to the draft. No raw JSON editor is exposed. A stale draft requires explicit rebase; competing windows cannot silently overwrite each other. You can also select **Open persistent author workspace** from the packaged fixture and enter the installation path and enrolled profile ID. Closing it preserves the service and packages. The engine stops after 15 minutes without connected clients or on an authenticated author `shutdown` command. Fixture mode keeps its original disposable lifetime.
+`init` prints a profile ID, never its credential. Keep that ID for subsequent
+launches; initialization is a one-time operation. Credentials remain in the
+protected installation directory. The Flutter workspace provides the library,
+pinned record views, typed authoring, durable drafts, exact proposal review,
+approval and separate publication. Unfinished fields recover privately before
+they are added to Changes; saving them does not publish canon. A stale draft
+requires explicit rebase, and competing windows cannot silently overwrite it.
+**Open author workspace** leaves the disposable fixture for the ordinary
+connection chooser. Arbitrary desktop installation paths remain subject to the
+platform's file access restrictions. An ordinary local engine stops after 15
+minutes without connected clients or on an authenticated author `shutdown`
+command. Fixture mode retains its disposable lifetime.
 
 Every new universe requires an authored starting timestamp. For a familiar calendar, pass an RFC3339 Gregorian date with an explicit offset as above. For a fictional calendar, use `--calendar 'Ashen days' --first-time 90 --tick-label days` and, if defined, `--ticks-per-month 30`. The native creation form offers both options with no prefilled date. The immutable first interaction and current story time belong to canon; reading, waiting and ordinary edits never move the clock. Time advances through a reviewed operation with an explicit destination and reason; backward travel requires the time-travel choice.
 

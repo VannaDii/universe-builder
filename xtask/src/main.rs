@@ -104,21 +104,9 @@ fn main() -> Result<()> {
             "Rust application packaging is retired. Use `dart run apps/ub_cli/tool/package_macos.dart` (add `--mode release` for an optimized bundle). For the disposable workspace, launch its `multiverse-mcp ux --fixture`."
         ),
         Some("mcp-config") => {
-            let binary = args
-                .get(1)
-                .context("mcp-config ABSOLUTE_BINARY ABSOLUTE_SOCKET")?;
-            let socket = args.get(2).context("socket required")?;
-            anyhow::ensure!(
-                Path::new(binary).is_absolute() && Path::new(socket).is_absolute(),
-                "absolute paths required"
-            );
-            println!(
-                "{}",
-                serde_json::to_string_pretty(
-                    &serde_json::json!({"mcpServers":{"universe-builder-fixture":{"command":binary,"args":["--fixture","--socket",socket]}}})
-                )?
-            );
-            Ok(())
+            let mut command = vec!["run", "tool/mcp_config.dart"];
+            command.extend(args.iter().skip(1).map(String::as_str));
+            run("dart", &command)
         }
         None | Some("help") => {
             println!("xtask: check | schemas | check-schemas | validate-contracts | mcp-smoke | installation-smoke | mcp-config ABSOLUTE_BINARY ABSOLUTE_SOCKET\nApplication packaging: dart run apps/ub_cli/tool/package_macos.dart [--mode debug|release]\nNative UI, accessibility and external model host checks are separate from these automated checks.");
