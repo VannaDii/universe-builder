@@ -100,6 +100,8 @@ jobs:
           git clone --depth 1 --branch "$(cat .flutter-version)" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
           echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
       - run: flutter pub get --enforce-lockfile
+      - name: Install Linux credential bridge build dependency
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libsecret-1-dev pkg-config
       - uses: actions/download-artifact@v4
         with:
           pattern: release-*

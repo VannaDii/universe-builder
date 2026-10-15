@@ -138,8 +138,12 @@ that TLS port. Mount the certificate and private-key files read-only, readable
 by UID 10001. HTTPS mode stays running until explicit shutdown or a signal.
 For PostgreSQL, supply `UB_USE_POSTGRES=true` and `UB_POSTGRES_ENDPOINT` to both
 setup and service from an operator-managed environment or protected env file;
-never bake credentials into the image. Saved encrypted Linux configuration is
-not yet supported. The requested database must already exist; backend selection
+never bake credentials into the image. Encrypted Linux configuration requires
+an existing unlocked default collection in the user's Secret Service session.
+The image includes libsecret but neither a keyring daemon nor a session bus;
+normal server containers use the environment-variable configuration path. Do
+not mount a desktop session bus merely to configure a server container.
+The requested database must already exist; backend selection
 does not transfer data or silently provision/convert schemas.
 
 Before replacement, finish queued work, retain backups outside the container,

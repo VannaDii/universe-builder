@@ -1,4 +1,4 @@
-@TestOn('vm && mac-os')
+@TestOn('vm && (mac-os || linux)')
 library;
 
 import 'dart:io';
@@ -13,8 +13,18 @@ import 'package:ub_store/local_settings.dart';
 void main() {
   const keys = NativeInstallationKeyStore();
 
+  if (Platform.isLinux &&
+      Platform.environment['UB_TEST_SECRET_SERVICE'] != 'true') {
+    test(
+      'Linux Secret Service fixture',
+      () {},
+      skip: 'Enable only on an isolated disposable session bus and keyring.',
+    );
+    return;
+  }
+
   test(
-    'headless Keychain key decrypts a restarted encrypted configuration',
+    'headless OS key decrypts a restarted encrypted configuration',
     () async {
       final directory = Directory.systemTemp.createTempSync(
         'universe-builder-keychain-',
@@ -87,7 +97,7 @@ void main() {
   );
 
   test(
-    'compiled headless process reads the same Keychain key after restart',
+    'compiled headless process reads the same OS key after restart',
     () async {
       final directory = Directory.systemTemp.createTempSync(
         'universe-builder-key-process-',
@@ -126,6 +136,21 @@ void main() {
           reason: '${restarted.stdout}\n${restarted.stderr}',
         );
         expect('${restarted.stdout}'.trim(), 'read');
+        if (Platform.isLinux) {
+          final unavailable = await Process.run(
+            executable,
+            ['read', path],
+            environment: {
+              'DBUS_SESSION_BUS_ADDRESS':
+                  'unix:path=${directory.path}/absent-session-bus',
+            },
+          );
+          expect(unavailable.exitCode, isNot(0));
+          expect(unavailable.stdout, isEmpty);
+          expect(unavailable.stderr, contains('savedEndpointUnavailable'));
+          expect(unavailable.stderr, isNot(contains('disposable_password')));
+          expect((await Process.run(executable, ['read', path])).exitCode, 0);
+        }
       } finally {
         if (created && executable != null) {
           final removed = await Process.run(executable, ['remove', path]);
@@ -165,6 +190,79 @@ void main() {
       if (second != null) await keys.remove(second);
     }
   });
+
+  test(
+    'locked Linux keyring refuses read, store and delete until explicit unlock',
+    () async {
+      final reference = await keys.storeNew(
+        await InstallationEncryptionKey.generate(),
+      );
+      var locked = false;
+      try {
+        final alias = await Process.run('gdbus', [
+          'call',
+          '--session',
+          '--dest',
+          'org.freedesktop.secrets',
+          '--object-path',
+          '/org/freedesktop/secrets',
+          '--method',
+          'org.freedesktop.Secret.Service.ReadAlias',
+          'default',
+        ]);
+        expect(alias.exitCode, 0);
+        final collection = RegExp(r"objectpath '([^']+)'")
+            .firstMatch(alias.stdout as String)!
+            .group(1)!;
+        final lock = await Process.run('gdbus', [
+          'call',
+          '--session',
+          '--dest',
+          'org.freedesktop.secrets',
+          '--object-path',
+          '/org/freedesktop/secrets',
+          '--method',
+          'org.freedesktop.Secret.Service.Lock',
+          "['$collection']",
+        ]);
+        expect(lock.exitCode, 0);
+        locked = true;
+        final unavailable = throwsA(
+          isA<InstallationKeyException>().having(
+            (e) => e.failure,
+            'failure',
+            InstallationKeyFailure.unavailable,
+          ),
+        );
+        await expectLater(keys.read(reference), unavailable);
+        await expectLater(keys.remove(reference), unavailable);
+        await expectLater(
+          keys.storeNew(await InstallationEncryptionKey.generate()),
+          unavailable,
+        );
+      } finally {
+        if (locked) {
+          // This test runs only against the explicitly enabled disposable bus
+          // and keyring, created with this fixture password through stdin.
+          final unlock = await Process.start('gnome-keyring-daemon', [
+            '--replace',
+            '--unlock',
+            '--components=secrets',
+          ]);
+          final output = unlock.stdout.drain<void>();
+          final errors = unlock.stderr.drain<void>();
+          unlock.stdin.writeln('disposable-fixture-keyring');
+          await unlock.stdin.close();
+          expect(await unlock.exitCode, 0);
+          await output;
+          await errors;
+        }
+        expect(await keys.read(reference), isNotNull);
+        await keys.remove(reference);
+      }
+    },
+    skip: !Platform.isLinux,
+  );
 
   test('invalid account references are rejected without OS access or diagnostic disclosure', () async {
     for (final reference in [

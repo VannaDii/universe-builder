@@ -104,16 +104,20 @@ For standalone engine, CLI and stdio MCP delivery, run
 `dart run apps/ub_cli/tool/package_headless.dart --output target/headless/local`
 with the pinned toolchain on macOS or Linux. Choose a fresh output directory;
 the assembler refuses an existing destination. Build on the intended OS and
-architecture; the build host also needs a native C compiler (Clang on Linux).
+architecture; Linux builds also need Clang, pkg-config and libsecret-1 development
+headers (`libsecret-1-dev` on Debian/Ubuntu). Linux runtime hosts need libsecret-1
+(`libsecret-1-0` on Debian/Ubuntu).
 It compiles `universe-engine`,
 `universe-mcp`, `universe` and `multiverse-mcp` into `bin/` with matching native
 assets in `lib/`, and records software version/source/checksums in a manifest.
 Keep those directories together when copying the package. Runtime users do not
 need a Dart, Flutter, Rust or Python installation. This package contains no
 desktop or web assets; it serves the API and stdio MCP. It does not install a
-background service or change user data. On Linux without an available protected
-credential-store adapter, select the backend through `UB_USE_POSTGRES` and
-`UB_POSTGRES_ENDPOINT`; encrypted saved configuration remains unavailable there.
+background service or change user data. On Linux without an available
+Secret Service session, select the backend through `UB_USE_POSTGRES` and
+`UB_POSTGRES_ENDPOINT`. Encrypted saved settings use libsecret and an existing
+unlocked default collection in the user's session; no keyring is created or
+unlocked by the app.
 Windows packaging and Linux desktop delivery remain pending.
 The [headless container procedure](docs/release-runbook.md#headless-container)
 packages these Linux binaries with a pinned runtime base, unprivileged service
@@ -2482,8 +2486,13 @@ authentication UI, then restores the prior process setting. Those interaction
 APIs are deprecated by Apple; signed application/helper access still requires
 packaging qualification. Disposable native tests cover settings restart, key
 isolation, cleanup, and a compiled CLI reading the same key across processes.
-Other OS adapters explicitly refuse saved-key operations until ported; the
-environment configuration path remains independent of them.
+Linux uses [libsecret](https://gnome.pages.gitlab.gnome.org/libsecret/) through
+the same plain-Dart native bridge. Keys are 32-byte secrets scoped to the fixed
+UB service and random installation account, with add-only creation and exact
+lookup/deletion. Locked, missing or ambiguous keys cannot unlock saved settings;
+the bridge does not prompt or unlock the user's keyring. Headless keyring-less
+environments retain the explicit environment-variable path. Windows remains
+unsupported by this bridge, as do mobile platforms.
 `ub_service/local_configuration.dart` now connects protected saved settings and
 OS key retrieval to the same backend resolver used for environment inputs.
 Saved backend selection reads only nonsecret columns. An explicit environment

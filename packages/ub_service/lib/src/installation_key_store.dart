@@ -36,7 +36,7 @@ final class NativeInstallationKeyStore {
         InstallationKeyFailure.invalidReference,
       );
     }
-    if (!Platform.isMacOS) {
+    if (!Platform.isMacOS && !Platform.isLinux) {
       throw const InstallationKeyException(
         InstallationKeyFailure.unsupportedPlatform,
       );
@@ -44,7 +44,7 @@ final class NativeInstallationKeyStore {
   }
 
   Future<String> storeNew(InstallationEncryptionKey key) async {
-    if (!Platform.isMacOS) {
+    if (!Platform.isMacOS && !Platform.isLinux) {
       throw const InstallationKeyException(
         InstallationKeyFailure.unsupportedPlatform,
       );
@@ -89,7 +89,8 @@ final class NativeInstallationKeyStore {
             reference.toNativeUtf8(allocator: arena).cast(),
             buffer,
           );
-          if (status == -25300) return null; // errSecItemNotFound
+          if (status == -25300)
+            return null; // Native adapter's not-found result.
           if (status != 0) {
             throw const InstallationKeyException(
               InstallationKeyFailure.unavailable,

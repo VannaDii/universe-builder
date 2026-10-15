@@ -10,6 +10,8 @@ jobs:
           git clone --depth 1 --branch "$(cat .flutter-version)" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
           echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
       - run: flutter pub get --enforce-lockfile
+      - name: Install Linux credential bridge and disposable keyring fixture
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libsecret-1-dev pkg-config dbus gnome-keyring
       - run: dart run tool/build_schema.dart
       - run: dart run tool/embed_schema.dart
       - run: git diff --exit-code -- packages/ub_store/lib/src/schema.g.dart packages/ub_store/lib/src/credential_schema.g.dart packages/ub_store/lib/src/installation_schema.g.dart
@@ -35,6 +37,17 @@ jobs:
           umask 077
           dart test
         working-directory: packages/ub_service
+      - name: Exercise protected keys on an isolated Secret Service
+        working-directory: packages/ub_service
+        run: |
+          umask 077
+          KEYRING_FIXTURE="$(mktemp -d "$RUNNER_TEMP/ub-secret-fixture-XXXXXX")"
+          trap 'find "$KEYRING_FIXTURE" -depth -delete' EXIT
+          mkdir "$KEYRING_FIXTURE/data" "$KEYRING_FIXTURE/run"
+          XDG_DATA_HOME="$KEYRING_FIXTURE/data" XDG_RUNTIME_DIR="$KEYRING_FIXTURE/run" UB_TEST_SECRET_SERVICE=true dbus-run-session -- bash -e -c '
+            printf "%s\n" disposable-fixture-keyring | gnome-keyring-daemon --unlock --components=secrets
+            dart test test/native_key_store_test.dart
+          '
       - run: dart analyze tool test/distribution_test.dart
         working-directory: apps/ub_cli
       - run: |
