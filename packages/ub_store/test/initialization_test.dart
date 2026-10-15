@@ -369,6 +369,38 @@ void main() {
     );
     expect(database.select('PRAGMA foreign_key_check'), isEmpty);
   });
+  test('recovery checks initialization after multiple batches of ordinary assertions', () {
+    publish(request('mixed-assertions', [
+      proposition(100, 100, 7, '12'),
+      for (var n = 101; n < 156; n++)
+        assertion(n, n, 100, 'instance', {
+          'kind': 'author_decision',
+          'note': 'Ordinary authored assertion',
+        }),
+      ...initial(8, 200),
+    ]));
+    final receipts = InitializationEvidence(journal).read();
+    expect(receipts, hasLength(1));
+    expect(receipts.single.instance, RecordId.parse(id('rec', 8)));
+    InitializationEvidence(journal).verify();
+    database.close();
+    database = SqliteDatabase.open(
+      '${directory.path}/package.sqlite',
+      existing: true,
+    );
+    journal = SqliteJournal(database, universe);
+    InitializationEvidence(journal).verify();
+    expect(InitializationEvidence(journal).read(), receipts);
+    database.execute('BEGIN IMMEDIATE');
+    try {
+      database.execute('DELETE FROM initialization_receipt');
+      expect(InitializationEvidence(journal).verify, throwsFormatException);
+    } finally {
+      database.execute('ROLLBACK');
+    }
+    expect(InitializationEvidence(journal).read(), receipts);
+  });
+
   test('duplicate initialization and a forged value publish no records or receipts', () {
     final head = journal.head(continuity);
     final count = database

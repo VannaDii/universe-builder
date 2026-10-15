@@ -118,10 +118,11 @@ final class InitializationEvidence {
       "SELECT ch.version_id,ch.revision_id,co.continuity_id,co.parent_id FROM commit_changes ch JOIN commits co ON co.universe_id=ch.universe_id AND co.id=ch.revision_id JOIN record_versions v ON v.universe_id=ch.universe_id AND v.id=ch.version_id WHERE v.kind='assertion' AND ch.universe_id=? AND ch.prior_version IS NULL AND ch.version_id IS NOT NULL ORDER BY ch.revision_id,ch.record_id",
       [journal.universe.value],
     );
-    for (final row in changes) {
-      final record = journal.load(
-        RecordVersionId.parse(row['version_id'] as String),
-      );
+    var changeIndex = 0;
+    for (final record in journal.loadMany(
+      changes.map((row) => RecordVersionId.parse(row['version_id'] as String)),
+    )) {
+      final row = changes[changeIndex++];
       final a = objectFields(record.payload);
       final provenance = initializationProvenance(a['basis']!);
       if (provenance == null) continue;
