@@ -65,6 +65,7 @@ import 'changes_page.dart';
 import 'writing_review.dart';
 import 'writing_review_page.dart';
 import 'saved_changes.dart';
+import 'universe_name_page.dart';
 import 'postgres_settings.dart';
 import 'sqlite_settings.dart';
 import 'connection_stub.dart'
@@ -1093,6 +1094,36 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
     }
   }
 
+  Future<void> _renameUniverse(BuildContext context) async {
+    final session = _session!;
+    final renamed = await Navigator.of(context).push<LibraryEntry>(
+      MaterialPageRoute(
+        builder: (_) => UniverseNamePage(
+          session: session,
+          universe: _selected!,
+        ),
+      ),
+    );
+    if (!mounted || renamed == null || _session != session) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+      _selected = renamed;
+    });
+    try {
+      final library = InstanceLibrary.fromWire(
+        await session.call(const StatusEngineRequest()),
+      );
+      if (!mounted || _session != session) return;
+      setState(() => _library = library);
+      await _open(renamed);
+    } on Object {
+      if (mounted) setState(() => _error = 'The rename was saved. Refresh the connection to reload this universe.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _open(LibraryEntry entry, {bool announce = true}) async {
     if (announce && widget.device.supportsBrowser) {
       _router.setLocation(LibraryLocation(universe: entry.id));
@@ -1556,6 +1587,14 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
         _selected!.name,
         style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
       ),
+      if (_session!.author)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: _busy ? null : () => _renameUniverse(context),
+            child: const Text('Rename universe'),
+          ),
+        ),
       const SizedBox(height: 24),
       if (_description != null) ...[
         const Text(

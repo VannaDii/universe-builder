@@ -354,6 +354,12 @@ reads the current catalog before enabling another explicit attempt. A confirmed
 creation clears the input for the next universe. Competing windows cannot silently
 overwrite a newer saved form.
 
+The installation author can use **Rename universe** above the continuities.
+Renaming keeps the universe's identity, history, grants and saved work; previous
+names remain reserved aliases for that universe. The overview and Library refresh
+to the saved name. An invalid or unavailable name keeps the entered text for
+correction or retry.
+
 Overview offers a **Represented context** selector for each continuity. A sole
 context is selected automatically; multiple contexts require an explicit choice.
 World reads use that context at the continuity's exact revision, and returning
