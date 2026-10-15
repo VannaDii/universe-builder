@@ -13,6 +13,7 @@ import 'source_text_editing.dart';
 import 'writing_review.dart';
 import 'assessment_declaration_view.dart';
 import 'proposal_assessment.dart';
+import 'proposal_impact_page.dart';
 
 class WritingReviewPage extends StatefulWidget {
   const WritingReviewPage({super.key, required this.workflow});
@@ -371,6 +372,14 @@ class _WritingReviewPageState extends State<WritingReviewPage> {
                     ),
                     Text(
                       'Impact: ${review.impact.coverage.wireName} · ${review.impact.records.length} related records',
+                    ),
+                    OutlinedButton(
+                      onPressed: _busy ? null : () => Navigator.of(context).push<void>(
+                        MaterialPageRoute(builder: (_) => ProposalImpactPage(
+                          changes: _flow.changes, proposal: review.proposal,
+                        )),
+                      ),
+                      child: const Text('Review proposal impact'),
                     ),
                     if (review.validation.execution case final execution?) ...[
                       Text('Check coverage: ${execution.coverage.wireName}'),

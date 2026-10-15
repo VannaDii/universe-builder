@@ -616,6 +616,14 @@ date/time picker or entered as exact Unix seconds. Credentials are never shown.
 Grant changes take effect through the existing service authority checks.
 Unsubmitted grant fields stay on the current screen and are discarded on exit.
 
+**Review proposal impact** in Changes and Writing proposals reads the service’s
+conservative scope at the exact submitted proposal revision. It lists returned
+records in pages, marks proposed changes/removals and retains baseline names
+when later revisions exist. The view explains that the conservative scope
+includes every accessible record, which can be broader than the actual change.
+Coverage and service response limits stay explicit; reading impact adds no
+validation, approval or publication step.
+
 **Getting started** in each continuity offers optional campaign, novel and life-story
 guidance and opens the existing scoped editors. It explains linked-record
 prerequisites, unfinished work, separate review/approval/publication, and scoped

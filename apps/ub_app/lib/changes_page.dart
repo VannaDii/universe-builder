@@ -16,6 +16,7 @@ import 'resource_acceptance.dart';
 import 'issue_decision_editor_page.dart';
 import 'assessment_declaration_view.dart';
 import 'proposal_assessment.dart';
+import 'proposal_impact_page.dart';
 import 'operation_recovery.dart';
 import 'operation_recovery_page.dart';
 
@@ -1717,6 +1718,14 @@ class _ChangesPageState extends State<ChangesPage> {
                       OutlinedButton(
                         onPressed: _busy ? null : _validate,
                         child: const Text('Run checks'),
+                      ),
+                      OutlinedButton(
+                        onPressed: _busy ? null : () => Navigator.of(context).push<void>(
+                          MaterialPageRoute(builder: (_) => ProposalImpactPage(
+                            changes: widget.changes, proposal: _proposal!,
+                          )),
+                        ),
+                        child: const Text('Review proposal impact'),
                       ),
                       OutlinedButton(
                         onPressed: _busy ? null : _checkPublication,

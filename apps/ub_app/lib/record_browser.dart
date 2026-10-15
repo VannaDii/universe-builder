@@ -73,6 +73,10 @@ String dossierReferenceLabel(
     }
     if (row.payload case AppearanceRecord(:final label)) return label;
     if (row.payload case SourceRecord(:final label)) return label;
+    if (row.payload case WorkRecord(:final title) || SagaRecord(:final title)) return title;
+    if (row.payload case WorkVersionRecord(:final versionLabel)) return versionLabel;
+    if (row.payload case SceneRecord(:final sceneId)) return sceneId;
+    if (row.payload case PassageRecord(:final passageId)) return passageId;
     if (row.payload case WorldRecord(:final selector)) return selector;
     if (row.payload case DomainPackRecord(:final key)) {
       return key == 'real_world.sources' ? 'Selected sources' : key;
