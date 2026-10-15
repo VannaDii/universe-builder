@@ -3,6 +3,7 @@ import 'package:ub_domain/ub_domain.dart';
 
 import 'connection.dart';
 import 'world_draft.dart';
+import 'resource_acceptance.dart';
 
 /// Uses the service's existing drafts, operation recovery and frozen proposals.
 final class SavedChanges {
@@ -344,6 +345,168 @@ final class SavedChanges {
       ),
     ),
   );
+
+  Future<SavedDraft> acceptResource({
+    required SavedDraft draft,
+    required ResourceAcceptance target,
+    required UnfinishedIssueDecisionForm form,
+  }) async {
+    final proposal = target.proposal;
+    if (draft.content.proposal != target.reference ||
+        proposal.baseFrame.universe != scope.universe ||
+        proposal.baseFrame.continuity != scope.continuity ||
+        scope.representedContext != null &&
+            proposal.baseFrame.context.record != scope.representedContext) {
+      throw const FormatException(
+        'Reload Changes before accepting this finding.',
+      );
+    }
+    final decision = target.operation(
+      form,
+      author: session.author,
+      principal: PrincipalId.parse(
+        session.principal.value.replaceFirst('prf_', 'prn_'),
+      ),
+    );
+    final key = target.revisionKey(decision);
+    final operations = [...proposal.operations, decision];
+    final current = await load();
+    if (current == null) {
+      throw const FormatException('Reload Changes before accepting this finding.');
+    }
+    final frame = proposal.baseFrame;
+    if (current.version != draft.version ||
+        current.content.toWire().toText() != draft.content.toWire().toText()) {
+      final ref = current.content.proposal;
+      final recovered = DraftContent(
+        baseRevision: frame.revision,
+        representedContext: frame.context.record,
+        operations: operations,
+        rationale: proposal.rationale,
+        proposal: ref,
+      );
+      if (ref?.proposalId == proposal.proposalId &&
+          ref?.version == proposal.version + BigInt.one &&
+          current.content.toWire().toText() == recovered.toWire().toText()) {
+        return current;
+      }
+      throw const FormatException(
+        'Changes were edited in another window. Reload them before continuing.',
+      );
+    }
+    Proposal? revised;
+    try {
+      final status = Envelope<OperationStatusV3>.fromWire(
+        await session.call(
+          ToolEngineRequest(
+            request: GetOperationKeyRequest(
+              universe: universe,
+              universeId: scope.universe,
+              operationKind: OperationKind.propose,
+              idempotencyKey: key,
+            ),
+          ),
+        ),
+        OperationStatusV3.fromWire,
+      ).result;
+      if (status.proposal == null) {
+        throw const FormatException(
+          'The acceptance revision is still pending. Check again before retrying.',
+        );
+      }
+      revised = await this.proposal(reference(status.proposal!));
+    } on NotFoundOrNotAccessibleError {
+      // No previous action with this key; create its revision below.
+    }
+    if (revised == null) {
+      final opened = Envelope<OpenedContext>.fromWire(
+        await session.call(
+          ToolEngineRequest(
+            request: OpenContextRequest(
+              universe: universe,
+              universeId: scope.universe,
+              continuityId: frame.continuity,
+              revision: ExactRevisionSelector(revisionId: frame.revision),
+              representedContext: ContextIdSelector(frame.context.record),
+              temporalQuery: frame.time,
+              temporalSystems: [],
+              perspective: frame.perspective,
+            ),
+          ),
+        ),
+        OpenedContext.fromWire,
+      ).result;
+      Selector? world;
+      if (proposal.worldScope case final id?) {
+        final rows = Envelope<Records>.fromWire(
+          await session.call(
+            ToolEngineRequest(
+              request: GetRequest(
+                universe: universe,
+                universeId: scope.universe,
+                contextId: opened.contextId,
+                recordIds: [
+                  RecordId.parse(id.value.replaceFirst('wld_', 'rec_')),
+                ],
+                fieldGroups: [FieldGroup.payload],
+              ),
+            ),
+          ),
+          Records.fromWire,
+        );
+        if (!rows.delivery.complete ||
+            rows.result.records.length != 1 ||
+            rows.result.records.single.payload is! WorldRecord) {
+          throw const FormatException(
+            'Could not read the proposal’s world. Reload Changes.',
+          );
+        }
+        world = Selector(
+          (rows.result.records.single.payload as WorldRecord).selector,
+        );
+      }
+      // The key is stable across reconnects; retrying the exact action recovers its
+      // existing revision instead of appending another acceptance decision.
+      revised = Envelope<Proposal>.fromWire(
+        await session.call(
+          ToolEngineRequest(
+            request: ReviseProposalRequest(
+              universe: universe,
+              universeId: scope.universe,
+              contextId: opened.contextId,
+              world: world,
+              worldId: proposal.worldScope,
+              proposalReference: target.reference,
+              operations: operations,
+              submission: Submission.submitted,
+              rationale: proposal.rationale,
+              idempotencyKey: key,
+            ),
+          ),
+        ),
+        Proposal.fromWire,
+      ).result;
+    }
+    final content = DraftContent(
+      baseRevision: frame.revision,
+      representedContext: frame.context.record,
+      operations: operations,
+      rationale: proposal.rationale,
+      proposal: reference(revised),
+    );
+    final latest = await load();
+    if (latest?.content.toWire().toText() == content.toWire().toText()) {
+      return latest!;
+    }
+    if (current.version != draft.version ||
+        latest?.version != draft.version ||
+        latest?.content.toWire().toText() != draft.content.toWire().toText()) {
+      throw const FormatException(
+        'Changes were edited in another window. Reload them before continuing.',
+      );
+    }
+    return saveContent(draft, content);
+  }
 
   Future<SavedDraft> editWorldFields(
     SavedDraft draft,

@@ -10,6 +10,8 @@ import 'changes_page.dart';
 import 'issue_decision_draft.dart';
 import 'saved_changes.dart';
 import 'issue_decision_input_fields.dart';
+import 'resource_acceptance.dart';
+import 'record_fields.dart';
 
 class IssueDecisionEditorPage extends StatefulWidget {
   const IssueDecisionEditorPage({
@@ -18,11 +20,13 @@ class IssueDecisionEditorPage extends StatefulWidget {
     required this.revision,
     this.editingDraft,
     this.index,
+    this.resourceAcceptance,
   });
   final SavedChanges changes;
   final RevisionId revision;
   final SavedDraft? editingDraft;
   final int? index;
+  final ResourceAcceptance? resourceAcceptance;
   @override
   State<IssueDecisionEditorPage> createState() =>
       _IssueDecisionEditorPageState();
@@ -69,7 +73,12 @@ class _IssueDecisionEditorPageState extends State<IssueDecisionEditorPage> {
     super.dispose();
   }
 
-  UnfinishedIssueDecisionForm _fresh() => widget.index != null
+  PrincipalId get _principal => PrincipalId.parse(
+    widget.changes.session.principal.value.replaceFirst('prf_', 'prn_'),
+  );
+  UnfinishedIssueDecisionForm _fresh() => widget.resourceAcceptance != null
+      ? widget.resourceAcceptance!.form(_principal)
+      : widget.index != null
       ? issueDecisionFormFromDraft(_draft!, widget.index!)
       : UnfinishedIssueDecisionForm(
           baseRevision: widget.revision,
@@ -93,7 +102,10 @@ class _IssueDecisionEditorPageState extends State<IssueDecisionEditorPage> {
         _generation = saved?.generation ?? BigInt.zero;
         _fields++;
         _dirty = false;
-        _stale = widget.index != null
+        _stale = widget.resourceAcceptance != null
+            ? _form!.copyWith(rationale: '').toWire().toText() !=
+                  widget.resourceAcceptance!.form(_principal).toWire().toText()
+            : widget.index != null
             ? _form!.draftVersion != _draft!.version ||
                   _form!.baseRevision != _draft!.content.baseRevision ||
                   _form!.representedContext !=
@@ -187,6 +199,21 @@ class _IssueDecisionEditorPageState extends State<IssueDecisionEditorPage> {
       _error = null;
     });
     try {
+      if (widget.resourceAcceptance case final target?) {
+        final saved = await widget.changes.acceptResource(
+          draft: _draft!,
+          target: target,
+          form: _form!,
+        );
+        if (mounted) {
+          setState(() {
+            _draft = saved;
+            _result = saved;
+            _added = 'Acceptance recorded in the revised proposal. Review Changes and run checks before approval.';
+          });
+        }
+        return;
+      }
       final draft = widget.index == null ? await widget.changes.load() : _draft;
       final base = draft ?? _choices;
       final request = issueDecisionDraftRequest(
@@ -251,7 +278,11 @@ class _IssueDecisionEditorPageState extends State<IssueDecisionEditorPage> {
     child: Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.index == null ? 'Issue decision' : 'Edit issue decision',
+          widget.resourceAcceptance != null
+              ? 'Accept unexplained resource count'
+              : widget.index == null
+              ? 'Issue decision'
+              : 'Edit issue decision',
         ),
       ),
       body: Align(
@@ -263,8 +294,10 @@ class _IssueDecisionEditorPageState extends State<IssueDecisionEditorPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'Record the author’s decision about exact findings. Accept, defer and resolve remain explicit declarations; service checks still determine their effect. Unfinished fields stay on this device until added to Changes.',
+                Text(
+                  widget.resourceAcceptance != null
+                      ? 'Accept the exact count while leaving its arrival unexplained. This creates no arrival event. Changed claims or predecessors need fresh acceptance. Approval and publication remain separate.'
+                      : 'Record the author’s decision about exact findings. Accept, defer and resolve remain explicit declarations; service checks still determine their effect. Unfinished fields stay on this device until added to Changes.',
                 ),
                 if (_loading || _saving || _adding)
                   const LinearProgressIndicator(),
@@ -278,14 +311,30 @@ class _IssueDecisionEditorPageState extends State<IssueDecisionEditorPage> {
                   ),
                 ],
                 if (_form case final f?) ...[
-                  IssueDecisionInputFields(
-                    key: ValueKey((_fields, 'issue decision')),
-                    form: f,
-                    changes: widget.changes,
-                    draft: _choices,
-                    disabled: _disabled,
-                    onChanged: _change,
-                  ),
+                  if (widget.resourceAcceptance case final target?) ...[
+                    TextFormField(
+                      key: ValueKey((_fields, 'resource reason')),
+                      initialValue: f.rationale,
+                      enabled: !_disabled,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Why you accept this unexplained count',
+                      ),
+                      onChanged: (text) => _change(f.copyWith(rationale: text)),
+                    ),
+                    ExpansionTile(
+                      title: const Text('Exact finding'),
+                      children: [ExactFields(value: target.finding.toWire())],
+                    ),
+                  ] else
+                    IssueDecisionInputFields(
+                      key: ValueKey((_fields, 'issue decision')),
+                      form: f,
+                      changes: widget.changes,
+                      draft: _choices,
+                      disabled: _disabled,
+                      onChanged: _change,
+                    ),
                   Text(
                     _dirty
                         ? 'Unsaved fields'
@@ -296,7 +345,9 @@ class _IssueDecisionEditorPageState extends State<IssueDecisionEditorPage> {
                   FilledButton(
                     onPressed: _disabled || _stale ? null : _add,
                     child: Text(
-                      widget.index == null
+                      widget.resourceAcceptance != null
+                          ? 'Record acceptance and revise proposal'
+                          : widget.index == null
                           ? 'Add to Changes'
                           : 'Save issue decision changes',
                     ),
@@ -307,7 +358,7 @@ class _IssueDecisionEditorPageState extends State<IssueDecisionEditorPage> {
                         : _save,
                     child: const Text('Save unfinished work'),
                   ),
-                  if (_added != null)
+                  if (_added != null && widget.resourceAcceptance == null)
                     TextButton(
                       onPressed: _loading || _saving || _adding ? null : _reset,
                       child: const Text('Start another issue decision'),

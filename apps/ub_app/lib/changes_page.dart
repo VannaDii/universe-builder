@@ -12,6 +12,8 @@ import 'navigation_location.dart';
 import 'draft_operation_editor.dart';
 import 'evidence_review_summary.dart';
 import 'evidence_policy_view.dart';
+import 'resource_acceptance.dart';
+import 'issue_decision_editor_page.dart';
 
 MaterialPageRoute<void> changesRoute(SavedChanges changes) {
   final scope = changes.scope;
@@ -243,6 +245,40 @@ class _ChangesPageState extends State<ChangesPage> {
         });
       }
     }
+  }
+
+  Future<void> _acceptResource(Finding finding) async {
+    if (_busy ||
+        _proposal == null ||
+        _draft == null ||
+        !widget.changes.session.author) {
+      return;
+    }
+    final target = ResourceAcceptance(proposal: _proposal!, finding: finding);
+    final scope = widget.changes.scope;
+    final changes = SavedChanges(
+      session: widget.changes.session,
+      universe: widget.changes.universe,
+      scope: EditorFormScope(
+        instance: scope.instance,
+        profile: scope.profile,
+        universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: target.proposal.baseFrame.context.record,
+        typeClientRef: target.clientRef,
+      ),
+    );
+    await Navigator.of(context).push<SavedDraft>(
+      MaterialPageRoute(
+        builder: (_) => IssueDecisionEditorPage(
+          changes: changes,
+          revision: _proposal!.baseFrame.revision,
+          editingDraft: _draft,
+          resourceAcceptance: target,
+        ),
+      ),
+    );
+    if (mounted) await _load();
   }
 
   Future<void> _approve() async {
@@ -1494,6 +1530,20 @@ class _ChangesPageState extends State<ChangesPage> {
                                     _findingRecords[finding.ruleId]!.payload
                                         as RuleRecord,
                                     _findingRecords,
+                                  ),
+                                ),
+                              if (widget.changes.session.author &&
+                                  _receipt == null &&
+                                  canAcceptResourceFinding(
+                                    finding,
+                                    _findingRecords,
+                                  ))
+                                TextButton(
+                                  onPressed: _busy
+                                      ? null
+                                      : () => _acceptResource(finding),
+                                  child: const Text(
+                                    'Accept unexplained resource count',
                                   ),
                                 ),
                               ExpansionTile(
