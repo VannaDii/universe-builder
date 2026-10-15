@@ -195,6 +195,50 @@ class _RecordBrowserPageState extends State<RecordBrowserPage> {
   bool _busy = true;
   String? _error;
 
+  final _exportSelection = <RecordId, String>{};
+  String? _exportMessage;
+  bool _exporting = false;
+  bool _exportCancelled = false;
+
+  Future<void> _export() async {
+    if (_busy ||
+        _exportSelection.isEmpty ||
+        widget.session.exportArchive == null) {
+      return;
+    }
+    final records = _exportSelection.keys.toList();
+    setState(() {
+      _busy = true;
+      _exporting = true;
+      _exportCancelled = false;
+      _error = null;
+      _exportMessage = null;
+    });
+    try {
+      final result = await widget.session.exportArchive!(
+        widget.universe,
+        recordIds: records,
+        completeHistory: false,
+      );
+      if (mounted) setState(() => _exportMessage = result.message);
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _error = _exportCancelled
+              ? 'Download cancelled. Your selection is retained. Reconnect before retrying.'
+              : 'Could not export this selection. Your selection is retained. Check the connection and access; reconnect before retrying an interrupted download.',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _exporting = false;
+        });
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -250,115 +294,198 @@ class _RecordBrowserPageState extends State<RecordBrowserPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Records')),
-    body: Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 760),
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            Text(
-              widget.continuity.name,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            Text(
-              'Context: ${representedContextName(widget.representedContext)}',
-            ),
-            const Text(
-              'Reads stay at the revision opened here. Reopen Records from the overview to read later changes.',
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _query,
-              enabled: !_busy,
-              decoration: const InputDecoration(
-                labelText: 'Find records',
-                hintText: 'Leave blank to browse',
+  Widget build(BuildContext context) => PopScope(
+    canPop: !_exporting,
+    child: Scaffold(
+      appBar: AppBar(title: const Text('Records')),
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              Text(
+                widget.continuity.name,
+                style: Theme.of(context).textTheme.titleLarge,
               ),
-              onSubmitted: (_) {
-                if (!_busy) _search();
-              },
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<RecordKind>(
-              initialValue: _kind,
-              decoration: const InputDecoration(labelText: 'Record type'),
-              items: [
-                const DropdownMenuItem(
-                  value: null,
-                  child: Text('All record types'),
+              Text(
+                'Context: ${representedContextName(widget.representedContext)}',
+              ),
+              const Text(
+                'Reads stay at the revision opened here. Reopen Records from the overview to read later changes.',
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _query,
+                enabled: !_busy,
+                decoration: const InputDecoration(
+                  labelText: 'Find records',
+                  hintText: 'Leave blank to browse',
                 ),
-                for (final kind in RecordKind.values)
-                  DropdownMenuItem(
-                    value: kind,
-                    child: Text(kind.wireName.replaceAll('_', ' ')),
+                onSubmitted: (_) {
+                  if (!_busy) _search();
+                },
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<RecordKind>(
+                initialValue: _kind,
+                decoration: const InputDecoration(labelText: 'Record type'),
+                items: [
+                  const DropdownMenuItem(
+                    value: null,
+                    child: Text('All record types'),
                   ),
-              ],
-              onChanged: _busy
-                  ? null
-                  : (kind) {
-                      setState(() => _kind = kind);
-                      _search();
-                    },
-            ),
-            TextButton(
-              onPressed: _busy ? null : () => _search(),
-              child: const Text('Search'),
-            ),
-            if (_busy) const LinearProgressIndicator(),
-            if (_error != null)
-              Semantics(liveRegion: true, child: Text(_error!)),
-            if (!_busy && _error == null && _hits.isEmpty)
-              const Text('No accessible records match this search.'),
-            for (final hit in _hits)
-              ListTile(
-                title: Text(hit.label.isEmpty ? 'Unnamed record' : hit.label),
-                subtitle: Text(hit.kind.wireName.replaceAll('_', ' ')),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: _busy
+                  for (final kind in RecordKind.values)
+                    DropdownMenuItem(
+                      value: kind,
+                      child: Text(kind.wireName.replaceAll('_', ' ')),
+                    ),
+                ],
+                onChanged: _busy
                     ? null
-                    : () => Navigator.of(context).push<void>(
-                        MaterialPageRoute(
-                          settings: kIsWeb
-                              ? RouteSettings(
-                                  name: LibraryLocation(
-                                    universe: widget.universe.id,
-                                    continuity: widget.continuity.id,
-                                    context: widget.representedContext.id,
-                                    revision: _context!.frame.revision,
-                                    record: hit.recordId,
-                                  ).uri.toString(),
-                                )
-                              : null,
-                          builder: (_) => RecordDetailPage(
-                            session: widget.session,
-                            universe: widget.universe,
-                            context: _context!,
-                            record: hit.recordId,
-                            kind: hit.kind,
-                            label: hit.label,
-                            scope: widget.scope,
-                            continuity: widget.continuity,
-                            representedContext: widget.representedContext,
+                    : (kind) {
+                        setState(() => _kind = kind);
+                        _search();
+                      },
+              ),
+              TextButton(
+                onPressed: _busy ? null : () => _search(),
+                child: const Text('Search'),
+              ),
+              if (widget.session.exportArchive != null) ...[
+                const Text(
+                  'Select records to export. The archive includes required referenced records and their retained data. Private workflow records are omitted. Filtered archives must be imported as named clones; review the exported material before sharing it.',
+                ),
+                if (_exportSelection.isNotEmpty) ...[
+                  Text('${_exportSelection.length} selected for export'),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      for (final entry in _exportSelection.entries)
+                        InputChip(
+                          label: Text(entry.value),
+                          selected: true,
+                          onSelected: _busy
+                              ? null
+                              : (_) => setState(() {
+                                  _exportSelection.remove(entry.key);
+                                  _exportMessage = null;
+                                }),
+                          onDeleted: _busy
+                              ? null
+                              : () => setState(() {
+                                  _exportSelection.remove(entry.key);
+                                  _exportMessage = null;
+                                }),
+                        ),
+                    ],
+                  ),
+                  OutlinedButton(
+                    onPressed: _busy ? null : _export,
+                    child: const Text(
+                      'Export selected records and dependencies',
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () => setState(() {
+                            _exportSelection.clear();
+                            _exportMessage = null;
+                          }),
+                    child: const Text('Clear export selection'),
+                  ),
+                ],
+                if (_exportMessage != null)
+                  Semantics(liveRegion: true, child: Text(_exportMessage!)),
+              ],
+              if (_exporting && widget.session.cancelArchiveDownload != null)
+                TextButton(
+                  onPressed: _exportCancelled
+                      ? null
+                      : () {
+                          setState(() => _exportCancelled = true);
+                          widget.session.cancelArchiveDownload!().ignore();
+                        },
+                  child: const Text('Cancel download'),
+                ),
+              if (_busy) const LinearProgressIndicator(),
+              if (_error != null)
+                Semantics(liveRegion: true, child: Text(_error!)),
+              if (!_busy && _error == null && _hits.isEmpty)
+                const Text('No accessible records match this search.'),
+              for (final hit in _hits)
+                ListTile(
+                  leading: widget.session.exportArchive == null
+                      ? null
+                      : Semantics(
+                          label:
+                              'Include ${hit.label.isEmpty ? "unnamed record" : hit.label} in export',
+                          child: Checkbox(
+                            value: _exportSelection.containsKey(hit.recordId),
+                            onChanged: _busy
+                                ? null
+                                : (checked) => setState(() {
+                                    if (checked == true) {
+                                      _exportSelection[hit.recordId] =
+                                          hit.label.isEmpty
+                                          ? 'Unnamed record'
+                                          : hit.label;
+                                    } else {
+                                      _exportSelection.remove(hit.recordId);
+                                    }
+                                    _exportMessage = null;
+                                  }),
                           ),
                         ),
-                      ),
-              ),
-            if (_delivery?.complete == false) ...[
-              const Text('More records remain in this search.'),
-              if (_delivery?.cursor != null)
-                TextButton(
-                  onPressed: _busy ? null : () => _search(more: true),
-                  child: const Text('Load more'),
+                  title: Text(hit.label.isEmpty ? 'Unnamed record' : hit.label),
+                  subtitle: Text(hit.kind.wireName.replaceAll('_', ' ')),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: _busy
+                      ? null
+                      : () => Navigator.of(context).push<void>(
+                          MaterialPageRoute(
+                            settings: kIsWeb
+                                ? RouteSettings(
+                                    name: LibraryLocation(
+                                      universe: widget.universe.id,
+                                      continuity: widget.continuity.id,
+                                      context: widget.representedContext.id,
+                                      revision: _context!.frame.revision,
+                                      record: hit.recordId,
+                                    ).uri.toString(),
+                                  )
+                                : null,
+                            builder: (_) => RecordDetailPage(
+                              session: widget.session,
+                              universe: widget.universe,
+                              context: _context!,
+                              record: hit.recordId,
+                              kind: hit.kind,
+                              label: hit.label,
+                              scope: widget.scope,
+                              continuity: widget.continuity,
+                              representedContext: widget.representedContext,
+                            ),
+                          ),
+                        ),
                 ),
+              if (_delivery?.complete == false) ...[
+                const Text('More records remain in this search.'),
+                if (_delivery?.cursor != null)
+                  TextButton(
+                    onPressed: _busy ? null : () => _search(more: true),
+                    child: const Text('Load more'),
+                  ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     ),
   );
+
 }
 
 class RecordDetailPage extends StatefulWidget {

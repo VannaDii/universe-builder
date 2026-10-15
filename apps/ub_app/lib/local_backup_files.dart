@@ -6,6 +6,7 @@ import 'package:ub_store/installation.dart';
 
 import 'connection.dart';
 import 'package_import.dart';
+import 'archive_export.dart';
 
 /// File dialogs and copying run in the app; the local service sees only private staging paths.
 final class LocalBackupFiles {
@@ -20,8 +21,14 @@ final class LocalBackupFiles {
   final Future<CanonicalValue> Function(EngineRequest) call;
   final Future<String?> Function(String source) saveFile;
   final Future<bool> Function(String destination) openFile;
-  final Future<CanonicalObject> Function(LibraryEntry, String destination)?
+  final Future<CanonicalObject> Function(
+    LibraryEntry,
+    String destination, {
+    required List<RecordId> recordIds,
+    required bool completeHistory,
+  })?
   downloadArchive;
+
   Directory _directory() {
     final parent = privateDirectory('$root/client-files');
     final directory = privateTemporaryDirectory(parent, 'backup-');
@@ -54,19 +61,34 @@ final class LocalBackupFiles {
     }
   }
 
-  Future<String?> archive(LibraryEntry universe) async {
+  Future<String?> archive(LibraryEntry universe) async => (await exportArchive(
+    universe,
+    recordIds: const [],
+    completeHistory: true,
+  )).savedPath;
+
+  Future<ArchiveExportResult> exportArchive(
+    LibraryEntry universe, {
+    required List<RecordId> recordIds,
+    required bool completeHistory,
+  }) async {
     final directory = _directory();
     final path = '${directory.path}/Universe Builder archive.sqlite';
     try {
       final manifest = WireFields(
         downloadArchive != null
-            ? await downloadArchive!(universe, path)
+            ? await downloadArchive!(
+                universe,
+                path,
+                recordIds: recordIds,
+                completeHistory: completeHistory,
+              )
             : await call(
                 ExportLogicalEngineRequest(
                   universe: Selector(universe.name),
                   destination: path,
-                  recordIds: const [],
-                  completeHistory: true,
+                  recordIds: recordIds,
+                  completeHistory: completeHistory,
                 ),
               ),
         {
@@ -81,13 +103,17 @@ final class LocalBackupFiles {
       );
       if (manifest.string('format') != 'universe-relational' ||
           manifest.string('universe') != universe.id.value ||
-          !manifest.boolean('complete') ||
-          manifest.u64('omitted_records') != BigInt.zero ||
-          !manifest.boolean('includes_history') ||
-          !manifest.boolean('includes_workflow')) {
-        throw const FormatException('Complete archive was not confirmed.');
+          manifest.boolean('includes_workflow') != completeHistory ||
+          completeHistory &&
+              (!manifest.boolean('complete') ||
+                  manifest.u64('omitted_records') != BigInt.zero ||
+                  !manifest.boolean('includes_history'))) {
+        throw const FormatException('The requested archive was not confirmed.');
       }
-      return await saveFile(path);
+      return ArchiveExportResult(
+        manifest: CanonicalObject(manifest.values.entries),
+        savedPath: await saveFile(path),
+      );
     } finally {
       directory.deleteSync(recursive: true);
     }

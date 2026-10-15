@@ -623,9 +623,16 @@ final class LoopbackEngineServer {
         }
         final fields = WireFields(
           CanonicalValue.parseWireJson(utf8.decode(input.takeBytes())),
-          {'universe'},
+          {'universe', 'record_ids', 'complete_history'},
         );
         final selector = Selector.fromWire(fields.require('universe'));
+        final recordIds = fields
+            .array('record_ids', defaultEmpty: true)
+            .map((value) => RecordId.parse(wireString(value)))
+            .toList();
+        final completeHistory = fields.values.containsKey('complete_history')
+            ? fields.boolean('complete_history')
+            : true;
         final directory = privateTemporaryDirectory(
           Directory.systemTemp.path,
           'universe-builder-browser-download-',
@@ -638,8 +645,8 @@ final class LoopbackEngineServer {
             ExportLogicalEngineRequest(
               universe: selector,
               destination: file.path,
-              recordIds: [],
-              completeHistory: true,
+              recordIds: recordIds,
+              completeHistory: completeHistory,
             ),
           ) as CanonicalObject;
           if (path == '/engine/archive-file') {

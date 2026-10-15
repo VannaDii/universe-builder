@@ -1,6 +1,7 @@
 import 'package:ub_client/browser_engine.dart';
 import 'package:ub_client/browser_http.dart';
 import 'package:ub_contracts/ub_contracts.dart';
+import 'package:ub_domain/ub_domain.dart';
 import 'package:web/web.dart' as web;
 
 import 'package:ub_client/browser_world_recovery.dart';
@@ -47,6 +48,7 @@ import 'package:ub_client/browser_attribute_recovery.dart';
 
 import 'package:ub_client/browser_story_time_recovery.dart';
 import 'connection.dart';
+import 'archive_export.dart';
 import 'browser_source_files.dart';
 import 'browser_image_files.dart';
 import 'browser_package_files.dart';
@@ -449,6 +451,38 @@ final class DeviceConnection {
         return result;
       }
 
+      Future<ArchiveExportResult> exportArchive(
+        LibraryEntry universe, {
+        required List<RecordId> recordIds,
+        required bool completeHistory,
+      }) async {
+        final archive = await sequenced(
+          () => client.prepareArchiveDownload(
+            Selector(universe.name),
+            recordIds: recordIds,
+            completeHistory: completeHistory,
+          ),
+        );
+        if (wireString(Map.fromEntries(archive.manifest.fields)['universe']!) !=
+            universe.id.value) {
+          throw const FormatException('Selected universe changed');
+        }
+        final link = web.HTMLAnchorElement()
+          ..href = archive.path
+          ..download = 'Universe Builder archive.sqlite';
+        link.style.display = 'none';
+        web.document.body!.append(link);
+        try {
+          link.click();
+        } finally {
+          link.remove();
+        }
+        return ArchiveExportResult(
+          manifest: archive.manifest,
+          downloadStarted: true,
+        );
+      }
+
       void closeRecovery() {
         for (final close in closeStores) {
           close();
@@ -483,26 +517,9 @@ final class DeviceConnection {
               )
             : null,
         downloadArchive: (universe) async {
-          final archive = await sequenced(
-            () => client.prepareArchiveDownload(Selector(universe.name)),
-          );
-          if (wireString(
-                Map.fromEntries(archive.manifest.fields)['universe']!,
-              ) !=
-              universe.id.value) {
-            throw const FormatException('Selected universe changed');
-          }
-          final link = web.HTMLAnchorElement()
-            ..href = archive.path
-            ..download = 'Universe Builder archive.sqlite';
-          link.style.display = 'none';
-          web.document.body!.append(link);
-          try {
-            link.click();
-          } finally {
-            link.remove();
-          }
+          await exportArchive(universe, recordIds: const [], completeHistory: true);
         },
+        exportArchive: client.welcome.author ? exportArchive : null,
         pickSourceText: pickBrowserSourceText,
         pickImage: client.welcome.author
             ? (universe) async {

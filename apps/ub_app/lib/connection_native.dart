@@ -466,14 +466,29 @@ final class DeviceConnection {
     }
 
     final files =
-        (Platform.isMacOS || Platform.isLinux || _embeddedLocal) && saveBackupFile != null && openBackupFile != null
+        (Platform.isMacOS || Platform.isLinux || _embeddedLocal) &&
+            saveBackupFile != null &&
+            openBackupFile != null
         ? LocalBackupFiles(
             root: root!,
             call: (request) => sequenced(() => client.call(request)),
             saveFile: saveBackupFile!,
             openFile: openBackupFile!,
-            downloadArchive: hostedChoice == null ? null : (universe, path) => sequenced(
-              () => client.downloadArchive(universe: Selector(universe.name), destination: path)),
+            downloadArchive: hostedChoice == null
+                ? null
+                : (
+                    universe,
+                    path, {
+                    required List<RecordId> recordIds,
+                    required bool completeHistory,
+                  }) => sequenced(
+                    () => client.downloadArchive(
+                      universe: Selector(universe.name),
+                      destination: path,
+                      recordIds: recordIds,
+                      completeHistory: completeHistory,
+                    ),
+                  ),
           )
         : null;
     final InstanceLibrary importStatus;
@@ -552,6 +567,7 @@ final class DeviceConnection {
           : null,
       backupFile: hostedChoice == null ? files?.backup : null,
       saveArchiveFile: client.welcome.author ? files?.archive : null,
+      exportArchive: client.welcome.author ? files?.exportArchive : null,
       cancelArchiveDownload: hostedChoice == null ? null : client.close,
       restoreBackupFile: hostedChoice == null ? files?.restore : null,
       pickImage:

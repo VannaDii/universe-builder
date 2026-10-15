@@ -174,6 +174,17 @@ Native **Save complete archive file** exports the existing portable relational
 format, including retained history, source content and historical workflow
 evidence, through the same system file providers. It can be reviewed and imported
 into another installation; archived approvals do not authorize new publication.
+**Export canon-only archive** in Backup and storage keeps factual records,
+retained history and canonical source/image content, omitting private drafts,
+approvals and workflow records. Authors can select records in **Records** and
+export them with their required references across retained revisions and
+continuities. Selection
+survives searching, filtering and loading more results on the open page. Filtered
+archives report omitted records and require import as a named clone. Required
+references can include sensitive story material; review the material before
+sharing. Native apps use the system Save dialog; web starts a browser-managed
+download whose completion is reported by the browser. Cancelling native file
+selection removes private temporary files.
 On macOS, iOS and Android, **Import a package** copies the selected archive into
 private staging, shows the existing clone/restore review, and admits only on the
 author's explicit action. Import choices and the exact review survive restart;

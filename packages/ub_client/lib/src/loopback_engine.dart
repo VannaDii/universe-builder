@@ -337,6 +337,8 @@ final class LoopbackEngineClient {
   Future<CanonicalObject> downloadArchive({
     required Selector universe,
     required String destination,
+    Iterable<RecordId> recordIds = const [],
+    bool completeHistory = true,
   }) async {
     if (_closed) throw const LocalEngineException(LocalEngineFailure.closed);
     if (_busy) throw const LocalEngineException(LocalEngineFailure.busy);
@@ -345,8 +347,17 @@ final class LoopbackEngineClient {
     }
     late Uint8List input;
     try {
-      input = CanonicalObject([MapEntry('universe', universe.toWire())])
-          .toBytes();
+      final records = recordIds.toList();
+      input = CanonicalObject([
+        MapEntry('universe', universe.toWire()),
+        if (records.isNotEmpty)
+          MapEntry(
+            'record_ids',
+            CanonicalArray(records.map((id) => CanonicalString(id.value))),
+          ),
+        if (!completeHistory)
+          const MapEntry('complete_history', CanonicalBool(false)),
+      ]).toBytes();
       if (input.length > maxFrameBytes) {
         throw const FormatException('Download request bound');
       }

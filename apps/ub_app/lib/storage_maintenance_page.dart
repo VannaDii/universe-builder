@@ -131,6 +131,16 @@ class _StorageMaintenancePageState extends State<StorageMaintenancePage> {
     }
   }
 
+  Future<void> _exportCanon() async {
+    setState(() => _savingArchive = true);
+    final exported = await widget.session.exportArchive!(
+      widget.universe!,
+      recordIds: const [],
+      completeHistory: false,
+    );
+    if (mounted) setState(() => _message = exported.message);
+  }
+
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy,
@@ -201,6 +211,15 @@ class _StorageMaintenancePageState extends State<StorageMaintenancePage> {
                     'Native backup file selection is available on macOS, iOS and Android. Other file flows remain in the operator interface.',
                   ),
                 const Divider(),
+                if (widget.session.exportArchive != null) ...[
+                  const Text('Export factual material'),
+                  const Text('Export the universe’s factual data and retained history without private drafts, approvals or workflow records. To export selected records and their required references, choose them in Records.'),
+                  OutlinedButton(
+                    onPressed: _busy ? null : () => _run(_exportCanon),
+                    child: const Text('Export canon-only archive'),
+                  ),
+                  const Divider(),
+                ],
               ],
               if (widget.session.pickArchiveFile != null)
                 TextButton.icon(

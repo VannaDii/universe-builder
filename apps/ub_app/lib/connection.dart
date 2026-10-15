@@ -2,6 +2,7 @@ import 'package:ub_contracts/ub_contracts.dart';
 import 'package:ub_domain/ub_domain.dart';
 
 import 'package_import.dart';
+import 'archive_export.dart';
 
 /// Session-only service identity. Private recovery never stores the access key.
 final class HostedConnectionChoice {
@@ -27,6 +28,7 @@ final class AppSession {
     this.pickArchiveFile,
     this.reviewArchiveFile,
     this.downloadArchive,
+    this.exportArchive,
     this.pickSourceText,
     this.pickSharedSourceText,
     this.pickImage,
@@ -132,6 +134,9 @@ final class AppSession {
   final Future<void> Function() close;
   final Future<void> Function()? logout;
   final Future<void> Function(LibraryEntry)? downloadArchive;
+  final Future<ArchiveExportResult> Function(LibraryEntry, {
+    required List<RecordId> recordIds, required bool completeHistory,
+  })? exportArchive;
   final Future<SavedUniverseCreationForm?> Function()? loadUniverseCreationForm;
   final Future<SavedUniverseCreationForm> Function(UniverseCreationForm, BigInt)?
       saveUniverseCreationForm;

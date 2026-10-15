@@ -184,11 +184,13 @@ final class BrowserEngineClient {
     };
   }
 
-  /// Prepare a pinned, complete-history archive for a browser-native download.
+  /// Prepare a pinned logical archive (complete history by default) for a browser-native download.
   /// The one-use URL contains no filesystem path or durable credential.
   Future<PreparedBrowserArchive> prepareArchiveDownload(
-    Selector universe,
-  ) async {
+    Selector universe, {
+    Iterable<RecordId> recordIds = const [],
+    bool completeHistory = true,
+  }) async {
     if (_closed) throw const LocalEngineException(LocalEngineFailure.closed);
     if (_busy) throw const LocalEngineException(LocalEngineFailure.busy);
     if (_broken) {
@@ -196,8 +198,17 @@ final class BrowserEngineClient {
     }
     late Uint8List input;
     try {
-      input = CanonicalObject([MapEntry('universe', universe.toWire())])
-          .toBytes();
+      final records = recordIds.toList();
+      input = CanonicalObject([
+        MapEntry('universe', universe.toWire()),
+        if (records.isNotEmpty)
+          MapEntry(
+            'record_ids',
+            CanonicalArray(records.map((id) => CanonicalString(id.value))),
+          ),
+        if (!completeHistory)
+          const MapEntry('complete_history', CanonicalBool(false)),
+      ]).toBytes();
       if (input.length > maxFrameBytes) {
         throw const FormatException('Frame too large');
       }
