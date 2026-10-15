@@ -352,6 +352,10 @@ final class DeviceConnection {
       root: root!,
       client: client,
     );
+    final initializationRecovery = LocalInitializationFormRecovery(
+      root: root!,
+      client: client,
+    );
     final issueDecisionRecovery = LocalIssueDecisionFormRecovery(
       root: root!,
       client: client,
@@ -612,6 +616,9 @@ final class DeviceConnection {
       loadItemPowerForm: (scope) =>
           sequenced(() => itemPowerRecovery.load(scope)),
       saveItemPowerForm: itemPowerRecovery.save,
+      loadInitializationForm: (scope) =>
+          sequenced(() => initializationRecovery.load(scope)),
+      saveInitializationForm: initializationRecovery.save,
       loadIssueDecisionForm: (scope) =>
           sequenced(() => issueDecisionRecovery.load(scope)),
       saveIssueDecisionForm: issueDecisionRecovery.save,

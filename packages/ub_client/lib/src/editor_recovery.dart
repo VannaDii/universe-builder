@@ -1072,6 +1072,45 @@ final class LocalIssueDecisionFormRecovery {
   }
 }
 
+final class LocalInitializationFormRecovery {
+  LocalInitializationFormRecovery({required String root, required this.client})
+    : _path = '$root/client-recovery/initialization-forms.sqlite';
+  final String _path;
+  final LoopbackEngineClient client;
+
+  Future<SavedInitializationForm?> load(EditorFormScope scope) async {
+    await _checkEditorScope(client, scope);
+    final path = _path;
+    return Isolate.run(() {
+      final store = InitializationFormRecoveryStore.open(path);
+      try {
+        return store.load(scope);
+      } finally {
+        store.close();
+      }
+    });
+  }
+
+  Future<SavedInitializationForm> save(
+    EditorFormScope scope,
+    UnfinishedInitializationForm form,
+    BigInt expectedGeneration,
+  ) async {
+    if (scope.profile != client.welcome.principal) {
+      throw const NotFoundOrNotAccessibleError(message: 'editor recovery');
+    }
+    final path = _path;
+    return Isolate.run(() {
+      final store = InitializationFormRecoveryStore.open(path);
+      try {
+        return store.save(scope, form, expectedGeneration);
+      } finally {
+        store.close();
+      }
+    });
+  }
+}
+
 final class LocalExceptionFormRecovery {
   LocalExceptionFormRecovery({required String root, required this.client})
     : _path = '$root/client-recovery/exception-forms.sqlite';

@@ -847,6 +847,18 @@ class _ChangesPageState extends State<ChangesPage> {
                             if (widget.changes.session.author &&
                                 _proposal == null &&
                                 operations[index]
+                                    is InitializeInstanceOperation)
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _changeDraft(
+                                        (draft) => _editOperation(draft, index),
+                                      ),
+                                child: const Text('Edit initialization fields'),
+                              ),
+                            if (widget.changes.session.author &&
+                                _proposal == null &&
+                                operations[index]
                                     is RecordIssueDecisionOperation)
                               TextButton(
                                 onPressed: _busy

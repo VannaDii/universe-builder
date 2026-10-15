@@ -53,6 +53,8 @@ final class AppSession {
     required this.saveCommunicationForm,
     required this.loadItemPowerForm,
     required this.saveItemPowerForm,
+    required this.loadInitializationForm,
+    required this.saveInitializationForm,
     required this.loadIssueDecisionForm,
     required this.saveIssueDecisionForm,
     required this.loadExceptionForm,
@@ -206,6 +208,14 @@ final class AppSession {
     BigInt,
   )
   saveItemPowerForm;
+  final Future<SavedInitializationForm?> Function(EditorFormScope)
+  loadInitializationForm;
+  final Future<SavedInitializationForm> Function(
+    EditorFormScope,
+    UnfinishedInitializationForm,
+    BigInt,
+  )
+  saveInitializationForm;
   final Future<SavedIssueDecisionForm?> Function(EditorFormScope)
   loadIssueDecisionForm;
   final Future<SavedIssueDecisionForm> Function(

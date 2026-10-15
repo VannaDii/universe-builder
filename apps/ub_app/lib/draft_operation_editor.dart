@@ -23,6 +23,7 @@ import 'passage_editor_page.dart';
 import 'boundary_editor_page.dart';
 import 'exception_editor_page.dart';
 import 'issue_decision_editor_page.dart';
+import 'initialization_editor_page.dart';
 import 'represented_context_editor_page.dart';
 import 'item_power_editor_page.dart';
 import 'plan_editor_page.dart';
@@ -281,6 +282,14 @@ Future<Widget> draftOperationEditor(
   if (operation is RecordNarrativeReferenceOperation &&
       operation.record == RecordKind.representedContext) {
     return RepresentedContextEditorPage(
+      revision: draft.content.baseRevision,
+      editingDraft: draft,
+      index: index,
+      changes: scopedChanges(operation.clientRef),
+    );
+  }
+  if (operation is InitializeInstanceOperation) {
+    return InitializationEditorPage(
       revision: draft.content.baseRevision,
       editingDraft: draft,
       index: index,

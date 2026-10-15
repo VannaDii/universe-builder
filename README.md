@@ -2853,6 +2853,16 @@ Do not connect a production package to this endpoint.
 
 The fixture implements describe, open-context, search, advanced get/propose, get-proposal, and operation lookup. Cancellation reports an already-completed proposal without pretending to undo it. Record retrieval supports the payload field group; history/evidence views return typed unsupported errors. World-scoped fixture proposals enforce explicit entity/work associations and supported target footprints; more complex footprints remain unsupported. Ordinary factual checks, state/context assembly, validation, and impact require the persistent engine; fixture commit returns policy denied. Default discovery exposes 11 tools; `--advanced-tools` exposes all 16 typed contracts, including raw record reads and proposals.
 
+**Initialize an instance** is available from a continuity’s library actions.
+Choose the instance, an exact occurred start that includes it, and a published
+initial-value assertion. Selecting the assertion pins its version at the saved
+revision. Choose the applicable worlds or universe-wide scope and an exact
+exclusive end or unbounded end. **Preview starting fact** shows the proposed
+instance value, scope, validity and source version. **Add to Changes** stages the
+initialization for the existing review and publication flow; it does not refill
+an instance after use. Initialization fields can be edited in Changes. Unfinished
+input is retained privately on the device, including the selected source version.
+
 ## Persistent installation
 
 For the ordinary desktop workspace, build the Flutter bundle as above and choose

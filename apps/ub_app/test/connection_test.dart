@@ -94,6 +94,18 @@ void main() {
         universe: catalog.universes.single.id,
         continuity: continuity.id,
       );
+      final initializationScope = EditorFormScope(
+        instance: scope.instance, profile: scope.profile, universe: scope.universe,
+        continuity: scope.continuity,
+        representedContext: continuity.representedContexts.single.id,
+      );
+      final initialization = UnfinishedInitializationForm(
+        baseRevision: continuity.revisionId,
+        representedContext: initializationScope.representedContext!,
+        clientRef: 'unfinished initialization',
+        rationale: '\ufeffStarting supplies\r\n記憶',
+      );
+      await owner.saveInitializationForm(initializationScope, initialization, BigInt.zero);
       final unfinished = UnfinishedWorldForm(
         baseRevision: continuity.revisionId,
         representedContext: continuity.representedContexts.single.id,
@@ -106,6 +118,8 @@ void main() {
       expect(saved.generation, BigInt.one);
       await owner.close();
       owner = await connection(author).connect();
+      expect((await owner.loadInitializationForm(initializationScope))!.form.toWire().toText(),
+        initialization.toWire().toText());
       final recovered = await owner.loadWorldForm(scope);
       expect(recovered!.form.toWire().toText(), unfinished.toWire().toText());
       expect(
@@ -260,6 +274,8 @@ void main() {
         saveCommunicationForm: active.saveCommunicationForm,
         loadItemPowerForm: active.loadItemPowerForm,
         saveItemPowerForm: active.saveItemPowerForm,
+        loadInitializationForm: active.loadInitializationForm,
+        saveInitializationForm: active.saveInitializationForm,
         loadIssueDecisionForm: active.loadIssueDecisionForm,
         saveIssueDecisionForm: active.saveIssueDecisionForm,
         loadExceptionForm: active.loadExceptionForm,
@@ -416,6 +432,8 @@ void main() {
         saveCommunicationForm: publishingSession.saveCommunicationForm,
         loadItemPowerForm: publishingSession.loadItemPowerForm,
         saveItemPowerForm: publishingSession.saveItemPowerForm,
+        loadInitializationForm: publishingSession.loadInitializationForm,
+        saveInitializationForm: publishingSession.saveInitializationForm,
         loadIssueDecisionForm: publishingSession.loadIssueDecisionForm,
         saveIssueDecisionForm: publishingSession.saveIssueDecisionForm,
         loadExceptionForm: publishingSession.loadExceptionForm,

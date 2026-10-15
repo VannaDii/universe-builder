@@ -3,6 +3,7 @@ library;
 export 'src/secret_forms.dart';
 
 export 'src/editor_forms.dart';
+export 'src/initialization_forms.dart';
 export 'src/type_forms.dart';
 
 export 'src/entity_forms.dart';

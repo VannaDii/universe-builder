@@ -43,6 +43,7 @@ final class LibraryLocation {
     'plan',
     'item-power',
     'represented-context',
+    'initialization',
     'issue-decision',
     'exception',
     'boundary',

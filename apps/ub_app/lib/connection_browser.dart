@@ -11,6 +11,7 @@ import 'package:ub_client/browser_relation_recovery.dart';
 import 'package:ub_client/browser_communication_recovery.dart';
 import 'package:ub_client/browser_item_power_recovery.dart';
 import 'package:ub_client/browser_issue_decision_recovery.dart';
+import 'package:ub_client/browser_initialization_recovery.dart';
 import 'package:ub_client/browser_exception_recovery.dart';
 import 'package:ub_client/browser_work_version_recovery.dart';
 import 'package:ub_client/browser_saga_recovery.dart';
@@ -168,6 +169,14 @@ final class DeviceConnection {
       closeStores.add(itemPowerStore.close);
       final itemPowerRecovery = BrowserItemPowerFormRecovery(
         store: itemPowerStore,
+        principal: client.welcome.principal,
+        call: client.call,
+      );
+      final initializationStore =
+          await BrowserInitializationFormRecoveryStore.open();
+      closeStores.add(initializationStore.close);
+      final initializationRecovery = BrowserInitializationFormRecovery(
+        store: initializationStore,
         principal: client.welcome.principal,
         call: client.call,
       );
@@ -550,6 +559,9 @@ final class DeviceConnection {
         loadItemPowerForm: (scope) =>
             sequenced(() => itemPowerRecovery.load(scope)),
         saveItemPowerForm: itemPowerRecovery.save,
+        loadInitializationForm: (scope) =>
+            sequenced(() => initializationRecovery.load(scope)),
+        saveInitializationForm: initializationRecovery.save,
         loadIssueDecisionForm: (scope) =>
             sequenced(() => issueDecisionRecovery.load(scope)),
         saveIssueDecisionForm: issueDecisionRecovery.save,

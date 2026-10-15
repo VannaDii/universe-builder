@@ -43,6 +43,7 @@ import 'work_version_editor_page.dart';
 import 'boundary_editor_page.dart';
 import 'exception_editor_page.dart';
 import 'issue_decision_editor_page.dart';
+import 'initialization_editor_page.dart';
 import 'represented_context_editor_page.dart';
 import 'item_power_editor_page.dart';
 import 'plan_editor_page.dart';
@@ -522,6 +523,20 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
       ),
     ),
     'represented-context' => RepresentedContextEditorPage(
+      revision: continuity.revisionId,
+      changes: SavedChanges(
+        session: _session!,
+        universe: Selector(_selected!.name),
+        scope: EditorFormScope(
+          instance: _library!.instance,
+          profile: _session!.principal,
+          universe: _selected!.id,
+          continuity: continuity.id,
+          representedContext: _contexts[continuity.id],
+        ),
+      ),
+    ),
+    'initialization' => InitializationEditorPage(
       revision: continuity.revisionId,
       changes: SavedChanges(
         session: _session!,
@@ -2064,6 +2079,43 @@ class _UniverseBuilderAppState extends State<UniverseBuilderApp> {
                                       }
                                     }),
                           child: const Text('Context definition'),
+                        ),
+                      if (_session!.author &&
+                          _contexts.containsKey(continuity.id))
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => Navigator.of(context)
+                                    .push<void>(
+                                      MaterialPageRoute(
+                                        settings: widget.device.supportsBrowser
+                                            ? RouteSettings(
+                                                name: LibraryLocation(
+                                                  universe: _selected!.id,
+                                                  continuity: continuity.id,
+                                                  context:
+                                                      _contexts[continuity.id],
+                                                  editor: 'initialization',
+                                                ).uri.toString(),
+                                              )
+                                            : null,
+                                        builder: (_) => _linkedEditor(
+                                          LibraryLocation(
+                                            universe: _selected!.id,
+                                            continuity: continuity.id,
+                                            context: _contexts[continuity.id],
+                                            editor: 'initialization',
+                                          ),
+                                          continuity,
+                                        ),
+                                      ),
+                                    )
+                                    .then((_) {
+                                      if (mounted && _selected != null) {
+                                        _open(_selected!);
+                                      }
+                                    }),
+                          child: const Text('Initialize an instance'),
                         ),
                       if (_session!.author &&
                           _contexts.containsKey(continuity.id))
