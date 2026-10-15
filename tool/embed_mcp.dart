@@ -1,45 +1,21 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:ub_domain/ub_domain.dart';
 
 /// Compile maintained discovery metadata without a runtime source-tree lookup.
-/// Rust remains the instruction owner during parity; retirement moves that owner
-/// before deleting the maintained original, rather than silently rewriting it.
+/// Serving guidance lives with the protocol resources, shared by both runtimes.
 void main() {
   final tools = CanonicalValue.parseWireJson(
     File('contracts/tools.json').readAsStringSync(),
   ).toText();
-  final source = File('crates/universe-mcp/src/instructions.rs')
-      .readAsStringSync();
-  String strings(String fragment) => RegExp(r'"(?:[^"\\]|\\.)*"')
-      .allMatches(fragment)
-      .map(
-        (match) => jsonDecode(
-          match.group(0)!.replaceAll('\n', r'\n').replaceAll('\r', r'\r'),
-        ) as String,
-      )
-      .join();
-  final ordinary = source.indexOf('const ORDINARY:');
-  final function = source.indexOf('pub fn instructions');
-  final mode = source.indexOf('let mode = if fixture', function);
-  final otherwise = source.indexOf('} else {', mode);
-  final modeEnd = source.indexOf('    };', otherwise);
-  if ([
-    ordinary,
-    function,
-    mode,
-    otherwise,
-    modeEnd,
-  ].any((offset) => offset < 0)) {
-    throw StateError('Maintained instruction structure changed');
-  }
+  String instructions(String name) =>
+      File('contracts/mcp-instructions/$name.txt').readAsStringSync();
   final resources = <String, String>{
     'mcpToolCatalog': tools,
-    'mcpAdvancedInstructions': strings(source.substring(0, ordinary)),
-    'mcpOrdinaryInstructions': strings(source.substring(ordinary, function)),
-    'mcpFixtureInstructions': strings(source.substring(mode, otherwise)),
-    'mcpPersistentInstructions': strings(source.substring(otherwise, modeEnd)),
+    'mcpAdvancedInstructions': instructions('advanced'),
+    'mcpOrdinaryInstructions': instructions('ordinary'),
+    'mcpFixtureInstructions': instructions('fixture'),
+    'mcpPersistentInstructions': instructions('persistent'),
   };
   if (resources.values.any((v) => v.isEmpty || v.contains("'''"))) {
     throw StateError('MCP resource cannot be embedded exactly');

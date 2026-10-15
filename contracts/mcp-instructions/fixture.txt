@@ -1,0 +1,1 @@
+Explicit universe required on every tool call. This is a disposable read/propose fixture: state, validation, impact and canonical commit are unavailable. Prose cannot complete the publication workflow in fixture mode.

@@ -1,0 +1,1 @@
+Explicit universe required on every tool call. Persistent mode authenticates a profile and enforces current grants, pinned context, validation and exact author approval or an explicit bounded delegated-commit grant.

@@ -1134,7 +1134,12 @@ Focused functional checks currently cover macOS only.
 The Dart MCP foundation now embeds the maintained tool schemas, descriptions and
 initialization instructions, preserving ordinary discovery of 11 tools and advanced
 discovery of all 16. Regenerate these resources with `dart run tool/embed_mcp.dart`;
-the maintained contracts and Rust instructions remain their owners during parity.
+the maintained tool schemas in `contracts/tools.json` and serving text in
+`contracts/mcp-instructions/` are the owning resources. Ordinary/advanced guidance
+and fixture/persistent mode text are embedded without a source-tree lookup at
+runtime. The transitional Rust adapter includes the same text resources; Dart
+generation no longer parses Rust source. Public schema generation still has its
+transitional Rust route.
 The portable stdio codec bounds raw input lines at 1 MiB, rejects duplicate keys,
 malformed UTF-8 and JSON BOMs, and preserves exact numeric tokens. Output contains
 canonical JSON plus a newline; the full advanced catalog legitimately exceeds the
