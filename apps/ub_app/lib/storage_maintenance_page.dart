@@ -5,6 +5,7 @@ import 'package:ub_contracts/ub_contracts.dart' hide State;
 import 'connection.dart';
 import 'storage_maintenance.dart';
 import 'package_import_page.dart';
+import 'universe_purge_page.dart';
 
 class StorageMaintenancePage extends StatefulWidget {
   const StorageMaintenancePage({
@@ -255,6 +256,27 @@ class _StorageMaintenancePageState extends State<StorageMaintenancePage> {
                 ],
               ],
               if (_busy) const LinearProgressIndicator(),
+              if (widget.session.author && widget.universe != null) ...[
+                const Divider(),
+                TextButton(
+                  onPressed: _busy
+                      ? null
+                      : () async {
+                          final purged = await Navigator.of(context).push<bool>(
+                            MaterialPageRoute(
+                              builder: (_) => UniversePurgePage(
+                                session: widget.session,
+                                universe: widget.universe!,
+                              ),
+                            ),
+                          );
+                          if (purged == true && context.mounted) {
+                            Navigator.of(context).pop();
+                          }
+                        },
+                  child: const Text('Purge entire universe'),
+                ),
+              ],
               if (_message != null)
                 Semantics(liveRegion: true, child: Text(_message!)),
               if (_error != null)

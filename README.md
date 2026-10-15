@@ -2656,6 +2656,13 @@ validation jobs and atomically removes catalog access, aliases and grants before
 deleting the owned package files. Startup resumes durable pending deletion and
 refuses a changed file identity. Installation identities and audit history remain;
 external backups and exports are untouched, and forensic erasure is not promised.
+Flutter exposes this author-only action under **Backup and storage → Purge entire
+universe**. **Preview purge impact** shows the service's retained-history counts,
+removal scope and erasure limits. The final action requires the preview and exact
+typed confirmation. If the impact changes, review a fresh preview; an interrupted
+response directs the author to refresh Library before retrying. Successful purge
+returns to Library. Private unfinished input on client devices and external copies
+remain outside the service purge.
 Ordinary writer types now preserve JSON scalar fact values, named objects and
 explicit unit amounts, fact lifetimes, object/definition deltas, claims and
 historical corrections/endings/withdrawals. Research requests for exact object
