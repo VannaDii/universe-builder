@@ -38,11 +38,10 @@ final class ProjectionRecovery {
         throw const FormatException('Projection rebuild budget exceeded');
       }
       final projections = RecordProjections(database);
-      for (final row in rows) {
-        projections.project(
-          next,
-          journal.load(RecordVersionId.parse(row['id'] as String)),
-        );
+      for (final record in journal.loadMany(
+        rows.map((row) => RecordVersionId.parse(row['id'] as String)),
+      )) {
+        projections.project(next, record);
         afterProjection?.call();
       }
       final heads = database.select(

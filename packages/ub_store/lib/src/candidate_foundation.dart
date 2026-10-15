@@ -8,9 +8,8 @@ import 'revision_input.dart';
 final class CandidateFoundation {
   CandidateFoundation(this.journal);
   final SqliteJournal journal;
-  void validate(Membership membership) => validateRecords([
-    for (final version in membership.values) journal.load(version),
-  ]);
+  void validate(Membership membership) =>
+      validateRecords([...journal.loadMany(membership.values)]);
 
   void validateRecords(List<StoredVersion> records) =>
       validateCandidateFoundationRecords(records);

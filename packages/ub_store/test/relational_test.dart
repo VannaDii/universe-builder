@@ -69,6 +69,16 @@ void main() {
       existing: true,
     );
     codec = RelationalCodec(database);
+    final batch = codec.getMany('Payload', [pointer, pointer]);
+    expect(batch.map((value) => value.toText()), [
+      value.toText(),
+      value.toText(),
+    ]);
+    expect(
+      () => codec.getMany('Payload', [pointer, -1]),
+      throwsFormatException,
+    );
+    expect(codec.getMany('Payload', [pointer]).single.toText(), value.toText());
     final retained = codec.get('Payload', pointer);
     expect(retained.toText(), value.toText());
     expect(
@@ -146,6 +156,24 @@ void main() {
         payloadDigest(kind, value),
         (item['digest'] as CanonicalString).value,
       );
+    }
+    for (var offset = 0; offset < rows.length; offset += 50) {
+      final values = codec.getMany(
+        'Payload',
+        rows.skip(offset).take(50).toList(),
+      );
+      for (var i = 0; i < values.length; i++) {
+        expect(
+          values[i].toText(),
+          codec.get('Payload', rows[offset + i]).toText(),
+        );
+        final kind =
+            (objectFields(values[i])['record_kind'] as CanonicalString).value;
+        expect(
+          payloadDigest(kind, values[i]),
+          (cases[offset + i]['digest'] as CanonicalString).value,
+        );
+      }
     }
     expect(
       database.select('PRAGMA integrity_check').single.values.single,
@@ -315,6 +343,7 @@ void main() {
       child,
     ]);
     expect(() => codec.get('Value', root), throwsFormatException);
+    expect(() => codec.getMany('Value', [root]), throwsFormatException);
     database.execute('ROLLBACK');
     database.execute('BEGIN IMMEDIATE');
     final cyclic = codec.put('Value', input);
@@ -326,6 +355,7 @@ void main() {
       cyclic,
     ]);
     expect(() => codec.get('Value', cyclic), throwsFormatException);
+    expect(() => codec.getMany('Value', [cyclic]), throwsFormatException);
     database.execute('ROLLBACK');
   });
 

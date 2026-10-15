@@ -101,11 +101,50 @@ final class RelationalCodec {
     return value;
   }
 
+  /// Bounded roots share prepared queries only for this call. Decoding, closed
+  /// contracts, exact text bytes and cycle/depth checks match get().
+  List<CanonicalValue> getMany(String name, List<Object?> references) {
+    if (references.length > 50) {
+      throw const FormatException('Body read batch exceeds 50 roots');
+    }
+    final statements = <String, PreparedStatement>{};
+    try {
+      return [
+        for (final reference in references)
+          () {
+            final value = _read(name, reference, <(String, int)>{}, statements);
+            if (!catalog.fits(name, value)) {
+              throw const FormatException(
+                'Stored value violates closed contract',
+              );
+            }
+            return value;
+          }(),
+      ];
+    } finally {
+      for (final statement in statements.values) {
+        statement.close();
+      }
+    }
+  }
+
+  ResultSet _select(
+    String key,
+    String Function() sql,
+    List<Object?> arguments,
+    Map<String, PreparedStatement>? statements,
+  ) => statements == null
+      ? database.select(sql(), arguments)
+      : statements
+            .putIfAbsent(key, () => database.prepare(sql()))
+            .select(arguments);
+
   CanonicalValue _read(
     String name,
     Object? reference,
-    Set<(String, int)> trail,
-  ) {
+    Set<(String, int)> trail, [
+    Map<String, PreparedStatement>? statements,
+  ]) {
     final m = catalog.model(name);
     if (m.scalar) {
       return switch ((m.kind, reference)) {
@@ -137,25 +176,29 @@ final class RelationalCodec {
             : quoted;
       }
 
-      final columns = switch (m.kind) {
-        'object' || 'tuple' => [
-          '__row_id',
-          for (final entry in m.fields.entries) ...[
-            quoteIdentifier('${entry.key}__state'),
-            column(entry.key, entry.value.model),
-          ],
-        ],
-        'union' => [
-          '__row_id',
-          'variant',
-          for (var i = 0; i < m.variants.length; i++)
-            column('v$i', m.variants[i]),
-        ],
-        _ => ['__row_id'],
-      };
-      final rows = database.select(
-        'SELECT ${columns.join(',')} FROM ${quoteIdentifier(m.table)} WHERE __row_id=?',
+      final rows = _select(
+        'row:$name',
+        () {
+          final columns = switch (m.kind) {
+            'object' || 'tuple' => [
+              '__row_id',
+              for (final entry in m.fields.entries) ...[
+                quoteIdentifier('${entry.key}__state'),
+                column(entry.key, entry.value.model),
+              ],
+            ],
+            'union' => [
+              '__row_id',
+              'variant',
+              for (var i = 0; i < m.variants.length; i++)
+                column('v$i', m.variants[i]),
+            ],
+            _ => ['__row_id'],
+          };
+          return 'SELECT ${columns.join(',')} FROM ${quoteIdentifier(m.table)} WHERE __row_id=?';
+        },
         [reference],
+        statements,
       );
       if (rows.length != 1) throw const FormatException('Missing body row');
       final row = rows.single;
@@ -173,7 +216,7 @@ final class RelationalCodec {
                 catalog.fits(entry.value.model, const CanonicalNull())) {
               fields[key] = const CanonicalNull();
             } else if (state == 2 && ref != null) {
-              fields[key] = _read(entry.value.model, ref, trail);
+              fields[key] = _read(entry.value.model, ref, trail, statements);
             } else {
               throw const FormatException('Invalid stored field state');
             }
@@ -198,19 +241,22 @@ final class RelationalCodec {
               throw const FormatException('Multiple stored branches');
             }
           }
-          return _read(m.variants[branch], row['v$branch'], trail);
+          return _read(m.variants[branch], row['v$branch'], trail, statements);
         case 'array':
         case 'map':
           final key = m.kind == 'array' ? 'ordinal' : 'name';
-          final rows = database.select(
-            "SELECT ${m.kind == 'map' ? 'CAST(name AS BLOB) AS name' : 'ordinal'},${column('item', m.item!)} FROM ${quoteIdentifier('${m.table}_items')} WHERE owner=? ORDER BY $key",
+          final rows = _select(
+            'items:$name',
+            () =>
+                "SELECT ${m.kind == 'map' ? 'CAST(name AS BLOB) AS name' : 'ordinal'},${column('item', m.item!)} FROM ${quoteIdentifier('${m.table}_items')} WHERE owner=? ORDER BY $key",
             [reference],
+            statements,
           );
           final array = <CanonicalValue>[];
           final map = <MapEntry<String, CanonicalValue>>[];
           for (var i = 0; i < rows.length; i++) {
             final row = rows[i];
-            final value = _read(m.item!, row['item'], trail);
+            final value = _read(m.item!, row['item'], trail, statements);
             if (m.kind == 'array') {
               if (row[key] != i) {
                 throw const FormatException('Noncontiguous collection');

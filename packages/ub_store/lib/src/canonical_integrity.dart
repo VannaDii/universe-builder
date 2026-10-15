@@ -90,11 +90,14 @@ final class CanonicalIntegrity {
         }
       }
 
-      for (final row in database.select(
-        'SELECT id FROM record_versions WHERE universe_id=? ORDER BY id',
-        [journal.universe.value],
+      for (final record in journal.loadMany(
+        database
+            .select(
+              'SELECT id FROM record_versions WHERE universe_id=? ORDER BY id',
+              [journal.universe.value],
+            )
+            .map((row) => RecordVersionId.parse(row['id'] as String)),
       )) {
-        final record = journal.load(RecordVersionId.parse(row['id'] as String));
         final payload = RecordPayload.fromWire(record.payload);
         content(payload);
         if (payload is WorldRecord) {
@@ -194,11 +197,13 @@ final class CanonicalIntegrity {
         }
       }
       final images = <String>{};
-      for (final row in database.select(
-        'SELECT id FROM record_versions WHERE universe_id=?',
-        [journal.universe.value],
+      for (final record in journal.loadMany(
+        database
+            .select('SELECT id FROM record_versions WHERE universe_id=?', [
+              journal.universe.value,
+            ])
+            .map((row) => RecordVersionId.parse(row['id'] as String)),
       )) {
-        final record = journal.load(RecordVersionId.parse(row['id'] as String));
         if (record.identity.recordKind == RecordKind.imageAsset) {
           final asset = ImageAssetRecord.fromWire(record.payload);
           _imageMetadata(asset);

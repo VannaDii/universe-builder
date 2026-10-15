@@ -94,6 +94,33 @@ void main() {
       table: count(table),
   };
 
+  test('bounded immutable reads preserve order, duplicates and digests after restart', () {
+    kernel.commit(
+      input('many-records', [for (var n = 1; n <= 64; n++) create(n)]),
+    );
+    database.close();
+    database = SqliteDatabase.open(
+      '${directory.path}/package.sqlite',
+      existing: true,
+    );
+    kernel = SqliteKernel(database, universe);
+    final requested = [for (var n = 64; n > 0; n--) version(n), version(1)];
+    final rows = kernel.journal.loadMany(requested).toList();
+    expect(rows.map((row) => row.versionId), requested);
+    for (var i = 0; i < requested.length; i++) {
+      expect(
+        rows[i].toCanonical().toText(),
+        kernel.journal.load(requested[i]).toCanonical().toText(),
+      );
+    }
+    expect(kernel.journal.loadMany([]), isEmpty);
+    expect(
+      () => kernel.journal.loadMany([...requested, version(999)]).toList(),
+      throwsFormatException,
+    );
+    expect(kernel.journal.load(version(1)).digest, entity(1, 1).digest);
+  });
+
   test('preview returns sorted candidate after full rollback, then publication survives reopen', () {
     final request = input('create', [create(2), create(1)]);
     final before = sizes();

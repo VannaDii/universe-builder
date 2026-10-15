@@ -255,6 +255,48 @@ final class SqliteJournal {
     return result;
   }
 
+  /// Decode immutable versions in bounded batches, preserving request order
+  /// and duplicates. No query or decoded-body cache survives a batch.
+  Iterable<StoredVersion> loadMany(Iterable<RecordVersionId> versions) sync* {
+    final source = versions.iterator;
+    while (true) {
+      final batch = <RecordVersionId>[];
+      while (batch.length < 50 && source.moveNext()) {
+        batch.add(source.current);
+      }
+      if (batch.isEmpty) return;
+      final rows = database.select(
+        'SELECT id,payload_row,record_id,kind,digest FROM record_versions WHERE universe_id=? AND id IN (${List.filled(batch.length, '?').join(',')})',
+        [universe.value, for (final version in batch) version.value],
+      );
+      final byId = {for (final row in rows) row['id'] as String: row};
+      final pointers = <Object?>[];
+      for (final version in batch) {
+        final row = byId[version.value];
+        if (row == null) {
+          throw const FormatException('Missing or ambiguous journal row');
+        }
+        pointers.add(row['payload_row']);
+      }
+      final payloads = codec.getMany('Payload', pointers);
+      for (var i = 0; i < batch.length; i++) {
+        final row = byId[batch[i].value]!;
+        final result = StoredVersion(
+          versionId: batch[i],
+          identity: RecordIdentity(
+            universeId: universe,
+            recordId: RecordId.parse(row['record_id'] as String),
+            recordKind: RecordKind.parse(row['kind'] as String),
+          ),
+          payload: payloads[i],
+          digest: row['digest'] as String,
+        );
+        result.verify();
+        yield result;
+      }
+    }
+  }
+
   Membership snapshot(ContinuityId continuity, RevisionId revision) =>
       Map.unmodifiable(_resolve(continuity.value, revision.value, <String>{}));
 

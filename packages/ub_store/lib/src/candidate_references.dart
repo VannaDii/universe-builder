@@ -13,9 +13,7 @@ final class CandidateReferences {
   final SqliteJournal journal;
 
   void validate(Membership membership) {
-    final records = [
-      for (final version in membership.values) journal.load(version),
-    ];
+    final records = [...journal.loadMany(membership.values)];
     validateCandidateReferenceRecords(
       universe: journal.universe,
       records: records,

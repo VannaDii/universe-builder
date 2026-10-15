@@ -66,8 +66,8 @@ final class SqliteValidationWorkflow implements ValidationJobService {
   List<RecordVersion> _canon(ContinuityId continuity, RevisionId revision) {
     final rows =
         [
-          for (final version in _journal.snapshot(continuity, revision).values)
-            _version(version),
+          for (final record in _journal.loadMany(_journal.snapshot(continuity, revision).values))
+            RecordVersion.fromWire(record.toCanonical()),
         ]..sort(
           (a, b) =>
               a.identity.recordId.value.compareTo(b.identity.recordId.value),
