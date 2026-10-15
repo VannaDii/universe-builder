@@ -53,7 +53,7 @@ extension type _PackRow._(JSObject _) implements JSObject {
     String? draftVersion,
     JSAny? revisionTarget,
     String? expectedRecordVersion,
-    String? original,
+    JSAny? originalFields,
   });
   external String get generation;
   external String get baseRevision;
@@ -65,6 +65,7 @@ extension type _PackRow._(JSObject _) implements JSObject {
   external String? get draftVersion;
   external JSAny? get revisionTarget;
   external String? get expectedRecordVersion;
+  external JSAny? get originalFields;
   external String? get original;
 }
 
@@ -97,6 +98,75 @@ extension type _CapabilityRow._(JSObject _) implements JSObject {
   external String get value;
 }
 
+SavedPackForm _decodePack(
+  _PackRow row,
+  Iterable<_DependencyRow> dependencyRows,
+  Iterable<_CapabilityRow> capabilityRows,
+  Iterable<_MemberRow> memberRows, {
+  bool legacy = false,
+}) {
+  return SavedPackForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedPackForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      key: row.key,
+      version: row.version,
+      rationale: row.rationale,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+      revisionTarget: row.revisionTarget == null
+          ? null
+          : ExpressionReferenceInput.fromWire(
+              decodeBrowserInput(row.revisionTarget!),
+            ),
+      expectedRecordVersion: row.expectedRecordVersion == null
+          ? null
+          : RecordVersionId.parse(row.expectedRecordVersion!),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : DomainPackRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : DomainPackRecord.fromWire(decodeBrowserInput(row.originalFields!)),
+      dependencies: dependencyRows.map(
+        (dependency) => PackDependencyInput(
+          key: dependency.key,
+          version: dependency.version,
+        ),
+      ),
+      capabilities: capabilityRows.map((capability) => capability.value),
+      records: memberRows.map((member) => member.value),
+    ),
+  );
+}
+
+_PackRow _encodePack(SavedPackForm saved) {
+  final form = saved.form;
+  return _PackRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    key: form.key,
+    version: form.version,
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+    revisionTarget: form.revisionTarget == null
+        ? null
+        : encodeBrowserInput(form.revisionTarget!.toWire()),
+    expectedRecordVersion: form.expectedRecordVersion?.value,
+    originalFields: form.original == null
+        ? null
+        : encodeBrowserInput(form.original!.toWire()),
+  );
+}
+
 /// Named fields and ordered child rows, never a serialized UI-state blob.
 /// IndexedDB transactions compare generations and commit all children together.
 /// Browser storage is origin-private and may be cleared by the user/browser;
@@ -116,7 +186,7 @@ final class BrowserPackFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserPackFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -125,10 +195,38 @@ final class BrowserPackFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            for (final table in _tables) {
+              db.createObjectStore(table);
+            }
+          } else {
+            final scan = tx.objectStore(_tables.first).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodePack(
+                    _decodePack(
+                      cursor.value as _PackRow,
+                      [],
+                      [],
+                      [],
+                      legacy: true,
+                    ),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -201,41 +299,7 @@ final class BrowserPackFormRecoveryStore {
       ..sort((a, b) => a.ordinal.compareTo(b.ordinal));
     final memberRows = (conversions.result as JSArray<_MemberRow>).toDart
       ..sort((a, b) => a.ordinal.compareTo(b.ordinal));
-    return SavedPackForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedPackForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        key: row.key,
-        version: row.version,
-        rationale: row.rationale,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-        revisionTarget: row.revisionTarget == null
-            ? null
-            : ExpressionReferenceInput.fromWire(
-                decodeBrowserInput(row.revisionTarget!),
-              ),
-        expectedRecordVersion: row.expectedRecordVersion == null
-            ? null
-            : RecordVersionId.parse(row.expectedRecordVersion!),
-        original: row.original == null
-            ? null
-            : DomainPackRecord.fromWire(
-                CanonicalValue.parseWireJson(row.original!),
-              ),
-        dependencies: dependencyRows.map(
-          (dependency) => PackDependencyInput(
-            key: dependency.key,
-            version: dependency.version,
-          ),
-        ),
-        capabilities: capabilityRows.map((capability) => capability.value),
-        records: memberRows.map((member) => member.value),
-      ),
-    );
+    return _decodePack(row, dependencyRows, capabilityRows, memberRows);
   }
 
   Future<SavedPackForm?> load(EditorFormScope scope) {
@@ -333,24 +397,7 @@ final class BrowserPackFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _PackRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              key: form.key,
-              version: form.version,
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-              revisionTarget: form.revisionTarget == null
-                  ? null
-                  : encodeBrowserInput(form.revisionTarget!.toWire()),
-              expectedRecordVersion: form.expectedRecordVersion?.value,
-              original: form.original?.toWire().toText(),
-            ),
-            key.toJS,
-          );
+          primary.put(_encodePack(saved!), key.toJS);
           aliasStore.delete(range);
           labelStore.delete(range);
           conversionStore.delete(range);

@@ -7,6 +7,7 @@ import 'package:ub_domain/ub_domain.dart';
 import 'package:web/web.dart' as web;
 
 import 'editor_scope.dart';
+import 'browser_input_fields.dart';
 
 final class BrowserTypeFormRecovery {
   const BrowserTypeFormRecovery({
@@ -54,9 +55,9 @@ extension type _TypeRow._(JSObject _) implements JSObject {
     required String rationale,
     bool? classificationExecutable,
     String? draftVersion,
-    String? revisionTarget,
+    JSAny? revisionTargetFields,
     String? expectedRecordVersion,
-    String? original,
+    JSAny? originalFields,
     required String parentResolution,
   });
   external String get generation;
@@ -71,8 +72,10 @@ extension type _TypeRow._(JSObject _) implements JSObject {
   external String get rationale;
   external bool? get classificationExecutable;
   external String? get draftVersion;
+  external JSAny? get revisionTargetFields;
   external String? get revisionTarget;
   external String? get expectedRecordVersion;
+  external JSAny? get originalFields;
   external String? get original;
   external String get parentResolution;
 }
@@ -96,6 +99,87 @@ extension type _LabelRow._(JSObject _) implements JSObject {
   external String get text;
 }
 
+SavedTypeForm _decodeType(
+  _TypeRow row,
+  Iterable<_WorldRow> worlds,
+  Iterable<_LabelRow> labelRows, {
+  bool legacy = false,
+}) {
+  return SavedTypeForm(
+    generation: BigInt.parse(row.generation),
+    form: UnfinishedTypeForm(
+      baseRevision: RevisionId.parse(row.baseRevision),
+      representedContext: RecordId.parse(row.representedContext),
+      clientRef: row.clientRef,
+      namespace: row.namespace,
+      key: row.key,
+      name: row.name,
+      parentChoice: row.parentChoice,
+      applicabilityChoice: row.applicabilityChoice,
+      rationale: row.rationale,
+      classificationExecutable: row.classificationExecutable,
+      draftVersion: row.draftVersion == null
+          ? null
+          : BigInt.parse(row.draftVersion!),
+      revisionTarget: legacy
+          ? (row.revisionTarget == null
+                ? null
+                : RecordRef.fromCanonical(
+                    CanonicalValue.parseWireJson(row.revisionTarget!),
+                  ))
+          : row.revisionTargetFields == null
+          ? null
+          : RecordRef.fromCanonical(
+              decodeBrowserInput(row.revisionTargetFields!),
+            ),
+      expectedRecordVersion: row.expectedRecordVersion == null
+          ? null
+          : RecordVersionId.parse(row.expectedRecordVersion!),
+      original: legacy
+          ? (row.original == null
+                ? null
+                : EntityTypeRecord.fromWire(
+                    CanonicalValue.parseWireJson(row.original!),
+                  ))
+          : row.originalFields == null
+          ? null
+          : EntityTypeRecord.fromWire(decodeBrowserInput(row.originalFields!)),
+      parentResolution: row.parentResolution,
+      worlds: worlds.map((world) => WorldId.parse(world.value)),
+      labels: labelRows.map(
+        (label) =>
+            PropertyLabelInput(language: label.language, text: label.text),
+      ),
+    ),
+  );
+}
+
+_TypeRow _encodeType(SavedTypeForm saved) {
+  final form = saved.form;
+  return _TypeRow(
+    generation: saved.generation.toString(),
+    baseRevision: form.baseRevision.value,
+    representedContext: form.representedContext.value,
+    clientRef: form.clientRef,
+    namespace: form.namespace,
+    key: form.key,
+    name: form.name,
+    parentChoice: form.parentChoice,
+    applicabilityChoice: form.applicabilityChoice,
+    classificationExecutable: form.classificationExecutable,
+    rationale: form.rationale,
+    draftVersion: form.draftVersion?.toString(),
+    revisionTargetFields: form.revisionTarget == null
+        ? null
+        : encodeBrowserInput(form.revisionTarget!.toCanonical()),
+    expectedRecordVersion: form.expectedRecordVersion?.value,
+    originalFields: form.original == null
+        ? null
+        : encodeBrowserInput(form.original!.toWire()),
+    parentResolution: form.parentResolution,
+  );
+}
+
 /// Named fields and ordered child rows, never a serialized UI-state blob.
 /// IndexedDB transactions compare generations and commit all children together.
 /// Browser storage is origin-private and may be cleared by the user/browser;
@@ -110,7 +194,7 @@ final class BrowserTypeFormRecoveryStore {
   }) async {
     try {
       final result = Completer<BrowserTypeFormRecoveryStore>();
-      final request = web.window.indexedDB.open(databaseName, 1);
+      final request = web.window.indexedDB.open(databaseName, 2);
       void fail() {
         if (!result.isCompleted) {
           result.completeError(
@@ -119,10 +203,32 @@ final class BrowserTypeFormRecoveryStore {
         }
       }
 
-      request.onupgradeneeded = ((web.Event _) {
-        final db = request.result as web.IDBDatabase;
-        for (final name in _tables) {
-          db.createObjectStore(name);
+      request.onupgradeneeded = ((web.Event event) {
+        final db = request.result as web.IDBDatabase, tx = request.transaction!;
+        try {
+          if ((event as web.IDBVersionChangeEvent).oldVersion == 0) {
+            for (final table in _tables) {
+              db.createObjectStore(table);
+            }
+          } else {
+            final scan = tx.objectStore(_tables.first).openCursor();
+            scan.onsuccess = ((web.Event _) {
+              try {
+                if (scan.result == null || scan.result.isUndefined) return;
+                final cursor = scan.result as web.IDBCursorWithValue;
+                cursor.update(
+                  _encodeType(
+                    _decodeType(cursor.value as _TypeRow, [], [], legacy: true),
+                  ),
+                );
+                cursor.continue_();
+              } catch (_) {
+                tx.abort();
+              }
+            }).toJS;
+          }
+        } catch (_) {
+          tx.abort();
         }
       }).toJS;
       request.onerror = ((web.Event _) => fail()).toJS;
@@ -192,43 +298,7 @@ final class BrowserTypeFormRecoveryStore {
       ..sort((a, b) => a.ordinal.compareTo(b.ordinal));
     final labelRows = (labels.result as JSArray<_LabelRow>).toDart
       ..sort((a, b) => a.ordinal.compareTo(b.ordinal));
-    return SavedTypeForm(
-      generation: BigInt.parse(row.generation),
-      form: UnfinishedTypeForm(
-        baseRevision: RevisionId.parse(row.baseRevision),
-        representedContext: RecordId.parse(row.representedContext),
-        clientRef: row.clientRef,
-        namespace: row.namespace,
-        key: row.key,
-        name: row.name,
-        parentChoice: row.parentChoice,
-        applicabilityChoice: row.applicabilityChoice,
-        rationale: row.rationale,
-        classificationExecutable: row.classificationExecutable,
-        draftVersion: row.draftVersion == null
-            ? null
-            : BigInt.parse(row.draftVersion!),
-        revisionTarget: row.revisionTarget == null
-            ? null
-            : RecordRef.fromCanonical(
-                CanonicalValue.parseWireJson(row.revisionTarget!),
-              ),
-        expectedRecordVersion: row.expectedRecordVersion == null
-            ? null
-            : RecordVersionId.parse(row.expectedRecordVersion!),
-        original: row.original == null
-            ? null
-            : EntityTypeRecord.fromWire(
-                CanonicalValue.parseWireJson(row.original!),
-              ),
-        parentResolution: row.parentResolution,
-        worlds: worlds.map((world) => WorldId.parse(world.value)),
-        labels: labelRows.map(
-          (label) =>
-              PropertyLabelInput(language: label.language, text: label.text),
-        ),
-      ),
-    );
+    return _decodeType(row, worlds, labelRows);
   }
 
   Future<SavedTypeForm?> load(EditorFormScope scope) {
@@ -333,27 +403,7 @@ final class BrowserTypeFormRecoveryStore {
             generation: generation + BigInt.one,
             form: form,
           );
-          primary.put(
-            _TypeRow(
-              generation: saved!.generation.toString(),
-              baseRevision: form.baseRevision.value,
-              representedContext: form.representedContext.value,
-              clientRef: form.clientRef,
-              namespace: form.namespace,
-              key: form.key,
-              name: form.name,
-              parentChoice: form.parentChoice,
-              applicabilityChoice: form.applicabilityChoice,
-              classificationExecutable: form.classificationExecutable,
-              rationale: form.rationale,
-              draftVersion: form.draftVersion?.toString(),
-              revisionTarget: form.revisionTarget?.toCanonical().toText(),
-              expectedRecordVersion: form.expectedRecordVersion?.value,
-              original: form.original?.toWire().toText(),
-              parentResolution: form.parentResolution,
-            ),
-            key.toJS,
-          );
+          primary.put(_encodeType(saved!), key.toJS);
           aliasStore.delete(range);
           labelStore.delete(range);
           for (var i = 0; i < form.worlds.length; i++) {
